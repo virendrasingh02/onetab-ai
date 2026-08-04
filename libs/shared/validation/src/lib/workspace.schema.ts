@@ -1,0 +1,88 @@
+import { WorkspaceRole } from '@org/types';
+import { z } from 'zod';
+
+/** Slugs appear in URLs (/w/:slug) and must not collide with app routes. */
+const RESERVED_SLUGS = new Set([
+  'api',
+  'admin',
+  'app',
+  'auth',
+  'login',
+  'logout',
+  'register',
+  'settings',
+  'new',
+  'invite',
+  'help',
+  'support',
+  'static',
+  'assets',
+  'www',
+]);
+
+export const workspaceSlugSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(3, 'Slug must be at least 3 characters')
+  .max(40, 'Slug must be at most 40 characters')
+  .regex(
+    /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+    'Use lowercase letters, numbers and single hyphens',
+  )
+  .refine((value) => !RESERVED_SLUGS.has(value), {
+    message: 'That slug is reserved',
+  });
+
+export const workspaceNameSchema = z
+  .string()
+  .trim()
+  .min(2, 'Name must be at least 2 characters')
+  .max(60, 'Name must be at most 60 characters');
+
+export const createWorkspaceSchema = z.object({
+  name: workspaceNameSchema,
+  slug: workspaceSlugSchema,
+  description: z.string().trim().max(280).optional().or(z.literal('')),
+});
+
+export const updateWorkspaceSchema = z.object({
+  name: workspaceNameSchema.optional(),
+  description: z.string().trim().max(280).nullable().optional(),
+  avatarUrl: z.string().url('Enter a valid URL').nullable().optional(),
+});
+
+export const workspaceRoleSchema = z.enum([
+  WorkspaceRole.OWNER,
+  WorkspaceRole.ADMIN,
+  WorkspaceRole.MEMBER,
+  WorkspaceRole.GUEST,
+]);
+
+export const updateMemberRoleSchema = z.object({
+  role: workspaceRoleSchema.refine((role) => role !== WorkspaceRole.OWNER, {
+    // Ownership moves through an explicit transfer, not a role edit.
+    message: 'Use "Transfer ownership" to assign the OWNER role',
+  }),
+});
+
+export const inviteMembersSchema = z.object({
+  emails: z
+    .array(z.string().trim().toLowerCase().email('Enter valid email addresses'))
+    .min(1, 'Add at least one email address')
+    .max(50, 'Invite at most 50 people at a time')
+    .refine((list) => new Set(list).size === list.length, {
+      message: 'Remove duplicate email addresses',
+    }),
+  role: workspaceRoleSchema.default(WorkspaceRole.MEMBER),
+});
+
+export const acceptInvitationSchema = z.object({
+  token: z.string().min(1, 'Invitation token is required'),
+});
+
+export type CreateWorkspaceInput = z.infer<typeof createWorkspaceSchema>;
+export type UpdateWorkspaceInput = z.infer<typeof updateWorkspaceSchema>;
+export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>;
+export type InviteMembersInput = z.infer<typeof inviteMembersSchema>;
+export type AcceptInvitationInput = z.infer<typeof acceptInvitationSchema>;

@@ -1,0 +1,31 @@
+{
+  "name": "@org/api-e2e",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "implicitDependencies": [
+      "@org/api"
+    ],
+    "targets": {
+      "e2e": {
+        "executor": "nx:run-commands",
+        "cache": true,
+        "outputs": [
+          "{projectRoot}/test-output/vitest/coverage"
+        ],
+        "dependsOn": [
+          "@org/api:build",
+          "@org/api:serve"
+        ],
+        "options": {
+          "command": "vitest run --passWithNoTests",
+          "cwd": "apps/api-e2e"
+        }
+      }
+    },
+    "tags": [
+      "type:e2e",
+      "scope:api"
+    ]
+  }
+}

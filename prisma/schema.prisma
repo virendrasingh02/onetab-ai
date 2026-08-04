@@ -1,13 +1,303 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// OneTab AI — Phase 2 (workspace & collaboration foundation).
+//
+// Conventions
+//   * cuid() ids so they are safe to expose in URLs.
+//   * Every foreign key that is queried gets an explicit @@index; Postgres does
+//     not create one automatically for the referencing side.
+//   * Membership tables carry a compound @@unique so a user cannot join twice.
+//   * Deletes cascade from the owning aggregate (workspace -> channels -> members).
 
 generator client {
   provider = "prisma-client"
-  output   = "../generated/prisma"
+  output   = "../libs/api/database/src/generated"
+  // The API bundles to CommonJS via webpack. The default ESM output uses
+  // `import.meta.url`, which is a syntax error under a CJS `module` target.
+  moduleFormat = "cjs"
+  runtime      = "nodejs"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+/// Platform-wide role. Workspace-level permissions live on WorkspaceMember.
+enum SystemRole {
+  USER
+  SUPPORT
+  SUPERADMIN
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+  GUEST
+}
+
+enum ChannelRole {
+  ADMIN
+  MEMBER
+}
+
+enum ChannelVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum PresenceStatus {
+  ONLINE
+  AWAY
+  BUSY
+  OFFLINE
+}
+
+model User {
+  id           String @id @default(cuid())
+  email        String @unique
+  /// bcrypt digest. Never selected into API responses.
+  passwordHash String
+  name         String
+
+  displayName String?
+  avatarUrl   String?
+  bio         String?
+  timezone    String  @default("UTC")
+
+  systemRole      SystemRole     @default(USER)
+  presence        PresenceStatus @default(OFFLINE)
+  emailVerifiedAt DateTime?
+  lastSeenAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownedWorkspaces  Workspace[]          @relation("WorkspaceOwner")
+  workspaceMembers WorkspaceMember[]
+  channelMembers   ChannelMember[]
+  createdChannels  Channel[]            @relation("ChannelCreator")
+  sentInvitations  Invitation[]         @relation("InvitationSender")
+  refreshTokens    RefreshToken[]
+  passwordResets   PasswordResetToken[]
+  uploads          Upload[]
+
+  @@map("users")
+}
+
+model Workspace {
+  id          String  @id @default(cuid())
+  name        String
+  /// Used in URLs: /w/:slug. Globally unique.
+  slug        String  @unique
+  description String?
+  avatarUrl   String?
+
+  ownerId String
+  owner   User   @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members     WorkspaceMember[]
+  channels    Channel[]
+  invitations Invitation[]
+  uploads     Upload[]
+
+  @@index([ownerId])
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id String @id @default(cuid())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role WorkspaceRole @default(MEMBER)
+
+  joinedAt   DateTime  @default(now())
+  lastSeenAt DateTime?
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+  @@index([workspaceId, role])
+  @@map("workspace_members")
+}
+
+model Channel {
+  id String @id @default(cuid())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  name        String
+  /// Unique per workspace, not globally.
+  slug        String
+  topic       String?
+  description String?
+
+  visibility ChannelVisibility @default(PUBLIC)
+  isArchived Boolean           @default(false)
+  archivedAt DateTime?
+
+  createdById String
+  createdBy   User   @relation("ChannelCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members ChannelMember[]
+  pins    ChannelPin[]
+  uploads Upload[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId, isArchived])
+  @@index([workspaceId, visibility])
+  @@index([createdById])
+  @@map("channels")
+}
+
+model ChannelMember {
+  id String @id @default(cuid())
+
+  channelId String
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role       ChannelRole @default(MEMBER)
+  /// Per-user star, drives the "Favorites" sidebar group.
+  isFavorite Boolean     @default(false)
+  isMuted    Boolean     @default(false)
+
+  lastReadAt DateTime?
+  joinedAt   DateTime  @default(now())
+
+  @@unique([channelId, userId])
+  @@index([userId, isFavorite])
+  @@index([channelId])
+  @@map("channel_members")
+}
+
+/// Pinned item in a channel. Phase 2 stores the pin; the target becomes a
+/// message reference once messaging lands.
+model ChannelPin {
+  id String @id @default(cuid())
+
+  channelId String
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  title      String
+  url        String?
+  note       String?
+  pinnedById String
+  pinnedAt   DateTime @default(now())
+
+  @@index([channelId, pinnedAt])
+  @@map("channel_pins")
+}
+
+model Invitation {
+  id String @id @default(cuid())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  email String
+  role  WorkspaceRole @default(MEMBER)
+
+  /// SHA-256 of the emailed token. The plaintext is never stored.
+  tokenHash String @unique
+
+  status     InvitationStatus @default(PENDING)
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  revokedAt  DateTime?
+
+  invitedById String
+  invitedBy   User   @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  /// One live invite per email per workspace.
+  @@unique([workspaceId, email])
+  @@index([workspaceId, status])
+  @@map("invitations")
+}
+
+/// Rotating refresh tokens. One row per active session/device.
+model RefreshToken {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// SHA-256 of the token. A DB leak must not yield usable sessions.
+  tokenHash String @unique
+
+  userAgent String?
+  ipAddress String?
+
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+/// File upload foundation. Phase 2 records metadata and issues storage keys;
+/// the storage driver (S3/R2) plugs in behind StorageService.
+model Upload {
+  id String @id @default(cuid())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  channelId String?
+  channel   Channel? @relation(fields: [channelId], references: [id], onDelete: SetNull)
+
+  uploaderId String
+  uploader   User   @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+
+  filename   String
+  mimeType   String
+  /// Bytes.
+  size       Int
+  /// Opaque key in the object store.
+  storageKey String  @unique
+  checksum   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@index([channelId, createdAt])
+  @@index([uploaderId])
+  @@map("uploads")
 }

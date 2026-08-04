@@ -1,0 +1,11 @@
+{
+  "name": "@org/admin",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "tags": [
+      "type:app",
+      "scope:admin"
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@org/design-system/styles/theme.css';
+
+/*
+ * Tailwind v4 auto-detects sources relative to this file, which stops at the
+ * app boundary. The shared/feature libraries live outside it, so their class
+ * usage has to be registered explicitly or those utilities get tree-shaken.
+ */
+@source '../../../libs/shared/ui/src';
+@source '../../../libs/shared/design-system/src';
+@source '../../../libs/web';

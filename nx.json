@@ -6,9 +6,18 @@
       "default",
       "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
       "!{projectRoot}/tsconfig.spec.json",
-      "!{projectRoot}/src/test-setup.[jt]s"
+      "!{projectRoot}/src/test-setup.[jt]s",
+      "!{projectRoot}/eslint.config.*",
+      "!{projectRoot}/vite.config.*.timestamp*",
+      "!{projectRoot}/**/*.md"
     ],
-    "sharedGlobals": []
+    "sharedGlobals": [
+      "{workspaceRoot}/tsconfig.base.json",
+      "{workspaceRoot}/package-lock.json",
+      "{workspaceRoot}/eslint.config.mjs",
+      "{workspaceRoot}/prisma/schema.prisma",
+      "{workspaceRoot}/.github/workflows/ci.yml"
+    ]
   },
   "plugins": [
     {
@@ -33,6 +42,7 @@
         "devTargetName": "dev",
         "previewTargetName": "preview",
         "serveStaticTargetName": "serve-static",
+        "testTargetName": "test",
         "typecheckTargetName": "typecheck",
         "buildDepsTargetName": "build-deps",
         "watchDepsTargetName": "watch-deps"
@@ -48,28 +58,52 @@
         "watchDepsTargetName": "watch-deps",
         "serveStaticTargetName": "serve-static"
       }
+    },
+    {
+      "plugin": "@nx/eslint/plugin",
+      "options": {
+        "targetName": "lint"
+      }
     }
   ],
   "analytics": false,
   "generators": {
     "@nx/react": {
       "application": {
-        "babel": true,
+        "babel": false,
         "style": "css",
-        "linter": "none",
-        "bundler": "vite"
+        "linter": "eslint",
+        "bundler": "vite",
+        "unitTestRunner": "vitest"
       },
       "component": {
         "style": "css"
       },
       "library": {
         "style": "css",
-        "linter": "none",
-        "unitTestRunner": "none"
+        "linter": "eslint",
+        "unitTestRunner": "vitest"
       }
     }
   },
   "targetDefaults": {
+    "build": {
+      "cache": true,
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"]
+    },
+    "test": {
+      "cache": true,
+      "inputs": ["default", "^production"]
+    },
+    "lint": {
+      "cache": true,
+      "inputs": ["default", "{workspaceRoot}/eslint.config.mjs"]
+    },
+    "typecheck": {
+      "cache": true,
+      "dependsOn": ["^build"]
+    },
     "@nx/js:swc": {
       "cache": true,
       "dependsOn": ["^build"],

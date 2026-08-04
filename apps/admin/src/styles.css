@@ -1,0 +1,7 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@org/design-system/styles/theme.css';
+
+/* See apps/web/src/styles.css — library sources must be registered explicitly. */
+@source '../../../libs/shared/ui/src';
+@source '../../../libs/shared/design-system/src';

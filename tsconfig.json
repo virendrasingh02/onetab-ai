@@ -4,55 +4,106 @@
   "files": [],
   "references": [
     {
-      "path": "./web"
+      "path": "./libs/shared/design-system"
     },
     {
-      "path": "./admin"
+      "path": "./libs/shared/api-client"
     },
     {
-      "path": "./api-e2e"
+      "path": "./libs/web/notifications"
     },
     {
-      "path": "./api"
+      "path": "./libs/shared/validation"
     },
     {
-      "path": "./ui"
+      "path": "./libs/shared/constants"
     },
     {
-      "path": "./design-system"
+      "path": "./libs/shared/realtime"
     },
     {
-      "path": "./auth"
+      "path": "./libs/shared/common"
     },
     {
-      "path": "./api-client"
+      "path": "./libs/shared/config"
     },
     {
-      "path": "./hooks"
+      "path": "./libs/shared/hooks"
     },
     {
-      "path": "./utils"
+      "path": "./libs/shared/types"
     },
     {
-      "path": "./types"
+      "path": "./libs/shared/utils"
     },
     {
-      "path": "./config"
+      "path": "./libs/shared/ui"
     },
     {
-      "path": "./constants"
+      "path": "./libs/web/auth"
     },
     {
-      "path": "./validation"
+      "path": "./apps/api-e2e"
     },
     {
-      "path": "./realtime"
+      "path": "./apps/admin"
     },
     {
-      "path": "./notifications"
+      "path": "./apps/api"
     },
     {
-      "path": "./common"
+      "path": "./apps/web"
+    },
+    {
+      "path": "./libs/web/invitations"
+    },
+    {
+      "path": "./libs/api/workspace"
+    },
+    {
+      "path": "./libs/web/dashboard"
+    },
+    {
+      "path": "./libs/web/workspace"
+    },
+    {
+      "path": "./libs/api/database"
+    },
+    {
+      "path": "./libs/web/channels"
+    },
+    {
+      "path": "./libs/web/settings"
+    },
+    {
+      "path": "./libs/api/channel"
+    },
+    {
+      "path": "./libs/web/members"
+    },
+    {
+      "path": "./libs/web/profile"
+    },
+    {
+      "path": "./libs/api/common"
+    },
+    {
+      "path": "./libs/api/member"
+    },
+    {
+      "path": "./libs/web/layout"
+    },
+    {
+      "path": "./libs/web/search"
+    },
+    {
+      "path": "./libs/web/upload"
+    },
+    {
+      "path": "./libs/api/auth"
+    },
+    {
+      "path": "./libs/api/user"
     }
   ],
   "compilerOptions": {}

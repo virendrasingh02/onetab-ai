@@ -1,0 +1,97 @@
+import { Injectable } from '@nestjs/common';
+import { PUBLIC_USER_SELECT, toPublicUser } from '@org/api-common';
+import { PrismaService } from '@org/database';
+import type { CurrentUser, PublicUser } from '@org/types';
+import type { UpdateProfileInput } from '@org/validation';
+
+@Injectable()
+export class UserService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async findPublic(userId: string): Promise<PublicUser> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: PUBLIC_USER_SELECT,
+    });
+    return toPublicUser(user);
+  }
+
+  async updateProfile(
+    userId: string,
+    input: UpdateProfileInput,
+  ): Promise<CurrentUser> {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: input.name,
+        ...(input.displayName !== undefined
+          ? { displayName: input.displayName }
+          : {}),
+        ...(input.bio !== undefined ? { bio: input.bio } : {}),
+        ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+        ...(input.avatarUrl !== undefined ? { avatarUrl: input.avatarUrl } : {}),
+      },
+    });
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+      bio: user.bio,
+      timezone: user.timezone,
+      systemRole: user.systemRole as CurrentUser['systemRole'],
+      presence: user.presence as CurrentUser['presence'],
+      emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null,
+      lastSeenAt: user.lastSeenAt?.toISOString() ?? null,
+      createdAt: user.createdAt.toISOString(),
+    };
+  }
+
+  async setPresence(
+    userId: string,
+    presence: CurrentUser['presence'],
+  ): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { presence, lastSeenAt: new Date() },
+    });
+  }
+
+  /**
+   * People-picker search, scoped to a workspace.
+   *
+   * Scoping to the workspace is a privacy boundary, not just a filter: it
+   * stops the endpoint from becoming a directory of every user on the platform.
+   */
+  async searchInWorkspace(
+    workspaceId: string,
+    query: string,
+    limit = 20,
+  ): Promise<PublicUser[]> {
+    const term = query.trim();
+
+    const members = await this.prisma.workspaceMember.findMany({
+      where: {
+        workspaceId,
+        ...(term
+          ? {
+              user: {
+                OR: [
+                  { name: { contains: term, mode: 'insensitive' } },
+                  { displayName: { contains: term, mode: 'insensitive' } },
+                  { email: { contains: term, mode: 'insensitive' } },
+                ],
+              },
+            }
+          : {}),
+      },
+      take: Math.min(limit, 50),
+      orderBy: { joinedAt: 'asc' },
+      select: { user: { select: PUBLIC_USER_SELECT } },
+    });
+
+    return members.map((row) => toPublicUser(row.user));
+  }
+}

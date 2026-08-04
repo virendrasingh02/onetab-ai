@@ -1,0 +1,24 @@
+{
+  "name": "@org/design-system",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./styles/theme.css": "./src/styles/theme.css",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {},
+  "nx": {
+    "tags": [
+      "type:ui",
+      "scope:shared"
+    ]
+  }
+}

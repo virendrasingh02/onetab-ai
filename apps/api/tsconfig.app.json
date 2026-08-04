@@ -1,0 +1,41 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "types": ["node"],
+    // No `rootDir`: webpack's ts-loader compiles the app together with the
+    // workspace libraries it imports (they resolve to source, not dist), and
+    // those live outside apps/api. Emit layout is owned by webpack anyway.
+    "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": [],
+  "references": [
+    {
+      "path": "../../libs/api/database/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/shared/config/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/api/workspace/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/api/user/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/api/member/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/api/channel/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/api/auth/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/api/common/tsconfig.lib.json"
+    }
+  ]
+}
