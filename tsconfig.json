@@ -2,6 +2,58 @@
   "extends": "./tsconfig.base.json",
   "compileOnSave": false,
   "files": [],
-  "references": [],
+  "references": [
+    {
+      "path": "./web"
+    },
+    {
+      "path": "./admin"
+    },
+    {
+      "path": "./api-e2e"
+    },
+    {
+      "path": "./api"
+    },
+    {
+      "path": "./ui"
+    },
+    {
+      "path": "./design-system"
+    },
+    {
+      "path": "./auth"
+    },
+    {
+      "path": "./api-client"
+    },
+    {
+      "path": "./hooks"
+    },
+    {
+      "path": "./utils"
+    },
+    {
+      "path": "./types"
+    },
+    {
+      "path": "./config"
+    },
+    {
+      "path": "./constants"
+    },
+    {
+      "path": "./validation"
+    },
+    {
+      "path": "./realtime"
+    },
+    {
+      "path": "./notifications"
+    },
+    {
+      "path": "./common"
+    }
+  ],
   "compilerOptions": {}
 }
