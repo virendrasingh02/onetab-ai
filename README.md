@@ -1,107 +1,139 @@
-# New Nx Repository
+# OneTab AI
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+Workspace and channel collaboration platform. Nx monorepo with a React 19 web
+client, a NestJS 11 API and a shared design system.
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+**Phase 2 — Platform Foundation** is complete: workspaces, channels, members,
+invitations, profiles, settings, theming and a JWT authentication flow. There is
+no messaging or AI yet; those arrive in later phases.
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/docs/technologies/typescript/introduction?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
-🚀 If you haven't connected to Nx Cloud yet, [complete your setup here](https://cloud.nx.app/get-started). Get faster builds with remote caching, distributed task execution, and self-healing CI. [See how your workspace can benefit](#nx-cloud).
-## Generate a library
+---
 
-```sh
-npx nx g @nx/js:lib packages/pkg1 --publishable --importPath=@my-org/pkg1
-```
-
-## Run tasks
-
-To build the library use:
+## Quick start
 
 ```sh
-npx nx run pkg1:build
+npm install
+cp .env.example .env          # then fill in the values
+
+npx prisma dev                # local Postgres (or point DATABASE_URL elsewhere)
+npm run db:migrate            # apply migrations
+npm run db:generate           # generate the Prisma client
+
+npm run dev                   # API on :3000, web on :4200
 ```
 
-To run any task with Nx use:
+| App   | URL                            |
+| ----- | ------------------------------ |
+| web   | `http://localhost:4200`        |
+| admin | `http://localhost:4201`        |
+| API   | `http://localhost:3000/api/v1` |
 
-```sh
-npx nx run <project-name>:<target>
-```
+`GET /api/v1/health` reports process and database health.
 
-These targets are either [inferred automatically](https://nx.dev/docs/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+---
 
-[More about running tasks in the docs &raquo;](https://nx.dev/docs/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Versioning and releasing
-
-To version and release the library use
+## Layout
 
 ```
-npx nx release
+apps/
+  web/        React 19 + Vite 8 client
+  admin/      internal admin console
+  api/        NestJS 11 API (webpack + SWC)
+  api-e2e/    API end-to-end tests (Vitest)
+libs/
+  shared/     types, validation, utils, config, constants, common,
+              design-system, ui, api-client, hooks, realtime
+  web/        auth, layout, workspace, channels, members, invitations,
+              profile, settings, dashboard, search, upload, notifications
+  api/        database, common, auth, user, workspace, channel, member
 ```
 
-Pass `--dry-run` to see what would happen without actually releasing the library.
+Every library carries a `README.md` describing its design decisions and surface.
 
-[Learn more about Nx release &raquo;](https://nx.dev/docs/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+### Module boundaries
 
-## Keep TypeScript project references up to date
+Projects are tagged and the rules are enforced by
+`@nx/enforce-module-boundaries` — a violation fails `nx lint`, not review.
 
-Nx automatically updates TypeScript [project references](https://www.typescriptlang.org/docs/handbook/project-references.html) in `tsconfig.json` files to ensure they remain accurate based on your project dependencies (`import` or `require` statements). This sync is automatically done when running tasks such as `build` or `typecheck`, which require updated references to function correctly.
+| Tag                | May depend on                         |
+| ------------------ | ------------------------------------- |
+| `scope:shared`     | `scope:shared`                        |
+| `scope:web`        | `scope:web`, `scope:shared`           |
+| `scope:admin`      | `scope:admin`, `scope:shared`         |
+| `scope:api`        | `scope:api`, `scope:shared`           |
+| `type:feature`     | feature, ui, data-access, util, types |
+| `type:ui`          | ui, util, types                       |
+| `type:data-access` | data-access, util, types              |
+| `type:util`        | util, types                           |
+| `type:types`       | types                                 |
 
-To manually trigger the process to sync the project graph dependencies information to the TypeScript project references, run the following command:
+---
 
-```sh
-npx nx sync
-```
+## Scripts
 
-You can enforce that the TypeScript project references are always in the correct state when running in CI by adding a step to your CI job configuration that runs the following command:
+| Command              | Purpose                                    |
+| -------------------- | ------------------------------------------ |
+| `npm run dev`        | API + web in watch mode                    |
+| `npm run dev:all`    | API + web + admin                          |
+| `npm run validate`   | lint, typecheck, test and build everything |
+| `npm run affected`   | the same, limited to affected projects     |
+| `npm test`           | unit tests (Vitest)                        |
+| `npm run e2e`        | API end-to-end tests                       |
+| `npm run graph`      | interactive project graph                  |
+| `npm run db:migrate` | create and apply a migration               |
+| `npm run db:studio`  | Prisma Studio                              |
 
-```sh
-npx nx sync:check
-```
+---
 
-[Learn more about nx sync](https://nx.dev/reference/nx-commands#sync)
+## Architecture notes
 
-## Nx Cloud
+**Authentication.** Short-lived JWT access tokens are held in memory only; the
+refresh token is an opaque secret stored as a SHA-256 digest and delivered as an
+httpOnly cookie scoped to `/api/v1/auth`. Refresh tokens rotate on every use, and
+replaying a spent token revokes the whole session family. A password change
+revokes every session.
 
-Nx Cloud ensures a [fast and scalable CI](https://nx.dev/nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
+**Authorization.** `JwtAuthGuard` is registered globally, so routes are
+authenticated by default and must opt out with `@Public()`. `WorkspaceRoleGuard`
+resolves the caller's membership and enforces `@WorkspaceRoles(...)`. Non-members
+receive **404, not 403** — confirming that a workspace or private channel exists
+is itself a disclosure.
 
-- [Remote caching](https://nx.dev/docs/features/ci-features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/docs/features/ci-features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/docs/features/ci-features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/docs/features/ci-features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+**Validation.** Zod schemas in `@org/validation` are the single source of truth.
+The browser uses them through `@hookform/resolvers`; the API uses the same
+objects through `ZodValidationPipe`, so a rule cannot drift between the two.
 
-### Set up CI (non-Github Actions CI)
+**State.** Server state lives in TanStack Query; Zustand holds only session
+identity. Query keys are hierarchical, so invalidating a subtree clears
+everything beneath it.
 
-**Note:** This is only required if your CI provider is not GitHub Actions.
+**Styling.** Tailwind v4 with no config file — tokens are CSS custom properties
+in `@org/design-system`, exposed through `@theme inline`. Library sources are
+registered with `@source` in each app's `styles.css`, otherwise their classes are
+tree-shaken away.
 
-Use the following command to configure a CI workflow for your workspace:
+**Performance.** Routes are lazily loaded and vendor code is split into stable
+chunks (`vendor-react`, `vendor-data`, `vendor-forms`, `vendor-ui`), so shipping
+a feature does not invalidate the browser cache for React.
 
-```sh
-npx nx g ci-workflow
-```
+---
 
-[Learn more about Nx on CI](https://nx.dev/docs/features/ci-features?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## Platform notes
 
-## Install Nx Console
+Three decisions worth knowing before changing the build:
 
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+- **The API compiles with SWC, not ts-loader.** ts-loader compiles the app and
+  every workspace library it imports as one flat program, which trips TS6059
+  because those libraries live outside `apps/api`. Types are still checked — by
+  the `typecheck` target, which uses TypeScript project references properly. A
+  small webpack plugin raises SWC's target to ES2022; at Nx's default the
+  downlevelled `PrismaService extends PrismaClient` throws at boot.
 
-[Install Nx Console &raquo;](https://nx.dev/docs/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+- **The Prisma client is generated as CommonJS** (`moduleFormat = "cjs"`). The
+  default ESM output uses `import.meta.url`, which is a syntax error under the
+  CJS target the API bundles to.
 
-## 🔗 Learn More
-
-- [Nx Documentation](https://nx.dev/docs)
-- [Crafting Your Workspace Tutorial](https://nx.dev/docs/getting-started/tutorials/crafting-your-workspace)
-- [Module Boundaries](https://nx.dev/docs/features/enforce-module-boundaries)
-- [Releasing Packages](https://nx.dev/docs/features/manage-releases)
-- [Nx Plugins](https://nx.dev/docs/concepts/nx-plugins)
-- [Nx Cloud](https://nx.dev/nx-cloud)
-
-## 💬 Community
-
-Join the Nx community:
-
-- [Discord](https://go.nx.dev/community)
-- [X (Twitter)](https://twitter.com/nxdevtools)
-- [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [YouTube](https://www.youtube.com/@nxdevtools)
-- [Blog](https://nx.dev/blog)
+- **Vitest specs rely on `globals: true`** rather than importing from `vitest`
+  directly. On Windows, Nx invokes the runner with a lowercase drive letter while
+  Node resolves an uppercase one, and an explicit import resolves a second,
+  uninitialised vitest instance.

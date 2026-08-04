@@ -16,9 +16,10 @@ export const createChannelSchema = z.object({
   name: channelNameSchema,
   topic: z.string().trim().max(120).optional().or(z.literal('')),
   description: z.string().trim().max(500).optional().or(z.literal('')),
-  visibility: z
-    .enum([ChannelVisibility.PUBLIC, ChannelVisibility.PRIVATE])
-    .default(ChannelVisibility.PUBLIC),
+  // Required rather than `.default()`: a Zod default makes the schema's input
+  // and output types diverge, which React Hook Form surfaces as an
+  // unassignable `control`. Forms supply the value via `defaultValues`.
+  visibility: z.enum([ChannelVisibility.PUBLIC, ChannelVisibility.PRIVATE]),
   /** Seed the channel with these workspace members on creation. */
   memberIds: z.array(z.string()).max(200).optional(),
 });
@@ -37,7 +38,7 @@ export const changeVisibilitySchema = z.object({
 
 export const addChannelMembersSchema = z.object({
   userIds: z.array(z.string()).min(1, 'Select at least one person').max(200),
-  role: z.enum([ChannelRole.ADMIN, ChannelRole.MEMBER]).default(ChannelRole.MEMBER),
+  role: z.enum([ChannelRole.ADMIN, ChannelRole.MEMBER]),
 });
 
 export const channelPreferencesSchema = z.object({

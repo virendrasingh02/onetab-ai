@@ -66,7 +66,9 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  // 10/min per IP: enough headroom for a shared corporate NAT (and for the e2e
+  // suite) while still throttling automated signup abuse.
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   async register(
     @Body(zodBody(registerSchema)) body: RegisterInput,
     @Req() request: Request,

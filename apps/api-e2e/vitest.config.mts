@@ -8,6 +8,9 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.spec.ts'],
     globalSetup: ['./src/support/global-setup.ts'],
+    // Every file talks to one shared API instance whose rate limits and data
+    // are global, so parallel files would make results order-dependent.
+    fileParallelism: false,
     coverage: {
       provider: 'v8',
       reportsDirectory: './test-output/vitest/coverage',

@@ -74,7 +74,8 @@ export const inviteMembersSchema = z.object({
     .refine((list) => new Set(list).size === list.length, {
       message: 'Remove duplicate email addresses',
     }),
-  role: workspaceRoleSchema.default(WorkspaceRole.MEMBER),
+  // See channel.schema.ts — no `.default()`, so input and output types match.
+  role: workspaceRoleSchema,
 });
 
 export const acceptInvitationSchema = z.object({

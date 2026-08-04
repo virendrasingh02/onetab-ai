@@ -11,7 +11,9 @@ const port = process.env.PORT ?? '3000';
  * spec do not share a module instance.
  */
 export const api = axios.create({
-  baseURL: `http://${host}:${port}`,
+  // The API sets a global `api` prefix and URI versioning, so every route
+  // lives under /api/v1.
+  baseURL: `http://${host}:${port}/api/v1`,
   // Never reject on status — assertions inspect `res.status` directly.
   validateStatus: () => true,
 });

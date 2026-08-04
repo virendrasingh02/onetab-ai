@@ -13,11 +13,7 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
-    "lib": [
-      "es2022",
-      "dom",
-      "dom.iterable"
-    ]
+    "lib": ["es2022", "dom", "dom.iterable"]
   },
   "exclude": [
     "out-tsc",
@@ -25,12 +21,15 @@
     "**/*.spec.ts",
     "**/*.spec.tsx",
     "**/*.test.ts",
-    "**/*.test.tsx"
+    "**/*.test.tsx",
+    "vitest.config.mts",
+    "src/test-setup.ts",
+    "src/**/*.spec.ts",
+    "src/**/*.spec.tsx",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
   ],
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx"
-  ],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
       "path": "../utils/tsconfig.lib.json"

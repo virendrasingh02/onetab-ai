@@ -1,0 +1,223 @@
+import { Button, Hint, ScrollArea, SkeletonList } from '@org/ui';
+import type { ChannelSummary } from '@org/types';
+import { cn } from '@org/utils';
+import { useChannelPreferences, useGroupedChannels } from '@org/web-channels';
+import { ChevronDown, Hash, Lock, Plus, Star, Users } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { NavLink } from 'react-router-dom';
+
+interface SectionProps {
+  title: string;
+  count: number;
+  children: ReactNode;
+  action?: ReactNode;
+  defaultOpen?: boolean;
+}
+
+/** Collapsible sidebar group. Collapse state is local and per-session. */
+function Section({
+  title,
+  count,
+  children,
+  action,
+  defaultOpen = true,
+}: SectionProps) {
+  const [open, setOpen] = useState(defaultOpen);
+  if (count === 0) return null;
+
+  return (
+    <section className="mb-3">
+      <div className="group gap-1 px-2 flex items-center">
+        <button
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+          className="gap-1 rounded py-1 text-xs font-semibold tracking-wide flex flex-1 items-center text-sidebar-muted uppercase hover:text-sidebar-foreground"
+        >
+          <ChevronDown
+            className={cn('size-3 transition-transform', !open && '-rotate-90')}
+            aria-hidden
+          />
+          {title}
+          <span className="ml-1 font-normal text-sidebar-muted/70">
+            {count}
+          </span>
+        </button>
+        {action}
+      </div>
+      {open ? <ul className="mt-0.5 space-y-px">{children}</ul> : null}
+    </section>
+  );
+}
+
+interface ChannelRowProps {
+  channel: ChannelSummary;
+  workspaceSlug: string;
+  onToggleFavorite: (channel: ChannelSummary) => void;
+}
+
+function ChannelRow({
+  channel,
+  workspaceSlug,
+  onToggleFavorite,
+}: ChannelRowProps) {
+  const isFavorite = channel.membership?.isFavorite ?? false;
+  const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
+
+  return (
+    <li className="group/row relative">
+      <NavLink
+        to={`/w/${workspaceSlug}/c/${channel.slug}`}
+        className={({ isActive }) =>
+          cn(
+            'gap-1.5 py-1 pr-8 pl-2 text-sm flex items-center rounded-md transition-colors',
+            'focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none',
+            isActive
+              ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+              : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
+            channel.isArchived && 'opacity-60',
+          )
+        }
+      >
+        <Icon className="size-3.5 shrink-0 opacity-70" aria-hidden />
+        <span className="truncate">{channel.name}</span>
+        {channel.membership?.isMuted ? (
+          <span className="sr-only">(muted)</span>
+        ) : null}
+      </NavLink>
+
+      {/* Star reveals on hover, but stays visible once set. */}
+      {channel.membership ? (
+        <Hint label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}>
+          <button
+            onClick={() => onToggleFavorite(channel)}
+            aria-label={
+              isFavorite ? 'Remove from favorites' : 'Add to favorites'
+            }
+            aria-pressed={isFavorite}
+            className={cn(
+              'right-1.5 rounded p-0.5 absolute top-1/2 -translate-y-1/2 transition-opacity',
+              'focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none',
+              isFavorite
+                ? 'text-warning opacity-100'
+                : 'text-sidebar-muted opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100',
+            )}
+          >
+            <Star className={cn('size-3', isFavorite && 'fill-current')} />
+          </button>
+        </Hint>
+      ) : null}
+    </li>
+  );
+}
+
+export interface ChannelNavProps {
+  workspaceId: string;
+  workspaceSlug: string;
+  channels: ChannelSummary[] | undefined;
+  isLoading: boolean;
+  onCreateChannel: () => void;
+  onBrowseChannels: () => void;
+}
+
+export function ChannelNav({
+  workspaceId,
+  workspaceSlug,
+  channels,
+  isLoading,
+  onCreateChannel,
+  onBrowseChannels,
+}: ChannelNavProps) {
+  const groups = useGroupedChannels(channels);
+  const preferences = useChannelPreferences(workspaceId);
+
+  const toggleFavorite = (channel: ChannelSummary) =>
+    preferences.mutate({
+      channelId: channel.id,
+      input: { isFavorite: !channel.membership?.isFavorite },
+    });
+
+  if (isLoading) {
+    return (
+      <div className="px-3 py-2">
+        <SkeletonList rows={6} className="gap-2" />
+      </div>
+    );
+  }
+
+  const rowProps = { workspaceSlug, onToggleFavorite: toggleFavorite };
+
+  return (
+    <ScrollArea className="scrollbar-subtle flex-1">
+      <div className="px-1 py-2">
+        <Section title="Favorites" count={groups.favorites.length}>
+          {groups.favorites.map((channel) => (
+            <ChannelRow key={channel.id} channel={channel} {...rowProps} />
+          ))}
+        </Section>
+
+        <Section
+          title="Channels"
+          count={groups.joined.length}
+          action={
+            <Hint label="Create a channel">
+              <Button
+                variant="sidebar"
+                size="icon-sm"
+                onClick={onCreateChannel}
+                aria-label="Create a channel"
+                className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+              >
+                <Plus className="size-3.5" />
+              </Button>
+            </Hint>
+          }
+        >
+          {groups.joined.map((channel) => (
+            <ChannelRow key={channel.id} channel={channel} {...rowProps} />
+          ))}
+        </Section>
+
+        <Section
+          title="Browse"
+          count={groups.available.length}
+          defaultOpen={false}
+        >
+          {groups.available.map((channel) => (
+            <ChannelRow key={channel.id} channel={channel} {...rowProps} />
+          ))}
+        </Section>
+
+        <Section
+          title="Archived"
+          count={groups.archived.length}
+          defaultOpen={false}
+        >
+          {groups.archived.map((channel) => (
+            <ChannelRow key={channel.id} channel={channel} {...rowProps} />
+          ))}
+        </Section>
+
+        <div className="mt-2 px-1 space-y-px">
+          <Button
+            variant="sidebar"
+            size="sm"
+            className="gap-1.5 font-normal w-full justify-start"
+            onClick={onBrowseChannels}
+            leadingIcon={<Users className="size-3.5" />}
+          >
+            Browse channels
+          </Button>
+          <Button
+            variant="sidebar"
+            size="sm"
+            className="gap-1.5 font-normal w-full justify-start"
+            onClick={onCreateChannel}
+            leadingIcon={<Plus className="size-3.5" />}
+          >
+            Create channel
+          </Button>
+        </div>
+      </div>
+    </ScrollArea>
+  );
+}

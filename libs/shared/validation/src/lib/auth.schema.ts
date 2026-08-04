@@ -33,7 +33,10 @@ export const loginSchema = z.object({
   // Deliberately not `passwordSchema`: an existing password that predates a
   // policy change must still be able to sign in.
   password: z.string().min(1, 'Password is required'),
-  rememberMe: z.boolean().optional().default(false),
+  // Plain boolean rather than `.default(false)`: a default makes the schema's
+  // input and output types diverge, which React Hook Form's generics surface
+  // as an unassignable `control`. The form supplies the initial value instead.
+  rememberMe: z.boolean(),
 });
 
 export const registerSchema = z

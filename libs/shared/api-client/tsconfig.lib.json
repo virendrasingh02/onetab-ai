@@ -13,19 +13,19 @@
       "@nx/react/typings/image.d.ts"
     ],
     "jsx": "react-jsx",
-    "lib": [
-      "es2022",
-      "dom",
-      "dom.iterable"
-    ],
+    "lib": ["es2022", "dom", "dom.iterable"],
     "module": "esnext",
     "moduleResolution": "bundler"
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx"
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "references": [
+    {
+      "path": "../validation/tsconfig.lib.json"
+    },
+    {
+      "path": "../types/tsconfig.lib.json"
+    }
   ],
-  "references": [],
   "exclude": [
     "out-tsc",
     "dist",

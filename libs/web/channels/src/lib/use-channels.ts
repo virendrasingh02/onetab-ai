@@ -1,0 +1,302 @@
+import { channelApi, queryKeys } from '@org/api-client';
+import type { ChannelSummary } from '@org/types';
+import type {
+  AddChannelMembersInput,
+  ChannelPreferencesInput,
+  CreateChannelInput,
+  CreatePinInput,
+  UpdateChannelInput,
+} from '@org/validation';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
+
+export function useChannels(
+  workspaceId: string | undefined,
+  includeArchived = false,
+) {
+  return useQuery({
+    queryKey: queryKeys.channels.list(workspaceId ?? '', includeArchived),
+    queryFn: () => channelApi.list(workspaceId as string, includeArchived),
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+  });
+}
+
+export interface GroupedChannels {
+  favorites: ChannelSummary[];
+  joined: ChannelSummary[];
+  available: ChannelSummary[];
+  archived: ChannelSummary[];
+}
+
+/**
+ * Splits channels into the sidebar's sections.
+ *
+ * Ordering is stable and alphabetical inside each group so the sidebar does
+ * not reshuffle as unrelated data refreshes.
+ */
+export function useGroupedChannels(
+  channels: ChannelSummary[] | undefined,
+): GroupedChannels {
+  return useMemo(() => {
+    const result: GroupedChannels = {
+      favorites: [],
+      joined: [],
+      available: [],
+      archived: [],
+    };
+
+    for (const channel of channels ?? []) {
+      if (channel.isArchived) result.archived.push(channel);
+      else if (channel.membership?.isFavorite) result.favorites.push(channel);
+      else if (channel.membership) result.joined.push(channel);
+      else result.available.push(channel);
+    }
+
+    const byName = (a: ChannelSummary, b: ChannelSummary) =>
+      a.name.localeCompare(b.name);
+    result.favorites.sort(byName);
+    result.joined.sort(byName);
+    result.available.sort(byName);
+    result.archived.sort(byName);
+
+    return result;
+  }, [channels]);
+}
+
+export function useChannel(
+  workspaceId: string | undefined,
+  slug: string | undefined,
+) {
+  return useQuery({
+    queryKey: queryKeys.channels.detail(workspaceId ?? '', slug ?? ''),
+    queryFn: () => channelApi.bySlug(workspaceId as string, slug as string),
+    enabled: !!workspaceId && !!slug,
+  });
+}
+
+export function useChannelMembers(
+  workspaceId: string | undefined,
+  channelId: string | undefined,
+) {
+  return useQuery({
+    queryKey: queryKeys.channels.members(workspaceId ?? '', channelId ?? ''),
+    queryFn: () =>
+      channelApi.members(workspaceId as string, channelId as string),
+    enabled: !!workspaceId && !!channelId,
+  });
+}
+
+export function useChannelPins(
+  workspaceId: string | undefined,
+  channelId: string | undefined,
+) {
+  return useQuery({
+    queryKey: queryKeys.channels.pins(workspaceId ?? '', channelId ?? ''),
+    queryFn: () => channelApi.pins(workspaceId as string, channelId as string),
+    enabled: !!workspaceId && !!channelId,
+  });
+}
+
+export function useChannelFiles(
+  workspaceId: string | undefined,
+  channelId: string | undefined,
+) {
+  return useQuery({
+    queryKey: queryKeys.channels.files(workspaceId ?? '', channelId ?? ''),
+    queryFn: () => channelApi.files(workspaceId as string, channelId as string),
+    enabled: !!workspaceId && !!channelId,
+  });
+}
+
+export function useCreateChannel(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: CreateChannelInput) =>
+      channelApi.create(workspaceId as string, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.channels.all(workspaceId ?? ''),
+      });
+    },
+  });
+}
+
+export function useUpdateChannel(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      channelId,
+      input,
+    }: {
+      channelId: string;
+      input: UpdateChannelInput;
+    }) => channelApi.update(workspaceId as string, channelId, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.channels.all(workspaceId ?? ''),
+      });
+    },
+  });
+}
+
+/**
+ * Star/unstar a channel, applied optimistically.
+ *
+ * The star is a pure UI affordance in the sidebar; waiting for a round trip
+ * makes it feel broken. The previous list is restored if the call fails.
+ */
+export function useChannelPreferences(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      channelId,
+      input,
+    }: {
+      channelId: string;
+      input: ChannelPreferencesInput;
+    }) => channelApi.setPreferences(workspaceId as string, channelId, input),
+
+    onMutate: async ({ channelId, input }) => {
+      const key = queryKeys.channels.list(workspaceId ?? '', false);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<ChannelSummary[]>(key);
+
+      queryClient.setQueryData<ChannelSummary[]>(key, (current) =>
+        current?.map((channel) =>
+          channel.id === channelId && channel.membership
+            ? { ...channel, membership: { ...channel.membership, ...input } }
+            : channel,
+        ),
+      );
+
+      return { previous, key };
+    },
+
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(context.key, context.previous);
+      }
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.channels.all(workspaceId ?? ''),
+      });
+    },
+  });
+}
+
+export function useArchiveChannel(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      channelId,
+      archived,
+    }: {
+      channelId: string;
+      archived: boolean;
+    }) =>
+      archived
+        ? channelApi.archive(workspaceId as string, channelId)
+        : channelApi.unarchive(workspaceId as string, channelId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.channels.all(workspaceId ?? ''),
+      });
+    },
+  });
+}
+
+export function useMakeChannelPrivate(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (channelId: string) =>
+      channelApi.makePrivate(workspaceId as string, channelId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.channels.all(workspaceId ?? ''),
+      });
+    },
+  });
+}
+
+export function useJoinChannel(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (channelId: string) =>
+      channelApi.join(workspaceId as string, channelId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.channels.all(workspaceId ?? ''),
+      });
+    },
+  });
+}
+
+export function useChannelMemberMutations(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  const invalidate = (channelId: string) =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.channels.members(workspaceId ?? '', channelId),
+    });
+
+  const add = useMutation({
+    mutationFn: ({
+      channelId,
+      input,
+    }: {
+      channelId: string;
+      input: AddChannelMembersInput;
+    }) => channelApi.addMembers(workspaceId as string, channelId, input),
+    onSuccess: (_data, { channelId }) => invalidate(channelId),
+  });
+
+  const remove = useMutation({
+    mutationFn: ({
+      channelId,
+      userId,
+    }: {
+      channelId: string;
+      userId: string;
+    }) => channelApi.removeMember(workspaceId as string, channelId, userId),
+    onSuccess: (_data, { channelId }) => invalidate(channelId),
+  });
+
+  return { add, remove };
+}
+
+export function usePinMutations(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  const invalidate = (channelId: string) =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.channels.pins(workspaceId ?? '', channelId),
+    });
+
+  const create = useMutation({
+    mutationFn: ({
+      channelId,
+      input,
+    }: {
+      channelId: string;
+      input: CreatePinInput;
+    }) => channelApi.createPin(workspaceId as string, channelId, input),
+    onSuccess: (_data, { channelId }) => invalidate(channelId),
+  });
+
+  const remove = useMutation({
+    mutationFn: ({ channelId, pinId }: { channelId: string; pinId: string }) =>
+      channelApi.removePin(workspaceId as string, channelId, pinId),
+    onSuccess: (_data, { channelId }) => invalidate(channelId),
+  });
+
+  return { create, remove };
+}

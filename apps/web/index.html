@@ -2,12 +2,34 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Web</title>
+    <title>OneTab AI</title>
     <base href="/" />
 
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="OneTab AI — workspaces, channels and files for focused team collaboration."
+    />
+    <meta name="theme-color" content="#1b1e2b" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <link rel="stylesheet" href="/src/styles.css" />
+
+    <!--
+      Applies the stored theme before first paint. React mounts too late to
+      prevent a white flash when reloading into the dark theme.
+    -->
+    <script>
+      (function () {
+        try {
+          var k = localStorage.getItem('onetab.theme');
+          var d =
+            k === 'dark' ||
+            ((!k || k === 'system') &&
+              matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('dark', d);
+          document.documentElement.style.colorScheme = d ? 'dark' : 'light';
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -40,7 +40,10 @@ const FormItemContext = createContext<FormItemContextValue | null>(null);
 export function FormField<
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
->({ ...props }: ControllerProps<TFieldValues, TName>) {
+  // RHF 7.8x splits input and output types (a schema `.default()` makes them
+  // differ). Forwarding the third generic keeps `control` assignable.
+  TTransformedValues = TFieldValues,
+>({ ...props }: ControllerProps<TFieldValues, TName, TTransformedValues>) {
   return (
     <FormFieldContext value={{ name: props.name }}>
       <Controller {...props} />
@@ -80,7 +83,7 @@ export function FormItem({ className, ...props }: ComponentProps<'div'>) {
     <FormItemContext value={{ id }}>
       <div
         data-slot="form-item"
-        className={cn('grid gap-2', className)}
+        className={cn('gap-2 grid', className)}
         {...props}
       />
     </FormItemContext>
@@ -103,7 +106,8 @@ export function FormLabel({
 }
 
 export function FormControl(props: ComponentProps<typeof Slot>) {
-  const { error, formItemId, formDescriptionId, formMessageId } = useFormField();
+  const { error, formItemId, formDescriptionId, formMessageId } =
+    useFormField();
   return (
     <Slot
       id={formItemId}
@@ -121,7 +125,7 @@ export function FormDescription({ className, ...props }: ComponentProps<'p'>) {
   return (
     <p
       id={formDescriptionId}
-      className={cn('text-muted-foreground text-xs', className)}
+      className={cn('text-xs text-muted-foreground', className)}
       {...props}
     />
   );
@@ -142,7 +146,7 @@ export function FormMessage({
     <p
       id={formMessageId}
       role="alert"
-      className={cn('text-destructive text-xs font-medium', className)}
+      className={cn('text-xs font-medium text-destructive', className)}
       {...props}
     >
       {body}
@@ -163,7 +167,7 @@ export function FormError({ error, children }: FormErrorProps) {
   return (
     <div
       role="alert"
-      className="bg-destructive/10 text-destructive border-destructive/20 rounded-md border px-3 py-2 text-sm"
+      className="px-3 py-2 text-sm rounded-md border border-destructive/20 bg-destructive/10 text-destructive"
     >
       {message}
     </div>

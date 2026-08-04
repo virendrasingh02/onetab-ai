@@ -6,6 +6,25 @@
     "tags": [
       "type:app",
       "scope:web"
-    ]
+    ],
+    "targets": {
+      "test": {
+        "executor": "nx:run-commands",
+        "cache": true,
+        "outputs": [
+          "{projectRoot}/test-output/vitest/coverage"
+        ],
+        "options": {
+          "command": "vitest run --passWithNoTests",
+          "cwd": "apps/web"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.101.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^6.30.3"
   }
 }
