@@ -1,6 +1,7 @@
 import { ApiError } from '@org/api-client';
 import { ThemeProvider } from '@org/design-system';
 import { ErrorBoundary, TooltipProvider } from '@org/ui';
+import { MatrixProvider } from '@org/web-chat';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 
@@ -37,7 +38,9 @@ export function Providers({ children }: { children: ReactNode }) {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider defaultTheme="system">
-          <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
+          <MatrixProvider>
+            <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
+          </MatrixProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </ErrorBoundary>

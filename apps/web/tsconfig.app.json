@@ -62,6 +62,9 @@
       "path": "../../libs/web/layout/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/web/chat/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/shared/ui/tsconfig.lib.json"
     },
     {

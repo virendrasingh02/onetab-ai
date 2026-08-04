@@ -104,6 +104,18 @@
     },
     {
       "path": "./libs/api/user"
+    },
+    {
+      "path": "./packages/matrix-client"
+    },
+    {
+      "path": "./libs/shared/chat-ui"
+    },
+    {
+      "path": "./libs/api/matrix"
+    },
+    {
+      "path": "./libs/web/chat"
     }
   ],
   "compilerOptions": {}

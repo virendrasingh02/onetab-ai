@@ -1,0 +1,1003 @@
+import {
+  ClientEvent,
+  Direction,
+  MatrixEventEvent,
+  NotificationCountType,
+  RoomEvent,
+  RoomMemberEvent,
+  SyncState,
+  createClient,
+  type MatrixClient as SdkClient,
+  type MatrixEvent,
+  type Room as SdkRoom,
+} from 'matrix-js-sdk';
+import { toMatrixError, withRetry } from './errors.js';
+import {
+  resolveMediaUrl,
+  toMessage,
+  toPresence,
+  toRoom,
+  toRoomMember,
+} from './mappers.js';
+import {
+  LocalStorageSessionStore,
+  type SessionStore,
+} from './session-store.js';
+import {
+  MatrixError,
+  type ConnectionState,
+  type ConnectionStatus,
+  type Device,
+  type EncryptionStatus,
+  type EventId,
+  type MatrixClientEvent,
+  type MatrixEventListener,
+  type MatrixSession,
+  type Message,
+  type NotificationCounts,
+  type PresenceState,
+  type PushRegistration,
+  type ReadReceipt,
+  type Room,
+  type RoomId,
+  type RoomMember,
+  type Thread,
+  type Timeline,
+} from './types.js';
+
+export interface MatrixClientOptions {
+  homeserverUrl: string;
+  /** Overrides the default localStorage-backed store. */
+  sessionStore?: SessionStore;
+  /** Initialise the Rust crypto stack. Requires WASM support in the bundler. */
+  enableEncryption?: boolean;
+  /** Events fetched on the first sync per room. */
+  initialSyncLimit?: number;
+}
+
+export interface LoginCredentials {
+  user: string;
+  password: string;
+  deviceDisplayName?: string;
+}
+
+/**
+ * The application's entire view of Matrix.
+ *
+ * Everything the SDK exposes is deliberately funnelled through this class:
+ * no `MatrixEvent`, `Room` or `MatrixClient` from `matrix-js-sdk` crosses the
+ * package boundary. Consumers get plain domain objects and one typed event
+ * stream, which is what makes the transport swappable.
+ */
+export class OneTabMatrixClient {
+  private sdk: SdkClient | null = null;
+  private session: MatrixSession | null = null;
+  private readonly listeners = new Set<MatrixEventListener>();
+  private status: ConnectionStatus = { state: 'disconnected' };
+  private readonly sessionStore: SessionStore;
+  private readonly options: Required<Omit<MatrixClientOptions, 'sessionStore'>>;
+  /** Local echoes awaiting acknowledgement, keyed by transaction id. */
+  private readonly pendingEchoes = new Map<string, Message>();
+
+  constructor(options: MatrixClientOptions) {
+    this.sessionStore = options.sessionStore ?? new LocalStorageSessionStore();
+    this.options = {
+      homeserverUrl: options.homeserverUrl,
+      enableEncryption: options.enableEncryption ?? true,
+      initialSyncLimit: options.initialSyncLimit ?? 30,
+    };
+  }
+
+  // --- lifecycle -----------------------------------------------------------
+
+  /** Subscribe to the event stream. Returns an unsubscribe function. */
+  on(listener: MatrixEventListener): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private emit(event: MatrixClientEvent): void {
+    for (const listener of this.listeners) {
+      try {
+        listener(event);
+      } catch (error) {
+        // One bad subscriber must not stop the others or kill the sync loop.
+        console.error('[matrix] listener threw', error);
+      }
+    }
+  }
+
+  private setStatus(
+    state: ConnectionState,
+    extra: Partial<ConnectionStatus> = {},
+  ) {
+    this.status = { state, ...extra };
+    this.emit({ type: 'connection', status: this.status });
+  }
+
+  getConnectionStatus(): ConnectionStatus {
+    return this.status;
+  }
+
+  getSession(): MatrixSession | null {
+    return this.session;
+  }
+
+  isReady(): boolean {
+    return this.sdk !== null && this.status.state === 'connected';
+  }
+
+  /** Password login. Persists the session and starts syncing. */
+  async login(credentials: LoginCredentials): Promise<MatrixSession> {
+    this.setStatus('connecting');
+
+    try {
+      const temporary = createClient({ baseUrl: this.options.homeserverUrl });
+      const response = await temporary.login('m.login.password', {
+        identifier: { type: 'm.id.user', user: credentials.user },
+        password: credentials.password,
+        initial_device_display_name:
+          credentials.deviceDisplayName ?? 'OneTab AI Web',
+      });
+
+      const session: MatrixSession = {
+        userId: response.user_id,
+        deviceId: response.device_id ?? '',
+        accessToken: response.access_token,
+        homeserverUrl: this.options.homeserverUrl,
+      };
+
+      await this.sessionStore.save(session);
+      await this.start(session);
+      return session;
+    } catch (error) {
+      const mapped = toMatrixError(error);
+      this.setStatus('error', { error: mapped.message });
+      throw mapped;
+    }
+  }
+
+  /**
+   * Signs in with a token minted by our own backend.
+   *
+   * This is the path the application actually uses: the user authenticates
+   * against our API, which provisions the Matrix identity. The browser never
+   * sees a Matrix password.
+   */
+  async loginWithToken(token: string): Promise<MatrixSession> {
+    this.setStatus('connecting');
+
+    try {
+      const temporary = createClient({ baseUrl: this.options.homeserverUrl });
+      const response = await temporary.login('m.login.token', {
+        token,
+        initial_device_display_name: 'OneTab AI Web',
+      });
+
+      const session: MatrixSession = {
+        userId: response.user_id,
+        deviceId: response.device_id ?? '',
+        accessToken: response.access_token,
+        homeserverUrl: this.options.homeserverUrl,
+      };
+
+      await this.sessionStore.save(session);
+      await this.start(session);
+      return session;
+    } catch (error) {
+      const mapped = toMatrixError(error);
+      this.setStatus('error', { error: mapped.message });
+      throw mapped;
+    }
+  }
+
+  /** Restores a persisted session. Returns false when there is none. */
+  async restore(): Promise<boolean> {
+    const session = await this.sessionStore.load();
+    if (!session) return false;
+
+    try {
+      await this.start(session);
+      return true;
+    } catch (error) {
+      const mapped = toMatrixError(error);
+      // An invalid stored token is a normal expiry, not a fault: clear it and
+      // let the caller route to sign-in.
+      if (mapped.code === 'SESSION_EXPIRED') {
+        await this.sessionStore.clear();
+        this.setStatus('expired');
+        return false;
+      }
+      throw mapped;
+    }
+  }
+
+  private async start(session: MatrixSession): Promise<void> {
+    this.session = session;
+
+    const sdk = createClient({
+      baseUrl: session.homeserverUrl,
+      accessToken: session.accessToken,
+      userId: session.userId,
+      deviceId: session.deviceId,
+      // Threads are a first-class surface in this app.
+      timelineSupport: true,
+    });
+
+    this.sdk = sdk;
+
+    if (this.options.enableEncryption) {
+      try {
+        await sdk.initRustCrypto();
+      } catch (error) {
+        // Encryption is degraded, not fatal: unencrypted rooms still work and
+        // encrypted ones render a decryption placeholder.
+        console.error('[matrix] crypto init failed', error);
+      }
+    }
+
+    this.attachListeners(sdk);
+    this.setStatus('syncing');
+
+    await sdk.startClient({ initialSyncLimit: this.options.initialSyncLimit });
+  }
+
+  /** Stops syncing and clears the persisted session. */
+  async logout(): Promise<void> {
+    const sdk = this.sdk;
+    this.sdk = null;
+    this.session = null;
+
+    try {
+      sdk?.stopClient();
+      await sdk?.logout(true);
+    } catch {
+      // A failed server-side logout must not strand the user signed in
+      // locally; the local session is cleared regardless.
+    } finally {
+      sdk?.removeAllListeners();
+      await this.sessionStore.clear();
+      this.setStatus('disconnected');
+    }
+  }
+
+  /** Stops syncing but keeps the session, for page unload. */
+  stop(): void {
+    this.sdk?.stopClient();
+    this.setStatus('disconnected');
+  }
+
+  private require(): SdkClient {
+    if (!this.sdk) {
+      throw new MatrixError('SESSION_EXPIRED', 'Not signed in to Matrix.');
+    }
+    return this.sdk;
+  }
+
+  // --- sync wiring ---------------------------------------------------------
+
+  private countsFor(room: SdkRoom): NotificationCounts {
+    return {
+      total: room.getUnreadNotificationCount() ?? 0,
+      highlight:
+        room.getUnreadNotificationCount(NotificationCountType.Highlight) ?? 0,
+    };
+  }
+
+  private attachListeners(sdk: SdkClient): void {
+    sdk.on(ClientEvent.Sync, (state: SyncState) => {
+      switch (state) {
+        case SyncState.Prepared:
+        case SyncState.Syncing:
+          this.setStatus('connected');
+          break;
+        case SyncState.Reconnecting:
+        case SyncState.Catchup:
+          this.setStatus('reconnecting');
+          break;
+        case SyncState.Error:
+          this.setStatus('reconnecting', {
+            error: 'Lost connection to the homeserver. Retrying…',
+          });
+          break;
+        case SyncState.Stopped:
+          this.setStatus('disconnected');
+          break;
+      }
+    });
+
+    sdk.on(RoomEvent.Timeline, (event, room, toStartOfTimeline) => {
+      // Backfill is delivered through pagination, not the live stream.
+      if (toStartOfTimeline || !room) return;
+      if (event.getType() !== 'm.room.message') return;
+
+      const message = toMessage(sdk, event, room);
+      if (message) {
+        this.emit({ type: 'message.received', message });
+        emitCounts(room);
+      }
+    });
+
+    sdk.on(RoomEvent.LocalEchoUpdated, (event, room) => {
+      const message = toMessage(sdk, event, room);
+      if (!message) return;
+
+      const txnId = event.getTxnId();
+      if (txnId) {
+        message.transactionId = txnId;
+        this.pendingEchoes.delete(txnId);
+      }
+      this.emit({ type: 'message.updated', message });
+    });
+
+    sdk.on(RoomEvent.Redaction, (event, room) => {
+      const redactedId = event.getAssociatedId();
+      if (redactedId && room) {
+        this.emit({
+          type: 'message.redacted',
+          roomId: room.roomId,
+          eventId: redactedId,
+        });
+      }
+    });
+
+    // A decrypted event arrives with an empty body first; re-emit once the
+    // keys land so the placeholder is replaced in place.
+    sdk.on(MatrixEventEvent.Decrypted, (event: MatrixEvent) => {
+      const roomId = event.getRoomId();
+      const room = roomId ? sdk.getRoom(roomId) : null;
+      const message = toMessage(sdk, event, room);
+      if (message) this.emit({ type: 'message.updated', message });
+    });
+
+    sdk.on(RoomEvent.Receipt, (event, room) => {
+      const receipts: ReadReceipt[] = [];
+      const content = event.getContent() as Record<
+        string,
+        Record<string, Record<string, { ts?: number }>>
+      >;
+
+      for (const [eventId, byType] of Object.entries(content)) {
+        for (const [userId, data] of Object.entries(byType['m.read'] ?? {})) {
+          receipts.push({ userId, eventId, timestamp: data?.ts ?? Date.now() });
+        }
+      }
+
+      if (receipts.length) {
+        this.emit({ type: 'receipt', roomId: room.roomId, receipts });
+        emitCounts(room);
+      }
+    });
+
+    sdk.on(RoomMemberEvent.Typing, (_event, member) => {
+      const room = sdk.getRoom(member.roomId);
+      if (!room) return;
+
+      this.emit({
+        type: 'typing',
+        update: {
+          roomId: room.roomId,
+          userIds: room
+            .getMembers()
+            .filter((m) => m.typing && m.userId !== sdk.getUserId())
+            .map((m) => m.userId),
+        },
+      });
+    });
+
+    // `RoomEvent.UnreadNotifications` is emitted on Room objects, not on the
+    // client, so counts are derived from the events that already reach here.
+    const emitCounts = (room: SdkRoom) => {
+      this.emit({
+        type: 'notifications',
+        roomId: room.roomId,
+        counts: this.countsFor(room),
+      });
+    };
+
+    sdk.on(RoomEvent.Name, (room: SdkRoom) => {
+      this.emit({ type: 'room.upserted', room: toRoom(sdk, room) });
+    });
+
+    sdk.on(ClientEvent.Room, (room: SdkRoom) => {
+      this.emit({ type: 'room.upserted', room: toRoom(sdk, room) });
+    });
+
+    sdk.on(ClientEvent.DeleteRoom, (roomId: string) => {
+      this.emit({ type: 'room.removed', roomId });
+    });
+  }
+
+  // --- rooms ---------------------------------------------------------------
+
+  getRooms(): Room[] {
+    const sdk = this.require();
+    return sdk
+      .getRooms()
+      .map((room) => toRoom(sdk, room))
+      .sort((a, b) => (b.lastActivityAt ?? 0) - (a.lastActivityAt ?? 0));
+  }
+
+  getRoom(roomId: RoomId): Room | null {
+    const sdk = this.require();
+    const room = sdk.getRoom(roomId);
+    return room ? toRoom(sdk, room) : null;
+  }
+
+  getMembers(roomId: RoomId): RoomMember[] {
+    const sdk = this.require();
+    const room = sdk.getRoom(roomId);
+    if (!room) return [];
+
+    return room
+      .getMembers()
+      .filter((member) => member.membership === 'join')
+      .map((member) => toRoomMember(sdk, member))
+      .sort((a, b) => b.powerLevel - a.powerLevel);
+  }
+
+  /** Creates a room for one of our channels. */
+  async createRoom(input: {
+    name: string;
+    topic?: string;
+    isPrivate: boolean;
+    encrypted?: boolean;
+    inviteUserIds?: string[];
+  }): Promise<RoomId> {
+    const sdk = this.require();
+
+    return withRetry(async () => {
+      const response = await sdk.createRoom({
+        name: input.name,
+        topic: input.topic,
+        preset: input.isPrivate
+          ? ('private_chat' as never)
+          : ('public_chat' as never),
+        invite: input.inviteUserIds,
+        initial_state: input.encrypted
+          ? [
+              {
+                type: 'm.room.encryption',
+                state_key: '',
+                content: { algorithm: 'm.megolm.v1.aes-sha2' },
+              },
+            ]
+          : [],
+      });
+      return response.room_id;
+    });
+  }
+
+  /** Finds an existing DM with the user, or creates one. */
+  async getOrCreateDirectMessage(userId: string): Promise<RoomId> {
+    const sdk = this.require();
+
+    const existing = sdk
+      .getRooms()
+      .find(
+        (room) =>
+          room.getJoinedMemberCount() === 2 &&
+          room.getJoinedMembers().some((member) => member.userId === userId),
+      );
+
+    if (existing) return existing.roomId;
+
+    const roomId = await this.createRoom({
+      name: '',
+      isPrivate: true,
+      encrypted: true,
+      inviteUserIds: [userId],
+    });
+
+    // Record the DM so both clients group it correctly.
+    const direct =
+      (sdk.getAccountData('m.direct' as never)?.getContent() as Record<
+        string,
+        string[]
+      >) ?? {};
+    await sdk.setAccountData(
+      'm.direct' as never,
+      {
+        ...direct,
+        [userId]: [...(direct[userId] ?? []), roomId],
+      } as never,
+    );
+
+    return roomId;
+  }
+
+  async joinRoom(roomIdOrAlias: string): Promise<RoomId> {
+    const sdk = this.require();
+    const room = await withRetry(() => sdk.joinRoom(roomIdOrAlias));
+    return room.roomId;
+  }
+
+  async leaveRoom(roomId: RoomId): Promise<void> {
+    const sdk = this.require();
+    await withRetry(() => sdk.leave(roomId));
+  }
+
+  async inviteToRoom(roomId: RoomId, userId: string): Promise<void> {
+    const sdk = this.require();
+    await withRetry(() => sdk.invite(roomId, userId));
+  }
+
+  // --- timeline ------------------------------------------------------------
+
+  /** The currently loaded timeline for a room, newest last. */
+  getTimeline(roomId: RoomId): Timeline {
+    const sdk = this.require();
+    const room = sdk.getRoom(roomId);
+    if (!room) return { messages: [], paginationToken: null, hasMore: false };
+
+    const timeline = room.getUnfilteredTimelineSet().getLiveTimeline();
+
+    const messages = timeline
+      .getEvents()
+      .filter((event) => event.getType() === 'm.room.message')
+      .map((event) => toMessage(sdk, event, room))
+      .filter((message): message is Message => message !== null);
+
+    return {
+      messages,
+      paginationToken: timeline.getPaginationToken(Direction.Backward),
+      hasMore: !!timeline.getPaginationToken(Direction.Backward),
+    };
+  }
+
+  /**
+   * Loads older history. Returns the newly prepended page only, so the caller
+   * can splice it in without re-rendering the whole list.
+   */
+  async loadOlderMessages(roomId: RoomId, limit = 30): Promise<Timeline> {
+    const sdk = this.require();
+    const room = sdk.getRoom(roomId);
+    if (!room) return { messages: [], paginationToken: null, hasMore: false };
+
+    const timeline = room.getUnfilteredTimelineSet().getLiveTimeline();
+    const before = timeline.getEvents().length;
+
+    await withRetry(() =>
+      sdk.paginateEventTimeline(timeline, {
+        backwards: true,
+        limit,
+      }),
+    );
+
+    const events = timeline.getEvents();
+    const added = events.slice(0, Math.max(0, events.length - before));
+
+    return {
+      messages: added
+        .filter((event) => event.getType() === 'm.room.message')
+        .map((event) => toMessage(sdk, event, room))
+        .filter((message): message is Message => message !== null),
+      paginationToken: timeline.getPaginationToken(Direction.Backward),
+      hasMore: !!timeline.getPaginationToken(Direction.Backward),
+    };
+  }
+
+  // --- messages ------------------------------------------------------------
+
+  /**
+   * Sends a text message.
+   *
+   * Returns immediately with a local echo so the composer can clear without
+   * waiting for the round trip; the real event replaces it via
+   * `message.updated` once the homeserver acknowledges.
+   */
+  async sendMessage(
+    roomId: RoomId,
+    body: string,
+    options: {
+      threadRootId?: EventId;
+      replyToId?: EventId;
+      html?: string;
+    } = {},
+  ): Promise<string> {
+    const sdk = this.require();
+    const transactionId = `m.${Date.now()}.${Math.random().toString(36).slice(2)}`;
+
+    const content: Record<string, unknown> = {
+      msgtype: 'm.text',
+      body,
+      ...(options.html
+        ? { format: 'org.matrix.custom.html', formatted_body: options.html }
+        : {}),
+      ...(options.replyToId
+        ? {
+            'm.relates_to': {
+              'm.in_reply_to': { event_id: options.replyToId },
+            },
+          }
+        : {}),
+    };
+
+    await withRetry(() =>
+      sdk.sendMessage(
+        roomId,
+        options.threadRootId ?? null,
+        content as never,
+        transactionId,
+      ),
+    );
+
+    return transactionId;
+  }
+
+  async editMessage(
+    roomId: RoomId,
+    eventId: EventId,
+    newBody: string,
+  ): Promise<void> {
+    const sdk = this.require();
+
+    await withRetry(() =>
+      sdk.sendMessage(roomId, {
+        msgtype: 'm.text',
+        // Fallback body for clients that do not understand replacements.
+        body: `* ${newBody}`,
+        'm.new_content': { msgtype: 'm.text', body: newBody },
+        'm.relates_to': { rel_type: 'm.replace', event_id: eventId },
+      } as never),
+    );
+  }
+
+  async deleteMessage(
+    roomId: RoomId,
+    eventId: EventId,
+    reason?: string,
+  ): Promise<void> {
+    const sdk = this.require();
+    await withRetry(() =>
+      sdk.redactEvent(
+        roomId,
+        eventId,
+        undefined,
+        reason ? { reason } : undefined,
+      ),
+    );
+  }
+
+  async react(roomId: RoomId, eventId: EventId, key: string): Promise<void> {
+    const sdk = this.require();
+    await withRetry(() =>
+      sdk.sendEvent(
+        roomId,
+        'm.reaction' as never,
+        {
+          'm.relates_to': { rel_type: 'm.annotation', event_id: eventId, key },
+        } as never,
+      ),
+    );
+  }
+
+  /** Removes the local user's reaction. No-op when they have not reacted. */
+  async removeReaction(
+    roomId: RoomId,
+    eventId: EventId,
+    key: string,
+  ): Promise<void> {
+    const sdk = this.require();
+    const room = sdk.getRoom(roomId);
+    const myUserId = sdk.getUserId();
+    if (!room || !myUserId) return;
+
+    const mine = room
+      .getUnfilteredTimelineSet()
+      .relations?.getChildEventsForEvent(eventId, 'm.annotation', 'm.reaction')
+      ?.getRelations()
+      .find(
+        (event) =>
+          event.getSender() === myUserId &&
+          event.getRelation()?.key === key &&
+          !event.isRedacted(),
+      );
+
+    const reactionId = mine?.getId();
+    if (reactionId) await this.deleteMessage(roomId, reactionId);
+  }
+
+  // --- threads -------------------------------------------------------------
+
+  getThreads(roomId: RoomId): Thread[] {
+    const sdk = this.require();
+    const room = sdk.getRoom(roomId);
+    if (!room) return [];
+
+    return room.getThreads().map((thread) => ({
+      rootId: thread.id,
+      roomId,
+      replyCount: thread.length,
+      latestReplyAt: thread.replyToEvent?.getTs(),
+      participantIds: [
+        ...new Set(
+          thread.events
+            .map((event) => event.getSender())
+            .filter((id): id is string => !!id),
+        ),
+      ],
+      hasUnread: thread.hasCurrentUserParticipated
+        ? (room.getThreadUnreadNotificationCount(thread.id) ?? 0) > 0
+        : false,
+    }));
+  }
+
+  async getThreadMessages(roomId: RoomId, rootId: EventId): Promise<Message[]> {
+    const sdk = this.require();
+    const room = sdk.getRoom(roomId);
+    if (!room) return [];
+
+    const thread = room.getThread(rootId);
+    if (!thread) return [];
+
+    return thread.events
+      .map((event) => toMessage(sdk, event, room))
+      .filter((message): message is Message => message !== null);
+  }
+
+  // --- presence, typing, receipts -----------------------------------------
+
+  async setTyping(roomId: RoomId, isTyping: boolean): Promise<void> {
+    const sdk = this.require();
+    // 20s matches the SDK's own default timeout; the server expires it for us
+    // if the client disappears mid-compose.
+    await sdk.sendTyping(roomId, isTyping, isTyping ? 20_000 : 0);
+  }
+
+  async markRead(roomId: RoomId, eventId: EventId): Promise<void> {
+    const sdk = this.require();
+    const room = sdk.getRoom(roomId);
+    const event = room?.getUnfilteredTimelineSet().findEventById(eventId);
+    if (event) await sdk.sendReadReceipt(event);
+  }
+
+  async setPresence(
+    state: PresenceState,
+    statusMessage?: string,
+  ): Promise<void> {
+    const sdk = this.require();
+    await sdk.setPresence({
+      presence: state === 'unavailable' ? 'unavailable' : state,
+      status_msg: statusMessage,
+    });
+  }
+
+  getPresence(userId: string) {
+    const sdk = this.require();
+    const user = sdk.getUser(userId);
+    return toPresence(
+      userId,
+      user?.presence,
+      user?.lastActiveAgo,
+      user?.presenceStatusMsg,
+    );
+  }
+
+  // --- media ---------------------------------------------------------------
+
+  /**
+   * Uploads a file and sends it as a message.
+   *
+   * The homeserver encrypts the payload transparently when the room is
+   * encrypted, so no branch is needed here.
+   */
+  async sendFile(
+    roomId: RoomId,
+    file: File,
+    options: {
+      threadRootId?: EventId;
+      onProgress?: (percent: number) => void;
+      /** Voice note metadata, when recording rather than attaching. */
+      voice?: { durationMs: number; waveform: number[] };
+    } = {},
+  ): Promise<void> {
+    const sdk = this.require();
+
+    const upload = await withRetry(() =>
+      sdk.uploadContent(file, {
+        name: file.name,
+        type: file.type,
+        progressHandler: ({ loaded, total }) =>
+          options.onProgress?.(total ? Math.round((loaded / total) * 100) : 0),
+      }),
+    );
+
+    const msgtype = options.voice
+      ? 'm.audio'
+      : file.type.startsWith('image/')
+        ? 'm.image'
+        : file.type.startsWith('video/')
+          ? 'm.video'
+          : file.type.startsWith('audio/')
+            ? 'm.audio'
+            : 'm.file';
+
+    const content: Record<string, unknown> = {
+      msgtype,
+      body: file.name,
+      url: upload.content_uri,
+      info: { mimetype: file.type, size: file.size },
+      ...(options.voice
+        ? {
+            // MSC3245 marks this as a voice note rather than an audio file.
+            'org.matrix.msc3245.voice': {},
+            'org.matrix.msc1767.audio': {
+              duration: options.voice.durationMs,
+              waveform: options.voice.waveform.map((v) =>
+                Math.round(Math.min(1, Math.max(0, v)) * 1024),
+              ),
+            },
+          }
+        : {}),
+    };
+
+    await withRetry(() =>
+      sdk.sendMessage(roomId, options.threadRootId ?? null, content as never),
+    );
+  }
+
+  /** Resolves an `mxc://` URI for rendering. */
+  resolveMedia(mxcUrl: string, width?: number, height?: number): string | null {
+    return resolveMediaUrl(this.require(), mxcUrl, { width, height });
+  }
+
+  // --- devices & encryption ------------------------------------------------
+
+  async getDevices(): Promise<Device[]> {
+    const sdk = this.require();
+    const crypto = sdk.getCrypto();
+    const myUserId = sdk.getUserId();
+
+    const response = await withRetry(() => sdk.getDevices());
+
+    return Promise.all(
+      response.devices.map(async (device) => {
+        let trust: Device['trust'] = 'unverified';
+
+        if (crypto && myUserId) {
+          const status = await crypto.getDeviceVerificationStatus(
+            myUserId,
+            device.device_id,
+          );
+          if (status?.isVerified()) trust = 'verified';
+        }
+
+        return {
+          id: device.device_id,
+          displayName: device.display_name ?? undefined,
+          lastSeenIp: device.last_seen_ip ?? undefined,
+          lastSeenAt: device.last_seen_ts ?? undefined,
+          trust,
+          isCurrent: device.device_id === sdk.getDeviceId(),
+        };
+      }),
+    );
+  }
+
+  async deleteDevice(deviceId: string): Promise<void> {
+    const sdk = this.require();
+    await withRetry(() => sdk.deleteDevice(deviceId));
+  }
+
+  async getEncryptionStatus(): Promise<EncryptionStatus> {
+    const sdk = this.require();
+    const crypto = sdk.getCrypto();
+
+    if (!crypto) {
+      return {
+        available: false,
+        crossSigningReady: false,
+        keyBackupEnabled: false,
+        ownDeviceTrust: 'unverified',
+      };
+    }
+
+    const [crossSigningReady, backupVersion] = await Promise.all([
+      crypto.isCrossSigningReady(),
+      crypto.getActiveSessionBackupVersion(),
+    ]);
+
+    const myUserId = sdk.getUserId();
+    const deviceId = sdk.getDeviceId();
+    let ownDeviceTrust: Device['trust'] = 'unverified';
+
+    if (myUserId && deviceId) {
+      const status = await crypto.getDeviceVerificationStatus(
+        myUserId,
+        deviceId,
+      );
+      if (status?.isVerified()) ownDeviceTrust = 'verified';
+    }
+
+    return {
+      available: true,
+      crossSigningReady,
+      keyBackupEnabled: !!backupVersion,
+      ownDeviceTrust,
+    };
+  }
+
+  /**
+   * Sets up cross-signing.
+   *
+   * `authUploadDeviceSigningKeys` is required because publishing signing keys
+   * is a User-Interactive Auth operation; the caller supplies the interaction.
+   */
+  async bootstrapCrossSigning(
+    onUiaRequest: (
+      makeRequest: (authData: Record<string, unknown> | null) => Promise<void>,
+    ) => Promise<void>,
+  ): Promise<void> {
+    const sdk = this.require();
+    const crypto = sdk.getCrypto();
+    if (!crypto) {
+      throw new MatrixError('ENCRYPTION', 'Encryption is not available.');
+    }
+
+    await crypto.bootstrapCrossSigning({
+      // Cast at the boundary so the SDK auth-dict type does not leak outward.
+      authUploadDeviceSigningKeys: onUiaRequest as never,
+    });
+  }
+
+  async isRoomEncrypted(roomId: RoomId): Promise<boolean> {
+    const crypto = this.require().getCrypto();
+    if (!crypto) return false;
+    return crypto.isEncryptionEnabledInRoom(roomId);
+  }
+
+  // --- notifications -------------------------------------------------------
+
+  /** Registers this device with the homeserver's push gateway. */
+  async registerPush(registration: PushRegistration): Promise<void> {
+    const sdk = this.require();
+    const session = this.session;
+    if (!session) throw new MatrixError('SESSION_EXPIRED', 'Not signed in.');
+
+    await withRetry(() =>
+      sdk.setPusher({
+        kind: 'http',
+        app_id: registration.appId,
+        pushkey: registration.pushKey,
+        app_display_name: 'OneTab AI',
+        device_display_name: registration.deviceDisplayName,
+        lang: 'en',
+        // `format: event_id_only` keeps message content off the push service.
+        data: { url: registration.gatewayUrl, format: 'event_id_only' },
+        append: false,
+      }),
+    );
+  }
+
+  async unregisterPush(pushKey: string, appId: string): Promise<void> {
+    const sdk = this.require();
+    await withRetry(() =>
+      sdk.setPusher({
+        kind: null,
+        app_id: appId,
+        pushkey: pushKey,
+        app_display_name: 'OneTab AI',
+        device_display_name: '',
+        lang: 'en',
+        data: {},
+      } as never),
+    );
+  }
+
+  getNotificationCounts(roomId: RoomId): NotificationCounts {
+    const room = this.require().getRoom(roomId);
+    return {
+      total: room?.getUnreadNotificationCount() ?? 0,
+      highlight:
+        room?.getUnreadNotificationCount(NotificationCountType.Highlight) ?? 0,
+    };
+  }
+}
+
+/** Factory, so consumers never import the class or the SDK directly. */
+export function createMatrixClient(
+  options: MatrixClientOptions,
+): OneTabMatrixClient {
+  return new OneTabMatrixClient(options);
+}

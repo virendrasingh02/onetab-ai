@@ -31,3 +31,5 @@ export type {
   Paginated,
   PaginationParams,
 } from './lib/api.js';
+
+export * from './lib/chat.js';

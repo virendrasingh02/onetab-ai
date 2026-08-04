@@ -95,7 +95,10 @@ export default tseslint.config(
               sourceTag: 'type:util',
               onlyDependOnLibsWithTags: ['type:util', 'type:types'],
             },
-            { sourceTag: 'type:types', onlyDependOnLibsWithTags: ['type:types'] },
+            {
+              sourceTag: 'type:types',
+              onlyDependOnLibsWithTags: ['type:types'],
+            },
           ],
         },
       ],
@@ -127,7 +130,9 @@ export default tseslint.config(
 
   // --- React ----------------------------------------------------------------
   {
-    files: ['**/*.tsx', '**/*.jsx'],
+    // `.ts` as well as `.tsx`: custom hooks routinely live in plain .ts
+    // modules, and the rules (and their disable comments) must resolve there.
+    files: ['**/*.tsx', '**/*.jsx', '**/*.ts'],
     plugins: { 'react-hooks': reactHooks },
     rules: {
       'react-hooks/rules-of-hooks': 'error',

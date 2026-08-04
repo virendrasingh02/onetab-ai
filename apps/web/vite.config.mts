@@ -1,5 +1,6 @@
 /// <reference types='vitest' />
 import react from '@vitejs/plugin-react';
+import wasm from 'vite-plugin-wasm';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
@@ -16,7 +17,26 @@ export default defineConfig(() => ({
     strictPort: true,
     host: 'localhost',
   },
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    /**
+     * matrix-js-sdk's Rust crypto ships as WebAssembly. Without this the E2EE
+     * stack cannot load and every encrypted room renders a decryption
+     * placeholder.
+     *
+     * No `vite-plugin-top-level-await` here: that package requires Rollup,
+     * which Vite 8 no longer bundles (it builds with Rolldown), and the ES2022
+     * build target supports top-level await natively regardless.
+     */
+    wasm(),
+  ],
+  optimizeDeps: {
+    // Pre-bundling the SDK resolves its ESM directory imports once, instead of
+    // on every cold dev-server start.
+    include: ['matrix-js-sdk'],
+    exclude: ['@matrix-org/matrix-sdk-crypto-wasm'],
+  },
   build: {
     outDir: './dist',
     emptyOutDir: true,
@@ -38,13 +58,24 @@ export default defineConfig(() => ({
          */
         manualChunks(id: string) {
           if (!id.includes('node_modules')) return;
-          if (/[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(id))
+          if (
+            /[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(
+              id,
+            )
+          )
             return 'vendor-react';
-          if (/[\\/](@tanstack|axios|zustand)[\\/]/.test(id)) return 'vendor-data';
+          if (/[\\/](@tanstack|axios|zustand)[\\/]/.test(id))
+            return 'vendor-data';
           if (/[\\/](react-hook-form|@hookform|zod)[\\/]/.test(id))
             return 'vendor-forms';
-          if (/[\\/](@radix-ui|lucide-react|framer-motion|sonner)[\\/]/.test(id))
+          if (
+            /[\\/](@radix-ui|lucide-react|framer-motion|sonner)[\\/]/.test(id)
+          )
             return 'vendor-ui';
+          // Matrix is large and versions independently of everything else, so
+          // it gets its own chunk rather than invalidating the shared vendor.
+          if (/[\\/](matrix-js-sdk|@matrix-org)[\\/]/.test(id))
+            return 'vendor-matrix';
           return 'vendor';
         },
       },

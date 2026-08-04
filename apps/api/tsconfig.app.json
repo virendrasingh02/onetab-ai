@@ -29,6 +29,9 @@
       "path": "../../libs/api/member/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/api/matrix/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/api/channel/tsconfig.lib.json"
     },
     {

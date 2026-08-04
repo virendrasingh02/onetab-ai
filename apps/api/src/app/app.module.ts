@@ -5,6 +5,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule, JwtAuthGuard } from '@org/api-auth';
 import { ChannelModule } from '@org/api-channel';
 import { HttpExceptionFilter } from '@org/api-common';
+import { MatrixModule } from '@org/api-matrix';
 import { MemberModule } from '@org/api-member';
 import { UserModule } from '@org/api-user';
 import { WorkspaceModule } from '@org/api-workspace';
@@ -34,6 +35,7 @@ import { AppService } from './app.service';
     WorkspaceModule,
     ChannelModule,
     MemberModule,
+    MatrixModule,
   ],
   controllers: [AppController],
   providers: [

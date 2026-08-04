@@ -33,6 +33,14 @@ export const apiEnvSchema = z.object({
   /** Comma-separated allowlist. Empty means "same origin only". */
   CORS_ORIGINS: z.string().default(''),
 
+  // Matrix bridge. Optional: the API runs without a homeserver.
+  MATRIX_ENABLED: z.enum(['true', 'false']).default('false'),
+  MATRIX_HOMESERVER_URL: z.string().url().optional(),
+  MATRIX_SERVER_NAME: z.string().optional(),
+  MATRIX_REGISTRATION_SHARED_SECRET: z.string().optional(),
+  MATRIX_AS_TOKEN: z.string().optional(),
+  MATRIX_HS_TOKEN: z.string().optional(),
+
   THROTTLE_TTL_MS: z.coerce.number().int().positive().default(60_000),
   THROTTLE_LIMIT: z.coerce.number().int().positive().default(120),
 });
