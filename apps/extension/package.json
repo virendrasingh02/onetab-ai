@@ -1,0 +1,16 @@
+{
+  "name": "@org/extension",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "lucide-react": "^1.28.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "nx": {
+    "tags": [
+      "type:app",
+      "scope:extension"
+    ]
+  }
+}

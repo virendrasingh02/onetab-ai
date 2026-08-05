@@ -54,4 +54,6 @@ export type {
   OrganizationSubscription,
   ExternalIntegration,
   ImportJob,
+  AnalyticsEvent,
+  RecentActivity,
 } from './generated/client.js';

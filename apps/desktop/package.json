@@ -1,0 +1,12 @@
+{
+  "name": "@org/desktop",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/main.ts",
+  "nx": {
+    "tags": [
+      "type:app",
+      "scope:desktop"
+    ]
+  }
+}

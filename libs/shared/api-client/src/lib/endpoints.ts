@@ -1,14 +1,25 @@
 import type {
+  AIUsageStats,
   AuthTokens,
   Channel,
   ChannelMember,
   ChannelPin,
   ChannelSummary,
   CurrentUser,
+  DashboardOverview,
+  ErrorTrackingReport,
+  GeneratedReport,
+  HealthStatus,
   Invitation,
+  PerformanceMetrics,
   PublicUser,
+  ReportDefinition,
+  ReportType,
+  StorageAnalytics,
   Upload,
+  UserAnalytics,
   Workspace,
+  WorkspaceAnalytics,
   WorkspaceMember,
   WorkspaceSummary,
 } from '@org/types';
@@ -275,5 +286,101 @@ export const matrixApi = {
   channelRoom: (channelId: string) =>
     request<{ roomId: string }>(
       http.post(`/matrix/channels/${channelId}/room`),
+    ),
+};
+
+/**
+ * Phase 11 — analytics, reporting and platform observability.
+ *
+ * `days` and `hours` are clamped server-side, so callers may pass whatever the
+ * range picker is currently set to without validating it first.
+ */
+export const analyticsApi = {
+  dashboard: (workspaceId: string, days: number) =>
+    request<DashboardOverview>(
+      http.get(`/analytics/workspace/${workspaceId}/dashboard`, {
+        params: { days },
+      }),
+    ),
+
+  workspace: (workspaceId: string, days: number) =>
+    request<WorkspaceAnalytics>(
+      http.get(`/analytics/workspace/${workspaceId}`, { params: { days } }),
+    ),
+
+  users: (workspaceId: string, days: number) =>
+    request<UserAnalytics>(
+      http.get(`/analytics/workspace/${workspaceId}/users`, {
+        params: { days },
+      }),
+    ),
+
+  aiUsage: (workspaceId: string, days: number) =>
+    request<AIUsageStats>(
+      http.get(`/analytics/workspace/${workspaceId}/ai-usage`, {
+        params: { days },
+      }),
+    ),
+
+  storage: (workspaceId: string, days: number) =>
+    request<StorageAnalytics>(
+      http.get(`/analytics/workspace/${workspaceId}/storage`, {
+        params: { days },
+      }),
+    ),
+
+  errors: (workspaceId: string, hours: number) =>
+    request<ErrorTrackingReport>(
+      http.get(`/analytics/workspace/${workspaceId}/errors`, {
+        params: { hours },
+      }),
+    ),
+
+  platformErrors: (hours: number) =>
+    request<ErrorTrackingReport>(
+      http.get('/analytics/errors', { params: { hours } }),
+    ),
+
+  clearPlatformErrors: () =>
+    request<{ cleared: number }>(http.delete('/analytics/errors')),
+
+  performance: () =>
+    request<PerformanceMetrics>(http.get('/analytics/performance')),
+
+  health: () => request<HealthStatus>(http.get('/analytics/health')),
+
+  reportDefinitions: (workspaceId: string) =>
+    request<ReportDefinition[]>(
+      http.get(`/analytics/workspace/${workspaceId}/reports`),
+    ),
+
+  report: (workspaceId: string, type: ReportType, days: number) =>
+    request<GeneratedReport>(
+      http.get(`/analytics/workspace/${workspaceId}/reports/${type}`, {
+        params: { days },
+      }),
+    ),
+
+  /**
+   * CSV comes back as text, not JSON — callers turn this into a Blob download.
+   */
+  reportCsv: (workspaceId: string, type: ReportType, days: number) =>
+    request<string>(
+      http.get(`/analytics/workspace/${workspaceId}/reports/${type}`, {
+        params: { days, format: 'csv' },
+        responseType: 'text',
+      }),
+    ),
+
+  trackEvent: (
+    workspaceId: string,
+    eventType: string,
+    metadata?: Record<string, unknown>,
+  ) =>
+    request<{ id: string }>(
+      http.post(`/analytics/workspace/${workspaceId}/events`, {
+        eventType,
+        metadata,
+      }),
     ),
 };

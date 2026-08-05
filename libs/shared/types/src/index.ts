@@ -33,3 +33,4 @@ export type {
 } from './lib/api.js';
 
 export * from './lib/chat.js';
+export * from './lib/analytics.js';

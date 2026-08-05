@@ -137,6 +137,7 @@ model Workspace {
   automationWorkflows     AutomationWorkflow[]
   externalIntegrations    ExternalIntegration[]
   importJobs              ImportJob[]
+  analyticsEvents         AnalyticsEvent[]
 
   @@index([ownerId])
   @@map("workspaces")
@@ -988,4 +989,21 @@ model ImportJob {
 
   @@index([workspaceId, status])
   @@map("import_jobs")
+}
+
+model AnalyticsEvent {
+  id String @id @default(cuid())
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  userId    String
+  eventType String    // PAGE_VIEW, AI_CHAT, TASK_CREATED, MESSAGE_SENT, FILE_UPLOADED, etc.
+  metadata  String?   // JSON blob
+
+  createdAt DateTime @default(now())
+
+  @@index([workspaceId, eventType])
+  @@index([workspaceId, createdAt])
+  @@map("analytics_events")
 }

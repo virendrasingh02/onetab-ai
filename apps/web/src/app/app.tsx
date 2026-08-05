@@ -125,6 +125,33 @@ const IntegrationHubView = lazy(() =>
 const SlackNotionImportView = lazy(() =>
   import('@org/web-integrations').then((m) => ({ default: m.SlackNotionImportView })),
 );
+const AnalyticsDashboardView = lazy(() =>
+  import('@org/web-analytics').then((m) => ({ default: m.AnalyticsDashboardView })),
+);
+const ReportsView = lazy(() =>
+  import('@org/web-analytics').then((m) => ({ default: m.ReportsView })),
+);
+const UserAnalyticsView = lazy(() =>
+  import('@org/web-analytics').then((m) => ({ default: m.UserAnalyticsView })),
+);
+const AIUsageView = lazy(() =>
+  import('@org/web-analytics').then((m) => ({ default: m.AIUsageView })),
+);
+const WorkspaceAnalyticsView = lazy(() =>
+  import('@org/web-analytics').then((m) => ({ default: m.WorkspaceAnalyticsView })),
+);
+const StorageAnalyticsView = lazy(() =>
+  import('@org/web-analytics').then((m) => ({ default: m.StorageAnalyticsView })),
+);
+const PerformanceMonitoringView = lazy(() =>
+  import('@org/web-analytics').then((m) => ({ default: m.PerformanceMonitoringView })),
+);
+const ErrorTrackingView = lazy(() =>
+  import('@org/web-analytics').then((m) => ({ default: m.ErrorTrackingView })),
+);
+const HealthDashboardView = lazy(() =>
+  import('@org/web-analytics').then((m) => ({ default: m.HealthDashboardView })),
+);
 
 function NotFoundPage() {
   return (
@@ -195,6 +222,15 @@ export function App() {
             <Route path="enterprise/audit-logs" element={<AuditLogView />} />
             <Route path="integrations" element={<IntegrationHubView />} />
             <Route path="integrations/import" element={<SlackNotionImportView />} />
+            <Route path="analytics" element={<AnalyticsDashboardView />} />
+            <Route path="analytics/reports" element={<ReportsView />} />
+            <Route path="analytics/users" element={<UserAnalyticsView />} />
+            <Route path="analytics/ai-usage" element={<AIUsageView />} />
+            <Route path="analytics/workspace" element={<WorkspaceAnalyticsView />} />
+            <Route path="analytics/storage" element={<StorageAnalyticsView />} />
+            <Route path="analytics/performance" element={<PerformanceMonitoringView />} />
+            <Route path="analytics/errors" element={<ErrorTrackingView />} />
+            <Route path="analytics/health" element={<HealthDashboardView />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route

@@ -164,6 +164,18 @@
     },
     {
       "path": "./libs/web/integrations"
+    },
+    {
+      "path": "./libs/api/analytics"
+    },
+    {
+      "path": "./libs/web/analytics"
+    },
+    {
+      "path": "./apps/desktop"
+    },
+    {
+      "path": "./apps/extension"
     }
   ],
   "compilerOptions": {}

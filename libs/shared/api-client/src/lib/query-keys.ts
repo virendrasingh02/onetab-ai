@@ -38,6 +38,31 @@ export const queryKeys = {
     list: (workspaceId: string) =>
       ['invitations', workspaceId, 'list'] as const,
   },
+  analytics: {
+    all: (workspaceId: string) => ['analytics', workspaceId] as const,
+    dashboard: (workspaceId: string, days: number) =>
+      ['analytics', workspaceId, 'dashboard', days] as const,
+    workspace: (workspaceId: string, days: number) =>
+      ['analytics', workspaceId, 'workspace', days] as const,
+    users: (workspaceId: string, days: number) =>
+      ['analytics', workspaceId, 'users', days] as const,
+    aiUsage: (workspaceId: string, days: number) =>
+      ['analytics', workspaceId, 'ai-usage', days] as const,
+    storage: (workspaceId: string, days: number) =>
+      ['analytics', workspaceId, 'storage', days] as const,
+    errors: (workspaceId: string, hours: number) =>
+      ['analytics', workspaceId, 'errors', hours] as const,
+    reports: (workspaceId: string) =>
+      ['analytics', workspaceId, 'reports'] as const,
+    report: (workspaceId: string, type: string, days: number) =>
+      ['analytics', workspaceId, 'reports', type, days] as const,
+    /** Not workspace-scoped — the whole API process is the subject. */
+    platform: () => ['analytics', 'platform'] as const,
+    performance: () => ['analytics', 'platform', 'performance'] as const,
+    health: () => ['analytics', 'platform', 'health'] as const,
+    platformErrors: (hours: number) =>
+      ['analytics', 'platform', 'errors', hours] as const,
+  },
   matrix: {
     all: () => ['matrix'] as const,
     /** Cached per channel: provisioning a room is not free. */

@@ -1,0 +1,28 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
+    "declaration": true,
+    "rootDir": "src",
+    "types": ["node"],
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["dist", "src/**/*.spec.ts"],
+  "references": [
+    {
+      "path": "../common/tsconfig.lib.json"
+    },
+    {
+      "path": "../auth/tsconfig.lib.json"
+    },
+    {
+      "path": "../database/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/types/tsconfig.lib.json"
+    }
+  ]
+}

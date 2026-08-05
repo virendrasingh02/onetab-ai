@@ -90,6 +90,9 @@
     },
     {
       "path": "../../libs/web/integrations/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/analytics/tsconfig.lib.json"
     }
   ]
 }

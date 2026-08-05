@@ -57,6 +57,9 @@
     },
     {
       "path": "../../libs/api/integrations/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/api/analytics/tsconfig.lib.json"
     }
   ]
 }

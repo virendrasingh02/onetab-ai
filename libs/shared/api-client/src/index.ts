@@ -9,6 +9,7 @@ export {
 } from './lib/http.js';
 
 export {
+  analyticsApi,
   authApi,
   channelApi,
   invitationApi,

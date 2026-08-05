@@ -17,6 +17,7 @@ import { AgentsModule } from '@org/api-agents';
 import { AutomationsModule } from '@org/api-automations';
 import { EnterpriseModule } from '@org/api-enterprise';
 import { IntegrationsModule } from '@org/api-integrations';
+import { AnalyticsModule } from '@org/api-analytics';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -48,6 +49,7 @@ import { AppService } from './app.service';
     AutomationsModule,
     EnterpriseModule,
     IntegrationsModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [
