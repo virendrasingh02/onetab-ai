@@ -37,7 +37,7 @@ export function useSessionBootstrap(): void {
         // 5-second limit so the login page is visible quickly even when the
         // API hasn't started yet — avoids a 15-second spinner on cold boot.
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 5_000);
+        const timer = setTimeout(() => controller.abort(), 1_500);
         try {
           const tokens = await authApi.refresh({ signal: controller.signal });
           const user = await authApi.me();

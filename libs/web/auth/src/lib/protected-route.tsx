@@ -29,10 +29,6 @@ export function ProtectedRoute() {
 export function PublicOnlyRoute() {
   const status = useAuthStore((state) => state.status);
 
-  if (status === 'idle' || status === 'authenticating') {
-    return <LoadingState fullPage label="Loading…" />;
-  }
-
   if (status === 'authenticated') {
     return <Navigate to="/" replace />;
   }

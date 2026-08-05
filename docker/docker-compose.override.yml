@@ -1,0 +1,12 @@
+version: '3.8'
+
+# Development overrides for OneTab AI local infrastructure
+services:
+  postgres:
+    environment:
+      POSTGRES_DB: onetab_dev
+  redis:
+    command: redis-server --appendonly yes
+  meilisearch:
+    environment:
+      MEILI_ENV: development

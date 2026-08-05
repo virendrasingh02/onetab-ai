@@ -1,4 +1,4 @@
-import { matrixApi } from '@org/api-client';
+import { getAccessToken, matrixApi } from '@org/api-client';
 import {
   createMatrixClient,
   type ConnectionStatus,
@@ -40,19 +40,14 @@ export function MatrixProvider({ children }: { children: ReactNode }) {
   });
   const [enabled, setEnabled] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // StrictMode double-invokes effects; connecting twice would burn the
-  // single-use login token and leave two sync loops running.
-  const started = useRef(false);
+  const connectingForToken = useRef<string | null>(null);
 
   useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-
     let disposed = false;
     let instance: OneTabMatrixClient | null = null;
     let unsubscribe: (() => void) | undefined;
 
-    async function connect() {
+    async function syncConnection() {
       try {
         const config = await matrixApi.config();
 
@@ -62,8 +57,22 @@ export function MatrixProvider({ children }: { children: ReactNode }) {
         }
         setEnabled(true);
 
-        const session = await matrixApi.session();
+        const token = getAccessToken();
+        if (!token) {
+          if (instance) {
+            instance.stop();
+            instance = null;
+            setClient(null);
+            setStatus({ state: 'disconnected' });
+          }
+          connectingForToken.current = null;
+          return;
+        }
 
+        if (connectingForToken.current === token) return;
+        connectingForToken.current = token;
+
+        const session = await matrixApi.session();
         if (disposed) return;
 
         instance = createMatrixClient({
@@ -79,6 +88,7 @@ export function MatrixProvider({ children }: { children: ReactNode }) {
         if (!disposed) setClient(instance);
       } catch (caught) {
         if (!disposed) {
+          setEnabled(false);
           setError(
             caught instanceof Error
               ? caught.message
@@ -89,12 +99,19 @@ export function MatrixProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    void connect();
+    void syncConnection();
+
+    const interval = setInterval(() => {
+      const token = getAccessToken();
+      if (token !== connectingForToken.current) {
+        void syncConnection();
+      }
+    }, 1000);
 
     return () => {
       disposed = true;
+      clearInterval(interval);
       unsubscribe?.();
-      // Stop syncing but keep the session, so a remount reconnects cheaply.
       instance?.stop();
     };
   }, []);

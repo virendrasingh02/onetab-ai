@@ -12,7 +12,12 @@ export class AppService {
   async health() {
     let database: 'up' | 'down' = 'up';
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
+      await Promise.race([
+        this.prisma.$queryRaw`SELECT 1`,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), 200),
+        ),
+      ]);
     } catch {
       database = 'down';
     }

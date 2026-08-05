@@ -43,6 +43,17 @@ export const apiEnvSchema = z.object({
 
   THROTTLE_TTL_MS: z.coerce.number().int().positive().default(60_000),
   THROTTLE_LIMIT: z.coerce.number().int().positive().default(120),
+
+  // Infrastructure integration settings
+  REDIS_URL: z.string().default('redis://localhost:6379'),
+  MATRIX_URL: z.string().default('http://localhost:8008'),
+  MINIO_ENDPOINT: z.string().default('http://localhost:9000'),
+  MINIO_ACCESS_KEY: z.string().default('minioadmin'),
+  MINIO_SECRET_KEY: z.string().default('minioadmin'),
+  MEILI_HOST: z.string().default('http://localhost:7700'),
+  MEILI_MASTER_KEY: z.string().default('masterKey123'),
+  QDRANT_URL: z.string().default('http://localhost:6333'),
+  OLLAMA_URL: z.string().default('http://localhost:11434'),
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;

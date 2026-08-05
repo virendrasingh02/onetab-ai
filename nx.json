@@ -107,6 +107,27 @@
       "cache": true,
       "dependsOn": ["^build"],
       "inputs": ["production", "^production"]
+    },
+    "infra:start": {
+      "cache": false
+    },
+    "infra:stop": {
+      "cache": false
+    },
+    "infra:restart": {
+      "cache": false
+    },
+    "infra:logs": {
+      "cache": false
+    },
+    "infra:clean": {
+      "cache": false
+    },
+    "start:dev": {
+      "cache": false
+    },
+    "start:full": {
+      "cache": false
     }
   }
 }

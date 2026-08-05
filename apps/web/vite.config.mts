@@ -1,4 +1,4 @@
-/// <reference types='vitest' />
+import path from 'node:path';
 import react from '@vitejs/plugin-react';
 import wasm from 'vite-plugin-wasm';
 import tailwindcss from '@tailwindcss/vite';
@@ -9,13 +9,20 @@ export default defineConfig(() => ({
   cacheDir: '../../node_modules/.vite/web',
   server: {
     port: 4200,
-    strictPort: false,
+    strictPort: true,
     host: 'localhost',
   },
   preview: {
     port: 4200,
-    strictPort: false,
+    strictPort: true,
     host: 'localhost',
+  },
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+    alias: {
+      react: path.resolve(import.meta.dirname, '../../node_modules/react'),
+      'react-dom': path.resolve(import.meta.dirname, '../../node_modules/react-dom'),
+    },
   },
   plugins: [
     react(),
@@ -32,9 +39,8 @@ export default defineConfig(() => ({
     wasm(),
   ],
   optimizeDeps: {
-    // Pre-bundling the SDK resolves its ESM directory imports once, instead of
-    // on every cold dev-server start.
-    include: ['matrix-js-sdk'],
+    // Pre-bundling react and matrix-js-sdk ensures single React instance across packages.
+    include: ['react', 'react-dom', 'matrix-js-sdk'],
     exclude: ['@matrix-org/matrix-sdk-crypto-wasm'],
   },
   build: {

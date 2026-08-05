@@ -1,4 +1,4 @@
-/// <reference types='vitest' />
+import path from 'node:path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
@@ -16,7 +16,17 @@ export default defineConfig(() => ({
     strictPort: true,
     host: 'localhost',
   },
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+    alias: {
+      react: path.resolve(import.meta.dirname, '../../node_modules/react'),
+      'react-dom': path.resolve(import.meta.dirname, '../../node_modules/react-dom'),
+    },
+  },
   plugins: [react(), tailwindcss()],
+  optimizeDeps: {
+    include: ['react', 'react-dom'],
+  },
   build: {
     outDir: './dist',
     emptyOutDir: true,

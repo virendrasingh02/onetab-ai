@@ -11,6 +11,7 @@ import { UserModule } from '@org/api-user';
 import { WorkspaceModule } from '@org/api-workspace';
 import { validateApiEnv } from '@org/config';
 import { PrismaModule } from '@org/database';
+import { InfrastructureModule } from '@org/api-infrastructure';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -29,6 +30,7 @@ import { AppService } from './app.service';
         limit: Number(process.env['THROTTLE_LIMIT'] ?? 120),
       },
     ]),
+    InfrastructureModule,
     PrismaModule,
     AuthModule,
     UserModule,

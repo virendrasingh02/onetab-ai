@@ -68,6 +68,10 @@ async function resolveBaseURL(): Promise<string> {
     return activeBaseURL;
   }
 
+  if (activeBaseURL !== configuredBaseURL) {
+    return activeBaseURL;
+  }
+
   baseURLResolution ??= (async () => {
     /**
      * Probe all candidate ports in parallel and take the first that responds.
@@ -88,6 +92,8 @@ async function resolveBaseURL(): Promise<string> {
     if (winner) {
       activeBaseURL = winner;
       http.defaults.baseURL = winner;
+    } else {
+      baseURLResolution = null;
     }
 
     return activeBaseURL;
