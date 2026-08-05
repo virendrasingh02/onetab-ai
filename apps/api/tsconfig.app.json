@@ -60,6 +60,9 @@
     },
     {
       "path": "../../libs/api/analytics/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/api/marketplace/tsconfig.lib.json"
     }
   ]
 }

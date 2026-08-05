@@ -11,7 +11,21 @@ import type {
   GeneratedReport,
   HealthStatus,
   Invitation,
+  MarketplaceBrowseParams,
+  MarketplaceCategoryCount,
+  MarketplaceInstallation,
+  MarketplaceKind,
+  MarketplaceListingDetail,
+  MarketplacePage,
+  MarketplaceReview,
+  MarketplaceStorefrontStat,
+  MarketplaceStorefronts,
   PerformanceMetrics,
+  PluginCredentials,
+  PluginManifest,
+  PluginManifestValidation,
+  PluginRegistrationView,
+  PluginSDKDescriptor,
   PublicUser,
   ReportDefinition,
   ReportType,
@@ -382,5 +396,120 @@ export const analyticsApi = {
         eventType,
         metadata,
       }),
+    ),
+};
+
+/**
+ * Phase 12 — Marketplace.
+ *
+ * Browse calls take an optional `workspaceId` so the server can mark which
+ * listings are already installed; it is a query param rather than a path
+ * segment because browsing itself is not workspace-scoped.
+ */
+export const marketplaceApi = {
+  storefronts: () =>
+    request<MarketplaceStorefronts>(http.get('/marketplace/storefronts')),
+
+  stats: (workspaceId?: string) =>
+    request<MarketplaceStorefrontStat[]>(
+      http.get('/marketplace/stats', { params: { workspaceId } }),
+    ),
+
+  browse: (params: MarketplaceBrowseParams, workspaceId?: string) =>
+    request<MarketplacePage>(
+      http.get('/marketplace/listings', { params: { ...params, workspaceId } }),
+    ),
+
+  listing: (slug: string, workspaceId?: string) =>
+    request<MarketplaceListingDetail>(
+      http.get(`/marketplace/listings/${slug}`, { params: { workspaceId } }),
+    ),
+
+  categories: (kind: MarketplaceKind) =>
+    request<MarketplaceCategoryCount[]>(
+      http.get(`/marketplace/kinds/${kind}/categories`),
+    ),
+
+  reviews: (slug: string) =>
+    request<MarketplaceReview[]>(
+      http.get(`/marketplace/listings/${slug}/reviews`),
+    ),
+
+  addReview: (
+    slug: string,
+    input: { rating: number; title?: string; body?: string; workspaceId?: string },
+  ) =>
+    request<MarketplaceReview>(
+      http.post(`/marketplace/listings/${slug}/reviews`, input),
+    ),
+
+  installations: (workspaceId: string, kind?: MarketplaceKind) =>
+    request<MarketplaceInstallation[]>(
+      http.get(`/marketplace/workspaces/${workspaceId}/installations`, {
+        params: { kind },
+      }),
+    ),
+
+  install: (
+    workspaceId: string,
+    input: {
+      listingSlug: string;
+      grantedScopes?: string[];
+      settings?: Record<string, unknown>;
+    },
+  ) =>
+    request<MarketplaceInstallation>(
+      http.post(`/marketplace/workspaces/${workspaceId}/installations`, input),
+    ),
+
+  setEnabled: (workspaceId: string, slug: string, enabled: boolean) =>
+    request<MarketplaceInstallation>(
+      http.patch(
+        `/marketplace/workspaces/${workspaceId}/installations/${slug}`,
+        { enabled },
+      ),
+    ),
+
+  updateSettings: (
+    workspaceId: string,
+    slug: string,
+    settings: Record<string, unknown>,
+  ) =>
+    request<MarketplaceInstallation>(
+      http.patch(
+        `/marketplace/workspaces/${workspaceId}/installations/${slug}`,
+        { settings },
+      ),
+    ),
+
+  uninstall: (workspaceId: string, slug: string) =>
+    request<{ listingSlug: string; status: string }>(
+      http.delete(
+        `/marketplace/workspaces/${workspaceId}/installations/${slug}`,
+      ),
+    ),
+
+  // --- Plugin SDK ---------------------------------------------------------
+
+  sdk: () => request<PluginSDKDescriptor>(http.get('/marketplace/sdk')),
+
+  validateManifest: (manifest: PluginManifest) =>
+    request<PluginManifestValidation>(
+      http.post('/marketplace/sdk/validate', manifest),
+    ),
+
+  registerPlugin: (slug: string, manifest: PluginManifest) =>
+    request<PluginCredentials>(
+      http.post(`/marketplace/plugins/${slug}/register`, manifest),
+    ),
+
+  registration: (slug: string) =>
+    request<PluginRegistrationView>(
+      http.get(`/marketplace/plugins/${slug}/registration`),
+    ),
+
+  rotatePluginKey: (slug: string) =>
+    request<{ listingSlug: string; apiKey: string; apiKeyPrefix: string }>(
+      http.post(`/marketplace/plugins/${slug}/rotate-key`),
     ),
 };

@@ -13,6 +13,7 @@ export {
   authApi,
   channelApi,
   invitationApi,
+  marketplaceApi,
   matrixApi,
   memberApi,
   userApi,

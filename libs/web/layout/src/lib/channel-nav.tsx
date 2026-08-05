@@ -2,7 +2,7 @@ import { Button, Hint, ScrollArea, SkeletonList } from '@org/ui';
 import type { ChannelSummary } from '@org/types';
 import { cn } from '@org/utils';
 import { useChannelPreferences, useGroupedChannels } from '@org/web-channels';
-import { ChevronDown, Hash, Lock, Plus, Star, Users, CheckSquare, FileText, Layout, Calendar, HardDrive, Activity, Sparkles, BookOpen, Image, Bot, Wrench, Workflow, Building2, Shield, ShieldAlert, Share2, UploadCloud, BarChart3, FileSpreadsheet, Gauge, Bug, HeartPulse } from 'lucide-react';
+import { ChevronDown, Hash, Lock, Plus, Star, Users, CheckSquare, FileText, Layout, Calendar, HardDrive, Activity, Sparkles, BookOpen, Image, Bot, Wrench, Workflow, Building2, Shield, ShieldAlert, Share2, UploadCloud, BarChart3, FileSpreadsheet, Gauge, Bug, HeartPulse, Store, Puzzle, Palette, Blocks, Plug, FileStack } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 
@@ -20,6 +20,18 @@ const ANALYTICS_LINKS = [
   { path: 'analytics/performance', label: 'Performance', icon: Gauge, tone: 'text-amber-400' },
   { path: 'analytics/errors', label: 'Error Tracking', icon: Bug, tone: 'text-red-400' },
   { path: 'analytics/health', label: 'Health Dashboard', icon: HeartPulse, tone: 'text-emerald-400' },
+] as const;
+
+/** Phase 12's eight screens, same data-driven treatment as the analytics group. */
+const MARKETPLACE_LINKS = [
+  { path: 'marketplace', label: 'Marketplace Home', icon: Store, tone: 'text-blue-400' },
+  { path: 'marketplace/plugins', label: 'Plugin SDK', icon: Puzzle, tone: 'text-blue-400' },
+  { path: 'marketplace/themes', label: 'Theme Store', icon: Palette, tone: 'text-pink-400' },
+  { path: 'marketplace/agents', label: 'Agent Marketplace', icon: Bot, tone: 'text-emerald-400' },
+  { path: 'marketplace/workflows', label: 'Workflow Templates', icon: Workflow, tone: 'text-amber-400' },
+  { path: 'marketplace/components', label: 'Component Market', icon: Blocks, tone: 'text-purple-400' },
+  { path: 'marketplace/integrations', label: 'Integration Store', icon: Plug, tone: 'text-cyan-400' },
+  { path: 'marketplace/templates', label: 'Community Templates', icon: FileStack, tone: 'text-rose-400' },
 ] as const;
 
 interface SectionProps {
@@ -553,6 +565,31 @@ export function ChannelNav({
               to={`/w/${workspaceSlug}/${link.path}`}
               // `end` so the dashboard link is not highlighted on every child route.
               end={link.path === 'analytics'}
+              className={({ isActive }) =>
+                cn(
+                  'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                  isActive
+                    ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                    : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                )
+              }
+            >
+              <link.icon className={cn('size-3.5 shrink-0', link.tone)} />
+              <span>{link.label}</span>
+            </NavLink>
+          ))}
+        </div>
+
+        <div className="mt-2 mb-3 px-1 space-y-px border-b border-sidebar-border pb-3">
+          <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
+            Marketplace
+          </div>
+          {MARKETPLACE_LINKS.map((link) => (
+            <NavLink
+              key={link.path}
+              to={`/w/${workspaceSlug}/${link.path}`}
+              // `end` so the home link is not highlighted on every storefront.
+              end={link.path === 'marketplace'}
               className={({ isActive }) =>
                 cn(
                   'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',

@@ -152,6 +152,38 @@ const ErrorTrackingView = lazy(() =>
 const HealthDashboardView = lazy(() =>
   import('@org/web-analytics').then((m) => ({ default: m.HealthDashboardView })),
 );
+const MarketplaceHomeView = lazy(() =>
+  import('@org/web-marketplace').then((m) => ({ default: m.MarketplaceHomeView })),
+);
+const PluginSDKView = lazy(() =>
+  import('@org/web-marketplace').then((m) => ({ default: m.PluginSDKView })),
+);
+const ThemeStoreView = lazy(() =>
+  import('@org/web-marketplace').then((m) => ({ default: m.ThemeStoreView })),
+);
+const AgentStoreView = lazy(() =>
+  import('@org/web-marketplace').then((m) => ({ default: m.AgentStoreView })),
+);
+const WorkflowTemplatesView = lazy(() =>
+  import('@org/web-marketplace').then((m) => ({
+    default: m.WorkflowTemplatesView,
+  })),
+);
+const ComponentMarketplaceView = lazy(() =>
+  import('@org/web-marketplace').then((m) => ({
+    default: m.ComponentMarketplaceView,
+  })),
+);
+const IntegrationStoreView = lazy(() =>
+  import('@org/web-marketplace').then((m) => ({
+    default: m.IntegrationStoreView,
+  })),
+);
+const CommunityTemplatesView = lazy(() =>
+  import('@org/web-marketplace').then((m) => ({
+    default: m.CommunityTemplatesView,
+  })),
+);
 
 function NotFoundPage() {
   return (
@@ -231,6 +263,26 @@ export function App() {
             <Route path="analytics/performance" element={<PerformanceMonitoringView />} />
             <Route path="analytics/errors" element={<ErrorTrackingView />} />
             <Route path="analytics/health" element={<HealthDashboardView />} />
+            <Route path="marketplace" element={<MarketplaceHomeView />} />
+            <Route path="marketplace/plugins" element={<PluginSDKView />} />
+            <Route path="marketplace/themes" element={<ThemeStoreView />} />
+            <Route path="marketplace/agents" element={<AgentStoreView />} />
+            <Route
+              path="marketplace/workflows"
+              element={<WorkflowTemplatesView />}
+            />
+            <Route
+              path="marketplace/components"
+              element={<ComponentMarketplaceView />}
+            />
+            <Route
+              path="marketplace/integrations"
+              element={<IntegrationStoreView />}
+            />
+            <Route
+              path="marketplace/templates"
+              element={<CommunityTemplatesView />}
+            />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route

@@ -18,6 +18,7 @@ import { AutomationsModule } from '@org/api-automations';
 import { EnterpriseModule } from '@org/api-enterprise';
 import { IntegrationsModule } from '@org/api-integrations';
 import { AnalyticsModule } from '@org/api-analytics';
+import { MarketplaceModule } from '@org/api-marketplace';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -50,6 +51,7 @@ import { AppService } from './app.service';
     EnterpriseModule,
     IntegrationsModule,
     AnalyticsModule,
+    MarketplaceModule,
   ],
   controllers: [AppController],
   providers: [

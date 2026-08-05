@@ -34,3 +34,4 @@ export type {
 
 export * from './lib/chat.js';
 export * from './lib/analytics.js';
+export * from './lib/marketplace.js';

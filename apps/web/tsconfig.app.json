@@ -93,6 +93,9 @@
     },
     {
       "path": "../../libs/web/analytics/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/marketplace/tsconfig.lib.json"
     }
   ]
 }

@@ -101,6 +101,7 @@ model User {
   aiChatSessions          AIChatSession[]
   createdAgents           AIAgent[]
   createdWorkflows        AutomationWorkflow[]
+  marketplacePublishers   MarketplacePublisher[]
 
   @@map("users")
 }
@@ -119,25 +120,26 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members                 WorkspaceMember[]
-  channels                Channel[]
-  invitations             Invitation[]
-  uploads                 Upload[]
-  notificationPreferences NotificationPreference[]
-  recentActivities        RecentActivity[]
-  projects                Project[]
-  tasks                   Task[]
-  calendarEvents          CalendarEvent[]
-  workDocuments           WorkDocument[]
-  whiteboards             Whiteboard[]
-  promptTemplates         PromptTemplate[]
-  aiMemories              AIMemory[]
-  aiChatSessions          AIChatSession[]
-  aiAgents                AIAgent[]
-  automationWorkflows     AutomationWorkflow[]
-  externalIntegrations    ExternalIntegration[]
-  importJobs              ImportJob[]
-  analyticsEvents         AnalyticsEvent[]
+  members                  WorkspaceMember[]
+  channels                 Channel[]
+  invitations              Invitation[]
+  uploads                  Upload[]
+  notificationPreferences  NotificationPreference[]
+  recentActivities         RecentActivity[]
+  projects                 Project[]
+  tasks                    Task[]
+  calendarEvents           CalendarEvent[]
+  workDocuments            WorkDocument[]
+  whiteboards              Whiteboard[]
+  promptTemplates          PromptTemplate[]
+  aiMemories               AIMemory[]
+  aiChatSessions           AIChatSession[]
+  aiAgents                 AIAgent[]
+  automationWorkflows      AutomationWorkflow[]
+  externalIntegrations     ExternalIntegration[]
+  importJobs               ImportJob[]
+  analyticsEvents          AnalyticsEvent[]
+  marketplaceInstallations MarketplaceInstallation[]
 
   @@index([ownerId])
   @@map("workspaces")
@@ -497,18 +499,18 @@ model Project {
   name        String
   slug        String
   description String?
-  color       String?   @default("#3b82f6")
+  color       String?       @default("#3b82f6")
   status      ProjectStatus @default(ACTIVE)
 
-  startDate   DateTime?
-  targetDate  DateTime?
+  startDate  DateTime?
+  targetDate DateTime?
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  tasks       Task[]
-  sprints     Sprint[]
-  milestones  Milestone[]
+  tasks      Task[]
+  sprints    Sprint[]
+  milestones Milestone[]
 
   @@unique([workspaceId, slug])
   @@index([workspaceId, status])
@@ -524,12 +526,12 @@ model Milestone {
   title       String
   description String?
   dueDate     DateTime?
-  isCompleted Boolean  @default(false)
+  isCompleted Boolean   @default(false)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  tasks       Task[]
+  tasks Task[]
 
   @@index([projectId, dueDate])
   @@map("milestones")
@@ -550,7 +552,7 @@ model Sprint {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tasks     Task[]
+  tasks Task[]
 
   @@index([projectId, isActive])
   @@map("sprints")
@@ -566,13 +568,13 @@ model Task {
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   sprintId String?
-  sprint   Sprint?  @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+  sprint   Sprint? @relation(fields: [sprintId], references: [id], onDelete: SetNull)
 
   milestoneId String?
   milestone   Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
 
   assigneeId String?
-  assignee   User?    @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  assignee   User?   @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
 
   title       String
   description String?
@@ -581,10 +583,10 @@ model Task {
   dueDate     DateTime?
   orderIndex  Int          @default(0)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  comments    TaskComment[]
+  comments TaskComment[]
 
   @@index([workspaceId, status])
   @@index([projectId, status])
@@ -601,7 +603,7 @@ model TaskComment {
   authorId String
   author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
-  content  String
+  content String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -646,10 +648,10 @@ model WorkDocument {
   parent   WorkDocument?  @relation("DocHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children WorkDocument[] @relation("DocHierarchy")
 
-  title     String
-  content   String       @default("")
-  kind      DocumentKind @default(DOC)
-  isPublic  Boolean      @default(true)
+  title    String
+  content  String       @default("")
+  kind     DocumentKind @default(DOC)
+  isPublic Boolean      @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -669,10 +671,10 @@ model Whiteboard {
   author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   name       String
-  canvasData String   @default("{\"nodes\":[],\"edges\":[]}")
+  canvasData String @default("{\"nodes\":[],\"edges\":[]}")
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([workspaceId, createdAt])
   @@map("whiteboards")
@@ -688,13 +690,13 @@ model PromptTemplate {
   workspaceId String?
   workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  title       String
-  category    String   @default("General")
-  promptText  String
-  isSystem    Boolean  @default(false)
+  title      String
+  category   String  @default("General")
+  promptText String
+  isSystem   Boolean @default(false)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([workspaceId, category])
   @@map("prompt_templates")
@@ -706,12 +708,12 @@ model AIMemory {
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  key         String
-  value       String
-  source      String   @default("chat")
+  key    String
+  value  String
+  source String @default("chat")
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([workspaceId, key])
   @@map("ai_memories")
@@ -723,16 +725,16 @@ model AIChatSession {
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  title       String    @default("New AI Chat")
-  provider    String    @default("ollama")
-  model       String    @default("llama3")
-  messages    String    @default("[]")
+  title    String @default("New AI Chat")
+  provider String @default("ollama")
+  model    String @default("llama3")
+  messages String @default("[]")
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([workspaceId, userId])
   @@map("ai_chat_sessions")
@@ -748,26 +750,26 @@ model AIAgent {
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  creatorId   String?
-  creator     User?     @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  creatorId String?
+  creator   User?   @relation(fields: [creatorId], references: [id], onDelete: SetNull)
 
-  name        String
-  role        String    @default("Assistant")
-  description String?
-  avatarUrl   String?
-  systemPrompt String   @default("You are an autonomous AI employee.")
+  name         String
+  role         String  @default("Assistant")
+  description  String?
+  avatarUrl    String?
+  systemPrompt String  @default("You are an autonomous AI employee.")
 
-  provider    String    @default("ollama")
-  model       String    @default("llama3")
-  tools       String    @default("[\"search_docs\",\"create_task\",\"send_channel_message\"]")
-  isActive    Boolean   @default(true)
+  provider      String  @default("ollama")
+  model         String  @default("llama3")
+  tools         String  @default("[\"search_docs\",\"create_task\",\"send_channel_message\"]")
+  isActive      Boolean @default(true)
   isMarketplace Boolean @default(false)
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  schedules   AgentSchedule[]
-  logs        AgentExecutionLog[]
+  schedules AgentSchedule[]
+  logs      AgentExecutionLog[]
 
   @@index([workspaceId, isActive])
   @@map("ai_agents")
@@ -779,12 +781,12 @@ model AgentSchedule {
   agentId String
   agent   AIAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
-  cronExpression String @default("0 9 * * *")
+  cronExpression String  @default("0 9 * * *")
   description    String?
   isActive       Boolean @default(true)
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([agentId, isActive])
   @@map("agent_schedules")
@@ -796,11 +798,11 @@ model AgentExecutionLog {
   agentId String
   agent   AIAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
-  status     String   @default("SUCCESS") // SUCCESS, FAILED, RUNNING
-  promptText String
+  status       String @default("SUCCESS") // SUCCESS, FAILED, RUNNING
+  promptText   String
   outputResult String
-  toolCalls  String   @default("[]")
-  tokensUsed Int      @default(0)
+  toolCalls    String @default("[]")
+  tokensUsed   Int    @default(0)
 
   executedAt DateTime @default(now())
 
@@ -818,20 +820,20 @@ model AutomationWorkflow {
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  creatorId   String?
-  creator     User?     @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  creatorId String?
+  creator   User?   @relation(fields: [creatorId], references: [id], onDelete: SetNull)
 
   name        String
   description String?
-  triggerType String    @default("WEBHOOK") // WEBHOOK, CRON, EVENT
-  isActive    Boolean   @default(true)
-  nodesJson   String    @default("[]")
-  edgesJson   String    @default("[]")
+  triggerType String  @default("WEBHOOK") // WEBHOOK, CRON, EVENT
+  isActive    Boolean @default(true)
+  nodesJson   String  @default("[]")
+  edgesJson   String  @default("[]")
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  executions  WorkflowExecution[]
+  executions WorkflowExecution[]
 
   @@index([workspaceId, isActive])
   @@map("automation_workflows")
@@ -843,12 +845,12 @@ model WorkflowExecution {
   workflowId String
   workflow   AutomationWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
 
-  status       String   @default("SUCCESS") // SUCCESS, FAILED, RUNNING
+  status         String @default("SUCCESS") // SUCCESS, FAILED, RUNNING
   triggerPayload String @default("{}")
-  stepResults  String   @default("[]")
+  stepResults    String @default("[]")
 
-  startedAt    DateTime @default(now())
-  finishedAt   DateTime @default(now())
+  startedAt  DateTime @default(now())
+  finishedAt DateTime @default(now())
 
   @@index([workflowId, startedAt])
   @@map("workflow_executions")
@@ -861,13 +863,13 @@ model WorkflowExecution {
 model Organization {
   id String @id @default(cuid())
 
-  name        String
-  domain      String    @unique
-  logoUrl     String?
+  name         String
+  domain       String  @unique
+  logoUrl      String?
   billingEmail String?
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   departments   Department[]
   ssoConfigs    SSOConfig[]
@@ -883,11 +885,11 @@ model Department {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  name        String
-  code        String?
+  name String
+  code String?
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([organizationId])
   @@map("departments")
@@ -899,15 +901,15 @@ model SSOConfig {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  providerType String    @default("SAML") // SAML, OIDC
+  providerType String  @default("SAML") // SAML, OIDC
   idpEntityId  String?
   ssoUrl       String?
   certificate  String?
   scimToken    String?
 
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([organizationId])
   @@map("sso_configs")
@@ -919,13 +921,13 @@ model EnterpriseAuditLog {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  actorEmail String
-  action     String   // e.g. USER_LOGIN, PERMISSION_UPDATE, AGENT_EXECUTE
+  actorEmail     String
+  action         String // e.g. USER_LOGIN, PERMISSION_UPDATE, AGENT_EXECUTE
   targetResource String
-  ipAddress  String?
-  details    String   @default("{}")
+  ipAddress      String?
+  details        String  @default("{}")
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([organizationId, createdAt])
   @@map("enterprise_audit_logs")
@@ -937,14 +939,14 @@ model OrganizationSubscription {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  planTier    String   @default("ENTERPRISE") // COMMUNITY, PRO, ENTERPRISE
-  seatsTotal  Int      @default(50)
-  seatsUsed   Int      @default(1)
-  status      String   @default("ACTIVE") // ACTIVE, TRIAL, PAST_DUE
+  planTier   String @default("ENTERPRISE") // COMMUNITY, PRO, ENTERPRISE
+  seatsTotal Int    @default(50)
+  seatsUsed  Int    @default(1)
+  status     String @default("ACTIVE") // ACTIVE, TRIAL, PAST_DUE
 
-  renewAt     DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  renewAt   DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([organizationId])
   @@map("organization_subscriptions")
@@ -960,13 +962,13 @@ model ExternalIntegration {
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  provider    String    // GITHUB, GITLAB, JIRA, LINEAR, GOOGLE_DRIVE, GOOGLE_CALENDAR, OUTLOOK, NOTION, SLACK, DISCORD, ZOOM, MS_TEAMS, DROPBOX, ONEDRIVE, WEBHOOK
-  status      String    @default("CONNECTED") // CONNECTED, DISCONNECTED, ERROR
-  configJson  String    @default("{}")
+  provider    String // GITHUB, GITLAB, JIRA, LINEAR, GOOGLE_DRIVE, GOOGLE_CALENDAR, OUTLOOK, NOTION, SLACK, DISCORD, ZOOM, MS_TEAMS, DROPBOX, ONEDRIVE, WEBHOOK
+  status      String  @default("CONNECTED") // CONNECTED, DISCONNECTED, ERROR
+  configJson  String  @default("{}")
   accessToken String?
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([workspaceId, provider])
   @@map("external_integrations")
@@ -978,14 +980,14 @@ model ImportJob {
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  provider    String    // SLACK, NOTION
-  status      String    @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED, FAILED
-  processedItems Int    @default(0)
-  totalItems  Int       @default(0)
-  errorMessage String?
+  provider       String // SLACK, NOTION
+  status         String  @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED, FAILED
+  processedItems Int     @default(0)
+  totalItems     Int     @default(0)
+  errorMessage   String?
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([workspaceId, status])
   @@map("import_jobs")
@@ -998,12 +1000,172 @@ model AnalyticsEvent {
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   userId    String
-  eventType String    // PAGE_VIEW, AI_CHAT, TASK_CREATED, MESSAGE_SENT, FILE_UPLOADED, etc.
-  metadata  String?   // JSON blob
+  eventType String // PAGE_VIEW, AI_CHAT, TASK_CREATED, MESSAGE_SENT, FILE_UPLOADED, etc.
+  metadata  String? // JSON blob
 
   createdAt DateTime @default(now())
 
   @@index([workspaceId, eventType])
   @@index([workspaceId, createdAt])
   @@map("analytics_events")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 12 — Marketplace & Third-Party Extensibility
+//
+// One `MarketplaceListing` table backs all seven storefronts (plugins, themes,
+// agents, workflows, components, integrations, community templates). They share
+// an identical lifecycle — publish, review, install, rate — so splitting them
+// into seven near-identical tables would buy nothing but seven copies of every
+// query. `kind` discriminates; `payloadJson` carries the kind-specific body
+// (theme tokens, workflow graph, component source, agent config).
+// ---------------------------------------------------------------------------
+
+model MarketplacePublisher {
+  id String @id @default(cuid())
+
+  /// Null for first-party/official listings that no user account owns.
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  name         String
+  slug         String  @unique
+  websiteUrl   String?
+  supportEmail String?
+  /// Set once identity and ownership of the publisher domain are confirmed.
+  isVerified   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listings MarketplaceListing[]
+
+  @@index([userId])
+  @@map("marketplace_publishers")
+}
+
+model MarketplaceListing {
+  id String @id @default(cuid())
+
+  publisherId String?
+  publisher   MarketplacePublisher? @relation(fields: [publisherId], references: [id], onDelete: SetNull)
+
+  /// PLUGIN, THEME, AGENT, WORKFLOW, COMPONENT, INTEGRATION, TEMPLATE
+  kind        String
+  slug        String @unique
+  name        String
+  tagline     String @default("")
+  description String @default("")
+  category    String
+  version     String @default("1.0.0")
+
+  iconUrl    String?
+  previewUrl String?
+  /// JSON array of free-text tags.
+  tags       String  @default("[]")
+
+  /// Declared manifest: SDK version, requested scopes, entry points.
+  manifestJson String @default("{}")
+  /// Kind-specific body — theme tokens, workflow graph, component source, …
+  payloadJson  String @default("{}")
+
+  pricingModel String @default("FREE") // FREE, FREEMIUM, PAID
+  priceCents   Int    @default(0)
+
+  status     String  @default("PUBLISHED") // DRAFT, PENDING_REVIEW, PUBLISHED, REJECTED, DEPRECATED
+  isOfficial Boolean @default(false)
+  isFeatured Boolean @default(false)
+
+  installCount Int @default(0)
+  /// Sum and count rather than an average, so a new review is one atomic
+  /// increment instead of a read-modify-write of the mean.
+  ratingSum    Int @default(0)
+  ratingCount  Int @default(0)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  publishedAt DateTime?
+
+  installations      MarketplaceInstallation[]
+  reviews            MarketplaceReview[]
+  pluginRegistration PluginRegistration?
+
+  @@index([kind, status])
+  @@index([kind, category])
+  @@index([status, isFeatured])
+  @@map("marketplace_listings")
+}
+
+model MarketplaceInstallation {
+  id String @id @default(cuid())
+
+  listingId String
+  listing   MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  installedById String?
+  version       String  @default("1.0.0")
+  status        String  @default("ACTIVE") // ACTIVE, DISABLED, UNINSTALLED
+
+  settingsJson  String @default("{}")
+  /// Scopes the workspace admin actually granted, which may be narrower than
+  /// the manifest requested.
+  grantedScopes String @default("[]")
+
+  installedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  /// Re-installing a previously removed listing reuses the row.
+  @@unique([listingId, workspaceId])
+  @@index([workspaceId, status])
+  @@map("marketplace_installations")
+}
+
+model MarketplaceReview {
+  id String @id @default(cuid())
+
+  listingId String
+  listing   MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  workspaceId String?
+  authorName  String
+  rating      Int // 1..5
+  title       String?
+  body        String  @default("")
+
+  createdAt DateTime @default(now())
+
+  @@index([listingId, createdAt])
+  @@map("marketplace_reviews")
+}
+
+/// Plugin SDK registration. Only listings of kind PLUGIN carry one.
+model PluginRegistration {
+  id String @id @default(cuid())
+
+  listingId String             @unique
+  listing   MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  runtime    String  @default("SANDBOXED_JS") // SANDBOXED_JS, WEBHOOK, IFRAME
+  sdkVersion String  @default("1.0.0")
+  entryPoint String?
+  webhookUrl String?
+
+  /// SHA-256 of the issued key. The plaintext is returned once, at issue time.
+  apiKeyHash   String?
+  apiKeyPrefix String?
+
+  /// JSON array of scopes the plugin declares it needs.
+  scopes   String @default("[]")
+  /// JSON array of UI surfaces the plugin contributes to.
+  surfaces String @default("[]")
+
+  status String @default("ACTIVE") // ACTIVE, SUSPENDED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("plugin_registrations")
 }

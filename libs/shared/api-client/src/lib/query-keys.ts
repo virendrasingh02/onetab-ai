@@ -63,6 +63,25 @@ export const queryKeys = {
     platformErrors: (hours: number) =>
       ['analytics', 'platform', 'errors', hours] as const,
   },
+  marketplace: {
+    all: () => ['marketplace'] as const,
+    storefronts: () => ['marketplace', 'storefronts'] as const,
+    stats: (workspaceId: string) =>
+      ['marketplace', 'stats', workspaceId] as const,
+    /** Serialized filters so every distinct browse is cached separately. */
+    browse: (workspaceId: string, filters: string) =>
+      ['marketplace', 'listings', workspaceId, filters] as const,
+    listing: (slug: string, workspaceId: string) =>
+      ['marketplace', 'listing', slug, workspaceId] as const,
+    categories: (kind: string) =>
+      ['marketplace', 'categories', kind] as const,
+    reviews: (slug: string) => ['marketplace', 'reviews', slug] as const,
+    installations: (workspaceId: string, kind: string) =>
+      ['marketplace', 'installations', workspaceId, kind] as const,
+    sdk: () => ['marketplace', 'sdk'] as const,
+    registration: (slug: string) =>
+      ['marketplace', 'registration', slug] as const,
+  },
   matrix: {
     all: () => ['matrix'] as const,
     /** Cached per channel: provisioning a room is not free. */

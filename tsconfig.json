@@ -172,6 +172,12 @@
       "path": "./libs/web/analytics"
     },
     {
+      "path": "./libs/api/marketplace"
+    },
+    {
+      "path": "./libs/web/marketplace"
+    },
+    {
       "path": "./apps/desktop"
     },
     {
