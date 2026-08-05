@@ -1,0 +1,44 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '@org/database';
+
+@Injectable()
+export class IntegrationsService {
+  private readonly logger = new Logger(IntegrationsService.name);
+
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getConnectedIntegrations(workspaceId: string) {
+    return this.prisma.externalIntegration.findMany({
+      where: { workspaceId },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
+  async connectProvider(workspaceId: string, provider: string, accessToken?: string, config: Record<string, unknown> = {}) {
+    this.logger.log(`Connecting integration provider '${provider}' for workspace ${workspaceId}`);
+    return this.prisma.externalIntegration.upsert({
+      where: { id: `${workspaceId}_${provider}` },
+      create: {
+        id: `${workspaceId}_${provider}`,
+        workspaceId,
+        provider,
+        status: 'CONNECTED',
+        accessToken,
+        configJson: JSON.stringify(config),
+      },
+      update: {
+        status: 'CONNECTED',
+        accessToken,
+        configJson: JSON.stringify(config),
+      },
+    });
+  }
+
+  async disconnectProvider(workspaceId: string, provider: string) {
+    const result = await this.prisma.externalIntegration.updateMany({
+      where: { workspaceId, provider },
+      data: { status: 'DISCONNECTED' },
+    });
+    return { count: result.count };
+  }
+}

@@ -72,6 +72,24 @@
     },
     {
       "path": "../../libs/shared/common/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/work-tools/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/ai/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/agents/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/automations/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/enterprise/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/integrations/tsconfig.lib.json"
     }
   ]
 }

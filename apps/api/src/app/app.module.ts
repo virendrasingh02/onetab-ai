@@ -12,6 +12,11 @@ import { WorkspaceModule } from '@org/api-workspace';
 import { validateApiEnv } from '@org/config';
 import { PrismaModule } from '@org/database';
 import { InfrastructureModule } from '@org/api-infrastructure';
+import { WorkToolsModule } from '@org/api-work-tools';
+import { AgentsModule } from '@org/api-agents';
+import { AutomationsModule } from '@org/api-automations';
+import { EnterpriseModule } from '@org/api-enterprise';
+import { IntegrationsModule } from '@org/api-integrations';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -38,6 +43,11 @@ import { AppService } from './app.service';
     ChannelModule,
     MemberModule,
     MatrixModule,
+    WorkToolsModule,
+    AgentsModule,
+    AutomationsModule,
+    EnterpriseModule,
+    IntegrationsModule,
   ],
   controllers: [AppController],
   providers: [

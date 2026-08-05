@@ -131,6 +131,39 @@
     },
     {
       "path": "./libs/api/infrastructure"
+    },
+    {
+      "path": "./libs/api/work-tools"
+    },
+    {
+      "path": "./libs/web/work-tools"
+    },
+    {
+      "path": "./libs/api/agents"
+    },
+    {
+      "path": "./libs/web/ai"
+    },
+    {
+      "path": "./libs/web/agents"
+    },
+    {
+      "path": "./libs/api/automations"
+    },
+    {
+      "path": "./libs/web/automations"
+    },
+    {
+      "path": "./libs/api/enterprise"
+    },
+    {
+      "path": "./libs/web/enterprise"
+    },
+    {
+      "path": "./libs/api/integrations"
+    },
+    {
+      "path": "./libs/web/integrations"
     }
   ],
   "compilerOptions": {}

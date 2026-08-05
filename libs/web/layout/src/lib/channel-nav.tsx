@@ -2,7 +2,7 @@ import { Button, Hint, ScrollArea, SkeletonList } from '@org/ui';
 import type { ChannelSummary } from '@org/types';
 import { cn } from '@org/utils';
 import { useChannelPreferences, useGroupedChannels } from '@org/web-channels';
-import { ChevronDown, Hash, Lock, Plus, Star, Users } from 'lucide-react';
+import { ChevronDown, Hash, Lock, Plus, Star, Users, CheckSquare, FileText, Layout, Calendar, HardDrive, Activity, Sparkles, BookOpen, Image, Bot, Wrench, Workflow, Building2, Shield, ShieldAlert, Share2, UploadCloud } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 
@@ -196,6 +196,336 @@ export function ChannelNav({
             <ChannelRow key={channel.id} channel={channel} {...rowProps} />
           ))}
         </Section>
+
+        <div className="mt-2 mb-3 px-1 space-y-px border-b border-sidebar-border pb-3">
+          <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
+            Work Tools
+          </div>
+          <NavLink
+            to={`/w/${workspaceSlug}/tasks`}
+            className={({ isActive }) =>
+              cn(
+                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                isActive
+                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+              )
+            }
+          >
+            <CheckSquare className="size-3.5 shrink-0 text-blue-400" />
+            <span>Tasks & Kanban</span>
+          </NavLink>
+
+          <NavLink
+            to={`/w/${workspaceSlug}/docs`}
+            className={({ isActive }) =>
+              cn(
+                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                isActive
+                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+              )
+            }
+          >
+            <FileText className="size-3.5 shrink-0 text-amber-400" />
+            <span>Docs & Wiki</span>
+          </NavLink>
+
+          <NavLink
+            to={`/w/${workspaceSlug}/whiteboard`}
+            className={({ isActive }) =>
+              cn(
+                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                isActive
+                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+              )
+            }
+          >
+            <Layout className="size-3.5 shrink-0 text-purple-400" />
+            <span>Whiteboard</span>
+          </NavLink>
+
+          <NavLink
+            to={`/w/${workspaceSlug}/calendar`}
+            className={({ isActive }) =>
+              cn(
+                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                isActive
+                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+              )
+            }
+          >
+            <Calendar className="size-3.5 shrink-0 text-emerald-400" />
+            <span>Calendar</span>
+          </NavLink>
+
+          <NavLink
+            to={`/w/${workspaceSlug}/files`}
+            className={({ isActive }) =>
+              cn(
+                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                isActive
+                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+              )
+            }
+          >
+            <HardDrive className="size-3.5 shrink-0 text-cyan-400" />
+            <span>Files</span>
+          </NavLink>
+
+          <NavLink
+            to={`/w/${workspaceSlug}/timeline`}
+            className={({ isActive }) =>
+              cn(
+                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                isActive
+                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+              )
+            }
+          >
+            <Activity className="size-3.5 shrink-0 text-rose-400" />
+            <span>Timeline</span>
+          </NavLink>
+        </div>
+
+        <div className="mt-2 mb-3 px-1 space-y-px border-b border-sidebar-border pb-3">
+          <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
+            AI Platform
+          </div>
+          <NavLink
+            to={`/w/${workspaceSlug}/ai-chat`}
+            className={({ isActive }) =>
+              cn(
+                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                isActive
+                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+              )
+            }
+          >
+            <Sparkles className="size-3.5 shrink-0 text-purple-400" />
+            <span>AI Workspace Chat</span>
+          </NavLink>
+
+          <NavLink
+            to={`/w/${workspaceSlug}/prompts`}
+            className={({ isActive }) =>
+              cn(
+                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                isActive
+                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+              )
+            }
+          >
+            <BookOpen className="size-3.5 shrink-0 text-blue-400" />
+            <span>Prompt Library</span>
+          </NavLink>
+
+          <NavLink
+            to={`/w/${workspaceSlug}/ai-images`}
+            className={({ isActive }) =>
+              cn(
+                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                isActive
+                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+              )
+            }
+          >
+            <Image className="size-3.5 shrink-0 text-pink-400" />
+            <span>AI Image Generator</span>
+          </NavLink>
+        </div>
+
+        <div className="mt-2 mb-3 px-1 space-y-px border-b border-sidebar-border pb-3">
+          <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
+            AI Agents Platform
+          </div>
+          <NavLink
+            to={`/w/${workspaceSlug}/agents`}
+            className={({ isActive }) =>
+              cn(
+                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                isActive
+                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+              )
+            }
+          >
+            <Bot className="size-3.5 shrink-0 text-emerald-400" />
+            <span>Agent Marketplace</span>
+          </NavLink>
+
+          <NavLink
+            to={`/w/${workspaceSlug}/agents/builder`}
+            className={({ isActive }) =>
+              cn(
+                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                isActive
+                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+              )
+            }
+          >
+            <Wrench className="size-3.5 shrink-0 text-amber-400" />
+            <span>Agent Builder</span>
+          </NavLink>
+
+          <NavLink
+            to={`/w/${workspaceSlug}/agents/logs`}
+            className={({ isActive }) =>
+              cn(
+                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                isActive
+                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+              )
+            }
+          >
+            <Activity className="size-3.5 shrink-0 text-purple-400" />
+            <span>Agent Telemetry</span>
+          </NavLink>
+        </div>
+
+        <div className="mt-2 mb-3 px-1 space-y-px border-b border-sidebar-border pb-3">
+          <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
+            Workflow Automations
+          </div>
+          <NavLink
+            to={`/w/${workspaceSlug}/automations`}
+            className={({ isActive }) =>
+              cn(
+                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                isActive
+                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+              )
+            }
+          >
+            <Workflow className="size-3.5 shrink-0 text-amber-400" />
+            <span>All Workflows</span>
+          </NavLink>
+
+          <NavLink
+            to={`/w/${workspaceSlug}/automations/builder`}
+            className={({ isActive }) =>
+              cn(
+                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                isActive
+                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+              )
+            }
+          >
+            <Wrench className="size-3.5 shrink-0 text-blue-400" />
+            <span>Workflow Builder</span>
+          </NavLink>
+
+          <NavLink
+            to={`/w/${workspaceSlug}/automations/logs`}
+            className={({ isActive }) =>
+              cn(
+                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                isActive
+                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+              )
+            }
+          >
+            <Activity className="size-3.5 shrink-0 text-emerald-400" />
+            <span>Execution Logs</span>
+          </NavLink>
+        </div>
+
+        <div className="mt-2 mb-3 px-1 space-y-px border-b border-sidebar-border pb-3">
+          <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
+            Enterprise Platform
+          </div>
+          <NavLink
+            to={`/w/${workspaceSlug}/enterprise`}
+            className={({ isActive }) =>
+              cn(
+                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                isActive
+                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+              )
+            }
+          >
+            <Building2 className="size-3.5 shrink-0 text-blue-400" />
+            <span>Governance & Org</span>
+          </NavLink>
+
+          <NavLink
+            to={`/w/${workspaceSlug}/enterprise/sso`}
+            className={({ isActive }) =>
+              cn(
+                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                isActive
+                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+              )
+            }
+          >
+            <Shield className="size-3.5 shrink-0 text-emerald-400" />
+            <span>SSO & SCIM Setup</span>
+          </NavLink>
+
+          <NavLink
+            to={`/w/${workspaceSlug}/enterprise/audit-logs`}
+            className={({ isActive }) =>
+              cn(
+                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                isActive
+                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+              )
+            }
+          >
+            <ShieldAlert className="size-3.5 shrink-0 text-purple-400" />
+            <span>Audit Logs</span>
+          </NavLink>
+        </div>
+
+        <div className="mt-2 mb-3 px-1 space-y-px border-b border-sidebar-border pb-3">
+          <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
+            Integrations & Ecosystem
+          </div>
+          <NavLink
+            to={`/w/${workspaceSlug}/integrations`}
+            className={({ isActive }) =>
+              cn(
+                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                isActive
+                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+              )
+            }
+          >
+            <Share2 className="size-3.5 shrink-0 text-blue-400" />
+            <span>Integration Hub (16)</span>
+          </NavLink>
+
+          <NavLink
+            to={`/w/${workspaceSlug}/integrations/import`}
+            className={({ isActive }) =>
+              cn(
+                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+                isActive
+                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+              )
+            }
+          >
+            <UploadCloud className="size-3.5 shrink-0 text-cyan-400" />
+            <span>Slack & Notion Import</span>
+          </NavLink>
+        </div>
 
         <div className="mt-2 px-1 space-y-px">
           <Button

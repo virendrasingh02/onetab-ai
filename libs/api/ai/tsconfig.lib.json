@@ -9,9 +9,10 @@
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
-  "exclude": [
-    "out-tsc",
-    "dist",
-    "src/**/*.spec.ts"
+  "exclude": ["out-tsc", "dist", "src/**/*.spec.ts"],
+  "references": [
+    {
+      "path": "../auth/tsconfig.lib.json"
+    }
   ]
 }

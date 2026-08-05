@@ -12,9 +12,10 @@ import {
 import { cn } from '@org/utils';
 import { useChannels } from '@org/web-channels';
 import { useCurrentWorkspace, useWorkspaces } from '@org/web-workspace';
-import { Building2, MessageSquarePlus } from 'lucide-react';
+import { Building2, MessageSquarePlus, Sparkles } from 'lucide-react';
 import { Suspense, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { AISidebar } from '@org/web-ai';
 import { AppHeader } from './app-header.js';
 import { ChannelNav } from './channel-nav.js';
 import { WorkspaceMenu, WorkspaceSwitcher } from './workspace-switcher.js';
@@ -31,6 +32,7 @@ export function AppShell() {
   const location = useLocation();
   const palette = useCommandPalette();
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const [aiSidebarOpen, setAiSidebarOpen] = useState(false);
 
   const workspacesQuery = useWorkspaces();
   const { slug, workspace, workspaceId, isLoading } = useCurrentWorkspace();
@@ -155,6 +157,17 @@ export function AppShell() {
         </div>
 
         <CommandPalette open={palette.open} onOpenChange={palette.setOpen} />
+
+        {/* Omnipresent Floating AI Trigger */}
+        <button
+          onClick={() => setAiSidebarOpen(true)}
+          className="fixed bottom-6 right-6 p-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-full shadow-2xl z-40 transition-transform hover:scale-110 flex items-center gap-2 font-semibold text-xs border border-white/20"
+        >
+          <Sparkles className="w-4 h-4" /> AI Copilot
+        </button>
+
+        {/* Global AI Slide-over Sidebar Drawer */}
+        <AISidebar isOpen={aiSidebarOpen} onClose={() => setAiSidebarOpen(false)} />
       </div>
     </TooltipProvider>
   );

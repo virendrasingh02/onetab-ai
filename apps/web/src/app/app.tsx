@@ -65,6 +65,66 @@ const WorkspaceSettingsPage = lazy(() =>
 const WorkspaceRedirect = lazy(() =>
   import('@org/web-workspace').then((m) => ({ default: m.WorkspaceRedirect })),
 );
+const KanbanBoard = lazy(() =>
+  import('@org/web-work-tools').then((m) => ({ default: m.KanbanBoard })),
+);
+const DocumentEditor = lazy(() =>
+  import('@org/web-work-tools').then((m) => ({ default: m.DocumentEditor })),
+);
+const WhiteboardCanvas = lazy(() =>
+  import('@org/web-work-tools').then((m) => ({ default: m.WhiteboardCanvas })),
+);
+const CalendarView = lazy(() =>
+  import('@org/web-work-tools').then((m) => ({ default: m.CalendarView })),
+);
+const FileManagerView = lazy(() =>
+  import('@org/web-work-tools').then((m) => ({ default: m.FileManagerView })),
+);
+const ActivityTimelineView = lazy(() =>
+  import('@org/web-work-tools').then((m) => ({ default: m.ActivityTimelineView })),
+);
+const AIChatView = lazy(() =>
+  import('@org/web-ai').then((m) => ({ default: m.AIChatView })),
+);
+const PromptLibraryView = lazy(() =>
+  import('@org/web-ai').then((m) => ({ default: m.PromptLibraryView })),
+);
+const AIImageGeneratorView = lazy(() =>
+  import('@org/web-ai').then((m) => ({ default: m.AIImageGeneratorView })),
+);
+const AgentMarketplaceView = lazy(() =>
+  import('@org/web-agents').then((m) => ({ default: m.AgentMarketplaceView })),
+);
+const AgentBuilderView = lazy(() =>
+  import('@org/web-agents').then((m) => ({ default: m.AgentBuilderView })),
+);
+const AgentMonitoringView = lazy(() =>
+  import('@org/web-agents').then((m) => ({ default: m.AgentMonitoringView })),
+);
+const WorkflowListView = lazy(() =>
+  import('@org/web-automations').then((m) => ({ default: m.WorkflowListView })),
+);
+const WorkflowCanvasView = lazy(() =>
+  import('@org/web-automations').then((m) => ({ default: m.WorkflowCanvasView })),
+);
+const WorkflowExecutionLogsView = lazy(() =>
+  import('@org/web-automations').then((m) => ({ default: m.WorkflowExecutionLogsView })),
+);
+const EnterpriseDashboardView = lazy(() =>
+  import('@org/web-enterprise').then((m) => ({ default: m.EnterpriseDashboardView })),
+);
+const SSOConfigView = lazy(() =>
+  import('@org/web-enterprise').then((m) => ({ default: m.SSOConfigView })),
+);
+const AuditLogView = lazy(() =>
+  import('@org/web-enterprise').then((m) => ({ default: m.AuditLogView })),
+);
+const IntegrationHubView = lazy(() =>
+  import('@org/web-integrations').then((m) => ({ default: m.IntegrationHubView })),
+);
+const SlackNotionImportView = lazy(() =>
+  import('@org/web-integrations').then((m) => ({ default: m.SlackNotionImportView })),
+);
 
 function NotFoundPage() {
   return (
@@ -114,6 +174,27 @@ export function App() {
             <Route path="channels/new" element={<CreateChannelPage />} />
             <Route path="members" element={<MembersPage />} />
             <Route path="invitations" element={<InvitationsPage />} />
+            <Route path="tasks" element={<KanbanBoard />} />
+            <Route path="kanban" element={<KanbanBoard />} />
+            <Route path="docs" element={<DocumentEditor />} />
+            <Route path="whiteboard" element={<WhiteboardCanvas />} />
+            <Route path="calendar" element={<CalendarView />} />
+            <Route path="files" element={<FileManagerView />} />
+            <Route path="timeline" element={<ActivityTimelineView />} />
+            <Route path="ai-chat" element={<AIChatView />} />
+            <Route path="prompts" element={<PromptLibraryView />} />
+            <Route path="ai-images" element={<AIImageGeneratorView />} />
+            <Route path="agents" element={<AgentMarketplaceView />} />
+            <Route path="agents/builder" element={<AgentBuilderView />} />
+            <Route path="agents/logs" element={<AgentMonitoringView />} />
+            <Route path="automations" element={<WorkflowListView />} />
+            <Route path="automations/builder" element={<WorkflowCanvasView />} />
+            <Route path="automations/logs" element={<WorkflowExecutionLogsView />} />
+            <Route path="enterprise" element={<EnterpriseDashboardView />} />
+            <Route path="enterprise/sso" element={<SSOConfigView />} />
+            <Route path="enterprise/audit-logs" element={<AuditLogView />} />
+            <Route path="integrations" element={<IntegrationHubView />} />
+            <Route path="integrations/import" element={<SlackNotionImportView />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route
