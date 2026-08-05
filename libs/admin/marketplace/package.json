@@ -1,5 +1,5 @@
 {
-  "name": "@org/web-analytics",
+  "name": "@org/admin-marketplace",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -14,19 +14,18 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@org/analytics-ui": "*",
     "@org/api-client": "*",
     "@org/types": "*",
-    "@org/web-workspace": "*",
     "@tanstack/react-query": "^5.101.4",
     "lucide-react": "^1.28.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^6.30.3"
   },
   "nx": {
     "tags": [
       "type:feature",
-      "scope:web"
+      "scope:admin"
     ]
   }
 }

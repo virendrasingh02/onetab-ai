@@ -13,7 +13,7 @@ import {
   ViewShell,
   formatNumber,
   formatRelative,
-} from './analytics-ui.js';
+} from '@org/analytics-ui';
 import { useUserAnalytics } from './use-analytics.js';
 
 /** Engagement: who is active, how often, and on which parts of the product. */

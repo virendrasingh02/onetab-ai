@@ -45,10 +45,12 @@ apps/
   api-e2e/    API end-to-end tests (Vitest)
 libs/
   shared/     types, validation, utils, config, constants, common,
-              design-system, ui, api-client, hooks, realtime, chat-ui
+              design-system, ui, api-client, hooks, realtime, chat-ui,
+              analytics-ui
   web/        auth, layout, workspace, channels, members, invitations,
               profile, settings, dashboard, search, upload, notifications,
-              chat
+              chat, analytics
+  admin/      layout, analytics, enterprise, marketplace
   api/        database, common, auth, user, workspace, channel, member,
               matrix
 packages/
@@ -105,6 +107,17 @@ authenticated by default and must opt out with `@Public()`. `WorkspaceRoleGuard`
 resolves the caller's membership and enforces `@WorkspaceRoles(...)`. Non-members
 receive **404, not 403** — confirming that a workspace or private channel exists
 is itself a disclosure.
+
+**Admin console.** Anything that is *not* scoped to a workspace lives in
+`apps/admin`, not behind a role check in the web app: platform operations
+(health, performance, error tracking), enterprise governance (SSO, audit log)
+and marketplace catalogue administration. The split is enforced by the
+`scope:admin` tag rather than by a route guard a future change could forget —
+`scope:admin` cannot reach `scope:web`, so a console screen physically cannot
+resolve "the current workspace". Screens whose data needs one — usage,
+storage, AI spend, reports, installing a listing — stay in the web app for that
+reason. Presentational code shared by both sides moves to `scope:shared`, which
+is why `@org/analytics-ui` exists.
 
 **Validation.** Zod schemas in `@org/validation` are the single source of truth.
 The browser uses them through `@hookform/resolvers`; the API uses the same

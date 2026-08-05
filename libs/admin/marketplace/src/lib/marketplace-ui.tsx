@@ -346,6 +346,11 @@ export const KIND_LABEL: Record<MarketplaceKind, string> = {
 /**
  * The card every storefront renders. `footer` lets a storefront add its own
  * preview (theme swatches, a component prop list) without forking the card.
+ *
+ * The install handlers are optional: installing is a workspace act, and the
+ * admin console browses the catalogue without one. Omit them and the card
+ * renders as a read-only catalogue entry rather than showing a button that
+ * could not do anything.
  */
 export function ListingCard({
   listing,
@@ -360,11 +365,12 @@ export function ListingCard({
   icon?: ReactNode;
   footer?: ReactNode;
   busy?: boolean;
-  onInstall: (listing: MarketplaceListing) => void;
-  onUninstall: (listing: MarketplaceListing) => void;
+  onInstall?: (listing: MarketplaceListing) => void;
+  onUninstall?: (listing: MarketplaceListing) => void;
   onSelect?: (listing: MarketplaceListing) => void;
 }) {
   const installed = listing.installed === true;
+  const canInstall = !!onInstall && !!onUninstall;
 
   return (
     <div className="bg-slate-900/60 border border-slate-800 hover:border-slate-700 rounded-xl p-5 flex flex-col justify-between transition shadow-lg">
@@ -418,26 +424,36 @@ export function ListingCard({
         </div>
       </div>
 
-      <button
-        type="button"
-        disabled={busy}
-        title={installed ? `Remove ${listing.name}` : `Install ${listing.name}`}
-        onClick={() => (installed ? onUninstall(listing) : onInstall(listing))}
-        className={`w-full py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition disabled:opacity-60 ${
-          installed
-            ? 'bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 hover:bg-red-950/60 hover:border-red-500/40 hover:text-red-400'
-            : 'bg-blue-600 hover:bg-blue-500 text-white shadow'
-        }`}
-      >
-        {busy ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        ) : installed ? (
-          <Check className="w-4 h-4" />
-        ) : (
+      {canInstall ? (
+        <button
+          type="button"
+          disabled={busy}
+          title={installed ? `Remove ${listing.name}` : `Install ${listing.name}`}
+          onClick={() =>
+            installed ? onUninstall?.(listing) : onInstall?.(listing)
+          }
+          className={`w-full py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition disabled:opacity-60 ${
+            installed
+              ? 'bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 hover:bg-red-950/60 hover:border-red-500/40 hover:text-red-400'
+              : 'bg-blue-600 hover:bg-blue-500 text-white shadow'
+          }`}
+        >
+          {busy ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : installed ? (
+            <Check className="w-4 h-4" />
+          ) : (
+            <Download className="w-4 h-4" />
+          )}
+          {installed ? 'Installed' : 'Install'}
+        </button>
+      ) : (
+        <div className="w-full py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 bg-slate-800/60 border border-slate-700 text-slate-400">
           <Download className="w-4 h-4" />
-        )}
-        {installed ? 'Installed' : 'Install'}
-      </button>
+          {formatCount(listing.installCount)} install
+          {listing.installCount === 1 ? '' : 's'}
+        </div>
+      )}
     </div>
   );
 }

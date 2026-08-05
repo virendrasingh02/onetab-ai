@@ -11,12 +11,7 @@ import {
   ViewHeader,
   ViewShell,
 } from './marketplace-ui.js';
-import {
-  useCategories,
-  useInstallListing,
-  useListings,
-  useUninstallListing,
-} from './use-marketplace.js';
+import { useCategories, useListings } from './use-marketplace.js';
 
 export interface StorefrontProps {
   kind: MarketplaceKind;
@@ -32,8 +27,6 @@ export interface StorefrontProps {
    * cards preview the payload pay for the extra bytes.
    */
   includePayload?: boolean;
-  /** Scopes requested when installing from this storefront. */
-  grantedScopes?: (listing: MarketplaceListing) => string[];
   emptyMessage?: string;
   /** Extra content above the grid — used by the plugin developer console. */
   children?: ReactNode;
@@ -42,9 +35,12 @@ export interface StorefrontProps {
 /**
  * The shared body of all seven storefronts.
  *
- * Every storefront is the same browse-filter-install loop over a different
- * `kind`, so the differences are injected (icons, previews, install scopes)
- * rather than reimplemented seven times.
+ * Every storefront is the same browse-and-filter loop over a different `kind`,
+ * so the differences are injected (icons, previews) rather than reimplemented
+ * seven times.
+ *
+ * There is no install step here: the console curates the catalogue, and
+ * installing a listing targets a workspace it has no way to name.
  */
 export function Storefront({
   kind,
@@ -54,7 +50,6 @@ export function Storefront({
   listingIcon,
   renderPreview,
   includePayload,
-  grantedScopes,
   emptyMessage,
   children,
 }: StorefrontProps) {
@@ -64,7 +59,6 @@ export function Storefront({
     'popular',
   );
   const [page, setPage] = useState(1);
-  const [pendingSlug, setPendingSlug] = useState<string | null>(null);
 
   const categories = useCategories(kind);
   const listings = useListings({
@@ -75,25 +69,6 @@ export function Storefront({
     page,
     includePayload,
   });
-
-  const install = useInstallListing();
-  const uninstall = useUninstallListing();
-
-  const onInstall = (listing: MarketplaceListing) => {
-    setPendingSlug(listing.slug);
-    install.mutate(
-      {
-        listingSlug: listing.slug,
-        grantedScopes: grantedScopes?.(listing) ?? [],
-      },
-      { onSettled: () => setPendingSlug(null) },
-    );
-  };
-
-  const onUninstall = (listing: MarketplaceListing) => {
-    setPendingSlug(listing.slug);
-    uninstall.mutate(listing.slug, { onSettled: () => setPendingSlug(null) });
-  };
 
   // Any filter change restarts paging — page 4 of the old filter is meaningless.
   const withReset =
@@ -155,9 +130,6 @@ export function Storefront({
                   listing={listing}
                   icon={listingIcon?.(listing)}
                   footer={renderPreview?.(listing)}
-                  busy={pendingSlug === listing.slug}
-                  onInstall={onInstall}
-                  onUninstall={onUninstall}
                 />
               ))}
             </div>

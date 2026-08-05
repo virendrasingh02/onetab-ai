@@ -1,17 +1,13 @@
 import { analyticsApi, queryKeys } from '@org/api-client';
 import type { ReportType } from '@org/types';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useCurrentWorkspace } from '@org/web-workspace';
 
-/** Ranges offered by every analytics screen's picker. */
-export const RANGE_OPTIONS = [
-  { label: '7d', days: 7 },
-  { label: '30d', days: 30 },
-  { label: '90d', days: 90 },
-] as const;
-
-/** Live screens poll; they are showing "now", not a cached snapshot. */
-const LIVE_REFETCH_MS = 15_000;
+/**
+ * Every hook here is scoped to the workspace the user is looking at. The
+ * platform-wide counterparts (performance, health, process errors) belong to
+ * the admin console and live in `@org/admin-analytics`.
+ */
 
 /** Aggregations are expensive; a minute of staleness is invisible to a human. */
 const AGGREGATE_STALE_MS = 60_000;
@@ -67,54 +63,6 @@ export function useStorageAnalytics(days: number) {
     queryFn: () => analyticsApi.storage(workspaceId as string, days),
     enabled: !!workspaceId,
     staleTime: AGGREGATE_STALE_MS,
-  });
-}
-
-/**
- * Errors for the current workspace when one is in scope, otherwise the whole
- * API process — the platform view is useful precisely when a workspace-scoped
- * request is what failed.
- */
-export function useErrorTracking(hours: number, scope: 'workspace' | 'platform') {
-  const workspaceId = useAnalyticsWorkspaceId();
-  const isWorkspaceScope = scope === 'workspace';
-
-  return useQuery({
-    queryKey: isWorkspaceScope
-      ? queryKeys.analytics.errors(workspaceId ?? '', hours)
-      : queryKeys.analytics.platformErrors(hours),
-    queryFn: () =>
-      isWorkspaceScope
-        ? analyticsApi.errors(workspaceId as string, hours)
-        : analyticsApi.platformErrors(hours),
-    enabled: isWorkspaceScope ? !!workspaceId : true,
-    refetchInterval: LIVE_REFETCH_MS,
-  });
-}
-
-export function useClearPlatformErrors() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () => analyticsApi.clearPlatformErrors(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['analytics'] });
-    },
-  });
-}
-
-export function usePerformanceMetrics(live = true) {
-  return useQuery({
-    queryKey: queryKeys.analytics.performance(),
-    queryFn: () => analyticsApi.performance(),
-    refetchInterval: live ? LIVE_REFETCH_MS : false,
-  });
-}
-
-export function useHealthStatus(live = true) {
-  return useQuery({
-    queryKey: queryKeys.analytics.health(),
-    queryFn: () => analyticsApi.health(),
-    refetchInterval: live ? LIVE_REFETCH_MS : false,
   });
 }
 

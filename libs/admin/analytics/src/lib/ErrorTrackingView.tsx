@@ -13,8 +13,11 @@ import {
   ViewShell,
   formatNumber,
   formatRelative,
-} from './analytics-ui.js';
-import { useClearPlatformErrors, useErrorTracking } from './use-analytics.js';
+} from '@org/analytics-ui';
+import {
+  useClearPlatformErrors,
+  usePlatformErrorTracking,
+} from './use-admin-analytics.js';
 
 const HOUR_OPTIONS = [
   { label: '1h', hours: 1 },
@@ -29,13 +32,18 @@ function severityTone(severity: ErrorGroup['severity']): string {
   return 'bg-slate-800 border-slate-700 text-slate-300';
 }
 
-/** Grouped request failures, live from the API's own error collector. */
+/**
+ * Grouped request failures across the whole API process, live from its own
+ * error collector.
+ *
+ * The workspace/platform toggle this screen used to carry is gone: the admin
+ * console has no workspace in scope, so every reading here is platform-wide.
+ */
 export function ErrorTrackingView() {
   const [hours, setHours] = useState(24);
-  const [scope, setScope] = useState<'workspace' | 'platform'>('workspace');
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const query = useErrorTracking(hours, scope);
+  const query = usePlatformErrorTracking(hours);
   const clear = useClearPlatformErrors();
   const data = query.data;
 
@@ -44,25 +52,9 @@ export function ErrorTrackingView() {
       <ViewHeader
         icon={<Bug className="w-6 h-6 text-red-400" />}
         title="Error Tracking"
-        description="Grouped request failures with stack traces, first and last seen"
+        description="Platform-wide request failures with stack traces, first and last seen"
         actions={
           <>
-            <div className="flex items-center rounded-lg border border-slate-800 bg-slate-900/60 p-0.5">
-              {(['workspace', 'platform'] as const).map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => setScope(option)}
-                  className={`px-2.5 py-1 text-xs rounded-md capitalize transition ${
-                    scope === option
-                      ? 'bg-slate-700 text-white font-semibold'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
             <div className="flex items-center rounded-lg border border-slate-800 bg-slate-900/60 p-0.5">
               {HOUR_OPTIONS.map((option) => (
                 <button
@@ -79,17 +71,15 @@ export function ErrorTrackingView() {
                 </button>
               ))}
             </div>
-            {scope === 'platform' ? (
-              <button
-                type="button"
-                onClick={() => clear.mutate()}
-                disabled={clear.isPending}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-red-900/60 disabled:opacity-60 rounded-lg text-xs text-slate-300 flex items-center gap-1.5 transition"
-                title="Clears the in-memory buffer; persisted workspace errors are kept"
-              >
-                <Trash2 className="w-3.5 h-3.5" /> Clear buffer
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => clear.mutate()}
+              disabled={clear.isPending}
+              className="px-3 py-1.5 bg-slate-800 hover:bg-red-900/60 disabled:opacity-60 rounded-lg text-xs text-slate-300 flex items-center gap-1.5 transition"
+              title="Clears the in-memory buffer; persisted workspace errors are kept"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Clear buffer
+            </button>
             <RefreshButton
               onClick={() => query.refetch()}
               busy={query.isFetching}

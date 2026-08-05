@@ -26,9 +26,6 @@
     },
     {
       "path": "../../shared/types/tsconfig.lib.json"
-    },
-    {
-      "path": "../workspace/tsconfig.lib.json"
     }
   ]
 }

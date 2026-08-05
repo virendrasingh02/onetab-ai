@@ -1,5 +1,5 @@
 {
-  "name": "@org/web-marketplace",
+  "name": "@org/admin-layout",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -14,10 +14,9 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@org/api-client": "*",
-    "@org/types": "*",
-    "@org/web-workspace": "*",
-    "@tanstack/react-query": "^5.101.4",
+    "@org/design-system": "*",
+    "@org/ui": "*",
+    "@org/utils": "*",
     "lucide-react": "^1.28.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -26,7 +25,7 @@
   "nx": {
     "tags": [
       "type:feature",
-      "scope:web"
+      "scope:admin"
     ]
   }
 }

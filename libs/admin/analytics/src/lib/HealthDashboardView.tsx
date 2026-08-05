@@ -18,8 +18,8 @@ import {
   ViewShell,
   formatBytes,
   formatDuration,
-} from './analytics-ui.js';
-import { useHealthStatus } from './use-analytics.js';
+} from '@org/analytics-ui';
+import { useHealthStatus } from './use-admin-analytics.js';
 
 /** Live dependency status, probed on demand rather than reported from memory. */
 export function HealthDashboardView() {

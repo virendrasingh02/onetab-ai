@@ -5,3 +5,5 @@
 /* See apps/web/src/styles.css — library sources must be registered explicitly. */
 @source '../../../libs/shared/ui/src';
 @source '../../../libs/shared/design-system/src';
+@source '../../../libs/shared/analytics-ui/src';
+@source '../../../libs/admin';

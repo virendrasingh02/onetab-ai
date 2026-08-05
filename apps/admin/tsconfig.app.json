@@ -36,6 +36,21 @@
     },
     {
       "path": "../../libs/shared/design-system/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/shared/api-client/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/admin/layout/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/admin/analytics/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/admin/enterprise/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/admin/marketplace/tsconfig.lib.json"
     }
   ]
 }

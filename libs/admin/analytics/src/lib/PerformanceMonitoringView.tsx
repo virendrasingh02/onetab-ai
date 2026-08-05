@@ -21,8 +21,8 @@ import {
   formatBytes,
   formatDuration,
   formatNumber,
-} from './analytics-ui.js';
-import { usePerformanceMetrics } from './use-analytics.js';
+} from '@org/analytics-ui';
+import { usePerformanceMetrics } from './use-admin-analytics.js';
 
 /** Live API telemetry: latency percentiles, throughput and resource pressure. */
 export function PerformanceMonitoringView() {

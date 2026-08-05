@@ -13,7 +13,7 @@ import {
   ViewHeader,
   ViewShell,
   formatNumber,
-} from './analytics-ui.js';
+} from '@org/analytics-ui';
 import { useAIUsageAnalytics } from './use-analytics.js';
 
 /** Consumption of the AI platform: chat, agents, workflows and token spend. */

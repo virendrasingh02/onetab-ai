@@ -1,97 +1,138 @@
-import { ThemeProvider, useTheme } from '@org/design-system';
-import {
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  EmptyState,
-  TooltipProvider,
-} from '@org/ui';
-import { LayoutDashboard, Monitor, Moon, Sun } from 'lucide-react';
-import { Route, Routes } from 'react-router-dom';
+import { Button, EmptyState, LoadingState } from '@org/ui';
+import { lazy, Suspense } from 'react';
+import { Link, Navigate, Route, Routes } from 'react-router-dom';
 
 /**
- * Admin console shell.
+ * Admin console routes.
  *
- * Phase 2 delivers the themed shell and shared-component wiring; the
- * operational screens (tenants, audit log, feature flags) land in a later
- * phase alongside the platform-admin API surface.
+ * Everything is lazy, so opening the console does not download the marketplace
+ * catalogue and the ops dashboards up front. The outer `Suspense` covers the
+ * shell's own first load; the one *inside* `AdminShell` wraps the `Outlet`, so
+ * navigating between screens swaps the content without blanking the sidebar.
  */
-function AdminHome() {
-  const { theme, setTheme } = useTheme();
+const AdminShell = lazy(() =>
+  import('@org/admin-layout').then((m) => ({ default: m.AdminShell })),
+);
 
+const HealthDashboardView = lazy(() =>
+  import('@org/admin-analytics').then((m) => ({
+    default: m.HealthDashboardView,
+  })),
+);
+const PerformanceMonitoringView = lazy(() =>
+  import('@org/admin-analytics').then((m) => ({
+    default: m.PerformanceMonitoringView,
+  })),
+);
+const ErrorTrackingView = lazy(() =>
+  import('@org/admin-analytics').then((m) => ({ default: m.ErrorTrackingView })),
+);
+
+const EnterpriseDashboardView = lazy(() =>
+  import('@org/admin-enterprise').then((m) => ({
+    default: m.EnterpriseDashboardView,
+  })),
+);
+const SSOConfigView = lazy(() =>
+  import('@org/admin-enterprise').then((m) => ({ default: m.SSOConfigView })),
+);
+const AuditLogView = lazy(() =>
+  import('@org/admin-enterprise').then((m) => ({ default: m.AuditLogView })),
+);
+
+const MarketplaceHomeView = lazy(() =>
+  import('@org/admin-marketplace').then((m) => ({
+    default: m.MarketplaceHomeView,
+  })),
+);
+const PluginSDKView = lazy(() =>
+  import('@org/admin-marketplace').then((m) => ({ default: m.PluginSDKView })),
+);
+const ThemeStoreView = lazy(() =>
+  import('@org/admin-marketplace').then((m) => ({ default: m.ThemeStoreView })),
+);
+const AgentStoreView = lazy(() =>
+  import('@org/admin-marketplace').then((m) => ({ default: m.AgentStoreView })),
+);
+const WorkflowTemplatesView = lazy(() =>
+  import('@org/admin-marketplace').then((m) => ({
+    default: m.WorkflowTemplatesView,
+  })),
+);
+const ComponentMarketplaceView = lazy(() =>
+  import('@org/admin-marketplace').then((m) => ({
+    default: m.ComponentMarketplaceView,
+  })),
+);
+const IntegrationStoreView = lazy(() =>
+  import('@org/admin-marketplace').then((m) => ({
+    default: m.IntegrationStoreView,
+  })),
+);
+const CommunityTemplatesView = lazy(() =>
+  import('@org/admin-marketplace').then((m) => ({
+    default: m.CommunityTemplatesView,
+  })),
+);
+
+function NotFoundPage() {
   return (
-    <div className="min-h-dvh">
-      <header className="h-14 gap-3 px-6 flex items-center border-b">
-        <span className="size-7 text-xs font-semibold flex items-center justify-center rounded-md bg-primary text-primary-foreground">
-          O
-        </span>
-        <div className="flex-1">
-          <h1 className="text-sm font-semibold">OneTab AI — Admin</h1>
-        </div>
-        <Badge variant="warning">Internal</Badge>
-        <div className="gap-1 flex items-center">
-          <Button
-            variant={theme === 'light' ? 'secondary' : 'ghost'}
-            size="icon-sm"
-            aria-label="Light theme"
-            onClick={() => setTheme('light')}
-          >
-            <Sun />
+    <div className="p-6 grid min-h-dvh place-items-center">
+      <EmptyState
+        size="lg"
+        title="Page not found"
+        description="The page you are looking for does not exist or has moved."
+        action={
+          <Button asChild>
+            <Link to="/">Go to the console</Link>
           </Button>
-          <Button
-            variant={theme === 'dark' ? 'secondary' : 'ghost'}
-            size="icon-sm"
-            aria-label="Dark theme"
-            onClick={() => setTheme('dark')}
-          >
-            <Moon />
-          </Button>
-          <Button
-            variant={theme === 'system' ? 'secondary' : 'ghost'}
-            size="icon-sm"
-            aria-label="System theme"
-            onClick={() => setTheme('system')}
-          >
-            <Monitor />
-          </Button>
-        </div>
-      </header>
-
-      <main className="max-w-3xl p-6 mx-auto">
-        <Card>
-          <CardHeader>
-            <CardTitle>Admin console</CardTitle>
-            <CardDescription>
-              Shares the design system, theme and component library with the
-              main application.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <EmptyState
-              icon={<LayoutDashboard />}
-              title="No admin modules yet"
-              description="Tenant management, audit logs and feature flags arrive with the platform-admin API."
-            />
-          </CardContent>
-        </Card>
-      </main>
+        }
+      />
     </div>
   );
 }
 
 export function App() {
   return (
-    <ThemeProvider defaultTheme="system">
-      <TooltipProvider>
-        <Routes>
-          <Route path="/" element={<AdminHome />} />
-        </Routes>
-      </TooltipProvider>
-    </ThemeProvider>
+    <Suspense fallback={<LoadingState fullPage />}>
+      <Routes>
+        <Route element={<AdminShell />}>
+          {/* Health is the landing screen: the first question on arrival is
+              whether the platform is up. */}
+          <Route path="/" element={<Navigate to="/health" replace />} />
+          <Route path="/health" element={<HealthDashboardView />} />
+          <Route path="/performance" element={<PerformanceMonitoringView />} />
+          <Route path="/errors" element={<ErrorTrackingView />} />
+
+          <Route path="/enterprise" element={<EnterpriseDashboardView />} />
+          <Route path="/enterprise/sso" element={<SSOConfigView />} />
+          <Route path="/enterprise/audit-logs" element={<AuditLogView />} />
+
+          <Route path="/marketplace" element={<MarketplaceHomeView />} />
+          <Route path="/marketplace/plugins" element={<PluginSDKView />} />
+          <Route path="/marketplace/themes" element={<ThemeStoreView />} />
+          <Route path="/marketplace/agents" element={<AgentStoreView />} />
+          <Route
+            path="/marketplace/workflows"
+            element={<WorkflowTemplatesView />}
+          />
+          <Route
+            path="/marketplace/components"
+            element={<ComponentMarketplaceView />}
+          />
+          <Route
+            path="/marketplace/integrations"
+            element={<IntegrationStoreView />}
+          />
+          <Route
+            path="/marketplace/templates"
+            element={<CommunityTemplatesView />}
+          />
+
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+      </Routes>
+    </Suspense>
   );
 }
 

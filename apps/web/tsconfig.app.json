@@ -32,10 +32,34 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
+      "path": "../../libs/web/chat/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/shared/design-system/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/shared/common/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/shared/api-client/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/analytics/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/integrations/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/automations/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/agents/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/ai/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/work-tools/tsconfig.lib.json"
     },
     {
       "path": "../../libs/web/workspace/tsconfig.lib.json"
@@ -62,40 +86,10 @@
       "path": "../../libs/web/layout/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/web/chat/tsconfig.lib.json"
-    },
-    {
       "path": "../../libs/shared/ui/tsconfig.lib.json"
     },
     {
       "path": "../../libs/web/auth/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/shared/common/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/web/work-tools/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/web/ai/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/web/agents/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/web/automations/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/web/enterprise/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/web/integrations/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/web/analytics/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/web/marketplace/tsconfig.lib.json"
     }
   ]
 }

@@ -22,7 +22,7 @@ import {
   ViewHeader,
   ViewShell,
   formatNumber,
-} from './analytics-ui.js';
+} from '@org/analytics-ui';
 import { useWorkspaceAnalytics } from './use-analytics.js';
 
 /** Workspace-level composition: what exists, where it lives, who is active. */

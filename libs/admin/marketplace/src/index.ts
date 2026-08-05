@@ -10,17 +10,12 @@ export { CommunityTemplatesView } from './lib/CommunityTemplatesView.js';
 export { Storefront, type StorefrontProps } from './lib/storefront-view.js';
 
 export {
-  useAddReview,
   useCategories,
-  useInstallListing,
-  useInstallations,
   useListing,
   useListings,
   useMarketplaceStats,
   usePluginSDK,
   useRegisterPlugin,
-  useSetInstallationEnabled,
   useStorefronts,
-  useUninstallListing,
   useValidateManifest,
 } from './lib/use-marketplace.js';

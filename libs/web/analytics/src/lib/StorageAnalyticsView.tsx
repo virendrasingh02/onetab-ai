@@ -15,7 +15,7 @@ import {
   formatBytes,
   formatNumber,
   formatRelative,
-} from './analytics-ui.js';
+} from '@org/analytics-ui';
 import { useStorageAnalytics } from './use-analytics.js';
 
 /** Capacity planning: what is stored, by whom, and how fast it is growing. */

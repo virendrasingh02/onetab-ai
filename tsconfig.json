@@ -157,9 +157,6 @@
       "path": "./libs/api/enterprise"
     },
     {
-      "path": "./libs/web/enterprise"
-    },
-    {
       "path": "./libs/api/integrations"
     },
     {
@@ -175,7 +172,19 @@
       "path": "./libs/api/marketplace"
     },
     {
-      "path": "./libs/web/marketplace"
+      "path": "./libs/admin/marketplace"
+    },
+    {
+      "path": "./libs/admin/analytics"
+    },
+    {
+      "path": "./libs/admin/enterprise"
+    },
+    {
+      "path": "./libs/admin/layout"
+    },
+    {
+      "path": "./libs/shared/analytics-ui"
     },
     {
       "path": "./apps/desktop"

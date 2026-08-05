@@ -8,7 +8,20 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { RANGE_OPTIONS } from './use-analytics.js';
+
+/**
+ * Ranges offered by every analytics screen's picker.
+ *
+ * Lives here rather than beside the data hooks because `RangePicker` is the
+ * only thing that renders it, and the hooks now sit in two different libraries
+ * — the workspace-scoped screens in `@org/web-analytics` and the platform ones
+ * in `@org/admin-analytics`.
+ */
+export const RANGE_OPTIONS = [
+  { label: '7d', days: 7 },
+  { label: '30d', days: 30 },
+  { label: '90d', days: 90 },
+] as const;
 
 // ---------------------------------------------------------------------------
 // Formatting

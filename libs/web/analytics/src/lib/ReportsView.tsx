@@ -9,7 +9,7 @@ import {
   RefreshButton,
   ViewHeader,
   ViewShell,
-} from './analytics-ui.js';
+} from '@org/analytics-ui';
 import {
   useReport,
   useReportDefinitions,

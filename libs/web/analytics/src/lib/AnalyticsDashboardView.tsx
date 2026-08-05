@@ -24,7 +24,7 @@ import {
   ViewShell,
   formatBytes,
   formatNumber,
-} from './analytics-ui.js';
+} from '@org/analytics-ui';
 import { useDashboardAnalytics } from './use-analytics.js';
 
 /** Phase 11 landing screen: one glance at the whole workspace plus health. */

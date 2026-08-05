@@ -110,15 +110,6 @@ const WorkflowCanvasView = lazy(() =>
 const WorkflowExecutionLogsView = lazy(() =>
   import('@org/web-automations').then((m) => ({ default: m.WorkflowExecutionLogsView })),
 );
-const EnterpriseDashboardView = lazy(() =>
-  import('@org/web-enterprise').then((m) => ({ default: m.EnterpriseDashboardView })),
-);
-const SSOConfigView = lazy(() =>
-  import('@org/web-enterprise').then((m) => ({ default: m.SSOConfigView })),
-);
-const AuditLogView = lazy(() =>
-  import('@org/web-enterprise').then((m) => ({ default: m.AuditLogView })),
-);
 const IntegrationHubView = lazy(() =>
   import('@org/web-integrations').then((m) => ({ default: m.IntegrationHubView })),
 );
@@ -142,47 +133,6 @@ const WorkspaceAnalyticsView = lazy(() =>
 );
 const StorageAnalyticsView = lazy(() =>
   import('@org/web-analytics').then((m) => ({ default: m.StorageAnalyticsView })),
-);
-const PerformanceMonitoringView = lazy(() =>
-  import('@org/web-analytics').then((m) => ({ default: m.PerformanceMonitoringView })),
-);
-const ErrorTrackingView = lazy(() =>
-  import('@org/web-analytics').then((m) => ({ default: m.ErrorTrackingView })),
-);
-const HealthDashboardView = lazy(() =>
-  import('@org/web-analytics').then((m) => ({ default: m.HealthDashboardView })),
-);
-const MarketplaceHomeView = lazy(() =>
-  import('@org/web-marketplace').then((m) => ({ default: m.MarketplaceHomeView })),
-);
-const PluginSDKView = lazy(() =>
-  import('@org/web-marketplace').then((m) => ({ default: m.PluginSDKView })),
-);
-const ThemeStoreView = lazy(() =>
-  import('@org/web-marketplace').then((m) => ({ default: m.ThemeStoreView })),
-);
-const AgentStoreView = lazy(() =>
-  import('@org/web-marketplace').then((m) => ({ default: m.AgentStoreView })),
-);
-const WorkflowTemplatesView = lazy(() =>
-  import('@org/web-marketplace').then((m) => ({
-    default: m.WorkflowTemplatesView,
-  })),
-);
-const ComponentMarketplaceView = lazy(() =>
-  import('@org/web-marketplace').then((m) => ({
-    default: m.ComponentMarketplaceView,
-  })),
-);
-const IntegrationStoreView = lazy(() =>
-  import('@org/web-marketplace').then((m) => ({
-    default: m.IntegrationStoreView,
-  })),
-);
-const CommunityTemplatesView = lazy(() =>
-  import('@org/web-marketplace').then((m) => ({
-    default: m.CommunityTemplatesView,
-  })),
 );
 
 function NotFoundPage() {
@@ -249,9 +199,6 @@ export function App() {
             <Route path="automations" element={<WorkflowListView />} />
             <Route path="automations/builder" element={<WorkflowCanvasView />} />
             <Route path="automations/logs" element={<WorkflowExecutionLogsView />} />
-            <Route path="enterprise" element={<EnterpriseDashboardView />} />
-            <Route path="enterprise/sso" element={<SSOConfigView />} />
-            <Route path="enterprise/audit-logs" element={<AuditLogView />} />
             <Route path="integrations" element={<IntegrationHubView />} />
             <Route path="integrations/import" element={<SlackNotionImportView />} />
             <Route path="analytics" element={<AnalyticsDashboardView />} />
@@ -260,29 +207,6 @@ export function App() {
             <Route path="analytics/ai-usage" element={<AIUsageView />} />
             <Route path="analytics/workspace" element={<WorkspaceAnalyticsView />} />
             <Route path="analytics/storage" element={<StorageAnalyticsView />} />
-            <Route path="analytics/performance" element={<PerformanceMonitoringView />} />
-            <Route path="analytics/errors" element={<ErrorTrackingView />} />
-            <Route path="analytics/health" element={<HealthDashboardView />} />
-            <Route path="marketplace" element={<MarketplaceHomeView />} />
-            <Route path="marketplace/plugins" element={<PluginSDKView />} />
-            <Route path="marketplace/themes" element={<ThemeStoreView />} />
-            <Route path="marketplace/agents" element={<AgentStoreView />} />
-            <Route
-              path="marketplace/workflows"
-              element={<WorkflowTemplatesView />}
-            />
-            <Route
-              path="marketplace/components"
-              element={<ComponentMarketplaceView />}
-            />
-            <Route
-              path="marketplace/integrations"
-              element={<IntegrationStoreView />}
-            />
-            <Route
-              path="marketplace/templates"
-              element={<CommunityTemplatesView />}
-            />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route

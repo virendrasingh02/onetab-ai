@@ -1,4 +1,4 @@
-import type { MarketplaceKind, MarketplaceListing } from '@org/types';
+import type { MarketplaceKind } from '@org/types';
 import {
   Blocks,
   Bot,
@@ -13,8 +13,7 @@ import {
   Workflow,
 } from 'lucide-react';
 import type { ComponentType } from 'react';
-import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   KIND_LABEL,
   KIND_TONE,
@@ -26,13 +25,7 @@ import {
   ViewShell,
   formatCount,
 } from './marketplace-ui.js';
-import {
-  useInstallListing,
-  useInstallations,
-  useListings,
-  useMarketplaceStats,
-  useUninstallListing,
-} from './use-marketplace.js';
+import { useListings, useMarketplaceStats } from './use-marketplace.js';
 
 /** Route segment and icon for each storefront, in the order they are shown. */
 const STOREFRONTS: {
@@ -95,29 +88,27 @@ function StorefrontTile({
   icon: Icon,
   blurb,
   listingCount,
-  installedHere,
-  workspaceSlug,
+  installCount,
 }: {
   kind: MarketplaceKind;
   path: string;
   icon: ComponentType<{ className?: string }>;
   blurb: string;
   listingCount: number;
-  installedHere: number;
-  workspaceSlug: string;
+  installCount: number;
 }) {
   return (
     <Link
-      to={`/w/${workspaceSlug}/marketplace/${path}`}
+      to={`/marketplace/${path}`}
       className="bg-slate-900/60 border border-slate-800 hover:border-slate-700 rounded-xl p-4 flex flex-col gap-2 transition group"
     >
       <div className="flex items-center justify-between">
         <div className={`p-2 bg-slate-800 rounded-lg ${KIND_TONE[kind]}`}>
           <Icon className="w-5 h-5" />
         </div>
-        {installedHere > 0 ? (
+        {installCount > 0 ? (
           <span className="px-2 py-0.5 bg-emerald-950/60 border border-emerald-500/40 rounded-full text-[10px] font-semibold text-emerald-400">
-            {installedHere} installed
+            {formatCount(installCount)} installs
           </span>
         ) : null}
       </div>
@@ -135,52 +126,32 @@ function StorefrontTile({
 }
 
 /**
- * Phase 12 landing screen.
+ * Catalogue landing screen for the console.
  *
- * One page that answers the two questions an admin arrives with: what can I
- * add, and what have we already added?
+ * The web app's version of this page also listed what the current workspace
+ * had installed. Here the question is the platform-wide one: what is in the
+ * catalogue, and what is being adopted across every workspace.
  */
 export function MarketplaceHomeView() {
-  const { workspaceSlug = '' } = useParams();
-  const [pendingSlug, setPendingSlug] = useState<string | null>(null);
-
   const stats = useMarketplaceStats();
   const featured = useListings({ featured: true, sort: 'popular', pageSize: 6 });
-  const installations = useInstallations();
-
-  const install = useInstallListing();
-  const uninstall = useUninstallListing();
-
-  const onInstall = (listing: MarketplaceListing) => {
-    setPendingSlug(listing.slug);
-    install.mutate(
-      { listingSlug: listing.slug },
-      { onSettled: () => setPendingSlug(null) },
-    );
-  };
-
-  const onUninstall = (listing: MarketplaceListing) => {
-    setPendingSlug(listing.slug);
-    uninstall.mutate(listing.slug, { onSettled: () => setPendingSlug(null) });
-  };
 
   const totalListings =
     stats.data?.reduce((sum, row) => sum + row.listingCount, 0) ?? 0;
   const totalInstalls =
-    stats.data?.reduce((sum, row) => sum + row.installedHere, 0) ?? 0;
+    stats.data?.reduce((sum, row) => sum + row.installCount, 0) ?? 0;
 
   return (
     <ViewShell>
       <ViewHeader
         icon={<Store className="w-6 h-6 text-blue-400" />}
         title="Marketplace"
-        description={`${formatCount(totalListings)} listings across seven storefronts · ${totalInstalls} installed in this workspace`}
+        description={`${formatCount(totalListings)} listings across seven storefronts · ${formatCount(totalInstalls)} installs platform-wide`}
         actions={
           <RefreshButton
             onClick={() => {
               void stats.refetch();
               void featured.refetch();
-              void installations.refetch();
             }}
             busy={stats.isFetching || featured.isFetching}
           />
@@ -196,8 +167,7 @@ export function MarketplaceHomeView() {
                 key={entry.kind}
                 {...entry}
                 listingCount={row?.listingCount ?? 0}
-                installedHere={row?.installedHere ?? 0}
-                workspaceSlug={workspaceSlug}
+                installCount={row?.installCount ?? 0}
               />
             );
           })}
@@ -222,9 +192,6 @@ export function MarketplaceHomeView() {
                   key={listing.id}
                   listing={listing}
                   icon={<Icon className="w-5 h-5" />}
-                  busy={pendingSlug === listing.slug}
-                  onInstall={onInstall}
-                  onUninstall={onUninstall}
                 />
               );
             })}
@@ -234,45 +201,37 @@ export function MarketplaceHomeView() {
 
       <section>
         <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2 mb-3">
-          <Download className="w-4 h-4 text-emerald-400" /> Installed in this
-          workspace
+          <Download className="w-4 h-4 text-emerald-400" /> Adoption by
+          storefront
         </h2>
         <Panel>
           <QueryState
-            isLoading={installations.isLoading}
-            error={installations.error}
-            isEmpty={installations.data?.length === 0}
-            emptyMessage="Nothing installed yet — start with a featured listing above."
+            isLoading={stats.isLoading}
+            error={stats.error}
+            isEmpty={totalListings === 0}
+            emptyMessage="The catalogue is empty."
           >
             <ul className="divide-y divide-slate-800">
-              {installations.data?.map((entry) => {
-                const Icon = KIND_ICON[entry.listing.kind] ?? Package;
+              {stats.data?.map((row) => {
+                const Icon = KIND_ICON[row.kind] ?? Package;
                 return (
                   <li
-                    key={entry.id}
+                    key={row.kind}
                     className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
                   >
-                    <Icon
-                      className={`w-4 h-4 shrink-0 ${KIND_TONE[entry.listing.kind]}`}
-                    />
+                    <Icon className={`w-4 h-4 shrink-0 ${KIND_TONE[row.kind]}`} />
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold text-slate-200 truncate">
-                        {entry.listing.name}
+                        {KIND_LABEL[row.kind]}s
                       </p>
                       <p className="text-[11px] text-slate-500">
-                        {KIND_LABEL[entry.listing.kind]} · v{entry.version} ·{' '}
-                        {entry.grantedScopes.length} scope
-                        {entry.grantedScopes.length === 1 ? '' : 's'} granted
+                        {formatCount(row.listingCount)} listing
+                        {row.listingCount === 1 ? '' : 's'} published
                       </p>
                     </div>
-                    <span
-                      className={`px-2 py-0.5 border text-[10px] font-semibold rounded-full ${
-                        entry.status === 'ACTIVE'
-                          ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-400'
-                          : 'bg-slate-800 border-slate-700 text-slate-400'
-                      }`}
-                    >
-                      {entry.status}
+                    <span className="px-2 py-0.5 border text-[10px] font-semibold rounded-full bg-slate-800 border-slate-700 text-slate-300">
+                      {formatCount(row.installCount)} install
+                      {row.installCount === 1 ? '' : 's'}
                     </span>
                   </li>
                 );
