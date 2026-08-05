@@ -3,6 +3,7 @@ import {
   ChatBubble,
   ChatHeader,
   ChatLayout,
+  ChatSearchPlaceholder,
   Composer,
   ConnectionBanner,
   MemberList,
@@ -11,8 +12,8 @@ import {
   TypingIndicator,
 } from '@org/chat-ui';
 import type { Message } from '@org/matrix-client';
-import { Button, EmptyState, LoadingState } from '@org/ui';
-import { MessageSquareOff } from 'lucide-react';
+import { Button, EmptyState, Hint, LoadingState } from '@org/ui';
+import { MessageSquareOff, Search } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useMatrix } from './matrix-provider.js';
 import { usePresence, useRoom, useRoomActions } from './use-chat.js';
@@ -24,7 +25,7 @@ export interface ChatPanelProps {
   subtitle?: string;
 }
 
-type SidePanel = 'none' | 'members' | 'thread';
+type SidePanel = 'none' | 'members' | 'thread' | 'search';
 
 /**
  * The conversation surface for a channel.
@@ -138,17 +139,42 @@ export function ChatPanel({ roomId, title, subtitle }: ChatPanelProps) {
         <ChatHeader
           title={title}
           subtitle={subtitle}
+          isEncrypted={client.getRoom(roomId)?.isEncrypted ?? false}
           memberCount={room.members.length}
           onToggleMembers={() =>
             setPanel((current) => (current === 'members' ? 'none' : 'members'))
           }
+          actions={
+            <Hint label="Search in conversation">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Search in conversation"
+                onClick={() =>
+                  setPanel((current) =>
+                    current === 'search' ? 'none' : 'search',
+                  )
+                }
+              >
+                <Search />
+              </Button>
+            </Hint>
+          }
         />
       }
-      sidePanelTitle={panel === 'members' ? 'Members' : 'Thread'}
+      sidePanelTitle={
+        panel === 'members'
+          ? 'Members'
+          : panel === 'search'
+            ? 'Search'
+            : 'Thread'
+      }
       onCloseSidePanel={() => setPanel('none')}
       sidePanel={
         panel === 'members' ? (
           <MemberList members={room.members} presenceOf={presenceOf} />
+        ) : panel === 'search' ? (
+          <ChatSearchPlaceholder />
         ) : panel === 'thread' && threadRoot ? (
           <ThreadPanel
             replyCount={threadReplies.length}

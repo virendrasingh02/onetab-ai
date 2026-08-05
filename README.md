@@ -123,10 +123,13 @@ tree-shaken away.
 chunks (`vendor-react`, `vendor-data`, `vendor-forms`, `vendor-ui`), so shipping
 a feature does not invalidate the browser cache for React.
 
-**Messaging.** Matrix is the communication engine, not the source of truth. All
-SDK access is confined to `@org/matrix-client`, which exposes domain objects and
-one typed event stream — an isolation the package asserts in its own tests, so a
-convenience re-export cannot quietly couple the app to `matrix-js-sdk`. The
+**Messaging.** Matrix is the communication engine, not the source of truth. Chat
+is the default tab on a channel, mounted as `<ChannelChat>` from `@org/web-chat`
+— the seam that keeps Matrix out of `@org/web-channels`, which passes a channel
+id and gets a conversation back. All SDK access is confined to
+`@org/matrix-client`, which exposes domain objects and one typed event stream —
+an isolation the package asserts in its own tests, so a convenience re-export
+cannot quietly couple the app to `matrix-js-sdk`. The
 browser never holds a Matrix password: it exchanges our session for a single-use
 login token via `POST /matrix/session`. Our database stores workspace metadata,
 preferences, pins and activity; message content is not duplicated. Chat is

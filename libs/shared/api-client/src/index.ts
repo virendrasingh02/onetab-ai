@@ -12,6 +12,7 @@ export {
   authApi,
   channelApi,
   invitationApi,
+  matrixApi,
   memberApi,
   userApi,
   workspaceApi,

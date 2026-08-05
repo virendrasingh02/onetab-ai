@@ -38,4 +38,10 @@ export const queryKeys = {
     list: (workspaceId: string) =>
       ['invitations', workspaceId, 'list'] as const,
   },
+  matrix: {
+    all: () => ['matrix'] as const,
+    /** Cached per channel: provisioning a room is not free. */
+    channelRoom: (channelId: string) =>
+      ['matrix', 'channel-room', channelId] as const,
+  },
 } as const;

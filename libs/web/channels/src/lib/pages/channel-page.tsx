@@ -14,6 +14,7 @@ import {
   UserAvatar,
 } from '@org/ui';
 import { formatBytes, formatDate, formatRelative } from '@org/utils';
+import { ChannelChat } from '@org/web-chat';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Archive,
@@ -22,6 +23,7 @@ import {
   Hash,
   Image as ImageIcon,
   Lock,
+  MessageSquare,
   Pin,
   Star,
   Users,
@@ -121,10 +123,11 @@ function ChannelHeader({ channel }: { channel: ChannelSummary }) {
 }
 
 /**
- * Channel workspace: About / Members / Files / Media / Pins.
+ * Channel workspace: Chat / About / Members / Files / Media / Pins.
  *
- * Phase 2 has no messaging yet, so the conversation pane shows a placeholder
- * while the surrounding structure is fully wired.
+ * Chat is the default tab and the reason the page exists; the rest is context
+ * about the channel. The conversation keeps its own scroll container, so it is
+ * mounted outside the shared overflow wrapper the other tabs share.
  */
 export function ChannelPage() {
   const { channelSlug } = useParams<{ channelSlug: string }>();
@@ -157,9 +160,12 @@ export function ChannelPage() {
     <div className="flex h-full flex-col">
       <ChannelHeader channel={channel} />
 
-      <Tabs defaultValue="about" className="min-h-0 flex flex-1 flex-col">
+      <Tabs defaultValue="chat" className="min-h-0 flex flex-1 flex-col">
         <div className="px-6 pt-3">
           <TabsList>
+            <TabsTrigger value="chat">
+              <MessageSquare /> Chat
+            </TabsTrigger>
             <TabsTrigger value="about">About</TabsTrigger>
             <TabsTrigger value="members">
               <Users /> Members
@@ -177,8 +183,28 @@ export function ChannelPage() {
           </TabsList>
         </div>
 
-        <div className="min-h-0 px-6 py-4 flex-1 overflow-y-auto">
-          <TabsContent value="about" className="space-y-4">
+        {/*
+          The timeline is virtualised and manages its own scrolling, so this
+          tab clips instead of scrolling — a second scroll container would
+          break the stick-to-bottom behaviour.
+        */}
+        <TabsContent value="chat" className="min-h-0 overflow-hidden">
+          <ChannelChat
+            channelId={channel.id}
+            title={channel.name}
+            subtitle={channel.topic ?? undefined}
+          />
+        </TabsContent>
+
+        {/*
+          Each remaining tab carries its own scroll container. A shared wrapper
+          would keep its `flex-1` height while the chat tab is active — Radix
+          unmounts the inactive contents, leaving an empty box halving the page.
+        */}
+        <TabsContent
+          value="about"
+          className="min-h-0 space-y-4 overflow-y-auto px-6 py-4"
+        >
             <dl className="gap-4 sm:grid-cols-2 grid">
               <div>
                 <dt className="text-xs font-medium text-muted-foreground uppercase">
@@ -211,15 +237,12 @@ export function ChannelPage() {
                 </dd>
               </div>
             </dl>
+        </TabsContent>
 
-            <EmptyState
-              icon={<Hash />}
-              title="Messaging arrives in the next phase"
-              description="This channel is ready — members, files and pins all work today."
-            />
-          </TabsContent>
-
-          <TabsContent value="members">
+        <TabsContent
+          value="members"
+          className="min-h-0 overflow-y-auto px-6 py-4"
+        >
             {members.isLoading ? (
               <SkeletonList rows={5} withAvatar />
             ) : (
@@ -249,9 +272,12 @@ export function ChannelPage() {
                 ))}
               </ul>
             )}
-          </TabsContent>
+        </TabsContent>
 
-          <TabsContent value="files">
+        <TabsContent
+          value="files"
+          className="min-h-0 overflow-y-auto px-6 py-4"
+        >
             {files.isLoading ? (
               <SkeletonList rows={4} />
             ) : documentFiles.length === 0 ? (
@@ -278,9 +304,12 @@ export function ChannelPage() {
                 ))}
               </ul>
             )}
-          </TabsContent>
+        </TabsContent>
 
-          <TabsContent value="media">
+        <TabsContent
+          value="media"
+          className="min-h-0 overflow-y-auto px-6 py-4"
+        >
             {mediaFiles.length === 0 ? (
               <EmptyState
                 icon={<ImageIcon />}
@@ -304,9 +333,12 @@ export function ChannelPage() {
                 ))}
               </div>
             )}
-          </TabsContent>
+        </TabsContent>
 
-          <TabsContent value="pins">
+        <TabsContent
+          value="pins"
+          className="min-h-0 overflow-y-auto px-6 py-4"
+        >
             {pins.isLoading ? (
               <SkeletonList rows={3} />
             ) : (pins.data?.length ?? 0) === 0 ? (
@@ -339,8 +371,7 @@ export function ChannelPage() {
                 ))}
               </ul>
             )}
-          </TabsContent>
-        </div>
+        </TabsContent>
       </Tabs>
     </div>
   );

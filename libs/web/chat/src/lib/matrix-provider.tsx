@@ -1,4 +1,4 @@
-import { http } from '@org/api-client';
+import { matrixApi } from '@org/api-client';
 import {
   createMatrixClient,
   type ConnectionStatus,
@@ -24,12 +24,6 @@ interface MatrixContextValue {
 }
 
 const MatrixContext = createContext<MatrixContextValue | null>(null);
-
-interface MatrixSessionResponse {
-  homeserverUrl: string;
-  matrixUserId: string;
-  loginToken: string;
-}
 
 /**
  * Owns the Matrix connection for the application.
@@ -60,9 +54,7 @@ export function MatrixProvider({ children }: { children: ReactNode }) {
 
     async function connect() {
       try {
-        const config = await http
-          .get<{ enabled: boolean }>('/matrix/config')
-          .then((response) => response.data);
+        const config = await matrixApi.config();
 
         if (!config.enabled || disposed) {
           setEnabled(false);
@@ -70,9 +62,7 @@ export function MatrixProvider({ children }: { children: ReactNode }) {
         }
         setEnabled(true);
 
-        const session = await http
-          .post<MatrixSessionResponse>('/matrix/session')
-          .then((response) => response.data);
+        const session = await matrixApi.session();
 
         if (disposed) return;
 

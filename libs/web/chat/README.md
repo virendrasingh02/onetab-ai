@@ -17,12 +17,17 @@ query would mean refetching a room every time an event arrived.
 ## Surface
 
 - `<MatrixProvider>` / `useMatrix()` — client lifecycle and connection status.
+- `<ChannelChat channelId title subtitle>` — a channel's conversation, room
+  resolution included. This is what feature libraries mount.
+- `useChannelRoom(channelId)` — resolves (and provisions on first open) the
+  Matrix room backing a channel.
 - `useRoom(roomId)` — messages, members, typing, loading and error state for one
   room, plus older-message pagination.
 - `useRoomActions(roomId)` — send, edit, delete, react, upload, typing, read
   receipts.
 - `usePresence(userIds)` — presence for a set of users.
-- `<ChatPanel>` — the assembled chat surface for a channel or DM.
+- `<ChatPanel roomId>` — the assembled chat surface, when the room is already
+  known.
 
 ## Notes
 
@@ -32,6 +37,13 @@ token twice and leaves two sync loops running.
 
 **Unmount stops syncing but keeps the session**, so remounting reconnects cheaply
 instead of re-running the token exchange.
+
+**Room resolution is a query, the timeline is not.** `useChannelRoom` is cached
+with `staleTime: Infinity` because a channel's room id never changes and
+provisioning it costs a round trip. The timeline stays outside TanStack Query for
+the opposite reason — it is a push stream. The query stays disabled until the
+client is connected, so a deployment without a homeserver never provisions rooms
+it cannot use.
 
 ## Commands
 

@@ -251,3 +251,29 @@ export const userApi = {
 
   byId: (userId: string) => request<PublicUser>(http.get(`/users/${userId}`)),
 };
+
+/** Matrix session brokering. The browser never holds Matrix credentials. */
+export const matrixApi = {
+  config: () =>
+    request<{ enabled: boolean; serverName: string | null }>(
+      http.get('/matrix/config'),
+    ),
+
+  session: () =>
+    request<{
+      homeserverUrl: string;
+      matrixUserId: string;
+      loginToken: string;
+    }>(http.post('/matrix/session')),
+
+  /**
+   * Resolves the Matrix room backing a channel, provisioning it on first use.
+   *
+   * `POST` rather than `GET` because it creates the room when the channel has
+   * never been opened for chat.
+   */
+  channelRoom: (channelId: string) =>
+    request<{ roomId: string }>(
+      http.post(`/matrix/channels/${channelId}/room`),
+    ),
+};

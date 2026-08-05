@@ -1,6 +1,6 @@
 import { Button, Hint, LoadingState } from '@org/ui';
 import { cn } from '@org/utils';
-import { PanelRight, Users, X } from 'lucide-react';
+import { Lock, PanelRight, Users, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 export interface ChatLayoutProps {
@@ -80,6 +80,7 @@ export interface ChatHeaderProps {
 export function ChatHeader({
   title,
   subtitle,
+  isEncrypted = false,
   memberCount,
   onToggleMembers,
   onToggleDetails,
@@ -88,7 +89,17 @@ export function ChatHeader({
   return (
     <header className="h-12 gap-2 px-4 flex shrink-0 items-center border-b">
       <div className="min-w-0 flex-1">
-        <h2 className="text-sm font-semibold truncate">{title}</h2>
+        <h2 className="gap-1.5 text-sm font-semibold flex items-center truncate">
+          <span className="truncate">{title}</span>
+          {isEncrypted ? (
+            <Hint label="End-to-end encrypted">
+              <Lock
+                className="size-3 shrink-0 text-muted-foreground"
+                aria-label="End-to-end encrypted"
+              />
+            </Hint>
+          ) : null}
+        </h2>
         {subtitle ? (
           <p className="text-xs truncate text-muted-foreground">{subtitle}</p>
         ) : null}
