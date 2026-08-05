@@ -70,7 +70,7 @@ export default defineConfig(() => ({
             )
           )
             return 'vendor-react';
-          if (/[\\/](@tanstack|axios|zustand)[\\/]/.test(id))
+          if (/[\\/](@tanstack|axios|zustand|@reduxjs|react-redux)[\\/]/.test(id))
             return 'vendor-data';
           if (/[\\/](react-hook-form|@hookform|zod)[\\/]/.test(id))
             return 'vendor-forms';

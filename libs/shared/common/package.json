@@ -13,7 +13,10 @@
     },
     "./package.json": "./package.json"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.6.1",
+    "react-redux": "^9.2.0"
+  },
   "nx": {
     "tags": [
       "type:util",

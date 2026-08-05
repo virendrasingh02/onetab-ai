@@ -43,7 +43,7 @@ export default defineConfig(() => ({
           if (!id.includes('node_modules')) return;
           if (/[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(id))
             return 'vendor-react';
-          if (/[\\/](@tanstack|axios|zustand)[\\/]/.test(id)) return 'vendor-data';
+          if (/[\\/](@tanstack|axios|zustand|@reduxjs|react-redux)[\\/]/.test(id)) return 'vendor-data';
           if (/[\\/](@radix-ui|lucide-react|framer-motion|sonner)[\\/]/.test(id))
             return 'vendor-ui';
           return 'vendor';

@@ -71,14 +71,25 @@ export class MatrixAdminService {
     const config = this.assertEnabled();
     const { accessToken, ...rest } = init;
 
-    const response = await fetch(`${config.homeserverUrl}${path}`, {
-      ...rest,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        ...rest.headers,
-      },
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${config.homeserverUrl}${path}`, {
+        ...rest,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          ...rest.headers,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Matrix connection failed at ${config.homeserverUrl}${path}: ${String(error)}`,
+      );
+      throw new HttpException(
+        `Unable to reach Matrix homeserver at ${config.homeserverUrl}. Ensure infrastructure containers are running (npm run infra:start).`,
+        503,
+      );
+    }
 
     const text = await response.text();
     const body = text ? JSON.parse(text) : {};
