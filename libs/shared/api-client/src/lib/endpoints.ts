@@ -44,7 +44,8 @@ export const authApi = {
 
   logout: () => request<void>(http.post('/auth/logout')),
 
-  refresh: () => request<AuthTokens>(http.post('/auth/refresh')),
+  refresh: (options?: { signal?: AbortSignal }) =>
+    request<AuthTokens>(http.post('/auth/refresh', {}, options)),
 
   me: () => request<CurrentUser>(http.get('/auth/me')),
 

@@ -22,6 +22,11 @@ export {
 } from './lib/calls.js';
 
 export {
+  VerificationManager,
+  type VerificationListener,
+} from './lib/verification.js';
+
+export {
   LocalStorageSessionStore,
   MemorySessionStore,
   type SessionStore,

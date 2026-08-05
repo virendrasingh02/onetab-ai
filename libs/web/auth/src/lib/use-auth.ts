@@ -34,11 +34,20 @@ export function useSessionBootstrap(): void {
     async function restore() {
       setStatus('authenticating');
       try {
-        const tokens = await authApi.refresh();
-        const user = await authApi.me();
-        if (!cancelled) setSession(user, tokens.accessToken);
+        // 5-second limit so the login page is visible quickly even when the
+        // API hasn't started yet — avoids a 15-second spinner on cold boot.
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 5_000);
+        try {
+          const tokens = await authApi.refresh({ signal: controller.signal });
+          const user = await authApi.me();
+          if (!cancelled) setSession(user, tokens.accessToken);
+        } finally {
+          clearTimeout(timer);
+        }
       } catch {
-        // No cookie, or it expired — a normal first visit.
+        // No cookie, expired token, API offline, or timeout — a normal first
+        // visit. The user lands on /login as expected.
         if (!cancelled) clear();
       }
     }

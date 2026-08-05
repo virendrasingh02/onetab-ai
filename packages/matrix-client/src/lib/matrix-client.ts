@@ -11,6 +11,8 @@ import {
   type MatrixEvent,
   type Room as SdkRoom,
 } from 'matrix-js-sdk';
+// Crypto lives in its own entry point: `matrix-js-sdk` does not re-export it.
+import { CryptoEvent } from 'matrix-js-sdk/lib/crypto-api/index.js';
 import { toMatrixError, withRetry } from './errors.js';
 import {
   resolveMediaUrl,
@@ -23,6 +25,7 @@ import {
   LocalStorageSessionStore,
   type SessionStore,
 } from './session-store.js';
+import { VerificationManager } from './verification.js';
 import {
   MatrixError,
   type ConnectionState,
@@ -43,6 +46,7 @@ import {
   type RoomMember,
   type Thread,
   type Timeline,
+  type VerificationRequestSummary,
 } from './types.js';
 
 export interface MatrixClientOptions {
@@ -78,6 +82,11 @@ export class OneTabMatrixClient {
   private readonly options: Required<Omit<MatrixClientOptions, 'sessionStore'>>;
   /** Local echoes awaiting acknowledgement, keyed by transaction id. */
   private readonly pendingEchoes = new Map<string, Message>();
+  private readonly verification = new VerificationManager(
+    () => this.sdk?.getCrypto(),
+    () => this.sdk?.getUserId() ?? null,
+    (request) => this.emit({ type: 'verification.requested', request }),
+  );
 
   constructor(options: MatrixClientOptions) {
     this.sessionStore = options.sessionStore ?? new LocalStorageSessionStore();
@@ -247,6 +256,7 @@ export class OneTabMatrixClient {
     const sdk = this.sdk;
     this.sdk = null;
     this.session = null;
+    this.verification.dispose();
 
     try {
       sdk?.stopClient();
@@ -264,6 +274,7 @@ export class OneTabMatrixClient {
   /** Stops syncing but keeps the session, for page unload. */
   stop(): void {
     this.sdk?.stopClient();
+    this.verification.dispose();
     this.setStatus('disconnected');
   }
 
@@ -405,6 +416,22 @@ export class OneTabMatrixClient {
 
     sdk.on(ClientEvent.DeleteRoom, (roomId: string) => {
       this.emit({ type: 'room.removed', roomId });
+    });
+
+    // Another of our devices — or another user — wants to verify. Handing the
+    // request to the manager is what makes it visible to the UI.
+    sdk.on(CryptoEvent.VerificationRequestReceived, (request) => {
+      this.verification.track(request);
+    });
+
+    sdk.on(CryptoEvent.DevicesUpdated, (userIds: string[]) => {
+      const myUserId = sdk.getUserId();
+      // Only our own device list drives the session-management screen.
+      if (!myUserId || !userIds.includes(myUserId)) return;
+
+      void this.getDevices()
+        .then((devices) => this.emit({ type: 'device.updated', devices }))
+        .catch(() => undefined);
     });
   }
 
@@ -939,6 +966,66 @@ export class OneTabMatrixClient {
       // Cast at the boundary so the SDK auth-dict type does not leak outward.
       authUploadDeviceSigningKeys: onUiaRequest as never,
     });
+  }
+
+  // --- device verification -------------------------------------------------
+
+  /**
+   * Asks one of our other devices to verify this one, via emoji comparison.
+   *
+   * Progress arrives as `verification.requested` events rather than on the
+   * returned promise, because both sides drive the flow and either can cancel.
+   */
+  requestDeviceVerification(
+    deviceId: string,
+  ): Promise<VerificationRequestSummary> {
+    return this.verification.requestOwnDevice(deviceId);
+  }
+
+  /** Asks every other device we own to verify this one. */
+  requestOwnUserVerification(): Promise<VerificationRequestSummary> {
+    return this.verification.requestOwnUser();
+  }
+
+  /** Verifies another user over an existing DM room. */
+  requestUserVerification(
+    userId: string,
+    roomId: RoomId,
+  ): Promise<VerificationRequestSummary> {
+    return this.verification.requestUser(userId, roomId);
+  }
+
+  /** Accepts an incoming verification request. */
+  acceptVerification(id: string): Promise<void> {
+    return this.verification.accept(id);
+  }
+
+  /** Chooses emoji comparison; the emoji arrive on the next event. */
+  startVerificationSas(id: string): Promise<void> {
+    return this.verification.startSas(id);
+  }
+
+  /** The emoji matched on both screens. */
+  confirmVerification(id: string): Promise<void> {
+    return this.verification.confirm(id);
+  }
+
+  /** The emoji did not match — cancels with `m.mismatched_sas`. */
+  rejectVerificationSas(id: string): void {
+    this.verification.mismatch(id);
+  }
+
+  /** Declines or aborts a verification from any phase. */
+  cancelVerification(id: string): Promise<void> {
+    return this.verification.cancel(id);
+  }
+
+  getVerification(id: string): VerificationRequestSummary | null {
+    return this.verification.get(id);
+  }
+
+  getActiveVerifications(): VerificationRequestSummary[] {
+    return this.verification.list();
   }
 
   async isRoomEncrypted(roomId: RoomId): Promise<boolean> {

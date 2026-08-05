@@ -27,13 +27,22 @@ describe('package isolation', () => {
 
   it('confines SDK imports to the adapter modules', () => {
     // Only shipped modules matter; specs legitimately build SDK-shaped fakes.
-    const allowed = new Set(['matrix-client.ts', 'mappers.ts']);
+    const allowed = new Set([
+      'matrix-client.ts',
+      'mappers.ts',
+      'verification.ts',
+    ]);
 
+    // Deep imports count too: crypto lives at `matrix-js-sdk/lib/crypto-api`,
+    // so matching only the bare specifier would let the SDK in through a side
+    // door.
     const offenders = readdirSync(LIB_DIR)
       .filter((file) => file.endsWith('.ts') && !file.endsWith('.spec.ts'))
       .filter((file) => !allowed.has(file))
       .filter((file) =>
-        /from\s+['"]matrix-js-sdk['"]/.test(read(join(LIB_DIR, file))),
+        /from\s+['"]matrix-js-sdk(\/[^'"]*)?['"]/.test(
+          read(join(LIB_DIR, file)),
+        ),
       );
 
     expect(offenders).toEqual([]);

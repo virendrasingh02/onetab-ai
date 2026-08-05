@@ -9,12 +9,12 @@ export default defineConfig(() => ({
   cacheDir: '../../node_modules/.vite/web',
   server: {
     port: 4200,
-    strictPort: true,
+    strictPort: false,
     host: 'localhost',
   },
   preview: {
     port: 4200,
-    strictPort: true,
+    strictPort: false,
     host: 'localhost',
   },
   plugins: [

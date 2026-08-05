@@ -4,8 +4,11 @@ Workspace and channel collaboration platform. Nx monorepo with a React 19 web
 client, a NestJS 11 API and a shared design system.
 
 **Phase 2 — Platform Foundation** is complete: workspaces, channels, members,
-invitations, profiles, settings, theming and a JWT authentication flow. There is
-no messaging or AI yet; those arrive in later phases.
+invitations, profiles, settings, theming and a JWT authentication flow.
+
+**Phase 3 — Real-Time Communication** is complete: messaging, threads, presence,
+receipts, reactions, media and voice notes, push notifications, end-to-end
+encryption and device verification, built on Matrix. AI arrives in a later phase.
 
 ---
 
@@ -34,7 +37,7 @@ npm run dev                   # API on :3000, web on :4200
 
 ## Layout
 
-```
+```text
 apps/
   web/        React 19 + Vite 8 client
   admin/      internal admin console
@@ -42,10 +45,14 @@ apps/
   api-e2e/    API end-to-end tests (Vitest)
 libs/
   shared/     types, validation, utils, config, constants, common,
-              design-system, ui, api-client, hooks, realtime
+              design-system, ui, api-client, hooks, realtime, chat-ui
   web/        auth, layout, workspace, channels, members, invitations,
-              profile, settings, dashboard, search, upload, notifications
-  api/        database, common, auth, user, workspace, channel, member
+              profile, settings, dashboard, search, upload, notifications,
+              chat
+  api/        database, common, auth, user, workspace, channel, member,
+              matrix
+packages/
+  matrix-client/  the only door to Matrix (wraps matrix-js-sdk)
 ```
 
 Every library carries a `README.md` describing its design decisions and surface.
@@ -115,6 +122,16 @@ tree-shaken away.
 **Performance.** Routes are lazily loaded and vendor code is split into stable
 chunks (`vendor-react`, `vendor-data`, `vendor-forms`, `vendor-ui`), so shipping
 a feature does not invalidate the browser cache for React.
+
+**Messaging.** Matrix is the communication engine, not the source of truth. All
+SDK access is confined to `@org/matrix-client`, which exposes domain objects and
+one typed event stream — an isolation the package asserts in its own tests, so a
+convenience re-export cannot quietly couple the app to `matrix-js-sdk`. The
+browser never holds a Matrix password: it exchanges our session for a single-use
+login token via `POST /matrix/session`. Our database stores workspace metadata,
+preferences, pins and activity; message content is not duplicated. Chat is
+optional — with `MATRIX_ENABLED=false` (the default) the app runs unchanged and
+reports chat as unavailable.
 
 ---
 

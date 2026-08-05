@@ -64,6 +64,7 @@
         ],
         "options": {
           "buildTarget": "@org/api:build",
+          "inspect": false,
           "runBuildTargetDependencies": false
         },
         "configurations": {

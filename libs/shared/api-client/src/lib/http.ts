@@ -29,19 +29,86 @@ export function setSessionExpiredHandler(handler: (() => void) | null): void {
   onSessionExpired = handler;
 }
 
-const baseURL =
+const configuredBaseURL =
   (import.meta.env?.['VITE_API_URL'] as string | undefined) ??
   'http://localhost:3000/api/v1';
 
+let activeBaseURL = configuredBaseURL;
+let baseURLResolution: Promise<string> | null = null;
+
+function normalizeBaseURL(value: string): string {
+  return value.endsWith('/') ? value.slice(0, -1) : value;
+}
+
+function getLocalBaseURLCandidates(value: string): string[] {
+  try {
+    const url = new URL(value);
+    const isLocalHost =
+      url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+    const port = Number(url.port);
+
+    if (!isLocalHost || !Number.isInteger(port) || port < 3000 || port > 3009) {
+      return [normalizeBaseURL(value)];
+    }
+
+    return Array.from({ length: 10 }, (_, index) => {
+      const candidate = new URL(url);
+      candidate.port = String(3000 + index);
+      return normalizeBaseURL(candidate.toString());
+    });
+  } catch {
+    return [normalizeBaseURL(value)];
+  }
+}
+
+const localBaseURLCandidates = getLocalBaseURLCandidates(configuredBaseURL);
+
+async function resolveBaseURL(): Promise<string> {
+  if (localBaseURLCandidates.length === 1) {
+    return activeBaseURL;
+  }
+
+  baseURLResolution ??= (async () => {
+    /**
+     * Probe all candidate ports in parallel and take the first that responds.
+     * This reduces worst-case wait from N×750 ms (sequential) to a single
+     * 750 ms window regardless of how many ports are checked.
+     */
+    const winner = await Promise.any(
+      localBaseURLCandidates.map((candidate) =>
+        axios
+          .get(`${candidate}/health`, {
+            timeout: 750,
+            withCredentials: false,
+          })
+          .then(() => candidate),
+      ),
+    ).catch(() => null);
+
+    if (winner) {
+      activeBaseURL = winner;
+      http.defaults.baseURL = winner;
+    }
+
+    return activeBaseURL;
+  })();
+
+  return baseURLResolution;
+}
+
 export const http: AxiosInstance = axios.create({
-  baseURL,
+  baseURL: activeBaseURL,
   // Sends the httpOnly refresh cookie on /auth/* calls.
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 20_000,
+  // 15 s keeps the session-bootstrap loading state short enough that users
+  // aren't stuck staring at a spinner if the API is slow to start.
+  timeout: 15_000,
 });
 
-http.interceptors.request.use((config) => {
+http.interceptors.request.use(async (config) => {
+  config.baseURL = await resolveBaseURL();
+
   if (accessToken) {
     config.headers.set('Authorization', `Bearer ${accessToken}`);
   }
@@ -61,7 +128,11 @@ let refreshInFlight: Promise<string> | null = null;
 
 async function refreshAccessToken(): Promise<string> {
   refreshInFlight ??= axios
-    .post<AuthTokens>(`${baseURL}/auth/refresh`, {}, { withCredentials: true })
+    .post<AuthTokens>(
+      `${await resolveBaseURL()}/auth/refresh`,
+      {},
+      { withCredentials: true },
+    )
     .then((response) => {
       setAccessToken(response.data.accessToken);
       return response.data.accessToken;
