@@ -23,7 +23,10 @@ import {
   MoreHorizontal,
   PanelLeft,
   Plus,
+  Settings,
   Sparkles,
+  UserPlus,
+  Users,
   type LucideIcon,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -44,11 +47,11 @@ interface RailItem {
 
 /** Destinations on the far-left rail, in display order. */
 const RAIL_ITEMS: readonly RailItem[] = [
-  { label: 'Home', path: '', icon: Home },
+  { label: 'Home', hint: 'Home & AI Assistant', path: '', icon: Home },
   { label: 'DMs', hint: 'Direct messages', path: '/dms', icon: MessageSquare },
-  { label: 'Pulse', path: '/pulse', icon: Activity },
-  { label: 'Files', path: '/files', icon: HardDrive },
-  { label: 'Later', hint: 'Later & bookmarks', path: '/docs', icon: Bookmark },
+  { label: 'Pulse', hint: 'Team Activity Pulse', path: '/pulse', icon: Activity },
+  { label: 'Files', hint: 'Company File Storage', path: '/files', icon: HardDrive },
+  { label: 'Docs', hint: 'Company Knowledge & Notes', path: '/docs', icon: Bookmark },
 ];
 
 const railItemClass = cn(
@@ -253,9 +256,47 @@ export function WorkspaceMenu({
               <span className="flex size-5 items-center justify-center rounded-md border border-border text-subtle">
                 <BarChart3 className="size-3.5" />
               </span>
-              <span className="font-medium">Analytics</span>
+              <span className="font-medium">Company Analytics</span>
             </Link>
           </DropdownMenuItem>
+
+          <DropdownMenuItem
+            asChild
+            className="flex cursor-pointer items-center gap-2 text-xs"
+          >
+            <Link to={`/w/${current.slug}/directory`}>
+              <span className="flex size-5 items-center justify-center rounded-md border border-border text-subtle">
+                <Users className="size-3.5" />
+              </span>
+              <span className="font-medium">Team Directory</span>
+            </Link>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
+            asChild
+            className="flex cursor-pointer items-center gap-2 text-xs"
+          >
+            <Link to={`/w/${current.slug}/invitations`}>
+              <span className="flex size-5 items-center justify-center rounded-md border border-border text-subtle">
+                <UserPlus className="size-3.5" />
+              </span>
+              <span className="font-medium">Invite Teammates</span>
+            </Link>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
+            asChild
+            className="flex cursor-pointer items-center gap-2 text-xs"
+          >
+            <Link to={`/w/${current.slug}/settings`}>
+              <span className="flex size-5 items-center justify-center rounded-md border border-border text-subtle">
+                <Settings className="size-3.5" />
+              </span>
+              <span className="font-medium">Company Settings</span>
+            </Link>
+          </DropdownMenuItem>
+
+          <DropdownMenuSeparator className="my-1" />
 
           <DropdownMenuItem
             asChild
@@ -265,7 +306,7 @@ export function WorkspaceMenu({
               <span className="flex size-5 items-center justify-center rounded-md border border-dashed border-border text-subtle">
                 <Plus className="size-3.5" />
               </span>
-              <span className="font-medium">Create a workspace</span>
+              <span className="font-medium">Create New Workspace</span>
             </Link>
           </DropdownMenuItem>
         </DropdownMenuContent>

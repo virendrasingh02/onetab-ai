@@ -31,7 +31,6 @@ import {
   CheckSquare,
   FileText,
   HardDrive,
-  Sparkles,
   Bot,
   Workflow,
   UserPlus,
@@ -40,6 +39,7 @@ import {
   Share2,
   UploadCloud,
   MoreHorizontal,
+  Home,
   type LucideIcon,
 } from 'lucide-react';
 import { type ReactNode } from 'react';
@@ -55,7 +55,7 @@ interface NavEntry {
 
 // Most Used / Essential Nav Items (Shown directly)
 const MOST_USED_LINKS: readonly NavEntry[] = [
-  { path: '', label: 'Home', icon: Sparkles, end: true },
+  { path: '', label: 'Home', icon: Home, end: true },
   { path: 'inbox', label: 'Inbox', icon: Inbox },
   { path: 'threads', label: 'Threads', icon: MessagesSquare },
   { path: 'meetings', label: 'Huddles & Calls', icon: Video },
