@@ -170,8 +170,8 @@ export function IntegrationHubView() {
   return (
     <Page>
       <PageHeader
-        title="Integrations"
-        description="Connect developer tools, cloud storage, calendars and communications."
+        title="Apps"
+        description="Discover, install, and manage connected apps, dev tools, and workflows."
         icon={<Share2 />}
         accent="blue"
         actions={

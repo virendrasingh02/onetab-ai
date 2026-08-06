@@ -14,7 +14,6 @@ import {
 import { useLogout } from '@org/auth';
 import { cn } from '@org/utils';
 import {
-  Bell,
   HelpCircle,
   LogOut,
   Moon,
@@ -111,27 +110,6 @@ export function AppHeader({
           <Button variant="ghost" size="sm" className="gap-1">
             <HelpCircle className="size-4" />
             <span className="hidden md:inline">Help</span>
-          </Button>
-        </Hint>
-
-        <Hint label="Notifications">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="relative"
-            aria-label={
-              unreadNotifications > 0
-                ? `Notifications (${unreadNotifications} unread)`
-                : 'Notifications'
-            }
-          >
-            <Bell className="size-4" />
-            {unreadNotifications > 0 ? (
-              <span
-                aria-hidden
-                className="top-1 right-1 size-2 absolute rounded-full bg-destructive ring-2 ring-background"
-              />
-            ) : null}
           </Button>
         </Hint>
 

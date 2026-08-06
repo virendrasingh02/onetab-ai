@@ -16,3 +16,5 @@ export { CalendarView, type EventItem } from './lib/CalendarView.js';
 export { FileManagerView, type FileEntry } from './lib/FileManagerView.js';
 export { ActivityTimelineView } from './lib/ActivityTimelineView.js';
 export { MeetingsView, type MeetingItem } from './lib/MeetingsView.js';
+export { InboxView } from './lib/InboxView.js';
+export { ScheduleView } from './lib/ScheduleView.js';

@@ -12,6 +12,8 @@ import { avatarTint } from '@org/design-system';
 import type { WorkspaceSummary } from '@org/types';
 import { cn, initials } from '@org/utils';
 import {
+  Activity,
+  BarChart3,
   Bell,
   Bookmark,
   Check,
@@ -45,7 +47,7 @@ interface RailItem {
 const RAIL_ITEMS: readonly RailItem[] = [
   { label: 'Home', path: '', icon: Home },
   { label: 'DMs', hint: 'Direct messages', path: '/dms', icon: MessageSquare },
-  { label: 'Activity', path: '/activity', icon: Bell },
+  { label: 'Pulse', path: '/pulse', icon: Activity },
   { label: 'Files', path: '/files', icon: HardDrive },
   { label: 'Later', hint: 'Later & bookmarks', path: '/docs', icon: Bookmark },
 ];
@@ -243,6 +245,18 @@ export function WorkspaceMenu({
           </div>
 
           <DropdownMenuSeparator className="my-1" />
+
+          <DropdownMenuItem
+            asChild
+            className="flex cursor-pointer items-center gap-2 text-xs"
+          >
+            <Link to={`/w/${current.slug}/analytics`}>
+              <span className="flex size-5 items-center justify-center rounded-md border border-border text-subtle">
+                <BarChart3 className="size-3.5" />
+              </span>
+              <span className="font-medium">Analytics</span>
+            </Link>
+          </DropdownMenuItem>
 
           <DropdownMenuItem
             asChild

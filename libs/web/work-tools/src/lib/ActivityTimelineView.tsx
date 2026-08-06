@@ -53,8 +53,8 @@ export function ActivityTimelineView() {
   return (
     <Page>
       <PageHeader
-        title="Activity"
-        description="A running log of everything happening in this workspace."
+        title="Pulse"
+        description="A running pulse of real-time workspace activity, events, and actions."
         icon={<Activity />}
         accent="violet"
       />

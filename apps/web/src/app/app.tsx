@@ -89,6 +89,12 @@ const FileManagerView = lazy(() =>
 const ActivityTimelineView = lazy(() =>
   import('@org/web-work-tools').then((m) => ({ default: m.ActivityTimelineView })),
 );
+const InboxView = lazy(() =>
+  import('@org/web-work-tools').then((m) => ({ default: m.InboxView })),
+);
+const ScheduleView = lazy(() =>
+  import('@org/web-work-tools').then((m) => ({ default: m.ScheduleView })),
+);
 const MeetingsView = lazy(() =>
   import('@org/web-work-tools').then((m) => ({ default: m.MeetingsView })),
 );
@@ -197,20 +203,20 @@ export function App() {
             {/* The sidebar calls the member list "Directory". */}
             <Route path="directory" element={<MembersPage />} />
             <Route path="invitations" element={<InvitationsPage />} />
+            <Route path="inbox" element={<InboxView />} />
+            <Route path="schedule" element={<ScheduleView />} />
             <Route path="tasks" element={<KanbanBoard />} />
             <Route path="kanban" element={<KanbanBoard />} />
+            <Route path="notes" element={<DocumentEditor />} />
             <Route path="docs" element={<DocumentEditor />} />
-            <Route path="whiteboard" element={<WhiteboardCanvas />} />
-            <Route path="calendar" element={<CalendarView />} />
             <Route path="files" element={<FileManagerView />} />
+            <Route path="pulse" element={<ActivityTimelineView />} />
             <Route path="timeline" element={<ActivityTimelineView />} />
             <Route path="activity" element={<ActivityTimelineView />} />
             <Route path="meetings" element={<MeetingsView />} />
             <Route path="dms" element={<DirectMessagesView />} />
             <Route path="threads" element={<ThreadsView />} />
             <Route path="ai-chat" element={<AIChatView />} />
-            <Route path="prompts" element={<PromptLibraryView />} />
-            <Route path="ai-images" element={<AIImageGeneratorView />} />
             <Route path="agents" element={<AgentMarketplaceView />} />
             <Route path="agents/builder" element={<AgentBuilderView />} />
             <Route path="agents/logs" element={<AgentMonitoringView />} />
@@ -218,6 +224,7 @@ export function App() {
             <Route path="automations/builder" element={<WorkflowCanvasView />} />
             <Route path="automations/logs" element={<WorkflowExecutionLogsView />} />
             <Route path="integrations" element={<IntegrationHubView />} />
+            <Route path="import-export" element={<SlackNotionImportView />} />
             <Route path="integrations/import" element={<SlackNotionImportView />} />
             {/*
               Analytics is one destination with tabs: `AnalyticsLayout` renders

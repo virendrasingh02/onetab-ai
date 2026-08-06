@@ -4,6 +4,10 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   Hint,
   Progress,
   ScrollArea,
@@ -13,6 +17,7 @@ import type { ChannelSummary } from '@org/types';
 import { cn } from '@org/utils';
 import { useChannelPreferences, useGroupedChannels } from '@org/web-channels';
 import {
+  Activity,
   ChevronDown,
   ChevronRight,
   Hash,
@@ -60,51 +65,44 @@ interface NavEntry {
 // Most Used / Essential Nav Items (Shown directly)
 const MOST_USED_LINKS: readonly NavEntry[] = [
   { path: '', label: 'Home', icon: Home, end: true },
-  { path: 'activity', label: 'Unreads', icon: Inbox },
+  { path: 'inbox', label: 'Inbox', icon: Inbox },
   { path: 'threads', label: 'Threads', icon: MessagesSquare },
   { path: 'meetings', label: 'Huddles & Calls', icon: Video },
   { path: 'dms', label: 'Direct Messages', icon: MessageSquare },
-  { path: 'activity', label: 'Activity', icon: Bell },
+  { path: 'pulse', label: 'Pulse', icon: Activity },
 ];
 
 // Secondary Nav Items (Collapsible inside 'More options')
 const SECONDARY_LINKS: readonly NavEntry[] = [
-  { path: 'docs', label: 'Drafts & sent', icon: Send },
+  { path: 'schedule', label: 'Schedule', icon: Clock },
   { path: 'directory', label: 'Directories', icon: Users },
   { path: 'files', label: 'Files', icon: HardDrive },
-  { path: 'integrations', label: 'Integration Hub', icon: Share2 },
-  {
-    path: 'integrations/import',
-    label: 'Slack & Notion Import',
-    icon: UploadCloud,
-  },
 ];
 
 const WORK_TOOL_LINKS: readonly NavEntry[] = [
-  { path: 'tasks', label: 'Tasks & Kanban', icon: CheckSquare },
-  { path: 'docs', label: 'Docs & Wiki', icon: FileText },
-  { path: 'whiteboard', label: 'Whiteboard', icon: Layout },
-  { path: 'calendar', label: 'Calendar', icon: Calendar },
+  { path: 'tasks', label: 'Tasks', icon: CheckSquare },
+  { path: 'notes', label: 'Notes', icon: FileText },
 ];
 
 const AI_PLATFORM_LINKS: readonly NavEntry[] = [
   { path: 'ai-chat', label: 'AI Workspace Chat', icon: Sparkles },
-  { path: 'prompts', label: 'Prompt Library', icon: BookOpen },
-  { path: 'ai-images', label: 'AI Image Generator', icon: Image },
-  { path: 'agents', label: 'Agent Marketplace', icon: Bot },
+];
+
+const AGENTS_LINKS: readonly NavEntry[] = [
+  { path: 'agents', label: 'Agent Marketplace', icon: Bot, end: true },
+  { path: 'agents/builder', label: 'Agent Builder', icon: Bot },
+  { path: 'agents/logs', label: 'Agent Monitoring', icon: HardDrive },
+];
+
+const APPS_LINKS: readonly NavEntry[] = [
+  { path: 'integrations', label: 'Apps Catalog', icon: Share2, end: true },
+  { path: 'import-export', label: 'Import Export', icon: UploadCloud },
 ];
 
 const AUTOMATION_LINKS: readonly NavEntry[] = [
   { path: 'automations', label: 'All Workflows', icon: Workflow, end: true },
   { path: 'automations/builder', label: 'Workflow Builder', icon: Workflow },
   { path: 'automations/logs', label: 'Execution Logs', icon: HardDrive },
-];
-
-const ANALYTICS_LINKS: readonly NavEntry[] = [
-  { path: 'analytics', label: 'Dashboard', icon: BarChart3, end: true },
-  { path: 'analytics/reports', label: 'Reports', icon: FileSpreadsheet },
-  { path: 'analytics/users', label: 'User Analytics', icon: Users },
-  { path: 'analytics/ai-usage', label: 'AI Usage', icon: Sparkles },
 ];
 
 /**
@@ -327,37 +325,54 @@ export function ChannelNav({
               />
             ))}
 
-            {/* More Options Collapsible Section */}
-            <Collapsible defaultOpen={false} className="space-y-0.5" asChild>
-              <div>
-                <CollapsibleTrigger
+            {/* More Options Dropdown Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
                   className={cn(
                     'group flex w-full items-center gap-2.5 rounded-btn py-1.5 pr-2 pl-3 text-[13px]',
                     'text-muted-foreground transition-colors duration-(--duration-fast) ease-standard',
                     'hover:bg-accent hover:text-foreground',
                     'outline-none focus-visible:ring-1 focus-visible:ring-ring',
                   )}
+                  aria-label="More options menu"
                 >
                   <MoreHorizontal className="size-4 shrink-0" aria-hidden />
                   <span className="flex-1 truncate text-left">
                     More options
                   </span>
                   <ChevronRight
-                    className="size-3.5 transition-transform duration-(--duration-fast) group-data-[state=open]:rotate-90"
+                    className="size-3.5 text-subtle transition-transform duration-(--duration-fast) group-data-[state=open]:rotate-90"
                     aria-hidden
                   />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="my-0.5 ml-3.5 space-y-0.5 border-l border-border pl-2.5">
-                  {SECONDARY_LINKS.map((entry) => (
-                    <NavRow
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                side="right"
+                sideOffset={8}
+                className="w-56 p-1.5"
+              >
+                {SECONDARY_LINKS.map((entry) => {
+                  const Icon = entry.icon;
+                  const to = entry.path
+                    ? `/w/${workspaceSlug}/${entry.path}`
+                    : `/w/${workspaceSlug}`;
+                  return (
+                    <DropdownMenuItem
                       key={entry.label}
-                      entry={entry}
-                      workspaceSlug={workspaceSlug}
-                    />
-                  ))}
-                </CollapsibleContent>
-              </div>
-            </Collapsible>
+                      asChild
+                      className="text-xs flex items-center gap-2.5 cursor-pointer py-1.5"
+                    >
+                      <NavLink to={to} end={entry.end}>
+                        <Icon className="size-4 text-muted-foreground shrink-0" aria-hidden />
+                        <span className="flex-1 truncate">{entry.label}</span>
+                      </NavLink>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </nav>
 
           <div className="mt-3 border-t border-border pt-2">
@@ -398,7 +413,7 @@ export function ChannelNav({
               title="Work Tools"
               links={WORK_TOOL_LINKS}
               workspaceSlug={workspaceSlug}
-              defaultOpen={false}
+              defaultOpen={true}
             />
 
             <LinkSection
@@ -409,15 +424,22 @@ export function ChannelNav({
             />
 
             <LinkSection
-              title="Automations"
-              links={AUTOMATION_LINKS}
+              title="Agent Marketplace"
+              links={AGENTS_LINKS}
               workspaceSlug={workspaceSlug}
               defaultOpen={false}
             />
 
             <LinkSection
-              title="Analytics"
-              links={ANALYTICS_LINKS}
+              title="Apps & Integrations"
+              links={APPS_LINKS}
+              workspaceSlug={workspaceSlug}
+              defaultOpen={false}
+            />
+
+            <LinkSection
+              title="Automations"
+              links={AUTOMATION_LINKS}
               workspaceSlug={workspaceSlug}
               defaultOpen={false}
             />
