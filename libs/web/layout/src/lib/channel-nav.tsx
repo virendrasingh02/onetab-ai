@@ -3,12 +3,6 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
   Hint,
   ScrollArea,
   SkeletonList,
@@ -18,6 +12,7 @@ import { cn } from '@org/utils';
 import { useChannelPreferences, useGroupedChannels } from '@org/web-channels';
 import {
   ChevronDown,
+  ChevronRight,
   Hash,
   Home,
   Lock,
@@ -32,222 +27,133 @@ import {
   Layout,
   Calendar,
   HardDrive,
-  Activity,
   Sparkles,
   BookOpen,
   Image,
   Bot,
-  Wrench,
   Workflow,
-  Building2,
+  BarChart3,
+  Bell,
+  Search,
+  UserPlus,
+  Zap,
+  Clock,
+  Inbox,
+  Send,
   Share2,
   UploadCloud,
-  BarChart3,
   FileSpreadsheet,
   type LucideIcon,
 } from 'lucide-react';
 import { type ReactNode } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 
 interface NavEntry {
-  /** Workspace-relative path, e.g. `files` or `agents/builder`. */
   path: string;
   label: string;
   icon: LucideIcon;
-  /** Accent utility for the icon, so groups stay scannable by colour. */
-  tone: string;
-  /** Match the path exactly — for links that are a parent of other routes. */
+  tone?: string;
+  badge?: string | number;
+  badgeColor?: string;
+  hasChevronRight?: boolean;
   end?: boolean;
 }
 
-/**
- * The everyday destinations, pinned above the channel list.
- *
- * These are the screens people reach for without thinking about which
- * "platform" they belong to, so they sit ungrouped at the very top.
- */
 const PRIMARY_LINKS: readonly NavEntry[] = [
-  { path: '', label: 'Home', icon: Home, tone: 'text-accent-blue', end: true },
+  { path: '', label: 'Home', icon: Home, tone: 'text-zinc-700 dark:text-zinc-300', end: true },
   {
-    path: 'ai-chat',
-    label: 'AI Chat',
-    icon: Sparkles,
-    tone: 'text-accent-violet',
+    path: 'activity',
+    label: 'Unreads',
+    icon: Inbox,
+    tone: 'text-emerald-600 dark:text-emerald-400',
+    badge: '3',
+    badgeColor: 'bg-emerald-600 text-white',
+  },
+  {
+    path: 'threads',
+    label: 'Threads',
+    icon: MessagesSquare,
+    tone: 'text-indigo-600 dark:text-indigo-400',
+  },
+  {
+    path: 'meetings',
+    label: 'Huddles & Calls',
+    icon: Video,
+    tone: 'text-emerald-500',
+  },
+  {
+    path: 'docs',
+    label: 'Drafts & sent',
+    icon: Send,
+    tone: 'text-blue-500',
+  },
+  {
+    path: 'directory',
+    label: 'Directories',
+    icon: Users,
+    tone: 'text-purple-500',
   },
   {
     path: 'dms',
     label: 'Direct Messages',
     icon: MessageSquare,
-    tone: 'text-accent-cyan',
+    tone: 'text-cyan-500',
   },
-  { path: 'activity', label: 'Activity', icon: Activity, tone: 'text-destructive' },
-  { path: 'files', label: 'Files', icon: HardDrive, tone: 'text-accent-indigo' },
-  { path: 'directory', label: 'Directory', icon: Users, tone: 'text-accent-pink' },
   {
-    path: 'threads',
-    label: 'Threads',
-    icon: MessagesSquare,
-    tone: 'text-warning',
+    path: 'activity',
+    label: 'Activity',
+    icon: Bell,
+    tone: 'text-amber-500',
+    badge: '1',
+    badgeColor: 'bg-blue-600 text-white',
   },
-  { path: 'meetings', label: 'Meetings', icon: Video, tone: 'text-success' },
+  {
+    path: 'files',
+    label: 'Files',
+    icon: HardDrive,
+    tone: 'text-indigo-500',
+  },
+];
+
+const EXTERNAL_LINKS: readonly NavEntry[] = [
+  { path: 'integrations', label: 'Integration Hub', icon: Share2, tone: 'text-blue-500' },
+  { path: 'integrations/import', label: 'Slack & Notion Import', icon: UploadCloud, tone: 'text-cyan-500' },
 ];
 
 const WORK_TOOL_LINKS: readonly NavEntry[] = [
-  {
-    path: 'tasks',
-    label: 'Tasks & Kanban',
-    icon: CheckSquare,
-    tone: 'text-accent-blue',
-  },
-  { path: 'docs', label: 'Docs & Wiki', icon: FileText, tone: 'text-warning' },
-  {
-    path: 'whiteboard',
-    label: 'Whiteboard',
-    icon: Layout,
-    tone: 'text-accent-violet',
-  },
-  { path: 'calendar', label: 'Calendar', icon: Calendar, tone: 'text-success' },
+  { path: 'tasks', label: 'Tasks & Kanban', icon: CheckSquare, tone: 'text-blue-500' },
+  { path: 'docs', label: 'Docs & Wiki', icon: FileText, tone: 'text-amber-500' },
+  { path: 'whiteboard', label: 'Whiteboard', icon: Layout, tone: 'text-purple-500' },
+  { path: 'calendar', label: 'Calendar', icon: Calendar, tone: 'text-emerald-500' },
 ];
 
 const AI_PLATFORM_LINKS: readonly NavEntry[] = [
-  {
-    path: 'ai-chat',
-    label: 'AI Workspace Chat',
-    icon: Sparkles,
-    tone: 'text-accent-violet',
-  },
-  {
-    path: 'prompts',
-    label: 'Prompt Library',
-    icon: BookOpen,
-    tone: 'text-accent-blue',
-  },
-  {
-    path: 'ai-images',
-    label: 'AI Image Generator',
-    icon: Image,
-    tone: 'text-accent-pink',
-  },
-];
-
-const AGENT_LINKS: readonly NavEntry[] = [
-  {
-    path: 'agents',
-    label: 'Agent Marketplace',
-    icon: Bot,
-    tone: 'text-success',
-    end: true,
-  },
-  {
-    path: 'agents/builder',
-    label: 'Agent Builder',
-    icon: Wrench,
-    tone: 'text-warning',
-  },
-  {
-    path: 'agents/logs',
-    label: 'Agent Telemetry',
-    icon: Activity,
-    tone: 'text-accent-violet',
-  },
+  { path: 'ai-chat', label: 'AI Workspace Chat (Slackbot)', icon: Sparkles, tone: 'text-purple-500' },
+  { path: 'prompts', label: 'Prompt Library', icon: BookOpen, tone: 'text-blue-500' },
+  { path: 'ai-images', label: 'AI Image Generator', icon: Image, tone: 'text-pink-500' },
+  { path: 'agents', label: 'Agent Marketplace', icon: Bot, tone: 'text-emerald-500' },
 ];
 
 const AUTOMATION_LINKS: readonly NavEntry[] = [
-  {
-    path: 'automations',
-    label: 'All Workflows',
-    icon: Workflow,
-    tone: 'text-warning',
-    end: true,
-  },
-  {
-    path: 'automations/builder',
-    label: 'Workflow Builder',
-    icon: Wrench,
-    tone: 'text-accent-blue',
-  },
-  {
-    path: 'automations/logs',
-    label: 'Execution Logs',
-    icon: Activity,
-    tone: 'text-success',
-  },
+  { path: 'automations', label: 'All Workflows', icon: Workflow, tone: 'text-amber-500', end: true },
+  { path: 'automations/builder', label: 'Workflow Builder', icon: Workflow, tone: 'text-blue-500' },
+  { path: 'automations/logs', label: 'Execution Logs', icon: HardDrive, tone: 'text-emerald-500' },
 ];
 
-const INTEGRATION_LINKS: readonly NavEntry[] = [
-  {
-    path: 'integrations',
-    label: 'Integration Hub (16)',
-    icon: Share2,
-    tone: 'text-accent-blue',
-    end: true,
-  },
-  {
-    path: 'integrations/import',
-    label: 'Slack & Notion Import',
-    icon: UploadCloud,
-    tone: 'text-accent-cyan',
-  },
-];
-
-/**
- * The workspace-scoped analytics screens.
- *
- * They are one destination in the sidebar now — a dropdown that jumps straight
- * to a tab of the analytics screen, which carries the same set as a tab bar.
- *
- * The platform-operations screens that used to sit alongside these
- * (performance, error tracking, health) moved to the admin console — see
- * `@org/admin-analytics`. So did the enterprise and marketplace groups.
- */
 const ANALYTICS_LINKS: readonly NavEntry[] = [
-  {
-    path: 'analytics',
-    label: 'Dashboard',
-    icon: BarChart3,
-    tone: 'text-accent-blue',
-    end: true,
-  },
-  {
-    path: 'analytics/reports',
-    label: 'Reports',
-    icon: FileSpreadsheet,
-    tone: 'text-accent-cyan',
-  },
-  {
-    path: 'analytics/users',
-    label: 'User Analytics',
-    icon: Users,
-    tone: 'text-accent-violet',
-  },
-  {
-    path: 'analytics/ai-usage',
-    label: 'AI Usage',
-    icon: Sparkles,
-    tone: 'text-accent-pink',
-  },
-  {
-    path: 'analytics/workspace',
-    label: 'Workspace Analytics',
-    icon: Building2,
-    tone: 'text-accent-indigo',
-  },
-  {
-    path: 'analytics/storage',
-    label: 'Storage Analytics',
-    icon: HardDrive,
-    tone: 'text-success',
-  },
+  { path: 'analytics', label: 'Dashboard', icon: BarChart3, tone: 'text-blue-500', end: true },
+  { path: 'analytics/reports', label: 'Reports', icon: FileSpreadsheet, tone: 'text-cyan-500' },
+  { path: 'analytics/users', label: 'User Analytics', icon: Users, tone: 'text-purple-500' },
+  { path: 'analytics/ai-usage', label: 'AI Usage', icon: Sparkles, tone: 'text-pink-500' },
 ];
 
-/** One row style for every navigable item in the rail. */
 function navRowClass(isActive: boolean, extra?: string) {
   return cn(
-    'gap-2.5 py-1 px-2 text-[13px] flex items-center rounded-[6px] transition-all duration-[120ms]',
-    'focus-visible:ring-1 focus-visible:ring-[#6E56CF] focus-visible:outline-none',
+    'gap-2.5 py-1.5 px-2.5 text-[13px] flex items-center rounded-lg font-medium transition-colors duration-150 group',
+    'focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:outline-none',
     isActive
-      ? 'font-medium bg-[#1E1F23] text-[#FAFAFA] border-l-2 border-[#6E56CF] rounded-l-none pl-2.5'
-      : 'text-[#A1A1AA] opacity-65 hover:opacity-100 hover:bg-[#1E1F23]/50 hover:text-[#FAFAFA]',
+      ? 'bg-zinc-200/80 text-zinc-900 font-semibold dark:bg-zinc-800 dark:text-zinc-100'
+      : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-100',
     extra,
   );
 }
@@ -271,7 +177,20 @@ function NavRow({
       className={({ isActive }) => navRowClass(isActive)}
     >
       <Icon className={cn('size-4 shrink-0', entry.tone)} aria-hidden />
-      <span className="truncate">{entry.label}</span>
+      <span className="truncate flex-1">{entry.label}</span>
+      {entry.badge ? (
+        <span
+          className={cn(
+            'px-1.5 py-0.2 text-[10px] font-bold rounded-full min-w-4 text-center leading-none',
+            entry.badgeColor || 'bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-200',
+          )}
+        >
+          {entry.badge}
+        </span>
+      ) : null}
+      {entry.hasChevronRight ? (
+        <ChevronRight className="size-3.5 text-zinc-400 opacity-60 group-hover:opacity-100 transition-opacity ml-auto" />
+      ) : null}
     </NavLink>
   );
 }
@@ -294,17 +213,17 @@ function Section({
   if (count === 0) return null;
 
   return (
-    <Collapsible defaultOpen={defaultOpen} className="mb-2" asChild>
+    <Collapsible defaultOpen={defaultOpen} className="mb-1" asChild>
       <section>
-        <div className="group gap-1 px-2 flex items-center">
-          <CollapsibleTrigger className="group/trigger gap-1 rounded py-1 text-[11px] font-medium tracking-wider flex flex-1 items-center text-[#71717A] uppercase hover:text-[#A1A1AA] transition-colors duration-[120ms]">
+        <div className="group gap-1 px-2.5 py-1 flex items-center">
+          <CollapsibleTrigger className="group/trigger gap-1 rounded text-xs font-normal flex flex-1 items-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">
             <ChevronDown
-              className="size-3 transition-transform duration-[120ms] group-data-[state=closed]/trigger:-rotate-90"
+              className="size-3.5 transition-transform duration-150 group-data-[state=closed]/trigger:-rotate-90 text-zinc-400 shrink-0"
               aria-hidden
             />
-            {title}
+            <span className="font-semibold text-xs text-zinc-600 dark:text-zinc-300">{title}</span>
             {count === undefined ? null : (
-              <span className="ml-1 font-normal text-[#71717A]/70">
+              <span className="ml-1 text-[11px] font-normal text-zinc-400 dark:text-zinc-500">
                 {count}
               </span>
             )}
@@ -313,14 +232,13 @@ function Section({
         </div>
 
         <CollapsibleContent>
-          <ul className="mt-0.5 space-y-[2px] px-1">{children}</ul>
+          <ul className="mt-0.5 space-y-0.5 px-0.5">{children}</ul>
         </CollapsibleContent>
       </section>
     </Collapsible>
   );
 }
 
-/** A collapsible group of static destinations. */
 function LinkSection({
   title,
   links,
@@ -335,7 +253,7 @@ function LinkSection({
   return (
     <Section title={title} defaultOpen={defaultOpen}>
       {links.map((entry) => (
-        <li key={entry.path}>
+        <li key={entry.label}>
           <NavRow entry={entry} workspaceSlug={workspaceSlug} />
         </li>
       ))}
@@ -365,18 +283,14 @@ function ChannelRow({
           navRowClass(isActive, cn('pr-8', channel.isArchived && 'opacity-60'))
         }
       >
-        <Icon className="size-3.5 shrink-0 opacity-70" aria-hidden />
+        <Icon className="size-3.5 shrink-0 text-zinc-400" aria-hidden />
         <span className="truncate">{channel.name}</span>
-        {channel.membership?.isMuted ? (
-          <span className="sr-only">(muted)</span>
-        ) : null}
       </NavLink>
 
-      {/* Star reveals on hover, but stays visible once set. */}
       {channel.membership ? (
         <Hint label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}>
           <Button
-            variant="sidebar"
+            variant="ghost"
             size="icon-sm"
             onClick={() => onToggleFavorite(channel)}
             aria-label={
@@ -384,10 +298,10 @@ function ChannelRow({
             }
             aria-pressed={isFavorite}
             className={cn(
-              'right-1 size-6 absolute top-1/2 -translate-y-1/2 transition-opacity',
+              'right-1 size-6 absolute top-1/2 -translate-y-1/2 transition-opacity p-0',
               isFavorite
-                ? 'text-warning opacity-100'
-                : 'text-sidebar-muted opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100',
+                ? 'text-amber-500 opacity-100'
+                : 'text-zinc-400 opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100',
             )}
           >
             <Star className={cn('size-3', isFavorite && 'fill-current')} />
@@ -398,47 +312,6 @@ function ChannelRow({
   );
 }
 
-/**
- * Analytics collapsed to a single rail entry: the menu picks a tab, and the
- * analytics screen renders that same set as its tab bar.
- */
-function AnalyticsMenu({ workspaceSlug }: { workspaceSlug: string }) {
-  const navigate = useNavigate();
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="sidebar"
-          size="sm"
-          className="gap-1.5 px-2 font-normal w-full justify-start data-[state=open]:bg-sidebar-accent"
-        >
-          <BarChart3
-            className="size-3.5 shrink-0 text-accent-blue"
-            aria-hidden
-          />
-          <span>Analytics</span>
-          <ChevronDown className="ml-auto size-3.5 opacity-60" aria-hidden />
-        </Button>
-      </DropdownMenuTrigger>
-
-      <DropdownMenuContent side="right" align="start" className="w-56">
-        <DropdownMenuLabel>Analytics</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {ANALYTICS_LINKS.map((entry) => (
-          <DropdownMenuItem
-            key={entry.path}
-            onSelect={() => navigate(`/w/${workspaceSlug}/${entry.path}`)}
-          >
-            <entry.icon className={cn('size-4', entry.tone)} aria-hidden />
-            {entry.label}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 export interface ChannelNavProps {
   workspaceId: string;
   workspaceSlug: string;
@@ -446,6 +319,7 @@ export interface ChannelNavProps {
   isLoading: boolean;
   onCreateChannel: () => void;
   onBrowseChannels: () => void;
+  onOpenSearch?: () => void;
 }
 
 export function ChannelNav({
@@ -455,6 +329,7 @@ export function ChannelNav({
   isLoading,
   onCreateChannel,
   onBrowseChannels,
+  onOpenSearch,
 }: ChannelNavProps) {
   const groups = useGroupedChannels(channels);
   const preferences = useChannelPreferences(workspaceId);
@@ -476,117 +351,141 @@ export function ChannelNav({
   const rowProps = { workspaceSlug, onToggleFavorite: toggleFavorite };
 
   return (
-    <ScrollArea className="scrollbar-subtle flex-1">
-      <div className="px-1 py-2">
-        <nav aria-label="Workspace" className="mb-3 px-1 pb-3 space-y-px border-b border-sidebar-border">
-          {PRIMARY_LINKS.map((entry) => (
-            <NavRow key={entry.label} entry={entry} workspaceSlug={workspaceSlug} />
-          ))}
-        </nav>
-
-        <Section title="Favorites" count={groups.favorites.length}>
-          {groups.favorites.map((channel) => (
-            <ChannelRow key={channel.id} channel={channel} {...rowProps} />
-          ))}
-        </Section>
-
-        <Section
-          title="Channels"
-          count={groups.joined.length}
-          action={
-            <Hint label="Create a channel">
-              <Button
-                variant="sidebar"
-                size="icon-sm"
-                onClick={onCreateChannel}
-                aria-label="Create a channel"
-                className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-              >
-                <Plus className="size-3.5" />
-              </Button>
-            </Hint>
-          }
+    <div className="flex flex-col h-full min-h-0">
+      {/* Quick Actions Search Bar */}
+      <div className="px-2 pt-1 pb-2">
+        <button
+          onClick={onOpenSearch}
+          className={cn(
+            'w-full gap-2 px-2.5 py-1.5 text-xs flex items-center justify-between rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 text-zinc-600 dark:text-zinc-400 shadow-2xs hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors',
+            'focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:outline-none',
+          )}
         >
-          {groups.joined.map((channel) => (
-            <ChannelRow key={channel.id} channel={channel} {...rowProps} />
-          ))}
-        </Section>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="size-4 rounded flex items-center justify-center text-zinc-500 font-bold text-[11px]">
+              Q
+            </span>
+            <span className="font-medium truncate text-zinc-700 dark:text-zinc-300">Find a conversation...</span>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <kbd className="rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 text-[9px] font-mono font-medium text-zinc-500 dark:text-zinc-400">
+              CTRL K
+            </kbd>
+            <Search className="size-3 text-zinc-400 ml-0.5" />
+            <Zap className="size-3 text-amber-500 fill-amber-500" />
+          </div>
+        </button>
+      </div>
 
-        <Section
-          title="Browse"
-          count={groups.available.length}
-          defaultOpen={false}
-        >
-          {groups.available.map((channel) => (
-            <ChannelRow key={channel.id} channel={channel} {...rowProps} />
-          ))}
-        </Section>
+      <ScrollArea className="scrollbar-subtle flex-1 px-1.5">
+        <div className="space-y-1 pb-4">
+          {/* Primary Nav Links */}
+          <nav aria-label="Primary navigation" className="space-y-0.5">
+            {PRIMARY_LINKS.map((entry) => (
+              <NavRow key={entry.label} entry={entry} workspaceSlug={workspaceSlug} />
+            ))}
+          </nav>
 
-        <Section
-          title="Archived"
-          count={groups.archived.length}
-          defaultOpen={false}
-        >
-          {groups.archived.map((channel) => (
-            <ChannelRow key={channel.id} channel={channel} {...rowProps} />
-          ))}
-        </Section>
+          <div className="pt-2 space-y-1 border-t border-zinc-200/60 dark:border-zinc-800/60 mt-2">
+            <Section title="Starred" count={groups.favorites.length} defaultOpen={true}>
+              {groups.favorites.map((channel) => (
+                <ChannelRow key={channel.id} channel={channel} {...rowProps} />
+              ))}
+            </Section>
 
-        <div className="border-t border-sidebar-border pt-3">
-          <LinkSection
-            title="Work Tools"
-            links={WORK_TOOL_LINKS}
-            workspaceSlug={workspaceSlug}
-          />
-          <LinkSection
-            title="AI Platform"
-            links={AI_PLATFORM_LINKS}
-            workspaceSlug={workspaceSlug}
-            defaultOpen={false}
-          />
-          <LinkSection
-            title="AI Agents Platform"
-            links={AGENT_LINKS}
-            workspaceSlug={workspaceSlug}
-            defaultOpen={false}
-          />
-          <LinkSection
-            title="Workflow Automations"
-            links={AUTOMATION_LINKS}
-            workspaceSlug={workspaceSlug}
-            defaultOpen={false}
-          />
-          <LinkSection
-            title="Integrations & Ecosystem"
-            links={INTEGRATION_LINKS}
-            workspaceSlug={workspaceSlug}
-            defaultOpen={false}
-          />
+            <Section
+              title="Channels"
+              count={groups.joined.length}
+              defaultOpen={true}
+              action={
+                <Hint label="Create a channel">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={onCreateChannel}
+                    aria-label="Create a channel"
+                    className="size-5 p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
+                  >
+                    <Plus className="size-3.5" />
+                  </Button>
+                </Hint>
+              }
+            >
+              {groups.joined.map((channel) => (
+                <ChannelRow key={channel.id} channel={channel} {...rowProps} />
+              ))}
+            </Section>
+
+            <LinkSection
+              title="External connections"
+              links={EXTERNAL_LINKS}
+              workspaceSlug={workspaceSlug}
+              defaultOpen={false}
+            />
+
+            <LinkSection
+              title="Work Tools"
+              links={WORK_TOOL_LINKS}
+              workspaceSlug={workspaceSlug}
+              defaultOpen={false}
+            />
+
+            <LinkSection
+              title="AI Platform"
+              links={AI_PLATFORM_LINKS}
+              workspaceSlug={workspaceSlug}
+              defaultOpen={false}
+            />
+
+            <LinkSection
+              title="Automations"
+              links={AUTOMATION_LINKS}
+              workspaceSlug={workspaceSlug}
+              defaultOpen={false}
+            />
+
+            <LinkSection
+              title="Analytics"
+              links={ANALYTICS_LINKS}
+              workspaceSlug={workspaceSlug}
+              defaultOpen={false}
+            />
+          </div>
         </div>
+      </ScrollArea>
 
-        <div className="mt-1 px-1 pt-3 space-y-px border-t border-sidebar-border">
-          <AnalyticsMenu workspaceSlug={workspaceSlug} />
+      {/* Sidebar Footer Section */}
+      <div className="p-2.5 border-t border-zinc-200/80 dark:border-zinc-800/80 space-y-2 bg-zinc-50/50 dark:bg-zinc-900/30 shrink-0">
+        {/* Getting started progress pill */}
+        <button className="w-full px-2.5 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 transition-colors flex items-center justify-between text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+          <span>Getting started</span>
+          <span className="text-[11px] font-normal text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded-md border border-zinc-200 dark:border-zinc-700">
+            2/6
+          </span>
+        </button>
 
-          <Button
-            variant="sidebar"
-            size="sm"
-            className="gap-1.5 px-2 font-normal w-full justify-start"
-            onClick={onBrowseChannels}
-            leadingIcon={<Users className="size-3.5" />}
-          >
-            Browse channels
-          </Button>
-          <Button
-            variant="sidebar"
-            size="sm"
-            className="gap-1.5 px-2 font-normal w-full justify-start"
-            onClick={onCreateChannel}
-            leadingIcon={<Plus className="size-3.5" />}
-          >
-            Create channel
-          </Button>
+        {/* Invite team members button */}
+        <button
+          onClick={onBrowseChannels}
+          className="w-full px-2 py-1 flex items-center gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+        >
+          <UserPlus className="size-4 text-zinc-500 shrink-0" />
+          <span>Invite team members</span>
+        </button>
+
+        {/* Trial Status Footer */}
+        <div className="flex items-center justify-between pt-1 gap-1">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 min-w-0">
+            <Clock className="size-3.5 shrink-0" />
+            <span className="truncate">5 days left on trial</span>
+          </div>
+          <button className="px-2.5 py-1 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-2xs shrink-0">
+            Keep Pro
+          </button>
         </div>
       </div>
-    </ScrollArea>
+    </div>
   );
 }
+
+

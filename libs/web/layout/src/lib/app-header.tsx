@@ -7,20 +7,20 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
   Hint,
   UserAvatar,
 } from '@org/ui';
-import { cn } from '@org/utils';
 import { useLogout } from '@org/auth';
 import {
   Bell,
+  HelpCircle,
   LogOut,
   Moon,
+  PanelLeft,
   PanelRight,
-  Search,
   Settings,
+  Sun,
   User as UserIcon,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -33,6 +33,8 @@ export interface AppHeaderProps {
   onOpenSearch: () => void;
   onToggleRightPanel: () => void;
   rightPanelOpen: boolean;
+  onToggleSidebar?: () => void;
+  sidebarOpen?: boolean;
   unreadNotifications?: number;
   actions?: React.ReactNode;
 }
@@ -45,6 +47,8 @@ export function AppHeader({
   onOpenSearch,
   onToggleRightPanel,
   rightPanelOpen,
+  onToggleSidebar,
+  sidebarOpen = true,
   unreadNotifications = 0,
   actions,
 }: AppHeaderProps) {
@@ -52,42 +56,51 @@ export function AppHeader({
   const logout = useLogout();
 
   return (
-    <header className="h-[48px] gap-3 px-4 flex shrink-0 items-center border-b border-[#27272A] bg-[#09090B]">
+    <header className="h-[48px] gap-3 px-4 flex shrink-0 items-center border-b border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-[#09090B] transition-colors">
       <div className="min-w-0 flex items-center gap-2">
-        <h1 className="text-xs font-semibold text-[#FAFAFA] truncate tracking-tight">{title}</h1>
+        {!sidebarOpen && onToggleSidebar ? (
+          <Hint label="Expand sidebar">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onToggleSidebar}
+              className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+              aria-label="Expand sidebar"
+            >
+              <PanelLeft className="size-4" />
+            </Button>
+          </Hint>
+        ) : null}
+
+        <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate tracking-tight flex items-center gap-2">
+          {title}
+        </h1>
         {subtitle ? (
-          <span className="text-[11px] truncate text-[#71717A] font-normal hidden sm:inline">
+          <span className="text-xs truncate text-zinc-400 font-normal hidden sm:inline">
             · {subtitle}
           </span>
         ) : null}
       </div>
 
-      <div className="flex-1 flex justify-center max-w-md mx-auto">
-        <button
-          onClick={onOpenSearch}
-          className={cn(
-            'w-full max-w-sm gap-2 px-3 py-1 text-xs flex items-center justify-between rounded-[8px] border border-[#27272A] bg-[#111113] text-[#71717A] transition-all duration-[120ms] hover:border-[#27272A]/90 hover:text-[#A1A1AA]',
-            'focus-visible:border-[#6E56CF] focus-visible:outline-none',
-          )}
-        >
-          <div className="flex items-center gap-2">
-            <Search className="size-3.5" aria-hidden />
-            <span>Search or jump to…</span>
-          </div>
-          <kbd className="rounded bg-[#16171A] border border-[#27272A] px-1.5 py-0.5 font-mono text-[10px] text-[#A1A1AA]">
-            ⌘K
-          </kbd>
-        </button>
-      </div>
-
       <div className="flex items-center gap-1.5 ml-auto">
         {actions}
+
+        <Hint label="Help & Resources">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 flex items-center gap-1 px-2 text-xs font-medium"
+          >
+            <HelpCircle className="size-4" />
+            <span className="hidden md:inline">Help</span>
+          </Button>
+        </Hint>
 
         <Hint label="Notifications">
           <Button
             variant="ghost"
             size="icon-sm"
-            className="relative text-[#A1A1AA] hover:text-[#FAFAFA]"
+            className="relative text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
             aria-label={
               unreadNotifications > 0
                 ? `Notifications (${unreadNotifications} unread)`
@@ -96,7 +109,7 @@ export function AppHeader({
           >
             <Bell className="size-4" />
             {unreadNotifications > 0 ? (
-              <span className="top-1 right-1 size-1.5 absolute rounded-full bg-[#E5484D]" />
+              <span className="top-1 right-1 size-2 absolute rounded-full bg-red-500 ring-2 ring-white dark:ring-zinc-900" />
             ) : null}
           </Button>
         </Hint>
@@ -106,7 +119,7 @@ export function AppHeader({
             variant="ghost"
             size="icon-sm"
             onClick={onToggleRightPanel}
-            className="text-[#A1A1AA] hover:text-[#FAFAFA]"
+            className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
             aria-pressed={rightPanelOpen}
             aria-label={rightPanelOpen ? 'Hide details' : 'Show details'}
           >
@@ -117,7 +130,7 @@ export function AppHeader({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="rounded-full focus-visible:ring-1 focus-visible:ring-[#6E56CF] focus-visible:outline-none ml-1"
+              className="rounded-full focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none ml-1"
               aria-label="Account menu"
             >
               <UserAvatar
@@ -130,45 +143,42 @@ export function AppHeader({
             </button>
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent align="end" className="w-56 border-[#27272A] bg-[#111113]">
-            <DropdownMenuLabel className="font-normal text-[#FAFAFA]">
+          <DropdownMenuContent align="end" className="w-56 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1.5 shadow-lg">
+            <DropdownMenuLabel className="font-normal text-zinc-900 dark:text-zinc-100">
               <span className="text-xs font-semibold block">
                 {user.displayName ?? user.name}
               </span>
-              <span className="text-[11px] block truncate text-[#71717A]">
+              <span className="text-[11px] block truncate text-zinc-400">
                 {user.email}
               </span>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-[#27272A]" />
+            <DropdownMenuSeparator className="bg-zinc-200 dark:bg-zinc-800 my-1" />
 
-            <DropdownMenuItem asChild className="text-xs">
+            <DropdownMenuItem asChild className="text-xs rounded-md cursor-pointer">
               <Link to={`/w/${workspaceSlug}/profile`}>
                 <UserIcon className="size-3.5" />
                 Profile
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild className="text-xs">
+            <DropdownMenuItem asChild className="text-xs rounded-md cursor-pointer">
               <Link to={`/w/${workspaceSlug}/settings`}>
                 <Settings className="size-3.5" />
                 Settings
               </Link>
             </DropdownMenuItem>
 
-            <DropdownMenuSeparator className="bg-[#27272A]" />
-            <DropdownMenuLabel className="text-[11px] text-[#71717A]">Appearance</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => setTheme('dark')} className="text-xs">
-              <Moon className="size-3.5" />
-              Dark
-              {theme === 'dark' ? (
-                <DropdownMenuShortcut>✓</DropdownMenuShortcut>
-              ) : null}
+            <DropdownMenuSeparator className="bg-zinc-200 dark:bg-zinc-800 my-1" />
+            <DropdownMenuLabel className="text-[11px] font-medium text-zinc-400">Appearance</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="text-xs rounded-md cursor-pointer">
+              {theme === 'dark' ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
+              {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
             </DropdownMenuItem>
 
-            <DropdownMenuSeparator className="bg-[#27272A]" />
+            <DropdownMenuSeparator className="bg-zinc-200 dark:bg-zinc-800 my-1" />
             <DropdownMenuItem
               variant="destructive"
               onClick={() => logout.mutate()}
-              className="text-xs text-[#E5484D]"
+              className="text-xs rounded-md cursor-pointer text-red-600 dark:text-red-400"
             >
               <LogOut className="size-3.5" />
               Sign out
@@ -179,3 +189,4 @@ export function AppHeader({
     </header>
   );
 }
+
