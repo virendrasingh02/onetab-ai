@@ -14,9 +14,9 @@ import { cn, initials } from '@org/utils';
 import {
   Activity,
   BarChart3,
-  Bookmark,
   Check,
   ChevronDown,
+  FileText,
   HardDrive,
   Home,
   MessageSquare,
@@ -51,7 +51,7 @@ const RAIL_ITEMS: readonly RailItem[] = [
   { label: 'DMs', hint: 'Direct messages', path: '/dms', icon: MessageSquare },
   { label: 'Pulse', hint: 'Team Activity Pulse', path: '/pulse', icon: Activity },
   { label: 'Files', hint: 'Company File Storage', path: '/files', icon: HardDrive },
-  { label: 'Docs', hint: 'Company Knowledge & Notes', path: '/docs', icon: Bookmark },
+  { label: 'Docs', hint: 'Company Knowledge & Docs', path: '/docs', icon: FileText },
 ];
 
 const railItemClass = cn(

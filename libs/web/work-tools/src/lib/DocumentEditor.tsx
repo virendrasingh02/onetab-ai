@@ -1,6 +1,5 @@
 import { CodeNode } from '@lexical/code';
 import { ListItemNode, ListNode } from '@lexical/list';
-import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
@@ -10,8 +9,6 @@ import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import {
-  $getSelection,
-  $isRangeSelection,
   FORMAT_ELEMENT_COMMAND,
   FORMAT_TEXT_COMMAND,
   REDO_COMMAND,
@@ -21,7 +18,6 @@ import {
 import {
   Badge,
   Button,
-  Card,
   Input,
   Page,
   PageHeader,
@@ -39,10 +35,7 @@ import {
   FileText,
   Folder,
   Italic,
-  List,
-  ListOrdered,
   Plus,
-  Quote,
   Redo,
   Save,
   Search,
@@ -51,7 +44,9 @@ import {
   Underline,
   Undo,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useDocsState } from './docs/docs-hook.js';
 
 // Lexical Theme styling for editor content
 const theme = {
@@ -106,14 +101,13 @@ function LexicalToolbar() {
       >
         <Redo className="size-3.5" />
       </Button>
-
-      <div className="h-4 w-px bg-border mx-1" />
+      <div className="w-px h-4 bg-border mx-1" />
 
       <Button
         variant="ghost"
         size="icon-sm"
         onClick={() => formatText('bold')}
-        title="Bold (Ctrl+B)"
+        title="Bold"
       >
         <Bold className="size-3.5" />
       </Button>
@@ -121,7 +115,7 @@ function LexicalToolbar() {
         variant="ghost"
         size="icon-sm"
         onClick={() => formatText('italic')}
-        title="Italic (Ctrl+I)"
+        title="Italic"
       >
         <Italic className="size-3.5" />
       </Button>
@@ -129,7 +123,7 @@ function LexicalToolbar() {
         variant="ghost"
         size="icon-sm"
         onClick={() => formatText('underline')}
-        title="Underline (Ctrl+U)"
+        title="Underline"
       >
         <Underline className="size-3.5" />
       </Button>
@@ -145,12 +139,11 @@ function LexicalToolbar() {
         variant="ghost"
         size="icon-sm"
         onClick={() => formatText('code')}
-        title="Inline Code"
+        title="Code"
       >
         <Code className="size-3.5" />
       </Button>
-
-      <div className="h-4 w-px bg-border mx-1" />
+      <div className="w-px h-4 bg-border mx-1" />
 
       <Button
         variant="ghost"
@@ -184,61 +177,41 @@ function LexicalToolbar() {
       >
         <AlignJustify className="size-3.5" />
       </Button>
-
-      <div className="ml-auto flex items-center gap-1.5">
-        <Badge variant="neutral" className="text-[10px] font-mono">
-          Lexical Engine v0.38
-        </Badge>
-      </div>
     </div>
   );
 }
 
-export interface NoteItem {
-  id: string;
-  title: string;
-  category: string;
-  updatedAt: string;
-  snippet: string;
-}
-
-const initialNotes: NoteItem[] = [
-  {
-    id: 'n1',
-    title: 'Workspace Architecture Overview',
-    category: 'Architecture',
-    updatedAt: '10m ago',
-    snippet: 'Lexical rich text integration and React 19 framework notes.',
-  },
-  {
-    id: 'n2',
-    title: 'Q3 Sprint Planning & Product Specs',
-    category: 'Planning',
-    updatedAt: '2h ago',
-    snippet: 'Sprint goals, team assignments, and release timeline.',
-  },
-  {
-    id: 'n3',
-    title: 'Ollama Vector RAG Local Setup Guide',
-    category: 'Dev Ops',
-    updatedAt: 'Yesterday',
-    snippet: 'Configuring Qdrant vector database collection embeddings.',
-  },
-];
-
 export function DocumentEditor() {
-  const [notes, setNotes] = useState<NoteItem[]>(initialNotes);
-  const [activeNoteId, setActiveNoteId] = useState('n1');
-  const [activeTitle, setActiveTitle] = useState(
-    'Workspace Architecture Overview',
-  );
+  const [searchParams] = useSearchParams();
+  const {
+    docs,
+    activeDoc,
+    activeDocId,
+    setActiveDocId,
+    updateDocTitle,
+    createDoc,
+    deleteDoc,
+  } = useDocsState();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isSaved, setIsSaved] = useState(false);
 
-  const activeNote = notes.find((n) => n.id === activeNoteId) || notes[0];
+  // Sync active document with URL search parameters
+  useEffect(() => {
+    const docParam = searchParams.get('doc');
+    const newDocParam = searchParams.get('newDoc');
+
+    if (docParam && docs.some((d) => d.id === docParam)) {
+      setActiveDocId(docParam);
+    }
+
+    if (newDocParam === 'true') {
+      createDoc();
+    }
+  }, [searchParams, docs, setActiveDocId, createDoc]);
 
   const initialConfig = {
-    namespace: 'OneTabNotesEditor',
+    namespace: 'OneTabDocsEditor',
     theme,
     onError: (error: Error) => {
       console.error('Lexical Editor Error:', error);
@@ -246,38 +219,15 @@ export function DocumentEditor() {
     nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode, CodeNode],
   };
 
-  const createNewNote = () => {
-    const newId = `note-${Date.now()}`;
-    const newNote: NoteItem = {
-      id: newId,
-      title: 'Untitled Note',
-      category: 'General',
-      updatedAt: 'Just now',
-      snippet: 'Start writing your note content here...',
-    };
-    setNotes([newNote, ...notes]);
-    setActiveNoteId(newId);
-    setActiveTitle('Untitled Note');
-  };
-
-  const deleteNote = (id: string) => {
-    const filtered = notes.filter((n) => n.id !== id);
-    setNotes(filtered);
-    if (filtered.length > 0) {
-      setActiveNoteId(filtered[0].id);
-      setActiveTitle(filtered[0].title);
-    }
-  };
-
-  const filteredNotes = notes.filter((n) =>
-    n.title.toLowerCase().includes(searchQuery.toLowerCase()),
+  const filteredDocs = docs.filter((d) =>
+    d.title.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
     <Page width="full">
       <PageHeader
-        title="Notes"
-        description="Rich text notes powered by Meta's Lexical framework with real-time formatting and workspace auto-sync."
+        title="Docs"
+        description="Rich text workspace documentation powered by Meta's Lexical framework with real-time formatting and auto-sync."
         icon={<FileText />}
         accent="blue"
         actions={
@@ -285,7 +235,7 @@ export function DocumentEditor() {
             {isSaved ? (
               <Badge variant="primary" className="gap-1 px-3 py-1">
                 <CheckCircle className="size-3.5" />
-                Note Saved
+                Document Saved
               </Badge>
             ) : null}
             <Button
@@ -295,28 +245,28 @@ export function DocumentEditor() {
                 setTimeout(() => setIsSaved(false), 3000);
               }}
             >
-              Save Note
+              Save Doc
             </Button>
           </div>
         }
       />
 
       <div className="gap-6 md:flex-row flex flex-1 flex-col">
-        {/* Left Notes List Panel */}
+        {/* Left Docs Directory Panel */}
         <Panel
           className="md:w-72 w-full shrink-0 flex flex-col justify-between"
           title={
             <span className="gap-2 flex items-center">
               <Folder className="size-4 text-accent-blue" aria-hidden />
-              <span>Notes Directory</span>
+              <span>Docs Directory</span>
             </span>
           }
           actions={
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="New note"
-              onClick={createNewNote}
+              aria-label="New doc"
+              onClick={() => createDoc()}
             >
               <Plus className="size-4" />
             </Button>
@@ -326,100 +276,97 @@ export function DocumentEditor() {
             <div className="relative">
               <Search className="size-3.5 absolute left-2.5 top-2.5 text-subtle" />
               <Input
-                placeholder="Search notes..."
+                placeholder="Search docs..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8 text-xs h-8"
               />
             </div>
 
-            <nav aria-label="Notes Directory">
+            <nav aria-label="Docs Directory">
               <ul className="space-y-1">
-                {filteredNotes.map((note) => {
-                  const isActive = note.id === activeNoteId;
+                {filteredDocs.map((docItem) => {
+                  const isActive = docItem.id === activeDocId;
                   return (
-                    <li key={note.id} className="group relative">
+                    <li key={docItem.id} className="group relative">
                       <button
                         type="button"
-                        onClick={() => {
-                          setActiveNoteId(note.id);
-                          setActiveTitle(note.title);
-                        }}
+                        onClick={() => setActiveDocId(docItem.id)}
                         aria-current={isActive ? 'page' : undefined}
                         className={cn(
                           'p-2.5 text-xs flex flex-col w-full text-left rounded-lg transition-colors',
                           isActive
-                            ? 'bg-selected/70 border border-primary/30 text-foreground font-medium'
-                            : 'hover:bg-surface text-muted-foreground hover:text-foreground',
+                            ? 'bg-selected font-medium text-foreground'
+                            : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                         )}
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-semibold truncate text-foreground">
-                            {note.title}
+                        <div className="flex items-center justify-between w-full">
+                          <span className="font-semibold text-foreground truncate pr-4">
+                            {docItem.title}
                           </span>
-                          <span className="text-[10px] text-subtle font-mono">
-                            {note.updatedAt}
+                          <span className="text-[10px] text-subtle shrink-0">
+                            {docItem.updatedAt}
                           </span>
                         </div>
-                        <p className="mt-1 text-[11px] text-muted-foreground truncate opacity-80">
-                          {note.snippet}
+                        <p className="text-[11px] text-subtle line-clamp-1 mt-0.5">
+                          {docItem.snippet}
                         </p>
                       </button>
+
+                      {docs.length > 1 ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteDoc(docItem.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-2.5 text-subtle hover:text-destructive p-1 rounded"
+                          title="Delete Document"
+                        >
+                          <Trash2 className="size-3" />
+                        </button>
+                      ) : null}
                     </li>
                   );
                 })}
               </ul>
             </nav>
           </div>
-
-          {notes.length > 1 ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full mt-4 text-xs text-muted-foreground hover:text-destructive gap-1.5"
-              onClick={() => deleteNote(activeNoteId)}
-            >
-              <Trash2 className="size-3.5" />
-              <span>Delete Current Note</span>
-            </Button>
-          ) : null}
         </Panel>
 
-        {/* Right Lexical Rich Text Editor Area */}
-        <Panel className="min-w-0 flex-1 flex flex-col bg-background">
-          <Input
-            value={activeTitle}
-            onChange={(e) => {
-              const val = e.target.value;
-              setActiveTitle(val);
-              setNotes((prev) =>
-                prev.map((n) =>
-                  n.id === activeNoteId ? { ...n, title: val } : n,
-                ),
-              );
-            }}
-            placeholder="Note title..."
-            className="px-0 text-xl font-bold h-auto border-0 shadow-none focus-visible:ring-0 text-foreground mb-3"
-          />
+        {/* Right Editor Main Workspace */}
+        <Panel className="flex-1 flex flex-col min-h-128">
+          <div className="flex items-center justify-between pb-3 mb-4 border-b border-border">
+            <Input
+              value={activeDoc.title}
+              onChange={(e) => updateDocTitle(activeDoc.id, e.target.value)}
+              className="text-lg font-bold bg-transparent border-none p-0 focus-visible:ring-0 shadow-none h-auto text-foreground"
+              placeholder="Document Title..."
+            />
+            <Badge variant="outline" className="text-[10px] uppercase">
+              {activeDoc.category}
+            </Badge>
+          </div>
 
-          <LexicalComposer initialConfig={initialConfig}>
-            <div className="flex flex-col flex-1 min-h-[450px]">
+          {/* Lexical Framework Composer */}
+          <LexicalComposer key={activeDoc.id} initialConfig={initialConfig}>
+            <div className="relative flex-1 flex flex-col">
               <LexicalToolbar />
-              <div className="relative flex-1 p-4 rounded-xl border border-border bg-surface focus-within:border-primary/60 transition-colors">
+
+              <div className="relative flex-1 bg-surface-raised rounded-lg border border-border p-4 min-h-80">
                 <RichTextPlugin
                   contentEditable={
-                    <ContentEditable className="min-h-[400px] outline-none text-sm leading-relaxed text-foreground" />
+                    <ContentEditable className="outline-none min-h-64 text-sm text-foreground space-y-2" />
                   }
                   placeholder={
-                    <div className="absolute top-4 left-4 text-sm text-subtle pointer-events-none italic">
-                      Start writing your notes with Lexical rich text controls...
+                    <div className="absolute top-6 left-6 text-subtle text-sm pointer-events-none select-none">
+                      Write document markdown content, design specs, or engineering guides...
                     </div>
                   }
                   ErrorBoundary={LexicalErrorBoundary}
                 />
                 <HistoryPlugin />
                 <ListPlugin />
-                <AutoFocusPlugin />
               </div>
             </div>
           </LexicalComposer>

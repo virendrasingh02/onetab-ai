@@ -28,7 +28,6 @@ import {
   Star,
   Users,
   Video,
-  CheckSquare,
   FileText,
   HardDrive,
   Bot,
@@ -40,10 +39,11 @@ import {
   UploadCloud,
   MoreHorizontal,
   Home,
+  FolderKanban,
   type LucideIcon,
 } from 'lucide-react';
-import { type ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
+import { useState, type ReactNode } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 
 interface NavEntry {
   path: string;
@@ -68,11 +68,6 @@ const SECONDARY_LINKS: readonly NavEntry[] = [
   { path: 'schedule', label: 'Schedule', icon: Clock },
   { path: 'directory', label: 'Directory', icon: Users },
   { path: 'files', label: 'Files', icon: HardDrive },
-];
-
-const WORK_TOOL_LINKS: readonly NavEntry[] = [
-  { path: 'tasks', label: 'Tasks', icon: CheckSquare },
-  { path: 'notes', label: 'Notes', icon: FileText },
 ];
 
 const AGENTS_LINKS: readonly NavEntry[] = [
@@ -186,6 +181,165 @@ function Section({
         </CollapsibleContent>
       </section>
     </Collapsible>
+  );
+}
+
+function ProjectsTreeSection({ workspaceSlug }: { workspaceSlug: string }) {
+  const location = useLocation();
+
+  const [projects] = useState(() => {
+    try {
+      const saved = localStorage.getItem('onetab_project_boards_v2');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {
+      // fallback
+    }
+    return [
+      { id: 'proj_product', name: 'Q3 Product & Release', color: 'violet' },
+      { id: 'proj_design', name: 'Website & UI Redesign', color: 'blue' },
+      { id: 'proj_api', name: 'AI & Vector Pipeline', color: 'emerald' },
+    ];
+  });
+
+  return (
+    <Section
+      title="Projects"
+      defaultOpen={true}
+      action={
+        <Hint label="New Project">
+          <Button
+            asChild
+            variant="ghost"
+            size="icon-sm"
+            aria-label="New Project"
+            className="size-5 hover:bg-accent p-0"
+          >
+            <NavLink to={`/w/${workspaceSlug}/tasks?newProject=true`}>
+              <Plus className="size-3.5" />
+            </NavLink>
+          </Button>
+        </Hint>
+      }
+    >
+      <li>
+        <NavLink
+          to={`/w/${workspaceSlug}/tasks?view=projects`}
+          className={({ isActive }) =>
+            navRowClass(isActive && location.search.includes('view=projects'))
+          }
+        >
+          <FolderKanban className="size-4 shrink-0 text-primary" aria-hidden />
+          <span className="flex-1 truncate font-medium">All Projects</span>
+        </NavLink>
+      </li>
+
+      {projects.map((proj) => {
+        const projTo = `/w/${workspaceSlug}/tasks?project=${proj.id}`;
+        const isSelected = location.pathname.includes('/tasks') && location.search.includes(`project=${proj.id}`);
+
+        return (
+          <li key={proj.id}>
+            <NavLink
+              to={projTo}
+              className={navRowClass(isSelected, 'pl-6 text-[12px]')}
+            >
+              <span
+                className={cn(
+                  'size-2 rounded-full shrink-0',
+                  proj.color === 'violet' && 'bg-violet-500',
+                  proj.color === 'blue' && 'bg-blue-500',
+                  proj.color === 'emerald' && 'bg-emerald-500',
+                  proj.color === 'amber' && 'bg-amber-500',
+                  proj.color === 'rose' && 'bg-rose-500',
+                  proj.color === 'cyan' && 'bg-cyan-500',
+                )}
+              />
+              <span className="flex-1 truncate">{proj.name}</span>
+            </NavLink>
+          </li>
+        );
+      })}
+    </Section>
+  );
+}
+
+function DocsTreeSection({ workspaceSlug }: { workspaceSlug: string }) {
+  const location = useLocation();
+
+  const [docs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('onetab_docs_v2');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {
+      // fallback
+    }
+    return [
+      { id: 'doc_arch', title: 'Workspace Architecture' },
+      { id: 'doc_design', title: 'Design System Tokens' },
+      { id: 'doc_ollama', title: 'Ollama Vector RAG' },
+      { id: 'doc_security', title: 'API Security Scope' },
+    ];
+  });
+
+  return (
+    <Section
+      title="Docs"
+      defaultOpen={true}
+      action={
+        <Hint label="New Document">
+          <Button
+            asChild
+            variant="ghost"
+            size="icon-sm"
+            aria-label="New Document"
+            className="size-5 hover:bg-accent p-0"
+          >
+            <NavLink to={`/w/${workspaceSlug}/docs?newDoc=true`}>
+              <Plus className="size-3.5" />
+            </NavLink>
+          </Button>
+        </Hint>
+      }
+    >
+      <li>
+        <NavLink
+          to={`/w/${workspaceSlug}/docs?view=all`}
+          className={({ isActive }) =>
+            navRowClass(isActive && location.search.includes('view=all'))
+          }
+        >
+          <FileText className="size-4 shrink-0 text-accent-blue" aria-hidden />
+          <span className="flex-1 truncate font-medium">All Docs</span>
+        </NavLink>
+      </li>
+
+      {docs.map((docItem) => {
+        const docTo = `/w/${workspaceSlug}/docs?doc=${docItem.id}`;
+        const isSelected = location.pathname.includes('/docs') && location.search.includes(`doc=${docItem.id}`);
+
+        return (
+          <li key={docItem.id}>
+            <NavLink
+              to={docTo}
+              className={navRowClass(isSelected, 'pl-6 text-[12px]')}
+            >
+              <FileText className="size-3 shrink-0 text-subtle" aria-hidden />
+              <span className="flex-1 truncate">{docItem.title}</span>
+            </NavLink>
+          </li>
+        );
+      })}
+    </Section>
   );
 }
 
@@ -396,12 +550,9 @@ export function ChannelNav({
               ))}
             </Section>
 
-            <LinkSection
-              title="Workspace Tools"
-              links={WORK_TOOL_LINKS}
-              workspaceSlug={workspaceSlug}
-              defaultOpen={true}
-            />
+            <ProjectsTreeSection workspaceSlug={workspaceSlug} />
+
+            <DocsTreeSection workspaceSlug={workspaceSlug} />
 
             <LinkSection
               title="AI Agents"
