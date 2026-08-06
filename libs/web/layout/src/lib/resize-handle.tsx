@@ -64,22 +64,21 @@ export function ResizeHandle({
       onDoubleClick={onDoubleClick}
       onKeyDown={handleKeyDown}
       className={cn(
-        'group relative z-20 flex w-2.5 cursor-col-resize select-none items-center justify-center touch-none',
+        'group relative z-20 flex w-1.5 -mx-0.75 cursor-col-resize select-none items-center justify-center touch-none',
         'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-        side === 'left' ? '-mr-1.5' : '-ml-1.5',
         className,
       )}
     >
       {/* Invisible expanded touch hit target */}
-      <div className="absolute inset-y-0 -left-1 -right-1" />
+      <div className="absolute inset-y-0 -left-1.5 -right-1.5" />
 
       {/* Visual Separator Line */}
       <div
         className={cn(
-          'h-full w-[2px] transition-colors duration-150',
+          'h-full w-[1px] transition-colors duration-150',
           isResizing
             ? 'bg-primary shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]'
-            : 'bg-border/60 group-hover:bg-primary/70 group-focus-visible:bg-primary',
+            : 'bg-border group-hover:bg-primary/70 group-focus-visible:bg-primary',
         )}
       />
 

@@ -181,14 +181,14 @@ export function AppShell() {
         {/* Column 1: Left Navigation Sidebar */}
         <aside
           className={cn(
-            'flex shrink-0 flex-col border-r border-border bg-sidebar',
+            'flex shrink-0 flex-col bg-sidebar',
             !isResizing && 'transition-[width] duration-(--duration-base) ease-standard',
-            !sidebarOpen && 'w-0 overflow-hidden border-r-0',
+            !sidebarOpen && 'w-0 overflow-hidden',
           )}
           style={sidebarOpen ? { width: `${leftWidth}px` } : undefined}
           aria-label="Sidebar navigation"
         >
-          <div className="px-2 py-2 border-b border-border">
+          <div className="h-12 px-2 flex items-center shrink-0 border-b border-border">
             <WorkspaceMenu
               workspaces={workspacesQuery.data ?? []}
               current={workspace}
@@ -266,9 +266,9 @@ export function AppShell() {
         {/* Column 3: Right AI Assistant & Chat Panel (Full Screen Height) */}
         <aside
           className={cn(
-            'shrink-0 flex flex-col h-full border-l border-border bg-background',
+            'shrink-0 flex flex-col h-full bg-background',
             !isResizing && 'transition-[width] duration-(--duration-base) ease-standard',
-            !rightPanelOpen && 'w-0 overflow-hidden border-l-0',
+            !rightPanelOpen && 'w-0 overflow-hidden',
           )}
           style={rightPanelOpen ? { width: `${rightWidth}px` } : undefined}
           aria-label="AI Chat Panel"
