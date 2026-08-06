@@ -6,3 +6,10 @@ export {
   WorkspaceSwitcher,
   type WorkspaceSwitcherProps,
 } from './lib/workspace-switcher.js';
+export {
+  useResizableLayout,
+  type LayoutBounds,
+  type StoredLayoutConfig,
+} from './lib/use-resizable-layout.js';
+export { ResizeHandle, type ResizeHandleProps } from './lib/resize-handle.js';
+

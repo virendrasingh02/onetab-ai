@@ -34,6 +34,8 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AISidebar } from '@org/web-ai';
 import { AppHeader } from './app-header.js';
 import { ChannelNav } from './channel-nav.js';
+import { ResizeHandle } from './resize-handle.js';
+import { useResizableLayout } from './use-resizable-layout.js';
 import { WorkspaceMenu } from './workspace-switcher.js';
 
 interface ChatMessage {
@@ -48,8 +50,22 @@ export function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const palette = useCommandPalette();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const {
+    leftWidth,
+    rightWidth,
+    sidebarOpen,
+    rightPanelOpen,
+    isResizing,
+    bounds,
+    setSidebarOpen,
+    setRightPanelOpen,
+    startLeftResize,
+    startRightResize,
+    resetLeftWidth,
+    resetRightWidth,
+    stepLeftWidth,
+    stepRightWidth,
+  } = useResizableLayout();
   const [aiSidebarOpen, setAiSidebarOpen] = useState(false);
   const [promptInput, setPromptInput] = useState('');
   const [selectedModel, setSelectedModel] = useState('Auto');
@@ -156,14 +172,20 @@ export function AppShell() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex h-dvh overflow-hidden bg-background text-foreground font-sans">
+      <div
+        className={cn(
+          'flex h-dvh overflow-hidden bg-background text-foreground font-sans',
+          isResizing && 'select-none cursor-col-resize',
+        )}
+      >
         {/* Column 1: Left Navigation Sidebar */}
         <aside
           className={cn(
             'flex shrink-0 flex-col border-r border-border bg-sidebar',
-            'transition-[width] duration-(--duration-base) ease-standard',
-            sidebarOpen ? 'w-60' : 'w-0 overflow-hidden border-r-0',
+            !isResizing && 'transition-[width] duration-(--duration-base) ease-standard',
+            !sidebarOpen && 'w-0 overflow-hidden border-r-0',
           )}
+          style={sidebarOpen ? { width: `${leftWidth}px` } : undefined}
           aria-label="Sidebar navigation"
         >
           <div className="px-2 py-2 border-b border-border">
@@ -185,6 +207,21 @@ export function AppShell() {
             />
           </div>
         </aside>
+
+        {/* Left Resize Handle */}
+        {sidebarOpen ? (
+          <ResizeHandle
+            side="left"
+            isResizing={isResizing === 'left'}
+            currentWidth={leftWidth}
+            minWidth={bounds.leftMin}
+            maxWidth={bounds.leftMax}
+            onPointerDown={startLeftResize}
+            onDoubleClick={resetLeftWidth}
+            onStepWidth={stepLeftWidth}
+            onResetWidth={resetLeftWidth}
+          />
+        ) : null}
 
         {/* Column 2: Center Main Content Area */}
         <div className="min-w-0 flex flex-1 flex-col bg-background">
@@ -211,13 +248,29 @@ export function AppShell() {
           </main>
         </div>
 
+        {/* Right Resize Handle */}
+        {rightPanelOpen ? (
+          <ResizeHandle
+            side="right"
+            isResizing={isResizing === 'right'}
+            currentWidth={rightWidth}
+            minWidth={bounds.rightMin}
+            maxWidth={bounds.rightMax}
+            onPointerDown={startRightResize}
+            onDoubleClick={resetRightWidth}
+            onStepWidth={stepRightWidth}
+            onResetWidth={resetRightWidth}
+          />
+        ) : null}
+
         {/* Column 3: Right AI Assistant & Chat Panel (Full Screen Height) */}
         <aside
           className={cn(
             'shrink-0 flex flex-col h-full border-l border-border bg-background',
-            'transition-[width] duration-(--duration-base) ease-standard',
-            rightPanelOpen ? 'w-80' : 'w-0 overflow-hidden border-l-0',
+            !isResizing && 'transition-[width] duration-(--duration-base) ease-standard',
+            !rightPanelOpen && 'w-0 overflow-hidden border-l-0',
           )}
+          style={rightPanelOpen ? { width: `${rightWidth}px` } : undefined}
           aria-label="AI Chat Panel"
           aria-hidden={!rightPanelOpen}
         >
