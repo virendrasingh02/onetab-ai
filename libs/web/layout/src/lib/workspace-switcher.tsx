@@ -34,7 +34,7 @@ export function WorkspaceSwitcher({
   return (
     <nav
       aria-label="Workspaces"
-      className="gap-1.5 py-3 flex w-[68px] shrink-0 flex-col items-center border-r border-sidebar-border bg-sidebar"
+      className="gap-2 py-3 flex w-[56px] shrink-0 flex-col items-center border-r border-[#27272A] bg-[#09090B]"
     >
       {workspaces.map((workspace) => {
         const isActive = workspace.id === current?.id;
@@ -44,11 +44,11 @@ export function WorkspaceSwitcher({
               to={`/w/${workspace.slug}`}
               aria-current={isActive ? 'page' : undefined}
               className={cn(
-                'size-10 text-sm font-semibold text-white relative flex items-center justify-center rounded-xl transition-all',
-                'focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none',
+                'size-8 text-xs font-semibold text-[#FAFAFA] relative flex items-center justify-center rounded-[8px] transition-all duration-[120ms]',
+                'focus-visible:ring-1 focus-visible:ring-[#6E56CF] focus-visible:outline-none',
                 isActive
-                  ? 'rounded-lg ring-2 ring-sidebar-accent-foreground'
-                  : 'opacity-80 hover:rounded-lg hover:opacity-100',
+                  ? 'bg-[#1E1F23] ring-1 ring-[#6E56CF]'
+                  : 'opacity-65 hover:opacity-100 hover:bg-[#1E1F23]/60',
               )}
               style={{ backgroundColor: avatarTint(workspace.id) }}
             >
@@ -61,11 +61,10 @@ export function WorkspaceSwitcher({
               ) : (
                 initials(workspace.name)
               )}
-              {/* Active indicator pip on the rail edge. */}
               {isActive ? (
                 <span
                   aria-hidden
-                  className="-left-3 h-6 w-1 absolute rounded-r-full bg-sidebar-accent-foreground"
+                  className="-left-2 h-4 w-1 absolute rounded-r-full bg-[#6E56CF]"
                 />
               ) : null}
             </Link>
@@ -75,13 +74,13 @@ export function WorkspaceSwitcher({
 
       <Hint label="Create a workspace" side="right">
         <Button
-          variant="sidebar"
-          size="icon"
-          className="mt-1 size-10 rounded-xl border border-dashed border-sidebar-border"
+          variant="ghost"
+          size="icon-sm"
+          className="mt-1 size-8 rounded-[8px] border border-dashed border-[#27272A] text-[#71717A] hover:text-[#FAFAFA]"
           onClick={() => navigate('/workspaces/new')}
           aria-label="Create a workspace"
         >
-          <Plus />
+          <Plus className="size-3.5" />
         </Button>
       </Hint>
     </nav>
@@ -93,22 +92,21 @@ export interface WorkspaceMenuProps {
   current: WorkspaceSummary;
 }
 
-/** Name + role header at the top of the sidebar, with a switch menu. */
 export function WorkspaceMenu({ workspaces, current }: WorkspaceMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           className={cn(
-            'gap-2 px-2 py-1.5 flex w-full items-center rounded-md text-left transition-colors hover:bg-sidebar-accent',
-            'focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none',
+            'gap-2 px-2 py-1 flex w-full items-center rounded-[6px] text-left transition-colors duration-[120ms] hover:bg-[#1E1F23]',
+            'focus-visible:ring-1 focus-visible:ring-[#6E56CF] focus-visible:outline-none',
           )}
         >
           <span className="min-w-0 flex-1">
-            <span className="text-sm font-semibold block truncate text-sidebar-accent-foreground">
+            <span className="text-xs font-semibold block truncate text-[#FAFAFA] tracking-tight">
               {current.name}
             </span>
-            <span className="text-xs block truncate text-sidebar-muted">
+            <span className="text-[11px] block truncate text-[#71717A]">
               {current.memberCount} member{current.memberCount === 1 ? '' : 's'}
               {' · '}
               {current.role.toLowerCase()}
@@ -117,29 +115,29 @@ export function WorkspaceMenu({ workspaces, current }: WorkspaceMenuProps) {
         </button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel>Switch workspace</DropdownMenuLabel>
+      <DropdownMenuContent align="start" className="w-60 border-[#27272A] bg-[#111113]">
+        <DropdownMenuLabel className="text-xs text-[#71717A]">Switch workspace</DropdownMenuLabel>
         {workspaces.map((workspace) => (
-          <DropdownMenuItem key={workspace.id} asChild>
+          <DropdownMenuItem key={workspace.id} asChild className="text-xs">
             <Link to={`/w/${workspace.slug}`}>
               <span
                 aria-hidden
-                className="size-5 rounded font-semibold text-white flex items-center justify-center text-[10px]"
+                className="size-4.5 rounded-[4px] font-semibold text-[#FAFAFA] flex items-center justify-center text-[9px]"
                 style={{ backgroundColor: avatarTint(workspace.id) }}
               >
                 {initials(workspace.name)}
               </span>
               <span className="flex-1 truncate">{workspace.name}</span>
               {workspace.id === current.id ? (
-                <Check className="size-4" />
+                <Check className="size-3.5 text-[#6E56CF]" />
               ) : null}
             </Link>
           </DropdownMenuItem>
         ))}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
+        <DropdownMenuSeparator className="bg-[#27272A]" />
+        <DropdownMenuItem asChild className="text-xs">
           <Link to="/workspaces/new">
-            <Plus />
+            <Plus className="size-3.5" />
             Create a workspace
           </Link>
         </DropdownMenuItem>

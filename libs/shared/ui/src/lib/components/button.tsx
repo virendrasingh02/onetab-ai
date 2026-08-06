@@ -7,36 +7,37 @@ import type { ComponentProps, ReactNode } from 'react';
 const buttonVariants = cva(
   [
     'inline-flex items-center justify-center gap-2 whitespace-nowrap',
-    'rounded-md text-sm font-medium',
-    'transition-[color,box-shadow,background-color] duration-150',
-    'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
-    'disabled:pointer-events-none disabled:opacity-50',
+    'rounded-[8px] text-xs font-medium',
+    'transition-all duration-[120ms] ease-out',
+    'outline-none focus-visible:ring-1 focus-visible:ring-primary/60',
+    'disabled:pointer-events-none disabled:opacity-40',
     "[&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0",
   ],
   {
     variants: {
       variant: {
         primary:
-          'bg-primary text-primary-foreground shadow-xs hover:bg-primary-hover',
+          'bg-[#6E56CF] text-[#FAFAFA] hover:bg-[#7C6AF5] active:scale-[0.98]',
         secondary:
-          'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80',
+          'bg-[#16171A] text-[#A1A1AA] hover:bg-[#1E1F23] hover:text-[#FAFAFA] active:scale-[0.98]',
         outline:
-          'border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground',
-        ghost: 'hover:bg-accent hover:text-accent-foreground',
-        subtle: 'bg-muted text-muted-foreground hover:bg-muted/70',
+          'border border-[#27272A] bg-transparent text-[#FAFAFA] hover:bg-[#1E1F23]',
+        ghost:
+          'text-[#A1A1AA] hover:bg-[#1E1F23] hover:text-[#FAFAFA]',
+        subtle:
+          'bg-[#16171A] text-[#A1A1AA] hover:bg-[#1E1F23] hover:text-[#FAFAFA]',
         destructive:
-          'bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/40',
-        link: 'text-primary underline-offset-4 hover:underline',
-        // Sits on the dark navigation chrome, which has its own palette.
+          'bg-[#E5484D] text-[#FAFAFA] hover:bg-[#E5484D]/90 active:scale-[0.98]',
+        link: 'text-[#6E56CF] underline-offset-4 hover:underline',
         sidebar:
-          'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-sidebar-ring/50',
+          'text-[#A1A1AA] hover:bg-[#1E1F23] hover:text-[#FAFAFA] focus-visible:ring-primary/40',
       },
       size: {
-        sm: 'h-8 px-3 text-xs has-[>svg]:px-2.5',
-        md: 'h-9 px-4 has-[>svg]:px-3',
-        lg: 'h-10 px-6 has-[>svg]:px-4',
-        icon: 'size-9',
-        'icon-sm': 'size-8',
+        sm: 'h-[28px] px-2.5 text-xs',
+        md: 'h-[34px] px-[12px] text-xs',
+        lg: 'h-[38px] px-4 text-sm',
+        icon: 'size-[34px]',
+        'icon-sm': 'size-[28px]',
       },
     },
     defaultVariants: { variant: 'primary', size: 'md' },

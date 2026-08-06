@@ -43,23 +43,23 @@ export function EmptyState({
   ...props
 }: EmptyStateProps) {
   return (
-    <div className={cn(emptyStateVariants({ size }), className)} {...props}>
+    <div className={cn(emptyStateVariants({ size }), 'rounded-[10px] border border-[#27272A] bg-[#111113] p-8', className)} {...props}>
       {icon ? (
         <div
           aria-hidden
-          className="bg-muted text-muted-foreground mb-1 flex size-11 items-center justify-center rounded-full [&_svg]:size-5"
+          className="bg-[#16171A] text-[#A1A1AA] border border-[#27272A] mb-2 flex size-10 items-center justify-center rounded-[8px] [&_svg]:size-4"
         >
           {icon}
         </div>
       ) : null}
-      <p className="text-foreground text-sm font-semibold">{title}</p>
+      <p className="text-[#FAFAFA] text-xs font-semibold tracking-tight">{title}</p>
       {description ? (
-        <p className="text-muted-foreground max-w-sm text-sm text-balance">
+        <p className="text-[#71717A] max-w-xs text-xs text-balance leading-relaxed">
           {description}
         </p>
       ) : null}
       {action || secondaryAction ? (
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-3 flex items-center gap-2">
           {action}
           {secondaryAction}
         </div>

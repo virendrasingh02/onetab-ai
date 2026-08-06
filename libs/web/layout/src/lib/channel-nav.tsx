@@ -243,11 +243,11 @@ const ANALYTICS_LINKS: readonly NavEntry[] = [
 /** One row style for every navigable item in the rail. */
 function navRowClass(isActive: boolean, extra?: string) {
   return cn(
-    'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
-    'focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none',
+    'gap-2.5 py-1 px-2 text-[13px] flex items-center rounded-[6px] transition-all duration-[120ms]',
+    'focus-visible:ring-1 focus-visible:ring-[#6E56CF] focus-visible:outline-none',
     isActive
-      ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-      : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
+      ? 'font-medium bg-[#1E1F23] text-[#FAFAFA] border-l-2 border-[#6E56CF] rounded-l-none pl-2.5'
+      : 'text-[#A1A1AA] opacity-65 hover:opacity-100 hover:bg-[#1E1F23]/50 hover:text-[#FAFAFA]',
     extra,
   );
 }
@@ -267,11 +267,10 @@ function NavRow({
   return (
     <NavLink
       to={to}
-      // `end` so a parent link is not highlighted on every child route.
       end={entry.end}
       className={({ isActive }) => navRowClass(isActive)}
     >
-      <Icon className={cn('size-3.5 shrink-0', entry.tone)} aria-hidden />
+      <Icon className={cn('size-4 shrink-0', entry.tone)} aria-hidden />
       <span className="truncate">{entry.label}</span>
     </NavLink>
   );
@@ -279,17 +278,12 @@ function NavRow({
 
 interface SectionProps {
   title: string;
-  /** Rendered next to the title; `0` hides the section entirely. */
   count?: number;
   children: ReactNode;
   action?: ReactNode;
   defaultOpen?: boolean;
 }
 
-/**
- * Collapsible sidebar group, on Radix so the trigger/panel wiring (aria-*,
- * ids, keyboard) comes from the primitive. Collapse state is per-session.
- */
 function Section({
   title,
   count,
@@ -300,17 +294,17 @@ function Section({
   if (count === 0) return null;
 
   return (
-    <Collapsible defaultOpen={defaultOpen} className="mb-3" asChild>
+    <Collapsible defaultOpen={defaultOpen} className="mb-2" asChild>
       <section>
         <div className="group gap-1 px-2 flex items-center">
-          <CollapsibleTrigger className="group/trigger gap-1 rounded py-1 text-xs font-semibold tracking-wide flex flex-1 items-center text-sidebar-muted uppercase hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring">
+          <CollapsibleTrigger className="group/trigger gap-1 rounded py-1 text-[11px] font-medium tracking-wider flex flex-1 items-center text-[#71717A] uppercase hover:text-[#A1A1AA] transition-colors duration-[120ms]">
             <ChevronDown
-              className="size-3 transition-transform group-data-[state=closed]/trigger:-rotate-90"
+              className="size-3 transition-transform duration-[120ms] group-data-[state=closed]/trigger:-rotate-90"
               aria-hidden
             />
             {title}
             {count === undefined ? null : (
-              <span className="ml-1 font-normal text-sidebar-muted/70">
+              <span className="ml-1 font-normal text-[#71717A]/70">
                 {count}
               </span>
             )}
@@ -319,7 +313,7 @@ function Section({
         </div>
 
         <CollapsibleContent>
-          <ul className="mt-0.5 space-y-px px-1">{children}</ul>
+          <ul className="mt-0.5 space-y-[2px] px-1">{children}</ul>
         </CollapsibleContent>
       </section>
     </Collapsible>

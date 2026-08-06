@@ -22,13 +22,13 @@ export function Input({
       data-slot="input"
       aria-invalid={invalid || undefined}
       className={cn(
-        'border-input bg-background flex h-9 w-full min-w-0 rounded-md border px-3 py-1 text-sm shadow-xs',
-        'placeholder:text-muted-foreground',
-        'transition-[color,box-shadow] outline-none',
-        'focus-visible:border-ring focus-visible:ring-ring/30 focus-visible:ring-[3px]',
-        'disabled:cursor-not-allowed disabled:opacity-50',
-        'aria-invalid:border-destructive aria-invalid:ring-destructive/25',
-        'file:text-foreground file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium',
+        'border-[#27272A] bg-[#111113] text-[#FAFAFA] flex h-[36px] w-full min-w-0 rounded-[8px] border px-3 py-1 text-xs',
+        'placeholder:text-[#71717A]',
+        'transition-all duration-[120ms] outline-none',
+        'focus-visible:border-[#6E56CF] focus-visible:ring-1 focus-visible:ring-[#6E56CF]/40',
+        'disabled:cursor-not-allowed disabled:opacity-40',
+        'aria-invalid:border-[#E5484D] aria-invalid:ring-[#E5484D]/25',
+        'file:text-[#FAFAFA] file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-xs file:font-medium',
         leadingIcon && 'pl-9',
         trailingSlot && 'pr-9',
         className,
@@ -44,7 +44,7 @@ export function Input({
       {leadingIcon ? (
         <span
           aria-hidden
-          className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 [&_svg]:size-4"
+          className="text-[#71717A] pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 [&_svg]:size-4"
         >
           {leadingIcon}
         </span>
@@ -69,12 +69,12 @@ export function Textarea({
       data-slot="textarea"
       aria-invalid={invalid || undefined}
       className={cn(
-        'border-input bg-background flex min-h-16 w-full rounded-md border px-3 py-2 text-sm shadow-xs',
-        'placeholder:text-muted-foreground field-sizing-content resize-none',
-        'transition-[color,box-shadow] outline-none',
-        'focus-visible:border-ring focus-visible:ring-ring/30 focus-visible:ring-[3px]',
-        'disabled:cursor-not-allowed disabled:opacity-50',
-        'aria-invalid:border-destructive aria-invalid:ring-destructive/25',
+        'border-[#27272A] bg-[#111113] text-[#FAFAFA] flex min-h-16 w-full rounded-[8px] border px-3 py-2 text-xs',
+        'placeholder:text-[#71717A] field-sizing-content resize-none',
+        'transition-all duration-[120ms] outline-none',
+        'focus-visible:border-[#6E56CF] focus-visible:ring-1 focus-visible:ring-[#6E56CF]/40',
+        'disabled:cursor-not-allowed disabled:opacity-40',
+        'aria-invalid:border-[#E5484D] aria-invalid:ring-[#E5484D]/25',
         className,
       )}
       {...props}

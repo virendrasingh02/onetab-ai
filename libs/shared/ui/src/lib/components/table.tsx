@@ -26,7 +26,7 @@ export function TableHeader({ className, ...props }: ComponentProps<'thead'>) {
   return (
     <thead
       data-slot="table-header"
-      className={cn('[&_tr]:border-b', className)}
+      className={cn('sticky top-0 z-10 bg-[#09090B] [&_tr]:border-b [&_tr]:border-[#27272A]', className)}
       {...props}
     />
   );
@@ -47,7 +47,7 @@ export function TableFooter({ className, ...props }: ComponentProps<'tfoot'>) {
     <tfoot
       data-slot="table-footer"
       className={cn(
-        'font-medium border-t bg-muted/50 [&>tr]:last:border-b-0',
+        'font-medium border-t border-[#27272A] bg-[#111113] [&>tr]:last:border-b-0',
         className,
       )}
       {...props}
@@ -60,8 +60,8 @@ export function TableRow({ className, ...props }: ComponentProps<'tr'>) {
     <tr
       data-slot="table-row"
       className={cn(
-        'border-b transition-colors duration-150',
-        'hover:bg-muted/50 data-[state=selected]:bg-muted',
+        'h-[40px] border-b border-[#27272A] transition-colors duration-[120ms]',
+        'hover:bg-[#1E1F23] data-[state=selected]:bg-[#23242A]',
         className,
       )}
       {...props}
@@ -74,7 +74,7 @@ export function TableHead({ className, ...props }: ComponentProps<'th'>) {
     <th
       data-slot="table-head"
       className={cn(
-        'h-9 px-3 text-xs font-medium text-left align-middle whitespace-nowrap text-muted-foreground',
+        'h-[40px] px-3 text-xs font-medium text-left align-middle whitespace-nowrap text-[#71717A]',
         '[&:has([role=checkbox])]:pr-0',
         className,
       )}
@@ -88,7 +88,7 @@ export function TableCell({ className, ...props }: ComponentProps<'td'>) {
     <td
       data-slot="table-cell"
       className={cn(
-        'px-3 py-2.5 align-middle',
+        'px-3 py-2 align-middle text-xs text-[#FAFAFA]',
         '[&:has([role=checkbox])]:pr-0',
         className,
       )}
@@ -104,7 +104,7 @@ export function TableCaption({
   return (
     <caption
       data-slot="table-caption"
-      className={cn('mt-3 text-sm text-muted-foreground', className)}
+      className={cn('mt-3 text-xs text-[#71717A]', className)}
       {...props}
     />
   );

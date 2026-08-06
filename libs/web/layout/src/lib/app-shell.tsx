@@ -1,5 +1,4 @@
 import { useCurrentUser } from '@org/auth';
-import { layout } from '@org/design-system';
 import {
   Button,
   CommandPalette,
@@ -82,18 +81,17 @@ export function AppShell() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex h-dvh overflow-hidden">
+      <div className="flex h-dvh overflow-hidden bg-[#09090B] text-[#FAFAFA]">
         <WorkspaceSwitcher
           workspaces={workspacesQuery.data ?? []}
           current={workspace}
         />
 
         <aside
-          className="flex shrink-0 flex-col border-r border-sidebar-border bg-sidebar"
-          style={{ width: layout.sidebarWidth }}
+          className="flex shrink-0 flex-col border-r border-[#27272A] bg-[#09090B] w-[240px]"
           aria-label="Channels"
         >
-          <div className="group px-2 py-2.5 border-b border-sidebar-border">
+          <div className="group px-2 py-2 border-b border-[#27272A]">
             <WorkspaceMenu
               workspaces={workspacesQuery.data ?? []}
               current={workspace}
@@ -110,7 +108,7 @@ export function AppShell() {
           />
         </aside>
 
-        <div className="min-w-0 flex flex-1 flex-col">
+        <div className="min-w-0 flex flex-1 flex-col bg-[#09090B]">
           <AppHeader
             user={user}
             workspaceSlug={slug}
@@ -122,21 +120,19 @@ export function AppShell() {
           />
 
           <div className="min-h-0 flex flex-1">
-            <main className="min-w-0 flex-1 overflow-y-auto">
-              {/*
-                Keyed on pathname so a render error on one route does not leave
-                the boundary stuck when the user navigates elsewhere.
-              */}
-              <ErrorBoundary resetKeys={[location.pathname]}>
-                <Suspense fallback={<LoadingState fullPage />}>
-                  <Outlet />
-                </Suspense>
-              </ErrorBoundary>
+            <main className="min-w-0 flex-1 overflow-y-auto bg-[#09090B] p-4 lg:p-6">
+              <div className="max-w-[1600px] w-full mr-auto">
+                <ErrorBoundary resetKeys={[location.pathname]}>
+                  <Suspense fallback={<LoadingState fullPage />}>
+                    <Outlet />
+                  </Suspense>
+                </ErrorBoundary>
+              </div>
             </main>
 
             <aside
               className={cn(
-                'shrink-0 overflow-y-auto border-l bg-background transition-all duration-200',
+                'shrink-0 overflow-y-auto border-l border-[#27272A] bg-[#111113] transition-all duration-[180ms] ease-out',
                 rightPanelOpen ? 'w-80' : 'w-0 overflow-hidden border-l-0',
               )}
               aria-label="Details"
@@ -158,19 +154,15 @@ export function AppShell() {
 
         <CommandPalette open={palette.open} onOpenChange={palette.setOpen} />
 
-        {/*
-          The AI copilot is reachable from every screen rather than living on a
-          route of its own, so assistance stays in context wherever the user is.
-        */}
         <Button
           onClick={() => setAiSidebarOpen(true)}
           size="sm"
-          className="right-6 bottom-6 px-4 fixed z-(--z-rail) rounded-full shadow-overlay"
-          leadingIcon={<Sparkles />}
+          className="right-6 bottom-6 px-3.5 h-[34px] fixed z-(--z-rail) rounded-[8px] bg-[#6E56CF] text-[#FAFAFA] hover:bg-[#7C6AF5] shadow-[0_4px_18px_rgba(0,0,0,0.18)]"
+          leadingIcon={<Sparkles className="size-4" />}
           aria-haspopup="dialog"
           aria-expanded={aiSidebarOpen}
         >
-          AI Copilot
+          Linear AI
         </Button>
 
         <AISidebar
