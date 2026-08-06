@@ -398,16 +398,6 @@ export function AppShell() {
 
         <CommandPalette open={palette.open} onOpenChange={palette.setOpen} />
 
-        <Button
-          onClick={() => setAiSidebarOpen(true)}
-          className="right-6 bottom-6 fixed z-(--z-rail) rounded-full shadow-elevated"
-          leadingIcon={<Sparkles className="size-4" />}
-          aria-haspopup="dialog"
-          aria-expanded={aiSidebarOpen}
-        >
-          Ask AI
-        </Button>
-
         <AISidebar
           isOpen={aiSidebarOpen}
           onClose={() => setAiSidebarOpen(false)}

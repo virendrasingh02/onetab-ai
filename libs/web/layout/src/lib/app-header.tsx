@@ -18,9 +18,9 @@ import {
   LogOut,
   Moon,
   PanelLeft,
-  PanelRight,
   Search,
   Settings,
+  Sparkles,
   Sun,
   User as UserIcon,
 } from 'lucide-react';
@@ -50,7 +50,7 @@ export function AppHeader({
   rightPanelOpen,
   onToggleSidebar,
   sidebarOpen = true,
-  unreadNotifications = 0,
+  unreadNotifications: _unreadNotifications = 0,
   actions,
 }: AppHeaderProps) {
   const { theme, setTheme } = useTheme();
@@ -113,15 +113,17 @@ export function AppHeader({
           </Button>
         </Hint>
 
-        <Hint label={rightPanelOpen ? 'Hide details' : 'Show details'}>
+        <Hint label={rightPanelOpen ? 'Close AI Assistant' : 'Ask AI Assistant'}>
           <Button
-            variant="ghost"
-            size="icon-sm"
+            variant={rightPanelOpen ? 'primary' : 'outline'}
+            size="sm"
             onClick={onToggleRightPanel}
             aria-pressed={rightPanelOpen}
-            aria-label={rightPanelOpen ? 'Hide details' : 'Show details'}
+            aria-label="Ask AI"
+            className="gap-1.5 font-medium"
           >
-            <PanelRight className="size-4" />
+            <Sparkles className="size-3.5 text-primary" />
+            <span>Ask AI</span>
           </Button>
         </Hint>
 
