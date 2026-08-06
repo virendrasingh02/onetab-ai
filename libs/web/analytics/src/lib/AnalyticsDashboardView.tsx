@@ -36,7 +36,8 @@ export function AnalyticsDashboardView() {
   return (
     <ViewShell>
       <ViewHeader
-        icon={<BarChart3 className="w-6 h-6 text-blue-400" />}
+        icon={<BarChart3 />}
+        accent="blue"
         title="Analytics & Observability"
         description="Workspace metrics, engagement trends and live platform health"
         actions={
@@ -53,51 +54,51 @@ export function AnalyticsDashboardView() {
       <QueryState isLoading={query.isLoading} error={query.error}>
         {data ? (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4 mb-6">
+            <div className="md:grid-cols-4 xl:grid-cols-8 gap-4 mb-6 grid grid-cols-2">
               <MetricCard
                 label="Team members"
                 value={data.totals.members}
                 icon={Users}
-                color="bg-blue-600/20 text-blue-400"
+                accent="blue"
                 trend={data.headline.members}
               />
               <MetricCard
                 label="Channels"
                 value={data.totals.channels}
                 icon={Hash}
-                color="bg-purple-600/20 text-purple-400"
+                accent="violet"
               />
               <MetricCard
                 label="Messages"
                 value={data.totals.messages}
                 icon={MessageSquare}
-                color="bg-emerald-600/20 text-emerald-400"
+                accent="green"
                 trend={data.headline.messages}
               />
               <MetricCard
                 label="Tasks"
                 value={data.totals.tasks}
                 icon={CheckSquare}
-                color="bg-amber-600/20 text-amber-400"
+                accent="amber"
                 trend={data.headline.tasks}
               />
               <MetricCard
                 label="Documents"
                 value={data.totals.docs}
                 icon={FileText}
-                color="bg-cyan-600/20 text-cyan-400"
+                accent="cyan"
               />
               <MetricCard
                 label="Projects"
                 value={data.totals.projects}
                 icon={FolderKanban}
-                color="bg-indigo-600/20 text-indigo-400"
+                accent="indigo"
               />
               <MetricCard
                 label="AI sessions"
                 value={data.headline.aiSessions.current}
                 icon={Bot}
-                color="bg-pink-600/20 text-pink-400"
+                accent="pink"
                 trend={data.headline.aiSessions}
                 hint={`in the last ${days}d`}
               />
@@ -105,12 +106,12 @@ export function AnalyticsDashboardView() {
                 label="Storage used"
                 value={formatBytes(data.totals.storageBytes)}
                 icon={HardDrive}
-                color="bg-orange-600/20 text-orange-400"
+                accent="orange"
                 hint={`${formatNumber(data.totals.uploads)} files`}
               />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div className="lg:grid-cols-3 gap-6 mb-6 grid grid-cols-1">
               <Panel
                 title={`Tracked activity · last ${days} days`}
                 subtitle={`${formatNumber(
@@ -142,12 +143,14 @@ export function AnalyticsDashboardView() {
               <DataTable
                 columns={['Service', 'Status', 'Latency', 'Detail']}
                 rows={data.health.services.map((service) => [
-                  <span className="text-slate-100 font-medium">
+                  <span className="font-medium text-foreground">
                     {service.name}
                   </span>,
                   <StatusPill status={service.status} />,
                   service.latencyMs === null ? '—' : `${service.latencyMs}ms`,
-                  <span className="text-slate-500">{service.detail}</span>,
+                  <span className="text-muted-foreground">
+                    {service.detail}
+                  </span>,
                 ])}
               />
             </Panel>

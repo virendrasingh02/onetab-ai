@@ -5,7 +5,7 @@
   "scripts": {
     "prepare": "husky",
     "dev": "nx run-many -t serve -p @org/api @org/web",
-    "dev:all": "nx run-many -t serve -p @org/api @org/web @org/admin",
+    "dev:all": "concurrently -k -c \"cyan,blue,magenta\" -n \"API,WEB,ADMIN\" \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:admin\"",
     "dev:web": "nx serve @org/web",
     "dev:admin": "nx serve @org/admin",
     "dev:api": "nx serve @org/api",
@@ -33,8 +33,8 @@
     "infra:restart": "npm run infra:stop && npm run infra:start",
     "infra:logs": "docker compose -f docker/docker-compose.yml -f docker/docker-compose.override.yml logs -f",
     "infra:clean": "docker compose -f docker/docker-compose.yml -f docker/docker-compose.override.yml down -v",
-    "start:dev": "npm run infra:start && nx run-many -t serve -p @org/api @org/web",
-    "start:full": "npm run infra:start && nx run-many -t serve -p @org/api @org/web @org/admin"
+    "start:dev": "npm run infra:start && npm run dev",
+    "start:full": "npm run infra:start && npm run dev:all"
   },
   "private": true,
   "devDependencies": {
@@ -71,6 +71,7 @@
     "@vitejs/plugin-react": "^6.0.0",
     "@vitest/coverage-v8": "^4.1.10",
     "commitlint": "^21.2.1",
+    "concurrently": "^9.1.2",
     "dotenv": "^16.4.7",
     "eslint": "^10.8.0",
     "eslint-plugin-react-hooks": "^7.1.1",

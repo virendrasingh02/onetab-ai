@@ -2,6 +2,7 @@ import type { MarketplaceKind, MarketplaceListing } from '@org/types';
 import { useState, type ReactNode } from 'react';
 import {
   FilterChips,
+  KIND_ACCENT,
   ListingCard,
   Pagination,
   QueryState,
@@ -84,6 +85,9 @@ export function Storefront({
     <ViewShell>
       <ViewHeader
         icon={icon}
+        // Derived from `kind` so every storefront is tinted consistently
+        // without each caller having to name its own colour.
+        accent={KIND_ACCENT[kind]}
         title={title}
         description={description}
         actions={
@@ -123,7 +127,7 @@ export function Storefront({
       >
         {data ? (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="md:grid-cols-2 xl:grid-cols-3 gap-6 grid grid-cols-1">
               {data.items.map((listing) => (
                 <ListingCard
                   key={listing.id}

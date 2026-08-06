@@ -158,16 +158,25 @@ export function AppShell() {
 
         <CommandPalette open={palette.open} onOpenChange={palette.setOpen} />
 
-        {/* Omnipresent Floating AI Trigger */}
-        <button
+        {/*
+          The AI copilot is reachable from every screen rather than living on a
+          route of its own, so assistance stays in context wherever the user is.
+        */}
+        <Button
           onClick={() => setAiSidebarOpen(true)}
-          className="fixed bottom-6 right-6 p-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-full shadow-2xl z-40 transition-transform hover:scale-110 flex items-center gap-2 font-semibold text-xs border border-white/20"
+          size="sm"
+          className="right-6 bottom-6 px-4 fixed z-(--z-rail) rounded-full shadow-overlay"
+          leadingIcon={<Sparkles />}
+          aria-haspopup="dialog"
+          aria-expanded={aiSidebarOpen}
         >
-          <Sparkles className="w-4 h-4" /> AI Copilot
-        </button>
+          AI Copilot
+        </Button>
 
-        {/* Global AI Slide-over Sidebar Drawer */}
-        <AISidebar isOpen={aiSidebarOpen} onClose={() => setAiSidebarOpen(false)} />
+        <AISidebar
+          isOpen={aiSidebarOpen}
+          onClose={() => setAiSidebarOpen(false)}
+        />
       </div>
     </TooltipProvider>
   );

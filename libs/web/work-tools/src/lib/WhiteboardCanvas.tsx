@@ -1,75 +1,117 @@
-import { useState } from 'react';
+import type { Accent } from '@org/design-system';
+import { accentClasses, Button, Page, PageHeader } from '@org/ui';
+import { cn } from '@org/utils';
 import { Layout, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 
 export interface CanvasNode {
   id: string;
   title: string;
   x: number;
   y: number;
-  color: string;
+  accent: Accent;
 }
+
+const CONNECTIONS = [
+  { id: 'auth-ai', x1: 180, y1: 120, x2: 320, y2: 120 },
+  { id: 'ai-vector', x1: 400, y1: 150, x2: 400, y2: 240 },
+];
 
 export function WhiteboardCanvas() {
   const [nodes, setNodes] = useState<CanvasNode[]>([
-    { id: '1', title: 'User Auth Module', x: 80, y: 100, color: 'bg-blue-600' },
-    { id: '2', title: 'Ollama AI Runner', x: 320, y: 100, color: 'bg-purple-600' },
-    { id: '3', title: 'Qdrant Vector DB', x: 320, y: 240, color: 'bg-emerald-600' },
+    { id: '1', title: 'User auth module', x: 80, y: 100, accent: 'blue' },
+    { id: '2', title: 'Ollama AI runner', x: 320, y: 100, accent: 'violet' },
+    { id: '3', title: 'Qdrant vector DB', x: 320, y: 240, accent: 'green' },
   ]);
 
   const addNode = () => {
-    const newNode: CanvasNode = {
-      id: Date.now().toString(),
-      title: 'New Flow Node',
-      x: 150 + Math.random() * 100,
-      y: 150 + Math.random() * 100,
-      color: 'bg-amber-600',
-    };
-    setNodes([...nodes, newNode]);
+    setNodes((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        title: 'New flow node',
+        x: 150 + Math.random() * 100,
+        y: 150 + Math.random() * 100,
+        accent: 'amber',
+      },
+    ]);
   };
 
   return (
-    <div className="p-6 text-white min-h-screen bg-slate-950 flex flex-col">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Layout className="w-6 h-6 text-purple-400" /> Interactive Whiteboard & Diagramming
-          </h1>
-          <p className="text-sm text-slate-400">Canvas for node flows, architecture diagrams & visual brainstorming</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={addNode} className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-medium text-white shadow">
-            <Plus className="w-4 h-4" /> Add Node
-          </button>
-        </div>
-      </div>
+    <Page width="full">
+      <PageHeader
+        title="Whiteboard"
+        description="Sketch node flows, architecture diagrams and ideas."
+        icon={<Layout />}
+        accent="violet"
+        actions={
+          <Button leadingIcon={<Plus />} onClick={addNode}>
+            Add node
+          </Button>
+        }
+      />
 
-      <div className="relative flex-1 bg-slate-900/60 border border-slate-800 rounded-xl min-h-[500px] overflow-hidden p-6 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px]">
-        {/* Render Connection Lines */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none">
-          <line x1={180} y1={120} x2={320} y2={120} stroke="#475569" strokeWidth="2" strokeDasharray="4" />
-          <line x1={400} y1={150} x2={400} y2={240} stroke="#475569" strokeWidth="2" strokeDasharray="4" />
+      {/*
+        The dot grid is drawn from `--border` rather than a fixed hex, so the
+        canvas follows the theme instead of staying dark-mode grey.
+      */}
+      <div
+        className={cn(
+          'min-h-125 p-6 relative flex-1 overflow-hidden rounded-xl border bg-surface',
+          'bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px]',
+        )}
+      >
+        <svg
+          className="inset-0 pointer-events-none absolute size-full"
+          aria-hidden
+        >
+          {CONNECTIONS.map((line) => (
+            <line
+              key={line.id}
+              x1={line.x1}
+              y1={line.y1}
+              x2={line.x2}
+              y2={line.y2}
+              stroke="var(--border-strong)"
+              strokeWidth="2"
+              strokeDasharray="4"
+            />
+          ))}
         </svg>
 
-        {/* Render Canvas Nodes */}
         {nodes.map((node) => (
           <div
             key={node.id}
             style={{ left: `${node.x}px`, top: `${node.y}px` }}
-            className={`absolute p-4 rounded-xl border border-slate-700/60 text-white shadow-lg w-48 transition hover:scale-105 cursor-grab ${node.color}`}
+            className={cn(
+              'w-48 p-3 shadow-xs absolute cursor-grab rounded-xl border',
+              'transition-transform duration-(--duration-fast) hover:scale-105',
+              accentClasses[node.accent].soft,
+              accentClasses[node.accent].border,
+            )}
           >
-            <div className="flex items-center justify-between text-xs font-semibold mb-1">
-              <span>{node.title}</span>
-              <button
-                onClick={() => setNodes(nodes.filter((n) => n.id !== node.id))}
-                className="p-1 hover:bg-black/20 rounded"
+            <div className="mb-1 gap-2 flex items-center justify-between">
+              <span className="text-xs font-semibold truncate">
+                {node.title}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="size-6 shrink-0"
+                aria-label={`Delete node ${node.title}`}
+                onClick={() =>
+                  setNodes((prev) => prev.filter((item) => item.id !== node.id))
+                }
               >
-                <Trash2 className="w-3 h-3" />
-              </button>
+                <Trash2 className="size-3" />
+              </Button>
             </div>
-            <p className="text-[11px] text-white/80">Interactive canvas element</p>
+            <p className="text-[11px] text-muted-foreground">
+              Interactive canvas element
+            </p>
           </div>
         ))}
       </div>
-    </div>
+    </Page>
   );
 }

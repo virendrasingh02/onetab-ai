@@ -11,6 +11,7 @@ import { useState } from 'react';
 import {
   BarChart,
   DataTable,
+  LiveToggle,
   MetricCard,
   Panel,
   ProgressBar,
@@ -37,27 +38,17 @@ export function PerformanceMonitoringView() {
   return (
     <ViewShell>
       <ViewHeader
-        icon={<Gauge className="w-6 h-6 text-amber-400" />}
+        icon={<Gauge />}
+        accent="amber"
         title="Performance Monitoring"
         description="Request latency, throughput and process resource usage, sampled live"
         actions={
           <>
-            <button
-              type="button"
-              onClick={() => setLive((value) => !value)}
-              className={`px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition border ${
-                live
-                  ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
-                  : 'bg-slate-900/60 border-slate-800 text-slate-400'
-              }`}
-            >
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  live ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'
-                }`}
-              />
-              {live ? 'Live · 15s' : 'Paused'}
-            </button>
+            <LiveToggle
+              live={live}
+              onToggle={() => setLive((value) => !value)}
+              intervalLabel="15s"
+            />
             <RefreshButton
               onClick={() => query.refetch()}
               busy={query.isFetching}
@@ -69,47 +60,39 @@ export function PerformanceMonitoringView() {
       <QueryState isLoading={query.isLoading} error={query.error}>
         {data ? (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+            <div className="md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6 grid grid-cols-2">
               <MetricCard
                 label="Requests observed"
                 value={data.totalRequests}
                 icon={Activity}
-                color="bg-blue-600/20 text-blue-400"
+                accent="blue"
                 hint={`over ${formatDuration(data.collectedSinceMs / 1000)}`}
               />
               <MetricCard
                 label="Requests / min"
                 value={data.requestsPerMinute}
                 icon={Timer}
-                color="bg-cyan-600/20 text-cyan-400"
+                accent="cyan"
               />
               <MetricCard
                 label="p95 latency"
                 value={`${data.latency.p95Ms}ms`}
                 icon={Gauge}
-                color="bg-amber-600/20 text-amber-400"
+                accent="amber"
                 hint={`p50 ${data.latency.p50Ms}ms · p99 ${data.latency.p99Ms}ms`}
               />
               <MetricCard
                 label="Error rate"
                 value={`${data.errorRate}%`}
                 icon={AlertCircle}
-                color={
-                  data.errorRate > 5
-                    ? 'bg-red-600/20 text-red-400'
-                    : 'bg-emerald-600/20 text-emerald-400'
-                }
+                accent={data.errorRate > 5 ? 'rose' : 'green'}
                 hint={`${formatNumber(data.totalErrors)} failed responses`}
               />
               <MetricCard
                 label="Event loop lag"
                 value={`${data.eventLoopLagMs}ms`}
                 icon={Cpu}
-                color={
-                  data.eventLoopLagMs > 100
-                    ? 'bg-amber-600/20 text-amber-400'
-                    : 'bg-purple-600/20 text-purple-400'
-                }
+                accent={data.eventLoopLagMs > 100 ? 'amber' : 'violet'}
                 hint="blocked time between ticks"
               />
               <MetricCard
@@ -118,16 +101,12 @@ export function PerformanceMonitoringView() {
                   data.dbLatencyMs < 0 ? 'unreachable' : `${data.dbLatencyMs}ms`
                 }
                 icon={Database}
-                color={
-                  data.dbLatencyMs < 0
-                    ? 'bg-red-600/20 text-red-400'
-                    : 'bg-emerald-600/20 text-emerald-400'
-                }
+                accent={data.dbLatencyMs < 0 ? 'rose' : 'green'}
                 hint="SELECT 1 round-trip"
               />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div className="lg:grid-cols-3 gap-6 mb-6 grid grid-cols-1">
               <Panel
                 title="Throughput · last 30 minutes"
                 subtitle="Requests handled per minute"
@@ -135,7 +114,7 @@ export function PerformanceMonitoringView() {
               >
                 <BarChart
                   series={data.throughputSeries}
-                  color="from-amber-600 to-orange-500"
+                  accent="amber"
                   valueLabel="requests"
                 />
               </Panel>
@@ -143,47 +122,45 @@ export function PerformanceMonitoringView() {
               <Panel title="Process resources" subtitle="Node.js runtime">
                 <div className="space-y-4">
                   <div>
-                    <div className="flex justify-between text-xs mb-1.5">
-                      <span className="text-slate-300 flex items-center gap-1.5">
+                    <div className="text-xs mb-1.5 flex justify-between">
+                      <span className="gap-1.5 flex items-center text-foreground">
                         <MemoryStick className="w-3.5 h-3.5" /> Heap
                       </span>
-                      <span className="font-semibold text-white">
+                      <span className="font-semibold text-foreground">
                         {formatBytes(data.memory.heapUsedBytes)} /{' '}
                         {formatBytes(data.memory.heapTotalBytes)}
                       </span>
                     </div>
                     <ProgressBar
                       pct={heapPct}
-                      color={
-                        heapPct > 85
-                          ? 'from-amber-600 to-red-500'
-                          : 'from-blue-600 to-cyan-500'
-                      }
+                      accent={heapPct > 85 ? 'amber' : 'blue'}
                     />
                   </div>
 
                   <dl className="space-y-2 text-xs">
                     <div className="flex justify-between">
-                      <dt className="text-slate-400">Resident set size</dt>
-                      <dd className="text-slate-200 font-medium">
+                      <dt className="text-muted-foreground">
+                        Resident set size
+                      </dt>
+                      <dd className="font-medium text-foreground">
                         {formatBytes(data.memory.rssBytes)}
                       </dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-slate-400">CPU · user</dt>
-                      <dd className="text-slate-200 font-medium">
+                      <dt className="text-muted-foreground">CPU · user</dt>
+                      <dd className="font-medium text-foreground">
                         {formatNumber(data.cpu.userMs)}ms
                       </dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-slate-400">CPU · system</dt>
-                      <dd className="text-slate-200 font-medium">
+                      <dt className="text-muted-foreground">CPU · system</dt>
+                      <dd className="font-medium text-foreground">
                         {formatNumber(data.cpu.systemMs)}ms
                       </dd>
                     </div>
                     <div className="flex justify-between">
-                      <dt className="text-slate-400">Avg latency</dt>
-                      <dd className="text-slate-200 font-medium">
+                      <dt className="text-muted-foreground">Avg latency</dt>
+                      <dd className="font-medium text-foreground">
                         {data.latency.avgMs}ms
                       </dd>
                     </div>
@@ -197,22 +174,17 @@ export function PerformanceMonitoringView() {
               subtitle="Ranked by p95 latency across sampled traffic"
             >
               <DataTable
-                columns={[
-                  'Route',
-                  'Requests',
-                  'Errors',
-                  'Avg',
-                  'p95',
-                  'Max',
-                ]}
+                columns={['Route', 'Requests', 'Errors', 'Avg', 'p95', 'Max']}
                 rows={data.slowestRoutes.map((route) => [
-                  <span className="text-slate-100 font-mono text-[11px]">
+                  <span className="font-mono text-[11px] text-foreground">
                     {route.route}
                   </span>,
                   formatNumber(route.requests),
                   <span
                     className={
-                      route.errors > 0 ? 'text-red-400' : 'text-slate-500'
+                      route.errors > 0
+                        ? 'text-destructive'
+                        : 'text-muted-foreground'
                     }
                   >
                     {route.errors} ({route.errorRate}%)
@@ -221,10 +193,10 @@ export function PerformanceMonitoringView() {
                   <span
                     className={
                       route.p95Ms > 1000
-                        ? 'text-red-400'
+                        ? 'text-destructive'
                         : route.p95Ms > 300
-                          ? 'text-amber-400'
-                          : 'text-emerald-400'
+                          ? 'text-warning'
+                          : 'text-success'
                     }
                   >
                     {route.p95Ms}ms

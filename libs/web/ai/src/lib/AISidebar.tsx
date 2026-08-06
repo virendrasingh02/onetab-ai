@@ -1,104 +1,192 @@
-import { useState } from 'react';
-import { X, Send, Sparkles, Cpu } from 'lucide-react';
+import {
+  Button,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@org/ui';
+import { cn } from '@org/utils';
+import { Send, Sparkles } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 export interface AISidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+const PROVIDERS = [
+  { value: 'ollama', label: 'Ollama (local)' },
+  { value: 'openai', label: 'OpenAI' },
+  { value: 'anthropic', label: 'Anthropic' },
+  { value: 'gemini', label: 'Google Gemini' },
+] as const;
+
+type Provider = (typeof PROVIDERS)[number]['value'];
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+}
+
+/**
+ * The workspace-wide AI copilot, opened from the shell's floating trigger.
+ *
+ * Built on `Sheet` (Radix Dialog) rather than a bare fixed-position div, so it
+ * traps focus, closes on Escape, restores focus to the trigger and is exposed
+ * to assistive technology as a dialog.
+ */
 export function AISidebar({ isOpen, onClose }: AISidebarProps) {
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([
-    { role: 'assistant', text: 'Hello! I am your OneTab AI Copilot. How can I help you with your workspace today?' },
+  const [provider, setProvider] = useState<Provider>('ollama');
+  const [pending, setPending] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 'welcome',
+      role: 'assistant',
+      text: 'Hello! I am your OneTab AI Copilot. How can I help you with your workspace today?',
+    },
   ]);
-  const [provider, setProvider] = useState<'ollama' | 'openai' | 'anthropic' | 'gemini'>('ollama');
 
-  if (!isOpen) return null;
+  const streamEndRef = useRef<HTMLDivElement>(null);
+
+  // Keep the newest message in view as the conversation grows.
+  useEffect(() => {
+    streamEndRef.current?.scrollIntoView({ block: 'end' });
+  }, [messages]);
 
   const handleSend = () => {
-    if (!input.trim()) return;
-    const userMsg = input;
+    const prompt = input.trim();
+    if (!prompt || pending) return;
+
     setInput('');
-    setMessages((prev) => [...prev, { role: 'user', text: userMsg }]);
+    setPending(true);
+    setMessages((prev) => [
+      ...prev,
+      { id: `u-${Date.now()}`, role: 'user', text: prompt },
+    ]);
 
     setTimeout(() => {
       setMessages((prev) => [
         ...prev,
         {
+          id: `a-${Date.now()}`,
           role: 'assistant',
-          text: `[Copilot via ${provider.toUpperCase()}] I processed your request: "${userMsg}". Here is the workspace synthesis.`,
+          text: `[Copilot via ${provider}] I processed your request: "${prompt}". Here is the workspace synthesis.`,
         },
       ]);
+      setPending(false);
     }, 600);
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 w-96 bg-slate-900 border-l border-slate-800 shadow-2xl z-50 flex flex-col">
-      {/* Header */}
-      <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-gradient-to-tr from-blue-600 to-purple-600 rounded-lg">
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
-          <div>
-            <h2 className="font-bold text-sm text-white">AI Copilot</h2>
-            <p className="text-[11px] text-slate-400">Omnipresent Workspace AI</p>
-          </div>
-        </div>
-        <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800">
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Provider Selector */}
-      <div className="p-3 border-b border-slate-800/80 bg-slate-950/30 flex items-center gap-2 text-xs">
-        <Cpu className="w-3.5 h-3.5 text-purple-400" />
-        <span className="text-slate-400">Provider:</span>
-        <select
-          value={provider}
-          onChange={(e) => setProvider(e.target.value as any)}
-          className="bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded px-2 py-1 focus:outline-none"
-        >
-          <option value="ollama">Ollama (Local LLM)</option>
-          <option value="openai">OpenAI (GPT-4o)</option>
-          <option value="anthropic">Anthropic (Claude 3.5)</option>
-          <option value="gemini">Google Gemini</option>
-        </select>
-      </div>
-
-      {/* Message Stream */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-3">
-        {messages.map((m, idx) => (
-          <div
-            key={idx}
-            className={`p-3 rounded-lg text-xs leading-relaxed max-w-[85%] ${
-              m.role === 'user'
-                ? 'bg-blue-600 text-white ml-auto'
-                : 'bg-slate-800 border border-slate-700/60 text-slate-200'
-            }`}
+    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent side="right" className="gap-0 p-0 sm:max-w-md w-full">
+        <SheetHeader className="gap-3 px-4 py-3 flex-row items-center border-b">
+          <span
+            aria-hidden
+            className="size-8 flex shrink-0 items-center justify-center rounded-lg bg-accent-violet-soft text-accent-violet"
           >
-            {m.text}
+            <Sparkles className="size-4" />
+          </span>
+          <div className="min-w-0">
+            <SheetTitle className="text-sm">AI Copilot</SheetTitle>
+            <SheetDescription className="text-xs">
+              Ask about anything in this workspace
+            </SheetDescription>
           </div>
-        ))}
-      </div>
+        </SheetHeader>
 
-      {/* Input Footer */}
-      <div className="p-3 border-t border-slate-800 bg-slate-950/60 flex items-center gap-2">
-        <input
-          type="text"
-          placeholder="Ask AI anything..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-          className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
-        />
-        <button
-          onClick={handleSend}
-          className="p-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition"
+        <div className="gap-2 px-4 py-2.5 flex items-center border-b">
+          <label
+            htmlFor="ai-provider"
+            className="text-xs shrink-0 text-muted-foreground"
+          >
+            Model
+          </label>
+          <Select
+            value={provider}
+            onValueChange={(value) => setProvider(value as Provider)}
+          >
+            <SelectTrigger id="ai-provider" size="sm" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PROVIDERS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/*
+          `aria-live="polite"` so replies are announced as they arrive without
+          interrupting whatever the user is currently doing.
+        */}
+        <div
+          className="scrollbar-subtle min-h-0 space-y-3 p-4 flex-1 overflow-y-auto"
+          aria-live="polite"
+          aria-busy={pending}
         >
-          <Send className="w-3.5 h-3.5" />
-        </button>
-      </div>
-    </div>
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={cn(
+                'px-3 py-2 text-xs leading-relaxed w-fit max-w-[85%] rounded-lg',
+                message.role === 'user'
+                  ? 'ml-auto bg-primary text-primary-foreground'
+                  : 'bg-muted text-foreground',
+              )}
+            >
+              <span className="sr-only">
+                {message.role === 'user' ? 'You said: ' : 'Copilot replied: '}
+              </span>
+              {message.text}
+            </div>
+          ))}
+
+          {pending ? (
+            <p className="text-xs text-muted-foreground">
+              Copilot is thinking…
+            </p>
+          ) : null}
+
+          <div ref={streamEndRef} />
+        </div>
+
+        <form
+          className="gap-2 p-3 flex items-center border-t"
+          onSubmit={(event) => {
+            event.preventDefault();
+            handleSend();
+          }}
+        >
+          <Input
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            placeholder="Ask AI anything…"
+            aria-label="Message the AI copilot"
+            className="h-9 text-xs"
+          />
+          <Button
+            type="submit"
+            size="icon-sm"
+            disabled={!input.trim() || pending}
+            aria-label="Send message"
+          >
+            <Send />
+          </Button>
+        </form>
+      </SheetContent>
+    </Sheet>
   );
 }

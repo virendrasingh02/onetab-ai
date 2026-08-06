@@ -29,7 +29,8 @@ export function StorageAnalyticsView() {
   return (
     <ViewShell>
       <ViewHeader
-        icon={<HardDrive className="w-6 h-6 text-emerald-400" />}
+        icon={<HardDrive />}
+        accent="green"
         title="Storage Analytics"
         description="File storage breakdown, growth and capacity planning"
         actions={
@@ -47,18 +48,18 @@ export function StorageAnalyticsView() {
         {data ? (
           <>
             <Panel className="mb-6">
-              <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+              <div className="gap-3 mb-4 flex flex-wrap items-end justify-between">
                 <div>
-                  <h3 className="font-bold text-sm text-slate-100">
+                  <h3 className="font-bold text-sm text-foreground">
                     Total storage used
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs mt-0.5 text-muted-foreground">
                     {formatNumber(data.totalFiles)} files across the workspace
                   </p>
                 </div>
-                <span className="text-lg font-bold text-white">
+                <span className="text-lg font-bold text-foreground">
                   {formatBytes(data.totalBytes)}
-                  <span className="text-xs text-slate-400 font-normal">
+                  <span className="text-xs font-normal text-muted-foreground">
                     {' '}
                     / {formatBytes(data.quotaBytes)}
                   </span>
@@ -66,15 +67,11 @@ export function StorageAnalyticsView() {
               </div>
               <ProgressBar
                 pct={data.usedPct}
-                color={
-                  nearQuota
-                    ? 'from-amber-600 to-red-500'
-                    : 'from-emerald-600 to-cyan-500'
-                }
+                accent={nearQuota ? 'amber' : 'green'}
               />
               <p
                 className={`text-xs mt-2 ${
-                  nearQuota ? 'text-amber-400' : 'text-slate-400'
+                  nearQuota ? 'text-warning' : 'text-muted-foreground'
                 }`}
               >
                 {data.usedPct}% of quota used —{' '}
@@ -84,18 +81,18 @@ export function StorageAnalyticsView() {
               </p>
             </Panel>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="md:grid-cols-4 gap-4 mb-6 grid grid-cols-2">
               <MetricCard
                 label="Files stored"
                 value={data.totalFiles}
                 icon={Files}
-                color="bg-blue-600/20 text-blue-400"
+                accent="blue"
               />
               <MetricCard
                 label="Total size"
                 value={formatBytes(data.totalBytes)}
                 icon={HardDrive}
-                color="bg-emerald-600/20 text-emerald-400"
+                accent="green"
               />
               <MetricCard
                 label={`Uploaded · ${days}d`}
@@ -104,17 +101,17 @@ export function StorageAnalyticsView() {
                   0,
                 )}
                 icon={TrendingUp}
-                color="bg-amber-600/20 text-amber-400"
+                accent="amber"
               />
               <MetricCard
                 label="Contributors"
                 value={data.topUploaders.length}
                 icon={Users}
-                color="bg-purple-600/20 text-purple-400"
+                accent="violet"
               />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div className="lg:grid-cols-3 gap-6 mb-6 grid grid-cols-1">
               <Panel
                 title={`Upload volume · last ${days} days`}
                 subtitle="Files added per day"
@@ -122,7 +119,7 @@ export function StorageAnalyticsView() {
               >
                 <BarChart
                   series={data.growthSeries}
-                  color="from-emerald-600 to-cyan-500"
+                  accent="green"
                   valueLabel="files"
                 />
               </Panel>
@@ -136,18 +133,23 @@ export function StorageAnalyticsView() {
               </Panel>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Panel title="Largest files" subtitle="Prime candidates for cleanup">
+            <div className="lg:grid-cols-2 gap-6 grid grid-cols-1">
+              <Panel
+                title="Largest files"
+                subtitle="Prime candidates for cleanup"
+              >
                 <DataTable
                   columns={['File', 'Type', 'Size', 'Added']}
                   rows={data.largestFiles.map((file) => [
                     <span
-                      className="text-slate-100 font-medium block max-w-[220px] truncate"
+                      className="font-medium block max-w-[220px] truncate text-foreground"
                       title={file.filename}
                     >
                       {file.filename}
                     </span>,
-                    <span className="text-slate-500">{file.mimeType}</span>,
+                    <span className="text-muted-foreground">
+                      {file.mimeType}
+                    </span>,
                     formatBytes(file.sizeBytes),
                     formatRelative(file.createdAt),
                   ])}
@@ -155,11 +157,14 @@ export function StorageAnalyticsView() {
                 />
               </Panel>
 
-              <Panel title="Top uploaders" subtitle="Bytes contributed per member">
+              <Panel
+                title="Top uploaders"
+                subtitle="Bytes contributed per member"
+              >
                 <DataTable
                   columns={['Member', 'Files', 'Size']}
                   rows={data.topUploaders.map((uploader) => [
-                    <span className="text-slate-100 font-medium">
+                    <span className="font-medium text-foreground">
                       {uploader.name}
                     </span>,
                     formatNumber(uploader.files),

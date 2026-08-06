@@ -1,5 +1,7 @@
 import type { ReportType } from '@org/types';
-import { Download, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Button, StatCard } from '@org/ui';
+import { cn } from '@org/utils';
+import { Download, FileSpreadsheet } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
   DataTable,
@@ -39,7 +41,8 @@ export function ReportsView() {
   return (
     <ViewShell>
       <ViewHeader
-        icon={<FileSpreadsheet className="w-6 h-6 text-cyan-400" />}
+        icon={<FileSpreadsheet />}
+        accent="cyan"
         title="Reports"
         description="Generate and export workspace, usage and reliability reports"
         actions={
@@ -49,47 +52,59 @@ export function ReportsView() {
               onClick={() => report.refetch()}
               busy={report.isFetching}
             />
-            <button
-              type="button"
-              disabled={!selected || download.isPending}
+            <Button
+              size="sm"
+              disabled={!selected}
+              loading={download.isPending}
+              leadingIcon={<Download />}
               onClick={() =>
                 selected && download.mutate({ type: selected, days })
               }
-              className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 rounded-lg text-xs text-white font-medium flex items-center gap-1.5 transition"
             >
-              {download.isPending ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Download className="w-3.5 h-3.5" />
-              )}
               Export CSV
-            </button>
+            </Button>
           </>
         }
       />
 
       <QueryState isLoading={definitions.isLoading} error={definitions.error}>
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="space-y-2 lg:col-span-1">
-            {(definitions.data ?? []).map((definition) => (
-              <button
-                key={definition.type}
-                type="button"
-                onClick={() => setSelected(definition.type)}
-                className={`w-full text-left p-3 rounded-xl border transition ${
-                  selected === definition.type
-                    ? 'bg-slate-800/80 border-cyan-500/50'
-                    : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
-                }`}
-              >
-                <p className="text-sm font-semibold text-slate-100">
-                  {definition.name}
-                </p>
-                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                  {definition.description}
-                </p>
-              </button>
-            ))}
+        <div className="gap-6 lg:grid-cols-4 grid grid-cols-1">
+          {/*
+            The picker is an exclusive choice, so it is exposed as a radio
+            group with `aria-checked` rather than a row of unrelated buttons.
+          */}
+          <div
+            role="radiogroup"
+            aria-label="Report type"
+            className="space-y-2 lg:col-span-1"
+          >
+            {(definitions.data ?? []).map((definition) => {
+              const isSelected = selected === definition.type;
+              return (
+                <button
+                  key={definition.type}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  onClick={() => setSelected(definition.type)}
+                  className={cn(
+                    'p-3 w-full rounded-xl border text-left',
+                    'transition-colors duration-(--duration-fast)',
+                    'focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none',
+                    isSelected
+                      ? 'border-accent-cyan/40 bg-accent'
+                      : 'bg-surface hover:border-border-strong',
+                  )}
+                >
+                  <p className="text-sm font-semibold text-foreground">
+                    {definition.name}
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    {definition.description}
+                  </p>
+                </button>
+              );
+            })}
           </div>
 
           <div className="lg:col-span-3">
@@ -99,19 +114,9 @@ export function ReportsView() {
             >
               {report.data ? (
                 <>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <div className="mb-6 gap-4 md:grid-cols-4 grid grid-cols-2">
                     {Object.entries(report.data.summary).map(([key, value]) => (
-                      <div
-                        key={key}
-                        className="bg-slate-900/60 border border-slate-800 rounded-xl p-4"
-                      >
-                        <p className="text-lg font-bold text-white truncate">
-                          {String(value)}
-                        </p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          {key}
-                        </p>
-                      </div>
+                      <StatCard key={key} label={key} value={String(value)} />
                     ))}
                   </div>
 
@@ -132,14 +137,16 @@ export function ReportsView() {
                     />
                   </Panel>
 
-                  {download.isError ? (
-                    <p className="text-xs text-red-400 mt-3">
-                      Export failed:{' '}
-                      {download.error instanceof Error
-                        ? download.error.message
-                        : 'unknown error'}
-                    </p>
-                  ) : null}
+                  <div role="alert">
+                    {download.isError ? (
+                      <p className="mt-3 text-xs text-destructive">
+                        Export failed:{' '}
+                        {download.error instanceof Error
+                          ? download.error.message
+                          : 'unknown error'}
+                      </p>
+                    ) : null}
+                  </div>
                 </>
               ) : null}
             </QueryState>

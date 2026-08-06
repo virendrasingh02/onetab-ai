@@ -1,8 +1,43 @@
+import {
+  Button,
+  Input,
+  Page,
+  PageHeader,
+  Panel,
+  Textarea,
+  Toolbar,
+} from '@org/ui';
+import { cn } from '@org/utils';
+import {
+  AlignLeft,
+  Code,
+  FileText,
+  Folder,
+  Hash,
+  List,
+  Plus,
+  Save,
+} from 'lucide-react';
 import { useState } from 'react';
-import { FileText, Save, Plus, Folder, Hash, AlignLeft, Code, List } from 'lucide-react';
+
+const DOCUMENTS = [
+  { id: 'architecture', title: 'Architecture overview' },
+  { id: 'setup', title: 'Local setup guide' },
+  { id: 'api', title: 'API endpoints reference' },
+];
+
+const BLOCK_ACTIONS = [
+  { id: 'heading', label: 'Heading', icon: Hash },
+  { id: 'paragraph', label: 'Paragraph', icon: AlignLeft },
+  { id: 'list', label: 'List', icon: List },
+  { id: 'code', label: 'Code', icon: Code },
+];
 
 export function DocumentEditor() {
-  const [docTitle, setDocTitle] = useState('Workspace Architecture & Knowledge Base');
+  const [activeDoc, setActiveDoc] = useState('architecture');
+  const [docTitle, setDocTitle] = useState(
+    'Workspace architecture & knowledge base',
+  );
   const [docContent, setDocContent] = useState(
     `# OneTab AI Architecture Overview
 
@@ -22,62 +57,102 @@ const techStack = {
   ai: 'Ollama + Qdrant Vector Store',
 };
 \`\`\`
-`
+`,
   );
 
   return (
-    <div className="p-6 text-white min-h-screen bg-slate-950 flex flex-col md:flex-row gap-6">
-      {/* Sidebar Doc Tree */}
-      <div className="w-full md:w-64 bg-slate-900/60 border border-slate-800 rounded-xl p-4 flex flex-col gap-2">
-        <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-          <span className="font-semibold text-slate-200 text-sm flex items-center gap-2">
-            <Folder className="w-4 h-4 text-blue-400" /> Documents & Wiki
-          </span>
-          <button className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white">
-            <Plus className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="space-y-1 text-sm text-slate-300">
-          <div className="px-2 py-1.5 bg-slate-800 rounded-lg flex items-center gap-2 text-blue-400 font-medium">
-            <FileText className="w-4 h-4" /> Architecture Overview
-          </div>
-          <div className="px-2 py-1.5 hover:bg-slate-800/60 rounded-lg flex items-center gap-2 text-slate-400 cursor-pointer">
-            <FileText className="w-4 h-4" /> Local Setup Guide
-          </div>
-          <div className="px-2 py-1.5 hover:bg-slate-800/60 rounded-lg flex items-center gap-2 text-slate-400 cursor-pointer">
-            <FileText className="w-4 h-4" /> API Endpoints Reference
-          </div>
-        </div>
-      </div>
+    <Page width="full">
+      <PageHeader
+        title="Documents"
+        description="Nested docs and wikis for your workspace knowledge base."
+        icon={<FileText />}
+        accent="blue"
+        actions={<Button leadingIcon={<Save />}>Save</Button>}
+      />
 
-      {/* Editor Main Surface */}
-      <div className="flex-1 bg-slate-900/60 border border-slate-800 rounded-xl p-6 flex flex-col">
-        <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
-          <input
-            type="text"
+      <div className="gap-6 md:flex-row flex flex-1 flex-col">
+        <Panel
+          className="md:w-64 w-full shrink-0"
+          title={
+            <span className="gap-2 flex items-center">
+              <Folder className="size-4 text-accent-blue" aria-hidden />
+              Pages
+            </span>
+          }
+          actions={
+            <Button variant="ghost" size="icon-sm" aria-label="New document">
+              <Plus />
+            </Button>
+          }
+        >
+          {/* A real nav list, so the document tree is reachable by keyboard. */}
+          <nav aria-label="Documents">
+            <ul className="space-y-0.5">
+              {DOCUMENTS.map((doc) => {
+                const isActive = doc.id === activeDoc;
+                return (
+                  <li key={doc.id}>
+                    <button
+                      type="button"
+                      onClick={() => setActiveDoc(doc.id)}
+                      aria-current={isActive ? 'page' : undefined}
+                      className={cn(
+                        'gap-2 px-2 py-1.5 text-sm flex w-full items-center rounded-lg text-left',
+                        'transition-colors duration-(--duration-fast)',
+                        'focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none',
+                        isActive
+                          ? 'font-medium bg-accent text-accent-foreground'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                      )}
+                    >
+                      <FileText className="size-4 shrink-0" aria-hidden />
+                      <span className="truncate">{doc.title}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+        </Panel>
+
+        <Panel className="min-w-0 flex-1">
+          <label htmlFor="doc-title" className="sr-only">
+            Document title
+          </label>
+          <Input
+            id="doc-title"
             value={docTitle}
-            onChange={(e) => setDocTitle(e.target.value)}
-            className="text-xl font-bold bg-transparent text-white focus:outline-none focus:border-b focus:border-blue-500 w-full"
+            onChange={(event) => setDocTitle(event.target.value)}
+            className="px-0 text-lg font-semibold h-auto border-0 shadow-none focus-visible:ring-0"
           />
-          <button className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium text-white transition">
-            <Save className="w-4 h-4" /> Save
-          </button>
-        </div>
 
-        {/* Toolbar */}
-        <div className="flex items-center gap-2 pb-3 mb-4 border-b border-slate-800/60 text-slate-400 text-xs">
-          <button className="p-1.5 hover:bg-slate-800 hover:text-white rounded flex items-center gap-1"><Hash className="w-3.5 h-3.5" /> Heading</button>
-          <button className="p-1.5 hover:bg-slate-800 hover:text-white rounded flex items-center gap-1"><AlignLeft className="w-3.5 h-3.5" /> Paragraph</button>
-          <button className="p-1.5 hover:bg-slate-800 hover:text-white rounded flex items-center gap-1"><List className="w-3.5 h-3.5" /> List</button>
-          <button className="p-1.5 hover:bg-slate-800 hover:text-white rounded flex items-center gap-1"><Code className="w-3.5 h-3.5" /> Code</button>
-        </div>
+          <Toolbar
+            aria-label="Insert block"
+            className="my-3 py-2 border-y text-muted-foreground"
+          >
+            {BLOCK_ACTIONS.map((action) => (
+              <Button
+                key={action.id}
+                variant="ghost"
+                size="sm"
+                leadingIcon={<action.icon />}
+              >
+                {action.label}
+              </Button>
+            ))}
+          </Toolbar>
 
-        <textarea
-          value={docContent}
-          onChange={(e) => setDocContent(e.target.value)}
-          className="w-full flex-1 bg-slate-950/40 border border-slate-800/80 rounded-lg p-4 font-mono text-sm text-slate-200 focus:outline-none focus:border-blue-500 resize-none min-h-[350px]"
-        />
+          <label htmlFor="doc-body" className="sr-only">
+            Document body
+          </label>
+          <Textarea
+            id="doc-body"
+            value={docContent}
+            onChange={(event) => setDocContent(event.target.value)}
+            className="min-h-88 text-sm resize-none font-mono"
+          />
+        </Panel>
       </div>
-    </div>
+    </Page>
   );
 }

@@ -1,7 +1,21 @@
-import { PrismaClient, SystemRole, WorkspaceRole, ChannelVisibility } from '../libs/api/database/src/generated/index.js';
+// The `prisma-client` generator emits `client.ts`, not an `index.ts` barrel —
+// same entry point `@org/database` re-exports.
+import { PrismaClient, SystemRole, WorkspaceRole, ChannelVisibility } from '../libs/api/database/src/generated/client.js';
+import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
 
-const prisma = new PrismaClient();
+// Prisma 7 connects through a driver adapter rather than its own pool, so the
+// seed has to supply one exactly as `PrismaService` does.
+const connectionString = process.env['DATABASE_URL'];
+if (!connectionString) {
+  throw new Error(
+    'DATABASE_URL is not set. Copy .env.example to .env and configure it.',
+  );
+}
+
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString }),
+});
 
 async function main() {
   console.log('🌱 Starting database & infrastructure seed...');

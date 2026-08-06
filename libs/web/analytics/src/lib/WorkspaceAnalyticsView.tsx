@@ -34,7 +34,8 @@ export function WorkspaceAnalyticsView() {
   return (
     <ViewShell>
       <ViewHeader
-        icon={<Building2 className="w-6 h-6 text-blue-400" />}
+        icon={<Building2 />}
+        accent="blue"
         title="Workspace Analytics"
         description="Content inventory, channel activity and membership growth"
         actions={
@@ -51,18 +52,18 @@ export function WorkspaceAnalyticsView() {
       <QueryState isLoading={query.isLoading} error={query.error}>
         {data ? (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4 mb-6">
+            <div className="md:grid-cols-4 xl:grid-cols-8 gap-4 mb-6 grid grid-cols-2">
               <MetricCard
                 label="Members"
                 value={data.totalMembers}
                 icon={Users}
-                color="bg-blue-600/20 text-blue-400"
+                accent="blue"
               />
               <MetricCard
                 label={`Active · ${days}d`}
                 value={data.activeMembers}
                 icon={UserCheck}
-                color="bg-emerald-600/20 text-emerald-400"
+                accent="green"
                 hint={
                   data.totalMembers === 0
                     ? undefined
@@ -75,42 +76,42 @@ export function WorkspaceAnalyticsView() {
                 label="Channels"
                 value={data.totalChannels}
                 icon={Hash}
-                color="bg-purple-600/20 text-purple-400"
+                accent="violet"
               />
               <MetricCard
                 label="Messages"
                 value={data.totalMessages}
                 icon={MessageSquare}
-                color="bg-cyan-600/20 text-cyan-400"
+                accent="cyan"
                 trend={data.messageTrend}
               />
               <MetricCard
                 label="Tasks"
                 value={data.totalTasks}
                 icon={CheckSquare}
-                color="bg-amber-600/20 text-amber-400"
+                accent="amber"
               />
               <MetricCard
                 label="Projects"
                 value={data.totalProjects}
                 icon={FolderKanban}
-                color="bg-indigo-600/20 text-indigo-400"
+                accent="indigo"
               />
               <MetricCard
                 label="Documents"
                 value={data.totalDocs}
                 icon={FileText}
-                color="bg-pink-600/20 text-pink-400"
+                accent="pink"
               />
               <MetricCard
                 label="Files"
                 value={data.totalUploads}
                 icon={FileText}
-                color="bg-orange-600/20 text-orange-400"
+                accent="orange"
               />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div className="lg:grid-cols-3 gap-6 mb-6 grid grid-cols-1">
               <Panel
                 title={`New members · last ${days} days`}
                 subtitle="Joins per day"
@@ -118,7 +119,7 @@ export function WorkspaceAnalyticsView() {
               >
                 <BarChart
                   series={data.memberGrowth}
-                  color="from-emerald-600 to-teal-400"
+                  accent="green"
                   valueLabel="joins"
                 />
               </Panel>
@@ -135,7 +136,7 @@ export function WorkspaceAnalyticsView() {
               title="Busiest channels"
               subtitle="Ranked by recorded activity"
               actions={
-                <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                <span className="gap-1.5 text-xs flex items-center text-muted-foreground">
                   Messages this period
                   <TrendBadge trend={data.messageTrend} />
                 </span>
@@ -144,7 +145,7 @@ export function WorkspaceAnalyticsView() {
               <DataTable
                 columns={['Channel', 'Activity', 'Members']}
                 rows={data.channelActivity.map((channel) => [
-                  <span className="text-slate-100 font-medium">
+                  <span className="font-medium text-foreground">
                     #{channel.name}
                   </span>,
                   formatNumber(channel.messages),

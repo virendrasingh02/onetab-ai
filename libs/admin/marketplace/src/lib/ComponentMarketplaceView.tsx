@@ -5,23 +5,22 @@ import { Storefront } from './storefront-view.js';
 /** Framework plus the component's public props — its whole contract. */
 function ComponentSpec({ listing }: { listing: MarketplaceListing }) {
   const payload = listing.payload as
-    | { framework?: string; props?: string[] }
-    | undefined;
+    { framework?: string; props?: string[] } | undefined;
   if (!payload?.framework && !payload?.props?.length) return null;
 
   return (
-    <div className="rounded-lg bg-slate-950/60 border border-slate-800 p-2.5">
+    <div className="p-2.5 rounded-lg border border-border bg-background">
       {payload.framework ? (
-        <div className="text-[10px] font-semibold tracking-wide text-purple-400 uppercase mb-1.5">
+        <div className="font-semibold tracking-wide mb-1.5 text-[10px] text-accent-violet uppercase">
           {payload.framework}
         </div>
       ) : null}
       {payload.props?.length ? (
-        <div className="flex flex-wrap gap-1">
+        <div className="gap-1 flex flex-wrap">
           {payload.props.map((prop) => (
             <code
               key={prop}
-              className="px-1.5 py-0.5 bg-slate-800 rounded text-[10px] text-slate-400"
+              className="px-1.5 py-0.5 rounded bg-surface-raised text-[10px] text-muted-foreground"
             >
               {prop}
             </code>
@@ -38,7 +37,7 @@ export function ComponentMarketplaceView() {
       kind="COMPONENT"
       title="Component Marketplace"
       description="Drop-in UI components published by the design community"
-      icon={<Blocks className="w-6 h-6 text-purple-400" />}
+      icon={<Blocks />}
       listingIcon={() => <Blocks className="w-5 h-5" />}
       renderPreview={(listing) => <ComponentSpec listing={listing} />}
       includePayload

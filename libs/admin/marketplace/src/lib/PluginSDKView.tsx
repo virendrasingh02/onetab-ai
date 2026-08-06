@@ -43,9 +43,13 @@ function CopyButton({ value, label }: { value: string; label: string }) {
           window.setTimeout(() => setCopied(false), 1500);
         });
       }}
-      className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-[11px] text-slate-300 flex items-center gap-1 transition"
+      className="px-2 py-1 rounded gap-1 flex items-center bg-surface-raised text-[11px] text-foreground transition hover:bg-muted"
     >
-      {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+      {copied ? (
+        <Check className="w-3 h-3 text-success" />
+      ) : (
+        <Copy className="w-3 h-3" />
+      )}
       {copied ? 'Copied' : label}
     </button>
   );
@@ -58,7 +62,7 @@ function SDKReference() {
   return (
     <QueryState isLoading={sdk.isLoading} error={sdk.error}>
       {sdk.data ? (
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="xl:grid-cols-3 gap-6 grid grid-cols-1">
           <Panel
             title="Runtimes"
             subtitle={`Host SDK v${sdk.data.sdkVersion}`}
@@ -68,12 +72,12 @@ function SDKReference() {
               {sdk.data.runtimes.map((runtime) => (
                 <li
                   key={runtime}
-                  className="flex items-start gap-2 text-xs text-slate-300"
+                  className="gap-2 text-xs flex items-start text-foreground"
                 >
-                  <Terminal className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
+                  <Terminal className="w-3.5 h-3.5 mt-0.5 shrink-0 text-accent-blue" />
                   <div>
-                    <code className="text-slate-200">{runtime}</code>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
+                    <code className="text-foreground">{runtime}</code>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
                       {runtime === 'SANDBOXED_JS'
                         ? 'Runs in-process in a locked-down worker. Needs an entryPoint.'
                         : runtime === 'WEBHOOK'
@@ -91,16 +95,16 @@ function SDKReference() {
             subtitle="Amber scopes require an explicit grant from a workspace admin"
             className="xl:col-span-2"
           >
-            <div className="flex flex-wrap gap-1.5">
+            <div className="gap-1.5 flex flex-wrap">
               {sdk.data.scopes.map((scope) => {
                 const privileged = sdk.data.privilegedScopes.includes(scope);
                 return (
                   <code
                     key={scope}
-                    className={`px-2 py-1 rounded text-[11px] border ${
+                    className={`px-2 py-1 rounded border text-[11px] ${
                       privileged
-                        ? 'bg-amber-950/40 border-amber-500/40 text-amber-300'
-                        : 'bg-slate-800 border-slate-700 text-slate-300'
+                        ? 'border-warning/40 bg-warning/15 text-warning'
+                        : 'border-border bg-surface-raised text-foreground'
                     }`}
                   >
                     {scope}
@@ -109,15 +113,15 @@ function SDKReference() {
               })}
             </div>
 
-            <div className="mt-4 pt-4 border-t border-slate-800">
-              <h4 className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase mb-2">
+            <div className="mt-4 pt-4 border-t border-border">
+              <h4 className="font-semibold tracking-wide mb-2 text-[11px] text-muted-foreground uppercase">
                 UI surfaces
               </h4>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="gap-1.5 flex flex-wrap">
                 {sdk.data.surfaces.map((surface) => (
                   <code
                     key={surface}
-                    className="px-2 py-1 bg-slate-800 border border-slate-700 rounded text-[11px] text-slate-300"
+                    className="px-2 py-1 rounded border border-border bg-surface-raised text-[11px] text-foreground"
                   >
                     {surface}
                   </code>
@@ -155,7 +159,7 @@ function ManifestConsole() {
   const credentials = register.data;
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+    <div className="xl:grid-cols-2 gap-6 grid grid-cols-1">
       <Panel
         title="Plugin manifest"
         subtitle="Declare your runtime, scopes and UI surfaces"
@@ -167,21 +171,21 @@ function ManifestConsole() {
           spellCheck={false}
           rows={16}
           aria-label="Plugin manifest JSON"
-          className="w-full px-3 py-2 bg-slate-950 border border-slate-800 focus:border-slate-600 rounded-lg font-mono text-xs text-slate-200 outline-none resize-y transition"
+          className="px-3 py-2 text-xs w-full resize-y rounded-lg border border-border bg-background font-mono text-foreground transition outline-none focus:border-border"
         />
 
         {parsed.error ? (
-          <p className="mt-2 text-[11px] text-red-400 flex items-center gap-1.5">
+          <p className="mt-2 gap-1.5 flex items-center text-[11px] text-destructive">
             <AlertTriangle className="w-3 h-3" /> Invalid JSON: {parsed.error}
           </p>
         ) : null}
 
-        <div className="flex flex-wrap items-center gap-2 mt-3">
+        <div className="gap-2 mt-3 flex flex-wrap items-center">
           <button
             type="button"
             disabled={!parsed.manifest || validate.isPending}
             onClick={() => validate.mutate(parsed.manifest as PluginManifest)}
-            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg text-xs font-semibold text-white transition"
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary text-primary-foreground transition hover:bg-primary-hover disabled:opacity-50"
           >
             {validate.isPending ? 'Validating…' : 'Validate manifest'}
           </button>
@@ -191,7 +195,7 @@ function ManifestConsole() {
             onChange={(event) => setRegisterSlug(event.target.value)}
             placeholder="listing slug to register against"
             aria-label="Listing slug"
-            className="flex-1 min-w-[12rem] px-3 py-1.5 bg-slate-950 border border-slate-800 focus:border-slate-600 rounded-lg text-xs text-slate-200 placeholder:text-slate-600 outline-none transition"
+            className="px-3 py-1.5 text-xs min-w-[12rem] flex-1 rounded-lg border border-border bg-background text-foreground transition outline-none placeholder:text-muted-foreground focus:border-border"
           />
           <button
             type="button"
@@ -204,7 +208,7 @@ function ManifestConsole() {
                 manifest: parsed.manifest as PluginManifest,
               })
             }
-            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-lg text-xs font-semibold text-white transition"
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-success text-success-foreground transition hover:bg-success/90 disabled:opacity-50"
           >
             {register.isPending ? 'Registering…' : 'Register plugin'}
           </button>
@@ -214,27 +218,27 @@ function ManifestConsole() {
       <div className="space-y-6">
         <Panel title="Validation result">
           {!result ? (
-            <p className="text-xs text-slate-500">
-              Validate a manifest to see which scopes it requests and whether the
-              host SDK accepts it.
+            <p className="text-xs text-muted-foreground">
+              Validate a manifest to see which scopes it requests and whether
+              the host SDK accepts it.
             </p>
           ) : result.valid ? (
             <div className="space-y-3">
-              <p className="text-xs text-emerald-400 flex items-center gap-1.5">
+              <p className="text-xs gap-1.5 flex items-center text-success">
                 <Check className="w-3.5 h-3.5" /> The manifest is valid against
                 SDK v{result.normalised.sdkVersion}.
               </p>
               {result.requiresConsent.length > 0 ? (
-                <div className="rounded-lg bg-amber-950/30 border border-amber-500/30 p-3">
-                  <p className="text-[11px] font-semibold text-amber-300 flex items-center gap-1.5 mb-1.5">
+                <div className="p-3 rounded-lg border border-warning/40 bg-warning/15">
+                  <p className="font-semibold gap-1.5 mb-1.5 flex items-center text-[11px] text-warning">
                     <ShieldAlert className="w-3.5 h-3.5" />
                     Needs an admin&apos;s explicit consent at install time
                   </p>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="gap-1 flex flex-wrap">
                     {result.requiresConsent.map((scope) => (
                       <code
                         key={scope}
-                        className="px-1.5 py-0.5 bg-amber-950/60 rounded text-[10px] text-amber-300"
+                        className="px-1.5 py-0.5 rounded bg-warning/15 text-[10px] text-warning"
                       >
                         {scope}
                       </code>
@@ -242,7 +246,7 @@ function ManifestConsole() {
                   </div>
                 </div>
               ) : (
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-muted-foreground">
                   Requests read-only scopes — installs without a consent prompt.
                 </p>
               )}
@@ -252,9 +256,9 @@ function ManifestConsole() {
               {result.errors.map((error) => (
                 <li
                   key={error}
-                  className="text-xs text-red-400 flex items-start gap-1.5"
+                  className="text-xs gap-1.5 flex items-start text-destructive"
                 >
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                   {error}
                 </li>
               ))}
@@ -267,32 +271,35 @@ function ManifestConsole() {
           subtitle="Shown once — the server stores only a hash"
         >
           {register.error ? (
-            <p className="text-xs text-red-400 flex items-start gap-1.5">
-              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <p className="text-xs gap-1.5 flex items-start text-destructive">
+              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
               {register.error instanceof Error
                 ? register.error.message
                 : 'Registration failed.'}
             </p>
           ) : credentials ? (
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <KeyRound className="w-4 h-4 text-amber-400 shrink-0" />
-                <code className="flex-1 px-2 py-1.5 bg-slate-950 border border-slate-800 rounded text-[11px] text-amber-300 break-all">
+              <div className="gap-2 flex items-center">
+                <KeyRound className="w-4 h-4 shrink-0 text-warning" />
+                <code className="px-2 py-1.5 rounded flex-1 border border-border bg-background text-[11px] break-all text-warning">
                   {credentials.apiKey}
                 </code>
                 <CopyButton value={credentials.apiKey} label="Copy key" />
               </div>
-              <p className="text-[11px] text-slate-500">
-                Registered <code className="text-slate-400">{credentials.listingSlug}</code>{' '}
+              <p className="text-[11px] text-muted-foreground">
+                Registered{' '}
+                <code className="text-muted-foreground">
+                  {credentials.listingSlug}
+                </code>{' '}
                 against SDK v{credentials.sdkVersion} with{' '}
                 {credentials.scopes.length} scopes. Store this key now — it
                 cannot be retrieved again, only rotated.
               </p>
             </div>
           ) : (
-            <p className="text-xs text-slate-500">
-              Register a validated manifest against a published PLUGIN listing to
-              issue an API key.
+            <p className="text-xs text-muted-foreground">
+              Register a validated manifest against a published PLUGIN listing
+              to issue an API key.
             </p>
           )}
         </Panel>
@@ -317,7 +324,7 @@ export function PluginSDKView() {
         kind="PLUGIN"
         title="Plugin SDK & Directory"
         description="Install sandboxed third-party plugins, or build your own against the SDK"
-        icon={<Puzzle className="w-6 h-6 text-blue-400" />}
+        icon={<Puzzle />}
         listingIcon={() => <Puzzle className="w-5 h-5" />}
         emptyMessage="No plugins match these filters."
       >
@@ -329,7 +336,7 @@ export function PluginSDKView() {
   return (
     <ViewShell>
       <ViewHeader
-        icon={<Code2 className="w-6 h-6 text-blue-400" />}
+        icon={<Code2 />}
         title="Plugin SDK & Directory"
         description="Validate a manifest, register a plugin, and collect its API key"
       />
@@ -349,17 +356,17 @@ function TabBar({ tab, onChange }: { tab: Tab; onChange: (tab: Tab) => void }) {
   ];
 
   return (
-    <div className="flex gap-1 mb-5 border-b border-slate-800">
+    <div className="gap-1 mb-5 flex border-b border-border">
       {tabs.map((entry) => (
         <button
           key={entry.value}
           type="button"
           onClick={() => onChange(entry.value)}
           aria-current={tab === entry.value}
-          className={`px-3 py-2 text-xs font-semibold border-b-2 -mb-px transition ${
+          className={`px-3 py-2 text-xs font-semibold -mb-px border-b-2 transition ${
             tab === entry.value
-              ? 'border-blue-500 text-blue-400'
-              : 'border-transparent text-slate-500 hover:text-slate-300'
+              ? 'border-accent-blue/40 text-accent-blue'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
           {entry.label}

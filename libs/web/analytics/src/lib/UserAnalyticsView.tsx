@@ -25,7 +25,8 @@ export function UserAnalyticsView() {
   return (
     <ViewShell>
       <ViewHeader
-        icon={<Users className="w-6 h-6 text-purple-400" />}
+        icon={<Users />}
+        accent="violet"
         title="User Analytics"
         description="Active users, stickiness and per-member engagement"
         actions={
@@ -42,53 +43,50 @@ export function UserAnalyticsView() {
       <QueryState isLoading={query.isLoading} error={query.error}>
         {data ? (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            <div className="md:grid-cols-5 gap-4 mb-6 grid grid-cols-2">
               <MetricCard
                 label="Daily active users"
                 value={data.dau}
                 icon={Flame}
-                color="bg-orange-600/20 text-orange-400"
+                accent="orange"
                 hint="last 24 hours"
               />
               <MetricCard
                 label="Weekly active users"
                 value={data.wau}
                 icon={CalendarDays}
-                color="bg-blue-600/20 text-blue-400"
+                accent="blue"
                 hint="last 7 days"
               />
               <MetricCard
                 label="Monthly active users"
                 value={data.mau}
                 icon={Users}
-                color="bg-purple-600/20 text-purple-400"
+                accent="violet"
                 hint={`across the ${days}d range`}
               />
               <MetricCard
                 label="Stickiness"
                 value={`${data.stickiness}%`}
                 icon={Activity}
-                color="bg-emerald-600/20 text-emerald-400"
+                accent="green"
                 hint="DAU ÷ MAU"
               />
               <MetricCard
                 label="Tracked events"
                 value={data.totalEvents}
                 icon={Activity}
-                color="bg-cyan-600/20 text-cyan-400"
+                accent="cyan"
               />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div className="lg:grid-cols-3 gap-6 mb-6 grid grid-cols-1">
               <Panel
                 title={`Activity · last ${days} days`}
                 subtitle="Events recorded per day"
                 className="lg:col-span-2"
               >
-                <BarChart
-                  series={data.activitySeries}
-                  color="from-purple-600 to-fuchsia-500"
-                />
+                <BarChart series={data.activitySeries} accent="violet" />
               </Panel>
 
               <Panel title="Event types" subtitle="What users are doing">
@@ -114,10 +112,12 @@ export function UserAnalyticsView() {
                 ]}
                 rows={data.topUsers.map((user) => [
                   <div>
-                    <p className="text-slate-100 font-medium">{user.name}</p>
-                    <p className="text-slate-500 text-[11px]">{user.email}</p>
+                    <p className="font-medium text-foreground">{user.name}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {user.email}
+                    </p>
                   </div>,
-                  <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px] font-semibold">
+                  <span className="px-1.5 py-0.5 rounded font-semibold bg-surface-raised text-[10px] text-foreground">
                     {user.role}
                   </span>,
                   formatNumber(user.events),
@@ -125,7 +125,9 @@ export function UserAnalyticsView() {
                   formatNumber(user.tasks),
                   <span
                     className={
-                      user.lastActiveAt ? 'text-slate-300' : 'text-slate-600'
+                      user.lastActiveAt
+                        ? 'text-foreground'
+                        : 'text-muted-foreground'
                     }
                   >
                     {formatRelative(user.lastActiveAt)}

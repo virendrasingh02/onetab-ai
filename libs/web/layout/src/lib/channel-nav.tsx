@@ -2,7 +2,31 @@ import { Button, Hint, ScrollArea, SkeletonList } from '@org/ui';
 import type { ChannelSummary } from '@org/types';
 import { cn } from '@org/utils';
 import { useChannelPreferences, useGroupedChannels } from '@org/web-channels';
-import { ChevronDown, Hash, Lock, Plus, Star, Users, CheckSquare, FileText, Layout, Calendar, HardDrive, Activity, Sparkles, BookOpen, Image, Bot, Wrench, Workflow, Building2, Share2, UploadCloud, BarChart3, FileSpreadsheet } from 'lucide-react';
+import {
+  ChevronDown,
+  Hash,
+  Lock,
+  Plus,
+  Star,
+  Users,
+  CheckSquare,
+  FileText,
+  Layout,
+  Calendar,
+  HardDrive,
+  Activity,
+  Sparkles,
+  BookOpen,
+  Image,
+  Bot,
+  Wrench,
+  Workflow,
+  Building2,
+  Share2,
+  UploadCloud,
+  BarChart3,
+  FileSpreadsheet,
+} from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 
@@ -15,12 +39,42 @@ import { NavLink } from 'react-router-dom';
  * `@org/admin-analytics`. So did the enterprise and marketplace groups.
  */
 const ANALYTICS_LINKS = [
-  { path: 'analytics', label: 'Dashboard', icon: BarChart3, tone: 'text-blue-400' },
-  { path: 'analytics/reports', label: 'Reports', icon: FileSpreadsheet, tone: 'text-cyan-400' },
-  { path: 'analytics/users', label: 'User Analytics', icon: Users, tone: 'text-purple-400' },
-  { path: 'analytics/ai-usage', label: 'AI Usage', icon: Sparkles, tone: 'text-pink-400' },
-  { path: 'analytics/workspace', label: 'Workspace Analytics', icon: Building2, tone: 'text-indigo-400' },
-  { path: 'analytics/storage', label: 'Storage Analytics', icon: HardDrive, tone: 'text-emerald-400' },
+  {
+    path: 'analytics',
+    label: 'Dashboard',
+    icon: BarChart3,
+    tone: 'text-accent-blue',
+  },
+  {
+    path: 'analytics/reports',
+    label: 'Reports',
+    icon: FileSpreadsheet,
+    tone: 'text-accent-cyan',
+  },
+  {
+    path: 'analytics/users',
+    label: 'User Analytics',
+    icon: Users,
+    tone: 'text-accent-violet',
+  },
+  {
+    path: 'analytics/ai-usage',
+    label: 'AI Usage',
+    icon: Sparkles,
+    tone: 'text-accent-pink',
+  },
+  {
+    path: 'analytics/workspace',
+    label: 'Workspace Analytics',
+    icon: Building2,
+    tone: 'text-accent-indigo',
+  },
+  {
+    path: 'analytics/storage',
+    label: 'Storage Analytics',
+    icon: HardDrive,
+    tone: 'text-success',
+  },
 ] as const;
 
 interface SectionProps {
@@ -214,7 +268,7 @@ export function ChannelNav({
           ))}
         </Section>
 
-        <div className="mt-2 mb-3 px-1 space-y-px border-b border-sidebar-border pb-3">
+        <div className="mt-2 mb-3 px-1 pb-3 space-y-px border-b border-sidebar-border">
           <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
             Work Tools
           </div>
@@ -225,11 +279,11 @@ export function ChannelNav({
                 'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
                 isActive
                   ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
               )
             }
           >
-            <CheckSquare className="size-3.5 shrink-0 text-blue-400" />
+            <CheckSquare className="size-3.5 shrink-0 text-accent-blue" />
             <span>Tasks & Kanban</span>
           </NavLink>
 
@@ -240,11 +294,11 @@ export function ChannelNav({
                 'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
                 isActive
                   ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
               )
             }
           >
-            <FileText className="size-3.5 shrink-0 text-amber-400" />
+            <FileText className="size-3.5 shrink-0 text-warning" />
             <span>Docs & Wiki</span>
           </NavLink>
 
@@ -255,11 +309,11 @@ export function ChannelNav({
                 'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
                 isActive
                   ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
               )
             }
           >
-            <Layout className="size-3.5 shrink-0 text-purple-400" />
+            <Layout className="size-3.5 shrink-0 text-accent-violet" />
             <span>Whiteboard</span>
           </NavLink>
 
@@ -270,11 +324,11 @@ export function ChannelNav({
                 'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
                 isActive
                   ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
               )
             }
           >
-            <Calendar className="size-3.5 shrink-0 text-emerald-400" />
+            <Calendar className="size-3.5 shrink-0 text-success" />
             <span>Calendar</span>
           </NavLink>
 
@@ -285,11 +339,11 @@ export function ChannelNav({
                 'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
                 isActive
                   ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
               )
             }
           >
-            <HardDrive className="size-3.5 shrink-0 text-cyan-400" />
+            <HardDrive className="size-3.5 shrink-0 text-accent-cyan" />
             <span>Files</span>
           </NavLink>
 
@@ -300,16 +354,16 @@ export function ChannelNav({
                 'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
                 isActive
                   ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
               )
             }
           >
-            <Activity className="size-3.5 shrink-0 text-rose-400" />
+            <Activity className="size-3.5 shrink-0 text-destructive" />
             <span>Timeline</span>
           </NavLink>
         </div>
 
-        <div className="mt-2 mb-3 px-1 space-y-px border-b border-sidebar-border pb-3">
+        <div className="mt-2 mb-3 px-1 pb-3 space-y-px border-b border-sidebar-border">
           <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
             AI Platform
           </div>
@@ -320,11 +374,11 @@ export function ChannelNav({
                 'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
                 isActive
                   ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
               )
             }
           >
-            <Sparkles className="size-3.5 shrink-0 text-purple-400" />
+            <Sparkles className="size-3.5 shrink-0 text-accent-violet" />
             <span>AI Workspace Chat</span>
           </NavLink>
 
@@ -335,11 +389,11 @@ export function ChannelNav({
                 'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
                 isActive
                   ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
               )
             }
           >
-            <BookOpen className="size-3.5 shrink-0 text-blue-400" />
+            <BookOpen className="size-3.5 shrink-0 text-accent-blue" />
             <span>Prompt Library</span>
           </NavLink>
 
@@ -350,16 +404,16 @@ export function ChannelNav({
                 'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
                 isActive
                   ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
               )
             }
           >
-            <Image className="size-3.5 shrink-0 text-pink-400" />
+            <Image className="size-3.5 shrink-0 text-accent-pink" />
             <span>AI Image Generator</span>
           </NavLink>
         </div>
 
-        <div className="mt-2 mb-3 px-1 space-y-px border-b border-sidebar-border pb-3">
+        <div className="mt-2 mb-3 px-1 pb-3 space-y-px border-b border-sidebar-border">
           <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
             AI Agents Platform
           </div>
@@ -370,11 +424,11 @@ export function ChannelNav({
                 'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
                 isActive
                   ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
               )
             }
           >
-            <Bot className="size-3.5 shrink-0 text-emerald-400" />
+            <Bot className="size-3.5 shrink-0 text-success" />
             <span>Agent Marketplace</span>
           </NavLink>
 
@@ -385,11 +439,11 @@ export function ChannelNav({
                 'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
                 isActive
                   ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
               )
             }
           >
-            <Wrench className="size-3.5 shrink-0 text-amber-400" />
+            <Wrench className="size-3.5 shrink-0 text-warning" />
             <span>Agent Builder</span>
           </NavLink>
 
@@ -400,16 +454,16 @@ export function ChannelNav({
                 'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
                 isActive
                   ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
               )
             }
           >
-            <Activity className="size-3.5 shrink-0 text-purple-400" />
+            <Activity className="size-3.5 shrink-0 text-accent-violet" />
             <span>Agent Telemetry</span>
           </NavLink>
         </div>
 
-        <div className="mt-2 mb-3 px-1 space-y-px border-b border-sidebar-border pb-3">
+        <div className="mt-2 mb-3 px-1 pb-3 space-y-px border-b border-sidebar-border">
           <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
             Workflow Automations
           </div>
@@ -420,11 +474,11 @@ export function ChannelNav({
                 'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
                 isActive
                   ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
               )
             }
           >
-            <Workflow className="size-3.5 shrink-0 text-amber-400" />
+            <Workflow className="size-3.5 shrink-0 text-warning" />
             <span>All Workflows</span>
           </NavLink>
 
@@ -435,11 +489,11 @@ export function ChannelNav({
                 'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
                 isActive
                   ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
               )
             }
           >
-            <Wrench className="size-3.5 shrink-0 text-blue-400" />
+            <Wrench className="size-3.5 shrink-0 text-accent-blue" />
             <span>Workflow Builder</span>
           </NavLink>
 
@@ -450,16 +504,16 @@ export function ChannelNav({
                 'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
                 isActive
                   ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
               )
             }
           >
-            <Activity className="size-3.5 shrink-0 text-emerald-400" />
+            <Activity className="size-3.5 shrink-0 text-success" />
             <span>Execution Logs</span>
           </NavLink>
         </div>
 
-        <div className="mt-2 mb-3 px-1 space-y-px border-b border-sidebar-border pb-3">
+        <div className="mt-2 mb-3 px-1 pb-3 space-y-px border-b border-sidebar-border">
           <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
             Integrations & Ecosystem
           </div>
@@ -470,11 +524,11 @@ export function ChannelNav({
                 'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
                 isActive
                   ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
               )
             }
           >
-            <Share2 className="size-3.5 shrink-0 text-blue-400" />
+            <Share2 className="size-3.5 shrink-0 text-accent-blue" />
             <span>Integration Hub (16)</span>
           </NavLink>
 
@@ -485,16 +539,16 @@ export function ChannelNav({
                 'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
                 isActive
                   ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
               )
             }
           >
-            <UploadCloud className="size-3.5 shrink-0 text-cyan-400" />
+            <UploadCloud className="size-3.5 shrink-0 text-accent-cyan" />
             <span>Slack & Notion Import</span>
           </NavLink>
         </div>
 
-        <div className="mt-2 mb-3 px-1 space-y-px border-b border-sidebar-border pb-3">
+        <div className="mt-2 mb-3 px-1 pb-3 space-y-px border-b border-sidebar-border">
           <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
             Analytics
           </div>
@@ -509,7 +563,7 @@ export function ChannelNav({
                   'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
                   isActive
                     ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                    : 'text-sidebar-foreground hover:bg-sidebar-accent/60'
+                    : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
                 )
               }
             >

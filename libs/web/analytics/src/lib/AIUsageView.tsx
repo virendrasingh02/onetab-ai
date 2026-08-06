@@ -1,4 +1,11 @@
-import { Bot, Coins, MessageSquare, Sparkles, Workflow, Zap } from 'lucide-react';
+import {
+  Bot,
+  Coins,
+  MessageSquare,
+  Sparkles,
+  Workflow,
+  Zap,
+} from 'lucide-react';
 import { useState } from 'react';
 import {
   BarChart,
@@ -25,7 +32,8 @@ export function AIUsageView() {
   return (
     <ViewShell>
       <ViewHeader
-        icon={<Sparkles className="w-6 h-6 text-pink-400" />}
+        icon={<Sparkles />}
+        accent="pink"
         title="AI Usage"
         description="Chat, agent and workflow consumption with reliability and token estimates"
         actions={
@@ -42,52 +50,52 @@ export function AIUsageView() {
       <QueryState isLoading={query.isLoading} error={query.error}>
         {data ? (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+            <div className="md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6 grid grid-cols-2">
               <MetricCard
                 label="Chat sessions"
                 value={data.totalSessions}
                 icon={MessageSquare}
-                color="bg-blue-600/20 text-blue-400"
+                accent="blue"
                 hint="all time"
               />
               <MetricCard
                 label="Agents"
                 value={data.totalAgents}
                 icon={Bot}
-                color="bg-purple-600/20 text-purple-400"
+                accent="violet"
                 hint={`${data.activeAgents} active`}
               />
               <MetricCard
                 label="Workflows"
                 value={data.totalWorkflows}
                 icon={Workflow}
-                color="bg-amber-600/20 text-amber-400"
+                accent="amber"
                 hint={`${data.activeWorkflows} active`}
               />
               <MetricCard
                 label="Agent runs"
                 value={data.agentExecutions}
                 icon={Zap}
-                color="bg-emerald-600/20 text-emerald-400"
+                accent="green"
                 hint={`in the last ${days}d`}
               />
               <MetricCard
                 label="Workflow runs"
                 value={data.workflowExecutions}
                 icon={Workflow}
-                color="bg-cyan-600/20 text-cyan-400"
+                accent="cyan"
                 hint={`avg ${formatNumber(data.avgWorkflowDurationMs)}ms`}
               />
               <MetricCard
                 label="Estimated tokens"
                 value={data.estimatedTokens}
                 icon={Coins}
-                color="bg-pink-600/20 text-pink-400"
+                accent="pink"
                 hint="logged + transcript estimate"
               />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div className="lg:grid-cols-3 gap-6 mb-6 grid grid-cols-1">
               <Panel
                 title={`AI activity · last ${days} days`}
                 subtitle="Chat sessions, agent runs and workflow runs per day"
@@ -95,7 +103,7 @@ export function AIUsageView() {
               >
                 <BarChart
                   series={data.usageSeries}
-                  color="from-pink-600 to-purple-500"
+                  accent="pink"
                   valueLabel="AI operations"
                 />
               </Panel>
@@ -111,27 +119,24 @@ export function AIUsageView() {
                 <Panel title="Reliability" subtitle="Successful runs">
                   <div className="space-y-4">
                     <div>
-                      <div className="flex justify-between text-xs mb-1.5">
-                        <span className="text-slate-300">Agent runs</span>
-                        <span className="font-semibold text-white">
+                      <div className="text-xs mb-1.5 flex justify-between">
+                        <span className="text-foreground">Agent runs</span>
+                        <span className="font-semibold text-foreground">
                           {data.agentSuccessRate}%
                         </span>
                       </div>
-                      <ProgressBar
-                        pct={data.agentSuccessRate}
-                        color="from-emerald-600 to-teal-400"
-                      />
+                      <ProgressBar pct={data.agentSuccessRate} accent="green" />
                     </div>
                     <div>
-                      <div className="flex justify-between text-xs mb-1.5">
-                        <span className="text-slate-300">Workflow runs</span>
-                        <span className="font-semibold text-white">
+                      <div className="text-xs mb-1.5 flex justify-between">
+                        <span className="text-foreground">Workflow runs</span>
+                        <span className="font-semibold text-foreground">
                           {data.workflowSuccessRate}%
                         </span>
                       </div>
                       <ProgressBar
                         pct={data.workflowSuccessRate}
-                        color="from-blue-600 to-cyan-400"
+                        accent="blue"
                       />
                     </div>
                   </div>
@@ -146,17 +151,17 @@ export function AIUsageView() {
               <DataTable
                 columns={['Agent', 'Runs', 'Success rate', 'Tokens']}
                 rows={data.topAgents.map((agent) => [
-                  <span className="text-slate-100 font-medium">
+                  <span className="font-medium text-foreground">
                     {agent.name}
                   </span>,
                   formatNumber(agent.executions),
                   <span
                     className={
                       agent.successRate >= 90
-                        ? 'text-emerald-400'
+                        ? 'text-success'
                         : agent.successRate >= 70
-                          ? 'text-amber-400'
-                          : 'text-red-400'
+                          ? 'text-warning'
+                          : 'text-destructive'
                     }
                   >
                     {agent.successRate}%

@@ -1,5 +1,6 @@
+import { Badge, Button, Card, Page, PageHeader } from '@org/ui';
+import { Bot, Cpu, Download, ShieldCheck, Wrench } from 'lucide-react';
 import { useState } from 'react';
-import { Bot, Download, ShieldCheck, Cpu } from 'lucide-react';
 
 export interface AgentCard {
   id: string;
@@ -12,72 +13,122 @@ export interface AgentCard {
 }
 
 const marketplaceAgents: AgentCard[] = [
-  { id: '1', name: 'Agile Sprint Manager', role: 'Scrum Master', description: 'Auto-summarizes task progress, flags overdue tasks, and organizes sprint backlogs.', tools: ['create_task', 'search_docs', 'send_channel_message'], provider: 'ollama' },
-  { id: '2', name: 'Code Sentinel & Reviewer', role: 'Tech Lead', description: 'Reviews code pull requests, checks security issues, and writes documentation.', tools: ['search_docs', 'send_channel_message'], provider: 'openai' },
-  { id: '3', name: 'Workspace Knowledge Curator', role: 'Docs Architect', description: 'Indexes workspace documents into RAG vector storage and answers queries.', tools: ['search_docs'], provider: 'anthropic' },
+  {
+    id: '1',
+    name: 'Agile sprint manager',
+    role: 'Scrum master',
+    description:
+      'Summarises task progress, flags overdue work and organises sprint backlogs.',
+    tools: ['create_task', 'search_docs', 'send_channel_message'],
+    provider: 'ollama',
+  },
+  {
+    id: '2',
+    name: 'Code sentinel & reviewer',
+    role: 'Tech lead',
+    description:
+      'Reviews pull requests, checks for security issues and writes documentation.',
+    tools: ['search_docs', 'send_channel_message'],
+    provider: 'openai',
+  },
+  {
+    id: '3',
+    name: 'Workspace knowledge curator',
+    role: 'Docs architect',
+    description:
+      'Indexes workspace documents into vector storage and answers queries.',
+    tools: ['search_docs'],
+    provider: 'anthropic',
+  },
 ];
 
 export function AgentMarketplaceView() {
   const [agents, setAgents] = useState<AgentCard[]>(marketplaceAgents);
 
   const toggleInstall = (id: string) => {
-    setAgents(agents.map(a => a.id === id ? { ...a, installed: !a.installed } : a));
+    setAgents((prev) =>
+      prev.map((agent) =>
+        agent.id === id ? { ...agent, installed: !agent.installed } : agent,
+      ),
+    );
   };
 
   return (
-    <div className="p-6 text-white min-h-screen bg-slate-950 flex flex-col">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Bot className="w-6 h-6 text-blue-400" /> AI Agent Marketplace
-          </h1>
-          <p className="text-sm text-slate-400">Deploy specialized autonomous AI employees to your workspace</p>
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        title="Agents"
+        description="Deploy specialised autonomous agents into your workspace."
+        icon={<Bot />}
+        accent="blue"
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <ul className="gap-4 md:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">
         {agents.map((agent) => (
-          <div key={agent.id} className="bg-slate-900/60 border border-slate-800 rounded-xl p-5 flex flex-col justify-between hover:border-slate-700 transition shadow-lg">
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 bg-blue-600/20 border border-blue-500/30 rounded-lg text-blue-400">
-                    <Bot className="w-5 h-5" />
+          <li key={agent.id}>
+            <Card className="p-5 h-full justify-between transition-colors duration-(--duration-fast) hover:border-border-strong">
+              <div>
+                <div className="mb-3 gap-2 flex items-start justify-between">
+                  <div className="min-w-0 gap-2.5 flex items-center">
+                    <span
+                      aria-hidden
+                      className="size-9 flex shrink-0 items-center justify-center rounded-lg bg-accent-blue-soft text-accent-blue"
+                    >
+                      <Bot className="size-4.5" />
+                    </span>
+                    <div className="min-w-0">
+                      <h2 className="text-sm font-semibold truncate text-foreground">
+                        {agent.name}
+                      </h2>
+                      <p className="text-xs text-muted-foreground">
+                        {agent.role}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-slate-100 text-sm">{agent.name}</h3>
-                    <span className="text-[11px] text-slate-400">{agent.role}</span>
-                  </div>
+                  <Badge variant="neutral" className="font-mono uppercase">
+                    <Cpu className="text-accent-violet" aria-hidden />
+                    {agent.provider}
+                  </Badge>
                 </div>
-                <span className="text-[10px] uppercase font-mono px-2 py-0.5 bg-slate-800 text-slate-300 rounded flex items-center gap-1">
-                  <Cpu className="w-3 h-3 text-purple-400" /> {agent.provider}
-                </span>
-              </div>
-              <p className="text-xs text-slate-300 mb-4 leading-relaxed">{agent.description}</p>
-              
-              <div className="flex flex-wrap gap-1 mb-4">
-                {agent.tools.map(t => (
-                  <span key={t} className="text-[10px] font-mono bg-slate-800/80 text-blue-400 px-2 py-0.5 rounded">
-                    🛠 {t}
-                  </span>
-                ))}
-              </div>
-            </div>
 
-            <button
-              onClick={() => toggleInstall(agent.id)}
-              className={`w-full py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition ${
-                agent.installed
-                  ? 'bg-emerald-950/60 border border-emerald-500/40 text-emerald-400'
-                  : 'bg-blue-600 hover:bg-blue-500 text-white shadow'
-              }`}
-            >
-              {agent.installed ? <ShieldCheck className="w-4 h-4" /> : <Download className="w-4 h-4" />}
-              {agent.installed ? 'Installed & Active' : 'Deploy to Workspace'}
-            </button>
-          </div>
+                <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
+                  {agent.description}
+                </p>
+
+                <ul
+                  aria-label={`Tools available to ${agent.name}`}
+                  className="mb-4 gap-1 flex flex-wrap"
+                >
+                  {agent.tools.map((tool) => (
+                    <li key={tool}>
+                      <Badge variant="primary" className="font-mono">
+                        <Wrench aria-hidden />
+                        {tool}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <Button
+                variant={agent.installed ? 'outline' : 'primary'}
+                size="sm"
+                className="w-full"
+                onClick={() => toggleInstall(agent.id)}
+                leadingIcon={
+                  agent.installed ? (
+                    <ShieldCheck className="text-success" />
+                  ) : (
+                    <Download />
+                  )
+                }
+              >
+                {agent.installed ? 'Installed' : 'Deploy'}
+                <span className="sr-only"> — {agent.name}</span>
+              </Button>
+            </Card>
+          </li>
         ))}
-      </div>
-    </div>
+      </ul>
+    </Page>
   );
 }

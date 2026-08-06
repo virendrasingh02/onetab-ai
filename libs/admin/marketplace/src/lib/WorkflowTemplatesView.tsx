@@ -5,33 +5,37 @@ import { Storefront } from './storefront-view.js';
 /** The trigger and the first few steps — enough to judge fit without opening it. */
 function WorkflowOutline({ listing }: { listing: MarketplaceListing }) {
   const payload = listing.payload as
-    | { trigger?: { type?: string }; steps?: { type?: string }[] }
-    | undefined;
+    { trigger?: { type?: string }; steps?: { type?: string }[] } | undefined;
   if (!payload?.trigger && !payload?.steps?.length) return null;
 
   const steps = payload.steps ?? [];
 
   return (
-    <div className="rounded-lg bg-slate-950/60 border border-slate-800 p-2.5">
+    <div className="p-2.5 rounded-lg border border-border bg-background">
       {payload.trigger?.type ? (
-        <div className="flex items-center gap-1.5 text-[11px] text-amber-400 mb-1.5">
+        <div className="gap-1.5 mb-1.5 flex items-center text-[11px] text-warning">
           <Zap className="w-3 h-3" />
           <span className="font-medium">on {payload.trigger.type}</span>
         </div>
       ) : null}
-      <div className="flex flex-wrap items-center gap-1 text-[10px] text-slate-400">
+      <div className="gap-1 flex flex-wrap items-center text-[10px] text-muted-foreground">
         {steps.slice(0, 3).map((step, index) => (
-          <span key={`${step.type}-${index}`} className="flex items-center gap-1">
-            <span className="px-1.5 py-0.5 bg-slate-800 rounded">
+          <span
+            key={`${step.type}-${index}`}
+            className="gap-1 flex items-center"
+          >
+            <span className="px-1.5 py-0.5 rounded bg-surface-raised">
               {step.type}
             </span>
             {index < Math.min(steps.length, 3) - 1 ? (
-              <ArrowRight className="w-2.5 h-2.5 text-slate-600" />
+              <ArrowRight className="w-2.5 h-2.5 text-muted-foreground" />
             ) : null}
           </span>
         ))}
         {steps.length > 3 ? (
-          <span className="text-slate-600">+{steps.length - 3} more</span>
+          <span className="text-muted-foreground">
+            +{steps.length - 3} more
+          </span>
         ) : null}
       </div>
     </div>
@@ -44,7 +48,7 @@ export function WorkflowTemplatesView() {
       kind="WORKFLOW"
       title="Workflow Templates"
       description="Prebuilt automations you can install and run without opening the builder"
-      icon={<Workflow className="w-6 h-6 text-amber-400" />}
+      icon={<Workflow />}
       listingIcon={() => <Workflow className="w-5 h-5" />}
       renderPreview={(listing) => <WorkflowOutline listing={listing} />}
       includePayload

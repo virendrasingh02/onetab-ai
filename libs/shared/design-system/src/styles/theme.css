@@ -49,8 +49,45 @@
   --color-info-foreground: var(--info-foreground);
 
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  /*
+   * Layered surfaces. `background` is the page; `surface` sits on it; `raised`
+   * sits on `surface`. Using these instead of card/muted keeps nesting legible
+   * in both themes without stacking translucent overlays.
+   */
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-inset: var(--surface-inset);
+
+  /*
+   * Categorical accents. For classification only — status meaning belongs to
+   * success/warning/destructive/info. Each has a `-soft` tint for icon chips
+   * and chart fills so features stop reaching for raw palette utilities.
+   */
+  --color-accent-violet: var(--accent-violet);
+  --color-accent-violet-soft: var(--accent-violet-soft);
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-blue-soft: var(--accent-blue-soft);
+  --color-accent-cyan: var(--accent-cyan);
+  --color-accent-cyan-soft: var(--accent-cyan-soft);
+  --color-accent-teal: var(--accent-teal);
+  --color-accent-teal-soft: var(--accent-teal-soft);
+  --color-accent-green: var(--accent-green);
+  --color-accent-green-soft: var(--accent-green-soft);
+  --color-accent-amber: var(--accent-amber);
+  --color-accent-amber-soft: var(--accent-amber-soft);
+  --color-accent-orange: var(--accent-orange);
+  --color-accent-orange-soft: var(--accent-orange-soft);
+  --color-accent-rose: var(--accent-rose);
+  --color-accent-rose-soft: var(--accent-rose-soft);
+  --color-accent-pink: var(--accent-pink);
+  --color-accent-pink-soft: var(--accent-pink-soft);
+  --color-accent-indigo: var(--accent-indigo);
+  --color-accent-indigo-soft: var(--accent-indigo-soft);
 
   /* Application chrome — the persistent navigation surfaces. */
   --color-sidebar: var(--sidebar);
@@ -71,14 +108,45 @@
 
   --shadow-elevated: var(--shadow-elevated-value);
   --shadow-overlay: var(--shadow-overlay-value);
+
+  /*
+   * Easing. Under the `--ease-*` namespace these become `ease-standard`,
+   * `ease-entrance` and `ease-exit` utilities.
+   */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-entrance: cubic-bezier(0, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.3, 0, 1, 1);
+}
+
+/*
+ * Scales with no Tailwind theme namespace of their own. Referenced through the
+ * v4 CSS-variable shorthand — `duration-(--duration-base)`, `z-(--z-modal)` —
+ * or from inline styles and Framer Motion.
+ *
+ * Durations sit in the 150–250ms band: `fast` for hover and colour changes,
+ * `base` for dialogs and panels, `slow` for full-surface transitions.
+ */
+:root {
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 250ms;
+
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-rail: 20;
+  --z-dropdown: 30;
+  --z-overlay: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+  --z-tooltip: 70;
 }
 
 :root {
   --radius: 0.625rem;
 
   --font-sans-stack:
-    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
-    Arial, 'Noto Sans', sans-serif;
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
   --font-mono-stack:
     ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono',
     monospace;
@@ -118,8 +186,36 @@
   --info-foreground: oklch(0.99 0 0);
 
   --border: oklch(0.918 0.008 264);
+  --border-strong: oklch(0.858 0.01 264);
   --input: oklch(0.918 0.008 264);
   --ring: oklch(0.548 0.223 285.7);
+
+  /* Light theme layers upward from a faintly tinted canvas. */
+  --surface: oklch(1 0 0);
+  --surface-muted: oklch(0.985 0.003 264);
+  --surface-raised: oklch(1 0 0);
+  --surface-inset: oklch(0.968 0.007 264);
+
+  --accent-violet: oklch(0.512 0.212 285.7);
+  --accent-violet-soft: oklch(0.951 0.028 285.7);
+  --accent-blue: oklch(0.512 0.178 258);
+  --accent-blue-soft: oklch(0.955 0.025 258);
+  --accent-cyan: oklch(0.505 0.108 220);
+  --accent-cyan-soft: oklch(0.953 0.026 220);
+  --accent-teal: oklch(0.512 0.099 190);
+  --accent-teal-soft: oklch(0.953 0.026 190);
+  --accent-green: oklch(0.515 0.126 158.5);
+  --accent-green-soft: oklch(0.952 0.032 158.5);
+  --accent-amber: oklch(0.545 0.122 78.5);
+  --accent-amber-soft: oklch(0.958 0.042 78.5);
+  --accent-orange: oklch(0.548 0.152 52);
+  --accent-orange-soft: oklch(0.955 0.036 52);
+  --accent-rose: oklch(0.535 0.192 15);
+  --accent-rose-soft: oklch(0.955 0.024 15);
+  --accent-pink: oklch(0.542 0.196 342);
+  --accent-pink-soft: oklch(0.955 0.026 342);
+  --accent-indigo: oklch(0.492 0.196 272);
+  --accent-indigo-soft: oklch(0.951 0.026 272);
 
   --sidebar: oklch(0.234 0.031 274);
   --sidebar-foreground: oklch(0.845 0.018 274);
@@ -173,8 +269,36 @@
   --info-foreground: oklch(0.16 0.02 220);
 
   --border: oklch(0.302 0.023 264);
+  --border-strong: oklch(0.372 0.026 264);
   --input: oklch(0.322 0.024 264);
   --ring: oklch(0.652 0.196 285.7);
+
+  /* Dark theme layers upward from the page, lightening as it rises. */
+  --surface: oklch(0.206 0.019 264);
+  --surface-muted: oklch(0.188 0.017 264);
+  --surface-raised: oklch(0.242 0.021 264);
+  --surface-inset: oklch(0.176 0.016 264);
+
+  --accent-violet: oklch(0.728 0.152 285.7);
+  --accent-violet-soft: oklch(0.302 0.055 285.7);
+  --accent-blue: oklch(0.722 0.128 258);
+  --accent-blue-soft: oklch(0.298 0.052 258);
+  --accent-cyan: oklch(0.755 0.098 220);
+  --accent-cyan-soft: oklch(0.295 0.045 220);
+  --accent-teal: oklch(0.758 0.092 190);
+  --accent-teal-soft: oklch(0.292 0.042 190);
+  --accent-green: oklch(0.752 0.132 158.5);
+  --accent-green-soft: oklch(0.288 0.055 158.5);
+  --accent-amber: oklch(0.812 0.132 78.5);
+  --accent-amber-soft: oklch(0.312 0.058 78.5);
+  --accent-orange: oklch(0.762 0.132 52);
+  --accent-orange-soft: oklch(0.305 0.058 52);
+  --accent-rose: oklch(0.725 0.152 15);
+  --accent-rose-soft: oklch(0.305 0.062 15);
+  --accent-pink: oklch(0.732 0.152 342);
+  --accent-pink-soft: oklch(0.305 0.062 342);
+  --accent-indigo: oklch(0.702 0.148 272);
+  --accent-indigo-soft: oklch(0.298 0.058 272);
 
   --sidebar: oklch(0.186 0.024 274);
   --sidebar-foreground: oklch(0.815 0.018 274);

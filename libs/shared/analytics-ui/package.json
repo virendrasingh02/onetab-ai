@@ -20,7 +20,10 @@
     ]
   },
   "dependencies": {
+    "@org/design-system": "*",
     "@org/types": "*",
+    "@org/ui": "*",
+    "@org/utils": "*",
     "lucide-react": "^1.28.0",
     "react": "^19.0.0"
   }

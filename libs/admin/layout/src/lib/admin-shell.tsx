@@ -47,15 +47,20 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
         to: '/health',
         label: 'Health',
         icon: HeartPulse,
-        tone: 'text-emerald-400',
+        tone: 'text-success',
       },
       {
         to: '/performance',
         label: 'Performance',
         icon: Gauge,
-        tone: 'text-amber-400',
+        tone: 'text-warning',
       },
-      { to: '/errors', label: 'Error Tracking', icon: Bug, tone: 'text-red-400' },
+      {
+        to: '/errors',
+        label: 'Error Tracking',
+        icon: Bug,
+        tone: 'text-destructive',
+      },
     ],
   },
   {
@@ -65,20 +70,20 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
         to: '/enterprise',
         label: 'Governance',
         icon: Building2,
-        tone: 'text-blue-400',
+        tone: 'text-accent-blue',
         end: true,
       },
       {
         to: '/enterprise/sso',
         label: 'SSO & SCIM',
         icon: Shield,
-        tone: 'text-purple-400',
+        tone: 'text-accent-violet',
       },
       {
         to: '/enterprise/audit-logs',
         label: 'Audit Log',
         icon: ShieldAlert,
-        tone: 'text-rose-400',
+        tone: 'text-destructive',
       },
     ],
   },
@@ -89,50 +94,50 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
         to: '/marketplace',
         label: 'Catalogue',
         icon: Store,
-        tone: 'text-blue-400',
+        tone: 'text-accent-blue',
         end: true,
       },
       {
         to: '/marketplace/plugins',
         label: 'Plugin SDK',
         icon: Puzzle,
-        tone: 'text-blue-400',
+        tone: 'text-accent-blue',
       },
       {
         to: '/marketplace/themes',
         label: 'Themes',
         icon: Palette,
-        tone: 'text-pink-400',
+        tone: 'text-accent-pink',
       },
       {
         to: '/marketplace/agents',
         label: 'Agents',
         icon: Bot,
-        tone: 'text-emerald-400',
+        tone: 'text-success',
       },
       {
         to: '/marketplace/workflows',
         label: 'Workflows',
         icon: Workflow,
-        tone: 'text-amber-400',
+        tone: 'text-warning',
       },
       {
         to: '/marketplace/components',
         label: 'Components',
         icon: Blocks,
-        tone: 'text-purple-400',
+        tone: 'text-accent-violet',
       },
       {
         to: '/marketplace/integrations',
         label: 'Integrations',
         icon: Plug,
-        tone: 'text-cyan-400',
+        tone: 'text-accent-cyan',
       },
       {
         to: '/marketplace/templates',
         label: 'Templates',
         icon: FileStack,
-        tone: 'text-rose-400',
+        tone: 'text-destructive',
       },
     ],
   },
@@ -172,7 +177,7 @@ function AdminNav() {
         {NAV_GROUPS.map((group) => (
           <div
             key={group.title}
-            className="mt-2 mb-3 px-1 space-y-px border-b border-sidebar-border pb-3 last:border-b-0"
+            className="mt-2 mb-3 px-1 pb-3 space-y-px border-b border-sidebar-border last:border-b-0"
           >
             <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
               {group.title}
@@ -215,7 +220,7 @@ function AdminNav() {
  */
 export function AdminShell() {
   return (
-    <div className="min-h-dvh flex flex-col">
+    <div className="flex min-h-dvh flex-col">
       <header className="h-14 gap-3 px-6 flex shrink-0 items-center border-b">
         <span className="size-7 text-xs font-semibold flex items-center justify-center rounded-md bg-primary text-primary-foreground">
           O
@@ -227,12 +232,12 @@ export function AdminShell() {
         <ThemeToggle />
       </header>
 
-      <div className="flex flex-1 min-h-0">
-        <aside className="w-60 shrink-0 flex flex-col border-r bg-sidebar">
+      <div className="min-h-0 flex flex-1">
+        <aside className="w-60 flex shrink-0 flex-col border-r bg-sidebar">
           <AdminNav />
         </aside>
 
-        <main className="flex-1 min-w-0 overflow-y-auto">
+        <main className="min-w-0 flex-1 overflow-y-auto">
           <Suspense fallback={<LoadingState fullPage />}>
             <Outlet />
           </Suspense>

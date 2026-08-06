@@ -21,7 +21,7 @@ function ThemeSwatches({ listing }: { listing: MarketplaceListing }) {
 
   return (
     <div
-      className="flex overflow-hidden rounded-lg border border-slate-800 h-8"
+      className="h-8 flex overflow-hidden rounded-lg border border-border"
       role="img"
       aria-label={`${listing.name} palette: ${entries
         .map(([name]) => name)
@@ -45,7 +45,7 @@ export function ThemeStoreView() {
       kind="THEME"
       title="Theme Store"
       description="Install a workspace-wide colour theme, or bring your own brand palette"
-      icon={<Palette className="w-6 h-6 text-pink-400" />}
+      icon={<Palette />}
       listingIcon={() => <Palette className="w-5 h-5" />}
       renderPreview={(listing) => <ThemeSwatches listing={listing} />}
       includePayload

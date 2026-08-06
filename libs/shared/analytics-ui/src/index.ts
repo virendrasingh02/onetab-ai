@@ -13,6 +13,7 @@ export {
   BarChart,
   Breakdown,
   DataTable,
+  LiveToggle,
   MetricCard,
   Panel,
   ProgressBar,

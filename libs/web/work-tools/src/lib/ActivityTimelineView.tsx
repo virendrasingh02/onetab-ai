@@ -1,42 +1,98 @@
-import { Activity, MessageSquare, CheckCircle, FileText } from 'lucide-react';
+import type { Accent } from '@org/design-system';
+import { accentClasses, Page, PageHeader, Panel } from '@org/ui';
+import { cn } from '@org/utils';
+import {
+  Activity,
+  CheckCircle,
+  FileText,
+  MessageSquare,
+  type LucideIcon,
+} from 'lucide-react';
+
+interface ActivityEntry {
+  id: string;
+  user: string;
+  action: string;
+  target: string;
+  time: string;
+  icon: LucideIcon;
+  accent: Accent;
+}
+
+const activities: ActivityEntry[] = [
+  {
+    id: '1',
+    user: 'Admin',
+    action: 'completed task',
+    target: 'Setup Qdrant Vector Collection',
+    time: '10 minutes ago',
+    icon: CheckCircle,
+    accent: 'green',
+  },
+  {
+    id: '2',
+    user: 'Dev User',
+    action: 'updated document',
+    target: 'Architecture Overview',
+    time: '1 hour ago',
+    icon: FileText,
+    accent: 'blue',
+  },
+  {
+    id: '3',
+    user: 'Dev User',
+    action: 'commented on task',
+    target: 'Kanban Board Interface',
+    time: '2 hours ago',
+    icon: MessageSquare,
+    accent: 'violet',
+  },
+];
 
 export function ActivityTimelineView() {
-  const activities = [
-    { id: '1', user: 'Admin', action: 'completed task', target: 'Setup Qdrant Vector Collection', time: '10 minutes ago', icon: CheckCircle, color: 'text-emerald-400' },
-    { id: '2', user: 'Dev User', action: 'updated document', target: 'Architecture Overview', time: '1 hour ago', icon: FileText, color: 'text-blue-400' },
-    { id: '3', user: 'Dev User', action: 'commented on task', target: 'Kanban Board Interface', time: '2 hours ago', icon: MessageSquare, color: 'text-purple-400' },
-  ];
-
   return (
-    <div className="p-6 text-white min-h-screen bg-slate-950 flex flex-col">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Activity className="w-6 h-6 text-purple-400" /> Activity Timeline & Stream
-        </h1>
-        <p className="text-sm text-slate-400">Real-time audit log of workspace events and team activity</p>
-      </div>
+    <Page>
+      <PageHeader
+        title="Activity"
+        description="A running log of everything happening in this workspace."
+        icon={<Activity />}
+        accent="violet"
+      />
 
-      <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-6 flex-1">
-        <div className="relative border-l border-slate-800 pl-6 space-y-6">
-          {activities.map((act) => {
-            const Icon = act.icon;
+      <Panel>
+        {/* An ordered list: the sequence is the meaning of a timeline. */}
+        <ol className="space-y-5 pl-6 relative border-l border-border">
+          {activities.map((entry) => {
+            const Icon = entry.icon;
             return (
-              <div key={act.id} className="relative">
-                <div className="absolute -left-[31px] top-0 p-1.5 bg-slate-900 border border-slate-700 rounded-full">
-                  <Icon className={`w-3.5 h-3.5 ${act.color}`} />
-                </div>
-                <div className="bg-slate-800/60 border border-slate-700/50 rounded-lg p-3 max-w-xl">
-                  <p className="text-sm text-slate-200">
-                    <span className="font-semibold text-white">{act.user}</span> {act.action}{' '}
-                    <span className="font-medium text-blue-400">{act.target}</span>
+              <li key={entry.id} className="relative">
+                <span
+                  aria-hidden
+                  className={cn(
+                    'top-1 size-6 absolute -left-[31px] flex items-center justify-center rounded-full border bg-surface',
+                    accentClasses[entry.accent].text,
+                  )}
+                >
+                  <Icon className="size-3.5" />
+                </span>
+
+                <div className="max-w-xl p-3 rounded-lg border bg-surface-muted">
+                  <p className="text-sm text-foreground">
+                    <span className="font-medium">{entry.user}</span>{' '}
+                    {entry.action}{' '}
+                    <span className="font-medium text-accent-blue">
+                      {entry.target}
+                    </span>
                   </p>
-                  <span className="text-xs text-slate-400 mt-1 block">{act.time}</span>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {entry.time}
+                  </p>
                 </div>
-              </div>
+              </li>
             );
           })}
-        </div>
-      </div>
-    </div>
+        </ol>
+      </Panel>
+    </Page>
   );
 }

@@ -1,80 +1,119 @@
+import type { Accent } from '@org/design-system';
+import { accentClasses, Button, Card, Page, PageHeader } from '@org/ui';
+import { cn } from '@org/utils';
+import {
+  ArrowRight,
+  CheckCircle,
+  FileText,
+  MessageSquare,
+  UploadCloud,
+  type LucideIcon,
+} from 'lucide-react';
 import { useState } from 'react';
-import { UploadCloud, CheckCircle, FileText, MessageSquare, ArrowRight } from 'lucide-react';
+
+interface ImportSource {
+  id: string;
+  name: string;
+  format: string;
+  description: string;
+  cta: string;
+  icon: LucideIcon;
+  accent: Accent;
+}
+
+const SOURCES: ImportSource[] = [
+  {
+    id: 'slack',
+    name: 'Import Slack workspace',
+    format: 'JSON zip export package',
+    description:
+      'Upload your Slack export to recreate public channels, message history, user profiles and file attachments.',
+    cta: 'Upload Slack export',
+    icon: MessageSquare,
+    accent: 'violet',
+  },
+  {
+    id: 'notion',
+    name: 'Import Notion workspace',
+    format: 'Markdown & HTML export package',
+    description:
+      'Convert Notion pages, inline databases and wiki hierarchies into OneTab documents and boards.',
+    cta: 'Upload Notion export',
+    icon: FileText,
+    accent: 'cyan',
+  },
+];
 
 export function SlackNotionImportView() {
   const [importStatus, setImportStatus] = useState<'IDLE' | 'SUCCESS'>('IDLE');
 
-  const handleStartImport = () => {
-    setImportStatus('SUCCESS');
-  };
-
   return (
-    <div className="p-6 text-white min-h-screen bg-slate-950 flex flex-col">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <UploadCloud className="w-6 h-6 text-cyan-400" /> Slack & Notion Data Migration
-        </h1>
-        <p className="text-sm text-slate-400">Import channels, messages, attachments, Notion pages, and databases into OneTab AI</p>
+    <Page>
+      <PageHeader
+        title="Import data"
+        description="Bring channels, messages, attachments and pages into OneTab AI."
+        icon={<UploadCloud />}
+        accent="cyan"
+      />
+
+      <ul className="gap-6 md:grid-cols-2 grid grid-cols-1">
+        {SOURCES.map((source) => {
+          const Icon = source.icon;
+          return (
+            <li key={source.id}>
+              <Card className="p-6 h-full justify-between">
+                <div>
+                  <div className="mb-3 gap-3 flex items-center">
+                    <span
+                      aria-hidden
+                      className={cn(
+                        'size-11 flex shrink-0 items-center justify-center rounded-lg',
+                        accentClasses[source.accent].soft,
+                      )}
+                    >
+                      <Icon className="size-5" />
+                    </span>
+                    <div className="min-w-0">
+                      <h2 className="text-sm font-semibold text-foreground">
+                        {source.name}
+                      </h2>
+                      <p className="text-xs text-muted-foreground">
+                        {source.format}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
+                    {source.description}
+                  </p>
+                </div>
+
+                <Button
+                  className="w-full"
+                  size="sm"
+                  onClick={() => setImportStatus('SUCCESS')}
+                  trailingIcon={<ArrowRight />}
+                >
+                  {source.cta}
+                </Button>
+              </Card>
+            </li>
+          );
+        })}
+      </ul>
+
+      {/*
+        `role="status"` so the outcome is announced — previously the banner
+        appeared silently for screen reader users.
+      */}
+      <div role="status" aria-live="polite">
+        {importStatus === 'SUCCESS' ? (
+          <p className="mt-6 gap-3 p-4 text-sm flex items-center rounded-xl border border-success/40 bg-success/10 text-success">
+            <CheckCircle className="size-5 shrink-0" aria-hidden />
+            Migration started. Channels and documents are being populated in the
+            background.
+          </p>
+        ) : null}
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Slack Import */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-6 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-3 bg-purple-600/20 text-purple-400 rounded-lg">
-                <MessageSquare className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-100 text-base">Import Slack Workspace</h3>
-                <span className="text-xs text-slate-400">JSON Zip export package</span>
-              </div>
-            </div>
-            <p className="text-xs text-slate-300 mb-4 leading-relaxed">
-              Upload your Slack export zip file to automatically recreate public channels, message history, user profiles, and file attachments in OneTab Matrix.
-            </p>
-          </div>
-
-          <button
-            onClick={handleStartImport}
-            className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-semibold text-xs flex items-center justify-center gap-2 transition"
-          >
-            Upload Slack Export Zip <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Notion Import */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-6 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-3 bg-cyan-600/20 text-cyan-400 rounded-lg">
-                <FileText className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-100 text-base">Import Notion Workspace</h3>
-                <span className="text-xs text-slate-400">Markdown & HTML export package</span>
-              </div>
-            </div>
-            <p className="text-xs text-slate-300 mb-4 leading-relaxed">
-              Convert your Notion pages, inline databases, and wiki hierarchies seamlessly into OneTab WorkDocuments and Kanban boards.
-            </p>
-          </div>
-
-          <button
-            onClick={handleStartImport}
-            className="w-full py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-semibold text-xs flex items-center justify-center gap-2 transition"
-          >
-            Upload Notion Export Zip <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {importStatus === 'SUCCESS' && (
-        <div className="mt-6 p-4 bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 rounded-xl flex items-center gap-3 text-sm">
-          <CheckCircle className="w-5 h-5 shrink-0" />
-          <span>Migration job started successfully! Channels and WorkDocuments are being populated in the background.</span>
-        </div>
-      )}
-    </div>
+    </Page>
   );
 }

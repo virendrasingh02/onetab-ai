@@ -13,6 +13,12 @@ export {
   layout,
   breakpoints,
   avatarTint,
+  ACCENTS,
+  accentTokens,
+  accentFor,
+  motion,
+  zIndex,
   type ColorToken,
   type Breakpoint,
+  type Accent,
 } from './lib/tokens.js';

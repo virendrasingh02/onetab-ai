@@ -100,25 +100,25 @@ function StorefrontTile({
   return (
     <Link
       to={`/marketplace/${path}`}
-      className="bg-slate-900/60 border border-slate-800 hover:border-slate-700 rounded-xl p-4 flex flex-col gap-2 transition group"
+      className="p-4 gap-2 group flex flex-col rounded-xl border border-border bg-surface transition hover:border-border-strong"
     >
       <div className="flex items-center justify-between">
-        <div className={`p-2 bg-slate-800 rounded-lg ${KIND_TONE[kind]}`}>
+        <div className={`p-2 rounded-lg bg-surface-raised ${KIND_TONE[kind]}`}>
           <Icon className="w-5 h-5" />
         </div>
         {installCount > 0 ? (
-          <span className="px-2 py-0.5 bg-emerald-950/60 border border-emerald-500/40 rounded-full text-[10px] font-semibold text-emerald-400">
+          <span className="px-2 py-0.5 font-semibold rounded-full border border-success/40 bg-success/10 text-[10px] text-success">
             {formatCount(installCount)} installs
           </span>
         ) : null}
       </div>
       <div>
-        <h3 className="font-bold text-sm text-slate-100 group-hover:text-white">
+        <h3 className="font-bold text-sm text-foreground group-hover:text-foreground">
           {KIND_LABEL[kind]}s
         </h3>
-        <p className="text-[11px] text-slate-500 mt-0.5">{blurb}</p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">{blurb}</p>
       </div>
-      <span className="text-[11px] text-slate-400 mt-auto">
+      <span className="mt-auto text-[11px] text-muted-foreground">
         {formatCount(listingCount)} listing{listingCount === 1 ? '' : 's'}
       </span>
     </Link>
@@ -134,7 +134,11 @@ function StorefrontTile({
  */
 export function MarketplaceHomeView() {
   const stats = useMarketplaceStats();
-  const featured = useListings({ featured: true, sort: 'popular', pageSize: 6 });
+  const featured = useListings({
+    featured: true,
+    sort: 'popular',
+    pageSize: 6,
+  });
 
   const totalListings =
     stats.data?.reduce((sum, row) => sum + row.listingCount, 0) ?? 0;
@@ -144,7 +148,8 @@ export function MarketplaceHomeView() {
   return (
     <ViewShell>
       <ViewHeader
-        icon={<Store className="w-6 h-6 text-blue-400" />}
+        icon={<Store />}
+        accent="blue"
         title="Marketplace"
         description={`${formatCount(totalListings)} listings across seven storefronts · ${formatCount(totalInstalls)} installs platform-wide`}
         actions={
@@ -159,7 +164,7 @@ export function MarketplaceHomeView() {
       />
 
       <QueryState isLoading={stats.isLoading} error={stats.error}>
-        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4 mb-8">
+        <div className="md:grid-cols-4 xl:grid-cols-7 gap-4 mb-8 grid grid-cols-2">
           {STOREFRONTS.map((entry) => {
             const row = stats.data?.find((stat) => stat.kind === entry.kind);
             return (
@@ -175,8 +180,8 @@ export function MarketplaceHomeView() {
       </QueryState>
 
       <section className="mb-8">
-        <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2 mb-3">
-          <Sparkles className="w-4 h-4 text-amber-400" /> Featured
+        <h2 className="text-sm font-bold gap-2 mb-3 flex items-center text-foreground">
+          <Sparkles className="w-4 h-4 text-warning" /> Featured
         </h2>
         <QueryState
           isLoading={featured.isLoading}
@@ -184,7 +189,7 @@ export function MarketplaceHomeView() {
           isEmpty={featured.data?.items.length === 0}
           emptyMessage="Nothing is featured yet."
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className="md:grid-cols-2 xl:grid-cols-3 gap-6 grid grid-cols-1">
             {featured.data?.items.map((listing) => {
               const Icon = KIND_ICON[listing.kind] ?? Package;
               return (
@@ -200,9 +205,8 @@ export function MarketplaceHomeView() {
       </section>
 
       <section>
-        <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2 mb-3">
-          <Download className="w-4 h-4 text-emerald-400" /> Adoption by
-          storefront
+        <h2 className="text-sm font-bold gap-2 mb-3 flex items-center text-foreground">
+          <Download className="w-4 h-4 text-success" /> Adoption by storefront
         </h2>
         <Panel>
           <QueryState
@@ -211,25 +215,27 @@ export function MarketplaceHomeView() {
             isEmpty={totalListings === 0}
             emptyMessage="The catalogue is empty."
           >
-            <ul className="divide-y divide-slate-800">
+            <ul className="divide-y divide-border">
               {stats.data?.map((row) => {
                 const Icon = KIND_ICON[row.kind] ?? Package;
                 return (
                   <li
                     key={row.kind}
-                    className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
+                    className="gap-3 py-2.5 first:pt-0 last:pb-0 flex items-center"
                   >
-                    <Icon className={`w-4 h-4 shrink-0 ${KIND_TONE[row.kind]}`} />
+                    <Icon
+                      className={`w-4 h-4 shrink-0 ${KIND_TONE[row.kind]}`}
+                    />
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold text-slate-200 truncate">
+                      <p className="text-xs font-semibold truncate text-foreground">
                         {KIND_LABEL[row.kind]}s
                       </p>
-                      <p className="text-[11px] text-slate-500">
+                      <p className="text-[11px] text-muted-foreground">
                         {formatCount(row.listingCount)} listing
                         {row.listingCount === 1 ? '' : 's'} published
                       </p>
                     </div>
-                    <span className="px-2 py-0.5 border text-[10px] font-semibold rounded-full bg-slate-800 border-slate-700 text-slate-300">
+                    <span className="px-2 py-0.5 font-semibold rounded-full border border-border bg-surface-raised text-[10px] text-foreground">
                       {formatCount(row.installCount)} install
                       {row.installCount === 1 ? '' : 's'}
                     </span>
