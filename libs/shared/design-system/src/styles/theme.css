@@ -36,6 +36,20 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
 
+  /*
+   * `accent` is hover; `selected` is the resting state of a chosen row. Keeping
+   * them distinct is what lets a selected nav item still respond to hover.
+   */
+  --color-selected: var(--selected);
+
+  /*
+   * The third and fourth rungs of the text ramp, below `muted-foreground`.
+   * `subtle` is for metadata that should read as present-but-recessive;
+   * `disabled` is for controls that cannot be actioned.
+   */
+  --color-subtle: var(--subtle);
+  --color-disabled: var(--disabled);
+
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
 
@@ -103,6 +117,17 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
+  /*
+   * Radii named after what they wrap, so a component asks for `rounded-card`
+   * rather than picking a t-shirt size and drifting from the spec. Corners get
+   * *less* round as a surface gets smaller and more interactive.
+   */
+  --radius-card: 10px;
+  --radius-btn: 8px;
+  --radius-input: 8px;
+  --radius-popup: 12px;
+  --radius-dialog: 14px;
+
   --font-sans: var(--font-sans-stack);
   --font-mono: var(--font-mono-stack);
 
@@ -140,12 +165,7 @@
   --z-toast: 60;
   --z-tooltip: 70;
 
-  /* Linear Radius Definitions */
-  --radius-card: 10px;
-  --radius-btn: 8px;
-  --radius-input: 8px;
-  --radius-popup: 12px;
-  --radius-dialog: 14px;
+  /* Base step the sm/md/lg/xl ramp is derived from. */
   --radius: 8px;
 
   --font-sans-stack:
@@ -177,6 +197,11 @@
 
   --accent: #1E1F23;
   --accent-foreground: #FAFAFA;
+
+  --selected: #23242A;
+
+  --subtle: #71717A;
+  --disabled: #52525B;
 
   --destructive: #E5484D;
   --destructive-foreground: #FAFAFA;
@@ -255,6 +280,11 @@
 
   --accent: #1E1F23;
   --accent-foreground: #FAFAFA;
+
+  --selected: #23242A;
+
+  --subtle: #71717A;
+  --disabled: #52525B;
 
   --destructive: #E5484D;
   --destructive-foreground: #FAFAFA;

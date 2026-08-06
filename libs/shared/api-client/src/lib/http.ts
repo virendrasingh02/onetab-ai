@@ -19,10 +19,28 @@ let onSessionExpired: (() => void) | null = null;
 
 export function setAccessToken(token: string | null): void {
   accessToken = token;
+  if (token) {
+    try {
+      localStorage.setItem('onetab_auth_token', token);
+    } catch {
+      // ignore
+    }
+  } else {
+    try {
+      localStorage.removeItem('onetab_auth_token');
+    } catch {
+      // ignore
+    }
+  }
 }
 
 export function getAccessToken(): string | null {
-  return accessToken;
+  if (accessToken) return accessToken;
+  try {
+    return localStorage.getItem('onetab_auth_token');
+  } catch {
+    return null;
+  }
 }
 
 export function setSessionExpiredHandler(handler: (() => void) | null): void {

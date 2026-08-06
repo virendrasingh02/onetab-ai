@@ -18,6 +18,9 @@ export const colorTokens = {
   muted: 'var(--muted)',
   mutedForeground: 'var(--muted-foreground)',
   accent: 'var(--accent)',
+  selected: 'var(--selected)',
+  subtle: 'var(--subtle)',
+  disabled: 'var(--disabled)',
   destructive: 'var(--destructive)',
   success: 'var(--success)',
   warning: 'var(--warning)',
@@ -92,12 +95,14 @@ export const zIndex = {
 
 /** Fixed layout rails. Kept in TS because JS measures against them. */
 export const layout = {
-  workspaceRailWidth: 68,
-  sidebarWidth: 260,
+  workspaceRailWidth: 60,
+  sidebarWidth: 240,
   sidebarMinWidth: 200,
   sidebarMaxWidth: 420,
-  headerHeight: 56,
+  headerHeight: 48,
+  toolbarHeight: 40,
   rightPanelWidth: 320,
+  contentMaxWidth: 1600,
 } as const;
 
 /** Tailwind's default breakpoints, for `matchMedia` in JS. */

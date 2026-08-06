@@ -1,9 +1,11 @@
 import {
+  Badge,
   Button,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
   Hint,
+  Progress,
   ScrollArea,
   SkeletonList,
 } from '@org/ui';
@@ -34,15 +36,14 @@ import {
   Workflow,
   BarChart3,
   Bell,
-  Search,
   UserPlus,
-  Zap,
   Clock,
   Inbox,
   Send,
   Share2,
   UploadCloud,
   FileSpreadsheet,
+  MoreHorizontal,
   type LucideIcon,
 } from 'lucide-react';
 import { type ReactNode } from 'react';
@@ -52,108 +53,75 @@ interface NavEntry {
   path: string;
   label: string;
   icon: LucideIcon;
-  tone?: string;
   badge?: string | number;
-  badgeColor?: string;
-  hasChevronRight?: boolean;
   end?: boolean;
 }
 
-const PRIMARY_LINKS: readonly NavEntry[] = [
-  { path: '', label: 'Home', icon: Home, tone: 'text-zinc-700 dark:text-zinc-300', end: true },
-  {
-    path: 'activity',
-    label: 'Unreads',
-    icon: Inbox,
-    tone: 'text-emerald-600 dark:text-emerald-400',
-    badge: '3',
-    badgeColor: 'bg-emerald-600 text-white',
-  },
-  {
-    path: 'threads',
-    label: 'Threads',
-    icon: MessagesSquare,
-    tone: 'text-indigo-600 dark:text-indigo-400',
-  },
-  {
-    path: 'meetings',
-    label: 'Huddles & Calls',
-    icon: Video,
-    tone: 'text-emerald-500',
-  },
-  {
-    path: 'docs',
-    label: 'Drafts & sent',
-    icon: Send,
-    tone: 'text-blue-500',
-  },
-  {
-    path: 'directory',
-    label: 'Directories',
-    icon: Users,
-    tone: 'text-purple-500',
-  },
-  {
-    path: 'dms',
-    label: 'Direct Messages',
-    icon: MessageSquare,
-    tone: 'text-cyan-500',
-  },
-  {
-    path: 'activity',
-    label: 'Activity',
-    icon: Bell,
-    tone: 'text-amber-500',
-    badge: '1',
-    badgeColor: 'bg-blue-600 text-white',
-  },
-  {
-    path: 'files',
-    label: 'Files',
-    icon: HardDrive,
-    tone: 'text-indigo-500',
-  },
+// Most Used / Essential Nav Items (Shown directly)
+const MOST_USED_LINKS: readonly NavEntry[] = [
+  { path: '', label: 'Home', icon: Home, end: true },
+  { path: 'activity', label: 'Unreads', icon: Inbox },
+  { path: 'threads', label: 'Threads', icon: MessagesSquare },
+  { path: 'meetings', label: 'Huddles & Calls', icon: Video },
+  { path: 'dms', label: 'Direct Messages', icon: MessageSquare },
+  { path: 'activity', label: 'Activity', icon: Bell },
 ];
 
-const EXTERNAL_LINKS: readonly NavEntry[] = [
-  { path: 'integrations', label: 'Integration Hub', icon: Share2, tone: 'text-blue-500' },
-  { path: 'integrations/import', label: 'Slack & Notion Import', icon: UploadCloud, tone: 'text-cyan-500' },
+// Secondary Nav Items (Collapsible inside 'More options')
+const SECONDARY_LINKS: readonly NavEntry[] = [
+  { path: 'docs', label: 'Drafts & sent', icon: Send },
+  { path: 'directory', label: 'Directories', icon: Users },
+  { path: 'files', label: 'Files', icon: HardDrive },
+  { path: 'integrations', label: 'Integration Hub', icon: Share2 },
+  {
+    path: 'integrations/import',
+    label: 'Slack & Notion Import',
+    icon: UploadCloud,
+  },
 ];
 
 const WORK_TOOL_LINKS: readonly NavEntry[] = [
-  { path: 'tasks', label: 'Tasks & Kanban', icon: CheckSquare, tone: 'text-blue-500' },
-  { path: 'docs', label: 'Docs & Wiki', icon: FileText, tone: 'text-amber-500' },
-  { path: 'whiteboard', label: 'Whiteboard', icon: Layout, tone: 'text-purple-500' },
-  { path: 'calendar', label: 'Calendar', icon: Calendar, tone: 'text-emerald-500' },
+  { path: 'tasks', label: 'Tasks & Kanban', icon: CheckSquare },
+  { path: 'docs', label: 'Docs & Wiki', icon: FileText },
+  { path: 'whiteboard', label: 'Whiteboard', icon: Layout },
+  { path: 'calendar', label: 'Calendar', icon: Calendar },
 ];
 
 const AI_PLATFORM_LINKS: readonly NavEntry[] = [
-  { path: 'ai-chat', label: 'AI Workspace Chat (Slackbot)', icon: Sparkles, tone: 'text-purple-500' },
-  { path: 'prompts', label: 'Prompt Library', icon: BookOpen, tone: 'text-blue-500' },
-  { path: 'ai-images', label: 'AI Image Generator', icon: Image, tone: 'text-pink-500' },
-  { path: 'agents', label: 'Agent Marketplace', icon: Bot, tone: 'text-emerald-500' },
+  { path: 'ai-chat', label: 'AI Workspace Chat', icon: Sparkles },
+  { path: 'prompts', label: 'Prompt Library', icon: BookOpen },
+  { path: 'ai-images', label: 'AI Image Generator', icon: Image },
+  { path: 'agents', label: 'Agent Marketplace', icon: Bot },
 ];
 
 const AUTOMATION_LINKS: readonly NavEntry[] = [
-  { path: 'automations', label: 'All Workflows', icon: Workflow, tone: 'text-amber-500', end: true },
-  { path: 'automations/builder', label: 'Workflow Builder', icon: Workflow, tone: 'text-blue-500' },
-  { path: 'automations/logs', label: 'Execution Logs', icon: HardDrive, tone: 'text-emerald-500' },
+  { path: 'automations', label: 'All Workflows', icon: Workflow, end: true },
+  { path: 'automations/builder', label: 'Workflow Builder', icon: Workflow },
+  { path: 'automations/logs', label: 'Execution Logs', icon: HardDrive },
 ];
 
 const ANALYTICS_LINKS: readonly NavEntry[] = [
-  { path: 'analytics', label: 'Dashboard', icon: BarChart3, tone: 'text-blue-500', end: true },
-  { path: 'analytics/reports', label: 'Reports', icon: FileSpreadsheet, tone: 'text-cyan-500' },
-  { path: 'analytics/users', label: 'User Analytics', icon: Users, tone: 'text-purple-500' },
-  { path: 'analytics/ai-usage', label: 'AI Usage', icon: Sparkles, tone: 'text-pink-500' },
+  { path: 'analytics', label: 'Dashboard', icon: BarChart3, end: true },
+  { path: 'analytics/reports', label: 'Reports', icon: FileSpreadsheet },
+  { path: 'analytics/users', label: 'User Analytics', icon: Users },
+  { path: 'analytics/ai-usage', label: 'AI Usage', icon: Sparkles },
 ];
 
+/**
+ * One nav row. The active indicator is a 2px pseudo-element rather than a real
+ * border so switching rows never reflows the list by a pixel.
+ */
 function navRowClass(isActive: boolean, extra?: string) {
   return cn(
-    'gap-2.5 py-1.5 px-2.5 text-[13px] flex items-center rounded-lg font-medium transition-colors duration-150 group',
-    'focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:outline-none',
+    'group relative flex items-center gap-2.5 rounded-btn py-1.5 pr-2 pl-3 text-[13px]',
+    'transition-colors duration-(--duration-fast) ease-standard',
+    'outline-none focus-visible:ring-1 focus-visible:ring-ring',
+    'before:absolute before:top-1/2 before:left-0 before:h-4 before:w-0.5',
+    'before:-translate-y-1/2 before:rounded-full before:bg-primary',
+    'before:transition-opacity before:duration-(--duration-fast)',
     isActive
-      ? 'bg-zinc-200/80 text-zinc-900 font-semibold dark:bg-zinc-800 dark:text-zinc-100'
-      : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-100',
+      ? 'bg-selected font-medium text-foreground before:opacity-100'
+      : 'text-muted-foreground hover:bg-accent hover:text-foreground before:opacity-0',
     extra,
   );
 }
@@ -176,20 +144,12 @@ function NavRow({
       end={entry.end}
       className={({ isActive }) => navRowClass(isActive)}
     >
-      <Icon className={cn('size-4 shrink-0', entry.tone)} aria-hidden />
-      <span className="truncate flex-1">{entry.label}</span>
+      <Icon className="size-4 shrink-0" aria-hidden />
+      <span className="flex-1 truncate">{entry.label}</span>
       {entry.badge ? (
-        <span
-          className={cn(
-            'px-1.5 py-0.2 text-[10px] font-bold rounded-full min-w-4 text-center leading-none',
-            entry.badgeColor || 'bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-200',
-          )}
-        >
+        <Badge variant="count" aria-label={`${entry.badge} unread`}>
           {entry.badge}
-        </span>
-      ) : null}
-      {entry.hasChevronRight ? (
-        <ChevronRight className="size-3.5 text-zinc-400 opacity-60 group-hover:opacity-100 transition-opacity ml-auto" />
+        </Badge>
       ) : null}
     </NavLink>
   );
@@ -213,26 +173,31 @@ function Section({
   if (count === 0) return null;
 
   return (
-    <Collapsible defaultOpen={defaultOpen} className="mb-1" asChild>
+    <Collapsible defaultOpen={defaultOpen} className="mt-3 mb-1" asChild>
       <section>
-        <div className="group gap-1 px-2.5 py-1 flex items-center">
-          <CollapsibleTrigger className="group/trigger gap-1 rounded text-xs font-normal flex flex-1 items-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">
+        <div className="group flex select-none items-center gap-1.5 px-3 py-1">
+          <CollapsibleTrigger
+            className={cn(
+              'group/trigger flex flex-1 items-center gap-1.5 rounded-md',
+              'text-[11px] font-medium tracking-wide text-subtle uppercase',
+              'transition-colors duration-(--duration-fast) hover:text-muted-foreground',
+              'outline-none focus-visible:ring-1 focus-visible:ring-ring',
+            )}
+          >
             <ChevronDown
-              className="size-3.5 transition-transform duration-150 group-data-[state=closed]/trigger:-rotate-90 text-zinc-400 shrink-0"
+              className="size-3.5 shrink-0 transition-transform duration-(--duration-fast) group-data-[state=closed]/trigger:-rotate-90"
               aria-hidden
             />
-            <span className="font-semibold text-xs text-zinc-600 dark:text-zinc-300">{title}</span>
+            <span>{title}</span>
             {count === undefined ? null : (
-              <span className="ml-1 text-[11px] font-normal text-zinc-400 dark:text-zinc-500">
-                {count}
-              </span>
+              <span className="text-subtle tabular-nums">{count}</span>
             )}
           </CollapsibleTrigger>
           {action}
         </div>
 
         <CollapsibleContent>
-          <ul className="mt-0.5 space-y-0.5 px-0.5">{children}</ul>
+          <ul className="mt-0.5 space-y-0.5 px-1">{children}</ul>
         </CollapsibleContent>
       </section>
     </Collapsible>
@@ -280,10 +245,10 @@ function ChannelRow({
       <NavLink
         to={`/w/${workspaceSlug}/c/${channel.slug}`}
         className={({ isActive }) =>
-          navRowClass(isActive, cn('pr-8', channel.isArchived && 'opacity-60'))
+          navRowClass(isActive, cn('pr-8', channel.isArchived && 'opacity-65'))
         }
       >
-        <Icon className="size-3.5 shrink-0 text-zinc-400" aria-hidden />
+        <Icon className="size-4 shrink-0" aria-hidden />
         <span className="truncate">{channel.name}</span>
       </NavLink>
 
@@ -298,13 +263,13 @@ function ChannelRow({
             }
             aria-pressed={isFavorite}
             className={cn(
-              'right-1 size-6 absolute top-1/2 -translate-y-1/2 transition-opacity p-0',
+              'absolute top-1/2 right-1.5 size-5 -translate-y-1/2 p-0',
               isFavorite
-                ? 'text-amber-500 opacity-100'
-                : 'text-zinc-400 opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100',
+                ? 'text-warning opacity-100'
+                : 'opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100',
             )}
           >
-            <Star className={cn('size-3', isFavorite && 'fill-current')} />
+            <Star className={cn('size-3.5', isFavorite && 'fill-current')} />
           </Button>
         </Hint>
       ) : null}
@@ -319,7 +284,6 @@ export interface ChannelNavProps {
   isLoading: boolean;
   onCreateChannel: () => void;
   onBrowseChannels: () => void;
-  onOpenSearch?: () => void;
 }
 
 export function ChannelNav({
@@ -329,7 +293,6 @@ export function ChannelNav({
   isLoading,
   onCreateChannel,
   onBrowseChannels,
-  onOpenSearch,
 }: ChannelNavProps) {
   const groups = useGroupedChannels(channels);
   const preferences = useChannelPreferences(workspaceId);
@@ -351,43 +314,58 @@ export function ChannelNav({
   const rowProps = { workspaceSlug, onToggleFavorite: toggleFavorite };
 
   return (
-    <div className="flex flex-col h-full min-h-0">
-      {/* Quick Actions Search Bar */}
-      <div className="px-2 pt-1 pb-2">
-        <button
-          onClick={onOpenSearch}
-          className={cn(
-            'w-full gap-2 px-2.5 py-1.5 text-xs flex items-center justify-between rounded-lg border border-zinc-200/80 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 text-zinc-600 dark:text-zinc-400 shadow-2xs hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors',
-            'focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:outline-none',
-          )}
-        >
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="size-4 rounded flex items-center justify-center text-zinc-500 font-bold text-[11px]">
-              Q
-            </span>
-            <span className="font-medium truncate text-zinc-700 dark:text-zinc-300">Find a conversation...</span>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <kbd className="rounded border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 text-[9px] font-mono font-medium text-zinc-500 dark:text-zinc-400">
-              CTRL K
-            </kbd>
-            <Search className="size-3 text-zinc-400 ml-0.5" />
-            <Zap className="size-3 text-amber-500 fill-amber-500" />
-          </div>
-        </button>
-      </div>
-
-      <ScrollArea className="scrollbar-subtle flex-1 px-1.5">
-        <div className="space-y-1 pb-4">
-          {/* Primary Nav Links */}
+    <div className="flex h-full min-h-0 flex-col">
+      <ScrollArea className="scrollbar-subtle flex-1 px-2 pt-2">
+        <div className="pb-4">
+          {/* Primary Nav Links (Most Used) */}
           <nav aria-label="Primary navigation" className="space-y-0.5">
-            {PRIMARY_LINKS.map((entry) => (
-              <NavRow key={entry.label} entry={entry} workspaceSlug={workspaceSlug} />
+            {MOST_USED_LINKS.map((entry) => (
+              <NavRow
+                key={entry.label}
+                entry={entry}
+                workspaceSlug={workspaceSlug}
+              />
             ))}
+
+            {/* More Options Collapsible Section */}
+            <Collapsible defaultOpen={false} className="space-y-0.5" asChild>
+              <div>
+                <CollapsibleTrigger
+                  className={cn(
+                    'group flex w-full items-center gap-2.5 rounded-btn py-1.5 pr-2 pl-3 text-[13px]',
+                    'text-muted-foreground transition-colors duration-(--duration-fast) ease-standard',
+                    'hover:bg-accent hover:text-foreground',
+                    'outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                  )}
+                >
+                  <MoreHorizontal className="size-4 shrink-0" aria-hidden />
+                  <span className="flex-1 truncate text-left">
+                    More options
+                  </span>
+                  <ChevronRight
+                    className="size-3.5 transition-transform duration-(--duration-fast) group-data-[state=open]:rotate-90"
+                    aria-hidden
+                  />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="my-0.5 ml-3.5 space-y-0.5 border-l border-border pl-2.5">
+                  {SECONDARY_LINKS.map((entry) => (
+                    <NavRow
+                      key={entry.label}
+                      entry={entry}
+                      workspaceSlug={workspaceSlug}
+                    />
+                  ))}
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
           </nav>
 
-          <div className="pt-2 space-y-1 border-t border-zinc-200/60 dark:border-zinc-800/60 mt-2">
-            <Section title="Starred" count={groups.favorites.length} defaultOpen={true}>
+          <div className="mt-3 border-t border-border pt-2">
+            <Section
+              title="Starred"
+              count={groups.favorites.length}
+              defaultOpen={true}
+            >
               {groups.favorites.map((channel) => (
                 <ChannelRow key={channel.id} channel={channel} {...rowProps} />
               ))}
@@ -404,7 +382,7 @@ export function ChannelNav({
                     size="icon-sm"
                     onClick={onCreateChannel}
                     aria-label="Create a channel"
-                    className="size-5 p-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
+                    className="size-5 p-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
                   >
                     <Plus className="size-3.5" />
                   </Button>
@@ -415,13 +393,6 @@ export function ChannelNav({
                 <ChannelRow key={channel.id} channel={channel} {...rowProps} />
               ))}
             </Section>
-
-            <LinkSection
-              title="External connections"
-              links={EXTERNAL_LINKS}
-              workspaceSlug={workspaceSlug}
-              defaultOpen={false}
-            />
 
             <LinkSection
               title="Work Tools"
@@ -455,37 +426,59 @@ export function ChannelNav({
       </ScrollArea>
 
       {/* Sidebar Footer Section */}
-      <div className="p-2.5 border-t border-zinc-200/80 dark:border-zinc-800/80 space-y-2 bg-zinc-50/50 dark:bg-zinc-900/30 shrink-0">
-        {/* Getting started progress pill */}
-        <button className="w-full px-2.5 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 transition-colors flex items-center justify-between text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-          <span>Getting started</span>
-          <span className="text-[11px] font-normal text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 px-1.5 py-0.5 rounded-md border border-zinc-200 dark:border-zinc-700">
-            2/6
-          </span>
-        </button>
+      <div className="shrink-0 space-y-1 border-t border-border p-2">
+        {/*
+          The meter sits beside the button rather than inside it: `<button>`
+          only admits phrasing content, and Progress renders a div.
+        */}
+        <div className="px-3 py-2">
+          <button
+            onClick={onBrowseChannels}
+            className={cn(
+              'flex w-full items-center justify-between gap-2 text-xs',
+              'text-muted-foreground transition-colors duration-(--duration-fast) ease-standard',
+              'hover:text-foreground',
+              'outline-none focus-visible:ring-1 focus-visible:ring-ring',
+            )}
+          >
+            <span>Getting started</span>
+            <span className="text-subtle tabular-nums">2/6</span>
+          </button>
+          {/*
+            The default `surface-inset` track is the same value as the sidebar
+            background, so the trough needs a visible fill of its own here.
+          */}
+          <Progress
+            value={33}
+            size="sm"
+            label="Getting started"
+            className="mt-2 bg-border"
+          />
+        </div>
 
-        {/* Invite team members button */}
         <button
           onClick={onBrowseChannels}
-          className="w-full px-2 py-1 flex items-center gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md transition-colors"
+          className={cn(
+            'flex w-full items-center gap-2.5 rounded-btn px-3 py-1.5 text-xs',
+            'text-muted-foreground transition-colors duration-(--duration-fast) ease-standard',
+            'hover:bg-accent hover:text-foreground',
+            'outline-none focus-visible:ring-1 focus-visible:ring-ring',
+          )}
         >
-          <UserPlus className="size-4 text-zinc-500 shrink-0" />
+          <UserPlus className="size-4 shrink-0" aria-hidden />
           <span>Invite team members</span>
         </button>
 
-        {/* Trial Status Footer */}
-        <div className="flex items-center justify-between pt-1 gap-1">
-          <div className="flex items-center gap-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 min-w-0">
-            <Clock className="size-3.5 shrink-0" />
+        <div className="flex items-center justify-between gap-2 px-3 pt-1">
+          <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-subtle">
+            <Clock className="size-3.5 shrink-0" aria-hidden />
             <span className="truncate">5 days left on trial</span>
-          </div>
-          <button className="px-2.5 py-1 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-2xs shrink-0">
+          </span>
+          <Button size="sm" className="shrink-0">
             Keep Pro
-          </button>
+          </Button>
         </div>
       </div>
     </div>
   );
 }
-
-

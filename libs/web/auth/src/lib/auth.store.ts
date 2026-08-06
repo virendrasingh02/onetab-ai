@@ -22,20 +22,63 @@ interface AuthState {
   clear: () => void;
 }
 
+const getInitialUser = (): CurrentUser | null => {
+  try {
+    const stored = localStorage.getItem('onetab_auth_user');
+    return stored ? (JSON.parse(stored) as CurrentUser) : null;
+  } catch {
+    return null;
+  }
+};
+
+const getInitialToken = (): string | null => {
+  try {
+    return localStorage.getItem('onetab_auth_token');
+  } catch {
+    return null;
+  }
+};
+
+const initialUser = getInitialUser();
+const initialToken = getInitialToken();
+
+if (initialToken) {
+  setAccessToken(initialToken);
+}
+
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  status: 'idle',
+  user: initialUser,
+  status: initialUser && initialToken ? 'authenticated' : 'idle',
 
   setSession: (user, accessToken) => {
+    try {
+      localStorage.setItem('onetab_auth_user', JSON.stringify(user));
+      localStorage.setItem('onetab_auth_token', accessToken);
+    } catch {
+      // ignore storage errors
+    }
     setAccessToken(accessToken);
     set({ user, status: 'authenticated' });
   },
 
-  setUser: (user) => set({ user }),
+  setUser: (user) => {
+    try {
+      localStorage.setItem('onetab_auth_user', JSON.stringify(user));
+    } catch {
+      // ignore storage errors
+    }
+    set({ user });
+  },
 
   setStatus: (status) => set({ status }),
 
   clear: () => {
+    try {
+      localStorage.removeItem('onetab_auth_user');
+      localStorage.removeItem('onetab_auth_token');
+    } catch {
+      // ignore storage errors
+    }
     setAccessToken(null);
     set({ user: null, status: 'anonymous' });
   },

@@ -13,21 +13,26 @@ import {
   TabsTrigger,
   UserAvatar,
 } from '@org/ui';
-import { formatBytes, formatDate, formatRelative } from '@org/utils';
+import { cn, formatBytes, formatDate, formatRelative } from '@org/utils';
 import { ChannelChat } from '@org/web-chat';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Archive,
   ArchiveRestore,
+  AtSign,
+  Bookmark,
   FileText,
   Hash,
+  Headphones,
   Image as ImageIcon,
   Lock,
   MessageSquare,
+  MessagesSquare,
   Pin,
   Star,
   Users,
 } from 'lucide-react';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   useArchiveChannel,
@@ -44,38 +49,38 @@ function ChannelHeader({ channel }: { channel: ChannelSummary }) {
   const preferences = useChannelPreferences(workspaceId);
   const archive = useArchiveChannel(workspaceId);
   const join = useJoinChannel(workspaceId);
+  const members = useChannelMembers(workspaceId, channel.id);
+  const pins = useChannelPins(workspaceId, channel.id);
+  const [inHuddle, setInHuddle] = useState(false);
 
   const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
   const isFavorite = channel.membership?.isFavorite ?? false;
+  const pinCount = pins.data?.length ?? 0;
 
   return (
-    <div className="gap-3 px-6 py-4 flex flex-wrap items-start border-b">
-      <div className="min-w-0 flex-1">
-        <div className="gap-2 flex items-center">
-          <Icon className="size-4 text-muted-foreground" aria-hidden />
-          <h2 className="text-base font-semibold truncate">{channel.name}</h2>
-          {channel.visibility === 'PRIVATE' ? (
-            <Badge variant="neutral">Private</Badge>
-          ) : null}
-          {channel.isArchived ? (
-            <Badge variant="warning">Archived</Badge>
-          ) : null}
-        </div>
-        {channel.topic ? (
-          <p className="mt-1 text-sm truncate text-muted-foreground">
-            {channel.topic}
-          </p>
-        ) : null}
-      </div>
+    <div className="border-b border-border bg-background">
+      {/* Top Header Row */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-2.5">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            <h2 className="truncate text-sm font-medium tracking-tight text-foreground">
+              {channel.name}
+            </h2>
+            {channel.visibility === 'PRIVATE' ? (
+              <Badge variant="neutral">Private</Badge>
+            ) : null}
+            {channel.isArchived ? (
+              <Badge variant="warning">Archived</Badge>
+            ) : null}
+          </div>
 
-      <div className="gap-1.5 flex items-center">
-        {channel.membership ? (
           <Hint
             label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
           >
             <Button
               variant="ghost"
-              size="icon"
+              size="icon-sm"
               aria-pressed={isFavorite}
               aria-label={
                 isFavorite ? 'Remove from favorites' : 'Add to favorites'
@@ -86,37 +91,100 @@ function ChannelHeader({ channel }: { channel: ChannelSummary }) {
                   input: { isFavorite: !isFavorite },
                 })
               }
+              className={isFavorite ? 'text-warning' : undefined}
             >
-              <Star className={isFavorite ? 'fill-warning text-warning' : ''} />
+              <Star className={cn('size-4', isFavorite && 'fill-current')} />
             </Button>
           </Hint>
-        ) : (
-          <Button
-            size="sm"
-            onClick={() => join.mutate(channel.id)}
-            loading={join.isPending}
-          >
-            Join channel
-          </Button>
-        )}
+        </div>
 
-        {channel.membership?.role === 'ADMIN' ? (
-          <Hint label={channel.isArchived ? 'Unarchive' : 'Archive'}>
+        {/* Channel actions: huddle, member stack, membership, admin */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant={inHuddle ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => setInHuddle((val) => !val)}
+            aria-pressed={inHuddle}
+            leadingIcon={<Headphones className="size-4" />}
+          >
+            {inHuddle ? 'In huddle' : 'Start huddle'}
+          </Button>
+
+          {/* Member Stack */}
+          <div className="flex items-center px-1 -space-x-1.5">
+            {members.data?.slice(0, 3).map((m) => (
+              <UserAvatar
+                key={m.id}
+                name={m.user.displayName ?? m.user.name}
+                src={m.user.avatarUrl}
+                seed={m.user.id}
+                size="sm"
+                className="size-6 ring-2 ring-background"
+              />
+            ))}
+            <span className="pl-2 text-xs tabular-nums text-muted-foreground">
+              {channel.memberCount}
+            </span>
+          </div>
+
+          {!channel.membership ? (
             <Button
-              variant="ghost"
-              size="icon"
-              aria-label={channel.isArchived ? 'Unarchive' : 'Archive'}
-              onClick={() =>
-                archive.mutate({
-                  channelId: channel.id,
-                  archived: !channel.isArchived,
-                })
-              }
+              size="sm"
+              onClick={() => join.mutate(channel.id)}
+              loading={join.isPending}
             >
-              {channel.isArchived ? <ArchiveRestore /> : <Archive />}
+              Join channel
             </Button>
-          </Hint>
-        ) : null}
+          ) : null}
+
+          {channel.membership?.role === 'ADMIN' ? (
+            <Hint
+              label={channel.isArchived ? 'Unarchive channel' : 'Archive channel'}
+            >
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={channel.isArchived ? 'Unarchive' : 'Archive'}
+                onClick={() =>
+                  archive.mutate({
+                    channelId: channel.id,
+                    archived: !channel.isArchived,
+                  })
+                }
+              >
+                {channel.isArchived ? (
+                  <ArchiveRestore className="size-4" />
+                ) : (
+                  <Archive className="size-4" />
+                )}
+              </Button>
+            </Hint>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Sub-header: topic and channel shortcuts */}
+      <div className="flex h-10 items-center justify-between gap-4 border-t border-border px-6 text-xs text-muted-foreground">
+        <p className="flex min-w-0 items-center gap-2 truncate">
+          <span className="shrink-0 text-subtle">Topic</span>
+          <span className="truncate">
+            {channel.topic || (
+              <span className="text-subtle">No topic set</span>
+            )}
+          </span>
+        </p>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button variant="ghost" size="sm" leadingIcon={<Pin className="size-3.5" />}>
+            {pinCount} pinned
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            leadingIcon={<Bookmark className="size-3.5" />}
+          >
+            Canvas
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -161,38 +229,66 @@ export function ChannelPage() {
       <ChannelHeader channel={channel} />
 
       <Tabs defaultValue="chat" className="min-h-0 flex flex-1 flex-col">
-        <div className="px-6 pt-3">
+        <div className="border-b border-border bg-background px-6 pt-2">
           <TabsList>
-            <TabsTrigger value="chat">
-              <MessageSquare /> Chat
+            <TabsTrigger value="chat" className="gap-1.5">
+              <MessageSquare className="size-4" /> Messages
+            </TabsTrigger>
+            <TabsTrigger value="threads" className="gap-1.5">
+              <MessagesSquare className="size-4" /> Threads
+            </TabsTrigger>
+            <TabsTrigger value="mentions" className="gap-1.5">
+              <AtSign className="size-4" /> Mentions
             </TabsTrigger>
             <TabsTrigger value="about">About</TabsTrigger>
-            <TabsTrigger value="members">
-              <Users /> Members
+            <TabsTrigger value="members" className="gap-1.5">
+              <Users className="size-4" /> Members
               <Badge variant="neutral">{channel.memberCount}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="files">
-              <FileText /> Files
+            <TabsTrigger value="files" className="gap-1.5">
+              <FileText className="size-4" /> Files
             </TabsTrigger>
-            <TabsTrigger value="media">
-              <ImageIcon /> Media
+            <TabsTrigger value="media" className="gap-1.5">
+              <ImageIcon className="size-4" /> Media
             </TabsTrigger>
-            <TabsTrigger value="pins">
-              <Pin /> Pins
+            <TabsTrigger value="pins" className="gap-1.5">
+              <Pin className="size-4" /> Pins
             </TabsTrigger>
           </TabsList>
         </div>
 
-        {/*
-          The timeline is virtualised and manages its own scrolling, so this
-          tab clips instead of scrolling — a second scroll container would
-          break the stick-to-bottom behaviour.
-        */}
         <TabsContent value="chat" className="min-h-0 overflow-hidden">
           <ChannelChat
             channelId={channel.id}
             title={channel.name}
             subtitle={channel.topic ?? undefined}
+          />
+        </TabsContent>
+
+        {/*
+          Threads and mentions have no query backing them yet. They render an
+          empty state rather than sample content so nothing on screen claims to
+          be a real conversation — wire a hook in and the tab is ready.
+        */}
+        <TabsContent
+          value="threads"
+          className="min-h-0 overflow-y-auto px-6 py-4"
+        >
+          <EmptyState
+            icon={<MessagesSquare />}
+            title="No threads yet"
+            description="Replies to a message are grouped here as threads."
+          />
+        </TabsContent>
+
+        <TabsContent
+          value="mentions"
+          className="min-h-0 overflow-y-auto px-6 py-4"
+        >
+          <EmptyState
+            icon={<AtSign />}
+            title="No mentions"
+            description={`Messages that mention you in #${channel.name} will appear here.`}
           />
         </TabsContent>
 
@@ -350,7 +446,7 @@ export function ChannelPage() {
             ) : (
               <ul className="space-y-2">
                 {pins.data?.map((pin) => (
-                  <li key={pin.id} className="p-3 rounded-lg border">
+                  <li key={pin.id} className="rounded-card border p-3">
                     <p className="text-sm font-medium">{pin.title}</p>
                     {pin.url ? (
                       <a

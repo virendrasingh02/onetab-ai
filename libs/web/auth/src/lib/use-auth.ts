@@ -32,10 +32,21 @@ export function useSessionBootstrap(): void {
     let cancelled = false;
 
     async function restore() {
-      setStatus('authenticating');
+      const savedUser = localStorage.getItem('onetab_auth_user');
+      const savedToken = localStorage.getItem('onetab_auth_token');
+
+      if (savedUser && savedToken) {
+        try {
+          const parsed = JSON.parse(savedUser);
+          if (!cancelled) setSession(parsed, savedToken);
+        } catch {
+          // ignore
+        }
+      } else {
+        setStatus('authenticating');
+      }
+
       try {
-        // 5-second limit so the login page is visible quickly even when the
-        // API hasn't started yet — avoids a 15-second spinner on cold boot.
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 1_500);
         try {
@@ -46,9 +57,14 @@ export function useSessionBootstrap(): void {
           clearTimeout(timer);
         }
       } catch {
-        // No cookie, expired token, API offline, or timeout — a normal first
-        // visit. The user lands on /login as expected.
-        if (!cancelled) clear();
+        // If refresh fails or server is offline, keep the local session if present!
+        if (!cancelled) {
+          if (savedUser && savedToken) {
+            setStatus('authenticated');
+          } else {
+            clear();
+          }
+        }
       }
     }
 

@@ -1,4 +1,5 @@
 import {
+  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -22,6 +23,7 @@ import {
   PanelLeft,
   Plus,
   Sparkles,
+  type LucideIcon,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -29,6 +31,31 @@ export interface WorkspaceSwitcherProps {
   workspaces: WorkspaceSummary[];
   current?: WorkspaceSummary;
 }
+
+interface RailItem {
+  /** Shown under the icon; kept short enough to fit the 60px rail. */
+  label: string;
+  /** Tooltip text, when the label alone is too terse to be clear. */
+  hint?: string;
+  path: string;
+  icon: LucideIcon;
+}
+
+/** Destinations on the far-left rail, in display order. */
+const RAIL_ITEMS: readonly RailItem[] = [
+  { label: 'Home', path: '', icon: Home },
+  { label: 'DMs', hint: 'Direct messages', path: '/dms', icon: MessageSquare },
+  { label: 'Activity', path: '/activity', icon: Bell },
+  { label: 'Files', path: '/files', icon: HardDrive },
+  { label: 'Later', hint: 'Later & bookmarks', path: '/docs', icon: Bookmark },
+];
+
+const railItemClass = cn(
+  'flex size-10 flex-col items-center justify-center rounded-btn text-subtle',
+  'transition-colors duration-(--duration-fast) ease-standard',
+  'hover:bg-accent hover:text-foreground',
+  'outline-none focus-visible:ring-1 focus-visible:ring-ring',
+);
 
 export function WorkspaceSwitcher({
   workspaces,
@@ -39,7 +66,7 @@ export function WorkspaceSwitcher({
   return (
     <nav
       aria-label="Workspaces rail"
-      className="gap-3 py-3 flex w-[60px] shrink-0 flex-col items-center border-r border-zinc-200/80 dark:border-zinc-800 bg-zinc-900 dark:bg-[#09090B] text-white z-20 select-none"
+      className="z-(--z-rail) flex w-15 shrink-0 select-none flex-col items-center gap-3 border-r border-border bg-sidebar py-3"
     >
       {/* Workspace Tiles */}
       <div className="flex flex-col items-center gap-2 w-full px-2">
@@ -51,10 +78,12 @@ export function WorkspaceSwitcher({
                 to={`/w/${workspace.slug}`}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'size-9 text-xs font-bold relative flex items-center justify-center rounded-xl transition-all duration-150 shadow-xs',
+                  'relative flex size-9 items-center justify-center rounded-btn text-xs font-semibold text-primary-foreground',
+                  'transition-opacity duration-(--duration-fast) ease-standard',
+                  'outline-none focus-visible:ring-1 focus-visible:ring-ring',
                   isActive
-                    ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-zinc-900 scale-105'
-                    : 'opacity-70 hover:opacity-100 hover:scale-105',
+                    ? 'opacity-100 ring-2 ring-primary ring-offset-2 ring-offset-sidebar'
+                    : 'opacity-65 hover:opacity-100',
                 )}
                 style={{ backgroundColor: avatarTint(workspace.id) }}
               >
@@ -74,7 +103,12 @@ export function WorkspaceSwitcher({
 
         <Hint label="Create a workspace" side="right">
           <button
-            className="size-9 rounded-xl border border-dashed border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 flex items-center justify-center transition-colors"
+            className={cn(
+              'flex size-9 items-center justify-center rounded-btn border border-dashed border-border text-subtle',
+              'transition-colors duration-(--duration-fast) ease-standard',
+              'hover:border-border-strong hover:text-foreground',
+              'outline-none focus-visible:ring-1 focus-visible:ring-ring',
+            )}
             onClick={() => navigate('/workspaces/new')}
             aria-label="Create a workspace"
           >
@@ -83,67 +117,28 @@ export function WorkspaceSwitcher({
         </Hint>
       </div>
 
-      <div className="w-8 h-px bg-zinc-800 my-1 shrink-0" />
+      <div className="my-1 h-px w-8 shrink-0 bg-border" />
 
-      {/* Rail Nav Items matching Screenshot 2 */}
-      <div className="flex flex-col items-center gap-2 flex-1 w-full px-1 overflow-y-auto no-scrollbar">
-        <Hint label="Home" side="right">
-          <Link
-            to={current ? `/w/${current.slug}` : '/'}
-            className="size-10 rounded-xl flex flex-col items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors group"
-          >
-            <Home className="size-4 shrink-0" />
-            <span className="text-[9px] font-medium mt-0.5 scale-90 leading-none">Home</span>
-          </Link>
-        </Hint>
+      {/* Rail destinations */}
+      <div className="no-scrollbar flex w-full flex-1 flex-col items-center gap-1 overflow-y-auto px-1">
+        {RAIL_ITEMS.map(({ label, hint, icon: Icon, path }) => (
+          <Hint key={label} label={hint ?? label} side="right">
+            <Link
+              to={current ? `/w/${current.slug}${path}` : '/'}
+              className={railItemClass}
+            >
+              <Icon className="size-4 shrink-0" aria-hidden />
+              <span className="mt-0.5 text-[9px] leading-none font-medium">
+                {label}
+              </span>
+            </Link>
+          </Hint>
+        ))}
 
-        <Hint label="Direct Messages" side="right">
-          <Link
-            to={current ? `/w/${current.slug}/dms` : '/'}
-            className="size-10 rounded-xl flex flex-col items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors group"
-          >
-            <MessageSquare className="size-4 shrink-0" />
-            <span className="text-[9px] font-medium mt-0.5 scale-90 leading-none">DMs</span>
-          </Link>
-        </Hint>
-
-        <Hint label="Activity" side="right">
-          <Link
-            to={current ? `/w/${current.slug}/activity` : '/'}
-            className="size-10 rounded-xl relative flex flex-col items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors group"
-          >
-            <Bell className="size-4 shrink-0" />
-            <span className="top-1.5 right-2 size-2 absolute rounded-full bg-rose-500 ring-2 ring-zinc-900" />
-            <span className="text-[9px] font-medium mt-0.5 scale-90 leading-none">Activity</span>
-          </Link>
-        </Hint>
-
-        <Hint label="Files" side="right">
-          <Link
-            to={current ? `/w/${current.slug}/files` : '/'}
-            className="size-10 rounded-xl flex flex-col items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors group"
-          >
-            <HardDrive className="size-4 shrink-0" />
-            <span className="text-[9px] font-medium mt-0.5 scale-90 leading-none">Files</span>
-          </Link>
-        </Hint>
-
-        <Hint label="Later & Bookmarks" side="right">
-          <Link
-            to={current ? `/w/${current.slug}/docs` : '/'}
-            className="size-10 rounded-xl flex flex-col items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors group"
-          >
-            <Bookmark className="size-4 shrink-0" />
-            <span className="text-[9px] font-medium mt-0.5 scale-90 leading-none">Later</span>
-          </Link>
-        </Hint>
-
-        <Hint label="More Options" side="right">
-          <button
-            className="size-10 rounded-xl mt-auto flex flex-col items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors group"
-          >
-            <MoreHorizontal className="size-4 shrink-0" />
-            <span className="text-[9px] font-medium mt-0.5 scale-90 leading-none">More</span>
+        <Hint label="More options" side="right">
+          <button className={cn(railItemClass, 'mt-auto')} aria-label="More options">
+            <MoreHorizontal className="size-4 shrink-0" aria-hidden />
+            <span className="mt-0.5 text-[9px] leading-none font-medium">More</span>
           </button>
         </Hint>
       </div>
@@ -169,14 +164,17 @@ export function WorkspaceMenu({
         <DropdownMenuTrigger asChild>
           <button
             className={cn(
-              'group/trigger gap-2 px-2 py-1.5 flex flex-1 items-center rounded-lg text-left transition-colors duration-150',
-              'hover:bg-black/5 dark:hover:bg-white/5 focus-visible:ring-1 focus-visible:ring-indigo-500 focus-visible:outline-none',
+              'group/trigger flex flex-1 items-center gap-2 rounded-btn px-2 py-1.5 text-left',
+              'transition-colors duration-(--duration-fast) ease-standard hover:bg-accent',
+              'outline-none focus-visible:ring-1 focus-visible:ring-ring',
             )}
           >
             <div
-              className="size-6 rounded-md text-[11px] font-bold text-white flex shrink-0 items-center justify-center shadow-xs bg-gradient-to-br from-indigo-500 to-purple-600"
+              className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary text-[11px] font-semibold text-primary-foreground"
               style={{
-                backgroundColor: current.avatarUrl ? undefined : avatarTint(current.id),
+                backgroundColor: current.avatarUrl
+                  ? undefined
+                  : avatarTint(current.id),
               }}
             >
               {current.avatarUrl ? (
@@ -190,21 +188,20 @@ export function WorkspaceMenu({
               )}
             </div>
 
-            <span className="min-w-0 flex-1 flex items-center gap-1.5">
-              <span className="text-sm font-semibold truncate text-zinc-900 dark:text-zinc-100 tracking-tight">
+            <span className="flex min-w-0 flex-1 items-center gap-1.5">
+              <span className="truncate text-[13px] font-medium tracking-tight text-foreground">
                 {current.name}
               </span>
-              <ChevronDown className="size-3.5 text-zinc-400 dark:text-zinc-500 shrink-0 group-hover/trigger:text-zinc-600 dark:group-hover/trigger:text-zinc-300 transition-colors" />
+              <ChevronDown
+                className="size-3.5 shrink-0 text-subtle transition-colors duration-(--duration-fast) group-hover/trigger:text-foreground"
+                aria-hidden
+              />
             </span>
           </button>
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent
-          align="start"
-          sideOffset={6}
-          className="w-64 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1.5 shadow-lg z-50"
-        >
-          <DropdownMenuLabel className="px-2 py-1 text-[11px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+        <DropdownMenuContent align="start" sideOffset={6} className="w-64 p-1.5">
+          <DropdownMenuLabel className="px-2 py-1 text-[11px] font-medium tracking-wide text-subtle uppercase">
             Switch workspace
           </DropdownMenuLabel>
           <div className="space-y-0.5 my-1">
@@ -215,28 +212,29 @@ export function WorkspaceMenu({
                   key={workspace.id}
                   asChild
                   className={cn(
-                    'px-2 py-1.5 rounded-md text-xs cursor-pointer flex items-center gap-2.5 transition-colors',
-                    isSelected
-                      ? 'bg-zinc-100 dark:bg-zinc-800/80 font-medium text-zinc-900 dark:text-zinc-100'
-                      : 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/40',
+                    'flex cursor-pointer items-center gap-2.5 text-xs',
+                    isSelected && 'bg-selected font-medium text-foreground',
                   )}
                 >
                   <Link to={`/w/${workspace.slug}`}>
                     <span
                       aria-hidden
-                      className="size-5 rounded-md font-semibold text-white flex items-center justify-center text-[10px] shrink-0"
+                      className="flex size-5 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold text-primary-foreground"
                       style={{ backgroundColor: avatarTint(workspace.id) }}
                     >
                       {initials(workspace.name)}
                     </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium">{workspace.name}</div>
-                      <div className="text-[10px] text-zinc-400 dark:text-zinc-500 truncate">
-                        {workspace.memberCount} member{workspace.memberCount === 1 ? '' : 's'}
-                      </div>
-                    </div>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">
+                        {workspace.name}
+                      </span>
+                      <span className="block truncate text-[10px] text-subtle">
+                        {workspace.memberCount} member
+                        {workspace.memberCount === 1 ? '' : 's'}
+                      </span>
+                    </span>
                     {isSelected ? (
-                      <Check className="size-4 text-indigo-600 dark:text-indigo-400 ml-auto shrink-0" />
+                      <Check className="ml-auto size-4 shrink-0 text-primary" />
                     ) : null}
                   </Link>
                 </DropdownMenuItem>
@@ -244,16 +242,16 @@ export function WorkspaceMenu({
             })}
           </div>
 
-          <DropdownMenuSeparator className="my-1 bg-zinc-200 dark:bg-zinc-800" />
-          
+          <DropdownMenuSeparator className="my-1" />
+
           <DropdownMenuItem
             asChild
-            className="px-2 py-1.5 rounded-md text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer flex items-center gap-2"
+            className="flex cursor-pointer items-center gap-2 text-xs"
           >
             <Link to="/workspaces/new">
-              <div className="size-5 rounded-md border border-dashed border-zinc-300 dark:border-zinc-700 flex items-center justify-center text-zinc-500">
+              <span className="flex size-5 items-center justify-center rounded-md border border-dashed border-border text-subtle">
                 <Plus className="size-3.5" />
-              </div>
+              </span>
               <span className="font-medium">Create a workspace</span>
             </Link>
           </DropdownMenuItem>
@@ -262,13 +260,14 @@ export function WorkspaceMenu({
 
       {onToggleSidebar ? (
         <Hint label="Toggle sidebar" side="right">
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={onToggleSidebar}
-            className="p-1.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-md hover:bg-black/5 dark:hover:bg-white/5 transition-colors focus-visible:outline-none"
             aria-label="Toggle sidebar"
           >
             <PanelLeft className="size-4" />
-          </button>
+          </Button>
         </Hint>
       ) : null}
     </div>
