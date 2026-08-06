@@ -1,4 +1,15 @@
-export { KanbanBoard, type TaskItem } from './lib/KanbanBoard.js';
+export {
+  KanbanBoard,
+  type BoardLabel,
+  type BoardMember,
+  type BoardState,
+  type CardComment,
+  type ChecklistItem,
+  type KanbanCard,
+  type KanbanList,
+  type Priority,
+  type TaskItem,
+} from './lib/KanbanBoard.js';
 export { DocumentEditor } from './lib/DocumentEditor.js';
 export { WhiteboardCanvas, type CanvasNode } from './lib/WhiteboardCanvas.js';
 export { CalendarView, type EventItem } from './lib/CalendarView.js';
