@@ -1,0 +1,39 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@org/design-system/styles/theme.css';
+
+/*
+ * Tailwind v4 auto-detects sources relative to this file, which stops at the
+ * app boundary. `@org/ui` lives outside it, so its class usage has to be
+ * registered explicitly or every utility the shared components rely on is
+ * tree-shaken out of the popup bundle.
+ */
+@source '../../../libs/shared/ui/src';
+@source '../../../libs/shared/design-system/src';
+
+/*
+ * `theme.css` already carries the dark palette on `:root`, so the popup needs
+ * no `ThemeProvider` — declaring the colour scheme is enough to stop Chrome
+ * painting a white frame and light scrollbars around it.
+ */
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  margin: 0;
+  /*
+   * Chrome sizes the popup to its content. Without an explicit width the first
+   * paint is a ~30px sliver that snaps wide once React mounts.
+   */
+  width: 360px;
+  overflow-x: hidden;
+  background: var(--background);
+}
+
+/* Chrome caps popups at 600px; scrolling past that beats being clipped. */
+body {
+  max-height: 580px;
+  overflow-y: auto;
+}

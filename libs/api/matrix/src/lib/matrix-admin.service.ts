@@ -50,6 +50,17 @@ export class MatrixAdminService {
     return this.config.serverName;
   }
 
+  /**
+   * The homeserver's base URL, as the browser should dial it.
+   *
+   * Exposed because it cannot be derived from `serverName`: the server name is
+   * a Matrix identity (`localhost`, `matrix.onetab.ai`) while this is a
+   * transport address that carries a scheme and, in development, a port.
+   */
+  get homeserverUrl(): string {
+    return this.config.homeserverUrl;
+  }
+
   matrixUserIdFor(userId: string): string {
     return toMatrixUserId(toMatrixLocalpart(userId), this.config.serverName);
   }

@@ -1,0 +1,51 @@
+# Application service registration for local development ONLY.
+#
+# Tokens here must match `MATRIX_AS_TOKEN` / `MATRIX_HS_TOKEN` in the repository
+# root `.env`. They are committed deliberately — see README.md.
+
+id: onetab-ai-dev
+
+# Where Synapse pushes event transactions. Resolved from *inside* the
+# container, so it cannot be `localhost` — that would be Synapse itself.
+# `host.docker.internal` is the host, and the compose file adds the
+# `host-gateway` mapping that makes it resolvable on Linux too.
+#
+# The path is the API's global prefix + URI version + controller path:
+# Synapse appends `/transactions/{txnId}` to it.
+url: 'http://host.docker.internal:3000/api/v1/matrix/appservice'
+
+# Our token, sent to Synapse. `MatrixAdminService` authenticates with this.
+as_token: '21d3205d5b3f34f61adf8933ce22475096fd194643a6a871fef231422e3a7402'
+
+# Synapse's token, sent to us. `MatrixAppserviceController` compares it.
+hs_token: '5f19c90a17d33dc34ba0c041f7fb07c74c36ef6f90a96af001571bf1577dd584'
+
+# The identity the appservice acts as when it does not masquerade. This is the
+# user `scripts/matrix-dev-setup.mjs` promotes to server admin, which is what
+# makes `/_synapse/admin/v1/users/.../login` work with `as_token`.
+sender_localpart: onetab
+
+namespaces:
+  users:
+    # Matches `toMatrixLocalpart()` in `libs/api/matrix/src/lib/matrix.config.ts`,
+    # which prefixes our cuid user ids with `onetab_`. Exclusive, so no human
+    # can register a colliding account.
+    - exclusive: true
+      regex: '@onetab_.*:localhost'
+    # The sender itself, so Synapse creates it on startup.
+    - exclusive: true
+      regex: '@onetab:localhost'
+  aliases:
+    - exclusive: false
+      regex: '#onetab_.*:localhost'
+  rooms: []
+
+# The appservice provisions in bursts (a workspace's channels at once) and is
+# trusted, so it is exempt from the message/invite limits.
+rate_limited: false
+
+# Typing, receipts and presence are ephemeral events. Without this Synapse
+# only forwards timeline events and the presence/receipt features in
+# @org/matrix-client stay dark.
+de.sorunome.msc2409.push_ephemeral: true
+receive_ephemeral: true

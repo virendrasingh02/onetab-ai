@@ -2,6 +2,9 @@
 
 # compiled output
 dist
+# Declarations from `typecheck`, kept out of `dist` so the two do not clobber
+# each other where `dist` is a bundle rather than tsc output.
+dist-types
 tmp
 out-tsc
 

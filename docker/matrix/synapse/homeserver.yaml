@@ -1,0 +1,125 @@
+# Synapse configuration for local development ONLY.
+#
+# Every secret in this file is committed on purpose: it is a throwaway
+# homeserver that listens on localhost and holds no real data. See README.md.
+#
+# The values here must stay in step with the MATRIX_* block in the repository
+# root `.env` — `MATRIX_SERVER_NAME` with `server_name`, and
+# `MATRIX_REGISTRATION_SHARED_SECRET` with `registration_shared_secret`.
+
+server_name: 'localhost'
+public_baseurl: 'http://localhost:8008/'
+pid_file: /data/homeserver.pid
+
+listeners:
+  - port: 8008
+    tls: false
+    type: http
+    # Synapse sits behind nothing in development, so it binds directly and
+    # must not trust an X-Forwarded-For it will never receive.
+    x_forwarded: false
+    bind_addresses: ['0.0.0.0']
+    resources:
+      - names: [client, federation]
+        compress: false
+
+# SQLite is enough for a single-developer homeserver and keeps the container
+# self-contained — no second Postgres to start before chat works.
+database:
+  name: sqlite3
+  args:
+    database: /data/homeserver.db
+
+log_config: '/data/log.config'
+media_store_path: /data/media_store
+signing_key_path: '/data/signing.key'
+
+# Federation is off: this server name is `localhost`, which no other homeserver
+# can resolve, and leaving it open would only produce noisy retry logs.
+federation_domain_whitelist: []
+
+trusted_key_servers: []
+suppress_key_server_warning: true
+
+report_stats: false
+
+# --- Provisioning ------------------------------------------------------------
+#
+# Open registration stays off. Accounts are created by the API through the
+# shared-secret admin endpoint, which is the same path production uses, so the
+# provisioning code is exercised locally rather than bypassed.
+enable_registration: false
+registration_shared_secret: '81bab9bb86aa42c20f5614b916f82d1df74864e52de6aa3b'
+
+app_service_config_files:
+  - /data/dev-appservice.yaml
+
+# --- Development ergonomics --------------------------------------------------
+#
+# Synapse's default rate limits are tuned for a public server. Provisioning a
+# workspace creates a burst of users, rooms and invites in a few seconds, which
+# trips them and surfaces as a 429 from `MatrixAdminService`. Raised, not
+# disabled, so the retry path stays reachable if something genuinely loops.
+rc_message:
+  per_second: 1000
+  burst_count: 1000
+
+rc_registration:
+  per_second: 1000
+  burst_count: 1000
+
+rc_login:
+  address:
+    per_second: 1000
+    burst_count: 1000
+  account:
+    per_second: 1000
+    burst_count: 1000
+  failed_attempts:
+    per_second: 1000
+    burst_count: 1000
+
+rc_admin_redaction:
+  per_second: 1000
+  burst_count: 1000
+
+rc_joins:
+  local:
+    per_second: 1000
+    burst_count: 1000
+  remote:
+    per_second: 1000
+    burst_count: 1000
+
+rc_invites:
+  per_room:
+    per_second: 1000
+    burst_count: 1000
+  per_user:
+    per_second: 1000
+    burst_count: 1000
+
+rc_3pid_validation:
+  per_second: 1000
+  burst_count: 1000
+
+# `MatrixAdminService.createLoginToken` calls the admin login API, which mints
+# a token the browser exchanges immediately. One minute is the window the API
+# asks for; this is the ceiling Synapse will allow it.
+session_lifetime: 24h
+
+# End-to-end encryption is on for private channels, so new devices need the
+# key backup and cross-signing endpoints available.
+encryption_enabled_by_default_for_room_type: 'off'
+
+experimental_features:
+  # MSC3245 voice messages — `sendFile` in @org/matrix-client sends these.
+  msc3245_enabled: true
+
+# The push gateway is our own API. Synapse resolves it from inside the
+# container, so it goes through the Docker host gateway rather than localhost.
+push:
+  include_content: true
+
+# Media limits generous enough to exercise the upload path without tuning.
+max_upload_size: 100M

@@ -63,25 +63,57 @@ services:
       start_period: 5s
 
   # --- Matrix Homeserver (Synapse) ------------------------------------------
+  #
+  # Configuration lives in `./matrix/synapse/` and is shared with
+  # `./matrix/docker-compose.yml`, which starts the same container by itself.
+  # Synapse will not boot without a signing key and will not create one on
+  # demand, hence the one-shot init below.
+  matrix-init:
+    container_name: onetab-matrix-init
+    image: matrixdotorg/synapse:latest
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "python -m synapse.app.homeserver
+        --server-name localhost
+        --config-path /data/homeserver.yaml
+        --report-stats no
+        --generate-keys"
+    volumes:
+      - synapse_data:/data
+      - ./matrix/synapse/homeserver.yaml:/data/homeserver.yaml:ro
+      - ./matrix/synapse/dev-appservice.yaml:/data/dev-appservice.yaml:ro
+      - ./matrix/synapse/log.config:/data/log.config:ro
+    networks:
+      - onetab-network
+    restart: "no"
+
   matrix:
     container_name: onetab-matrix
     image: matrixdotorg/synapse:latest
     restart: unless-stopped
+    depends_on:
+      matrix-init:
+        condition: service_completed_successfully
     environment:
-      SYNAPSE_SERVER_NAME: ${MATRIX_SERVER_NAME:-localhost}
-      SYNAPSE_REPORT_STATS: "no"
+      SYNAPSE_CONFIG_PATH: /data/homeserver.yaml
     ports:
       - "${MATRIX_PORT:-8008}:8008"
     volumes:
       - synapse_data:/data
+      - ./matrix/synapse/homeserver.yaml:/data/homeserver.yaml:ro
+      - ./matrix/synapse/dev-appservice.yaml:/data/dev-appservice.yaml:ro
+      - ./matrix/synapse/log.config:/data/log.config:ro
+    extra_hosts:
+      # The appservice posts event transactions to the API on the host.
+      - "host.docker.internal:host-gateway"
     networks:
       - onetab-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8008/_matrix/client/versions || exit 1"]
-      interval: 15s
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8008/_matrix/client/versions || exit 1"]
+      interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 15s
+      retries: 10
+      start_period: 20s
 
   # --- MinIO (Object Storage) -----------------------------------------------
   minio:

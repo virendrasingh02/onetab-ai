@@ -1,0 +1,84 @@
+# Standalone Synapse for local development.
+#
+# This is the file the MATRIX_* block in the repository root `.env` points at,
+# and the one `npm run matrix:start` runs. It brings up *only* the homeserver,
+# so chat can be worked on without the full infrastructure stack.
+#
+# It intentionally shares `container_name` and the `synapse_data` volume with
+# the `matrix` service in `../docker-compose.yml`: they are two ways to start
+# the same homeserver, not two homeservers. Run one or the other.
+
+networks:
+  onetab-network:
+    driver: bridge
+    name: onetab-network
+
+volumes:
+  synapse_data:
+    name: onetab_synapse_data
+
+services:
+  # --- One-shot key generation ----------------------------------------------
+  #
+  # Synapse refuses to start without a signing key and will not create one on
+  # demand. `--generate-keys` writes only the missing key files and leaves the
+  # config in place — plain `generate` would overwrite our homeserver.yaml.
+  matrix-init:
+    container_name: onetab-matrix-init
+    image: matrixdotorg/synapse:latest
+    entrypoint: ['/bin/sh', '-c']
+    command: >
+      "python -m synapse.app.homeserver
+        --server-name localhost
+        --config-path /data/homeserver.yaml
+        --report-stats no
+        --generate-keys"
+    environment:
+      SYNAPSE_SERVER_NAME: localhost
+      SYNAPSE_REPORT_STATS: 'no'
+    volumes:
+      - synapse_data:/data
+      - ./synapse/homeserver.yaml:/data/homeserver.yaml:ro
+      - ./synapse/dev-appservice.yaml:/data/dev-appservice.yaml:ro
+      - ./synapse/log.config:/data/log.config:ro
+    networks:
+      - onetab-network
+    restart: 'no'
+
+  # --- Homeserver -----------------------------------------------------------
+  matrix:
+    container_name: onetab-matrix
+    image: matrixdotorg/synapse:latest
+    restart: unless-stopped
+    depends_on:
+      matrix-init:
+        condition: service_completed_successfully
+    environment:
+      SYNAPSE_CONFIG_PATH: /data/homeserver.yaml
+    ports:
+      - '${MATRIX_PORT:-8008}:8008'
+    volumes:
+      # State (signing key, SQLite database, media) lives in the volume; the
+      # three config files are bind-mounted read-only so they stay versioned
+      # and a `docker compose down -v` cannot take them with it.
+      - synapse_data:/data
+      - ./synapse/homeserver.yaml:/data/homeserver.yaml:ro
+      - ./synapse/dev-appservice.yaml:/data/dev-appservice.yaml:ro
+      - ./synapse/log.config:/data/log.config:ro
+    extra_hosts:
+      # `dev-appservice.yaml` posts transactions to the API on the host. Docker
+      # Desktop provides this name already; the mapping is what makes it
+      # resolve on Linux too.
+      - 'host.docker.internal:host-gateway'
+    networks:
+      - onetab-network
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'curl -fsS http://localhost:8008/_matrix/client/versions || exit 1',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s

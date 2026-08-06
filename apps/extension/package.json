@@ -2,7 +2,13 @@
   "name": "@org/extension",
   "version": "0.0.1",
   "private": true,
+  "type": "module",
   "dependencies": {
+    "@org/design-system": "*",
+    "@org/types": "*",
+    "@org/ui": "*",
+    "@org/utils": "*",
+    "@org/validation": "*",
     "lucide-react": "^1.28.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -11,6 +17,45 @@
     "tags": [
       "type:app",
       "scope:extension"
-    ]
+    ],
+    "targets": {
+      "build": {
+        "executor": "nx:run-commands",
+        "cache": true,
+        "dependsOn": [
+          "^build",
+          "icons"
+        ],
+        "inputs": [
+          "production",
+          "^production"
+        ],
+        "outputs": [
+          "{projectRoot}/dist"
+        ],
+        "options": {
+          "cwd": "apps/extension",
+          "parallel": false,
+          "commands": [
+            "vite build",
+            "vite build --config vite.content.config.mts --mode ai-anywhere",
+            "vite build --config vite.content.config.mts --mode session-bridge"
+          ]
+        }
+      },
+      "icons": {
+        "executor": "nx:run-commands",
+        "cache": true,
+        "inputs": [
+          "{workspaceRoot}/scripts/generate-extension-icons.mjs"
+        ],
+        "outputs": [
+          "{projectRoot}/public/icons"
+        ],
+        "options": {
+          "command": "node scripts/generate-extension-icons.mjs"
+        }
+      }
+    }
   }
 }

@@ -66,9 +66,12 @@ export class MatrixAuthService {
     const loginToken = await this.admin.createLoginToken(matrixUserId);
 
     return {
-      homeserverUrl: this.admin.serverName
-        ? `https://${this.admin.serverName}`
-        : '',
+      // The configured URL, not one derived from the server name: those are
+      // different things. `MATRIX_SERVER_NAME` is the Matrix identity that
+      // appears in user and room ids, while the client needs a dialable
+      // address — locally `http://localhost:8008`, which no amount of
+      // string-building from `localhost` will produce.
+      homeserverUrl: this.admin.homeserverUrl,
       matrixUserId,
       loginToken,
     };

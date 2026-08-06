@@ -25,6 +25,21 @@ npm run db:generate           # generate the Prisma client
 npm run dev                   # API on :3000, web on :4200
 ```
 
+For chat, add a homeserver — `npm run start:chat` does all three:
+
+```sh
+npm run matrix:start          # throwaway Synapse on :8008
+npm run matrix:setup          # grant the appservice sender admin rights
+npm run dev
+```
+
+`matrix:setup` is required, not a convenience: minting the browser's login token
+goes through Synapse's admin API, which checks *server admin* rights rather than
+appservice rights, so without it `POST /matrix/session` returns 502. See
+[docker/matrix/README.md](docker/matrix/README.md). Set `MATRIX_ENABLED="false"`
+to run without a homeserver — the app is fully functional and reports chat as
+unavailable.
+
 | App   | URL                            |
 | ----- | ------------------------------ |
 | web   | `http://localhost:4200`        |
@@ -91,6 +106,8 @@ Projects are tagged and the rules are enforced by
 | `npm run graph`      | interactive project graph                  |
 | `npm run db:migrate` | create and apply a migration               |
 | `npm run db:studio`  | Prisma Studio                              |
+| `npm run start:chat` | Synapse + admin grant + API and web        |
+| `npm run matrix:*`   | `start`, `setup`, `logs`, `stop`, `reset`  |
 
 ---
 
@@ -146,8 +163,14 @@ cannot quietly couple the app to `matrix-js-sdk`. The
 browser never holds a Matrix password: it exchanges our session for a single-use
 login token via `POST /matrix/session`. Our database stores workspace metadata,
 preferences, pins and activity; message content is not duplicated. Chat is
-optional — with `MATRIX_ENABLED=false` (the default) the app runs unchanged and
-reports chat as unavailable.
+optional — with `MATRIX_ENABLED=false` the app runs unchanged and reports chat
+as unavailable.
+
+The homeserver URL handed to the browser is the configured
+`MATRIX_HOMESERVER_URL`, not one derived from `MATRIX_SERVER_NAME`. The two are
+different things — the server name is the Matrix identity inside user and room
+ids (`localhost`), while the client needs a dialable address that carries a
+scheme and, locally, a port (`http://localhost:8008`).
 
 ---
 

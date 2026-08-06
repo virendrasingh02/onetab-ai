@@ -2,20 +2,57 @@
   "manifest_version": 3,
   "name": "OneTab AI — Browser Assistant & Capture",
   "version": "1.0.0",
-  "description": "AI Anywhere floating prompt, text summarizer, and quick workspace capture.",
-  "permissions": [
-    "activeTab",
-    "storage",
-    "contextMenus"
+  "description": "Ask AI about any page, summarise a selection, and save pages straight into a OneTab AI channel.",
+  "minimum_chrome_version": "116",
+  "permissions": ["storage", "contextMenus", "tabs"],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "http://localhost:3001/*",
+    "http://localhost:3002/*",
+    "http://localhost:3003/*",
+    "http://localhost:3004/*",
+    "http://localhost:3005/*",
+    "http://localhost:3006/*",
+    "http://localhost:3007/*",
+    "http://localhost:3008/*",
+    "http://localhost:3009/*"
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "OneTab AI Assistant"
+    "default_title": "OneTab AI Assistant",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"]
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content/ai-anywhere.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://localhost:4200/*", "http://localhost:4201/*"],
+      "js": ["content/session-bridge.js"],
+      "run_at": "document_idle"
     }
-  ]
+  ],
+  "commands": {
+    "open-popup": {
+      "suggested_key": { "default": "Ctrl+Shift+O", "mac": "Command+Shift+O" },
+      "description": "Open the OneTab AI assistant"
+    }
+  }
 }

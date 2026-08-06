@@ -33,8 +33,15 @@
     "infra:restart": "npm run infra:stop && npm run infra:start",
     "infra:logs": "docker compose -f docker/docker-compose.yml -f docker/docker-compose.override.yml logs -f",
     "infra:clean": "docker compose -f docker/docker-compose.yml -f docker/docker-compose.override.yml down -v",
+    "matrix:start": "docker compose -f docker/matrix/docker-compose.yml up -d",
+    "matrix:setup": "node scripts/matrix-dev-setup.mjs",
+    "matrix:stop": "docker compose -f docker/matrix/docker-compose.yml down",
+    "matrix:restart": "npm run matrix:stop && npm run matrix:start",
+    "matrix:logs": "docker compose -f docker/matrix/docker-compose.yml logs -f matrix",
+    "matrix:reset": "docker compose -f docker/matrix/docker-compose.yml down -v",
     "start:dev": "npm run infra:start && npm run dev",
-    "start:full": "npm run infra:start && npm run dev:all"
+    "start:full": "npm run infra:start && npm run dev:all",
+    "start:chat": "npm run matrix:start && npm run matrix:setup && npm run dev"
   },
   "private": true,
   "devDependencies": {
@@ -62,6 +69,7 @@
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.3",
     "@types/bcrypt": "^6.0.0",
+    "@types/chrome": "^0.2.5",
     "@types/cookie-parser": "^1.4.10",
     "@types/node": "^24.0.0",
     "@types/passport-jwt": "^4.0.1",
@@ -73,6 +81,7 @@
     "commitlint": "^21.2.1",
     "concurrently": "^9.1.2",
     "dotenv": "^16.4.7",
+    "electron": "^43.3.0",
     "eslint": "^10.8.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.9.0",

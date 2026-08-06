@@ -1,13 +1,25 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "dist",
+    // Not `dist`: that is the extension bundle Chrome loads, and the typecheck
+    // target emits declarations. Sharing the directory means one wipes the
+    // other depending on which ran last.
+    "outDir": "dist-types",
     "jsx": "react-jsx",
-    "lib": ["dom", "esnext"],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "module": "esnext",
     "moduleResolution": "bundler",
     "rootDir": "src",
-    "types": ["node"]
+    // `chrome` is an ambient global here rather than an import; `vite/client`
+    // supplies the module declaration that `import './styles.css'` needs.
+    "types": ["chrome", "node", "vite/client"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"]
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "references": [
+    { "path": "../../libs/shared/design-system" },
+    { "path": "../../libs/shared/types" },
+    { "path": "../../libs/shared/ui" },
+    { "path": "../../libs/shared/utils" },
+    { "path": "../../libs/shared/validation" }
+  ]
 }
