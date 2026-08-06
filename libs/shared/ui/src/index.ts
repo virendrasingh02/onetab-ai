@@ -92,6 +92,12 @@ export {
 } from './lib/components/dropdown-menu.js';
 
 export {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from './lib/components/collapsible.js';
+
+export {
   Hint,
   Tooltip,
   TooltipContent,

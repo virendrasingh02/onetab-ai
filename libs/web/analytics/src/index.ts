@@ -1,3 +1,4 @@
+export { AnalyticsLayout, ANALYTICS_TABS } from './lib/AnalyticsLayout.js';
 export { AnalyticsDashboardView } from './lib/AnalyticsDashboardView.js';
 export { ReportsView } from './lib/ReportsView.js';
 export { UserAnalyticsView } from './lib/UserAnalyticsView.js';

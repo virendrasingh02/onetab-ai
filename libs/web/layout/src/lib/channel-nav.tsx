@@ -1,14 +1,32 @@
-import { Button, Hint, ScrollArea, SkeletonList } from '@org/ui';
+import {
+  Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Hint,
+  ScrollArea,
+  SkeletonList,
+} from '@org/ui';
 import type { ChannelSummary } from '@org/types';
 import { cn } from '@org/utils';
 import { useChannelPreferences, useGroupedChannels } from '@org/web-channels';
 import {
   ChevronDown,
   Hash,
+  Home,
   Lock,
+  MessageSquare,
+  MessagesSquare,
   Plus,
   Star,
   Users,
+  Video,
   CheckSquare,
   FileText,
   Layout,
@@ -26,24 +44,169 @@ import {
   UploadCloud,
   BarChart3,
   FileSpreadsheet,
+  type LucideIcon,
 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
+import { type ReactNode } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+
+interface NavEntry {
+  /** Workspace-relative path, e.g. `files` or `agents/builder`. */
+  path: string;
+  label: string;
+  icon: LucideIcon;
+  /** Accent utility for the icon, so groups stay scannable by colour. */
+  tone: string;
+  /** Match the path exactly — for links that are a parent of other routes. */
+  end?: boolean;
+}
 
 /**
- * The workspace-scoped analytics screens, data-driven rather than six copies
- * of the same NavLink.
+ * The everyday destinations, pinned above the channel list.
+ *
+ * These are the screens people reach for without thinking about which
+ * "platform" they belong to, so they sit ungrouped at the very top.
+ */
+const PRIMARY_LINKS: readonly NavEntry[] = [
+  { path: '', label: 'Home', icon: Home, tone: 'text-accent-blue', end: true },
+  {
+    path: 'ai-chat',
+    label: 'AI Chat',
+    icon: Sparkles,
+    tone: 'text-accent-violet',
+  },
+  {
+    path: 'dms',
+    label: 'Direct Messages',
+    icon: MessageSquare,
+    tone: 'text-accent-cyan',
+  },
+  { path: 'activity', label: 'Activity', icon: Activity, tone: 'text-destructive' },
+  { path: 'files', label: 'Files', icon: HardDrive, tone: 'text-accent-indigo' },
+  { path: 'directory', label: 'Directory', icon: Users, tone: 'text-accent-pink' },
+  {
+    path: 'threads',
+    label: 'Threads',
+    icon: MessagesSquare,
+    tone: 'text-warning',
+  },
+  { path: 'meetings', label: 'Meetings', icon: Video, tone: 'text-success' },
+];
+
+const WORK_TOOL_LINKS: readonly NavEntry[] = [
+  {
+    path: 'tasks',
+    label: 'Tasks & Kanban',
+    icon: CheckSquare,
+    tone: 'text-accent-blue',
+  },
+  { path: 'docs', label: 'Docs & Wiki', icon: FileText, tone: 'text-warning' },
+  {
+    path: 'whiteboard',
+    label: 'Whiteboard',
+    icon: Layout,
+    tone: 'text-accent-violet',
+  },
+  { path: 'calendar', label: 'Calendar', icon: Calendar, tone: 'text-success' },
+];
+
+const AI_PLATFORM_LINKS: readonly NavEntry[] = [
+  {
+    path: 'ai-chat',
+    label: 'AI Workspace Chat',
+    icon: Sparkles,
+    tone: 'text-accent-violet',
+  },
+  {
+    path: 'prompts',
+    label: 'Prompt Library',
+    icon: BookOpen,
+    tone: 'text-accent-blue',
+  },
+  {
+    path: 'ai-images',
+    label: 'AI Image Generator',
+    icon: Image,
+    tone: 'text-accent-pink',
+  },
+];
+
+const AGENT_LINKS: readonly NavEntry[] = [
+  {
+    path: 'agents',
+    label: 'Agent Marketplace',
+    icon: Bot,
+    tone: 'text-success',
+    end: true,
+  },
+  {
+    path: 'agents/builder',
+    label: 'Agent Builder',
+    icon: Wrench,
+    tone: 'text-warning',
+  },
+  {
+    path: 'agents/logs',
+    label: 'Agent Telemetry',
+    icon: Activity,
+    tone: 'text-accent-violet',
+  },
+];
+
+const AUTOMATION_LINKS: readonly NavEntry[] = [
+  {
+    path: 'automations',
+    label: 'All Workflows',
+    icon: Workflow,
+    tone: 'text-warning',
+    end: true,
+  },
+  {
+    path: 'automations/builder',
+    label: 'Workflow Builder',
+    icon: Wrench,
+    tone: 'text-accent-blue',
+  },
+  {
+    path: 'automations/logs',
+    label: 'Execution Logs',
+    icon: Activity,
+    tone: 'text-success',
+  },
+];
+
+const INTEGRATION_LINKS: readonly NavEntry[] = [
+  {
+    path: 'integrations',
+    label: 'Integration Hub (16)',
+    icon: Share2,
+    tone: 'text-accent-blue',
+    end: true,
+  },
+  {
+    path: 'integrations/import',
+    label: 'Slack & Notion Import',
+    icon: UploadCloud,
+    tone: 'text-accent-cyan',
+  },
+];
+
+/**
+ * The workspace-scoped analytics screens.
+ *
+ * They are one destination in the sidebar now — a dropdown that jumps straight
+ * to a tab of the analytics screen, which carries the same set as a tab bar.
  *
  * The platform-operations screens that used to sit alongside these
  * (performance, error tracking, health) moved to the admin console — see
  * `@org/admin-analytics`. So did the enterprise and marketplace groups.
  */
-const ANALYTICS_LINKS = [
+const ANALYTICS_LINKS: readonly NavEntry[] = [
   {
     path: 'analytics',
     label: 'Dashboard',
     icon: BarChart3,
     tone: 'text-accent-blue',
+    end: true,
   },
   {
     path: 'analytics/reports',
@@ -75,17 +238,58 @@ const ANALYTICS_LINKS = [
     icon: HardDrive,
     tone: 'text-success',
   },
-] as const;
+];
+
+/** One row style for every navigable item in the rail. */
+function navRowClass(isActive: boolean, extra?: string) {
+  return cn(
+    'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
+    'focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none',
+    isActive
+      ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
+      : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
+    extra,
+  );
+}
+
+function NavRow({
+  entry,
+  workspaceSlug,
+}: {
+  entry: NavEntry;
+  workspaceSlug: string;
+}) {
+  const Icon = entry.icon;
+  const to = entry.path
+    ? `/w/${workspaceSlug}/${entry.path}`
+    : `/w/${workspaceSlug}`;
+
+  return (
+    <NavLink
+      to={to}
+      // `end` so a parent link is not highlighted on every child route.
+      end={entry.end}
+      className={({ isActive }) => navRowClass(isActive)}
+    >
+      <Icon className={cn('size-3.5 shrink-0', entry.tone)} aria-hidden />
+      <span className="truncate">{entry.label}</span>
+    </NavLink>
+  );
+}
 
 interface SectionProps {
   title: string;
-  count: number;
+  /** Rendered next to the title; `0` hides the section entirely. */
+  count?: number;
   children: ReactNode;
   action?: ReactNode;
   defaultOpen?: boolean;
 }
 
-/** Collapsible sidebar group. Collapse state is local and per-session. */
+/**
+ * Collapsible sidebar group, on Radix so the trigger/panel wiring (aria-*,
+ * ids, keyboard) comes from the primitive. Collapse state is per-session.
+ */
 function Section({
   title,
   count,
@@ -93,30 +297,55 @@ function Section({
   action,
   defaultOpen = true,
 }: SectionProps) {
-  const [open, setOpen] = useState(defaultOpen);
   if (count === 0) return null;
 
   return (
-    <section className="mb-3">
-      <div className="group gap-1 px-2 flex items-center">
-        <button
-          onClick={() => setOpen((value) => !value)}
-          aria-expanded={open}
-          className="gap-1 rounded py-1 text-xs font-semibold tracking-wide flex flex-1 items-center text-sidebar-muted uppercase hover:text-sidebar-foreground"
-        >
-          <ChevronDown
-            className={cn('size-3 transition-transform', !open && '-rotate-90')}
-            aria-hidden
-          />
-          {title}
-          <span className="ml-1 font-normal text-sidebar-muted/70">
-            {count}
-          </span>
-        </button>
-        {action}
-      </div>
-      {open ? <ul className="mt-0.5 space-y-px">{children}</ul> : null}
-    </section>
+    <Collapsible defaultOpen={defaultOpen} className="mb-3" asChild>
+      <section>
+        <div className="group gap-1 px-2 flex items-center">
+          <CollapsibleTrigger className="group/trigger gap-1 rounded py-1 text-xs font-semibold tracking-wide flex flex-1 items-center text-sidebar-muted uppercase hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring">
+            <ChevronDown
+              className="size-3 transition-transform group-data-[state=closed]/trigger:-rotate-90"
+              aria-hidden
+            />
+            {title}
+            {count === undefined ? null : (
+              <span className="ml-1 font-normal text-sidebar-muted/70">
+                {count}
+              </span>
+            )}
+          </CollapsibleTrigger>
+          {action}
+        </div>
+
+        <CollapsibleContent>
+          <ul className="mt-0.5 space-y-px px-1">{children}</ul>
+        </CollapsibleContent>
+      </section>
+    </Collapsible>
+  );
+}
+
+/** A collapsible group of static destinations. */
+function LinkSection({
+  title,
+  links,
+  workspaceSlug,
+  defaultOpen = true,
+}: {
+  title: string;
+  links: readonly NavEntry[];
+  workspaceSlug: string;
+  defaultOpen?: boolean;
+}) {
+  return (
+    <Section title={title} defaultOpen={defaultOpen}>
+      {links.map((entry) => (
+        <li key={entry.path}>
+          <NavRow entry={entry} workspaceSlug={workspaceSlug} />
+        </li>
+      ))}
+    </Section>
   );
 }
 
@@ -139,14 +368,7 @@ function ChannelRow({
       <NavLink
         to={`/w/${workspaceSlug}/c/${channel.slug}`}
         className={({ isActive }) =>
-          cn(
-            'gap-1.5 py-1 pr-8 pl-2 text-sm flex items-center rounded-md transition-colors',
-            'focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none',
-            isActive
-              ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-              : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
-            channel.isArchived && 'opacity-60',
-          )
+          navRowClass(isActive, cn('pr-8', channel.isArchived && 'opacity-60'))
         }
       >
         <Icon className="size-3.5 shrink-0 opacity-70" aria-hidden />
@@ -159,25 +381,67 @@ function ChannelRow({
       {/* Star reveals on hover, but stays visible once set. */}
       {channel.membership ? (
         <Hint label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}>
-          <button
+          <Button
+            variant="sidebar"
+            size="icon-sm"
             onClick={() => onToggleFavorite(channel)}
             aria-label={
               isFavorite ? 'Remove from favorites' : 'Add to favorites'
             }
             aria-pressed={isFavorite}
             className={cn(
-              'right-1.5 rounded p-0.5 absolute top-1/2 -translate-y-1/2 transition-opacity',
-              'focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none',
+              'right-1 size-6 absolute top-1/2 -translate-y-1/2 transition-opacity',
               isFavorite
                 ? 'text-warning opacity-100'
                 : 'text-sidebar-muted opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100',
             )}
           >
             <Star className={cn('size-3', isFavorite && 'fill-current')} />
-          </button>
+          </Button>
         </Hint>
       ) : null}
     </li>
+  );
+}
+
+/**
+ * Analytics collapsed to a single rail entry: the menu picks a tab, and the
+ * analytics screen renders that same set as its tab bar.
+ */
+function AnalyticsMenu({ workspaceSlug }: { workspaceSlug: string }) {
+  const navigate = useNavigate();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="sidebar"
+          size="sm"
+          className="gap-1.5 px-2 font-normal w-full justify-start data-[state=open]:bg-sidebar-accent"
+        >
+          <BarChart3
+            className="size-3.5 shrink-0 text-accent-blue"
+            aria-hidden
+          />
+          <span>Analytics</span>
+          <ChevronDown className="ml-auto size-3.5 opacity-60" aria-hidden />
+        </Button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent side="right" align="start" className="w-56">
+        <DropdownMenuLabel>Analytics</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {ANALYTICS_LINKS.map((entry) => (
+          <DropdownMenuItem
+            key={entry.path}
+            onSelect={() => navigate(`/w/${workspaceSlug}/${entry.path}`)}
+          >
+            <entry.icon className={cn('size-4', entry.tone)} aria-hidden />
+            {entry.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -220,6 +484,12 @@ export function ChannelNav({
   return (
     <ScrollArea className="scrollbar-subtle flex-1">
       <div className="px-1 py-2">
+        <nav aria-label="Workspace" className="mb-3 px-1 pb-3 space-y-px border-b border-sidebar-border">
+          {PRIMARY_LINKS.map((entry) => (
+            <NavRow key={entry.label} entry={entry} workspaceSlug={workspaceSlug} />
+          ))}
+        </nav>
+
         <Section title="Favorites" count={groups.favorites.length}>
           {groups.favorites.map((channel) => (
             <ChannelRow key={channel.id} channel={channel} {...rowProps} />
@@ -268,316 +538,45 @@ export function ChannelNav({
           ))}
         </Section>
 
-        <div className="mt-2 mb-3 px-1 pb-3 space-y-px border-b border-sidebar-border">
-          <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
-            Work Tools
-          </div>
-          <NavLink
-            to={`/w/${workspaceSlug}/tasks`}
-            className={({ isActive }) =>
-              cn(
-                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
-                isActive
-                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
-              )
-            }
-          >
-            <CheckSquare className="size-3.5 shrink-0 text-accent-blue" />
-            <span>Tasks & Kanban</span>
-          </NavLink>
-
-          <NavLink
-            to={`/w/${workspaceSlug}/docs`}
-            className={({ isActive }) =>
-              cn(
-                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
-                isActive
-                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
-              )
-            }
-          >
-            <FileText className="size-3.5 shrink-0 text-warning" />
-            <span>Docs & Wiki</span>
-          </NavLink>
-
-          <NavLink
-            to={`/w/${workspaceSlug}/whiteboard`}
-            className={({ isActive }) =>
-              cn(
-                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
-                isActive
-                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
-              )
-            }
-          >
-            <Layout className="size-3.5 shrink-0 text-accent-violet" />
-            <span>Whiteboard</span>
-          </NavLink>
-
-          <NavLink
-            to={`/w/${workspaceSlug}/calendar`}
-            className={({ isActive }) =>
-              cn(
-                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
-                isActive
-                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
-              )
-            }
-          >
-            <Calendar className="size-3.5 shrink-0 text-success" />
-            <span>Calendar</span>
-          </NavLink>
-
-          <NavLink
-            to={`/w/${workspaceSlug}/files`}
-            className={({ isActive }) =>
-              cn(
-                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
-                isActive
-                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
-              )
-            }
-          >
-            <HardDrive className="size-3.5 shrink-0 text-accent-cyan" />
-            <span>Files</span>
-          </NavLink>
-
-          <NavLink
-            to={`/w/${workspaceSlug}/timeline`}
-            className={({ isActive }) =>
-              cn(
-                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
-                isActive
-                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
-              )
-            }
-          >
-            <Activity className="size-3.5 shrink-0 text-destructive" />
-            <span>Timeline</span>
-          </NavLink>
+        <div className="border-t border-sidebar-border pt-3">
+          <LinkSection
+            title="Work Tools"
+            links={WORK_TOOL_LINKS}
+            workspaceSlug={workspaceSlug}
+          />
+          <LinkSection
+            title="AI Platform"
+            links={AI_PLATFORM_LINKS}
+            workspaceSlug={workspaceSlug}
+            defaultOpen={false}
+          />
+          <LinkSection
+            title="AI Agents Platform"
+            links={AGENT_LINKS}
+            workspaceSlug={workspaceSlug}
+            defaultOpen={false}
+          />
+          <LinkSection
+            title="Workflow Automations"
+            links={AUTOMATION_LINKS}
+            workspaceSlug={workspaceSlug}
+            defaultOpen={false}
+          />
+          <LinkSection
+            title="Integrations & Ecosystem"
+            links={INTEGRATION_LINKS}
+            workspaceSlug={workspaceSlug}
+            defaultOpen={false}
+          />
         </div>
 
-        <div className="mt-2 mb-3 px-1 pb-3 space-y-px border-b border-sidebar-border">
-          <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
-            AI Platform
-          </div>
-          <NavLink
-            to={`/w/${workspaceSlug}/ai-chat`}
-            className={({ isActive }) =>
-              cn(
-                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
-                isActive
-                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
-              )
-            }
-          >
-            <Sparkles className="size-3.5 shrink-0 text-accent-violet" />
-            <span>AI Workspace Chat</span>
-          </NavLink>
+        <div className="mt-1 px-1 pt-3 space-y-px border-t border-sidebar-border">
+          <AnalyticsMenu workspaceSlug={workspaceSlug} />
 
-          <NavLink
-            to={`/w/${workspaceSlug}/prompts`}
-            className={({ isActive }) =>
-              cn(
-                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
-                isActive
-                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
-              )
-            }
-          >
-            <BookOpen className="size-3.5 shrink-0 text-accent-blue" />
-            <span>Prompt Library</span>
-          </NavLink>
-
-          <NavLink
-            to={`/w/${workspaceSlug}/ai-images`}
-            className={({ isActive }) =>
-              cn(
-                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
-                isActive
-                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
-              )
-            }
-          >
-            <Image className="size-3.5 shrink-0 text-accent-pink" />
-            <span>AI Image Generator</span>
-          </NavLink>
-        </div>
-
-        <div className="mt-2 mb-3 px-1 pb-3 space-y-px border-b border-sidebar-border">
-          <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
-            AI Agents Platform
-          </div>
-          <NavLink
-            to={`/w/${workspaceSlug}/agents`}
-            className={({ isActive }) =>
-              cn(
-                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
-                isActive
-                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
-              )
-            }
-          >
-            <Bot className="size-3.5 shrink-0 text-success" />
-            <span>Agent Marketplace</span>
-          </NavLink>
-
-          <NavLink
-            to={`/w/${workspaceSlug}/agents/builder`}
-            className={({ isActive }) =>
-              cn(
-                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
-                isActive
-                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
-              )
-            }
-          >
-            <Wrench className="size-3.5 shrink-0 text-warning" />
-            <span>Agent Builder</span>
-          </NavLink>
-
-          <NavLink
-            to={`/w/${workspaceSlug}/agents/logs`}
-            className={({ isActive }) =>
-              cn(
-                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
-                isActive
-                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
-              )
-            }
-          >
-            <Activity className="size-3.5 shrink-0 text-accent-violet" />
-            <span>Agent Telemetry</span>
-          </NavLink>
-        </div>
-
-        <div className="mt-2 mb-3 px-1 pb-3 space-y-px border-b border-sidebar-border">
-          <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
-            Workflow Automations
-          </div>
-          <NavLink
-            to={`/w/${workspaceSlug}/automations`}
-            className={({ isActive }) =>
-              cn(
-                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
-                isActive
-                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
-              )
-            }
-          >
-            <Workflow className="size-3.5 shrink-0 text-warning" />
-            <span>All Workflows</span>
-          </NavLink>
-
-          <NavLink
-            to={`/w/${workspaceSlug}/automations/builder`}
-            className={({ isActive }) =>
-              cn(
-                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
-                isActive
-                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
-              )
-            }
-          >
-            <Wrench className="size-3.5 shrink-0 text-accent-blue" />
-            <span>Workflow Builder</span>
-          </NavLink>
-
-          <NavLink
-            to={`/w/${workspaceSlug}/automations/logs`}
-            className={({ isActive }) =>
-              cn(
-                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
-                isActive
-                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
-              )
-            }
-          >
-            <Activity className="size-3.5 shrink-0 text-success" />
-            <span>Execution Logs</span>
-          </NavLink>
-        </div>
-
-        <div className="mt-2 mb-3 px-1 pb-3 space-y-px border-b border-sidebar-border">
-          <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
-            Integrations & Ecosystem
-          </div>
-          <NavLink
-            to={`/w/${workspaceSlug}/integrations`}
-            className={({ isActive }) =>
-              cn(
-                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
-                isActive
-                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
-              )
-            }
-          >
-            <Share2 className="size-3.5 shrink-0 text-accent-blue" />
-            <span>Integration Hub (16)</span>
-          </NavLink>
-
-          <NavLink
-            to={`/w/${workspaceSlug}/integrations/import`}
-            className={({ isActive }) =>
-              cn(
-                'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
-                isActive
-                  ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
-              )
-            }
-          >
-            <UploadCloud className="size-3.5 shrink-0 text-accent-cyan" />
-            <span>Slack & Notion Import</span>
-          </NavLink>
-        </div>
-
-        <div className="mt-2 mb-3 px-1 pb-3 space-y-px border-b border-sidebar-border">
-          <div className="px-2 py-1 text-xs font-semibold tracking-wide text-sidebar-muted uppercase">
-            Analytics
-          </div>
-          {ANALYTICS_LINKS.map((link) => (
-            <NavLink
-              key={link.path}
-              to={`/w/${workspaceSlug}/${link.path}`}
-              // `end` so the dashboard link is not highlighted on every child route.
-              end={link.path === 'analytics'}
-              className={({ isActive }) =>
-                cn(
-                  'gap-1.5 py-1 px-2 text-sm flex items-center rounded-md transition-colors',
-                  isActive
-                    ? 'font-medium bg-sidebar-accent text-sidebar-accent-foreground'
-                    : 'text-sidebar-foreground hover:bg-sidebar-accent/60',
-                )
-              }
-            >
-              <link.icon className={cn('size-3.5 shrink-0', link.tone)} />
-              <span>{link.label}</span>
-            </NavLink>
-          ))}
-        </div>
-
-        <div className="mt-2 px-1 space-y-px">
           <Button
             variant="sidebar"
             size="sm"
-            className="gap-1.5 font-normal w-full justify-start"
+            className="gap-1.5 px-2 font-normal w-full justify-start"
             onClick={onBrowseChannels}
             leadingIcon={<Users className="size-3.5" />}
           >
@@ -586,7 +585,7 @@ export function ChannelNav({
           <Button
             variant="sidebar"
             size="sm"
-            className="gap-1.5 font-normal w-full justify-start"
+            className="gap-1.5 px-2 font-normal w-full justify-start"
             onClick={onCreateChannel}
             leadingIcon={<Plus className="size-3.5" />}
           >

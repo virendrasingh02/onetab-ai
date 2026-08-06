@@ -8,6 +8,12 @@ import {
   useSessionBootstrap,
 } from '@org/auth';
 import { Button, EmptyState, LoadingState } from '@org/ui';
+/*
+ * `@org/web-chat` is already in the main chunk — `Providers` mounts its
+ * `MatrixProvider` on every render — so its screens are imported statically
+ * too. Splitting them would only add a chunk boundary with nothing behind it.
+ */
+import { DirectMessagesView, ThreadsView } from '@org/web-chat';
 import { lazy, Suspense } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 
@@ -83,6 +89,9 @@ const FileManagerView = lazy(() =>
 const ActivityTimelineView = lazy(() =>
   import('@org/web-work-tools').then((m) => ({ default: m.ActivityTimelineView })),
 );
+const MeetingsView = lazy(() =>
+  import('@org/web-work-tools').then((m) => ({ default: m.MeetingsView })),
+);
 const AIChatView = lazy(() =>
   import('@org/web-ai').then((m) => ({ default: m.AIChatView })),
 );
@@ -115,6 +124,9 @@ const IntegrationHubView = lazy(() =>
 );
 const SlackNotionImportView = lazy(() =>
   import('@org/web-integrations').then((m) => ({ default: m.SlackNotionImportView })),
+);
+const AnalyticsLayout = lazy(() =>
+  import('@org/web-analytics').then((m) => ({ default: m.AnalyticsLayout })),
 );
 const AnalyticsDashboardView = lazy(() =>
   import('@org/web-analytics').then((m) => ({ default: m.AnalyticsDashboardView })),
@@ -182,6 +194,8 @@ export function App() {
             <Route path="channels" element={<BrowseChannelsPage />} />
             <Route path="channels/new" element={<CreateChannelPage />} />
             <Route path="members" element={<MembersPage />} />
+            {/* The sidebar calls the member list "Directory". */}
+            <Route path="directory" element={<MembersPage />} />
             <Route path="invitations" element={<InvitationsPage />} />
             <Route path="tasks" element={<KanbanBoard />} />
             <Route path="kanban" element={<KanbanBoard />} />
@@ -190,6 +204,10 @@ export function App() {
             <Route path="calendar" element={<CalendarView />} />
             <Route path="files" element={<FileManagerView />} />
             <Route path="timeline" element={<ActivityTimelineView />} />
+            <Route path="activity" element={<ActivityTimelineView />} />
+            <Route path="meetings" element={<MeetingsView />} />
+            <Route path="dms" element={<DirectMessagesView />} />
+            <Route path="threads" element={<ThreadsView />} />
             <Route path="ai-chat" element={<AIChatView />} />
             <Route path="prompts" element={<PromptLibraryView />} />
             <Route path="ai-images" element={<AIImageGeneratorView />} />
@@ -201,12 +219,18 @@ export function App() {
             <Route path="automations/logs" element={<WorkflowExecutionLogsView />} />
             <Route path="integrations" element={<IntegrationHubView />} />
             <Route path="integrations/import" element={<SlackNotionImportView />} />
-            <Route path="analytics" element={<AnalyticsDashboardView />} />
-            <Route path="analytics/reports" element={<ReportsView />} />
-            <Route path="analytics/users" element={<UserAnalyticsView />} />
-            <Route path="analytics/ai-usage" element={<AIUsageView />} />
-            <Route path="analytics/workspace" element={<WorkspaceAnalyticsView />} />
-            <Route path="analytics/storage" element={<StorageAnalyticsView />} />
+            {/*
+              Analytics is one destination with tabs: `AnalyticsLayout` renders
+              the tab bar and the routed screen below it.
+            */}
+            <Route path="analytics" element={<AnalyticsLayout />}>
+              <Route index element={<AnalyticsDashboardView />} />
+              <Route path="reports" element={<ReportsView />} />
+              <Route path="users" element={<UserAnalyticsView />} />
+              <Route path="ai-usage" element={<AIUsageView />} />
+              <Route path="workspace" element={<WorkspaceAnalyticsView />} />
+              <Route path="storage" element={<StorageAnalyticsView />} />
+            </Route>
             <Route path="profile" element={<ProfilePage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route

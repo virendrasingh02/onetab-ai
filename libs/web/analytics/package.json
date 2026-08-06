@@ -17,11 +17,13 @@
     "@org/analytics-ui": "*",
     "@org/api-client": "*",
     "@org/types": "*",
+    "@org/ui": "*",
     "@org/web-workspace": "*",
     "@tanstack/react-query": "^5.101.4",
     "lucide-react": "^1.28.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^6.30.3"
   },
   "nx": {
     "tags": [
