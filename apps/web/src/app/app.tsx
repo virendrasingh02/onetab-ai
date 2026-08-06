@@ -55,9 +55,6 @@ const AcceptInvitationPage = lazy(() =>
 const ProfilePage = lazy(() =>
   import('@org/web-profile').then((m) => ({ default: m.ProfilePage })),
 );
-const SettingsPage = lazy(() =>
-  import('@org/web-settings').then((m) => ({ default: m.SettingsPage })),
-);
 const CreateWorkspacePage = lazy(() =>
   import('@org/web-workspace').then((m) => ({
     default: m.CreateWorkspacePage,
@@ -197,7 +194,7 @@ export function App() {
           <Route path="/w/:workspaceSlug" element={<AppShell />}>
             <Route index element={<AIChatView />} />
             <Route path="home" element={<AIChatView />} />
-            <Route path="overview" element={<DashboardPage />} />
+            <Route path="overview" element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="c/:channelSlug" element={<ChannelPage />} />
             <Route path="channels" element={<BrowseChannelsPage />} />
@@ -242,7 +239,7 @@ export function App() {
               <Route path="storage" element={<StorageAnalyticsView />} />
             </Route>
             <Route path="profile" element={<ProfilePage />} />
-            <Route path="settings" element={<SettingsPage />} />
+            <Route path="settings" element={<WorkspaceSettingsPage />} />
             <Route
               path="settings/workspace"
               element={<WorkspaceSettingsPage />}

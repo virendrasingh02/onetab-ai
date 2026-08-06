@@ -18,11 +18,9 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  Calendar,
   CalendarClock,
   Camera,
   Check,
-  CheckCircle,
   ChevronDown,
   Copy,
   ExternalLink,

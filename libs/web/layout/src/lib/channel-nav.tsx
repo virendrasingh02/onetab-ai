@@ -30,7 +30,6 @@ import {
   Video,
   CheckSquare,
   FileText,
-  Layout,
   HardDrive,
   Sparkles,
   Bot,
@@ -57,18 +56,17 @@ interface NavEntry {
 // Most Used / Essential Nav Items (Shown directly)
 const MOST_USED_LINKS: readonly NavEntry[] = [
   { path: '', label: 'Home', icon: Sparkles, end: true },
-  { path: 'overview', label: 'Overview', icon: Layout },
   { path: 'inbox', label: 'Inbox', icon: Inbox },
   { path: 'threads', label: 'Threads', icon: MessagesSquare },
   { path: 'meetings', label: 'Huddles & Calls', icon: Video },
-  { path: 'dms', label: 'Direct Messages', icon: MessageSquare },
+  { path: 'dms', label: "DM's", icon: MessageSquare },
   { path: 'pulse', label: 'Pulse', icon: Activity },
 ];
 
 // Secondary Nav Items (Collapsible inside 'More options')
 const SECONDARY_LINKS: readonly NavEntry[] = [
   { path: 'schedule', label: 'Schedule', icon: Clock },
-  { path: 'directory', label: 'Directories', icon: Users },
+  { path: 'directory', label: 'Directory', icon: Users },
   { path: 'files', label: 'Files', icon: HardDrive },
 ];
 
@@ -78,20 +76,20 @@ const WORK_TOOL_LINKS: readonly NavEntry[] = [
 ];
 
 const AGENTS_LINKS: readonly NavEntry[] = [
-  { path: 'agents', label: 'Agent Marketplace', icon: Bot, end: true },
-  { path: 'agents/builder', label: 'Agent Builder', icon: Bot },
-  { path: 'agents/logs', label: 'Agent Monitoring', icon: HardDrive },
+  { path: 'agents', label: 'Agent Directory', icon: Bot, end: true },
+  { path: 'agents/builder', label: 'Agent Studio', icon: Bot },
+  { path: 'agents/logs', label: 'Agent Logs', icon: HardDrive },
 ];
 
 const APPS_LINKS: readonly NavEntry[] = [
-  { path: 'integrations', label: 'Apps Catalog', icon: Share2, end: true },
-  { path: 'import-export', label: 'Import Export', icon: UploadCloud },
+  { path: 'integrations', label: 'App Directory', icon: Share2, end: true },
+  { path: 'import-export', label: 'Import & Export', icon: UploadCloud },
 ];
 
 const AUTOMATION_LINKS: readonly NavEntry[] = [
-  { path: 'automations', label: 'All Workflows', icon: Workflow, end: true },
+  { path: 'automations', label: 'Workflows', icon: Workflow, end: true },
   { path: 'automations/builder', label: 'Workflow Builder', icon: Workflow },
-  { path: 'automations/logs', label: 'Execution Logs', icon: HardDrive },
+  { path: 'automations/logs', label: 'Workflow Logs', icon: HardDrive },
 ];
 
 /**
@@ -314,7 +312,7 @@ export function ChannelNav({
               />
             ))}
 
-            {/* More Options Dropdown Menu */}
+            {/* More Dropdown Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -324,11 +322,11 @@ export function ChannelNav({
                     'hover:bg-accent hover:text-foreground',
                     'outline-none focus-visible:ring-1 focus-visible:ring-ring',
                   )}
-                  aria-label="More options menu"
+                  aria-label="More menu"
                 >
                   <MoreHorizontal className="size-4 shrink-0" aria-hidden />
                   <span className="flex-1 truncate text-left">
-                    More options
+                    More
                   </span>
                   <ChevronRight
                     className="size-3.5 text-subtle transition-transform duration-(--duration-fast) group-data-[state=open]:rotate-90"
@@ -366,7 +364,7 @@ export function ChannelNav({
 
           <div className="mt-3 border-t border-border pt-2">
             <Section
-              title="Starred"
+              title="Favorites"
               count={groups.favorites.length}
               defaultOpen={true}
             >
@@ -399,14 +397,14 @@ export function ChannelNav({
             </Section>
 
             <LinkSection
-              title="Work Tools"
+              title="Workspace Tools"
               links={WORK_TOOL_LINKS}
               workspaceSlug={workspaceSlug}
               defaultOpen={true}
             />
 
             <LinkSection
-              title="Agent Marketplace"
+              title="AI Agents"
               links={AGENTS_LINKS}
               workspaceSlug={workspaceSlug}
               defaultOpen={false}
@@ -445,7 +443,7 @@ export function ChannelNav({
               'outline-none focus-visible:ring-1 focus-visible:ring-ring',
             )}
           >
-            <span>Getting started</span>
+            <span>Getting Started</span>
             <span className="text-subtle tabular-nums">2/6</span>
           </button>
           {/*
@@ -455,7 +453,7 @@ export function ChannelNav({
           <Progress
             value={33}
             size="sm"
-            label="Getting started"
+            label="Getting Started"
             className="mt-2 bg-border"
           />
         </div>
@@ -470,7 +468,7 @@ export function ChannelNav({
           )}
         >
           <UserPlus className="size-4 shrink-0" aria-hidden />
-          <span>Invite team members</span>
+          <span>Invite Members</span>
         </button>
 
         <div className="flex items-center justify-between gap-2 px-3 pt-1">

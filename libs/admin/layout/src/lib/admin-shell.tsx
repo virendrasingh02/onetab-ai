@@ -45,7 +45,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     items: [
       {
         to: '/health',
-        label: 'Health',
+        label: 'System Health',
         icon: HeartPulse,
         tone: 'text-success',
       },
@@ -92,7 +92,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     items: [
       {
         to: '/marketplace',
-        label: 'Catalogue',
+        label: 'Catalog',
         icon: Store,
         tone: 'text-accent-blue',
         end: true,

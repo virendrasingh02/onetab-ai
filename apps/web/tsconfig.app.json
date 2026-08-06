@@ -32,9 +32,6 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
-      "path": "../../libs/web/chat/tsconfig.lib.json"
-    },
-    {
       "path": "../../libs/shared/design-system/tsconfig.lib.json"
     },
     {
@@ -65,9 +62,6 @@
       "path": "../../libs/web/workspace/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/web/settings/tsconfig.lib.json"
-    },
-    {
       "path": "../../libs/web/profile/tsconfig.lib.json"
     },
     {
@@ -84,6 +78,9 @@
     },
     {
       "path": "../../libs/web/layout/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/chat/tsconfig.lib.json"
     },
     {
       "path": "../../libs/shared/ui/tsconfig.lib.json"

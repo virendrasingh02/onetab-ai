@@ -139,6 +139,19 @@ export {
   TabsTrigger,
 } from './lib/components/primitives.js';
 
+export { Checkbox } from './lib/components/checkbox.js';
+
+export {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverAnchor,
+} from './lib/components/popover.js';
+
+export { Calendar, type CalendarProps } from './lib/components/calendar.js';
+
+export { DatePicker, type DatePickerProps } from './lib/components/date-picker.js';
+
 export {
   Form,
   FormControl,

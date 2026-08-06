@@ -1,6 +1,8 @@
 import {
   accentClasses,
   Button,
+  Checkbox,
+  DatePicker,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -335,17 +337,15 @@ function CardDetailsBody({
                       className="group/item gap-2 flex items-center"
                     >
                       <label className="gap-2 text-sm flex flex-1 cursor-pointer items-center">
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={item.done}
-                          onChange={() =>
+                          onCheckedChange={() =>
                             dispatch({
                               type: 'checklist/toggle',
                               cardId: card.id,
                               itemId: item.id,
                             })
                           }
-                          className="size-4 accent-[var(--color-primary)]"
                         />
                         <span
                           className={cn(
@@ -558,19 +558,18 @@ function CardDetailsBody({
                 <CalendarDays className="size-3.5" aria-hidden />
                 Due date
               </Label>
-              <div className="gap-1 flex">
-                <Input
+              <div className="gap-1 flex items-center">
+                <DatePicker
                   id={`due-${card.id}`}
-                  type="date"
                   value={card.dueDate ?? ''}
-                  onChange={(event) =>
+                  onChange={(date) =>
                     dispatch({
                       type: 'card/update',
                       cardId: card.id,
-                      patch: { dueDate: event.target.value || undefined },
+                      patch: { dueDate: date, dueComplete: date ? card.dueComplete : false },
                     })
                   }
-                  className="h-8 text-xs"
+                  className="h-8 text-xs flex-1"
                 />
                 {card.dueDate ? (
                   <Button

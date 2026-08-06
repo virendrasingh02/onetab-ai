@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Button,
+  Checkbox,
   Form,
   FormControl,
   FormError,
@@ -174,19 +175,19 @@ export function RegisterPage() {
             name="acceptTerms"
             render={({ field }) => (
               <FormItem>
-                <label className="gap-2.5 text-sm flex items-start">
-                  <input
-                    type="checkbox"
+                <div className="gap-2.5 text-sm flex items-start">
+                  <Checkbox
+                    id="acceptTerms"
                     checked={!!field.value}
-                    onChange={(event) => field.onChange(event.target.checked)}
+                    onCheckedChange={(checked) => field.onChange(!!checked)}
                     onBlur={field.onBlur}
                     name={field.name}
-                    className="mt-0.5 size-4 rounded accent-primary"
+                    className="mt-0.5"
                   />
-                  <span className="text-muted-foreground">
+                  <label htmlFor="acceptTerms" className="text-muted-foreground cursor-pointer select-none">
                     I agree to the Terms of Service and Privacy Policy.
-                  </span>
-                </label>
+                  </label>
+                </div>
                 <FormMessage />
               </FormItem>
             )}
