@@ -21,7 +21,6 @@ import {
   ChevronDown,
   ChevronRight,
   Hash,
-  Home,
   Lock,
   MessageSquare,
   MessagesSquare,
@@ -32,22 +31,15 @@ import {
   CheckSquare,
   FileText,
   Layout,
-  Calendar,
   HardDrive,
   Sparkles,
-  BookOpen,
-  Image,
   Bot,
   Workflow,
-  BarChart3,
-  Bell,
   UserPlus,
   Clock,
   Inbox,
-  Send,
   Share2,
   UploadCloud,
-  FileSpreadsheet,
   MoreHorizontal,
   type LucideIcon,
 } from 'lucide-react';
@@ -64,7 +56,8 @@ interface NavEntry {
 
 // Most Used / Essential Nav Items (Shown directly)
 const MOST_USED_LINKS: readonly NavEntry[] = [
-  { path: '', label: 'Home', icon: Home, end: true },
+  { path: '', label: 'Home', icon: Sparkles, end: true },
+  { path: 'overview', label: 'Overview', icon: Layout },
   { path: 'inbox', label: 'Inbox', icon: Inbox },
   { path: 'threads', label: 'Threads', icon: MessagesSquare },
   { path: 'meetings', label: 'Huddles & Calls', icon: Video },
@@ -82,10 +75,6 @@ const SECONDARY_LINKS: readonly NavEntry[] = [
 const WORK_TOOL_LINKS: readonly NavEntry[] = [
   { path: 'tasks', label: 'Tasks', icon: CheckSquare },
   { path: 'notes', label: 'Notes', icon: FileText },
-];
-
-const AI_PLATFORM_LINKS: readonly NavEntry[] = [
-  { path: 'ai-chat', label: 'AI Workspace Chat', icon: Sparkles },
 ];
 
 const AGENTS_LINKS: readonly NavEntry[] = [
@@ -414,13 +403,6 @@ export function ChannelNav({
               links={WORK_TOOL_LINKS}
               workspaceSlug={workspaceSlug}
               defaultOpen={true}
-            />
-
-            <LinkSection
-              title="AI Platform"
-              links={AI_PLATFORM_LINKS}
-              workspaceSlug={workspaceSlug}
-              defaultOpen={false}
             />
 
             <LinkSection

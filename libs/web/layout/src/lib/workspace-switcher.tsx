@@ -14,7 +14,6 @@ import { cn, initials } from '@org/utils';
 import {
   Activity,
   BarChart3,
-  Bell,
   Bookmark,
   Check,
   ChevronDown,

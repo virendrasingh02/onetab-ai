@@ -195,7 +195,10 @@ export function App() {
           <Route path="/" element={<WorkspaceRedirect />} />
 
           <Route path="/w/:workspaceSlug" element={<AppShell />}>
-            <Route index element={<DashboardPage />} />
+            <Route index element={<AIChatView />} />
+            <Route path="home" element={<AIChatView />} />
+            <Route path="overview" element={<DashboardPage />} />
+            <Route path="dashboard" element={<DashboardPage />} />
             <Route path="c/:channelSlug" element={<ChannelPage />} />
             <Route path="channels" element={<BrowseChannelsPage />} />
             <Route path="channels/new" element={<CreateChannelPage />} />
