@@ -29,7 +29,12 @@ export const emailSchema = z
   .toLowerCase();
 
 export const loginSchema = z.object({
-  email: emailSchema,
+  email: z
+    .string()
+    .trim()
+    .min(1, 'Email or username is required')
+    .max(255)
+    .toLowerCase(),
   // Deliberately not `passwordSchema`: an existing password that predates a
   // policy change must still be able to sign in.
   password: z.string().min(1, 'Password is required'),

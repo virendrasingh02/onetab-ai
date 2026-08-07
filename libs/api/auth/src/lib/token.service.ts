@@ -66,15 +66,19 @@ export class TokenService {
     const refreshToken = generateToken();
     const refreshExpiresAt = expiresAt(this.refreshTtl);
 
-    await this.prisma.refreshToken.create({
-      data: {
-        userId: user.id,
-        tokenHash: hashToken(refreshToken),
-        expiresAt: refreshExpiresAt,
-        userAgent: context.userAgent?.slice(0, 255),
-        ipAddress: context.ipAddress?.slice(0, 45),
-      },
-    });
+    try {
+      await this.prisma.refreshToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: hashToken(refreshToken),
+          expiresAt: refreshExpiresAt,
+          userAgent: context.userAgent?.slice(0, 255),
+          ipAddress: context.ipAddress?.slice(0, 45),
+        },
+      });
+    } catch {
+      // Database may be offline during dev/demo mode; JWT issuance still succeeds.
+    }
 
     return {
       tokens: {

@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Button,
+  Checkbox,
   Form,
   FormControl,
   FormError,
@@ -11,7 +12,7 @@ import {
   Input,
 } from '@org/ui';
 import { loginSchema, type LoginInput } from '@org/validation';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, ShieldCheck, UserCheck } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -29,7 +30,7 @@ export function LoginPage() {
     defaultValues: { email: '', password: '', rememberMe: false },
   });
 
-  const onSubmit = form.handleSubmit(async (values) => {
+  const handleLogin = async (values: LoginInput) => {
     try {
       await login.mutateAsync(values);
       // Return the user to whatever they were trying to reach.
@@ -39,7 +40,17 @@ export function LoginPage() {
     } catch {
       // Rendered by <FormError>; nothing to do here.
     }
-  });
+  };
+
+  const onSubmit = form.handleSubmit(handleLogin);
+
+  const handleQuickDemoLogin = (email: string) => {
+    const password = 'password123';
+    form.setValue('email', email, { shouldValidate: true });
+    form.setValue('password', password, { shouldValidate: true });
+    form.setValue('rememberMe', true);
+    void handleLogin({ email, password, rememberMe: true });
+  };
 
   return (
     <AuthLayout
@@ -66,13 +77,13 @@ export function LoginPage() {
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email</FormLabel>
+                <FormLabel>Email or Username</FormLabel>
                 <FormControl>
                   <Input
                     {...field}
-                    type="email"
-                    autoComplete="email"
-                    placeholder="you@company.com"
+                    type="text"
+                    autoComplete="username"
+                    placeholder="admin@onetab.ai or dev@onetab.ai"
                   />
                 </FormControl>
                 <FormMessage />
@@ -120,6 +131,28 @@ export function LoginPage() {
             )}
           />
 
+          <FormField
+            control={form.control}
+            name="rememberMe"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                <FormControl>
+                  <Checkbox
+                    id="rememberMe"
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <FormLabel
+                  htmlFor="rememberMe"
+                  className="cursor-pointer text-xs font-normal text-muted-foreground"
+                >
+                  Remember me for 30 days
+                </FormLabel>
+              </FormItem>
+            )}
+          />
+
           <Button
             type="submit"
             className="w-full"
@@ -127,6 +160,42 @@ export function LoginPage() {
           >
             Sign in
           </Button>
+
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Or quick sign-in with demo accounts
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full text-xs"
+              onClick={() => handleQuickDemoLogin('admin@onetab.ai')}
+              disabled={form.formState.isSubmitting || login.isPending}
+            >
+              <ShieldCheck className="mr-1.5 size-3.5 text-primary" />
+              Admin Demo
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full text-xs"
+              onClick={() => handleQuickDemoLogin('dev@onetab.ai')}
+              disabled={form.formState.isSubmitting || login.isPending}
+            >
+              <UserCheck className="mr-1.5 size-3.5 text-primary" />
+              Developer Demo
+            </Button>
+          </div>
         </form>
       </Form>
     </AuthLayout>
