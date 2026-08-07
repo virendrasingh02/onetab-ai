@@ -22,7 +22,6 @@ import {
   ChevronRight,
   Hash,
   Lock,
-  MessageSquare,
   MessagesSquare,
   Plus,
   Star,
@@ -32,6 +31,7 @@ import {
   HardDrive,
   Bot,
   Workflow,
+  Sparkles,
   UserPlus,
   Clock,
   Inbox,
@@ -58,15 +58,14 @@ const MOST_USED_LINKS: readonly NavEntry[] = [
   { path: '', label: 'Home', icon: Home, end: true },
   { path: 'inbox', label: 'Inbox', icon: Inbox },
   { path: 'threads', label: 'Threads', icon: MessagesSquare },
-  { path: 'meetings', label: 'Huddles & Calls', icon: Video },
-  { path: 'dms', label: "DM's", icon: MessageSquare },
-  { path: 'pulse', label: 'Pulse', icon: Activity },
+  { path: 'meetings', label: 'Meetings', icon: Video },
 ];
 
-// Secondary Nav Items (Collapsible inside 'More options')
+// Secondary Nav Items (Collapsible inside 'More' dropdown menu)
 const SECONDARY_LINKS: readonly NavEntry[] = [
+  { path: 'pulse', label: 'Pulse', icon: Activity },
   { path: 'schedule', label: 'Schedule', icon: Clock },
-  { path: 'directory', label: 'Directory', icon: Users },
+  { path: 'directory', label: 'Team Directory', icon: Users },
   { path: 'files', label: 'Files', icon: HardDrive },
 ];
 
@@ -416,6 +415,138 @@ function ChannelRow({
   );
 }
 
+interface DMItem {
+  id: string;
+  name: string;
+  avatarUrl?: string;
+  status: 'online' | 'away' | 'dnd' | 'offline';
+  unreadCount?: number;
+  isAi?: boolean;
+}
+
+const SLACK_DMS: DMItem[] = [
+  {
+    id: 'dm_ai',
+    name: 'AI Workspace Copilot',
+    status: 'online',
+    isAi: true,
+  },
+  {
+    id: 'dm_alex',
+    name: 'Alex Morgan',
+    status: 'online',
+    unreadCount: 2,
+  },
+  {
+    id: 'dm_sarah',
+    name: 'Sarah Chen',
+    status: 'away',
+  },
+  {
+    id: 'dm_david',
+    name: 'David Miller',
+    status: 'offline',
+    unreadCount: 1,
+  },
+];
+
+function DirectMessagesSection({ workspaceSlug }: { workspaceSlug: string }) {
+  return (
+    <Section
+      title="Direct Messages"
+      count={SLACK_DMS.length}
+      defaultOpen={true}
+      action={
+        <Hint label="New Direct Message">
+          <Button
+            asChild
+            variant="ghost"
+            size="icon-sm"
+            aria-label="New Direct Message"
+            className="size-5 hover:bg-accent p-0"
+          >
+            <NavLink to={`/w/${workspaceSlug}/dms`}>
+              <Plus className="size-3.5" />
+            </NavLink>
+          </Button>
+        </Hint>
+      }
+    >
+      {SLACK_DMS.map((dm) => (
+        <li key={dm.id}>
+          <NavLink
+            to={`/w/${workspaceSlug}/dms`}
+            className={({ isActive }) =>
+              navRowClass(
+                isActive,
+                'gap-2.5 py-1 px-2.5 text-xs hover:bg-accent/60',
+              )
+            }
+          >
+            {/* Slack Avatar & Presence Indicator */}
+            <div className="relative flex size-5 shrink-0 items-center justify-center">
+              {dm.isAi ? (
+                <div className="flex size-5 items-center justify-center rounded-md bg-primary/20 text-primary">
+                  <Sparkles className="size-3" />
+                </div>
+              ) : dm.avatarUrl ? (
+                <img
+                  src={dm.avatarUrl}
+                  alt={dm.name}
+                  className="size-5 rounded-md object-cover"
+                />
+              ) : (
+                <div className="flex size-5 items-center justify-center rounded-md bg-secondary text-[10px] font-bold text-foreground">
+                  {dm.name.charAt(0)}
+                </div>
+              )}
+
+              {/* Slack Presence Indicator Dot */}
+              <span
+                className={cn(
+                  'absolute -bottom-0.5 -right-0.5 size-2 rounded-full border-2 border-sidebar',
+                  dm.status === 'online' && 'bg-emerald-500',
+                  dm.status === 'away' && 'bg-amber-500',
+                  dm.status === 'dnd' && 'bg-rose-500',
+                  dm.status === 'offline' && 'bg-zinc-500/60',
+                )}
+              />
+            </div>
+
+            <span
+              className={cn(
+                'flex-1 truncate text-xs',
+                dm.unreadCount ? 'font-semibold text-foreground' : 'text-muted-foreground',
+              )}
+            >
+              {dm.name}
+            </span>
+
+            {dm.unreadCount ? (
+              <Badge variant="count" className="ml-auto text-[10px] px-1.5 py-0">
+                {dm.unreadCount}
+              </Badge>
+            ) : null}
+          </NavLink>
+        </li>
+      ))}
+
+      {/* Slack Add Teammates Action Link */}
+      <li className="pt-1">
+        <NavLink
+          to={`/w/${workspaceSlug}/members`}
+          className="flex items-center gap-2 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-md transition-colors"
+        >
+          <div className="flex size-4 items-center justify-center rounded-md border border-dashed border-border text-subtle">
+            <Plus className="size-3" />
+          </div>
+          <span className="text-xs">Add teammates</span>
+        </NavLink>
+      </li>
+    </Section>
+  );
+}
+
 export interface ChannelNavProps {
   workspaceId: string;
   workspaceSlug: string;
@@ -467,7 +598,7 @@ export function ChannelNav({
             ))}
 
             {/* More Dropdown Menu */}
-            <DropdownMenu>
+            <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <button
                   className={cn(
@@ -492,7 +623,7 @@ export function ChannelNav({
                 align="start"
                 side="right"
                 sideOffset={8}
-                className="w-56 p-1.5"
+                className="w-52 p-1 z-50 bg-[#111113] border-[#27272A] shadow-xl rounded-xl"
               >
                 {SECONDARY_LINKS.map((entry) => {
                   const Icon = entry.icon;
@@ -503,10 +634,10 @@ export function ChannelNav({
                     <DropdownMenuItem
                       key={entry.label}
                       asChild
-                      className="text-xs flex items-center gap-2.5 cursor-pointer py-1.5"
+                      className="text-xs flex items-center gap-2.5 cursor-pointer py-2 px-2.5 rounded-md hover:bg-[#1E1F23] focus:bg-[#1E1F23] text-[#FAFAFA] font-medium"
                     >
                       <NavLink to={to} end={entry.end}>
-                        <Icon className="size-4 text-muted-foreground shrink-0" aria-hidden />
+                        <Icon className="size-4 text-[#A1A1AA] shrink-0" aria-hidden />
                         <span className="flex-1 truncate">{entry.label}</span>
                       </NavLink>
                     </DropdownMenuItem>
@@ -549,6 +680,9 @@ export function ChannelNav({
                 <ChannelRow key={channel.id} channel={channel} {...rowProps} />
               ))}
             </Section>
+
+            {/* Direct Messages Section right after Channels */}
+            <DirectMessagesSection workspaceSlug={workspaceSlug} />
 
             <ProjectsTreeSection workspaceSlug={workspaceSlug} />
 
