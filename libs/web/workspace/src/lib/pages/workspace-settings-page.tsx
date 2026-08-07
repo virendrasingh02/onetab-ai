@@ -47,11 +47,13 @@ import {
   Monitor,
   Moon,
   ShieldAlert,
-  Sliders,
   Sun,
+  UploadCloud,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useLocation, useSearchParams } from 'react-router-dom';
+import { SlackNotionImportView } from '@org/web-integrations';
 import {
   useCurrentWorkspace,
   useDeleteWorkspace,
@@ -69,6 +71,27 @@ export function WorkspaceSettingsPage() {
   const updateWorkspace = useUpdateWorkspace(workspaceId);
   const deleteWorkspace = useDeleteWorkspace();
   const { theme, setTheme } = useTheme();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const isImportExportRoute =
+    location.pathname.endsWith('/import-export') ||
+    location.pathname.endsWith('/integrations/import');
+
+  const currentTab = isImportExportRoute
+    ? 'import-export'
+    : searchParams.get('tab') || 'general';
+
+  const handleTabChange = (val: string) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('tab', val);
+        return next;
+      },
+      { replace: true },
+    );
+  };
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
@@ -121,39 +144,53 @@ export function WorkspaceSettingsPage() {
   return (
     <div className="max-w-4xl space-y-6 p-3 sm:p-6 mx-auto">
       <div>
-        <h2 className="text-xl font-semibold text-foreground">Workspace settings</h2>
+        <h2 className="text-xl font-semibold text-foreground">
+          Workspace settings
+        </h2>
         <p className="text-sm text-muted-foreground">
-          Manage workspace profile, appearance, notifications, and security preferences.
+          Manage workspace profile, appearance, notifications, import & export,
+          and security preferences.
         </p>
       </div>
 
-      <Tabs defaultValue="general" className="w-full">
-        <TabsList className="mb-6 flex overflow-x-auto scrollbar-none max-w-full flex-nowrap gap-1 border-b border-border bg-transparent p-0">
+      <Tabs
+        value={currentTab}
+        onValueChange={handleTabChange}
+        className="w-full"
+      >
+        <TabsList className="mb-6 gap-1 p-0 flex max-w-full scrollbar-none flex-nowrap overflow-x-auto border-b border-border bg-transparent">
           <TabsTrigger
             value="general"
-            className="flex items-center gap-2 rounded-t-lg border-b-2 border-transparent px-4 py-2 text-sm font-medium transition-colors data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground hover:text-foreground"
+            className="gap-2 px-4 py-2 text-sm font-medium flex items-center rounded-t-lg border-b-2 border-transparent text-muted-foreground transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-foreground"
           >
             <Building2 className="size-4" />
             General
           </TabsTrigger>
           <TabsTrigger
             value="preferences"
-            className="flex items-center gap-2 rounded-t-lg border-b-2 border-transparent px-4 py-2 text-sm font-medium transition-colors data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground hover:text-foreground"
+            className="gap-2 px-4 py-2 text-sm font-medium flex items-center rounded-t-lg border-b-2 border-transparent text-muted-foreground transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-foreground"
           >
             <Sliders className="size-4" />
             Appearance & Notifications
           </TabsTrigger>
           <TabsTrigger
             value="security"
-            className="flex items-center gap-2 rounded-t-lg border-b-2 border-transparent px-4 py-2 text-sm font-medium transition-colors data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground hover:text-foreground"
+            className="gap-2 px-4 py-2 text-sm font-medium flex items-center rounded-t-lg border-b-2 border-transparent text-muted-foreground transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-foreground"
           >
             <Lock className="size-4" />
             Account Security
           </TabsTrigger>
+          <TabsTrigger
+            value="import-export"
+            className="gap-2 px-4 py-2 text-sm font-medium flex items-center rounded-t-lg border-b-2 border-transparent text-muted-foreground transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-foreground"
+          >
+            <UploadCloud className="size-4" />
+            Import & Export
+          </TabsTrigger>
           {isOwner ? (
             <TabsTrigger
               value="danger"
-              className="flex items-center gap-2 rounded-t-lg border-b-2 border-transparent px-4 py-2 text-sm font-medium transition-colors data-[state=active]:border-destructive data-[state=active]:bg-background data-[state=active]:text-destructive text-muted-foreground hover:text-destructive"
+              className="gap-2 px-4 py-2 text-sm font-medium flex items-center rounded-t-lg border-b-2 border-transparent text-muted-foreground transition-colors hover:text-destructive data-[state=active]:border-destructive data-[state=active]:bg-background data-[state=active]:text-destructive"
             >
               <ShieldAlert className="size-4 text-destructive" />
               Danger Zone
@@ -165,7 +202,9 @@ export function WorkspaceSettingsPage() {
         <TabsContent value="general" className="space-y-6 outline-none">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Workspace General Details</CardTitle>
+              <CardTitle className="text-base">
+                Workspace General Details
+              </CardTitle>
               <CardDescription>
                 {isAdmin
                   ? 'Only admins and the owner can update these details.'
@@ -174,7 +213,11 @@ export function WorkspaceSettingsPage() {
             </CardHeader>
             <CardContent>
               <Form {...workspaceForm}>
-                <form onSubmit={onWorkspaceSubmit} className="space-y-4" noValidate>
+                <form
+                  onSubmit={onWorkspaceSubmit}
+                  className="space-y-4"
+                  noValidate
+                >
                   <FormError error={formErrorMessage(updateWorkspace.error)} />
 
                   <FormField
@@ -214,9 +257,12 @@ export function WorkspaceSettingsPage() {
                     )}
                   />
 
-                  <div className="gap-3 flex items-center pt-1">
+                  <div className="gap-3 pt-1 flex items-center">
                     <span className="text-xs text-muted-foreground">
-                      Workspace URL: <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">/w/{workspace.slug}</code>
+                      Workspace URL:{' '}
+                      <code className="rounded px-1.5 py-0.5 text-xs bg-muted font-mono">
+                        /w/{workspace.slug}
+                      </code>
                     </span>
                   </div>
 
@@ -241,14 +287,15 @@ export function WorkspaceSettingsPage() {
             <CardHeader>
               <CardTitle className="text-base">Appearance</CardTitle>
               <CardDescription>
-                Applies to this browser session. &ldquo;System&rdquo; follows your operating system setting.
+                Applies to this browser session. &ldquo;System&rdquo; follows
+                your operating system setting.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div
                 role="radiogroup"
                 aria-label="Theme"
-                className="gap-3 grid grid-cols-3 max-w-md"
+                className="gap-3 max-w-md grid grid-cols-3"
               >
                 {THEME_OPTIONS.map((option) => {
                   const Icon = option.icon;
@@ -261,8 +308,8 @@ export function WorkspaceSettingsPage() {
                       onClick={() => setTheme(option.value)}
                       className={
                         selected
-                          ? 'gap-2 p-3 text-sm flex flex-col items-center rounded-lg border-2 border-primary bg-selected text-foreground font-medium'
-                          : 'gap-2 p-3 text-sm flex flex-col items-center rounded-lg border border-border bg-surface hover:bg-muted text-muted-foreground hover:text-foreground'
+                          ? 'gap-2 p-3 text-sm font-medium flex flex-col items-center rounded-lg border-2 border-primary bg-selected text-foreground'
+                          : 'gap-2 p-3 text-sm flex flex-col items-center rounded-lg border border-border bg-surface text-muted-foreground hover:bg-muted hover:text-foreground'
                       }
                     >
                       <Icon className="size-4" />
@@ -283,13 +330,33 @@ export function WorkspaceSettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {[
-                { id: 'mentions', label: 'Mentions and replies', checked: true, desc: 'Get notified when someone tags you or replies to your thread' },
-                { id: 'invites', label: 'Workspace invitations', checked: true, desc: 'Receive alerts when members join or request access' },
-                { id: 'digest', label: 'Weekly digest email', checked: false, desc: 'Get a weekly summary of key activity and channel updates' },
+                {
+                  id: 'mentions',
+                  label: 'Mentions and replies',
+                  checked: true,
+                  desc: 'Get notified when someone tags you or replies to your thread',
+                },
+                {
+                  id: 'invites',
+                  label: 'Workspace invitations',
+                  checked: true,
+                  desc: 'Receive alerts when members join or request access',
+                },
+                {
+                  id: 'digest',
+                  label: 'Weekly digest email',
+                  checked: false,
+                  desc: 'Get a weekly summary of key activity and channel updates',
+                },
               ].map((row) => (
-                <div key={row.id} className="flex items-center justify-between gap-4 py-1">
+                <div
+                  key={row.id}
+                  className="gap-4 py-1 flex items-center justify-between"
+                >
                   <div>
-                    <Label htmlFor={row.id} className="text-sm font-medium">{row.label}</Label>
+                    <Label htmlFor={row.id} className="text-sm font-medium">
+                      {row.label}
+                    </Label>
                     <p className="text-xs text-muted-foreground">{row.desc}</p>
                   </div>
                   <Switch id={row.id} defaultChecked={row.checked} disabled />
@@ -305,18 +372,24 @@ export function WorkspaceSettingsPage() {
             <CardHeader>
               <CardTitle className="text-base">Change password</CardTitle>
               <CardDescription>
-                Update your account password. Changing your password signs out all other active sessions.
+                Update your account password. Changing your password signs out
+                all other active sessions.
               </CardDescription>
             </CardHeader>
             <CardContent>
               {passwordChanged ? (
-                <div className="mb-4 rounded-md bg-success/10 p-3 text-xs text-success border border-success/20">
-                  Password updated successfully. Other active sessions have been signed out.
+                <div className="mb-4 p-3 text-xs rounded-md border border-success/20 bg-success/10 text-success">
+                  Password updated successfully. Other active sessions have been
+                  signed out.
                 </div>
               ) : null}
 
               <Form {...passwordForm}>
-                <form onSubmit={onPasswordSubmit} className="space-y-4 max-w-md" noValidate>
+                <form
+                  onSubmit={onPasswordSubmit}
+                  className="space-y-4 max-w-md"
+                  noValidate
+                >
                   <FormError error={formErrorMessage(changePassword.error)} />
 
                   <FormField
@@ -386,7 +459,25 @@ export function WorkspaceSettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Tab 4: Danger Zone */}
+        {/* Tab 4: Import & Export */}
+        <TabsContent value="import-export" className="space-y-6 outline-none">
+          <Card className="p-6">
+            <CardHeader className="px-0 pt-0">
+              <CardTitle className="text-base">
+                Workspace Data Import & Export
+              </CardTitle>
+              <CardDescription>
+                Import channels and documents from external tools like Slack and
+                Notion, or generate backups of your workspace data.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-0 pb-0">
+              <SlackNotionImportView embedded />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab 5: Danger Zone */}
         {isOwner ? (
           <TabsContent value="danger" className="space-y-6 outline-none">
             <Card className="border-destructive/40 bg-destructive/5">
@@ -395,11 +486,16 @@ export function WorkspaceSettingsPage() {
                   Delete Workspace
                 </CardTitle>
                 <CardDescription>
-                  Permanently remove this workspace and all associated channels, documents, and member permissions. This action cannot be undone.
+                  Permanently remove this workspace and all associated channels,
+                  documents, and member permissions. This action cannot be
+                  undone.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button variant="destructive" onClick={() => setConfirmOpen(true)}>
+                <Button
+                  variant="destructive"
+                  onClick={() => setConfirmOpen(true)}
+                >
                   Delete workspace
                 </Button>
               </CardContent>

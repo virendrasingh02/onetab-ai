@@ -212,8 +212,8 @@ export function App() {
             <Route path="automations/builder" element={<WorkflowCanvasView />} />
             <Route path="automations/logs" element={<WorkflowExecutionLogsView />} />
             <Route path="integrations" element={<IntegrationHubView />} />
-            <Route path="import-export" element={<SlackNotionImportView />} />
-            <Route path="integrations/import" element={<SlackNotionImportView />} />
+            <Route path="import-export" element={<WorkspaceSettingsPage />} />
+            <Route path="integrations/import" element={<WorkspaceSettingsPage />} />
             {/*
               Analytics is one destination with tabs: `AnalyticsLayout` renders
               the tab bar and the routed screen below it.

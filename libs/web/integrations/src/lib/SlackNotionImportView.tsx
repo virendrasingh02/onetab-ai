@@ -79,127 +79,118 @@ const EXPORTS: ExportOption[] = [
   },
 ];
 
-export function SlackNotionImportView() {
+export function SlackNotionImportView({ embedded = false }: { embedded?: boolean } = {}) {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  return (
-    <Page>
-      <PageHeader
-        title="Import & Export"
-        description="Import channels and documents from Slack & Notion, or export your workspace data."
-        icon={<UploadCloud />}
-        accent="cyan"
-      />
-
-      <div className="space-y-8">
-        <div>
-          <h2 className="mb-3 text-sm font-semibold text-foreground uppercase tracking-wider text-subtle">
-            Import Data
-          </h2>
-          <ul className="gap-6 md:grid-cols-2 grid grid-cols-1">
-            {SOURCES.map((source) => {
-              const Icon = source.icon;
-              return (
-                <li key={source.id}>
-                  <Card className="p-6 h-full justify-between">
-                    <div>
-                      <div className="mb-3 gap-3 flex items-center">
-                        <span
-                          aria-hidden
-                          className={cn(
-                            'size-11 flex shrink-0 items-center justify-center rounded-lg',
-                            accentClasses[source.accent].soft,
-                          )}
-                        >
-                          <Icon className="size-5" />
-                        </span>
-                        <div className="min-w-0">
-                          <h3 className="text-sm font-semibold text-foreground">
-                            {source.name}
-                          </h3>
-                          <p className="text-xs text-muted-foreground">
-                            {source.format}
-                          </p>
-                        </div>
+  const content = (
+    <div className="space-y-8">
+      <div>
+        <h2 className="mb-3 text-sm font-semibold text-foreground uppercase tracking-wider text-subtle">
+          Import Data
+        </h2>
+        <ul className="gap-6 md:grid-cols-2 grid grid-cols-1">
+          {SOURCES.map((source) => {
+            const Icon = source.icon;
+            return (
+              <li key={source.id}>
+                <Card className="p-6 h-full justify-between">
+                  <div>
+                    <div className="mb-3 gap-3 flex items-center">
+                      <span
+                        aria-hidden
+                        className={cn(
+                          'size-11 flex shrink-0 items-center justify-center rounded-lg',
+                          accentClasses[source.accent].soft,
+                        )}
+                      >
+                        <Icon className="size-5" />
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-semibold text-foreground">
+                          {source.name}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          {source.format}
+                        </p>
                       </div>
-                      <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
-                        {source.description}
-                      </p>
                     </div>
+                    <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
+                      {source.description}
+                    </p>
+                  </div>
 
-                    <Button
-                      className="w-full"
-                      size="sm"
-                      onClick={() =>
-                        setStatusMessage(
-                          `Import started for ${source.name}. Data is populating in the background.`,
-                        )
-                      }
-                      trailingIcon={<ArrowRight />}
-                    >
-                      {source.cta}
-                    </Button>
-                  </Card>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+                  <Button
+                    className="w-full"
+                    size="sm"
+                    onClick={() =>
+                      setStatusMessage(
+                        `Import started for ${source.name}. Data is populating in the background.`,
+                      )
+                    }
+                    trailingIcon={<ArrowRight />}
+                  >
+                    {source.cta}
+                  </Button>
+                </Card>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
 
-        <div>
-          <h2 className="mb-3 text-sm font-semibold text-foreground uppercase tracking-wider text-subtle">
-            Export Data
-          </h2>
-          <ul className="gap-6 md:grid-cols-2 grid grid-cols-1">
-            {EXPORTS.map((exp) => {
-              const Icon = exp.icon;
-              return (
-                <li key={exp.id}>
-                  <Card className="p-6 h-full justify-between">
-                    <div>
-                      <div className="mb-3 gap-3 flex items-center">
-                        <span
-                          aria-hidden
-                          className={cn(
-                            'size-11 flex shrink-0 items-center justify-center rounded-lg',
-                            accentClasses[exp.accent].soft,
-                          )}
-                        >
-                          <Icon className="size-5" />
-                        </span>
-                        <div className="min-w-0">
-                          <h3 className="text-sm font-semibold text-foreground">
-                            {exp.name}
-                          </h3>
-                          <p className="text-xs text-muted-foreground">
-                            {exp.format}
-                          </p>
-                        </div>
+      <div>
+        <h2 className="mb-3 text-sm font-semibold text-foreground uppercase tracking-wider text-subtle">
+          Export Data
+        </h2>
+        <ul className="gap-6 md:grid-cols-2 grid grid-cols-1">
+          {EXPORTS.map((exp) => {
+            const Icon = exp.icon;
+            return (
+              <li key={exp.id}>
+                <Card className="p-6 h-full justify-between">
+                  <div>
+                    <div className="mb-3 gap-3 flex items-center">
+                      <span
+                        aria-hidden
+                        className={cn(
+                          'size-11 flex shrink-0 items-center justify-center rounded-lg',
+                          accentClasses[exp.accent].soft,
+                        )}
+                      >
+                        <Icon className="size-5" />
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-semibold text-foreground">
+                          {exp.name}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          {exp.format}
+                        </p>
                       </div>
-                      <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
-                        {exp.description}
-                      </p>
                     </div>
+                    <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
+                      {exp.description}
+                    </p>
+                  </div>
 
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      size="sm"
-                      onClick={() =>
-                        setStatusMessage(
-                          `Export request created for ${exp.name}. Download link will be ready shortly.`,
-                        )
-                      }
-                      trailingIcon={<Download />}
-                    >
-                      {exp.cta}
-                    </Button>
-                  </Card>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    size="sm"
+                    onClick={() =>
+                      setStatusMessage(
+                        `Export request created for ${exp.name}. Download link will be ready shortly.`,
+                      )
+                    }
+                    trailingIcon={<Download />}
+                  >
+                    {exp.cta}
+                  </Button>
+                </Card>
+              </li>
+            );
+          })}
+        </ul>
       </div>
 
       <div role="status" aria-live="polite">
@@ -210,6 +201,22 @@ export function SlackNotionImportView() {
           </p>
         ) : null}
       </div>
+    </div>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <Page>
+      <PageHeader
+        title="Import & Export"
+        description="Import channels and documents from Slack & Notion, or export your workspace data."
+        icon={<UploadCloud />}
+        accent="cyan"
+      />
+      {content}
     </Page>
   );
 }

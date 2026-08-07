@@ -210,6 +210,10 @@ export function CreateWorkspacePage() {
   };
 
   const onSubmit = form.handleSubmit(async (values) => {
+    if (currentStep < STEPS.length) {
+      await handleNextStep();
+      return;
+    }
     try {
       await createWorkspace.mutateAsync(values);
     } catch {
@@ -431,7 +435,7 @@ export function CreateWorkspacePage() {
                       <div className="space-y-6">
                         {/* Icon & Color Customizer */}
                         <div>
-                          <FormLabel className="text-slate-200 block mb-2">Workspace Icon & Accent Color</FormLabel>
+                          <label className="text-sm font-medium text-slate-200 block mb-2">Workspace Icon & Accent Color</label>
                           <div className="flex items-center gap-4 bg-slate-950 p-4 rounded-xl border border-slate-800">
                             <IconPickerPopover
                               icon={iconName}
@@ -460,7 +464,7 @@ export function CreateWorkspacePage() {
 
                         {/* Starter Channels Customizer */}
                         <div className="space-y-3">
-                          <FormLabel className="text-slate-200 block">Starter Channels</FormLabel>
+                          <label className="text-sm font-medium text-slate-200 block">Starter Channels</label>
                           <div className="flex items-center gap-2">
                             <div className="relative flex-1">
                               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-mono text-xs">#</span>
@@ -516,7 +520,7 @@ export function CreateWorkspacePage() {
                     {currentStep === 4 && (
                       <div className="space-y-6">
                         <div className="space-y-3">
-                          <FormLabel className="text-slate-200 block">Invite Team Members via Email</FormLabel>
+                          <label className="text-sm font-medium text-slate-200 block">Invite Team Members via Email</label>
                           <div className="flex items-center gap-2">
                             <Input
                               type="email"

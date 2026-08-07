@@ -26,6 +26,9 @@
   ],
   "references": [
     {
+      "path": "../integrations/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/types/tsconfig.lib.json"
     },
     {

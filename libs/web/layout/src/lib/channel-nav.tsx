@@ -46,6 +46,7 @@ import {
   Package,
   ArrowRight,
   SquarePen,
+  Settings,
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -73,6 +74,7 @@ const SECONDARY_LINKS: readonly NavEntry[] = [
   { path: 'schedule', label: 'Schedule', icon: Clock },
   { path: 'directory', label: 'Team Directory', icon: Users },
   { path: 'files', label: 'Files', icon: HardDrive },
+  { path: 'settings', label: 'Settings', icon: Settings },
 ];
 
 const AGENTS_LINKS: readonly NavEntry[] = [
@@ -83,7 +85,6 @@ const AGENTS_LINKS: readonly NavEntry[] = [
 
 const APPS_LINKS: readonly NavEntry[] = [
   { path: 'integrations', label: 'App Directory', icon: Share2, end: true },
-  { path: 'import-export', label: 'Import & Export', icon: UploadCloud },
 ];
 
 const AUTOMATION_LINKS: readonly NavEntry[] = [
@@ -889,14 +890,14 @@ export function ChannelNav({
               title="AI Agents"
               links={AGENTS_LINKS}
               workspaceSlug={workspaceSlug}
-              defaultOpen={false}
+              defaultOpen={true}
             />
 
             <LinkSection
-              title="Apps & Integrations"
+              title="Apps"
               links={APPS_LINKS}
               workspaceSlug={workspaceSlug}
-              defaultOpen={false}
+              defaultOpen={true}
             />
 
             <LinkSection
