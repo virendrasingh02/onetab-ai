@@ -68,17 +68,11 @@ const WorkspaceSettingsPage = lazy(() =>
 const WorkspaceRedirect = lazy(() =>
   import('@org/web-workspace').then((m) => ({ default: m.WorkspaceRedirect })),
 );
-const KanbanBoard = lazy(() =>
-  import('@org/web-work-tools').then((m) => ({ default: m.KanbanBoard })),
+const AsanaProjectManager = lazy(() =>
+  import('@org/web-work-tools').then((m) => ({ default: m.AsanaProjectManager })),
 );
 const DocumentEditor = lazy(() =>
   import('@org/web-work-tools').then((m) => ({ default: m.DocumentEditor })),
-);
-const WhiteboardCanvas = lazy(() =>
-  import('@org/web-work-tools').then((m) => ({ default: m.WhiteboardCanvas })),
-);
-const CalendarView = lazy(() =>
-  import('@org/web-work-tools').then((m) => ({ default: m.CalendarView })),
 );
 const FileManagerView = lazy(() =>
   import('@org/web-work-tools').then((m) => ({ default: m.FileManagerView })),
@@ -97,12 +91,6 @@ const MeetingsView = lazy(() =>
 );
 const AIChatView = lazy(() =>
   import('@org/web-ai').then((m) => ({ default: m.AIChatView })),
-);
-const PromptLibraryView = lazy(() =>
-  import('@org/web-ai').then((m) => ({ default: m.PromptLibraryView })),
-);
-const AIImageGeneratorView = lazy(() =>
-  import('@org/web-ai').then((m) => ({ default: m.AIImageGeneratorView })),
 );
 const AgentMarketplaceView = lazy(() =>
   import('@org/web-agents').then((m) => ({ default: m.AgentMarketplaceView })),
@@ -205,8 +193,8 @@ export function App() {
             <Route path="invitations" element={<InvitationsPage />} />
             <Route path="inbox" element={<InboxView />} />
             <Route path="schedule" element={<ScheduleView />} />
-            <Route path="tasks" element={<KanbanBoard />} />
-            <Route path="kanban" element={<KanbanBoard />} />
+            <Route path="tasks" element={<AsanaProjectManager />} />
+            <Route path="kanban" element={<AsanaProjectManager />} />
             <Route path="notes" element={<DocumentEditor />} />
             <Route path="docs" element={<DocumentEditor />} />
             <Route path="files" element={<FileManagerView />} />

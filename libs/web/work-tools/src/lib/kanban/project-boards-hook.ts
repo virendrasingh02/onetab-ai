@@ -222,7 +222,7 @@ export function useProjectBoards() {
     preset?: 'standard' | 'sprint' | 'bug';
   }) => {
     const seed = createSeedBoard();
-    let lists = seed.lists;
+    let lists: KanbanList[];
 
     if (preset === 'sprint') {
       lists = [

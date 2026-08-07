@@ -111,7 +111,7 @@ const INITIAL_PULSE_ITEMS: PulseItem[] = [
     target: 'AI Assistant Architecture Spec v2',
     category: 'tasks',
     timestamp: '2 hours ago',
-    accent: 'sky',
+    accent: 'cyan',
     details: 'Added API integration specs for local Ollama and Anthropic Claude 3.5 Sonnet.',
     linkText: 'Open Document',
     reactions: { thumbsUp: 3, heart: 2, rocket: 4, userReacted: {} },
@@ -123,7 +123,7 @@ const INITIAL_PULSE_ITEMS: PulseItem[] = [
     target: 'PR #184: Linear Inspired Design System',
     category: 'ai',
     timestamp: '3 hours ago',
-    accent: 'purple',
+    accent: 'violet',
     details: '14 commits merged into main with 0 build warnings.',
     linkText: 'View Commit',
     reactions: { thumbsUp: 9, heart: 5, rocket: 11, userReacted: {} },
@@ -359,7 +359,7 @@ export function ActivityTimelineView() {
                               {entry.user.name}
                             </span>
                             {entry.user.role ? (
-                              <Badge variant="subtle" className="text-[10px] py-0 px-1.5 font-normal">
+                              <Badge variant="neutral" className="text-[10px] py-0 px-1.5 font-normal">
                                 {entry.user.role}
                               </Badge>
                             ) : null}

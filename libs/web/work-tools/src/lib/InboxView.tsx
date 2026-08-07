@@ -1,6 +1,4 @@
-import type { Accent } from '@org/design-system';
 import {
-  accentClasses,
   Badge,
   Button,
   Card,

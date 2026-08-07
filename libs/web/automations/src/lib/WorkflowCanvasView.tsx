@@ -21,11 +21,9 @@ import {
   Page,
   PageHeader,
   Panel,
-  Toolbar,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  Bot,
   CheckCircle,
   Cpu,
   GitBranch,
@@ -391,7 +389,7 @@ export function WorkflowCanvasView() {
                 return '#10b981';
               }}
             />
-            <Background gap={16} size={1} color="#64748b" opacity={0.2} />
+            <Background gap={16} size={1} color="#64748b" />
           </ReactFlow>
         </div>
 
