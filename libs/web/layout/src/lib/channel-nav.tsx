@@ -8,8 +8,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  IconRenderer,
   Hint,
-  Progress,
   ScrollArea,
   SkeletonList,
 } from '@org/ui';
@@ -32,17 +32,23 @@ import {
   Bot,
   Workflow,
   Sparkles,
-  UserPlus,
   Clock,
   Inbox,
   Share2,
   UploadCloud,
   MoreHorizontal,
+  MoreVertical,
+  Pencil,
+  Copy,
+  Trash2,
   Home,
   FolderKanban,
+  Package,
+  ArrowRight,
+  SquarePen,
   type LucideIcon,
 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 
 interface NavEntry {
@@ -186,7 +192,7 @@ function Section({
 function ProjectsTreeSection({ workspaceSlug }: { workspaceSlug: string }) {
   const location = useLocation();
 
-  const [projects] = useState(() => {
+  const loadProjects = () => {
     try {
       const saved = localStorage.getItem('onetab_project_boards_v2');
       if (saved) {
@@ -199,11 +205,55 @@ function ProjectsTreeSection({ workspaceSlug }: { workspaceSlug: string }) {
       // fallback
     }
     return [
-      { id: 'proj_product', name: 'Q3 Product & Release', color: 'violet' },
-      { id: 'proj_design', name: 'Website & UI Redesign', color: 'blue' },
-      { id: 'proj_api', name: 'AI & Vector Pipeline', color: 'emerald' },
+      { id: 'proj_product', name: 'Q3 Product & Release', color: 'violet', icon: 'Rocket', iconColor: '#8b5cf6' },
+      { id: 'proj_design', name: 'Website & UI Redesign', color: 'blue', icon: 'Sparkles', iconColor: '#3b82f6' },
+      { id: 'proj_api', name: 'AI & Vector Pipeline', color: 'emerald', icon: 'Cpu', iconColor: '#10b981' },
     ];
-  });
+  };
+
+  const [projects, setProjects] = useState(loadProjects);
+
+  useEffect(() => {
+    const handleSync = () => {
+      setProjects(loadProjects());
+    };
+    window.addEventListener('onetab_projects_updated', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('onetab_projects_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
+
+
+
+  const handleDeleteProject = (projId: string) => {
+    if (projects.length <= 1) return;
+    const updated = projects.filter((p: any) => p.id !== projId);
+    setProjects(updated);
+    try {
+      localStorage.setItem('onetab_project_boards_v2', JSON.stringify(updated));
+      window.dispatchEvent(new Event('onetab_projects_updated'));
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleRenameProject = (projId: string, currentName: string) => {
+    const newName = prompt('Enter new project name:', currentName);
+    if (newName && newName.trim()) {
+      const updated = projects.map((p: any) =>
+        p.id === projId ? { ...p, name: newName.trim() } : p
+      );
+      setProjects(updated);
+      try {
+        localStorage.setItem('onetab_project_boards_v2', JSON.stringify(updated));
+        window.dispatchEvent(new Event('onetab_projects_updated'));
+      } catch {
+        // ignore
+      }
+    }
+  };
 
   return (
     <Section
@@ -237,29 +287,57 @@ function ProjectsTreeSection({ workspaceSlug }: { workspaceSlug: string }) {
         </NavLink>
       </li>
 
-      {projects.map((proj) => {
+      {projects.map((proj: any) => {
         const projTo = `/w/${workspaceSlug}/tasks?project=${proj.id}`;
         const isSelected = location.pathname.includes('/tasks') && location.search.includes(`project=${proj.id}`);
 
         return (
-          <li key={proj.id}>
+          <li key={proj.id} className="group/proj relative">
             <NavLink
               to={projTo}
-              className={navRowClass(isSelected, 'pl-6 text-[12px]')}
+              className={navRowClass(isSelected, 'pl-6 pr-8 text-[12px] flex items-center gap-2')}
             >
-              <span
-                className={cn(
-                  'size-2 rounded-full shrink-0',
-                  proj.color === 'violet' && 'bg-violet-500',
-                  proj.color === 'blue' && 'bg-blue-500',
-                  proj.color === 'emerald' && 'bg-emerald-500',
-                  proj.color === 'amber' && 'bg-amber-500',
-                  proj.color === 'rose' && 'bg-rose-500',
-                  proj.color === 'cyan' && 'bg-cyan-500',
-                )}
+              <IconRenderer
+                icon={proj.icon}
+                iconColor={proj.iconColor}
+                fallbackEmoji="📁"
+                sizeClassName="size-3.5 shrink-0"
               />
               <span className="flex-1 truncate">{proj.name}</span>
             </NavLink>
+
+            {/* Project Options Dropdown */}
+            <div className="opacity-0 group-hover/proj:opacity-100 transition-opacity absolute right-1.5 top-1/2 -translate-y-1/2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="p-1 rounded text-subtle hover:text-foreground hover:bg-accent cursor-pointer"
+                    title="Project Options"
+                  >
+                    <MoreVertical className="size-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem
+                    onClick={() => handleRenameProject(proj.id, proj.name)}
+                    className="text-xs gap-2"
+                  >
+                    <Pencil className="size-3 text-primary" />
+                    Rename Project
+                  </DropdownMenuItem>
+                  {projects.length > 1 && (
+                    <DropdownMenuItem
+                      onClick={() => handleDeleteProject(proj.id)}
+                      className="text-xs gap-2 text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="size-3" />
+                      Delete Project
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </li>
         );
       })}
@@ -270,9 +348,9 @@ function ProjectsTreeSection({ workspaceSlug }: { workspaceSlug: string }) {
 function DocsTreeSection({ workspaceSlug }: { workspaceSlug: string }) {
   const location = useLocation();
 
-  const [docs] = useState(() => {
+  const loadDocs = () => {
     try {
-      const saved = localStorage.getItem('onetab_docs_v2');
+      const saved = localStorage.getItem('onetab_docs_v3');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -283,12 +361,75 @@ function DocsTreeSection({ workspaceSlug }: { workspaceSlug: string }) {
       // fallback
     }
     return [
-      { id: 'doc_arch', title: 'Workspace Architecture' },
-      { id: 'doc_design', title: 'Design System Tokens' },
-      { id: 'doc_ollama', title: 'Ollama Vector RAG' },
-      { id: 'doc_security', title: 'API Security Scope' },
+      { id: 'doc_arch', title: 'Workspace Architecture', icon: '🏗️' },
+      { id: 'doc_design', title: 'Design System Tokens', icon: '🎨' },
+      { id: 'doc_ollama', title: 'Ollama Vector RAG', icon: '⚡' },
+      { id: 'doc_security', title: 'API Security Scope', icon: '🛡️' },
     ];
-  });
+  };
+
+  const [docs, setDocs] = useState(loadDocs);
+
+  useEffect(() => {
+    const handleSync = () => {
+      setDocs(loadDocs());
+    };
+    window.addEventListener('onetab_docs_updated', handleSync);
+    window.addEventListener('storage', handleSync);
+    return () => {
+      window.removeEventListener('onetab_docs_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
+
+
+
+  const handleDeleteDoc = (docId: string) => {
+    if (docs.length <= 1) return;
+    const updated = docs.filter((d: any) => d.id !== docId);
+    setDocs(updated);
+    try {
+      localStorage.setItem('onetab_docs_v3', JSON.stringify(updated));
+      window.dispatchEvent(new Event('onetab_docs_updated'));
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleRenameDoc = (docId: string, currentTitle: string) => {
+    const newTitle = prompt('Enter new document title:', currentTitle);
+    if (newTitle && newTitle.trim()) {
+      const updated = docs.map((d: any) =>
+        d.id === docId ? { ...d, title: newTitle.trim() } : d
+      );
+      setDocs(updated);
+      try {
+        localStorage.setItem('onetab_docs_v3', JSON.stringify(updated));
+        window.dispatchEvent(new Event('onetab_docs_updated'));
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const handleDuplicateDoc = (docId: string) => {
+    const source = docs.find((d: any) => d.id === docId);
+    if (!source) return;
+    const newDoc = {
+      ...source,
+      id: `doc_${Date.now()}`,
+      title: `${source.title} (Copy)`,
+      updatedAt: 'Just now',
+    };
+    const updated = [newDoc, ...docs];
+    setDocs(updated);
+    try {
+      localStorage.setItem('onetab_docs_v3', JSON.stringify(updated));
+      window.dispatchEvent(new Event('onetab_docs_updated'));
+    } catch {
+      // ignore
+    }
+  };
 
   return (
     <Section
@@ -322,19 +463,64 @@ function DocsTreeSection({ workspaceSlug }: { workspaceSlug: string }) {
         </NavLink>
       </li>
 
-      {docs.map((docItem) => {
+      {docs.map((docItem: any) => {
         const docTo = `/w/${workspaceSlug}/docs?doc=${docItem.id}`;
         const isSelected = location.pathname.includes('/docs') && location.search.includes(`doc=${docItem.id}`);
 
         return (
-          <li key={docItem.id}>
+          <li key={docItem.id} className="group/doc relative">
             <NavLink
               to={docTo}
-              className={navRowClass(isSelected, 'pl-6 text-[12px]')}
+              className={navRowClass(isSelected, 'pl-6 pr-8 text-[12px] flex items-center gap-2')}
             >
-              <FileText className="size-3 shrink-0 text-subtle" aria-hidden />
+              <IconRenderer
+                icon={docItem.icon}
+                iconColor={docItem.iconColor}
+                fallbackEmoji="📝"
+                sizeClassName="size-3.5 shrink-0"
+              />
               <span className="flex-1 truncate">{docItem.title}</span>
             </NavLink>
+
+            {/* Doc Options Dropdown */}
+            <div className="opacity-0 group-hover/doc:opacity-100 transition-opacity absolute right-1.5 top-1/2 -translate-y-1/2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="p-1 rounded text-subtle hover:text-foreground hover:bg-accent cursor-pointer"
+                    title="Doc Options"
+                  >
+                    <MoreVertical className="size-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuItem
+                    onClick={() => handleRenameDoc(docItem.id, docItem.title)}
+                    className="text-xs gap-2"
+                  >
+                    <Pencil className="size-3 text-primary" />
+                    Rename Doc
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleDuplicateDoc(docItem.id)}
+                    className="text-xs gap-2"
+                  >
+                    <Copy className="size-3" />
+                    Duplicate Doc
+                  </DropdownMenuItem>
+                  {docs.length > 1 && (
+                    <DropdownMenuItem
+                      onClick={() => handleDeleteDoc(docItem.id)}
+                      className="text-xs gap-2 text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="size-3" />
+                      Delete Doc
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </li>
         );
       })}
@@ -573,6 +759,17 @@ export function ChannelNav({
       input: { isFavorite: !channel.membership?.isFavorite },
     });
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o') {
+        e.preventDefault();
+        onCreateChannel();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onCreateChannel]);
+
   if (isLoading) {
     return (
       <div className="px-3 py-2">
@@ -713,57 +910,77 @@ export function ChannelNav({
       </ScrollArea>
 
       {/* Sidebar Footer Section */}
-      <div className="shrink-0 space-y-1 border-t border-border p-2">
-        {/*
-          The meter sits beside the button rather than inside it: `<button>`
-          only admits phrasing content, and Progress renders a div.
-        */}
-        <div className="px-3 py-2">
+      <div className="shrink-0 p-3 space-y-3 border-t border-border/60 bg-sidebar">
+        {/* Upgrade Prompt Banner Card */}
+        <div className="rounded-xl border border-border/80 bg-accent/40 p-3.5 space-y-2 text-left shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <div className="relative shrink-0 text-amber-500">
+              <Package className="size-5" />
+              <span className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full bg-amber-500 text-[9px] font-extrabold text-zinc-950 leading-none">
+                !
+              </span>
+            </div>
+            <span className="text-xs font-bold text-foreground tracking-tight">
+              2 days left to upgrade
+            </span>
+          </div>
+
+          <p className="text-[11px] leading-snug text-muted-foreground font-normal">
+            This workspace is out of free blocks for you and your team
+          </p>
+
+          <div className="pt-0.5">
+            <NavLink
+              to={`/w/${workspaceSlug}/members`}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground hover:text-primary transition-colors"
+            >
+              <span>Manage members</span>
+              <ArrowRight className="size-3.5" />
+            </NavLink>
+          </div>
+        </div>
+
+        {/* Bottom Actions Row */}
+        <div className="flex items-center gap-2">
           <button
-            onClick={onBrowseChannels}
+            onClick={onCreateChannel}
             className={cn(
-              'flex w-full items-center justify-between gap-2 text-xs',
-              'text-muted-foreground transition-colors duration-(--duration-fast) ease-standard',
-              'hover:text-foreground',
+              'flex-1 flex items-center justify-between gap-2 bg-secondary/80 hover:bg-secondary text-secondary-foreground px-3.5 py-2.5 rounded-full text-xs font-medium transition-colors border border-border/30',
               'outline-none focus-visible:ring-1 focus-visible:ring-ring',
             )}
           >
-            <span>Getting Started</span>
-            <span className="text-subtle tabular-nums">2/6</span>
+            <span className="flex items-center gap-2">
+              <svg
+                className="size-4 shrink-0 text-muted-foreground"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="9" />
+                <path d="M9 10h.01" />
+                <path d="M15 10h.01" />
+                <path d="M9.5 14.5c.8 1 2.2 1.5 3.5 1.5s2.7-.5 3.5-1.5" />
+              </svg>
+              <span>New chat</span>
+            </span>
+            <kbd className="text-[10px] font-sans px-1.5 py-0.5 rounded bg-background/70 text-muted-foreground border border-border/40 tabular-nums">
+              Ctrl+O
+            </kbd>
           </button>
-          {/*
-            The default `surface-inset` track is the same value as the sidebar
-            background, so the trough needs a visible fill of its own here.
-          */}
-          <Progress
-            value={33}
-            size="sm"
-            label="Getting Started"
-            className="mt-2 bg-border"
-          />
-        </div>
 
-        <button
-          onClick={onBrowseChannels}
-          className={cn(
-            'flex w-full items-center gap-2.5 rounded-btn px-3 py-1.5 text-xs',
-            'text-muted-foreground transition-colors duration-(--duration-fast) ease-standard',
-            'hover:bg-accent hover:text-foreground',
-            'outline-none focus-visible:ring-1 focus-visible:ring-ring',
-          )}
-        >
-          <UserPlus className="size-4 shrink-0" aria-hidden />
-          <span>Invite Members</span>
-        </button>
-
-        <div className="flex items-center justify-between gap-2 px-3 pt-1">
-          <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-subtle">
-            <Clock className="size-3.5 shrink-0" aria-hidden />
-            <span className="truncate">5 days left on trial</span>
-          </span>
-          <Button size="sm" className="shrink-0">
-            Keep Pro
-          </Button>
+          <button
+            onClick={onCreateChannel}
+            className={cn(
+              'flex size-9 items-center justify-center rounded-full bg-secondary/80 hover:bg-secondary text-secondary-foreground transition-colors border border-border/30 shrink-0',
+              'outline-none focus-visible:ring-1 focus-visible:ring-ring',
+            )}
+            aria-label="New item"
+          >
+            <SquarePen className="size-4 text-muted-foreground hover:text-foreground" />
+          </button>
         </div>
       </div>
     </div>

@@ -57,6 +57,7 @@ export interface DocItem {
   pinned?: boolean;
   favorite?: boolean;
   icon?: string;
+  iconColor?: string;
   cover?: string;
   status?: DocStatus;
   parentId?: string;
@@ -327,6 +328,7 @@ export function useDocsState() {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(docs));
+      window.dispatchEvent(new Event('onetab_docs_updated'));
     } catch (e) {
       console.warn('Failed to persist docs:', e);
     }
@@ -360,9 +362,9 @@ export function useDocsState() {
     );
   };
 
-  const updateDocIcon = (id: string, icon: string) => {
+  const updateDocIcon = (id: string, icon: string, iconColor?: string) => {
     setDocs((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, icon, updatedAt: 'Just now' } : d)),
+      prev.map((d) => (d.id === id ? { ...d, icon, iconColor, updatedAt: 'Just now' } : d)),
     );
   };
 

@@ -31,7 +31,7 @@ import {
   Send,
   Sparkles,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { DocItem } from './docs-hook.js';
 
 interface DocToolsDrawerProps {
@@ -41,6 +41,7 @@ interface DocToolsDrawerProps {
 
 export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
   const [commentInput, setCommentInput] = useState('');
+  const [downloadedFormat, setDownloadedFormat] = useState<string | null>(null);
 
   // Extract Heading Outline
   const headingBlocks = doc.blocks
@@ -113,8 +114,8 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
     link.download = `${doc.title.toLowerCase().replace(/\s+/g, '-')}.${ext}`;
     link.click();
     URL.revokeObjectURL(url);
-    setCopiedFormat(format);
-    setTimeout(() => setCopiedFormat(null), 2000);
+    setDownloadedFormat(format);
+    setTimeout(() => setDownloadedFormat(null), 2000);
   };
 
   return (
@@ -144,7 +145,9 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
               className="p-3 rounded-lg border border-border bg-surface-raised hover:border-accent-blue hover:bg-accent/40 text-center transition-all flex flex-col items-center gap-2 cursor-pointer"
             >
               <FileText className="size-6 text-accent-blue" />
-              <span className="text-xs font-bold text-foreground">Markdown (.md)</span>
+              <span className="text-xs font-bold text-foreground">
+                {downloadedFormat === 'markdown' ? 'Downloaded!' : 'Markdown (.md)'}
+              </span>
             </button>
             <button
               type="button"
@@ -152,7 +155,9 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
               className="p-3 rounded-lg border border-border bg-surface-raised hover:border-emerald-500 hover:bg-accent/40 text-center transition-all flex flex-col items-center gap-2 cursor-pointer"
             >
               <FileCode className="size-6 text-emerald-400" />
-              <span className="text-xs font-bold text-foreground">HTML (.html)</span>
+              <span className="text-xs font-bold text-foreground">
+                {downloadedFormat === 'html' ? 'Downloaded!' : 'HTML (.html)'}
+              </span>
             </button>
             <button
               type="button"
@@ -160,7 +165,9 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
               className="p-3 rounded-lg border border-border bg-surface-raised hover:border-purple-500 hover:bg-accent/40 text-center transition-all flex flex-col items-center gap-2 cursor-pointer"
             >
               <FileSpreadsheet className="size-6 text-purple-400" />
-              <span className="text-xs font-bold text-foreground">JSON (.json)</span>
+              <span className="text-xs font-bold text-foreground">
+                {downloadedFormat === 'json' ? 'Downloaded!' : 'JSON (.json)'}
+              </span>
             </button>
           </div>
         </DialogContent>

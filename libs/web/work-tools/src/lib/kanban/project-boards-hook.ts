@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createSeedBoard } from './seed.js';
-import type { BoardState } from './types.js';
+import type { BoardState, KanbanList } from './types.js';
 
 export type ProjectCategory =
   | 'Engineering'
@@ -22,6 +22,8 @@ export interface ProjectBoardItem {
   name: string;
   category: ProjectCategory;
   color: ProjectColor;
+  icon?: string;
+  iconColor?: string;
   description: string;
   board: BoardState;
   updatedAt: string;
@@ -38,6 +40,8 @@ function createSeedProjects(): ProjectBoardItem[] {
       name: 'Q3 Product & Platform Release',
       category: 'Product',
       color: 'violet',
+      icon: 'Rocket',
+      iconColor: '#8b5cf6',
       description: 'Core product features, resizable sidebars, and AI Copilot integration.',
       board: { ...seedBoard, title: 'Q3 Product & Platform Release' },
       updatedAt: new Date().toISOString(),
@@ -47,6 +51,8 @@ function createSeedProjects(): ProjectBoardItem[] {
       name: 'Website & UI Redesign',
       category: 'Design',
       color: 'blue',
+      icon: 'Sparkles',
+      iconColor: '#3b82f6',
       description: 'New design system tokens, responsive glassmorphism themes, and dark mode.',
       board: {
         title: 'Website & UI Redesign',
@@ -191,6 +197,7 @@ export function useProjectBoards() {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+      window.dispatchEvent(new Event('onetab_projects_updated'));
     } catch (e) {
       console.warn('Failed to persist project boards:', e);
     }
@@ -269,6 +276,26 @@ export function useProjectBoards() {
     return newProject.id;
   };
 
+  const updateProjectIcon = (id: string, icon: string, iconColor?: string) => {
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, icon, iconColor, updatedAt: new Date().toISOString() }
+          : p,
+      ),
+    );
+  };
+
+  const updateProject = (id: string, updates: Partial<Omit<ProjectBoardItem, 'id' | 'board'>>) => {
+    setProjects((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, ...updates, updatedAt: new Date().toISOString() }
+          : p,
+      ),
+    );
+  };
+
   const deleteProject = (id: string) => {
     if (projects.length <= 1) return; // Keep at least one project
     setProjects((prev) => {
@@ -286,6 +313,8 @@ export function useProjectBoards() {
     activeProjectId,
     setActiveProjectId,
     updateActiveBoardState,
+    updateProjectIcon,
+    updateProject,
     createProject,
     deleteProject,
   };

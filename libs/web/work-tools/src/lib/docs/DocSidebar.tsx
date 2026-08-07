@@ -10,6 +10,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  IconRenderer,
   Input,
   Panel,
 } from '@org/ui';
@@ -19,12 +20,13 @@ import {
   Folder,
   LayoutTemplate,
   MoreVertical,
+  Pencil,
   Plus,
   Search,
   Star,
   Trash2,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { DocCategory, DocItem } from './docs-hook.js';
 
 interface DocSidebarProps {
@@ -35,6 +37,8 @@ interface DocSidebarProps {
   onDuplicateDoc: (id: string) => void;
   onToggleFavorite: (id: string) => void;
   onDeleteDoc: (id: string) => void;
+  onUpdateIcon?: (id: string, icon: string, iconColor?: string) => void;
+  onUpdateTitle?: (id: string, title: string) => void;
 }
 
 export function DocSidebar({
@@ -45,6 +49,8 @@ export function DocSidebar({
   onDuplicateDoc,
   onToggleFavorite,
   onDeleteDoc,
+  onUpdateIcon,
+  onUpdateTitle,
 }: DocSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('All');
@@ -230,7 +236,7 @@ export function DocSidebar({
                       )}
                     >
                       <div className="flex items-center gap-2 truncate">
-                        <span>{docItem.icon || '📝'}</span>
+                        <IconRenderer icon={docItem.icon} iconColor={docItem.iconColor} sizeClassName="size-4" />
                         <span className="truncate">{docItem.title}</span>
                       </div>
                       <span className="text-[10px] text-subtle shrink-0">
@@ -268,7 +274,11 @@ export function DocSidebar({
                     >
                       <div className="flex items-center justify-between w-full">
                         <div className="flex items-center gap-2 truncate pr-6">
-                          <span className="text-base select-none">{docItem.icon || '📝'}</span>
+                          <IconRenderer
+                            icon={docItem.icon}
+                            iconColor={docItem.iconColor}
+                            sizeClassName="size-4 shrink-0"
+                          />
                           <span className="font-semibold text-foreground truncate">
                             {docItem.title}
                           </span>
@@ -291,7 +301,21 @@ export function DocSidebar({
                             <MoreVertical className="size-3.5" />
                           </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuContent align="end" className="w-44">
+                          {onUpdateTitle && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                const newTitle = prompt('Enter new document title:', docItem.title);
+                                if (newTitle && newTitle.trim()) {
+                                  onUpdateTitle(docItem.id, newTitle.trim());
+                                }
+                              }}
+                              className="text-xs gap-2"
+                            >
+                              <Pencil className="size-3 text-primary" />
+                              Rename Doc
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem
                             onClick={() => onToggleFavorite(docItem.id)}
                             className="text-xs gap-2"
@@ -312,7 +336,7 @@ export function DocSidebar({
                               className="text-xs gap-2 text-destructive focus:text-destructive"
                             >
                               <Trash2 className="size-3" />
-                              Delete
+                              Delete Doc
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>

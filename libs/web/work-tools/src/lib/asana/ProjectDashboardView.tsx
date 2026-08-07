@@ -66,7 +66,7 @@ interface ProjectDashboardViewProps {
   onSelectCard?: (card: KanbanCard, listId: string) => void;
 }
 
-export function ProjectDashboardView({ board, _onSelectCard }: ProjectDashboardViewProps) {
+export function ProjectDashboardView({ board, onSelectCard: _onSelectCard }: ProjectDashboardViewProps) {
   const [projectStatus, setProjectStatus] = useState<ProjectStatusType>('ON_TRACK');
 
   // Calculated Metrics

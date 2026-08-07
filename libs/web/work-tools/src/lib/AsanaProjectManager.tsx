@@ -12,6 +12,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  IconPickerPopover,
+  IconRenderer,
   Input,
   Select,
   SelectContent,
@@ -26,10 +28,13 @@ import {
   ClipboardList,
   Kanban,
   LayoutDashboard,
+  MoreHorizontal,
+  Pencil,
   Plus,
   Search,
   Sparkles,
   Timeline,
+  Trash2,
 } from 'lucide-react';
 import React, { useCallback, useState } from 'react';
 import { ProjectDashboardView } from './asana/ProjectDashboardView.js';
@@ -54,7 +59,10 @@ export function AsanaProjectManager() {
     activeProjectId,
     setActiveProjectId,
     updateActiveBoardState,
+    updateProjectIcon,
+    updateProject,
     createProject,
+    deleteProject,
   } = useProjectBoards();
 
   const [viewMode, setViewMode] = useState<AsanaViewMode>('list');
@@ -66,7 +74,45 @@ export function AsanaProjectManager() {
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectCategory, setNewProjectCategory] = useState<ProjectCategory>('Product');
   const [newProjectColor, setNewProjectColor] = useState<ProjectColor>('violet');
+  const [newProjectIcon, setNewProjectIcon] = useState('Rocket');
+  const [newProjectIconColor, setNewProjectIconColor] = useState('#8b5cf6');
   const [newProjectDescription, setNewProjectDescription] = useState('');
+
+  // Edit Project Dialog State
+  const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
+  const [editProjectName, setEditProjectName] = useState('');
+  const [editProjectCategory, setEditProjectCategory] = useState<ProjectCategory>('Product');
+  const [editProjectColor, setEditProjectColor] = useState<ProjectColor>('violet');
+  const [editProjectIcon, setEditProjectIcon] = useState('Folder');
+  const [editProjectIconColor, setEditProjectIconColor] = useState('#8b5cf6');
+  const [editProjectDescription, setEditProjectDescription] = useState('');
+
+  const handleOpenEditProject = () => {
+    if (activeProject) {
+      setEditProjectName(activeProject.name);
+      setEditProjectCategory(activeProject.category);
+      setEditProjectColor(activeProject.color);
+      setEditProjectIcon(activeProject.icon || 'Folder');
+      setEditProjectIconColor(activeProject.iconColor || '#8b5cf6');
+      setEditProjectDescription(activeProject.description || '');
+      setIsEditProjectOpen(true);
+    }
+  };
+
+  const handleEditProjectSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (activeProject && editProjectName.trim()) {
+      updateProject(activeProject.id, {
+        name: editProjectName.trim(),
+        category: editProjectCategory,
+        color: editProjectColor,
+        icon: editProjectIcon,
+        iconColor: editProjectIconColor,
+        description: editProjectDescription.trim(),
+      });
+      setIsEditProjectOpen(false);
+    }
+  };
 
   const board = activeProject?.board;
 
@@ -89,6 +135,9 @@ export function AsanaProjectManager() {
         color: newProjectColor,
         description: newProjectDescription.trim(),
       });
+      if (newProjectIcon) {
+        updateProjectIcon(newId, newProjectIcon, newProjectIconColor);
+      }
       setActiveProjectId(newId);
       setIsNewProjectOpen(false);
       setNewProjectName('');
@@ -119,23 +168,37 @@ export function AsanaProjectManager() {
         {/* Project Selector & Actions Row */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
+            <IconPickerPopover
+              icon={activeProject.icon}
+              iconColor={activeProject.iconColor}
+              onSelectIcon={(newIcon: string, newColor?: string) =>
+                updateProjectIcon(activeProject.id, newIcon, newColor)
+              }
+              onRemoveIcon={() =>
+                updateProjectIcon(activeProject.id, 'Folder', undefined)
+              }
+              trigger={
+                <button
+                  type="button"
+                  className="size-9 rounded-xl bg-surface-raised border border-border flex items-center justify-center hover:scale-105 transition-all cursor-pointer shadow-sm"
+                  title="Click to update project icon & color"
+                >
+                  <IconRenderer
+                    icon={activeProject.icon}
+                    iconColor={activeProject.iconColor}
+                    fallbackEmoji="📁"
+                    sizeClassName="size-5"
+                  />
+                </button>
+              }
+            />
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
                   className="flex items-center gap-2 text-lg font-bold hover:opacity-80 transition-opacity"
                 >
-                  <span
-                    className={cn(
-                      'w-3 h-3 rounded-full flex-shrink-0',
-                      activeProject.color === 'blue' && 'bg-blue-500',
-                      activeProject.color === 'emerald' && 'bg-emerald-500',
-                      activeProject.color === 'violet' && 'bg-violet-500',
-                      activeProject.color === 'amber' && 'bg-amber-500',
-                      activeProject.color === 'rose' && 'bg-rose-500',
-                      activeProject.color === 'cyan' && 'bg-cyan-500'
-                    )}
-                  />
                   <span>{activeProject.name}</span>
                   <ChevronDown className="w-4 h-4 text-muted-foreground" />
                 </button>
@@ -151,16 +214,11 @@ export function AsanaProjectManager() {
                     className="flex items-center justify-between"
                   >
                     <div className="flex items-center gap-2 truncate">
-                      <span
-                        className={cn(
-                          'w-2.5 h-2.5 rounded-full flex-shrink-0',
-                          proj.color === 'blue' && 'bg-blue-500',
-                          proj.color === 'emerald' && 'bg-emerald-500',
-                          proj.color === 'violet' && 'bg-violet-500',
-                          proj.color === 'amber' && 'bg-amber-500',
-                          proj.color === 'rose' && 'bg-rose-500',
-                          proj.color === 'cyan' && 'bg-cyan-500'
-                        )}
+                      <IconRenderer
+                        icon={proj.icon}
+                        iconColor={proj.iconColor}
+                        fallbackEmoji="📁"
+                        sizeClassName="size-4"
                       />
                       <span className="truncate font-medium">{proj.name}</span>
                     </div>
@@ -182,6 +240,34 @@ export function AsanaProjectManager() {
             <Badge variant="outline" className="text-xs text-muted-foreground font-medium">
               {activeProject.category}
             </Badge>
+
+            {/* Project Options Actions Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  title="Project Options"
+                >
+                  <MoreHorizontal className="size-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuItem onClick={handleOpenEditProject} className="text-xs gap-2">
+                  <Pencil className="size-3.5 text-primary" />
+                  Edit Project Details
+                </DropdownMenuItem>
+                {projects.length > 1 && (
+                  <DropdownMenuItem
+                    onClick={() => deleteProject(activeProject.id)}
+                    className="text-xs gap-2 text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="size-3.5" />
+                    Delete Project
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <div className="flex items-center gap-3">
@@ -346,15 +432,46 @@ export function AsanaProjectManager() {
             </DialogHeader>
 
             <div className="flex flex-col gap-4 py-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold">Project Name</label>
-                <Input
-                  required
-                  placeholder="e.g. Q4 Mobile App Launch"
-                  value={newProjectName}
-                  onChange={(e) => setNewProjectName(e.target.value)}
-                  className="text-xs"
-                />
+              <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold">Project Icon & Color</label>
+                  <IconPickerPopover
+                    icon={newProjectIcon}
+                    iconColor={newProjectIconColor}
+                    onSelectIcon={(ic: string, col?: string) => {
+                      setNewProjectIcon(ic);
+                      if (col) setNewProjectIconColor(col);
+                    }}
+                    onRemoveIcon={() => {
+                      setNewProjectIcon('Folder');
+                      setNewProjectIconColor('#8b5cf6');
+                    }}
+                    trigger={
+                      <button
+                        type="button"
+                        className="size-10 rounded-xl bg-surface-raised border border-border flex items-center justify-center hover:scale-105 transition-all cursor-pointer shadow-sm"
+                        title="Choose Icon"
+                      >
+                        <IconRenderer
+                          icon={newProjectIcon}
+                          iconColor={newProjectIconColor}
+                          fallbackEmoji="📁"
+                          sizeClassName="size-5"
+                        />
+                      </button>
+                    }
+                  />
+                </div>
+                <div className="flex-1 flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold">Project Name</label>
+                  <Input
+                    required
+                    placeholder="e.g. Q4 Mobile App Launch"
+                    value={newProjectName}
+                    onChange={(e) => setNewProjectName(e.target.value)}
+                    className="text-xs"
+                  />
+                </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -413,6 +530,122 @@ export function AsanaProjectManager() {
               </Button>
               <Button type="submit" size="sm">
                 Create Project
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Project Dialog */}
+      <Dialog open={isEditProjectOpen} onOpenChange={setIsEditProjectOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <form onSubmit={handleEditProjectSubmit}>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base font-bold">
+                <Pencil className="w-4 h-4 text-primary" />
+                Edit Project Details
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="flex flex-col gap-4 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold">Project Icon & Color</label>
+                  <IconPickerPopover
+                    icon={editProjectIcon}
+                    iconColor={editProjectIconColor}
+                    onSelectIcon={(ic: string, col?: string) => {
+                      setEditProjectIcon(ic);
+                      if (col) setEditProjectIconColor(col);
+                    }}
+                    onRemoveIcon={() => {
+                      setEditProjectIcon('Folder');
+                      setEditProjectIconColor('#8b5cf6');
+                    }}
+                    trigger={
+                      <button
+                        type="button"
+                        className="size-10 rounded-xl bg-surface-raised border border-border flex items-center justify-center hover:scale-105 transition-all cursor-pointer shadow-sm"
+                        title="Choose Icon"
+                      >
+                        <IconRenderer
+                          icon={editProjectIcon}
+                          iconColor={editProjectIconColor}
+                          fallbackEmoji="📁"
+                          sizeClassName="size-5"
+                        />
+                      </button>
+                    }
+                  />
+                </div>
+                <div className="flex-1 flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold">Project Name</label>
+                  <Input
+                    required
+                    placeholder="e.g. Q4 Mobile App Launch"
+                    value={editProjectName}
+                    onChange={(e) => setEditProjectName(e.target.value)}
+                    className="text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold">Category</label>
+                <Select
+                  value={editProjectCategory}
+                  onValueChange={(val) => setEditProjectCategory(val as ProjectCategory)}
+                >
+                  <SelectTrigger className="text-xs h-9">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Product">Product</SelectItem>
+                    <SelectItem value="Engineering">Engineering</SelectItem>
+                    <SelectItem value="Design">Design</SelectItem>
+                    <SelectItem value="Marketing">Marketing</SelectItem>
+                    <SelectItem value="Operations">Operations</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold">Color Accent</label>
+                <Select
+                  value={editProjectColor}
+                  onValueChange={(val) => setEditProjectColor(val as ProjectColor)}
+                >
+                  <SelectTrigger className="text-xs h-9">
+                    <SelectValue placeholder="Color" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="violet">Violet</SelectItem>
+                    <SelectItem value="blue">Blue</SelectItem>
+                    <SelectItem value="emerald">Emerald</SelectItem>
+                    <SelectItem value="amber">Amber</SelectItem>
+                    <SelectItem value="rose">Rose</SelectItem>
+                    <SelectItem value="cyan">Cyan</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold">Description</label>
+                <Input
+                  placeholder="Brief description of goals..."
+                  value={editProjectDescription}
+                  onChange={(e) => setEditProjectDescription(e.target.value)}
+                  className="text-xs"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditProjectOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" size="sm">
+                Save Changes
               </Button>
             </DialogFooter>
           </form>

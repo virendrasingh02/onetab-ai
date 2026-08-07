@@ -10,7 +10,7 @@ import {
   FileText,
   Save,
 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { DocHeader } from './docs/DocHeader.js';
 import { useDocsState } from './docs/docs-hook.js';
@@ -97,6 +97,8 @@ export function DocumentEditor() {
           onDuplicateDoc={duplicateDoc}
           onToggleFavorite={toggleFavorite}
           onDeleteDoc={deleteDoc}
+          onUpdateIcon={(id, ic, col) => updateDocIcon(id, ic, col)}
+          onUpdateTitle={(id, title) => updateDocTitle(id, title)}
         />
 
         {/* Main Notion Document Editor Area */}
@@ -105,7 +107,7 @@ export function DocumentEditor() {
           <DocHeader
             doc={activeDoc}
             onUpdateTitle={(title) => updateDocTitle(activeDoc.id, title)}
-            onUpdateIcon={(icon) => updateDocIcon(activeDoc.id, icon)}
+            onUpdateIcon={(icon, color) => updateDocIcon(activeDoc.id, icon, color)}
             onUpdateCover={(cover) => updateDocCover(activeDoc.id, cover)}
             onUpdateStatus={(status) => updateDocStatus(activeDoc.id, status)}
             onUpdateCategory={(category) => updateDocCategory(activeDoc.id, category)}

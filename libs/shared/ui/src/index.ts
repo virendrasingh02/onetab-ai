@@ -244,3 +244,13 @@ export {
   type Trend,
   type TrendBadgeProps,
 } from './lib/components/stat-card.js';
+
+export {
+  IconPickerPopover,
+  IconRenderer,
+  ICON_REGISTRY,
+  ICON_COLOR_PRESETS,
+  type IconRendererProps,
+} from './lib/components/icon-picker-popover.js';
+
+

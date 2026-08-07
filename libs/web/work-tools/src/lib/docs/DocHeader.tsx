@@ -13,6 +13,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  IconPickerPopover,
   Input,
   Popover,
   PopoverContent,
@@ -29,7 +30,7 @@ import {
   Star,
   Tag,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type {
   DocCategory,
   DocItem,
@@ -37,13 +38,12 @@ import type {
 } from './docs-hook.js';
 import {
   COVER_PRESETS,
-  EMOJI_PRESETS,
 } from './docs-hook.js';
 
 interface DocHeaderProps {
   doc: DocItem;
   onUpdateTitle: (title: string) => void;
-  onUpdateIcon: (icon: string) => void;
+  onUpdateIcon: (icon: string, iconColor?: string) => void;
   onUpdateCover: (cover: string) => void;
   onUpdateStatus: (status: DocStatus) => void;
   onUpdateCategory: (category: DocCategory) => void;
@@ -88,7 +88,7 @@ export function DocHeader({
       case 'In Review':
         return <Badge variant="warning">In Review</Badge>;
       case 'Archived':
-        return <Badge variant="subtle">Archived</Badge>;
+        return <Badge variant="neutral">Archived</Badge>;
       default:
         return <Badge variant="outline">Draft</Badge>;
     }
@@ -160,32 +160,13 @@ export function DocHeader({
       <div className="px-6 pb-6 pt-0 relative bg-surface">
         {/* Floating Notion Page Icon */}
         <div className="-mt-9 mb-3 flex items-center justify-between">
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="size-16 rounded-2xl bg-surface-raised border-2 border-surface shadow-lg flex items-center justify-center text-3xl hover:scale-105 transition-transform cursor-pointer"
-                title="Change Page Emoji Icon"
-              >
-                <span>{doc.icon || '📝'}</span>
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-56 p-2">
-              <p className="text-xs font-semibold text-foreground mb-2 px-1">Choose Icon</p>
-              <div className="grid grid-cols-4 gap-1.5">
-                {EMOJI_PRESETS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    onClick={() => onUpdateIcon(emoji)}
-                    className="size-9 rounded-lg hover:bg-accent flex items-center justify-center text-xl transition-colors"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            </PopoverContent>
-          </Popover>
+          <IconPickerPopover
+            icon={doc.icon}
+            iconColor={doc.iconColor}
+            onSelectIcon={(newIcon: string, newColor?: string) => onUpdateIcon(newIcon, newColor)}
+            onRemoveIcon={() => onUpdateIcon('📝', undefined)}
+            align="start"
+          />
 
           {/* Status & Category Selector */}
           <div className="flex items-center gap-2 pt-8">
