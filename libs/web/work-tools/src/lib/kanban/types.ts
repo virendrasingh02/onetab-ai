@@ -33,12 +33,24 @@ export interface CardComment {
   createdAt: string;
 }
 
+export type HealthStatus = 'ON_TRACK' | 'AT_RISK' | 'OFF_TRACK';
+
 export interface KanbanCard {
   id: string;
   title: string;
   description: string;
   labelIds: string[];
   memberIds: string[];
+  leadId?: string;
+  creatorId?: string;
+  health?: HealthStatus;
+  milestone?: string;
+  initiative?: string;
+  template?: string;
+  relations?: string[];
+  icon?: string;
+  iconColor?: string;
+  issuesCount?: number;
   /** Local calendar day as `yyyy-mm-dd`; absent when the card has no deadline. */
   dueDate?: string;
   dueComplete: boolean;

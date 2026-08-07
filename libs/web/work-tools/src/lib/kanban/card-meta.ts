@@ -106,54 +106,122 @@ export const PRIORITY_META: Record<
 
 /* ------------------------------------------------------------- filters --- */
 
-export type DueFilter = 'any' | 'overdue' | 'week' | 'none';
+export type DueFilter = 'any' | 'overdue' | 'today' | 'week' | 'none';
 
 export interface BoardFilter {
   query: string;
+  aiQuery?: string;
+  status: string[];
+  priorities: Priority[];
   labelIds: string[];
+  leadIds: string[];
   memberIds: string[];
+  creatorIds: string[];
+  health: string[];
   due: DueFilter;
+  milestones: string[];
+  noInitiatives?: boolean;
+  template?: string;
+  specificProject?: string;
 }
 
 export const EMPTY_FILTER: BoardFilter = {
   query: '',
+  aiQuery: '',
+  status: [],
+  priorities: [],
   labelIds: [],
+  leadIds: [],
   memberIds: [],
+  creatorIds: [],
+  health: [],
   due: 'any',
+  milestones: [],
+  noInitiatives: false,
+  template: '',
+  specificProject: '',
 };
 
 export function isFilterActive(filter: BoardFilter): boolean {
   return (
     filter.query.trim() !== '' ||
+    Boolean(filter.aiQuery?.trim()) ||
+    filter.status.length > 0 ||
+    filter.priorities.length > 0 ||
     filter.labelIds.length > 0 ||
+    filter.leadIds.length > 0 ||
     filter.memberIds.length > 0 ||
-    filter.due !== 'any'
+    filter.creatorIds.length > 0 ||
+    filter.health.length > 0 ||
+    filter.due !== 'any' ||
+    filter.milestones.length > 0 ||
+    Boolean(filter.noInitiatives) ||
+    Boolean(filter.template) ||
+    Boolean(filter.specificProject)
   );
 }
 
 export function countActiveFilters(filter: BoardFilter): number {
   return (
     (filter.query.trim() ? 1 : 0) +
+    (filter.aiQuery?.trim() ? 1 : 0) +
+    filter.status.length +
+    filter.priorities.length +
     filter.labelIds.length +
+    filter.leadIds.length +
     filter.memberIds.length +
-    (filter.due === 'any' ? 0 : 1)
+    filter.creatorIds.length +
+    filter.health.length +
+    (filter.due === 'any' ? 0 : 1) +
+    filter.milestones.length +
+    (filter.noInitiatives ? 1 : 0) +
+    (filter.template ? 1 : 0) +
+    (filter.specificProject ? 1 : 0)
   );
 }
 
-/** Filters are ANDed across facets and ORed within one, like Trello's. */
+/** Filters are ANDed across facets and ORed within one. */
 export function matchesFilter(
   card: KanbanCard,
   filter: BoardFilter,
   labels: BoardLabel[],
+  listId?: string,
 ): boolean {
   const query = filter.query.trim().toLowerCase();
   if (query) {
     const labelNames = card.labelIds
       .map((id) => labels.find((label) => label.id === id)?.name ?? '')
       .join(' ');
-    const haystack =
-      `${card.title} ${card.description} ${labelNames}`.toLowerCase();
+    const haystack = `${card.title} ${card.description} ${labelNames}`.toLowerCase();
     if (!haystack.includes(query)) return false;
+  }
+
+  // AI Prompt Natural Language Filter
+  if (filter.aiQuery?.trim()) {
+    const aiText = filter.aiQuery.trim().toLowerCase();
+    const fullContent = `${card.title} ${card.description} ${card.priority} ${card.health || ''} ${card.milestone || ''}`.toLowerCase();
+
+    // Check key phrases
+    if (aiText.includes('urgent') && card.priority !== 'URGENT') return false;
+    if (aiText.includes('high') && card.priority !== 'HIGH') return false;
+    if (aiText.includes('overdue') && (!card.dueDate || daysUntil(card.dueDate) >= 0 || card.dueComplete)) return false;
+    if (aiText.includes('at risk') && card.health !== 'AT_RISK') return false;
+    if (aiText.includes('on track') && card.health !== 'ON_TRACK') return false;
+
+    // General fallback token match
+    const tokens = aiText.split(/\s+/).filter((t) => !['show', 'me', 'all', 'tasks', 'projects', 'with', 'the', 'and', 'for', 'in'].includes(t));
+    if (tokens.length > 0) {
+      const matchesAnyToken = tokens.some((t) => fullContent.includes(t));
+      if (!matchesAnyToken) return false;
+    }
+  }
+
+  if (filter.status.length > 0 && listId) {
+    if (!filter.status.includes(listId)) return false;
+  }
+
+  if (filter.priorities.length > 0) {
+    if (!filter.priorities.includes(card.priority)) return false;
   }
 
   if (
@@ -170,10 +238,38 @@ export function matchesFilter(
     return false;
   }
 
+  if (filter.leadIds.length > 0 && card.leadId) {
+    if (!filter.leadIds.includes(card.leadId)) return false;
+  }
+
+  if (filter.creatorIds.length > 0 && card.creatorId) {
+    if (!filter.creatorIds.includes(card.creatorId)) return false;
+  }
+
+  if (filter.health.length > 0) {
+    if (!card.health || !filter.health.includes(card.health)) return false;
+  }
+
+  if (filter.milestones.length > 0) {
+    if (!card.milestone || !filter.milestones.includes(card.milestone)) return false;
+  }
+
+  if (filter.noInitiatives) {
+    if (card.initiative) return false;
+  }
+
+  if (filter.template) {
+    if (card.template !== filter.template) return false;
+  }
+
   switch (filter.due) {
     case 'overdue':
       return Boolean(
         card.dueDate && !card.dueComplete && daysUntil(card.dueDate) < 0,
+      );
+    case 'today':
+      return Boolean(
+        card.dueDate && !card.dueComplete && daysUntil(card.dueDate) === 0,
       );
     case 'week':
       if (!card.dueDate) return false;

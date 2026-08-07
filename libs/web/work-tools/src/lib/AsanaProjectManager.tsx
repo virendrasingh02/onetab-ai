@@ -23,7 +23,6 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  CalendarDays,
   ChevronDown,
   ClipboardList,
   Kanban,
@@ -40,7 +39,6 @@ import React, { useCallback, useState } from 'react';
 import { ProjectDashboardView } from './asana/ProjectDashboardView.js';
 import { ProjectListView } from './asana/ProjectListView.js';
 import { ProjectTimelineView } from './asana/ProjectTimelineView.js';
-import { CalendarView } from './CalendarView.js';
 import { boardReducer, type BoardAction } from './kanban/board-state.js';
 import { CardDetailsDialog } from './kanban/CardDetailsDialog.js';
 import {
@@ -50,7 +48,7 @@ import {
 } from './kanban/project-boards-hook.js';
 import { KanbanBoard } from './KanbanBoard.js';
 
-export type AsanaViewMode = 'list' | 'board' | 'timeline' | 'calendar' | 'dashboard';
+export type AsanaViewMode = 'list' | 'board' | 'timeline' | 'dashboard';
 
 export function AsanaProjectManager() {
   const {
@@ -163,11 +161,11 @@ export function AsanaProjectManager() {
 
   return (
     <div className="flex flex-col h-full w-full bg-background text-foreground overflow-hidden">
-      {/* Top Asana Header */}
+      {/* Top Header */}
       <header className="flex flex-col border-b border-border/50 bg-card/60 px-6 pt-4 pb-0 gap-3">
         {/* Project Selector & Actions Row */}
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <IconPickerPopover
               icon={activeProject.icon}
               iconColor={activeProject.iconColor}
@@ -180,66 +178,20 @@ export function AsanaProjectManager() {
               trigger={
                 <button
                   type="button"
-                  className="size-9 rounded-xl bg-surface-raised border border-border flex items-center justify-center hover:scale-105 transition-all cursor-pointer shadow-sm"
+                  className="size-8 rounded-lg bg-surface-raised border border-border flex items-center justify-center hover:scale-105 transition-all cursor-pointer shadow-sm"
                   title="Click to update project icon & color"
                 >
                   <IconRenderer
                     icon={activeProject.icon}
                     iconColor={activeProject.iconColor}
                     fallbackEmoji="📁"
-                    sizeClassName="size-5"
+                    sizeClassName="size-4"
                   />
                 </button>
               }
             />
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="flex items-center gap-2 text-lg font-bold hover:opacity-80 transition-opacity"
-                >
-                  <span>{activeProject.name}</span>
-                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64">
-                <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">
-                  Select Project
-                </DropdownMenuLabel>
-                {projects.map((proj) => (
-                  <DropdownMenuItem
-                    key={proj.id}
-                    onClick={() => setActiveProjectId(proj.id)}
-                    className="flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <IconRenderer
-                        icon={proj.icon}
-                        iconColor={proj.iconColor}
-                        fallbackEmoji="📁"
-                        sizeClassName="size-4"
-                      />
-                      <span className="truncate font-medium">{proj.name}</span>
-                    </div>
-                    {proj.id === activeProjectId && (
-                      <Badge variant="outline" className="text-[10px]">
-                        Active
-                      </Badge>
-                    )}
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setIsNewProjectOpen(true)} className="gap-2 text-primary font-medium">
-                  <Plus className="w-4 h-4" />
-                  Create New Project
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <Badge variant="outline" className="text-xs text-muted-foreground font-medium">
-              {activeProject.category}
-            </Badge>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">Projects</h1>
 
             {/* Project Options Actions Menu */}
             <DropdownMenu>
@@ -336,20 +288,6 @@ export function AsanaProjectManager() {
 
           <button
             type="button"
-            onClick={() => setViewMode('calendar')}
-            className={cn(
-              'flex items-center gap-2 px-3 py-2 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap',
-              viewMode === 'calendar'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <CalendarDays className="w-4 h-4" />
-            Calendar
-          </button>
-
-          <button
-            type="button"
             onClick={() => setViewMode('dashboard')}
             className={cn(
               'flex items-center gap-2 px-3 py-2 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap',
@@ -396,10 +334,6 @@ export function AsanaProjectManager() {
             onSelectCard={(card) => setSelectedCardId(card.id)}
             searchQuery={searchQuery}
           />
-        )}
-
-        {viewMode === 'calendar' && (
-          <CalendarView />
         )}
 
         {viewMode === 'dashboard' && (

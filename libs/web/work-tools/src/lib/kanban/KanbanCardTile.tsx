@@ -117,111 +117,83 @@ export function KanbanCardTile({
         </ul>
       ) : null}
 
-      {/*
-        The title button is the card's click target: `after:inset-0` stretches
-        it over the whole tile, so the accessible name stays the card title
-        instead of wrapping every badge inside one giant button.
-      */}
-      <button
-        type="button"
-        onClick={onOpen}
-        className={cn(
-          'text-sm font-medium leading-snug text-left text-foreground outline-none',
-          'after:inset-0 after:absolute after:rounded-lg',
-        )}
-      >
-        {card.title}
-      </button>
+      {/* Card Header with Icon Tag & Title */}
+      <div className="flex items-start gap-2">
+        {card.icon ? (
+          <span className="shrink-0 text-sm mt-0.5" style={{ color: card.iconColor || '#e11d48' }}>
+            {card.icon === 'Heart' && '💖'}
+            {card.icon === 'Package' && '📦'}
+            {card.icon === 'Rocket' && '🚀'}
+            {card.icon === 'Sparkles' && '✨'}
+            {card.icon === 'Folder' && '📁'}
+          </span>
+        ) : null}
 
-      {(due ||
-        card.description ||
-        checklist.total > 0 ||
-        card.comments.length > 0) && (
-        <div className="mt-2 gap-1.5 flex flex-wrap items-center text-[11px] text-muted-foreground">
+        <button
+          type="button"
+          onClick={onOpen}
+          className={cn(
+            'text-xs font-semibold leading-snug text-left text-foreground outline-none hover:text-primary transition-colors',
+            'after:inset-0 after:absolute after:rounded-lg',
+          )}
+        >
+          {card.title}
+        </button>
+      </div>
+
+      {/* Issues Count Subtitle */}
+      <div className="mt-1 text-[11px] font-medium text-muted-foreground/80">
+        {card.issuesCount ?? 0} issues
+      </div>
+
+      {/* Date badge, Priority signal, and Assignee Avatar */}
+      <div className="mt-2.5 flex items-center justify-between pt-1 text-[11px]">
+        <div className="flex items-center gap-1.5">
           {due ? (
             <span
               title={due.hint}
               className={cn(
-                'gap-1 px-1.5 py-0.5 rounded font-medium flex items-center border',
-                DUE_TONE_CLASSES[due.tone],
+                'gap-1 px-1.5 py-0.5 rounded font-medium flex items-center text-[10px]',
+                due.tone === 'overdue' || due.tone === 'today' || due.tone === 'soon'
+                  ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold'
+                  : 'bg-muted text-muted-foreground'
               )}
             >
-              <Clock className="size-3" aria-hidden />
-              {due.label}
-              <span className="sr-only">{due.hint}</span>
-            </span>
-          ) : null}
-
-          {card.description ? (
-            <span title="This card has a description">
-              <AlignLeft className="size-3.5" aria-hidden />
-              <span className="sr-only">Has a description</span>
-            </span>
-          ) : null}
-
-          {checklist.total > 0 ? (
-            <span
-              className={cn(
-                'gap-1 px-1 py-0.5 rounded font-medium flex items-center tabular-nums',
-                checklist.complete && 'bg-accent-green-soft text-accent-green',
-              )}
-              title={`Checklist ${checklist.done} of ${checklist.total} complete`}
-            >
-              <CheckSquare className="size-3.5" aria-hidden />
-              {checklist.done}/{checklist.total}
-            </span>
-          ) : null}
-
-          {card.comments.length > 0 ? (
-            <span
-              className="gap-1 flex items-center tabular-nums"
-              title={`${card.comments.length} comments`}
-            >
-              <MessageSquare className="size-3.5" aria-hidden />
-              {card.comments.length}
+              <Clock className="size-3 text-rose-500 shrink-0" aria-hidden />
+              <span>{due.label}</span>
             </span>
           ) : null}
         </div>
-      )}
 
-      <div className="mt-2 gap-2 flex items-center justify-between">
-        <span
-          className="gap-1.5 flex items-center text-[11px] text-muted-foreground"
-          title={`${priority.label} priority`}
-        >
+        <div className="flex items-center gap-2">
+          {/* Priority Dot */}
           <span
-            className={cn('size-1.5 rounded-full', priority.dot)}
-            aria-hidden
-          />
-          {priority.label}
-        </span>
+            className="flex items-center gap-1 text-[10px] text-muted-foreground"
+            title={`${priority.label} priority`}
+          >
+            <span className={cn('size-1.5 rounded-full', priority.dot)} />
+          </span>
 
-        {cardMembers.length > 0 ? (
-          <ul className="-space-x-1.5 flex">
-            {cardMembers.slice(0, 3).map((member) => (
-              <li key={member.id} title={member.name}>
+          {/* Member Avatar */}
+          {cardMembers.length > 0 ? (
+            <div className="flex items-center -space-x-1">
+              {cardMembers.slice(0, 2).map((member) => (
                 <UserAvatar
+                  key={member.id}
                   name={member.name}
                   seed={member.id}
                   src={member.avatarUrl}
                   size="xs"
-                  className="ring-2 ring-surface"
+                  className="size-5 text-[9px] font-bold ring-1 ring-surface"
                 />
-              </li>
-            ))}
-            {cardMembers.length > 3 ? (
-              <li
-                className="size-5 font-medium flex items-center justify-center rounded-full bg-muted text-[10px] text-muted-foreground ring-2 ring-surface"
-                title={cardMembers
-                  .slice(3)
-                  .map((member) => member.name)
-                  .join(', ')}
-              >
-                +{cardMembers.length - 3}
-              </li>
-            ) : null}
-          </ul>
-        ) : null}
+              ))}
+            </div>
+          ) : (
+            <div className="size-5 rounded-full bg-amber-700/80 text-amber-100 font-bold text-[9px] flex items-center justify-center ring-1 ring-surface">
+              VI
+            </div>
+          )}
+        </div>
       </div>
 
       {/*

@@ -57,6 +57,7 @@ import {
   matchesFilter,
   type BoardFilter,
 } from './kanban/card-meta.js';
+import { LinearFilterMenu } from './kanban/LinearFilterMenu.js';
 import { CardDetailsDialog } from './kanban/CardDetailsDialog.js';
 import { KanbanListColumn } from './kanban/KanbanListColumn.js';
 import {
@@ -137,6 +138,9 @@ export function KanbanBoard() {
   }, [board]);
 
   const [filter, setFilter] = useState<BoardFilter>(EMPTY_FILTER);
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+  const [showAIFilterInput, setShowAIFilterInput] = useState(false);
+  const [aiPromptInput, setAiPromptInput] = useState('');
   const [showLabelText] = useState(true);
   const [openCardId, setOpenCardId] = useState<string | null>(null);
   const [addingList, setAddingList] = useState(false);
@@ -158,7 +162,7 @@ export function KanbanBoard() {
     for (const list of board.lists) {
       map.set(
         list.id,
-        list.cards.filter((card) => matchesFilter(card, filter, board.labels)),
+        list.cards.filter((card) => matchesFilter(card, filter, board.labels, list.id)),
       );
     }
     return map;
@@ -579,71 +583,174 @@ export function KanbanBoard() {
       ) : (
         /* ACTIVE KANBAN BOARD VIEW */
         <Fragment>
-          {/* Board Filter Toolbar */}
-          <Toolbar className="mb-4 shrink-0">
-            <div className="relative min-w-40 flex-1 sm:max-w-64">
-              <Search
-                aria-hidden
-                className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-subtle"
-              />
-              <Input
-                value={filter.query}
-                placeholder="Filter cards..."
-                aria-label="Filter cards by title"
-                className="pl-8 text-xs"
-                onChange={(event) =>
-                  setFilter((prev) => ({ ...prev, query: event.target.value }))
-                }
-              />
-            </div>
+          {/* Board Filter Toolbar & Controls */}
+          <div className="relative mb-4 shrink-0 space-y-2">
+            <Toolbar className="flex items-center justify-between gap-2">
+              <div className="relative flex-1 max-w-xs">
+                <Search
+                  aria-hidden
+                  className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+                />
+                <Input
+                  value={filter.query}
+                  placeholder="Filter cards..."
+                  aria-label="Filter cards by title"
+                  className="pl-8 text-xs h-8"
+                  onChange={(event) =>
+                    setFilter((prev) => ({ ...prev, query: event.target.value }))
+                  }
+                />
+              </div>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+              <div className="flex items-center gap-2">
+                {/* AI Filter Quick Toggle */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAIFilterInput(!showAIFilterInput)}
+                  className="gap-1.5 text-xs h-8 border-purple-500/30 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10"
+                >
+                  <Sparkles className="size-3.5 text-purple-500 shrink-0" />
+                  <span className="hidden sm:inline">AI filter</span>
+                </Button>
+
+                {/* Filter Menu Trigger Button (Linear Style) */}
+                <Button
+                  variant={isFilterMenuOpen || filterCount > 0 ? 'secondary' : 'outline'}
+                  size="sm"
+                  onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
+                  className="gap-1.5 text-xs h-8 font-medium"
+                >
                   <Filter className="size-3.5" />
-                  <span>Labels</span>
-                  {filter.labelIds.length > 0 ? (
-                    <Badge variant="count">{filter.labelIds.length}</Badge>
+                  <span>Filter</span>
+                  {filterCount > 0 ? (
+                    <Badge variant="count" className="bg-primary/20 text-primary">
+                      {filterCount}
+                    </Badge>
                   ) : null}
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48 text-xs">
-                <DropdownMenuLabel>Filter by label</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {board.labels.map((label) => {
-                  const checked = filter.labelIds.includes(label.id);
-                  return (
-                    <DropdownMenuCheckboxItem
-                      key={label.id}
-                      checked={checked}
-                      onCheckedChange={() =>
-                        setFilter((prev) => ({
-                          ...prev,
-                          labelIds: checked
-                            ? prev.labelIds.filter((id) => id !== label.id)
-                            : [...prev.labelIds, label.id],
-                        }))
-                      }
-                    >
-                      <Tag className="size-3.5 mr-2" />
-                      <span>{label.name}</span>
-                    </DropdownMenuCheckboxItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </div>
+            </Toolbar>
 
-            {filterCount > 0 ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setFilter(EMPTY_FILTER)}
-                className="text-xs text-subtle hover:text-foreground"
-              >
-                Clear filters ({filterCount})
-              </Button>
-            ) : null}
-          </Toolbar>
+            {/* AI Filter Input Prompt Overlay Bar */}
+            {showAIFilterInput && (
+              <div className="flex items-center gap-2 p-2 rounded-xl border border-purple-500/40 bg-purple-500/5 text-xs animate-in fade-in">
+                <Sparkles className="size-4 text-purple-500 shrink-0" />
+                <Input
+                  autoFocus
+                  value={aiPromptInput}
+                  onChange={(e) => {
+                    setAiPromptInput(e.target.value);
+                    setFilter((prev) => ({ ...prev, aiQuery: e.target.value }));
+                  }}
+                  placeholder='Ask AI filter (e.g. "show high priority tasks in progress" or "overdue tasks")...'
+                  className="flex-1 text-xs h-7 bg-transparent border-none shadow-none focus-visible:ring-0 placeholder:text-muted-foreground/70"
+                />
+                {aiPromptInput && (
+                  <button
+                    onClick={() => {
+                      setAiPromptInput('');
+                      setFilter((prev) => ({ ...prev, aiQuery: '' }));
+                    }}
+                    className="p-1 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Active Filter Chips Pill Bar */}
+            {filterCount > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap text-xs pt-1">
+                <span className="text-[11px] font-medium text-muted-foreground">Active filters:</span>
+
+                {filter.query && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-[11px] font-medium">
+                    Query: "{filter.query}"
+                    <X
+                      className="size-3 cursor-pointer hover:text-foreground"
+                      onClick={() => setFilter((prev) => ({ ...prev, query: '' }))}
+                    />
+                  </span>
+                )}
+
+                {filter.aiQuery && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-600 dark:text-purple-400 text-[11px] font-medium">
+                    ✨ AI: "{filter.aiQuery}"
+                    <X
+                      className="size-3 cursor-pointer hover:text-foreground"
+                      onClick={() => setFilter((prev) => ({ ...prev, aiQuery: '' }))}
+                    />
+                  </span>
+                )}
+
+                {filter.status.length > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-[11px] font-medium">
+                    Status ({filter.status.length})
+                    <X
+                      className="size-3 cursor-pointer hover:text-foreground"
+                      onClick={() => setFilter((prev) => ({ ...prev, status: [] }))}
+                    />
+                  </span>
+                )}
+
+                {filter.priorities.length > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-[11px] font-medium">
+                    Priority ({filter.priorities.length})
+                    <X
+                      className="size-3 cursor-pointer hover:text-foreground"
+                      onClick={() => setFilter((prev) => ({ ...prev, priorities: [] }))}
+                    />
+                  </span>
+                )}
+
+                {filter.labelIds.length > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-[11px] font-medium">
+                    Labels ({filter.labelIds.length})
+                    <X
+                      className="size-3 cursor-pointer hover:text-foreground"
+                      onClick={() => setFilter((prev) => ({ ...prev, labelIds: [] }))}
+                    />
+                  </span>
+                )}
+
+                {filter.due !== 'any' && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent text-[11px] font-medium capitalize">
+                    Due: {filter.due}
+                    <X
+                      className="size-3 cursor-pointer hover:text-foreground"
+                      onClick={() => setFilter((prev) => ({ ...prev, due: 'any' }))}
+                    />
+                  </span>
+                )}
+
+                <button
+                  onClick={() => {
+                    setFilter(EMPTY_FILTER);
+                    setAiPromptInput('');
+                  }}
+                  className="text-[11px] text-muted-foreground hover:text-foreground underline ml-1"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
+
+            {/* Floating Linear Filter Popover Menu */}
+            <LinearFilterMenu
+              filter={filter}
+              setFilter={setFilter}
+              labels={board.labels}
+              members={board.members}
+              lists={board.lists}
+              isOpen={isFilterMenuOpen}
+              onClose={() => setIsFilterMenuOpen(false)}
+              onActivateAIFilter={() => {
+                setShowAIFilterInput(true);
+              }}
+            />
+          </div>
 
           {/* Kanban Columns Drag Scroller */}
           <div

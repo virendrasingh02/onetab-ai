@@ -243,57 +243,80 @@ export function KanbanListColumn({
         onDragStart={(event) => onListDragStart(event, list.id)}
         onDragEnd={onListDragEnd}
         className={cn(
-          'gap-1 px-2 py-2 flex items-center rounded-t-xl',
+          'gap-1.5 px-3 py-2 flex items-center justify-between rounded-t-xl bg-surface/40 border-b border-border/40',
           !renaming && 'cursor-grab active:cursor-grabbing',
         )}
       >
-        <GripVertical
-          className="size-4 shrink-0 text-muted-foreground/50 opacity-0 transition-opacity group-hover/board:opacity-100"
-          aria-hidden
-        />
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          {/* Linear Status Column Icon */}
+          {list.title.toLowerCase().includes('backlog') ? (
+            <span className="size-3.5 rounded-full border-2 border-dashed border-amber-500/80 shrink-0" />
+          ) : list.title.toLowerCase().includes('planned') ? (
+            <span className="size-3.5 rounded-full border-2 border-muted-foreground/60 shrink-0" />
+          ) : list.title.toLowerCase().includes('progress') ? (
+            <span className="size-3.5 rounded-full border-2 border-amber-500 bg-amber-500/40 shrink-0" />
+          ) : list.title.toLowerCase().includes('completed') || list.title.toLowerCase().includes('done') ? (
+            <span className="size-3.5 rounded-full bg-blue-600 dark:bg-blue-500 text-white flex items-center justify-center shrink-0 font-bold text-[9px]">
+              ✓
+            </span>
+          ) : (
+            <span className="size-3.5 rounded-full border-2 border-primary/60 shrink-0" />
+          )}
 
-        {renaming ? (
-          <Input
-            autoFocus
-            defaultValue={list.title}
-            aria-label="List name"
-            className="h-7 px-2 text-sm font-semibold"
-            onBlur={(event) => commitRename(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter')
-                commitRename(event.currentTarget.value);
-              if (event.key === 'Escape') setRenaming(false);
-            }}
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={() => setRenaming(true)}
-            title="Rename list"
-            className={cn(
-              'min-w-0 px-1 py-0.5 rounded text-sm font-semibold flex-1 truncate text-left text-foreground',
-              'hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none',
-            )}
-          >
-            {list.title}
-          </button>
-        )}
-
-        <Badge variant="neutral" className="rounded-full tabular-nums">
-          {list.cards.length}
-        </Badge>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="size-7"
-              aria-label={`Actions for list “${list.title}”`}
+          {renaming ? (
+            <Input
+              autoFocus
+              defaultValue={list.title}
+              aria-label="List name"
+              className="h-7 px-2 text-xs font-semibold"
+              onBlur={(event) => commitRename(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter')
+                  commitRename(event.currentTarget.value);
+                if (event.key === 'Escape') setRenaming(false);
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setRenaming(true)}
+              title="Rename list"
+              className={cn(
+                'min-w-0 py-0.5 rounded text-xs font-semibold flex-1 truncate text-left text-foreground',
+                'hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none',
+              )}
             >
-              <MoreHorizontal className="size-4" />
-            </Button>
-          </DropdownMenuTrigger>
+              {list.title}
+            </button>
+          )}
+
+          <span className="text-xs font-medium text-muted-foreground/70 tabular-nums">
+            {list.cards.length}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-0.5 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => openComposer('bottom')}
+            className="size-6 text-muted-foreground hover:text-foreground"
+            title="Add card"
+          >
+            <Plus className="size-3.5" />
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="size-6 text-muted-foreground hover:text-foreground"
+                aria-label={`Actions for list “${list.title}”`}
+              >
+                <MoreHorizontal className="size-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
 
           <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuLabel>List actions</DropdownMenuLabel>
@@ -406,6 +429,7 @@ export function KanbanListColumn({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </header>
 
       {composer === 'top' ? (
