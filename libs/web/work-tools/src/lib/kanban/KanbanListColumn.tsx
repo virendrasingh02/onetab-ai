@@ -232,7 +232,7 @@ export function KanbanListColumn({
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       className={cn(
-        'w-72 flex max-h-full shrink-0 flex-col rounded-xl border bg-surface-muted',
+        'w-[82vw] sm:w-72 flex max-h-full shrink-0 flex-col rounded-xl border bg-surface-muted',
         'transition-[box-shadow] duration-(--duration-fast)',
         liftedList && 'hidden',
         placeholder !== undefined && 'ring-2 ring-primary/25',

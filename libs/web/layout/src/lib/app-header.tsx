@@ -57,15 +57,16 @@ export function AppHeader({
   const logout = useLogout();
 
   return (
-    <header className="h-12 gap-3 px-4 flex shrink-0 items-center border-b border-border bg-background">
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        {!sidebarOpen && onToggleSidebar ? (
-          <Hint label="Expand sidebar">
+    <header className="h-12 gap-2 sm:gap-3 px-2.5 sm:px-4 flex shrink-0 items-center border-b border-border bg-background">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
+        {onToggleSidebar ? (
+          <Hint label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}>
             <Button
               variant="ghost"
               size="icon-sm"
               onClick={onToggleSidebar}
-              aria-label="Expand sidebar"
+              aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+              className={sidebarOpen ? 'hidden md:flex' : 'flex'}
             >
               <PanelLeft className="size-4" />
             </Button>
@@ -103,11 +104,24 @@ export function AppHeader({
         </kbd>
       </button>
 
-      <div className="flex flex-1 items-center justify-end gap-1.5">
+      <div className="flex flex-1 items-center justify-end gap-1 sm:gap-1.5">
         {actions}
 
+        {/* Search icon button for mobile screens */}
+        <Hint label="Search">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onOpenSearch}
+            aria-label="Search"
+            className="flex sm:hidden"
+          >
+            <Search className="size-4" />
+          </Button>
+        </Hint>
+
         <Hint label="Help & Resources">
-          <Button variant="ghost" size="sm" className="gap-1">
+          <Button variant="ghost" size="sm" className="gap-1 hidden sm:flex">
             <HelpCircle className="size-4" />
             <span className="hidden md:inline">Help</span>
           </Button>
@@ -120,10 +134,10 @@ export function AppHeader({
             onClick={onToggleRightPanel}
             aria-pressed={rightPanelOpen}
             aria-label="Ask AI"
-            className="gap-1.5 font-medium"
+            className="gap-1 sm:gap-1.5 font-medium px-2 sm:px-3 text-xs"
           >
             <Sparkles className="size-3.5 text-primary" />
-            <span>Ask AI</span>
+            <span className="hidden xs:inline">Ask AI</span>
           </Button>
         </Hint>
 

@@ -21,7 +21,7 @@ import {
   Workflow,
 } from 'lucide-react';
 import type { ComponentType } from 'react';
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 
 interface NavItem {
@@ -219,25 +219,53 @@ function AdminNav() {
  * client, so a request only succeeds if the browser already holds a session.
  */
 export function AdminShell() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="h-14 gap-3 px-6 flex shrink-0 items-center border-b">
+    <div className="flex min-h-dvh flex-col relative">
+      <header className="h-14 gap-2 sm:gap-3 px-3 sm:px-6 flex shrink-0 items-center border-b">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => setMobileOpen((prev) => !prev)}
+          className="md:hidden"
+          aria-label="Toggle admin menu"
+        >
+          <Building2 className="size-4" />
+        </Button>
+
         <span className="size-7 text-xs font-semibold flex items-center justify-center rounded-md bg-primary text-primary-foreground">
           O
         </span>
         <div className="flex-1">
-          <h1 className="text-sm font-semibold">OneTab AI — Admin</h1>
+          <h1 className="text-sm font-semibold truncate">OneTab AI — Admin</h1>
         </div>
-        <Badge variant="warning">Internal</Badge>
+        <Badge variant="warning" className="hidden xs:inline-flex">Internal</Badge>
         <ThemeToggle />
       </header>
 
-      <div className="min-h-0 flex flex-1">
-        <aside className="w-60 flex shrink-0 flex-col border-r bg-sidebar">
+      <div className="min-h-0 flex flex-1 relative">
+        {/* Mobile Backdrop */}
+        {mobileOpen ? (
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden"
+            onClick={() => setMobileOpen(false)}
+            aria-hidden="true"
+          />
+        ) : null}
+
+        <aside
+          className={cn(
+            'flex flex-col border-r bg-sidebar transition-all duration-200 shrink-0',
+            mobileOpen
+              ? 'fixed inset-y-0 left-0 z-50 w-60 shadow-2xl md:relative md:z-auto md:shadow-none'
+              : 'hidden md:flex md:w-60',
+          )}
+        >
           <AdminNav />
         </aside>
 
-        <main className="min-w-0 flex-1 overflow-y-auto">
+        <main className="min-w-0 flex-1 overflow-y-auto p-3 sm:p-6">
           <Suspense fallback={<LoadingState fullPage />}>
             <Outlet />
           </Suspense>

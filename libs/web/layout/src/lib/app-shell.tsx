@@ -56,6 +56,7 @@ export function AppShell() {
     sidebarOpen,
     rightPanelOpen,
     isResizing,
+    isMobile,
     bounds,
     setSidebarOpen,
     setRightPanelOpen,
@@ -66,6 +67,14 @@ export function AppShell() {
     stepLeftWidth,
     stepRightWidth,
   } = useResizableLayout();
+
+  // Auto-close navigation sidebar on mobile when changing route/page
+  useEffect(() => {
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+  }, [location.pathname, isMobile, setSidebarOpen]);
+
   const [aiSidebarOpen, setAiSidebarOpen] = useState(false);
   const [promptInput, setPromptInput] = useState('');
   const [selectedModel, setSelectedModel] = useState('Auto');
@@ -174,18 +183,28 @@ export function AppShell() {
     <TooltipProvider delayDuration={300}>
       <div
         className={cn(
-          'flex h-dvh overflow-hidden bg-background text-foreground font-sans',
+          'flex h-dvh overflow-hidden bg-background text-foreground font-sans relative',
           isResizing && 'select-none cursor-col-resize',
         )}
       >
-        {/* Column 1: Left Navigation Sidebar */}
+        {/* Mobile Backdrop for Left Sidebar */}
+        {sidebarOpen ? (
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden transition-opacity"
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden="true"
+          />
+        ) : null}
+
+        {/* Column 1: Left Navigation Sidebar (Drawer overlay on mobile, inline panel on desktop) */}
         <aside
           className={cn(
-            'flex shrink-0 flex-col bg-sidebar',
-            !isResizing && 'transition-[width] duration-(--duration-base) ease-standard',
-            !sidebarOpen && 'w-0 overflow-hidden',
+            'flex flex-col bg-sidebar transition-all duration-200 ease-standard shrink-0',
+            sidebarOpen
+              ? 'fixed inset-y-0 left-0 z-50 w-[280px] max-w-[85vw] shadow-2xl md:shadow-none md:relative md:z-auto'
+              : 'hidden md:flex md:w-0 md:overflow-hidden',
           )}
-          style={sidebarOpen ? { width: `${leftWidth}px` } : undefined}
+          style={sidebarOpen && !isMobile ? { width: `${leftWidth}px` } : undefined}
           aria-label="Sidebar navigation"
         >
           <div className="h-12 px-2 flex items-center shrink-0 border-b border-border">
@@ -208,8 +227,8 @@ export function AppShell() {
           </div>
         </aside>
 
-        {/* Left Resize Handle */}
-        {sidebarOpen ? (
+        {/* Left Resize Handle (Desktop only) */}
+        {sidebarOpen && !isMobile ? (
           <ResizeHandle
             side="left"
             isResizing={isResizing === 'left'}
@@ -237,7 +256,7 @@ export function AppShell() {
             sidebarOpen={sidebarOpen}
           />
 
-          <main className="min-w-0 flex-1 overflow-y-auto bg-background p-4 lg:p-6">
+          <main className="min-w-0 flex-1 overflow-y-auto bg-background p-3 sm:p-4 lg:p-6">
             <div className="max-w-[1600px] w-full mr-auto">
               <ErrorBoundary resetKeys={[location.pathname]}>
                 <Suspense fallback={<LoadingState fullPage />}>
@@ -248,8 +267,17 @@ export function AppShell() {
           </main>
         </div>
 
-        {/* Right Resize Handle */}
+        {/* Mobile Backdrop for Right AI Panel */}
         {rightPanelOpen ? (
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden transition-opacity"
+            onClick={() => setRightPanelOpen(false)}
+            aria-hidden="true"
+          />
+        ) : null}
+
+        {/* Right Resize Handle (Desktop only) */}
+        {rightPanelOpen && !isMobile ? (
           <ResizeHandle
             side="right"
             isResizing={isResizing === 'right'}
@@ -263,14 +291,15 @@ export function AppShell() {
           />
         ) : null}
 
-        {/* Column 3: Right AI Assistant & Chat Panel (Full Screen Height) */}
+        {/* Column 3: Right AI Assistant & Chat Panel (Overlay drawer on mobile, inline panel on desktop) */}
         <aside
           className={cn(
-            'shrink-0 flex flex-col h-full bg-background',
-            !isResizing && 'transition-[width] duration-(--duration-base) ease-standard',
-            !rightPanelOpen && 'w-0 overflow-hidden',
+            'flex flex-col h-full bg-background transition-all duration-200 ease-standard shrink-0',
+            rightPanelOpen
+              ? 'fixed inset-y-0 right-0 z-50 w-[340px] max-w-[90vw] border-l border-border shadow-2xl md:shadow-none md:relative md:z-auto'
+              : 'hidden md:flex md:w-0 md:overflow-hidden',
           )}
-          style={rightPanelOpen ? { width: `${rightWidth}px` } : undefined}
+          style={rightPanelOpen && !isMobile ? { width: `${rightWidth}px` } : undefined}
           aria-label="AI Chat Panel"
           aria-hidden={!rightPanelOpen}
         >

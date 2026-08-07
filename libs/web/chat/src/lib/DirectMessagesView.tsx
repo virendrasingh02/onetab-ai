@@ -60,6 +60,7 @@ export function DirectMessagesView() {
   const [selectedId, setSelectedId] = useState<string | null>(
     conversations[0]?.id ?? null,
   );
+  const [mobileView, setMobileView] = useState<'list' | 'detail'>('list');
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -81,86 +82,107 @@ export function DirectMessagesView() {
         actions={<Button leadingIcon={<SquarePen />}>New message</Button>}
       />
 
-      <div className="gap-4 grid lg:grid-cols-[20rem_1fr]">
-        <Panel flush title="Conversations">
-          <div className="p-3 border-b border-border">
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search people"
-              aria-label="Search direct messages"
-              leadingIcon={<Search />}
-            />
-          </div>
+      <div className="gap-4 grid grid-cols-1 lg:grid-cols-[20rem_1fr]">
+        {/* Conversations List Panel (Hidden on mobile when viewing detail) */}
+        <div className={cn(mobileView === 'detail' && 'hidden lg:block')}>
+          <Panel flush title="Conversations">
+            <div className="p-3 border-b border-border">
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search people"
+                aria-label="Search direct messages"
+                leadingIcon={<Search />}
+              />
+            </div>
 
-          {visible.length === 0 ? (
-            <EmptyState
-              size="sm"
-              icon={<Search />}
-              title="No matches"
-              description="No one in this workspace matches that name."
-            />
-          ) : (
-            <ul className="p-2 space-y-px">
-              {visible.map((conversation) => (
-                <li key={conversation.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedId(conversation.id)}
-                    aria-current={conversation.id === selectedId}
-                    className={cn(
-                      'gap-2.5 p-2 w-full text-left flex items-center rounded-md transition-colors',
-                      'focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none',
-                      conversation.id === selectedId
-                        ? 'bg-accent text-accent-foreground'
-                        : 'hover:bg-muted',
-                    )}
-                  >
-                    <UserAvatar
-                      name={conversation.name}
-                      seed={conversation.id}
-                      presence={conversation.presence}
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="gap-2 flex items-baseline justify-between">
-                        <span className="text-sm font-medium truncate">
-                          {conversation.name}
+            {visible.length === 0 ? (
+              <EmptyState
+                size="sm"
+                icon={<Search />}
+                title="No matches"
+                description="No one in this workspace matches that name."
+              />
+            ) : (
+              <ul className="p-2 space-y-px">
+                {visible.map((conversation) => (
+                  <li key={conversation.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedId(conversation.id);
+                        setMobileView('detail');
+                      }}
+                      aria-current={conversation.id === selectedId}
+                      className={cn(
+                        'gap-2.5 p-2 w-full text-left flex items-center rounded-md transition-colors',
+                        'focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none',
+                        conversation.id === selectedId
+                          ? 'bg-accent text-accent-foreground'
+                          : 'hover:bg-muted',
+                      )}
+                    >
+                      <UserAvatar
+                        name={conversation.name}
+                        seed={conversation.id}
+                        presence={conversation.presence}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="gap-2 flex items-baseline justify-between">
+                          <span className="text-sm font-medium truncate">
+                            {conversation.name}
+                          </span>
+                          <span className="text-xs shrink-0 text-muted-foreground">
+                            {conversation.time}
+                          </span>
                         </span>
-                        <span className="text-xs shrink-0 text-muted-foreground">
-                          {conversation.time}
+                        <span className="block text-xs truncate text-muted-foreground">
+                          {conversation.preview}
                         </span>
                       </span>
-                      <span className="block text-xs truncate text-muted-foreground">
-                        {conversation.preview}
-                      </span>
-                    </span>
-                    {conversation.unread > 0 ? (
-                      <Badge variant="count">{conversation.unread}</Badge>
-                    ) : null}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
+                      {conversation.unread > 0 ? (
+                        <Badge variant="count">{conversation.unread}</Badge>
+                      ) : null}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+        </div>
 
-        <Panel
-          title={selected?.name ?? 'No conversation'}
-          subtitle={selected ? 'Direct message' : undefined}
-        >
-          <EmptyState
-            icon={<MessageSquare />}
+        {/* Message Reading Pane (Hidden on mobile when viewing list) */}
+        <div className={cn(mobileView === 'list' && 'hidden lg:block')}>
+          <Panel
             title={
-              selected ? `Say hello to ${selected.name}` : 'Pick a conversation'
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setMobileView('list')}
+                  className="lg:hidden text-xs h-7 px-2"
+                >
+                  ← Back to list
+                </Button>
+                <span>{selected?.name ?? 'No conversation'}</span>
+              </div>
             }
-            description={
-              selected
-                ? 'Messages sync through Matrix once this room is provisioned.'
-                : 'Choose someone on the left to open the conversation.'
-            }
-            action={selected ? <Button>Start the thread</Button> : undefined}
-          />
-        </Panel>
+            subtitle={selected ? 'Direct message' : undefined}
+          >
+            <EmptyState
+              icon={<MessageSquare />}
+              title={
+                selected ? `Say hello to ${selected.name}` : 'Pick a conversation'
+              }
+              description={
+                selected
+                  ? 'Messages sync through Matrix once this room is provisioned.'
+                  : 'Choose someone on the left to open the conversation.'
+              }
+              action={selected ? <Button>Start the thread</Button> : undefined}
+            />
+          </Panel>
+        </div>
       </div>
     </Page>
   );

@@ -119,7 +119,7 @@ export function WorkspaceSettingsPage() {
   });
 
   return (
-    <div className="max-w-4xl space-y-6 p-6 mx-auto">
+    <div className="max-w-4xl space-y-6 p-3 sm:p-6 mx-auto">
       <div>
         <h2 className="text-xl font-semibold text-foreground">Workspace settings</h2>
         <p className="text-sm text-muted-foreground">
@@ -128,7 +128,7 @@ export function WorkspaceSettingsPage() {
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="mb-6 flex flex-wrap gap-1 border-b border-border bg-transparent p-0">
+        <TabsList className="mb-6 flex overflow-x-auto scrollbar-none max-w-full flex-nowrap gap-1 border-b border-border bg-transparent p-0">
           <TabsTrigger
             value="general"
             className="flex items-center gap-2 rounded-t-lg border-b-2 border-transparent px-4 py-2 text-sm font-medium transition-colors data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground hover:text-foreground"

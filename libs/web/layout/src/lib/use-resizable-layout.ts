@@ -72,6 +72,17 @@ export function useResizableLayout(options: UseResizableLayoutOptions = {}) {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(initial.sidebarOpen);
   const [rightPanelOpen, setRightPanelOpen] = useState<boolean>(initial.rightPanelOpen);
   const [isResizing, setIsResizing] = useState<'left' | 'right' | null>(null);
+  const [isMobile, setIsMobile] = useState<boolean>(
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
+
+  // Auto-collapse sidebars when first loaded on phone viewport
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setSidebarOpen(false);
+      setRightPanelOpen(false);
+    }
+  }, []);
 
   // Save to localStorage whenever dimensions or toggle states change
   useEffect(() => {
@@ -88,10 +99,11 @@ export function useResizableLayout(options: UseResizableLayoutOptions = {}) {
     }
   }, [leftWidth, rightWidth, sidebarOpen, rightPanelOpen]);
 
-  // Recalculate widths if screen becomes smaller than max allowed
+  // Recalculate widths and isMobile if screen window resizes
   useEffect(() => {
     const handleResize = () => {
       const windowWidth = window.innerWidth;
+      setIsMobile(windowWidth < 768);
       const maxSideWidth = Math.floor(windowWidth * 0.45);
 
       setLeftWidth((prev) => {
@@ -188,6 +200,7 @@ export function useResizableLayout(options: UseResizableLayoutOptions = {}) {
     sidebarOpen,
     rightPanelOpen,
     isResizing,
+    isMobile,
     bounds,
     setSidebarOpen,
     setRightPanelOpen,

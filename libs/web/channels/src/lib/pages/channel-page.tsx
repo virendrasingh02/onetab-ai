@@ -60,7 +60,7 @@ function ChannelHeader({ channel }: { channel: ChannelSummary }) {
   return (
     <div className="border-b border-border bg-background">
       {/* Top Header Row */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
           <div className="flex min-w-0 items-center gap-1.5">
             <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -164,7 +164,7 @@ function ChannelHeader({ channel }: { channel: ChannelSummary }) {
       </div>
 
       {/* Sub-header: topic and channel shortcuts */}
-      <div className="flex h-10 items-center justify-between gap-4 border-t border-border px-6 text-xs text-muted-foreground">
+      <div className="flex h-10 items-center justify-between gap-3 border-t border-border px-3 sm:px-6 text-xs text-muted-foreground">
         <p className="flex min-w-0 items-center gap-2 truncate">
           <span className="shrink-0 text-subtle">Topic</span>
           <span className="truncate">
@@ -229,7 +229,7 @@ export function ChannelPage() {
       <ChannelHeader channel={channel} />
 
       <Tabs defaultValue="chat" className="min-h-0 flex flex-1 flex-col">
-        <div className="border-b border-border bg-background px-6 pt-2">
+        <div className="border-b border-border bg-background px-3 sm:px-6 pt-2 overflow-x-auto scrollbar-none">
           <TabsList>
             <TabsTrigger value="chat" className="gap-1.5">
               <MessageSquare className="size-4" /> Messages

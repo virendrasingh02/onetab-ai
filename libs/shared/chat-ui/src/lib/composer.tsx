@@ -76,7 +76,7 @@ export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
     <div
       role="dialog"
       aria-label="Emoji picker"
-      className="left-0 mb-2 w-64 p-2 absolute bottom-full z-50 rounded-lg border bg-popover shadow-overlay"
+      className="left-0 mb-2 w-64 max-w-[calc(100vw-2rem)] p-2 absolute bottom-full z-50 rounded-lg border bg-popover shadow-overlay"
     >
       <div className="mb-1 flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">Emoji</span>
@@ -218,7 +218,7 @@ export function Composer({
         <ul
           role="listbox"
           aria-label="Mention suggestions"
-          className="left-3 mb-2 w-64 p-1 absolute bottom-full z-50 overflow-hidden rounded-lg border bg-popover shadow-overlay"
+          className="left-3 mb-2 w-64 max-w-[calc(100vw-2rem)] p-1 absolute bottom-full z-50 overflow-hidden rounded-lg border bg-popover shadow-overlay"
         >
           {mentionMatches.map((member) => (
             <li key={member.userId}>
@@ -313,7 +313,7 @@ export function Composer({
         </Button>
       </div>
 
-      <p className="mt-1 px-1 text-[10px] text-muted-foreground">
+      <p className="mt-1 px-1 text-[10px] text-muted-foreground hidden sm:block">
         {enterToSend
           ? 'Enter to send · Shift+Enter for a new line'
           : 'Ctrl+Enter to send'}

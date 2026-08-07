@@ -449,7 +449,7 @@ export function DashboardPage() {
                     ))}
                   </ul>
 
-                  <div className="pt-2 flex items-center justify-between gap-2 border-t border-border">
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-border">
                     <Button asChild variant="outline" size="sm" className="w-full text-xs h-7">
                       <Link to={`/w/${slug}/members`}>
                         <Users className="size-3.5 mr-1" />

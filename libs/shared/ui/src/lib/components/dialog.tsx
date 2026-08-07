@@ -44,7 +44,7 @@ export function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          'bg-[#111113] text-[#FAFAFA] fixed top-1/2 left-1/2 z-50 w-full max-w-lg',
+          'bg-[#111113] text-[#FAFAFA] fixed top-1/2 left-1/2 z-50 w-[calc(100vw-2rem)] sm:w-full max-w-lg max-h-[90dvh] overflow-y-auto',
           '-translate-x-1/2 -translate-y-1/2',
           'rounded-[14px] border border-[#27272A] shadow-[0_20px_60px_rgba(0,0,0,0.45)]',
           'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-98',
