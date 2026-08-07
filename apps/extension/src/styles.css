@@ -17,7 +17,7 @@
  * painting a white frame and light scrollbars around it.
  */
 :root {
-  color-scheme: dark;
+  color-scheme: light dark;
 }
 
 html,

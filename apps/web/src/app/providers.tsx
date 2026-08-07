@@ -40,7 +40,7 @@ export function Providers({ children }: { children: ReactNode }) {
     <ErrorBoundary>
       <Provider store={store}>
         <QueryClientProvider client={queryClient}>
-          <ThemeProvider defaultTheme="system">
+          <ThemeProvider defaultTheme="light">
             <MatrixProvider>
               <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
             </MatrixProvider>

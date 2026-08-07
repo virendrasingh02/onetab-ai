@@ -28,8 +28,8 @@ function prefersDark(): boolean {
   return window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
-function readStoredTheme(storageKey: string): Theme {
-  if (typeof window === 'undefined') return 'system';
+function readStoredTheme(storageKey: string, defaultTheme: Theme = 'light'): Theme {
+  if (typeof window === 'undefined') return defaultTheme;
   try {
     const stored = window.localStorage.getItem(storageKey);
     if (stored === 'light' || stored === 'dark' || stored === 'system') {
@@ -38,7 +38,7 @@ function readStoredTheme(storageKey: string): Theme {
   } catch {
     // Private mode / storage disabled — fall through to the default.
   }
-  return 'system';
+  return defaultTheme;
 }
 
 function resolve(theme: Theme): ResolvedTheme {
@@ -61,14 +61,14 @@ export interface ThemeProviderProps {
 
 export function ThemeProvider({
   children,
-  defaultTheme = 'system',
+  defaultTheme = 'light',
   storageKey = THEME_STORAGE_KEY,
 }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<Theme>(
-    () => readStoredTheme(storageKey) ?? defaultTheme,
+    () => readStoredTheme(storageKey, defaultTheme),
   );
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() =>
-    resolve(readStoredTheme(storageKey) ?? defaultTheme),
+    resolve(readStoredTheme(storageKey, defaultTheme)),
   );
 
   useEffect(() => {
@@ -125,7 +125,7 @@ export function useTheme(): ThemeContextValue {
 /**
  * Inline script that applies the stored theme before first paint.
  *
- * React mounts too late to prevent a light flash on a dark-theme reload, so
+ * React mounts too late to prevent a flash on reload, so
  * this runs synchronously in <head>. Keep it dependency-free.
  */
-export const themeInitScript = `(function(){try{var k=localStorage.getItem('${THEME_STORAGE_KEY}');var d=k==='dark'||((!k||k==='system')&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`;
+export const themeInitScript = `(function(){try{var k=localStorage.getItem('${THEME_STORAGE_KEY}');var d=k==='dark'||(k==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`;
