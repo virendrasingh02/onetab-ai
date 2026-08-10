@@ -19,12 +19,18 @@ import { DocToolsDrawer } from './docs/DocToolsDrawer.js';
 import { NotionBlockEditor } from './docs/NotionBlockEditor.js';
 
 export function DocumentEditor() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const {
+    companies,
     docs,
     activeDoc,
     activeDocId,
     setActiveDocId,
+    addCompany,
+    renameCompany,
+    deleteCompany,
+    moveDocToCompany,
     updateDocTitle,
     updateDocCategory,
     updateDocStatus,
@@ -50,20 +56,23 @@ export function DocumentEditor() {
     }
 
     if (newDocParam === 'true') {
-      createDoc();
+      const newId = createDoc();
+      setSearchParams({ doc: newId });
     }
-  }, [searchParams, docs, setActiveDocId, createDoc]);
+  }, [searchParams, docs, setActiveDocId, createDoc, setSearchParams]);
 
   const handleSave = () => {
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 3000);
   };
 
+  const currentDoc = activeDoc || docs[0];
+
   return (
     <Page width="full">
       <PageHeader
         title="Docs & Knowledge Base"
-        description="Notion-style interactive workspace documentation with multi-block editing, custom covers, database tables, and AI Copilot assistant."
+        description="Notion-style interactive workspace documentation with company-wise tree navigation, multi-block editing, custom covers, and AI Copilot."
         icon={<FileText className="text-accent-blue" />}
         accent="blue"
         actions={
@@ -75,10 +84,12 @@ export function DocumentEditor() {
               </Badge>
             ) : null}
 
-            <DocToolsDrawer
-              doc={activeDoc}
-              onAddComment={(author, text) => addComment(activeDoc.id, author, text)}
-            />
+            {currentDoc && (
+              <DocToolsDrawer
+                doc={currentDoc}
+                onAddComment={(author, text) => addComment(currentDoc.id, author, text)}
+              />
+            )}
 
             <Button leadingIcon={<Save />} onClick={handleSave}>
               Save Changes
@@ -87,40 +98,56 @@ export function DocumentEditor() {
         }
       />
 
-      <div className="gap-6 md:flex-row flex flex-1 flex-col items-start">
+      <div className="gap-6 md:flex-row flex flex-1 flex-col items-start w-full">
         {/* Left Notion Docs Tree Sidebar */}
         <DocSidebar
+          companies={companies}
           docs={docs}
           activeDocId={activeDocId}
-          onSelectDoc={setActiveDocId}
-          onCreateDoc={createDoc}
+          onSelectDoc={(id) => {
+            setActiveDocId(id);
+            setSearchParams({ doc: id });
+          }}
+          onAddCompany={addCompany}
+          onRenameCompany={renameCompany}
+          onDeleteCompany={deleteCompany}
+          onCreateDoc={(cId, t, cat, temp, pId) => {
+            const newId = createDoc(cId, t, cat, temp, pId);
+            setSearchParams({ doc: newId });
+          }}
+          onMoveDocToCompany={moveDocToCompany}
           onDuplicateDoc={duplicateDoc}
           onToggleFavorite={toggleFavorite}
           onDeleteDoc={deleteDoc}
           onUpdateTitle={(id, title) => updateDocTitle(id, title)}
         />
 
-        {/* Main Notion Document Editor Area */}
+        {/* Main Workspace Area */}
         <Panel className="flex-1 flex flex-col min-h-160 w-full">
-          {/* Notion Document Header */}
-          <DocHeader
-            doc={activeDoc}
-            onUpdateTitle={(title) => updateDocTitle(activeDoc.id, title)}
-            onUpdateIcon={(icon, color) => updateDocIcon(activeDoc.id, icon, color)}
-            onUpdateCover={(cover) => updateDocCover(activeDoc.id, cover)}
-            onUpdateStatus={(status) => updateDocStatus(activeDoc.id, status)}
-            onUpdateCategory={(category) => updateDocCategory(activeDoc.id, category)}
-            onToggleFavorite={() => toggleFavorite(activeDoc.id)}
-          />
+          {currentDoc ? (
+            /* Single Notion Document Editor Area */
+            <>
+              {/* Notion Document Header */}
+              <DocHeader
+                doc={currentDoc}
+                onUpdateTitle={(title) => updateDocTitle(currentDoc.id, title)}
+                onUpdateIcon={(icon, color) => updateDocIcon(currentDoc.id, icon, color)}
+                onUpdateCover={(cover) => updateDocCover(currentDoc.id, cover)}
+                onUpdateStatus={(status) => updateDocStatus(currentDoc.id, status)}
+                onUpdateCategory={(category) => updateDocCategory(currentDoc.id, category)}
+                onToggleFavorite={() => toggleFavorite(currentDoc.id)}
+              />
 
-          {/* Interactive Notion Block Editor */}
-          <div className="flex-1 rounded-xl border border-border bg-surface p-4 md:p-6 shadow-xs">
-            <NotionBlockEditor
-              key={activeDoc.id}
-              blocks={activeDoc.blocks || []}
-              onUpdateBlocks={(blocks) => updateDocBlocks(activeDoc.id, blocks)}
-            />
-          </div>
+              {/* Interactive Notion Block Editor */}
+              <div className="flex-1 rounded-xl border border-border bg-surface p-4 md:p-6 shadow-xs">
+                <NotionBlockEditor
+                  key={currentDoc.id}
+                  blocks={currentDoc.blocks || []}
+                  onUpdateBlocks={(blocks) => updateDocBlocks(currentDoc.id, blocks)}
+                />
+              </div>
+            </>
+          ) : null}
         </Panel>
       </div>
     </Page>

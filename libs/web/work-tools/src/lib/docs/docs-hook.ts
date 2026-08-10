@@ -39,6 +39,12 @@ export interface NotionBlock {
   aiPrompt?: string;
 }
 
+export interface CompanyItem {
+  id: string;
+  name: string;
+  icon?: string;
+}
+
 export interface DocComment {
   id: string;
   author: string;
@@ -49,6 +55,7 @@ export interface DocComment {
 
 export interface DocItem {
   id: string;
+  companyId: string;
   title: string;
   category: DocCategory;
   updatedAt: string;
@@ -65,6 +72,11 @@ export interface DocItem {
   comments: DocComment[];
 }
 
+export interface DocsDataStore {
+  companies: CompanyItem[];
+  docs: DocItem[];
+}
+
 export const COVER_PRESETS = [
   { id: 'gradient-blue', name: 'Blue Nebula', style: 'linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)' },
   { id: 'gradient-purple', name: 'Cosmic Violet', style: 'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)' },
@@ -74,111 +86,114 @@ export const COVER_PRESETS = [
   { id: 'subtle-cyber', name: 'Cyberpunk Neon', style: 'linear-gradient(135deg, #3b82f6 0%, #d946ef 100%)' },
 ];
 
-export const EMOJI_PRESETS = ['📝', '🚀', '⚡', '🎨', '🛡️', '📊', '💡', '📚', '🧩', '🔬', '⚙️', '🌐'];
+export const EMOJI_PRESETS = ['🏢', '📝', '🚀', '⚡', '🎨', '🛡️', '📊', '💡', '📚', '🧩', '🔬', '⚙️', '🌐'];
 
-const STORAGE_KEY = 'onetab_docs_v3';
+const STORAGE_KEY = 'onetab_company_docs_v2';
 
-function createSeedDocs(): DocItem[] {
-  return [
+function createSeedStore(): DocsDataStore {
+  const companies: CompanyItem[] = [
+    { id: 'company_onetab', name: 'Onetab AI HQ', icon: '🏠' },
+  ];
+
+  const docs: DocItem[] = [
     {
-      id: 'doc_arch',
-      title: 'Workspace Architecture & State Flow',
-      category: 'Architecture',
+      id: 'doc_teamspace',
+      companyId: 'company_onetab',
+      title: 'Teamspace Home',
+      category: 'General',
       updatedAt: 'Just now',
-      snippet: 'High-level diagram, monorepo modular design, and state management.',
-      content: 'This document describes the workspace architecture, standardizing HSL design tokens, resizable sidebars, and multi-project Kanban board state isolation.',
+      snippet: 'Main teamspace workspace page and guidelines.',
+      content: 'Welcome to the Onetab AI HQ Teamspace Home.',
       pinned: true,
       favorite: true,
-      icon: '🏗️',
+      icon: '🧭',
       cover: 'linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)',
       status: 'Finalized',
       comments: [
         {
           id: 'c1',
-          author: 'Alex Morgan',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100',
-          text: 'Verified HSL token sync across apps. Clean architecture layout!',
-          createdAt: '10 mins ago',
+          author: 'Onetab AI Team',
+          text: 'Welcome to Teamspace Home!',
+          createdAt: 'Just now',
         },
       ],
       blocks: [
         {
           id: 'b1',
           type: 'h1',
-          content: 'Workspace Architecture Overview',
+          content: 'Teamspace Home Overview',
         },
         {
           id: 'b2',
           type: 'callout',
           variant: 'info',
           icon: '💡',
-          content: 'All frontend packages follow strict boundary decoupling. Design tokens are injected at global HTML level.',
+          content: 'This teamspace contains documentation, architecture blueprints, and product roadmap guidelines.',
         },
         {
           id: 'b3',
           type: 'h2',
-          content: 'Core Modules & Responsibilities',
+          content: 'Teamspace Resources',
         },
         {
           id: 'b4',
-          type: 'paragraph',
-          content: 'The application uses Nx monorepo packages for high isolation and fast independent builds. State flows seamlessly across workspace routes.',
+          type: 'checklist',
+          checked: true,
+          content: 'Monorepo Architecture & State Flow',
         },
         {
           id: 'b5',
           type: 'checklist',
           checked: true,
-          content: 'Decoupled UI components in @org/ui package',
+          content: 'Design System & HSL Color Tokens',
         },
         {
           id: 'b6',
           type: 'checklist',
-          checked: true,
-          content: 'Strict TypeScript interfaces for state persistence',
-        },
-        {
-          id: 'b7',
-          type: 'checklist',
           checked: false,
           content: 'Offline local state caching using indexedDB & localStorage',
-        },
-        {
-          id: 'b8',
-          type: 'h2',
-          content: 'System Configuration',
-        },
-        {
-          id: 'b9',
-          type: 'code',
-          language: 'typescript',
-          content: `export interface AppConfig {\n  workspaceId: string;\n  theme: 'dark' | 'light' | 'system';\n  syncFrequencyMs: number;\n}`,
-        },
-        {
-          id: 'b10',
-          type: 'toggle',
-          isOpen: false,
-          content: 'Advanced Routing Protocols & Guards',
-        },
-        {
-          id: 'b11',
-          type: 'table',
-          content: 'Module Matrix',
-          headers: ['Module', 'Package', 'Status', 'Owner'],
-          rows: [
-            ['@org/web-work-tools', 'Work Tools Suite', 'Active', 'Frontend Team'],
-            ['@org/ui', 'Shared UI Components', 'Stable', 'Design System Team'],
-            ['@org/api-workspace', 'Workspace Backend', 'Production', 'Backend Team'],
-          ],
         },
       ],
     },
     {
-      id: 'doc_design',
-      title: 'Design System Tokens & Glassmorphism Guidelines',
+      id: 'doc_onetab_arch',
+      companyId: 'company_onetab',
+      parentId: 'doc_teamspace',
+      title: 'System Architecture & RAG Flow',
+      category: 'Architecture',
+      updatedAt: 'Just now',
+      snippet: 'High-level diagram, monorepo modular design, and state management.',
+      content: 'This document describes the workspace architecture for Onetab AI.',
+      pinned: true,
+      favorite: true,
+      icon: '🏗️',
+      cover: 'linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)',
+      status: 'Finalized',
+      comments: [],
+      blocks: [
+        {
+          id: 'b1',
+          type: 'h1',
+          content: 'Onetab AI System Architecture',
+        },
+        {
+          id: 'b2',
+          type: 'callout',
+          variant: 'info',
+          icon: '💡',
+          content: 'All documentation pages are hierarchically structured company-wise with live tree navigation.',
+        },
+      ],
+    },
+    {
+      id: 'doc_onetab_guide',
+      companyId: 'company_onetab',
+      parentId: 'doc_teamspace',
+      title: 'Design Tokens & UI Language',
       category: 'Design System',
       updatedAt: 'Today',
       snippet: 'Tokens for HSL theme colors, badges, buttons, and layout handles.',
-      content: 'Guidelines for component styling using Vanilla CSS design tokens, smooth micro-animations, accessible ARIA roles, and high-fidelity views.',
+      content: 'Guidelines for component styling using Vanilla CSS design tokens.',
       pinned: true,
       favorite: true,
       icon: '🎨',
@@ -189,60 +204,27 @@ function createSeedDocs(): DocItem[] {
         {
           id: 'b101',
           type: 'h1',
-          content: 'Design Tokens & UI Visual Language',
+          content: 'Onetab AI Visual Language',
         },
         {
           id: 'b102',
           type: 'paragraph',
-          content: 'Our visual design language relies on standard CSS variables with HSL color tuples for rapid theme dynamic recalculations.',
-        },
-        {
-          id: 'b103',
-          type: 'callout',
-          variant: 'tip',
-          icon: '✨',
-          content: 'Always prefer theme tokens like bg-surface, bg-surface-raised, and text-foreground over fixed hex values.',
-        },
-        {
-          id: 'b104',
-          type: 'h2',
-          content: 'Color Palette Tokens',
-        },
-        {
-          id: 'b105',
-          type: 'code',
-          language: 'css',
-          content: `:root {\n  --surface: 220 14% 10%;\n  --surface-raised: 220 14% 14%;\n  --accent-blue: 217 91% 60%;\n  --foreground: 210 20% 98%;\n}`,
-        },
-        {
-          id: 'b106',
-          type: 'checklist',
-          checked: true,
-          content: 'Accessible contrast ratios (WCAG AAA)',
-        },
-        {
-          id: 'b107',
-          type: 'checklist',
-          checked: true,
-          content: 'Smooth 150ms micro-interactions on buttons',
-        },
-        {
-          id: 'b108',
-          type: 'quote',
-          content: 'Good design is as little design as possible. — Dieter Rams',
+          content: 'Our design language relies on standard CSS variables with HSL color tuples for theme recalculations.',
         },
       ],
     },
     {
-      id: 'doc_ollama',
-      title: 'Ollama Vector RAG Local Setup Guide',
+      id: 'doc_onetab_roadmap',
+      companyId: 'company_onetab',
+      parentId: 'doc_teamspace',
+      title: 'Product Roadmap 2026',
       category: 'Engineering',
       updatedAt: 'Yesterday',
-      snippet: 'Configuring Qdrant vector database collection embeddings.',
-      content: 'Steps to configure nomic-embed-text with local Ollama model runner for off-line AI vector search and document index querying.',
+      snippet: 'Strategic vision, vector RAG integration, and enterprise features.',
+      content: 'Product roadmap milestones.',
       pinned: false,
       favorite: false,
-      icon: '🤖',
+      icon: '⚡',
       cover: 'linear-gradient(135deg, #10b981 0%, #06b6d4 100%)',
       status: 'Draft',
       comments: [],
@@ -250,133 +232,159 @@ function createSeedDocs(): DocItem[] {
         {
           id: 'b201',
           type: 'h1',
-          content: 'Local AI RAG Setup Guide',
-        },
-        {
-          id: 'b202',
-          type: 'paragraph',
-          content: 'Run embed models directly on your hardware without external API reliance.',
-        },
-        {
-          id: 'b203',
-          type: 'code',
-          language: 'bash',
-          content: 'ollama pull nomic-embed-text\nollama run mistral',
-        },
-        {
-          id: 'b204',
-          type: 'callout',
-          variant: 'warning',
-          icon: '⚡',
-          content: 'Ensure at least 8GB of free VRAM for optimal inference latency.',
-        },
-      ],
-    },
-    {
-      id: 'doc_security',
-      title: 'API Security & Workspace Role Matrix',
-      category: 'Security',
-      updatedAt: '3 days ago',
-      snippet: 'Granular permissions, OAuth2 JWT tokens, and role scopes.',
-      content: 'Detailed permission matrix for workspace Admin, Developer, and Guest roles with fine-grained access control.',
-      pinned: false,
-      favorite: false,
-      icon: '🛡️',
-      cover: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)',
-      status: 'Finalized',
-      comments: [],
-      blocks: [
-        {
-          id: 'b301',
-          type: 'h1',
-          content: 'Security & Scope Matrix',
-        },
-        {
-          id: 'b302',
-          type: 'table',
-          content: 'Roles & Scopes Table',
-          headers: ['Role', 'Read Scopes', 'Write Scopes', 'Admin Scope'],
-          rows: [
-            ['Admin', 'All Workspace Resources', 'Full Workspace', 'Granted'],
-            ['Developer', 'Repo & Docs', 'Docs & Code', 'Denied'],
-            ['Guest', 'Shared Docs', 'None', 'Denied'],
-          ],
+          content: '2026 Product Strategy',
         },
       ],
     },
   ];
+
+  return { companies, docs };
 }
 
 export function useDocsState() {
-  const [docs, setDocs] = useState<DocItem[]>(() => {
+  const [store, setStore] = useState<DocsDataStore>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (parsed && Array.isArray(parsed.companies) && parsed.companies.length > 0 && Array.isArray(parsed.docs)) {
           return parsed;
         }
       }
     } catch (e) {
-      console.warn('Failed to load saved docs:', e);
+      console.warn('Failed to load saved company docs store:', e);
     }
-    return createSeedDocs();
+    return createSeedStore();
   });
 
-  const [activeDocId, setActiveDocId] = useState<string>(() => docs[0]?.id ?? 'doc_arch');
+  const companies = store.companies;
+  const docs = store.docs;
+
+  const [activeDocId, setActiveDocId] = useState<string>(() => docs[0]?.id ?? 'doc_teamspace');
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(docs));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
       window.dispatchEvent(new Event('onetab_docs_updated'));
     } catch (e) {
-      console.warn('Failed to persist docs:', e);
+      console.warn('Failed to persist company docs store:', e);
     }
-  }, [docs]);
+  }, [store]);
 
-  const activeDoc = docs.find((d) => d.id === activeDocId) ?? docs[0];
+  const activeDoc = docs.find((d) => d.id === activeDocId) ?? docs[0] ?? {
+    id: 'empty_doc',
+    companyId: companies[0]?.id || 'company_onetab',
+    title: 'Untitled Document',
+    category: 'General',
+    updatedAt: 'Just now',
+    snippet: '',
+    content: '',
+    blocks: [],
+    comments: [],
+  };
 
+  // Company Operations
+  const addCompany = (name?: string, icon?: string) => {
+    const companyName = name?.trim() || prompt('Enter company name:')?.trim();
+    if (!companyName) return;
+
+    const newCompany: CompanyItem = {
+      id: `company_${Date.now()}`,
+      name: companyName,
+      icon: icon || '🏢',
+    };
+
+    setStore((prev) => ({
+      ...prev,
+      companies: [...prev.companies, newCompany],
+    }));
+
+    // Auto create first doc in new company
+    createDoc(newCompany.id, `${companyName} Overview`);
+    return newCompany.id;
+  };
+
+  const renameCompany = (companyId: string, currentName: string) => {
+    const newName = prompt('Enter new company name:', currentName)?.trim();
+    if (!newName) return;
+
+    setStore((prev) => ({
+      ...prev,
+      companies: prev.companies.map((c) => (c.id === companyId ? { ...c, name: newName } : c)),
+    }));
+  };
+
+  const deleteCompany = (companyId: string) => {
+    if (companies.length <= 1) {
+      alert('Workspace requires at least one company.');
+      return;
+    }
+    if (!confirm('Are you sure you want to delete this company and all its docs?')) return;
+
+    setStore((prev) => {
+      const nextCompanies = prev.companies.filter((c) => c.id !== companyId);
+      const nextDocs = prev.docs.filter((d) => d.companyId !== companyId);
+      if (activeDoc && activeDoc.companyId === companyId) {
+        setActiveDocId(nextDocs[0]?.id || '');
+      }
+      return { companies: nextCompanies, docs: nextDocs };
+    });
+  };
+
+  // Doc Operations
   const updateDocTitle = (id: string, newTitle: string) => {
-    setDocs((prev) =>
-      prev.map((d) =>
-        d.id === id ? { ...d, title: newTitle, updatedAt: 'Just now' } : d,
-      ),
-    );
+    setStore((prev) => ({
+      ...prev,
+      docs: prev.docs.map((d) => (d.id === id ? { ...d, title: newTitle, updatedAt: 'Just now' } : d)),
+    }));
   };
 
   const updateDocCategory = (id: string, category: DocCategory) => {
-    setDocs((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, category, updatedAt: 'Just now' } : d)),
-    );
+    setStore((prev) => ({
+      ...prev,
+      docs: prev.docs.map((d) => (d.id === id ? { ...d, category, updatedAt: 'Just now' } : d)),
+    }));
   };
 
   const updateDocStatus = (id: string, status: DocStatus) => {
-    setDocs((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, status, updatedAt: 'Just now' } : d)),
-    );
+    setStore((prev) => ({
+      ...prev,
+      docs: prev.docs.map((d) => (d.id === id ? { ...d, status, updatedAt: 'Just now' } : d)),
+    }));
   };
 
   const updateDocCover = (id: string, cover: string) => {
-    setDocs((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, cover, updatedAt: 'Just now' } : d)),
-    );
+    setStore((prev) => ({
+      ...prev,
+      docs: prev.docs.map((d) => (d.id === id ? { ...d, cover, updatedAt: 'Just now' } : d)),
+    }));
   };
 
   const updateDocIcon = (id: string, icon: string, iconColor?: string) => {
-    setDocs((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, icon, iconColor, updatedAt: 'Just now' } : d)),
-    );
+    setStore((prev) => ({
+      ...prev,
+      docs: prev.docs.map((d) => (d.id === id ? { ...d, icon, iconColor, updatedAt: 'Just now' } : d)),
+    }));
   };
 
   const toggleFavorite = (id: string) => {
-    setDocs((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, favorite: !d.favorite } : d)),
-    );
+    setStore((prev) => ({
+      ...prev,
+      docs: prev.docs.map((d) => (d.id === id ? { ...d, favorite: !d.favorite } : d)),
+    }));
+  };
+
+  const moveDocToCompany = (docId: string, targetCompanyId: string) => {
+    setStore((prev) => ({
+      ...prev,
+      docs: prev.docs.map((d) => (d.id === docId ? { ...d, companyId: targetCompanyId, updatedAt: 'Just now' } : d)),
+    }));
   };
 
   const updateDocBlocks = (id: string, blocks: NotionBlock[]) => {
-    setDocs((prev) =>
-      prev.map((d) => {
+    setStore((prev) => ({
+      ...prev,
+      docs: prev.docs.map((d) => {
         if (d.id === id) {
           const textSnippet = blocks
             .map((b) => b.content)
@@ -392,7 +400,7 @@ export function useDocsState() {
         }
         return d;
       }),
-    );
+    }));
   };
 
   const addComment = (id: string, author: string, text: string) => {
@@ -402,14 +410,15 @@ export function useDocsState() {
       text,
       createdAt: 'Just now',
     };
-    setDocs((prev) =>
-      prev.map((d) =>
-        d.id === id ? { ...d, comments: [...(d.comments || []), newComment] } : d,
-      ),
-    );
+    setStore((prev) => ({
+      ...prev,
+      docs: prev.docs.map((d) => (d.id === id ? { ...d, comments: [...(d.comments || []), newComment] } : d)),
+    }));
   };
 
-  const createDoc = (title?: string, category?: DocCategory, template?: string) => {
+  const createDoc = (companyId?: string, title?: string, category?: DocCategory, template?: string, parentId?: string) => {
+    const targetCompanyId = companyId || companies[0]?.id || 'company_onetab';
+
     let initialBlocks: NotionBlock[] = [
       {
         id: `b_${Date.now()}_1`,
@@ -465,6 +474,8 @@ export function useDocsState() {
 
     const newDoc: DocItem = {
       id: `doc_${Date.now()}`,
+      companyId: targetCompanyId,
+      parentId: parentId,
       title: title || (template === 'prd' ? 'Product Requirements Document' : template === 'meeting' ? 'Sprint Sync Notes' : 'Untitled Document'),
       category: category || 'General',
       updatedAt: 'Just now',
@@ -479,7 +490,10 @@ export function useDocsState() {
       comments: [],
     };
 
-    setDocs((prev) => [newDoc, ...prev]);
+    setStore((prev) => ({
+      ...prev,
+      docs: [newDoc, ...prev.docs],
+    }));
     setActiveDocId(newDoc.id);
     return newDoc.id;
   };
@@ -496,26 +510,34 @@ export function useDocsState() {
       blocks: source.blocks.map((b) => ({ ...b, id: `b_${Math.random().toString(36).substring(2, 9)}` })),
     };
 
-    setDocs((prev) => [dupDoc, ...prev]);
+    setStore((prev) => ({
+      ...prev,
+      docs: [dupDoc, ...prev.docs],
+    }));
     setActiveDocId(dupDoc.id);
   };
 
   const deleteDoc = (id: string) => {
     if (docs.length <= 1) return;
-    setDocs((prev) => {
-      const filtered = prev.filter((d) => d.id !== id);
+    setStore((prev) => {
+      const nextDocs = prev.docs.filter((d) => d.id !== id);
       if (activeDocId === id) {
-        setActiveDocId(filtered[0]?.id ?? '');
+        setActiveDocId(nextDocs[0]?.id ?? '');
       }
-      return filtered;
+      return { ...prev, docs: nextDocs };
     });
   };
 
   return {
+    companies,
     docs,
     activeDoc,
     activeDocId,
     setActiveDocId,
+    addCompany,
+    renameCompany,
+    deleteCompany,
+    moveDocToCompany,
     updateDocTitle,
     updateDocCategory,
     updateDocStatus,

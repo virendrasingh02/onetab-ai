@@ -7,6 +7,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   IconRenderer,
   Hint,
@@ -18,11 +21,14 @@ import { cn } from '@org/utils';
 import { useChannelPreferences, useGroupedChannels } from '@org/web-channels';
 import {
   Activity,
+  Building,
   ChevronDown,
   ChevronRight,
+  FolderPlus,
   Hash,
   Lock,
   MessagesSquare,
+  MoveRight,
   Plus,
   Star,
   Users,
@@ -352,31 +358,34 @@ function ProjectsTreeSection({ workspaceSlug }: { workspaceSlug: string }) {
 function DocsTreeSection({ workspaceSlug }: { workspaceSlug: string }) {
   const location = useLocation();
 
-  const loadDocs = () => {
+  const loadStore = () => {
     try {
-      const saved = localStorage.getItem('onetab_docs_v3');
+      const saved = localStorage.getItem('onetab_company_docs_v1');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (parsed && Array.isArray(parsed.companies) && parsed.companies.length > 0 && Array.isArray(parsed.docs)) {
           return parsed;
         }
       }
     } catch {
       // fallback
     }
-    return [
-      { id: 'doc_arch', title: 'Workspace Architecture', icon: '🏗️' },
-      { id: 'doc_design', title: 'Design System Tokens', icon: '🎨' },
-      { id: 'doc_ollama', title: 'Ollama Vector RAG', icon: '⚡' },
-      { id: 'doc_security', title: 'API Security Scope', icon: '🛡️' },
-    ];
+    return {
+      companies: [{ id: 'company_onetab', name: 'Onetab AI', icon: '🏢' }],
+      docs: [
+        { id: 'doc_onetab_arch', companyId: 'company_onetab', title: 'Onetab AI System Architecture', icon: '🏗️' },
+        { id: 'doc_onetab_guide', companyId: 'company_onetab', title: 'Onetab AI Design System Tokens', icon: '🎨' },
+        { id: 'doc_onetab_roadmap', companyId: 'company_onetab', title: 'Onetab AI Product Roadmap 2026', icon: '⚡' },
+      ],
+    };
   };
 
-  const [docs, setDocs] = useState(loadDocs);
+  const [store, setStore] = useState(loadStore);
+  const [collapsedCompanies, setCollapsedCompanies] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const handleSync = () => {
-      setDocs(loadDocs());
+      setStore(loadStore());
     };
     window.addEventListener('onetab_docs_updated', handleSync);
     window.addEventListener('storage', handleSync);
@@ -386,33 +395,103 @@ function DocsTreeSection({ workspaceSlug }: { workspaceSlug: string }) {
     };
   }, []);
 
+  const companies = store.companies || [];
+  const docs = store.docs || [];
 
+  const toggleCompanyCollapse = (companyId: string) => {
+    setCollapsedCompanies((prev) => ({
+      ...prev,
+      [companyId]: !prev[companyId],
+    }));
+  };
 
-  const handleDeleteDoc = (docId: string) => {
-    if (docs.length <= 1) return;
-    const updated = docs.filter((d: any) => d.id !== docId);
-    setDocs(updated);
+  const saveStore = (updatedStore: { companies: any[]; docs: any[] }) => {
+    setStore(updatedStore);
     try {
-      localStorage.setItem('onetab_docs_v3', JSON.stringify(updated));
+      localStorage.setItem('onetab_company_docs_v1', JSON.stringify(updatedStore));
       window.dispatchEvent(new Event('onetab_docs_updated'));
     } catch {
       // ignore
     }
   };
 
+  const handleAddCompany = () => {
+    const companyName = prompt('Enter company name:')?.trim();
+    if (!companyName) return;
+
+    const newCompany = {
+      id: `company_${Date.now()}`,
+      name: companyName,
+      icon: '🏢',
+    };
+
+    const newDoc = {
+      id: `doc_${Date.now()}`,
+      companyId: newCompany.id,
+      title: `${companyName} Overview`,
+      icon: '📝',
+      snippet: 'Welcome to company documentation.',
+    };
+
+    saveStore({
+      companies: [...companies, newCompany],
+      docs: [newDoc, ...docs],
+    });
+  };
+
+  const handleRenameCompany = (companyId: string, currentName: string) => {
+    const newName = prompt('Enter new company name:', currentName)?.trim();
+    if (!newName) return;
+
+    saveStore({
+      companies: companies.map((c: any) => (c.id === companyId ? { ...c, name: newName } : c)),
+      docs,
+    });
+  };
+
+  const handleDeleteCompany = (companyId: string) => {
+    if (companies.length <= 1) {
+      alert('Workspace requires at least one company.');
+      return;
+    }
+    if (!confirm('Are you sure you want to delete this company and all its docs?')) return;
+
+    saveStore({
+      companies: companies.filter((c: any) => c.id !== companyId),
+      docs: docs.filter((d: any) => d.companyId !== companyId),
+    });
+  };
+
+  const handleAddDocToCompany = (companyId: string) => {
+    const newDoc = {
+      id: `doc_${Date.now()}`,
+      companyId: companyId,
+      title: 'Untitled Document',
+      icon: '📝',
+      snippet: 'Start writing...',
+    };
+
+    saveStore({
+      companies,
+      docs: [newDoc, ...docs],
+    });
+  };
+
+  const handleDeleteDoc = (docId: string) => {
+    if (docs.length <= 1) return;
+    saveStore({
+      companies,
+      docs: docs.filter((d: any) => d.id !== docId),
+    });
+  };
+
   const handleRenameDoc = (docId: string, currentTitle: string) => {
     const newTitle = prompt('Enter new document title:', currentTitle);
     if (newTitle && newTitle.trim()) {
-      const updated = docs.map((d: any) =>
-        d.id === docId ? { ...d, title: newTitle.trim() } : d
-      );
-      setDocs(updated);
-      try {
-        localStorage.setItem('onetab_docs_v3', JSON.stringify(updated));
-        window.dispatchEvent(new Event('onetab_docs_updated'));
-      } catch {
-        // ignore
-      }
+      saveStore({
+        companies,
+        docs: docs.map((d: any) => (d.id === docId ? { ...d, title: newTitle.trim() } : d)),
+      });
     }
   };
 
@@ -425,106 +504,263 @@ function DocsTreeSection({ workspaceSlug }: { workspaceSlug: string }) {
       title: `${source.title} (Copy)`,
       updatedAt: 'Just now',
     };
-    const updated = [newDoc, ...docs];
-    setDocs(updated);
-    try {
-      localStorage.setItem('onetab_docs_v3', JSON.stringify(updated));
-      window.dispatchEvent(new Event('onetab_docs_updated'));
-    } catch {
-      // ignore
-    }
+    saveStore({
+      companies,
+      docs: [newDoc, ...docs],
+    });
+  };
+
+  const handleMoveDoc = (docId: string, targetCompanyId: string) => {
+    saveStore({
+      companies,
+      docs: docs.map((d: any) => (d.id === docId ? { ...d, companyId: targetCompanyId } : d)),
+    });
   };
 
   return (
     <Section
-      title="Docs"
+      title="Docs & Knowledge"
       defaultOpen={true}
       action={
-        <Hint label="New Document">
-          <Button
-            asChild
-            variant="ghost"
-            size="icon-sm"
-            aria-label="New Document"
-            className="size-5 hover:bg-accent p-0"
-          >
-            <NavLink to={`/w/${workspaceSlug}/docs?newDoc=true`}>
-              <Plus className="size-3.5" />
-            </NavLink>
-          </Button>
-        </Hint>
+        <div className="flex items-center gap-1">
+          <Hint label="Add Company">
+            <button
+              type="button"
+              onClick={handleAddCompany}
+              aria-label="Add Company"
+              className="p-1 rounded text-subtle hover:text-foreground hover:bg-accent cursor-pointer"
+            >
+              <FolderPlus className="size-3.5 text-accent-blue" />
+            </button>
+          </Hint>
+          <Hint label="New Document">
+            <Button
+              asChild
+              variant="ghost"
+              size="icon-sm"
+              aria-label="New Document"
+              className="size-5 hover:bg-accent p-0"
+            >
+              <NavLink to={`/w/${workspaceSlug}/docs?newDoc=true`}>
+                <Plus className="size-3.5" />
+              </NavLink>
+            </Button>
+          </Hint>
+        </div>
       }
     >
-      <li>
-        <NavLink
-          to={`/w/${workspaceSlug}/docs?view=all`}
-          className={({ isActive }) =>
-            navRowClass(isActive && location.search.includes('view=all'))
-          }
-        >
-          <FileText className="size-4 shrink-0 text-accent-blue" aria-hidden />
-          <span className="flex-1 truncate font-medium">All Docs</span>
-        </NavLink>
-      </li>
 
-      {docs.map((docItem: any) => {
-        const docTo = `/w/${workspaceSlug}/docs?doc=${docItem.id}`;
-        const isSelected = location.pathname.includes('/docs') && location.search.includes(`doc=${docItem.id}`);
+      {/* Company Tree Folders */}
+      {companies.map((company: any) => {
+        const companyDocs = docs.filter((d: any) => d.companyId === company.id || (!d.companyId && company.id === companies[0]?.id));
+        const rootDocs = companyDocs.filter((d: any) => !d.parentId);
+        const isCollapsed = !!collapsedCompanies[company.id];
 
         return (
-          <li key={docItem.id} className="group/doc relative">
-            <NavLink
-              to={docTo}
-              className={navRowClass(isSelected, 'pl-6 pr-8 text-[12px] flex items-center gap-2')}
-            >
-              <IconRenderer
-                icon={docItem.icon}
-                iconColor={docItem.iconColor}
-                fallbackEmoji="📝"
-                sizeClassName="size-3.5 shrink-0"
-              />
-              <span className="flex-1 truncate">{docItem.title}</span>
-            </NavLink>
+          <li key={company.id} className="space-y-0.5 mt-1">
+            {/* Company Folder Header */}
+            <div className="group/comp relative flex items-center justify-between px-2 py-1 rounded-md hover:bg-accent/60 transition-colors">
+              <button
+                type="button"
+                onClick={() => toggleCompanyCollapse(company.id)}
+                className="flex items-center gap-1.5 text-[11px] font-bold text-foreground flex-1 truncate cursor-pointer text-left"
+              >
+                {isCollapsed ? (
+                  <ChevronRight className="size-3 text-subtle shrink-0" />
+                ) : (
+                  <ChevronDown className="size-3 text-subtle shrink-0" />
+                )}
+                <span className="text-xs shrink-0">{company.icon || '🏠'}</span>
+                <span className="truncate">{company.name}</span>
+                <Badge variant="neutral" className="ml-1 text-[9px] px-1 py-0 h-3.5">
+                  {companyDocs.length}
+                </Badge>
+              </button>
 
-            {/* Doc Options Dropdown */}
-            <div className="opacity-0 group-hover/doc:opacity-100 transition-opacity absolute right-1.5 top-1/2 -translate-y-1/2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="p-1 rounded text-subtle hover:text-foreground hover:bg-accent cursor-pointer"
-                    title="Doc Options"
-                  >
-                    <MoreVertical className="size-3" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44">
-                  <DropdownMenuItem
-                    onClick={() => handleRenameDoc(docItem.id, docItem.title)}
-                    className="text-xs gap-2"
-                  >
-                    <Pencil className="size-3 text-primary" />
-                    Rename Doc
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleDuplicateDoc(docItem.id)}
-                    className="text-xs gap-2"
-                  >
-                    <Copy className="size-3" />
-                    Duplicate Doc
-                  </DropdownMenuItem>
-                  {docs.length > 1 && (
-                    <DropdownMenuItem
-                      onClick={() => handleDeleteDoc(docItem.id)}
-                      className="text-xs gap-2 text-destructive focus:text-destructive"
+              {/* Company Hover Actions */}
+              <div className="opacity-0 group-hover/comp:opacity-100 transition-opacity flex items-center gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => handleAddDocToCompany(company.id)}
+                  className="p-1 rounded text-subtle hover:text-foreground hover:bg-accent cursor-pointer"
+                  title="Add Doc in Company"
+                >
+                  <Plus className="size-3 text-accent-blue" />
+                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="p-1 rounded text-subtle hover:text-foreground hover:bg-accent cursor-pointer"
+                      title="Company Options"
                     >
-                      <Trash2 className="size-3" />
-                      Delete Doc
+                      <MoreVertical className="size-3" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuItem
+                      onClick={() => handleAddDocToCompany(company.id)}
+                      className="text-xs gap-2"
+                    >
+                      <Plus className="size-3 text-accent-blue" />
+                      Add Doc in {company.name}
                     </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    <DropdownMenuItem
+                      onClick={() => handleRenameCompany(company.id, company.name)}
+                      className="text-xs gap-2"
+                    >
+                      <Pencil className="size-3 text-primary" />
+                      Rename Company
+                    </DropdownMenuItem>
+                    {companies.length > 1 && (
+                      <DropdownMenuItem
+                        onClick={() => handleDeleteCompany(company.id)}
+                        className="text-xs gap-2 text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="size-3" />
+                        Delete Company
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
+
+            {/* Company Nested Docs */}
+            {!isCollapsed && (
+              <ul className="space-y-0.5 pl-2 border-l border-border/40 ml-2">
+                {rootDocs.length === 0 ? (
+                  <li className="text-[10px] text-subtle italic py-1 pl-4">
+                    <p>No pages inside</p>
+                    <button
+                      type="button"
+                      onClick={() => handleAddDocToCompany(company.id)}
+                      className="mt-0.5 text-[10px] text-subtle hover:text-foreground flex items-center gap-1 font-medium cursor-pointer hover:bg-accent/40 px-1.5 py-0.5 rounded transition-colors"
+                    >
+                      <Plus className="size-2.5 text-accent-blue" />
+                      Add new
+                    </button>
+                  </li>
+                ) : (
+                  rootDocs.map((docItem: any) => {
+                    const docTo = `/w/${workspaceSlug}/docs?doc=${docItem.id}`;
+                    const isSelected = location.pathname.includes('/docs') && location.search.includes(`doc=${docItem.id}`);
+                    const childDocs = companyDocs.filter((d: any) => d.parentId === docItem.id);
+
+                    return (
+                      <li key={docItem.id} className="group/doc relative space-y-0.5">
+                        <div className="flex items-center justify-between">
+                          <NavLink
+                            to={docTo}
+                            className={navRowClass(isSelected, 'pl-1.5 pr-6 text-[11px] flex items-center gap-1.5 flex-1')}
+                          >
+                            <IconRenderer
+                              icon={docItem.icon}
+                              iconColor={docItem.iconColor}
+                              fallbackEmoji="📝"
+                              sizeClassName="size-3 shrink-0"
+                            />
+                            <span className="flex-1 truncate">{docItem.title}</span>
+                          </NavLink>
+
+                          {/* Doc Item Dropdown Options */}
+                          <div className="opacity-0 group-hover/doc:opacity-100 transition-opacity absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="p-0.5 rounded text-subtle hover:text-foreground hover:bg-accent cursor-pointer"
+                                  title="Doc Options"
+                                >
+                                  <MoreVertical className="size-3" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-44">
+                                <DropdownMenuItem
+                                  onClick={() => handleRenameDoc(docItem.id, docItem.title)}
+                                  className="text-xs gap-2"
+                                >
+                                  <Pencil className="size-3 text-primary" />
+                                  Rename Doc
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleDuplicateDoc(docItem.id)}
+                                  className="text-xs gap-2"
+                                >
+                                  <Copy className="size-3" />
+                                  Duplicate Doc
+                                </DropdownMenuItem>
+                                {companies.length > 1 && (
+                                  <DropdownMenuSub>
+                                    <DropdownMenuSubTrigger className="text-xs gap-2">
+                                      <MoveRight className="size-3 text-accent-blue" />
+                                      Move to Company
+                                    </DropdownMenuSubTrigger>
+                                    <DropdownMenuSubContent className="w-44">
+                                      {companies
+                                        .filter((c: any) => c.id !== docItem.companyId)
+                                        .map((c: any) => (
+                                          <DropdownMenuItem
+                                            key={c.id}
+                                            onClick={() => handleMoveDoc(docItem.id, c.id)}
+                                            className="text-xs gap-2"
+                                          >
+                                            <Building className="size-3" />
+                                            {c.name}
+                                          </DropdownMenuItem>
+                                        ))}
+                                    </DropdownMenuSubContent>
+                                  </DropdownMenuSub>
+                                )}
+                                {docs.length > 1 && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleDeleteDoc(docItem.id)}
+                                    className="text-xs gap-2 text-destructive focus:text-destructive"
+                                  >
+                                    <Trash2 className="size-3" />
+                                    Delete Doc
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+
+                        {/* Child sub-pages */}
+                        <ul className="pl-3 space-y-0.5 border-l border-border/30 ml-2">
+                          {childDocs.length === 0 ? (
+                            <li className="text-[10px] text-subtle italic py-0.5 pl-2">
+                              No pages inside
+                            </li>
+                          ) : (
+                            childDocs.map((child: any) => {
+                              const childTo = `/w/${workspaceSlug}/docs?doc=${child.id}`;
+                              const childSelected = location.pathname.includes('/docs') && location.search.includes(`doc=${child.id}`);
+                              return (
+                                <li key={child.id}>
+                                  <NavLink
+                                    to={childTo}
+                                    className={navRowClass(childSelected, 'pl-1 pr-4 text-[10.5px] flex items-center gap-1')}
+                                  >
+                                    <IconRenderer
+                                      icon={child.icon}
+                                      iconColor={child.iconColor}
+                                      fallbackEmoji="📝"
+                                      sizeClassName="size-2.5 shrink-0"
+                                    />
+                                    <span className="flex-1 truncate">{child.title}</span>
+                                  </NavLink>
+                                </li>
+                              );
+                            })
+                          )}
+                        </ul>
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+            )}
           </li>
         );
       })}
