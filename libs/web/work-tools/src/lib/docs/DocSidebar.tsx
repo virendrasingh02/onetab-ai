@@ -46,7 +46,7 @@ interface DocSidebarProps {
   onAddCompany?: () => void;
   onRenameCompany?: (companyId: string, currentName: string) => void;
   onDeleteCompany?: (companyId: string) => void;
-  onCreateDoc: (companyId?: string, title?: string, category?: DocCategory, template?: string) => void;
+  onCreateDoc: (companyId?: string, title?: string, category?: DocCategory, template?: string, parentId?: string) => void;
   onMoveDocToCompany?: (docId: string, targetCompanyId: string) => void;
   onDuplicateDoc: (id: string) => void;
   onToggleFavorite: (id: string) => void;

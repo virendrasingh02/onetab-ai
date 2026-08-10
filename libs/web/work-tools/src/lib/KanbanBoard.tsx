@@ -87,6 +87,17 @@ type DragState =
 const EDGE_ZONE = 96;
 const EDGE_SPEED = 22;
 
+/** List titles that mean "finished", used to score project completion. */
+const DONE_LIST = /^(done|closed|resolved|approved|complete[d]?|shipped)\b/i;
+
+const PROJECT_CATEGORIES: readonly ProjectCategory[] = [
+  'Engineering',
+  'Design',
+  'Marketing',
+  'Product',
+  'Operations',
+];
+
 export interface KanbanBoardProps {
   filter?: BoardFilter;
   setFilter?: React.Dispatch<React.SetStateAction<BoardFilter>>;
@@ -122,6 +133,11 @@ export function KanbanBoard({
   const [newProjectColor, setNewProjectColor] = useState<ProjectColor>('violet');
   const [newProjectDesc, setNewProjectDesc] = useState('');
   const [newProjectPreset, setNewProjectPreset] = useState<'standard' | 'sprint' | 'bug'>('standard');
+
+  // Project gallery controls
+  const [projectSearch, setProjectSearch] = useState('');
+  const [projectLayout, setProjectLayout] = useState<'grid' | 'compact'>('grid');
+  const [categoryFilter, setCategoryFilter] = useState<ProjectCategory | 'all'>('all');
 
   // Handle URL query parameters for project selection and modals
   useEffect(() => {
@@ -201,6 +217,60 @@ export function KanbanBoard({
   }, [board.lists, visibleByList]);
 
   const filterCount = useMemo(() => countActiveFilters(filter), [filter]);
+
+  /*
+   * A project's completion is read off its own board rather than stored, so it
+   * stays correct when cards are dragged between lists. A card counts as done
+   * when it sits in a terminal list or its due date has been ticked off.
+   */
+  const projectStats = useMemo(() => {
+    const stats = new Map<string, { total: number; done: number; percent: number }>();
+
+    for (const project of projects) {
+      let total = 0;
+      let done = 0;
+
+      for (const list of project.board.lists) {
+        const terminal = DONE_LIST.test(list.title);
+        total += list.cards.length;
+        for (const card of list.cards) {
+          if (terminal || card.dueComplete) done += 1;
+        }
+      }
+
+      stats.set(project.id, {
+        total,
+        done,
+        percent: total === 0 ? 0 : Math.round((done / total) * 100),
+      });
+    }
+
+    return stats;
+  }, [projects]);
+
+  const visibleProjects = useMemo(() => {
+    const needle = projectSearch.trim().toLowerCase();
+
+    return projects.filter((project) => {
+      if (categoryFilter !== 'all' && project.category !== categoryFilter) {
+        return false;
+      }
+      if (!needle) return true;
+      return (
+        project.name.toLowerCase().includes(needle) ||
+        project.description.toLowerCase().includes(needle) ||
+        project.category.toLowerCase().includes(needle)
+      );
+    });
+  }, [projects, projectSearch, categoryFilter]);
+
+  const openProject = useCallback(
+    (projectId: string) => {
+      setActiveProjectId(projectId);
+      setViewMode('board');
+    },
+    [setActiveProjectId],
+  );
 
   const clearDrag = useCallback(() => {
     setDrag(null);
@@ -361,7 +431,33 @@ export function KanbanBoard({
   return (
     <div className="group/board min-h-128 px-4 sm:px-6 py-4 sm:py-6 flex h-full flex-col overflow-hidden text-foreground">
       {/* ACTIVE KANBAN BOARD VIEW */}
-      <Fragment>
+      {viewMode === 'board' && (
+        <Fragment>
+          {/* Board Context Strip: project switcher + visible card count */}
+          <Toolbar className="mb-2 shrink-0 justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setViewMode('projects')}
+                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                title="Browse all project boards"
+              >
+                <SquareKanban className="size-3.5" />
+                <span>All projects</span>
+              </button>
+              <span className="text-xs font-semibold text-foreground">
+                {activeProject.name}
+              </span>
+              <Badge variant="neutral">{activeProject.category}</Badge>
+            </div>
+
+            <span className="text-[11px] tabular-nums text-muted-foreground">
+              {totals.shown === totals.all
+                ? `${totals.all} cards`
+                : `Showing ${totals.shown} of ${totals.all} cards`}
+            </span>
+          </Toolbar>
+
           {/* Board Filter Controls & AI Overlay */}
           <div className="relative mb-2 shrink-0 space-y-2">
 
@@ -569,6 +665,267 @@ export function KanbanBoard({
             )}
           </div>
         </Fragment>
+      )}
+
+      {/* PROJECT GALLERY VIEW */}
+      {viewMode === 'projects' && (
+        <Fragment>
+          {/* Gallery Toolbar: search, category filter, layout toggle, new board */}
+          <Toolbar className="mb-4 shrink-0 justify-between">
+            <div className="relative w-48 sm:w-72">
+              <Search className="pointer-events-none absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+              <Input
+                value={projectSearch}
+                onChange={(e) => setProjectSearch(e.target.value)}
+                placeholder="Search project boards..."
+                aria-label="Search project boards"
+                className="h-8 bg-muted/40 pl-8 text-xs"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Category Filter */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant={categoryFilter === 'all' ? 'outline' : 'secondary'}
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs"
+                  >
+                    <Filter className="size-3.5 text-muted-foreground" />
+                    <span>
+                      {categoryFilter === 'all' ? 'All categories' : categoryFilter}
+                    </span>
+                    <ChevronDown className="size-3.5 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuLabel className="text-[11px]">
+                    Filter by category
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setCategoryFilter('all')}
+                    className="gap-2 text-xs"
+                  >
+                    <Check
+                      className={cn(
+                        'size-3.5 text-primary',
+                        categoryFilter !== 'all' && 'opacity-0',
+                      )}
+                    />
+                    All categories
+                  </DropdownMenuItem>
+                  {PROJECT_CATEGORIES.map((category) => (
+                    <DropdownMenuItem
+                      key={category}
+                      onClick={() => setCategoryFilter(category)}
+                      className="gap-2 text-xs"
+                    >
+                      <Check
+                        className={cn(
+                          'size-3.5 text-primary',
+                          categoryFilter !== category && 'opacity-0',
+                        )}
+                      />
+                      {category}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Layout Toggle */}
+              <div className="flex items-center rounded-md border border-border p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setProjectLayout('grid')}
+                  aria-pressed={projectLayout === 'grid'}
+                  title="Grid layout"
+                  className={cn(
+                    'rounded p-1.5 transition-colors',
+                    projectLayout === 'grid'
+                      ? 'bg-accent text-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <LayoutGrid className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProjectLayout('compact')}
+                  aria-pressed={projectLayout === 'compact'}
+                  title="Compact layout"
+                  className={cn(
+                    'rounded p-1.5 transition-colors',
+                    projectLayout === 'compact'
+                      ? 'bg-accent text-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Kanban className="size-3.5" />
+                </button>
+              </div>
+
+              <Button
+                size="sm"
+                onClick={() => setIsNewProjectOpen(true)}
+                className="h-8 gap-1.5 text-xs font-semibold"
+              >
+                <Plus className="size-4" />
+                New Board
+              </Button>
+            </div>
+          </Toolbar>
+
+          {/* Project Cards */}
+          <div className="flex-1 overflow-y-auto pb-4">
+            {visibleProjects.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
+                <FolderKanban className="size-8 text-subtle" />
+                <p className="text-sm font-medium text-foreground">
+                  No boards match your search
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Try a different term, or clear the category filter.
+                </p>
+              </div>
+            ) : (
+              <div
+                className={cn(
+                  'grid gap-3',
+                  projectLayout === 'grid'
+                    ? 'sm:grid-cols-2 xl:grid-cols-3'
+                    : 'grid-cols-1',
+                )}
+              >
+                {visibleProjects.map((project) => {
+                  const stats = projectStats.get(project.id) ?? {
+                    total: 0,
+                    done: 0,
+                    percent: 0,
+                  };
+                  const accent = accentClasses[project.color];
+                  const isActive = project.id === activeProjectId;
+
+                  return (
+                    <Card
+                      key={project.id}
+                      onClick={() => openProject(project.id)}
+                      className={cn(
+                        'cursor-pointer bg-surface text-foreground border-border',
+                        'hover:border-border-strong hover:bg-surface-raised',
+                        isActive && `ring-1 ${accent.ring} border-transparent`,
+                      )}
+                    >
+                      <CardHeader>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span
+                              className={cn('size-2 shrink-0 rounded-full', accent.bg)}
+                              aria-hidden
+                            />
+                            <CardTitle className="truncate text-foreground">
+                              {project.name}
+                            </CardTitle>
+                            {isActive ? (
+                              <Check className="size-3.5 shrink-0 text-primary" />
+                            ) : null}
+                          </div>
+
+                          {/* Per-project actions */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                onClick={(e) => e.stopPropagation()}
+                                title="Board options"
+                                className="rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                              >
+                                <ChevronDown className="size-3.5" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                              align="end"
+                              className="w-44"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <DropdownMenuLabel className="text-[11px]">
+                                {project.name}
+                              </DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => openProject(project.id)}
+                                className="gap-2 text-xs"
+                              >
+                                <ArrowRight className="size-3.5 text-primary" />
+                                Open board
+                              </DropdownMenuItem>
+                              {projects.length > 1 && (
+                                <DropdownMenuItem
+                                  onClick={() => deleteProject(project.id)}
+                                  className="gap-2 text-xs text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="size-3.5" />
+                                  Delete board
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+
+                        <CardDescription className="line-clamp-2 text-muted-foreground">
+                          {project.description}
+                        </CardDescription>
+                      </CardHeader>
+
+                      <CardContent className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="neutral">{project.category}</Badge>
+                          <span className="text-[11px] tabular-nums text-muted-foreground">
+                            {stats.done}/{stats.total} done
+                          </span>
+                        </div>
+
+                        <Progress
+                          value={stats.percent}
+                          accent={project.color}
+                          size="sm"
+                          label={`${project.name} is ${stats.percent}% complete`}
+                        />
+
+                        <div className="flex items-center justify-between">
+                          {/* Member stack */}
+                          <div className="flex -space-x-1.5">
+                            {project.board.members.slice(0, 4).map((member) => (
+                              <UserAvatar
+                                key={member.id}
+                                name={member.name}
+                                seed={member.id}
+                                src={member.avatarUrl}
+                                size="xs"
+                                className="ring-1 ring-surface"
+                              />
+                            ))}
+                            {project.board.members.length > 4 && (
+                              <span className="flex size-5 items-center justify-center rounded-full bg-surface-inset text-[10px] font-medium text-muted-foreground ring-1 ring-surface">
+                                +{project.board.members.length - 4}
+                              </span>
+                            )}
+                          </div>
+
+                          <span className="text-[11px] text-subtle">
+                            {new Date(project.updatedAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </Fragment>
+      )}
 
       {/* Card Details Dialog */}
       {openCardId ? (

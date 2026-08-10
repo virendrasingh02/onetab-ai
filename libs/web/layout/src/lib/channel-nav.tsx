@@ -77,6 +77,8 @@ const MOST_USED_LINKS: readonly NavEntry[] = [
 const SECONDARY_LINKS: readonly NavEntry[] = [
   { path: 'pulse', label: 'Pulse', icon: Activity },
   { path: 'schedule', label: 'Schedule', icon: Clock },
+  { path: 'tasks', label: 'Projects', icon: FolderKanban },
+  { path: 'docs', label: 'Docs', icon: FileText },
   { path: 'directory', label: 'Team Directory', icon: Users },
   { path: 'files', label: 'Files', icon: HardDrive },
   { path: 'settings', label: 'Settings', icon: Settings },

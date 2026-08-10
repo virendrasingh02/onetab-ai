@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Kanban, List, Timeline, LayoutDashboard, ChevronDown } from 'lucide-react';
 import { cn } from '@org/utils';
 
