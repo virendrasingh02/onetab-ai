@@ -263,9 +263,9 @@ export function LinearFilterMenu({
             onActivateAIFilter();
             onClose();
           }}
-          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 transition-colors"
+          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs font-medium text-accent-violet hover:bg-accent-violet-soft transition-colors"
         >
-          <Sparkles className="size-3.5 text-purple-500 shrink-0 animate-pulse" />
+          <Sparkles className="size-3.5 text-accent-violet shrink-0 animate-pulse" />
           <span>AI filter</span>
         </button>
 

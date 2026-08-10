@@ -1,4 +1,5 @@
 import {
+  accentClasses,
   Badge,
   Button,
   Card,
@@ -51,7 +52,7 @@ const MEETING_APPS: MeetingProviderApp[] = [
     category: 'INBUILT',
     connected: true,
     account: 'Workspace Native Matrix Huddle',
-    iconColor: 'bg-emerald-500/10 text-emerald-500',
+    iconColor: accentClasses.teal.soft,
   },
   {
     id: 'zoom',
@@ -59,7 +60,7 @@ const MEETING_APPS: MeetingProviderApp[] = [
     category: 'CONNECTED',
     connected: true,
     account: 'dev-team@workspace.zoom.us',
-    iconColor: 'bg-blue-500/10 text-blue-500',
+    iconColor: accentClasses.blue.soft,
   },
   {
     id: 'gmeet',
@@ -67,7 +68,7 @@ const MEETING_APPS: MeetingProviderApp[] = [
     category: 'CONNECTED',
     connected: true,
     account: 'calendar-sync@workspace.gsuite.com',
-    iconColor: 'bg-green-500/10 text-green-500',
+    iconColor: accentClasses.green.soft,
   },
   {
     id: 'msteams',
@@ -75,7 +76,7 @@ const MEETING_APPS: MeetingProviderApp[] = [
     category: 'AVAILABLE',
     connected: false,
     account: 'Not connected',
-    iconColor: 'bg-indigo-500/10 text-indigo-500',
+    iconColor: accentClasses.indigo.soft,
   },
   {
     id: 'webex',
@@ -83,7 +84,7 @@ const MEETING_APPS: MeetingProviderApp[] = [
     category: 'AVAILABLE',
     connected: false,
     account: 'Not connected',
-    iconColor: 'bg-cyan-500/10 text-cyan-500',
+    iconColor: accentClasses.cyan.soft,
   },
 ];
 
@@ -219,7 +220,7 @@ export function MeetingsView() {
                   }}
                   className="text-xs flex items-center gap-2 font-medium"
                 >
-                  <Radio className="size-4 text-emerald-500" />
+                  <Radio className="size-4 text-accent-teal" />
                   <span>Start Inbuilt OneTab Huddle</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="my-1" />
@@ -241,7 +242,7 @@ export function MeetingsView() {
                   }}
                   className="text-xs flex items-center gap-2"
                 >
-                  <Camera className="size-4 text-blue-500" />
+                  <Camera className="size-4 text-accent-blue" />
                   <span>Start via Zoom App</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
@@ -262,7 +263,7 @@ export function MeetingsView() {
                   }}
                   className="text-xs flex items-center gap-2"
                 >
-                  <Globe className="size-4 text-green-500" />
+                  <Globe className="size-4 text-accent-green" />
                   <span>Start via Google Meet App</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -316,14 +317,14 @@ export function MeetingsView() {
             <Badge variant="neutral">{meetings.length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="inbuilt" className="gap-1.5">
-            <Radio className="size-4 text-emerald-500" />
+            <Radio className="size-4 text-accent-teal" />
             <span>Inbuilt Huddles</span>
             <Badge variant="neutral">
               {meetings.filter((m) => m.providerType === 'INBUILT').length}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="connected" className="gap-1.5">
-            <Share2 className="size-4 text-blue-500" />
+            <Share2 className="size-4 text-accent-blue" />
             <span>Connected Apps</span>
             <Badge variant="neutral">
               {meetings.filter((m) => m.providerType === 'CONNECTED').length}

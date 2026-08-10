@@ -1,5 +1,4 @@
 import {
-  Badge,
   Button,
   Dialog,
   DialogContent,
@@ -9,8 +8,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
   IconPickerPopover,
   IconRenderer,
@@ -23,7 +20,6 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  ChevronDown,
   ClipboardList,
   Kanban,
   LayoutDashboard,
@@ -54,7 +50,6 @@ export function AsanaProjectManager() {
   const {
     projects,
     activeProject,
-    activeProjectId,
     setActiveProjectId,
     updateActiveBoardState,
     updateProjectIcon,

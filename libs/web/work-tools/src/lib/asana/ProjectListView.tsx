@@ -146,10 +146,10 @@ export function ProjectListView({
                                 onClick={() =>
                                   onUpdateCard(list.id, card.id, { dueComplete: !card.dueComplete })
                                 }
-                                className="text-muted-foreground hover:text-emerald-500 transition-colors"
+                                className="text-muted-foreground hover:text-accent-green transition-colors"
                               >
                                 {card.dueComplete ? (
-                                  <CheckCircle2 className="w-4 h-4 text-emerald-500 fill-emerald-500/20" />
+                                  <CheckCircle2 className="w-4 h-4 text-accent-green fill-accent-green" />
                                 ) : (
                                   <Circle className="w-4 h-4" />
                                 )}

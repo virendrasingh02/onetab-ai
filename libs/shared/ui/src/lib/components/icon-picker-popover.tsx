@@ -54,7 +54,6 @@ import {
   LifeBuoy,
   Link as LinkIcon,
   Lock,
-  LucideProps,
   Mail,
   MapPin,
   Megaphone,
@@ -98,6 +97,7 @@ import {
   Wrench,
   Zap,
 } from 'lucide-react';
+import type { LucideProps } from 'lucide-react';
 import { cn } from '@org/utils';
 import { Button } from './button.js';
 import { Input } from './input.js';
@@ -239,23 +239,25 @@ export const ICON_REGISTRY: Record<string, React.ComponentType<LucideProps>> = {
 };
 
 // Preset colors for icon color selector
+/*
+ * Icon tints, drawn from the same accent ramp as `--accent-*` in theme.css so a
+ * hand-picked icon colour sits alongside the rest of the UI. These stay literal
+ * hexes rather than tokens: the value is persisted with the entity and is
+ * rendered into an inline `style`, so it must not shift when the theme does.
+ */
 export const ICON_COLOR_PRESETS = [
-  { id: 'default', label: 'Default', hex: '#f8fafc' },
-  { id: 'slate', label: 'Slate', hex: '#94a3b8' },
-  { id: 'red', label: 'Red', hex: '#ef4444' },
-  { id: 'orange', label: 'Orange', hex: '#f97316' },
-  { id: 'amber', label: 'Amber', hex: '#f59e0b' },
-  { id: 'yellow', label: 'Yellow', hex: '#eab308' },
-  { id: 'emerald', label: 'Emerald', hex: '#10b981' },
-  { id: 'cyan', label: 'Cyan', hex: '#06b6d4' },
-  { id: 'sky', label: 'Sky', hex: '#0ea5e9' },
-  { id: 'blue', label: 'Blue', hex: '#3b82f6' },
-  { id: 'indigo', label: 'Indigo', hex: '#6366f1' },
-  { id: 'violet', label: 'Violet', hex: '#8b5cf6' },
-  { id: 'purple', label: 'Purple', hex: '#a855f7' },
-  { id: 'fuchsia', label: 'Fuchsia', hex: '#d946ef' },
-  { id: 'pink', label: 'Pink', hex: '#ec4899' },
-  { id: 'rose', label: 'Rose', hex: '#f43f5e' },
+  { id: 'default', label: 'Default', hex: '#8A8F98' },
+  { id: 'red', label: 'Red', hex: '#EB5757' },
+  { id: 'orange', label: 'Orange', hex: '#FC7840' },
+  { id: 'amber', label: 'Amber', hex: '#F2C94C' },
+  { id: 'green', label: 'Green', hex: '#4CB782' },
+  { id: 'teal', label: 'Teal', hex: '#0F9B8E' },
+  { id: 'cyan', label: 'Cyan', hex: '#26B5CE' },
+  { id: 'blue', label: 'Blue', hex: '#4EA7FC' },
+  { id: 'indigo', label: 'Indigo', hex: '#6771D4' },
+  { id: 'violet', label: 'Violet', hex: '#5E6AD2' },
+  { id: 'pink', label: 'Pink', hex: '#E07BB8' },
+  { id: 'slate', label: 'Slate', hex: '#6B6F76' },
 ];
 
 export const EMOJI_CATEGORIES = [
@@ -333,7 +335,7 @@ interface IconPickerPopoverProps {
 
 export function IconPickerPopover({
   icon,
-  iconColor = '#f8fafc',
+  iconColor = ICON_COLOR_PRESETS[0].hex,
   onSelectIcon,
   onRemoveIcon,
   trigger,
@@ -402,10 +404,10 @@ export function IconPickerPopover({
 
       <PopoverContent
         align={align}
-        className="w-[340px] p-0 border border-border/80 bg-zinc-900/95 backdrop-blur-xl text-zinc-100 shadow-2xl rounded-xl overflow-hidden text-xs"
+        className="w-[340px] p-0 border border-border/80 bg-popover/95 backdrop-blur-xl text-popover-foreground shadow-2xl rounded-xl overflow-hidden text-xs"
       >
         {/* Navigation Tabs Bar & Remove Button */}
-        <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-2 bg-zinc-950/60">
+        <div className="flex items-center justify-between border-b border-border px-3 py-2 bg-surface-inset/60">
           <div className="flex items-center gap-4">
             <button
               type="button"
@@ -414,7 +416,7 @@ export function IconPickerPopover({
                 'text-xs font-medium transition-colors pb-0.5 border-b-2 cursor-pointer',
                 activeTab === 'emoji'
                   ? 'border-white text-white'
-                  : 'border-transparent text-zinc-400 hover:text-zinc-200',
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
               )}
             >
               Emoji
@@ -426,7 +428,7 @@ export function IconPickerPopover({
                 'text-xs font-medium transition-colors pb-0.5 border-b-2 cursor-pointer',
                 activeTab === 'icons'
                   ? 'border-white text-white'
-                  : 'border-transparent text-zinc-400 hover:text-zinc-200',
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
               )}
             >
               Icons
@@ -438,7 +440,7 @@ export function IconPickerPopover({
                 'text-xs font-medium transition-colors pb-0.5 border-b-2 cursor-pointer',
                 activeTab === 'upload'
                   ? 'border-white text-white'
-                  : 'border-transparent text-zinc-400 hover:text-zinc-200',
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
               )}
             >
               Upload
@@ -452,7 +454,7 @@ export function IconPickerPopover({
                 onRemoveIcon();
                 setIsOpen(false);
               }}
-              className="text-xs text-zinc-400 hover:text-zinc-100 transition-colors cursor-pointer"
+              className="text-xs text-muted-foreground hover:text-popover-foreground transition-colors cursor-pointer"
             >
               Remove
             </button>
@@ -465,12 +467,12 @@ export function IconPickerPopover({
             {/* Filter Search Bar + Action Controls */}
             <div className="flex items-center gap-1.5">
               <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-zinc-400" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
                 <Input
                   value={filterQuery}
                   onChange={(e) => setFilterQuery(e.target.value)}
                   placeholder="Filter..."
-                  className="h-8 pl-8 text-xs bg-zinc-800/80 border-zinc-700/60 focus:border-zinc-500 text-zinc-100 placeholder:text-zinc-500 rounded-md"
+                  className="h-8 pl-8 text-xs bg-surface-raised/80 border-border/60 focus:border-border-strong text-popover-foreground placeholder:text-subtle rounded-md"
                 />
               </div>
 
@@ -479,7 +481,7 @@ export function IconPickerPopover({
                 type="button"
                 onClick={handleRandomIcon}
                 title="Random Icon"
-                className="size-8 rounded-md bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700/60 flex items-center justify-center text-zinc-300 hover:text-white transition-colors cursor-pointer shrink-0"
+                className="size-8 rounded-md bg-surface-raised/80 hover:bg-selected border border-border/60 flex items-center justify-center text-secondary-foreground hover:text-white transition-colors cursor-pointer shrink-0"
               >
                 <Shuffle className="size-3.5" />
               </button>
@@ -490,19 +492,19 @@ export function IconPickerPopover({
                   <button
                     type="button"
                     title="Change Icon Color"
-                    className="size-8 rounded-md bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700/60 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                    className="size-8 rounded-md bg-surface-raised/80 hover:bg-selected border border-border/60 flex items-center justify-center transition-colors cursor-pointer shrink-0"
                   >
                     <span
-                      className="size-3.5 rounded-full border border-zinc-400/30 shadow-xs"
+                      className="size-3.5 rounded-full border border-border-strong/30 shadow-xs"
                       style={{ backgroundColor: selectedColor }}
                     />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent
                   align="end"
-                  className="w-48 p-2 bg-zinc-900 border border-zinc-700 text-zinc-100 shadow-xl rounded-lg"
+                  className="w-48 p-2 bg-popover border border-border text-popover-foreground shadow-xl rounded-lg"
                 >
-                  <p className="text-[11px] font-semibold text-zinc-400 mb-2 px-1">Icon Color</p>
+                  <p className="text-[11px] font-semibold text-muted-foreground mb-2 px-1">Icon Color</p>
                   <div className="grid grid-cols-4 gap-1.5">
                     {ICON_COLOR_PRESETS.map((color) => (
                       <button
@@ -516,11 +518,11 @@ export function IconPickerPopover({
                           }
                         }}
                         title={color.label}
-                        className="size-8 rounded-md flex items-center justify-center hover:scale-110 transition-transform cursor-pointer border border-zinc-700"
+                        className="size-8 rounded-md flex items-center justify-center hover:scale-110 transition-transform cursor-pointer border border-border"
                         style={{ backgroundColor: color.hex }}
                       >
                         {selectedColor === color.hex && (
-                          <Check className="size-3.5 text-zinc-950 stroke-[3]" />
+                          <Check className="size-3.5 text-background stroke-[3]" />
                         )}
                       </button>
                     ))}
@@ -531,8 +533,8 @@ export function IconPickerPopover({
 
             {/* Scrollable Icon Grid */}
             <div className="space-y-1">
-              <p className="text-[11px] font-semibold text-zinc-400 px-0.5">Icons</p>
-              <div className="max-h-56 overflow-y-auto pr-1 grid grid-cols-6 gap-1.5 scrollbar-thin scrollbar-thumb-zinc-700">
+              <p className="text-[11px] font-semibold text-muted-foreground px-0.5">Icons</p>
+              <div className="max-h-56 overflow-y-auto pr-1 grid grid-cols-6 gap-1.5 scrollbar-thin scrollbar-thumb-border">
                 {filteredIcons.map((name) => {
                   const IconComp = ICON_REGISTRY[name];
                   const isSelected = icon === name;
@@ -548,8 +550,8 @@ export function IconPickerPopover({
                       className={cn(
                         'size-10 rounded-lg flex items-center justify-center transition-all cursor-pointer border',
                         isSelected
-                          ? 'bg-zinc-700/80 border-zinc-500 shadow-sm scale-105'
-                          : 'bg-zinc-800/40 border-transparent hover:bg-zinc-800 hover:border-zinc-700',
+                          ? 'bg-selected/80 border-border-strong shadow-sm scale-105'
+                          : 'bg-surface-raised/40 border-transparent hover:bg-surface-raised hover:border-border',
                       )}
                     >
                       <IconComp className="size-5" style={{ color: selectedColor }} />
@@ -565,12 +567,12 @@ export function IconPickerPopover({
         {activeTab === 'emoji' && (
           <div className="p-3 space-y-3">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-zinc-400" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
               <Input
                 value={filterQuery}
                 onChange={(e) => setFilterQuery(e.target.value)}
                 placeholder="Search emojis..."
-                className="h-8 pl-8 text-xs bg-zinc-800/80 border-zinc-700/60 focus:border-zinc-500 text-zinc-100 placeholder:text-zinc-500 rounded-md"
+                className="h-8 pl-8 text-xs bg-surface-raised/80 border-border/60 focus:border-border-strong text-popover-foreground placeholder:text-subtle rounded-md"
               />
             </div>
 
@@ -584,7 +586,7 @@ export function IconPickerPopover({
 
                 return (
                   <div key={cat.name} className="space-y-1">
-                    <p className="text-[10px] font-semibold text-zinc-400 px-0.5">{cat.name}</p>
+                    <p className="text-[10px] font-semibold text-muted-foreground px-0.5">{cat.name}</p>
                     <div className="grid grid-cols-7 gap-1">
                       {filteredList.map((emoji) => (
                         <button
@@ -594,7 +596,7 @@ export function IconPickerPopover({
                             onSelectIcon(emoji);
                             setIsOpen(false);
                           }}
-                          className="size-8 rounded-lg hover:bg-zinc-800 flex items-center justify-center text-lg transition-transform hover:scale-110 cursor-pointer"
+                          className="size-8 rounded-lg hover:bg-surface-raised flex items-center justify-center text-lg transition-transform hover:scale-110 cursor-pointer"
                         >
                           {emoji}
                         </button>
@@ -611,13 +613,13 @@ export function IconPickerPopover({
         {activeTab === 'upload' && (
           <div className="p-4 space-y-4 text-xs">
             <div>
-              <p className="font-semibold text-zinc-200 mb-1">Upload File</p>
-              <label className="border-2 border-dashed border-zinc-700 hover:border-zinc-500 rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer bg-zinc-900/50 hover:bg-zinc-800/50 transition-colors">
-                <Upload className="size-6 text-zinc-400" />
-                <span className="text-zinc-300 font-medium text-center">
+              <p className="font-semibold text-foreground mb-1">Upload File</p>
+              <label className="border-2 border-dashed border-border hover:border-border-strong rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer bg-popover/50 hover:bg-surface-raised/50 transition-colors">
+                <Upload className="size-6 text-muted-foreground" />
+                <span className="text-secondary-foreground font-medium text-center">
                   Click or drag image file here
                 </span>
-                <span className="text-[10px] text-zinc-500">PNG, JPG, SVG up to 5MB</span>
+                <span className="text-[10px] text-subtle">PNG, JPG, SVG up to 5MB</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -628,21 +630,21 @@ export function IconPickerPopover({
             </div>
 
             <div className="relative flex items-center gap-2 my-2">
-              <div className="flex-1 border-t border-zinc-800" />
-              <span className="text-[10px] text-zinc-500 uppercase font-semibold">OR LINK</span>
-              <div className="flex-1 border-t border-zinc-800" />
+              <div className="flex-1 border-t border-border" />
+              <span className="text-[10px] text-subtle uppercase font-semibold">OR LINK</span>
+              <div className="flex-1 border-t border-border" />
             </div>
 
             <form onSubmit={handleUrlSubmit} className="space-y-2">
-              <p className="font-semibold text-zinc-200">Image URL</p>
+              <p className="font-semibold text-foreground">Image URL</p>
               <div className="flex gap-2">
                 <Input
                   value={uploadedUrl}
                   onChange={(e) => setUploadedUrl(e.target.value)}
                   placeholder="https://example.com/icon.png"
-                  className="h-8 text-xs bg-zinc-800/80 border-zinc-700/60 focus:border-zinc-500 text-zinc-100 placeholder:text-zinc-500 rounded-md"
+                  className="h-8 text-xs bg-surface-raised/80 border-border/60 focus:border-border-strong text-popover-foreground placeholder:text-subtle rounded-md"
                 />
-                <Button type="submit" size="sm" className="h-8 text-xs bg-zinc-100 text-zinc-900 hover:bg-white">
+                <Button type="submit" size="sm" className="h-8 text-xs bg-primary text-primary-foreground hover:bg-primary-hover">
                   Submit
                 </Button>
               </div>

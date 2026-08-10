@@ -47,6 +47,7 @@ import {
   Monitor,
   Moon,
   ShieldAlert,
+  Sliders,
   Sun,
   UploadCloud,
 } from 'lucide-react';

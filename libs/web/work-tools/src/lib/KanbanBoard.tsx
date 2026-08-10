@@ -1,4 +1,5 @@
 import {
+  accentClasses,
   Badge,
   Button,
   Card,
@@ -12,7 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -34,9 +34,10 @@ import {
   LayoutGrid,
   Plus,
   Search,
+  Sparkles,
   SquareKanban,
-  Tag,
   Trash2,
+  X,
 } from 'lucide-react';
 import {
   Fragment,
@@ -348,12 +349,7 @@ export function KanbanBoard() {
                 <div
                   className={cn(
                     'flex size-7 shrink-0 items-center justify-center rounded-md text-primary-foreground font-bold text-xs',
-                    activeProject.color === 'violet' && 'bg-violet-600',
-                    activeProject.color === 'blue' && 'bg-blue-600',
-                    activeProject.color === 'emerald' && 'bg-emerald-600',
-                    activeProject.color === 'amber' && 'bg-amber-600',
-                    activeProject.color === 'rose' && 'bg-rose-600',
-                    activeProject.color === 'cyan' && 'bg-cyan-600',
+                    accentClasses[activeProject.color].bg,
                   )}
                 >
                   <Kanban className="size-4" />
@@ -398,12 +394,7 @@ export function KanbanBoard() {
                         <span
                           className={cn(
                             'size-2.5 rounded-full shrink-0',
-                            p.color === 'violet' && 'bg-violet-500',
-                            p.color === 'blue' && 'bg-blue-500',
-                            p.color === 'emerald' && 'bg-emerald-500',
-                            p.color === 'amber' && 'bg-amber-500',
-                            p.color === 'rose' && 'bg-rose-500',
-                            p.color === 'cyan' && 'bg-cyan-500',
+                            accentClasses[p.color].bg,
                           )}
                         />
                         <div className="min-w-0">
@@ -463,7 +454,7 @@ export function KanbanBoard() {
           <Button
             size="sm"
             onClick={() => setIsNewProjectOpen(true)}
-            className="gap-1 text-xs px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-xs"
+            className="gap-1 text-xs px-3 bg-primary hover:bg-primary-hover text-primary-foreground font-medium shadow-xs"
           >
             <Plus className="size-3.5" />
             <span>New Project</span>
@@ -505,12 +496,7 @@ export function KanbanBoard() {
                         variant="neutral"
                         className={cn(
                           'text-[10px] font-semibold uppercase',
-                          proj.color === 'violet' && 'bg-violet-500/15 text-violet-600 dark:text-violet-400',
-                          proj.color === 'blue' && 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
-                          proj.color === 'emerald' && 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
-                          proj.color === 'amber' && 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
-                          proj.color === 'rose' && 'bg-rose-500/15 text-rose-600 dark:text-rose-400',
-                          proj.color === 'cyan' && 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400',
+                          accentClasses[proj.color].soft,
                         )}
                       >
                         {proj.category}
@@ -608,9 +594,9 @@ export function KanbanBoard() {
                   variant="outline"
                   size="sm"
                   onClick={() => setShowAIFilterInput(!showAIFilterInput)}
-                  className="gap-1.5 text-xs h-8 border-purple-500/30 text-purple-600 dark:text-purple-400 hover:bg-purple-500/10"
+                  className="gap-1.5 text-xs h-8 border-accent-violet/30 text-accent-violet hover:bg-accent-violet-soft"
                 >
-                  <Sparkles className="size-3.5 text-purple-500 shrink-0" />
+                  <Sparkles className="size-3.5 text-accent-violet shrink-0" />
                   <span className="hidden sm:inline">AI filter</span>
                 </Button>
 
@@ -634,8 +620,8 @@ export function KanbanBoard() {
 
             {/* AI Filter Input Prompt Overlay Bar */}
             {showAIFilterInput && (
-              <div className="flex items-center gap-2 p-2 rounded-xl border border-purple-500/40 bg-purple-500/5 text-xs animate-in fade-in">
-                <Sparkles className="size-4 text-purple-500 shrink-0" />
+              <div className="flex items-center gap-2 p-2 rounded-xl border border-accent-violet/40 bg-accent-violet-soft text-xs animate-in fade-in">
+                <Sparkles className="size-4 text-accent-violet shrink-0" />
                 <Input
                   autoFocus
                   value={aiPromptInput}
@@ -676,7 +662,7 @@ export function KanbanBoard() {
                 )}
 
                 {filter.aiQuery && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-600 dark:text-purple-400 text-[11px] font-medium">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent-violet-soft text-accent-violet text-[11px] font-medium">
                     ✨ AI: "{filter.aiQuery}"
                     <X
                       className="size-3 cursor-pointer hover:text-foreground"
@@ -946,7 +932,7 @@ export function KanbanBoard() {
               size="sm"
               onClick={handleCreateProjectSubmit}
               disabled={!newProjectName.trim()}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="bg-primary hover:bg-primary-hover text-primary-foreground"
             >
               Create Board
             </Button>

@@ -48,7 +48,7 @@ export class MCPToolRegistryService {
       name: 'send_channel_message',
       description: 'Send a notification or update to a workspace channel',
       parameters: { channelSlug: { type: 'string' }, messageText: { type: 'string' } },
-      handler: async (params: { channelSlug: string; messageText: string }, workspaceId: string) => {
+      handler: async (params: { channelSlug: string; messageText: string }, _workspaceId: string) => {
         return { success: true, channelSlug: params.channelSlug, text: params.messageText };
       },
     });

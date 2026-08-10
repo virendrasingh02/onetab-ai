@@ -132,9 +132,9 @@ export function AIChatView() {
           /* Landing Screen Hero View (Matches updated layout) */
           <div className="flex flex-col items-center w-full my-auto transition-all animate-in fade-in duration-300">
             {/* Centered Circular Logo Badge */}
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white text-black flex items-center justify-center shadow-xl mb-6 hover:scale-105 transition-transform duration-200 cursor-pointer group border border-black/10">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-foreground text-background flex items-center justify-center shadow-elevated mb-6 hover:scale-105 transition-transform duration-200 cursor-pointer group border border-border">
               <svg
-                className="w-8 h-8 text-black transition-transform duration-200 group-hover:rotate-6"
+                className="w-8 h-8 transition-transform duration-200 group-hover:rotate-6"
                 viewBox="0 0 100 100"
                 fill="none"
                 stroke="currentColor"
@@ -156,8 +156,8 @@ export function AIChatView() {
               How can I help you today?
             </h1>
 
-            {/* Main Dark AI Input Card */}
-            <div className="w-full max-w-2xl bg-[#1c1c1e] text-white border border-white/10 rounded-2xl p-4 shadow-2xl transition-all duration-200 focus-within:border-white/20 focus-within:ring-1 focus-within:ring-white/20">
+            {/* Main AI Input Card */}
+            <div className="w-full max-w-2xl bg-surface-raised text-foreground border border-border rounded-2xl p-4 shadow-elevated transition-all duration-200 focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/40">
               {/* Textarea Input */}
               <textarea
                 ref={textareaRef}
@@ -167,7 +167,7 @@ export function AIChatView() {
                 placeholder="Do anything with AI..."
                 rows={2}
                 aria-label="Do anything with AI"
-                className="w-full bg-transparent border-none text-base placeholder:text-zinc-500 text-white outline-none resize-none min-h-[56px] leading-relaxed"
+                className="w-full bg-transparent border-none text-base placeholder:text-subtle text-foreground outline-none resize-none min-h-[56px] leading-relaxed"
               />
 
               {/* Action Controls Row */}
@@ -177,7 +177,7 @@ export function AIChatView() {
                     <button
                       type="button"
                       aria-label="Add attachment"
-                      className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                     >
                       <Plus className="size-4" />
                     </button>
@@ -187,7 +187,7 @@ export function AIChatView() {
                     <button
                       type="button"
                       aria-label="AI parameters"
-                      className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                     >
                       <SlidersHorizontal className="size-4" />
                     </button>
@@ -201,18 +201,18 @@ export function AIChatView() {
                       <button
                         type="button"
                         aria-label={`Selected AI Model: ${selectedModel}`}
-                        className="px-3 py-1 rounded-full bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 text-xs font-medium flex items-center gap-1.5 transition-colors border border-white/5"
+                        className="px-3 py-1 rounded-full bg-accent hover:bg-selected text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors border border-border"
                       >
                         <span>{selectedModel}</span>
-                        <ChevronDown className="size-3 text-zinc-400" />
+                        <ChevronDown className="size-3 text-muted-foreground" />
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48 bg-[#242426] border-zinc-700 text-white text-xs">
+                    <DropdownMenuContent align="end" className="w-48 text-xs">
                       {MODELS.map((model) => (
                         <DropdownMenuItem
                           key={model.value}
                           onClick={() => setSelectedModel(model.value)}
-                          className="hover:bg-zinc-700 cursor-pointer"
+                          className="cursor-pointer"
                         >
                           {model.label}
                         </DropdownMenuItem>
@@ -229,8 +229,8 @@ export function AIChatView() {
                       className={cn(
                         'p-2 rounded-full transition-colors',
                         isVoiceActive
-                          ? 'bg-red-500/20 text-red-400 animate-pulse'
-                          : 'text-zinc-400 hover:text-white hover:bg-zinc-800',
+                          ? 'bg-destructive/20 text-destructive animate-pulse'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-accent',
                       )}
                     >
                       <Mic className="size-4" />
@@ -246,8 +246,8 @@ export function AIChatView() {
                     className={cn(
                       'size-8 rounded-full flex items-center justify-center transition-all duration-200',
                       input.trim() && !isPending
-                        ? 'bg-white text-black hover:bg-zinc-200 shadow-md cursor-pointer'
-                        : 'bg-zinc-800 text-zinc-500 cursor-not-allowed',
+                        ? 'bg-primary text-primary-foreground hover:bg-primary-hover shadow-md cursor-pointer'
+                        : 'bg-muted text-disabled cursor-not-allowed',
                     )}
                   >
                     <ArrowUp className="size-4 stroke-[2.5]" />
@@ -266,7 +266,7 @@ export function AIChatView() {
                   'p-4 rounded-2xl max-w-2xl text-sm leading-relaxed space-y-1.5 shadow-sm transition-all',
                   message.role === 'user'
                     ? 'ml-auto bg-primary text-primary-foreground font-medium'
-                    : 'mr-auto bg-[#1c1c1e] text-white border border-white/10',
+                    : 'mr-auto bg-surface-raised text-foreground border border-border',
                 )}
               >
                 <div className="flex items-center justify-between gap-4 text-xs opacity-75 pb-1 border-b border-current/10">
@@ -274,7 +274,7 @@ export function AIChatView() {
                     {message.role === 'user' ? (
                       <User className="size-3.5" />
                     ) : (
-                      <Bot className="size-3.5 text-violet-400" />
+                      <Bot className="size-3.5 text-accent-violet" />
                     )}
                     {message.role === 'user' ? 'You' : `${selectedModel} Copilot`}
                   </span>
@@ -285,8 +285,8 @@ export function AIChatView() {
             ))}
 
             {isPending ? (
-              <div className="mr-auto bg-[#1c1c1e] text-zinc-400 border border-white/10 p-3 rounded-2xl text-xs flex items-center gap-2 animate-pulse">
-                <Sparkles className="size-4 text-violet-400 animate-spin" />
+              <div className="mr-auto bg-surface-raised text-muted-foreground border border-border p-3 rounded-2xl text-xs flex items-center gap-2 animate-pulse">
+                <Sparkles className="size-4 text-accent-violet animate-spin" />
                 <span>Synthesis in progress…</span>
               </div>
             ) : null}
@@ -299,7 +299,7 @@ export function AIChatView() {
       {/* Bottom Floating Prompt Card when chat is active */}
       {!isLandingView ? (
         <div className="w-full max-w-2xl px-4 pb-4 pt-2 shrink-0">
-          <div className="w-full bg-[#1c1c1e] text-white border border-white/10 rounded-2xl p-3 shadow-xl flex items-center gap-2">
+          <div className="w-full bg-surface-raised text-foreground border border-border rounded-2xl p-3 shadow-elevated flex items-center gap-2">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -307,7 +307,7 @@ export function AIChatView() {
               placeholder="Ask a follow-up question..."
               rows={1}
               aria-label="Ask a follow-up question"
-              className="w-full bg-transparent border-none text-sm text-white placeholder:text-zinc-500 outline-none resize-none"
+              className="w-full bg-transparent border-none text-sm text-foreground placeholder:text-subtle outline-none resize-none"
             />
             <button
               type="button"
@@ -317,8 +317,8 @@ export function AIChatView() {
               className={cn(
                 'size-8 rounded-full flex items-center justify-center shrink-0 transition-colors',
                 input.trim() && !isPending
-                  ? 'bg-white text-black hover:bg-zinc-200 cursor-pointer'
-                  : 'bg-zinc-800 text-zinc-600 cursor-not-allowed',
+                  ? 'bg-primary text-primary-foreground hover:bg-primary-hover cursor-pointer'
+                  : 'bg-muted text-disabled cursor-not-allowed',
               )}
             >
               <ArrowUp className="size-4 stroke-[2.5]" />

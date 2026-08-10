@@ -83,7 +83,7 @@ export function createSeedBoard(): BoardState {
             description: 'Responsive website redesign and design system update.',
             icon: 'Heart',
             iconColor: '#e11d48',
-            dueDate: '2025-11-21',
+            dueDate: relativeDay(14),
             issuesCount: 0,
             priority: 'HIGH',
           }),

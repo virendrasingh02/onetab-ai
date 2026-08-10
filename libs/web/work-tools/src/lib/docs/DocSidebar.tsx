@@ -37,7 +37,6 @@ interface DocSidebarProps {
   onDuplicateDoc: (id: string) => void;
   onToggleFavorite: (id: string) => void;
   onDeleteDoc: (id: string) => void;
-  onUpdateIcon?: (id: string, icon: string, iconColor?: string) => void;
   onUpdateTitle?: (id: string, title: string) => void;
 }
 
@@ -49,7 +48,6 @@ export function DocSidebar({
   onDuplicateDoc,
   onToggleFavorite,
   onDeleteDoc,
-  onUpdateIcon,
   onUpdateTitle,
 }: DocSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -137,13 +135,13 @@ export function DocSidebar({
                     onCreateDoc('Sprint Sync Notes', 'General', 'meeting');
                     setIsTemplateDialogOpen(false);
                   }}
-                  className="w-full p-3 rounded-lg border border-border bg-surface-raised hover:border-emerald-500 hover:bg-accent/40 text-left transition-all group flex items-start gap-3 cursor-pointer"
+                  className="w-full p-3 rounded-lg border border-border bg-surface-raised hover:border-accent-green/30 hover:bg-accent/40 text-left transition-all group flex items-start gap-3 cursor-pointer"
                 >
-                  <div className="size-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-lg shrink-0">
+                  <div className="size-8 rounded-lg bg-accent-green-soft border border-accent-green/30 flex items-center justify-center text-lg shrink-0">
                     📊
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-foreground group-hover:text-emerald-400">
+                    <p className="text-xs font-bold text-foreground group-hover:text-accent-green">
                       Sprint Sync & Planning Notes
                     </p>
                     <p className="text-[11px] text-subtle line-clamp-1 mt-0.5">
@@ -216,8 +214,8 @@ export function DocSidebar({
         {/* Favorites Section */}
         {favoriteDocs.length > 0 && selectedCategoryFilter === 'All' && (
           <div className="space-y-1 pt-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 flex items-center gap-1 px-1">
-              <Star className="size-3 fill-amber-400" />
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-accent-amber flex items-center gap-1 px-1">
+              <Star className="size-3 fill-accent-amber" />
               Favorites
             </p>
             <ul className="space-y-0.5">
@@ -320,7 +318,7 @@ export function DocSidebar({
                             onClick={() => onToggleFavorite(docItem.id)}
                             className="text-xs gap-2"
                           >
-                            <Star className="size-3 text-amber-400" />
+                            <Star className="size-3 text-accent-amber" />
                             {docItem.favorite ? 'Unfavorite' : 'Favorite'}
                           </DropdownMenuItem>
                           <DropdownMenuItem

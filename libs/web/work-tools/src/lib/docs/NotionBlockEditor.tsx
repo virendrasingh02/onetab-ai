@@ -61,67 +61,67 @@ const BLOCK_TYPES_CONFIG: {
     type: 'h2',
     label: 'Heading 2',
     description: 'Medium section header',
-    icon: <Heading2 className="size-4 text-purple-400" />,
+    icon: <Heading2 className="size-4 text-accent-violet" />,
   },
   {
     type: 'h3',
     label: 'Heading 3',
     description: 'Small section header',
-    icon: <Heading3 className="size-4 text-emerald-400" />,
+    icon: <Heading3 className="size-4 text-accent-green" />,
   },
   {
     type: 'checklist',
     label: 'To-do list',
     description: 'Track tasks with checkboxes',
-    icon: <CheckSquare className="size-4 text-emerald-400" />,
+    icon: <CheckSquare className="size-4 text-accent-green" />,
   },
   {
     type: 'bullet_list',
     label: 'Bulleted list',
     description: 'Simple bullet point list',
-    icon: <List className="size-4 text-amber-400" />,
+    icon: <List className="size-4 text-accent-amber" />,
   },
   {
     type: 'numbered_list',
     label: 'Numbered list',
     description: 'Numbered ordered list',
-    icon: <ListOrdered className="size-4 text-blue-400" />,
+    icon: <ListOrdered className="size-4 text-accent-blue" />,
   },
   {
     type: 'toggle',
     label: 'Toggle block',
     description: 'Expandable details content',
-    icon: <ChevronRight className="size-4 text-sky-400" />,
+    icon: <ChevronRight className="size-4 text-accent-cyan" />,
   },
   {
     type: 'callout',
     label: 'Callout box',
     description: 'Highlighted note box with icon',
-    icon: <Info className="size-4 text-indigo-400" />,
+    icon: <Info className="size-4 text-accent-indigo" />,
   },
   {
     type: 'code',
     label: 'Code snippet',
     description: 'Formatted code block with syntax copy',
-    icon: <Code className="size-4 text-teal-400" />,
+    icon: <Code className="size-4 text-accent-teal" />,
   },
   {
     type: 'quote',
     label: 'Quote',
     description: 'Styled quotation block',
-    icon: <Quote className="size-4 text-pink-400" />,
+    icon: <Quote className="size-4 text-accent-pink" />,
   },
   {
     type: 'table',
     label: 'Database Table',
     description: 'Editable grid table with rows & columns',
-    icon: <TableIcon className="size-4 text-amber-400" />,
+    icon: <TableIcon className="size-4 text-accent-amber" />,
   },
   {
     type: 'ai_prompt',
     label: 'AI Copilot Block',
     description: 'Generate, summarize, or rewrite text with AI',
-    icon: <Sparkles className="size-4 text-violet-400" />,
+    icon: <Sparkles className="size-4 text-accent-violet" />,
   },
 ];
 
@@ -450,9 +450,9 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorP
                   className={cn(
                     'p-3 rounded-lg border flex items-start gap-3 transition-colors',
                     block.variant === 'warning'
-                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-200'
+                      ? 'bg-accent-amber-soft border-accent-amber/30 text-accent-amber'
                       : block.variant === 'tip'
-                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
+                      ? 'bg-accent-green-soft border-accent-green/30 text-accent-green'
                       : 'bg-accent-blue/10 border-accent-blue/30 text-foreground',
                   )}
                 >
@@ -471,21 +471,21 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorP
 
               {/* Code Snippet */}
               {block.type === 'code' && (
-                <div className="rounded-lg border border-border bg-slate-950 p-3 space-y-2 font-mono text-xs">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                    <Badge variant="outline" className="text-[10px] uppercase text-cyan-400 border-cyan-800">
+                <div className="rounded-lg border border-border bg-background p-3 space-y-2 font-mono text-xs">
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <Badge variant="outline" className="text-[10px] uppercase text-accent-cyan border-accent-cyan/30">
                       {block.language || 'typescript'}
                     </Badge>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleCopyCode(block.id, block.content)}
-                      className="h-6 text-[11px] text-slate-400 hover:text-slate-100 gap-1 px-2"
+                      className="h-6 text-[11px] text-muted-foreground hover:text-foreground gap-1 px-2"
                     >
                       {copiedBlockId === block.id ? (
                         <>
-                          <Check className="size-3 text-emerald-400" />
-                          <span className="text-emerald-400">Copied!</span>
+                          <Check className="size-3 text-accent-green" />
+                          <span className="text-accent-green">Copied!</span>
                         </>
                       ) : (
                         <>
@@ -500,7 +500,7 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorP
                     onChange={(e) => handleBlockChange(block.id, { content: e.target.value })}
                     placeholder="// Write code snippet here..."
                     rows={3}
-                    className="font-mono text-xs bg-transparent border-none text-cyan-200 focus-visible:ring-0 p-0 shadow-none resize-none leading-relaxed"
+                    className="font-mono text-xs bg-transparent border-none text-accent-cyan focus-visible:ring-0 p-0 shadow-none resize-none leading-relaxed"
                   />
                 </div>
               )}
@@ -585,13 +585,13 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorP
 
               {/* AI Writer & Copilot Assistant Block */}
               {block.type === 'ai_prompt' && (
-                <div className="rounded-xl border border-violet-500/30 bg-gradient-to-r from-violet-950/30 to-indigo-950/30 p-3 space-y-2">
+                <div className="rounded-xl border border-accent-violet/30 bg-gradient-to-r from-accent-violet-soft to-accent-indigo-soft p-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-violet-300 flex items-center gap-1.5">
-                      <Sparkles className="size-3.5 text-violet-400" />
+                    <span className="text-xs font-bold text-accent-violet flex items-center gap-1.5">
+                      <Sparkles className="size-3.5 text-accent-violet" />
                       AI Copilot Assistant
                     </span>
-                    <Badge variant="outline" className="text-[10px] border-violet-700 text-violet-300">
+                    <Badge variant="outline" className="text-[10px] border-accent-violet/30 text-accent-violet">
                       GPT-4o Ready
                     </Badge>
                   </div>
@@ -600,14 +600,14 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorP
                     onChange={(e) => handleBlockChange(block.id, { content: e.target.value })}
                     placeholder="AI generated content or prompt result..."
                     rows={2}
-                    className="text-xs text-foreground bg-surface/60 p-2 rounded-lg border border-violet-500/20"
+                    className="text-xs text-foreground bg-surface/60 p-2 rounded-lg border border-accent-violet/30"
                   />
                   <div className="flex flex-wrap items-center gap-1.5 pt-1">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleAiAction(block.id, 'summarize')}
-                      className="h-6 text-[10px] text-violet-300 hover:bg-violet-900/40"
+                      className="h-6 text-[10px] text-accent-violet hover:bg-accent-violet-soft"
                     >
                       Summarize Doc
                     </Button>
@@ -615,7 +615,7 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorP
                       variant="ghost"
                       size="sm"
                       onClick={() => handleAiAction(block.id, 'expand')}
-                      className="h-6 text-[10px] text-violet-300 hover:bg-violet-900/40"
+                      className="h-6 text-[10px] text-accent-violet hover:bg-accent-violet-soft"
                     >
                       Expand Content
                     </Button>
@@ -623,7 +623,7 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorP
                       variant="ghost"
                       size="sm"
                       onClick={() => handleAiAction(block.id, 'formal')}
-                      className="h-6 text-[10px] text-violet-300 hover:bg-violet-900/40"
+                      className="h-6 text-[10px] text-accent-violet hover:bg-accent-violet-soft"
                     >
                       Make Professional
                     </Button>
@@ -631,7 +631,7 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorP
                       variant="ghost"
                       size="sm"
                       onClick={() => handleAiAction(block.id, 'action_items')}
-                      className="h-6 text-[10px] text-violet-300 hover:bg-violet-900/40"
+                      className="h-6 text-[10px] text-accent-violet hover:bg-accent-violet-soft"
                     >
                       Extract Action Items
                     </Button>

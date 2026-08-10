@@ -35,7 +35,6 @@ import {
   Clock,
   Inbox,
   Share2,
-  UploadCloud,
   MoreHorizontal,
   MoreVertical,
   Pencil,
@@ -206,9 +205,9 @@ function ProjectsTreeSection({ workspaceSlug }: { workspaceSlug: string }) {
       // fallback
     }
     return [
-      { id: 'proj_product', name: 'Q3 Product & Release', color: 'violet', icon: 'Rocket', iconColor: '#8b5cf6' },
-      { id: 'proj_design', name: 'Website & UI Redesign', color: 'blue', icon: 'Sparkles', iconColor: '#3b82f6' },
-      { id: 'proj_api', name: 'AI & Vector Pipeline', color: 'emerald', icon: 'Cpu', iconColor: '#10b981' },
+      { id: 'proj_product', name: 'Q3 Product & Release', color: 'violet', icon: 'Rocket', iconColor: '#5E6AD2' },
+      { id: 'proj_design', name: 'Website & UI Redesign', color: 'blue', icon: 'Sparkles', iconColor: '#4EA7FC' },
+      { id: 'proj_api', name: 'AI & Vector Pipeline', color: 'green', icon: 'Cpu', iconColor: '#4CB782' },
     ];
   };
 
@@ -692,10 +691,10 @@ function DirectMessagesSection({ workspaceSlug }: { workspaceSlug: string }) {
               <span
                 className={cn(
                   'absolute -bottom-0.5 -right-0.5 size-2 rounded-full border-2 border-sidebar',
-                  dm.status === 'online' && 'bg-emerald-500',
-                  dm.status === 'away' && 'bg-amber-500',
-                  dm.status === 'dnd' && 'bg-rose-500',
-                  dm.status === 'offline' && 'bg-zinc-500/60',
+                  dm.status === 'online' && 'bg-success',
+                  dm.status === 'away' && 'bg-warning',
+                  dm.status === 'dnd' && 'bg-destructive',
+                  dm.status === 'offline' && 'bg-muted-foreground/60',
                 )}
               />
             </div>
@@ -821,7 +820,7 @@ export function ChannelNav({
                 align="start"
                 side="right"
                 sideOffset={8}
-                className="w-52 p-1 z-50 bg-[#111113] border-[#27272A] shadow-xl rounded-xl"
+                className="w-52 p-1 z-50 bg-popover border-border shadow-xl rounded-xl"
               >
                 {SECONDARY_LINKS.map((entry) => {
                   const Icon = entry.icon;
@@ -832,10 +831,10 @@ export function ChannelNav({
                     <DropdownMenuItem
                       key={entry.label}
                       asChild
-                      className="text-xs flex items-center gap-2.5 cursor-pointer py-2 px-2.5 rounded-md hover:bg-[#1E1F23] focus:bg-[#1E1F23] text-[#FAFAFA] font-medium"
+                      className="text-xs flex items-center gap-2.5 cursor-pointer py-2 px-2.5 rounded-md hover:bg-accent focus:bg-accent text-popover-foreground font-medium"
                     >
                       <NavLink to={to} end={entry.end}>
-                        <Icon className="size-4 text-[#A1A1AA] shrink-0" aria-hidden />
+                        <Icon className="size-4 text-muted-foreground shrink-0" aria-hidden />
                         <span className="flex-1 truncate">{entry.label}</span>
                       </NavLink>
                     </DropdownMenuItem>
@@ -877,6 +876,18 @@ export function ChannelNav({
               {groups.joined.map((channel) => (
                 <ChannelRow key={channel.id} channel={channel} {...rowProps} />
               ))}
+              <button
+                onClick={onBrowseChannels}
+                className={cn(
+                  'group flex w-full items-center gap-2.5 rounded-btn py-1.5 pr-2 pl-3 text-[13px]',
+                  'text-muted-foreground transition-colors duration-(--duration-fast) ease-standard',
+                  'hover:bg-accent hover:text-foreground',
+                  'outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                )}
+              >
+                <Plus className="size-4 shrink-0" aria-hidden />
+                <span className="flex-1 truncate text-left">Browse channels</span>
+              </button>
             </Section>
 
             {/* Direct Messages Section right after Channels */}
@@ -915,9 +926,9 @@ export function ChannelNav({
         {/* Upgrade Prompt Banner Card */}
         <div className="rounded-xl border border-border/80 bg-accent/40 p-3.5 space-y-2 text-left shadow-sm">
           <div className="flex items-center gap-2.5">
-            <div className="relative shrink-0 text-amber-500">
+            <div className="relative shrink-0 text-warning">
               <Package className="size-5" />
-              <span className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full bg-amber-500 text-[9px] font-extrabold text-zinc-950 leading-none">
+              <span className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full bg-warning text-[9px] font-extrabold text-warning-foreground leading-none">
                 !
               </span>
             </div>

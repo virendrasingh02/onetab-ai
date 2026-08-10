@@ -113,9 +113,6 @@ const WorkflowExecutionLogsView = lazy(() =>
 const IntegrationHubView = lazy(() =>
   import('@org/web-integrations').then((m) => ({ default: m.IntegrationHubView })),
 );
-const SlackNotionImportView = lazy(() =>
-  import('@org/web-integrations').then((m) => ({ default: m.SlackNotionImportView })),
-);
 const AnalyticsLayout = lazy(() =>
   import('@org/web-analytics').then((m) => ({ default: m.AnalyticsLayout })),
 );

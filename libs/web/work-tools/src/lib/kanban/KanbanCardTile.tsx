@@ -14,23 +14,15 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  AlignLeft,
-  CheckSquare,
   Clock,
   Copy,
   CornerUpRight,
-  MessageSquare,
   MoreHorizontal,
   Pencil,
   Trash2,
 } from 'lucide-react';
 import type { DragEvent } from 'react';
-import {
-  checklistProgress,
-  describeDue,
-  DUE_TONE_CLASSES,
-  PRIORITY_META,
-} from './card-meta.js';
+import { describeDue, DUE_TONE_CLASSES, PRIORITY_META } from './card-meta.js';
 import type { BoardLabel, BoardMember, KanbanCard } from './types.js';
 
 export interface KanbanCardTileProps {
@@ -78,7 +70,6 @@ export function KanbanCardTile({
     .filter((member): member is BoardMember => Boolean(member));
 
   const due = describeDue(card);
-  const checklist = checklistProgress(card);
   const priority = PRIORITY_META[card.priority];
 
   return (
@@ -153,13 +144,11 @@ export function KanbanCardTile({
             <span
               title={due.hint}
               className={cn(
-                'gap-1 px-1.5 py-0.5 rounded font-medium flex items-center text-[10px]',
-                due.tone === 'overdue' || due.tone === 'today' || due.tone === 'soon'
-                  ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold'
-                  : 'bg-muted text-muted-foreground'
+                'gap-1 px-1.5 py-0.5 rounded border font-medium flex items-center text-[10px]',
+                DUE_TONE_CLASSES[due.tone],
               )}
             >
-              <Clock className="size-3 text-rose-500 shrink-0" aria-hidden />
+              <Clock className="size-3 shrink-0" aria-hidden />
               <span>{due.label}</span>
             </span>
           ) : null}
@@ -189,7 +178,7 @@ export function KanbanCardTile({
               ))}
             </div>
           ) : (
-            <div className="size-5 rounded-full bg-amber-700/80 text-amber-100 font-bold text-[9px] flex items-center justify-center ring-1 ring-surface">
+            <div className="size-5 rounded-full bg-accent-orange text-white font-bold text-[9px] flex items-center justify-center ring-1 ring-surface">
               VI
             </div>
           )}

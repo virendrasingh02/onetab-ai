@@ -1,5 +1,4 @@
 import {
-  Badge,
   Button,
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +20,6 @@ import {
   ArrowRight,
   CornerUpRight,
   Eraser,
-  GripVertical,
   MoreHorizontal,
   Plus,
   Trash2,
@@ -250,13 +248,13 @@ export function KanbanListColumn({
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {/* Linear Status Column Icon */}
           {list.title.toLowerCase().includes('backlog') ? (
-            <span className="size-3.5 rounded-full border-2 border-dashed border-amber-500/80 shrink-0" />
+            <span className="size-3.5 rounded-full border-2 border-dashed border-accent-amber/30 shrink-0" />
           ) : list.title.toLowerCase().includes('planned') ? (
             <span className="size-3.5 rounded-full border-2 border-muted-foreground/60 shrink-0" />
           ) : list.title.toLowerCase().includes('progress') ? (
-            <span className="size-3.5 rounded-full border-2 border-amber-500 bg-amber-500/40 shrink-0" />
+            <span className="size-3.5 rounded-full border-2 border-accent-amber/30 bg-accent-amber-soft shrink-0" />
           ) : list.title.toLowerCase().includes('completed') || list.title.toLowerCase().includes('done') ? (
-            <span className="size-3.5 rounded-full bg-blue-600 dark:bg-blue-500 text-white flex items-center justify-center shrink-0 font-bold text-[9px]">
+            <span className="size-3.5 rounded-full bg-accent-blue dark:bg-accent-blue text-white flex items-center justify-center shrink-0 font-bold text-[9px]">
               ✓
             </span>
           ) : (

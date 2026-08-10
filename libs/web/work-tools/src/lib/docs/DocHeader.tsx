@@ -142,13 +142,13 @@ export function DocHeader({
             onClick={onToggleFavorite}
             className={cn(
               'text-white hover:bg-white/20 text-xs h-7 px-2 gap-1',
-              doc.favorite && 'text-amber-300 font-semibold',
+              doc.favorite && 'text-accent-amber font-semibold',
             )}
           >
             <Star
               className={cn(
                 'size-3.5',
-                doc.favorite ? 'fill-amber-400 text-amber-400' : 'text-white',
+                doc.favorite ? 'fill-accent-amber text-accent-amber' : 'text-white',
               )}
             />
             <span>{doc.favorite ? 'Favorited' : 'Favorite'}</span>

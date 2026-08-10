@@ -90,15 +90,15 @@ export function ProjectTimelineView({
 
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+            <span className="w-2.5 h-2.5 rounded-full bg-accent-green" />
             <span>Complete</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+            <span className="w-2.5 h-2.5 rounded-full bg-accent-blue" />
             <span>In Progress</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+            <span className="w-2.5 h-2.5 rounded-full bg-accent-amber" />
             <span>Upcoming</span>
           </div>
         </div>
@@ -186,10 +186,10 @@ export function ProjectTimelineView({
                             className={cn(
                               'w-full py-1.5 px-2 rounded-md shadow-xs text-[11px] font-medium truncate text-left transition-transform hover:scale-105 flex items-center justify-between gap-1',
                               card.dueComplete
-                                ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                                ? 'bg-accent-green-soft text-accent-green border border-accent-green/30'
                                 : listTitle.toLowerCase().includes('doing') || listTitle.toLowerCase().includes('progress')
-                                ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30'
-                                : 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                                ? 'bg-accent-blue-soft text-accent-blue border border-accent-blue/30'
+                                : 'bg-accent-amber-soft text-accent-amber border border-accent-amber/30'
                             )}
                             title={`${card.title} - Due ${dayIso}`}
                           >

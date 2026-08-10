@@ -222,7 +222,7 @@ export function ActivityTimelineView() {
         </Card>
 
         <Card className="p-3.5 bg-surface border-border flex items-center gap-3">
-          <div className="size-9 rounded-full bg-violet-500/10 flex items-center justify-center text-violet-400 shrink-0">
+          <div className="size-9 rounded-full bg-accent-violet-soft flex items-center justify-center text-accent-violet shrink-0">
             <Zap className="size-4" />
           </div>
           <div>
@@ -232,7 +232,7 @@ export function ActivityTimelineView() {
         </Card>
 
         <Card className="p-3.5 bg-surface border-border flex items-center gap-3">
-          <div className="size-9 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 shrink-0">
+          <div className="size-9 rounded-full bg-accent-blue-soft flex items-center justify-center text-accent-blue shrink-0">
             <Sparkles className="size-4" />
           </div>
           <div>
@@ -242,7 +242,7 @@ export function ActivityTimelineView() {
         </Card>
 
         <Card className="p-3.5 bg-surface border-border flex items-center gap-3">
-          <div className="size-9 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0">
+          <div className="size-9 rounded-full bg-accent-green-soft flex items-center justify-center text-accent-green shrink-0">
             <CheckCircle2 className="size-4" />
           </div>
           <div>
@@ -339,10 +339,10 @@ export function ActivityTimelineView() {
                       entry.category === 'ai'
                         ? 'text-primary bg-primary/10'
                         : entry.category === 'tasks'
-                          ? 'text-emerald-400 bg-emerald-500/10'
+                          ? 'text-accent-green bg-accent-green-soft'
                           : entry.category === 'messages'
-                            ? 'text-amber-400 bg-amber-500/10'
-                            : 'text-violet-400 bg-violet-500/10',
+                            ? 'text-accent-amber bg-accent-amber-soft'
+                            : 'text-accent-violet bg-accent-violet-soft',
                     )}
                   >
                     <Icon className="size-3.5" />
@@ -407,7 +407,7 @@ export function ActivityTimelineView() {
                           className={cn(
                             'px-2 py-0.5 text-[11px] font-medium rounded-md border flex items-center gap-1 transition-colors',
                             entry.reactions.userReacted?.heart
-                              ? 'bg-rose-500/10 border-rose-500/40 text-rose-400'
+                              ? 'bg-accent-rose-soft border-accent-rose/30 text-accent-rose'
                               : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
                           )}
                         >
@@ -420,7 +420,7 @@ export function ActivityTimelineView() {
                           className={cn(
                             'px-2 py-0.5 text-[11px] font-medium rounded-md border flex items-center gap-1 transition-colors',
                             entry.reactions.userReacted?.rocket
-                              ? 'bg-violet-500/10 border-violet-500/40 text-violet-400'
+                              ? 'bg-accent-violet-soft border-accent-violet/30 text-accent-violet'
                               : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
                           )}
                         >

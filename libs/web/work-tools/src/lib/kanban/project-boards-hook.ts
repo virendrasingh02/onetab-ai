@@ -9,9 +9,14 @@ export type ProjectCategory =
   | 'Product'
   | 'Operations';
 
+/*
+ * A subset of the design system's `Accent` names, so a project colour can be
+ * rendered straight through `accentClasses` instead of a parallel set of
+ * hand-written Tailwind palette classes.
+ */
 export type ProjectColor =
   | 'blue'
-  | 'emerald'
+  | 'green'
   | 'violet'
   | 'amber'
   | 'rose'
@@ -41,7 +46,7 @@ function createSeedProjects(): ProjectBoardItem[] {
       category: 'Product',
       color: 'violet',
       icon: 'Rocket',
-      iconColor: '#8b5cf6',
+      iconColor: '#5E6AD2',
       description: 'Core product features, resizable sidebars, and AI Copilot integration.',
       board: { ...seedBoard, title: 'Q3 Product & Platform Release' },
       updatedAt: new Date().toISOString(),
@@ -52,7 +57,7 @@ function createSeedProjects(): ProjectBoardItem[] {
       category: 'Design',
       color: 'blue',
       icon: 'Sparkles',
-      iconColor: '#3b82f6',
+      iconColor: '#4EA7FC',
       description: 'New design system tokens, responsive glassmorphism themes, and dark mode.',
       board: {
         title: 'Website & UI Redesign',
@@ -122,7 +127,7 @@ function createSeedProjects(): ProjectBoardItem[] {
       id: 'proj_api',
       name: 'AI & Vector Infrastructure',
       category: 'Engineering',
-      color: 'emerald',
+      color: 'green',
       description: 'Qdrant vector embeddings, hybrid search engine, and local Ollama model runner.',
       board: {
         title: 'AI & Vector Infrastructure',
@@ -173,6 +178,19 @@ function createSeedProjects(): ProjectBoardItem[] {
   ];
 }
 
+/*
+ * `emerald` was the pre-design-system name for what is now the `green` accent.
+ * Boards saved under the old name would otherwise resolve to no accent at all,
+ * so they are renamed on read.
+ */
+const LEGACY_COLORS: Record<string, ProjectColor> = { emerald: 'green' };
+
+function migrateColors(projects: ProjectBoardItem[]): ProjectBoardItem[] {
+  return projects.map((p) =>
+    LEGACY_COLORS[p.color] ? { ...p, color: LEGACY_COLORS[p.color] } : p,
+  );
+}
+
 export function useProjectBoards() {
   const [projects, setProjects] = useState<ProjectBoardItem[]>(() => {
     try {
@@ -180,7 +198,7 @@ export function useProjectBoards() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return migrateColors(parsed);
         }
       }
     } catch (e) {

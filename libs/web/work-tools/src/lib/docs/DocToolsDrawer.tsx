@@ -152,9 +152,9 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
             <button
               type="button"
               onClick={() => handleDownload('html')}
-              className="p-3 rounded-lg border border-border bg-surface-raised hover:border-emerald-500 hover:bg-accent/40 text-center transition-all flex flex-col items-center gap-2 cursor-pointer"
+              className="p-3 rounded-lg border border-border bg-surface-raised hover:border-accent-green/30 hover:bg-accent/40 text-center transition-all flex flex-col items-center gap-2 cursor-pointer"
             >
-              <FileCode className="size-6 text-emerald-400" />
+              <FileCode className="size-6 text-accent-green" />
               <span className="text-xs font-bold text-foreground">
                 {downloadedFormat === 'html' ? 'Downloaded!' : 'HTML (.html)'}
               </span>
@@ -162,9 +162,9 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
             <button
               type="button"
               onClick={() => handleDownload('json')}
-              className="p-3 rounded-lg border border-border bg-surface-raised hover:border-purple-500 hover:bg-accent/40 text-center transition-all flex flex-col items-center gap-2 cursor-pointer"
+              className="p-3 rounded-lg border border-border bg-surface-raised hover:border-accent-violet/30 hover:bg-accent/40 text-center transition-all flex flex-col items-center gap-2 cursor-pointer"
             >
-              <FileSpreadsheet className="size-6 text-purple-400" />
+              <FileSpreadsheet className="size-6 text-accent-violet" />
               <span className="text-xs font-bold text-foreground">
                 {downloadedFormat === 'json' ? 'Downloaded!' : 'JSON (.json)'}
               </span>

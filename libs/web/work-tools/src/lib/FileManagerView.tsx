@@ -187,7 +187,7 @@ const sampleFiles: FileEntry[] = [
 function FileTypeBadge({ type, unread }: { type: string; unread?: boolean }) {
   if (type === 'word') {
     return (
-      <div className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-[13px] font-bold text-white shadow-2xs select-none">
+      <div className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent-blue text-[13px] font-bold text-white shadow-2xs select-none">
         W
       </div>
     );
@@ -195,7 +195,7 @@ function FileTypeBadge({ type, unread }: { type: string; unread?: boolean }) {
 
   if (type === 'pdf') {
     return (
-      <div className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-500 dark:text-rose-400 select-none">
+      <div className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent-rose-soft border border-accent-rose/30 text-accent-rose select-none">
         <span className="text-[13px] font-bold tracking-tighter">PDF</span>
       </div>
     );
@@ -203,7 +203,7 @@ function FileTypeBadge({ type, unread }: { type: string; unread?: boolean }) {
 
   if (type === 'spreadsheet') {
     return (
-      <div className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 select-none font-bold text-sm">
+      <div className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent-green-soft border border-accent-green/30 text-accent-green select-none font-bold text-sm">
         X
       </div>
     );
@@ -211,17 +211,17 @@ function FileTypeBadge({ type, unread }: { type: string; unread?: boolean }) {
 
   if (type === 'site') {
     return (
-      <div className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/15 border border-blue-500/30 text-blue-500 dark:text-blue-400 select-none">
+      <div className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent-blue-soft border border-accent-blue/30 text-accent-blue select-none">
         <List className="size-4" />
       </div>
     );
   }
 
-  // Default 'doc' type (Soft sky blue background with document text icon)
+  // Default 'doc' type (Soft cyan background with document text icon)
   return (
-    <div className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-500 dark:text-sky-400 select-none">
+    <div className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent-cyan-soft border border-accent-cyan/30 text-accent-cyan select-none">
       {unread ? (
-        <span className="absolute -top-0.5 -left-0.5 size-2.5 rounded-full bg-sky-400 ring-2 ring-background" />
+        <span className="absolute -top-0.5 -left-0.5 size-2.5 rounded-full bg-accent-cyan ring-2 ring-background" />
       ) : null}
       <FileText className="size-4" />
     </div>
@@ -294,7 +294,7 @@ export function FileManagerView() {
         <Button
           onClick={() => setIsUploadOpen(true)}
           size="sm"
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs gap-1.5 px-3 rounded-md shadow-xs"
+          className="bg-accent-green hover:bg-accent-green/90 text-white font-medium text-xs gap-1.5 px-3 rounded-md shadow-xs"
         >
           <Plus className="size-4" />
           <span>New</span>
@@ -326,7 +326,7 @@ export function FileManagerView() {
             className={cn(
               'px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors select-none',
               activeTab === 'all'
-                ? 'bg-sky-500/20 text-sky-500 dark:text-sky-400 border border-sky-500/30 font-semibold'
+                ? 'bg-accent-cyan-soft text-accent-cyan border border-accent-cyan/30 font-semibold'
                 : 'border border-border text-muted-foreground hover:bg-accent hover:text-foreground',
             )}
           >
@@ -337,7 +337,7 @@ export function FileManagerView() {
             className={cn(
               'px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors select-none',
               activeTab === 'created'
-                ? 'bg-sky-500/20 text-sky-500 dark:text-sky-400 border border-sky-500/30 font-semibold'
+                ? 'bg-accent-cyan-soft text-accent-cyan border border-accent-cyan/30 font-semibold'
                 : 'border border-border text-muted-foreground hover:bg-accent hover:text-foreground',
             )}
           >
@@ -348,7 +348,7 @@ export function FileManagerView() {
             className={cn(
               'px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors select-none',
               activeTab === 'shared'
-                ? 'bg-sky-500/20 text-sky-500 dark:text-sky-400 border border-sky-500/30 font-semibold'
+                ? 'bg-accent-cyan-soft text-accent-cyan border border-accent-cyan/30 font-semibold'
                 : 'border border-border text-muted-foreground hover:bg-accent hover:text-foreground',
             )}
           >
@@ -365,7 +365,7 @@ export function FileManagerView() {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-surface text-xs font-medium text-foreground hover:bg-accent transition-colors"
                 aria-label="Filter file types"
               >
-                <SlidersHorizontal className="size-3.5 text-sky-500" />
+                <SlidersHorizontal className="size-3.5 text-accent-cyan" />
                 <span>
                   {selectedType === 'all'
                     ? '5 Types'
@@ -524,11 +524,11 @@ export function FileManagerView() {
                     className={cn(
                       'flex size-7 items-center justify-center rounded-md transition-colors',
                       file.starred
-                        ? 'text-amber-400 bg-amber-400/10'
-                        : 'text-subtle hover:text-amber-400 hover:bg-accent',
+                        ? 'text-accent-amber bg-accent-amber-soft'
+                        : 'text-subtle hover:text-accent-amber hover:bg-accent',
                     )}
                   >
-                    <Star className={cn('size-3.5', file.starred && 'fill-amber-400')} />
+                    <Star className={cn('size-3.5', file.starred && 'fill-accent-amber')} />
                   </button>
                 </Hint>
 
@@ -558,7 +558,7 @@ export function FileManagerView() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-44 text-xs">
                     <DropdownMenuItem onSelect={() => toggleStar(file.id)}>
-                      <Star className="size-3.5 mr-2 text-amber-400" />
+                      <Star className="size-3.5 mr-2 text-accent-amber" />
                       <span>{file.starred ? 'Remove star' : 'Star file'}</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem>

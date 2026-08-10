@@ -206,10 +206,10 @@ export function InboxView() {
                         className={cn(
                           'p-2 rounded-lg shrink-0 mt-0.5',
                           item.type === 'mention'
-                            ? 'bg-violet-500/10 text-violet-500'
+                            ? 'bg-accent-violet-soft text-accent-violet'
                             : item.type === 'system'
-                            ? 'bg-blue-500/10 text-blue-500'
-                            : 'bg-emerald-500/10 text-emerald-500',
+                            ? 'bg-accent-blue-soft text-accent-blue'
+                            : 'bg-accent-green-soft text-accent-green',
                         )}
                       >
                         {item.type === 'mention' ? (

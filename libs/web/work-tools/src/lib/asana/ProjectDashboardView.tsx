@@ -37,27 +37,27 @@ export const PROJECT_STATUS_META: Record<
 > = {
   ON_TRACK: {
     label: 'On Track',
-    bg: 'bg-emerald-500/10 border-emerald-500/30',
-    text: 'text-emerald-600 dark:text-emerald-400',
-    icon: <ShieldCheck className="w-4 h-4 text-emerald-500" />,
+    bg: 'bg-accent-green-soft border-accent-green/30',
+    text: 'text-accent-green',
+    icon: <ShieldCheck className="w-4 h-4 text-accent-green" />,
   },
   AT_RISK: {
     label: 'At Risk',
-    bg: 'bg-amber-500/10 border-amber-500/30',
-    text: 'text-amber-600 dark:text-amber-400',
-    icon: <AlertTriangle className="w-4 h-4 text-amber-500" />,
+    bg: 'bg-accent-amber-soft border-accent-amber/30',
+    text: 'text-accent-amber',
+    icon: <AlertTriangle className="w-4 h-4 text-accent-amber" />,
   },
   OFF_TRACK: {
     label: 'Off Track',
-    bg: 'bg-rose-500/10 border-rose-500/30',
-    text: 'text-rose-600 dark:text-rose-400',
-    icon: <Flame className="w-4 h-4 text-rose-500" />,
+    bg: 'bg-accent-rose-soft border-accent-rose/30',
+    text: 'text-accent-rose',
+    icon: <Flame className="w-4 h-4 text-accent-rose" />,
   },
   COMPLETED: {
     label: 'Completed',
-    bg: 'bg-blue-500/10 border-blue-500/30',
-    text: 'text-blue-600 dark:text-blue-400',
-    icon: <CheckCircle2 className="w-4 h-4 text-blue-500" />,
+    bg: 'bg-accent-blue-soft border-accent-blue/30',
+    text: 'text-accent-blue',
+    icon: <CheckCircle2 className="w-4 h-4 text-accent-blue" />,
   },
 };
 
@@ -197,10 +197,10 @@ export function ProjectDashboardView({ board, onSelectCard: _onSelectCard }: Pro
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Completed
             </CardTitle>
-            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            <CheckCircle2 className="w-4 h-4 text-accent-green" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{metrics.completed}</div>
+            <div className="text-2xl font-bold text-accent-green">{metrics.completed}</div>
             <p className="text-xs text-muted-foreground mt-1">{metrics.completionRate}% of project finished</p>
           </CardContent>
         </Card>
@@ -210,10 +210,10 @@ export function ProjectDashboardView({ board, onSelectCard: _onSelectCard }: Pro
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               In Progress
             </CardTitle>
-            <Clock className="w-4 h-4 text-blue-500" />
+            <Clock className="w-4 h-4 text-accent-blue" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{metrics.inProgress}</div>
+            <div className="text-2xl font-bold text-accent-blue">{metrics.inProgress}</div>
             <p className="text-xs text-muted-foreground mt-1">Active tasks remaining</p>
           </CardContent>
         </Card>
@@ -223,10 +223,10 @@ export function ProjectDashboardView({ board, onSelectCard: _onSelectCard }: Pro
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Overdue / Urgent
             </CardTitle>
-            <Flame className="w-4 h-4 text-rose-500" />
+            <Flame className="w-4 h-4 text-accent-rose" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-rose-600 dark:text-rose-400">{metrics.overdue + metrics.urgentOrHigh}</div>
+            <div className="text-2xl font-bold text-accent-rose">{metrics.overdue + metrics.urgentOrHigh}</div>
             <p className="text-xs text-muted-foreground mt-1">
               {metrics.overdue} overdue, {metrics.urgentOrHigh} high priority
             </p>

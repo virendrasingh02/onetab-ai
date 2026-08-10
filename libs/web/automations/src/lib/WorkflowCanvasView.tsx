@@ -44,11 +44,11 @@ function TriggerNode({ data, selected }: NodeProps) {
     <Card
       className={cn(
         'w-64 p-3 shadow-md bg-background border-2 transition-all',
-        selected ? 'border-primary ring-2 ring-primary/20' : 'border-amber-500/40',
+        selected ? 'border-primary ring-2 ring-primary/20' : 'border-accent-amber/30',
       )}
     >
       <div className="flex items-center gap-2 mb-1.5">
-        <span className="p-1.5 rounded-md bg-amber-500/10 text-amber-500">
+        <span className="p-1.5 rounded-md bg-accent-amber-soft text-accent-amber">
           <Webhook className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
@@ -66,7 +66,7 @@ function TriggerNode({ data, selected }: NodeProps) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-amber-500 !size-3 !border-2 !border-background"
+        className="!bg-accent-amber !size-3 !border-2 !border-background"
       />
     </Card>
   );
@@ -77,16 +77,16 @@ function ConditionNode({ data, selected }: NodeProps) {
     <Card
       className={cn(
         'w-64 p-3 shadow-md bg-background border-2 transition-all',
-        selected ? 'border-primary ring-2 ring-primary/20' : 'border-blue-500/40',
+        selected ? 'border-primary ring-2 ring-primary/20' : 'border-accent-blue/30',
       )}
     >
       <Handle
         type="target"
         position={Position.Top}
-        className="!bg-blue-500 !size-3 !border-2 !border-background"
+        className="!bg-accent-blue !size-3 !border-2 !border-background"
       />
       <div className="flex items-center gap-2 mb-1.5">
-        <span className="p-1.5 rounded-md bg-blue-500/10 text-blue-500">
+        <span className="p-1.5 rounded-md bg-accent-blue-soft text-accent-blue">
           <GitBranch className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
@@ -104,7 +104,7 @@ function ConditionNode({ data, selected }: NodeProps) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-blue-500 !size-3 !border-2 !border-background"
+        className="!bg-accent-blue !size-3 !border-2 !border-background"
       />
     </Card>
   );
@@ -115,16 +115,16 @@ function AiActionNode({ data, selected }: NodeProps) {
     <Card
       className={cn(
         'w-64 p-3 shadow-md bg-background border-2 transition-all',
-        selected ? 'border-primary ring-2 ring-primary/20' : 'border-violet-500/40',
+        selected ? 'border-primary ring-2 ring-primary/20' : 'border-accent-violet/30',
       )}
     >
       <Handle
         type="target"
         position={Position.Top}
-        className="!bg-violet-500 !size-3 !border-2 !border-background"
+        className="!bg-accent-violet !size-3 !border-2 !border-background"
       />
       <div className="flex items-center gap-2 mb-1.5">
-        <span className="p-1.5 rounded-md bg-violet-500/10 text-violet-500">
+        <span className="p-1.5 rounded-md bg-accent-violet-soft text-accent-violet">
           <Cpu className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
@@ -142,7 +142,7 @@ function AiActionNode({ data, selected }: NodeProps) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-violet-500 !size-3 !border-2 !border-background"
+        className="!bg-accent-violet !size-3 !border-2 !border-background"
       />
     </Card>
   );
@@ -153,16 +153,16 @@ function ApiActionNode({ data, selected }: NodeProps) {
     <Card
       className={cn(
         'w-64 p-3 shadow-md bg-background border-2 transition-all',
-        selected ? 'border-primary ring-2 ring-primary/20' : 'border-emerald-500/40',
+        selected ? 'border-primary ring-2 ring-primary/20' : 'border-accent-green/30',
       )}
     >
       <Handle
         type="target"
         position={Position.Top}
-        className="!bg-emerald-500 !size-3 !border-2 !border-background"
+        className="!bg-accent-green !size-3 !border-2 !border-background"
       />
       <div className="flex items-center gap-2 mb-1.5">
-        <span className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-500">
+        <span className="p-1.5 rounded-md bg-accent-green-soft text-accent-green">
           <Globe className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
@@ -356,7 +356,7 @@ export function WorkflowCanvasView() {
 
         <div className="flex items-center gap-2">
           <Badge variant="neutral" className="gap-1 font-mono text-[11px]">
-            <Radio className="size-3 text-emerald-500" />
+            <Radio className="size-3 text-accent-green" />
             <span>ReactFlow Powered Engine</span>
           </Badge>
           <Badge variant="outline" className="font-mono text-[11px]">

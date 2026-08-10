@@ -64,12 +64,13 @@ export class WorkflowEngineService {
         return { stepId: node.id, type: node.type, status: 'SUCCESS', output: { statusCode: 200, response: 'OK' } };
       case 'WEBHOOK':
         return { stepId: node.id, type: node.type, status: 'SUCCESS', output: { webhookDispatched: true } };
-      case 'AI_ACTION':
+      case 'AI_ACTION': {
         const aiRes = await this.aiService.chat({
           provider: 'ollama',
           messages: [{ role: 'user', content: `Summarize workflow payload: ${JSON.stringify(payload)}` }],
         });
         return { stepId: node.id, type: node.type, status: 'SUCCESS', output: { aiOutput: aiRes.message.content } };
+      }
       default:
         return { stepId: node.id, type: node.type, status: 'SUCCESS', output: { executed: true } };
     }

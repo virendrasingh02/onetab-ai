@@ -121,14 +121,16 @@ export type Breakpoint = keyof typeof breakpoints;
  * Hashing the id keeps the colour stable across sessions and devices.
  */
 const AVATAR_TINTS = [
-  'oklch(0.62 0.18 25)',
-  'oklch(0.65 0.16 62)',
-  'oklch(0.68 0.15 108)',
-  'oklch(0.63 0.15 158)',
-  'oklch(0.62 0.14 205)',
-  'oklch(0.58 0.19 258)',
-  'oklch(0.55 0.22 286)',
-  'oklch(0.60 0.20 328)',
+  '#EB5757',
+  '#FC7840',
+  '#F2C94C',
+  '#4CB782',
+  '#0F9B8E',
+  '#26B5CE',
+  '#4EA7FC',
+  '#5E6AD2',
+  '#6771D4',
+  '#E07BB8',
 ] as const;
 
 export function avatarTint(seed: string): string {

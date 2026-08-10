@@ -224,21 +224,21 @@ export function CreateWorkspacePage() {
   const progressPercentage = (currentStep / STEPS.length) * 100;
 
   return (
-    <div className="min-h-dvh bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-dvh bg-background text-foreground flex flex-col justify-between selection:bg-primary selection:text-white">
       {/* Top Header */}
-      <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur px-6 py-4 flex items-center justify-between sticky top-0 z-20">
+      <header className="border-b border-border/80 bg-surface/60 backdrop-blur px-6 py-4 flex items-center justify-between sticky top-0 z-20">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-500/20">
+          <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-primary to-primary-hover flex items-center justify-center text-white font-bold shadow-lg shadow-primary/20">
             <Sparkles className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="font-semibold text-slate-100 text-sm tracking-tight">OneTab AI</h1>
-            <p className="text-xs text-slate-400">Workspace Onboarding Wizard</p>
+            <h1 className="font-semibold text-foreground text-sm tracking-tight">OneTab AI</h1>
+            <p className="text-xs text-muted-foreground">Workspace Onboarding Wizard</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button asChild variant="ghost" size="sm" className="text-slate-400 hover:text-slate-200">
+          <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
             <Link to="/">Cancel & Exit</Link>
           </Button>
         </div>
@@ -248,11 +248,11 @@ export function CreateWorkspacePage() {
       <main className="max-w-6xl w-full mx-auto px-4 py-8 flex-1 flex flex-col justify-center">
         {/* Step Progress Tracker */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-3 text-xs text-slate-400 font-medium">
-            <span>Step {currentStep} of {STEPS.length}: <strong className="text-indigo-400 font-semibold">{STEPS[currentStep - 1].label}</strong></span>
+          <div className="flex items-center justify-between mb-3 text-xs text-muted-foreground font-medium">
+            <span>Step {currentStep} of {STEPS.length}: <strong className="text-primary font-semibold">{STEPS[currentStep - 1].label}</strong></span>
             <span>{Math.round(progressPercentage)}% completed</span>
           </div>
-          <Progress value={progressPercentage} className="h-1.5 bg-slate-800" />
+          <Progress value={progressPercentage} className="h-1.5 bg-surface-raised" />
 
           {/* Stepper Badges */}
           <div className="grid grid-cols-5 gap-2 mt-4">
@@ -270,19 +270,19 @@ export function CreateWorkspacePage() {
                   disabled={step.id > currentStep}
                   className={`text-left p-2.5 rounded-lg border transition-all text-xs flex items-center gap-2 ${
                     isCurrent
-                      ? 'border-indigo-500/80 bg-indigo-950/40 text-indigo-200 ring-1 ring-indigo-500/30'
+                      ? 'border-primary/80 bg-primary/10 text-primary ring-1 ring-ring/30'
                       : isCompleted
-                      ? 'border-slate-800 bg-slate-900/50 text-slate-300 hover:border-slate-700 cursor-pointer'
-                      : 'border-slate-900 bg-slate-950/30 text-slate-600 opacity-60 cursor-not-allowed'
+                      ? 'border-border bg-surface/50 text-secondary-foreground hover:border-border-strong cursor-pointer'
+                      : 'border-border bg-background/30 text-disabled opacity-60 cursor-not-allowed'
                   }`}
                 >
                   <div
                     className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
                       isCompleted
-                        ? 'bg-emerald-500 text-slate-950'
+                        ? 'bg-success text-success-foreground'
                         : isCurrent
-                        ? 'bg-indigo-500 text-white'
-                        : 'bg-slate-800 text-slate-500'
+                        ? 'bg-primary text-white'
+                        : 'bg-surface-raised text-subtle'
                     }`}
                   >
                     {isCompleted ? <Check className="h-3 w-3" /> : step.id}
@@ -298,17 +298,17 @@ export function CreateWorkspacePage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Form Side */}
           <div className="lg:col-span-7">
-            <Card className="bg-slate-900/80 border-slate-800 backdrop-blur shadow-2xl">
+            <Card className="bg-surface/80 border-border backdrop-blur shadow-2xl">
               <CardHeader className="pb-4">
-                <CardTitle className="text-xl text-slate-100 flex items-center gap-2">
-                  {currentStep === 1 && <Building2 className="h-5 w-5 text-indigo-400" />}
-                  {currentStep === 2 && <Wand2 className="h-5 w-5 text-indigo-400" />}
-                  {currentStep === 3 && <Paintbrush className="h-5 w-5 text-indigo-400" />}
-                  {currentStep === 4 && <Users className="h-5 w-5 text-indigo-400" />}
-                  {currentStep === 5 && <Rocket className="h-5 w-5 text-indigo-400" />}
+                <CardTitle className="text-xl text-foreground flex items-center gap-2">
+                  {currentStep === 1 && <Building2 className="h-5 w-5 text-primary" />}
+                  {currentStep === 2 && <Wand2 className="h-5 w-5 text-primary" />}
+                  {currentStep === 3 && <Paintbrush className="h-5 w-5 text-primary" />}
+                  {currentStep === 4 && <Users className="h-5 w-5 text-primary" />}
+                  {currentStep === 5 && <Rocket className="h-5 w-5 text-primary" />}
                   {STEPS[currentStep - 1].label}
                 </CardTitle>
-                <CardDescription className="text-slate-400 text-sm">
+                <CardDescription className="text-muted-foreground text-sm">
                   {STEPS[currentStep - 1].description}
                 </CardDescription>
               </CardHeader>
@@ -326,12 +326,12 @@ export function CreateWorkspacePage() {
                           name="name"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-slate-200">Workspace Name</FormLabel>
+                              <FormLabel className="text-foreground">Workspace Name</FormLabel>
                               <FormControl>
                                 <Input
                                   {...field}
                                   placeholder="e.g. Acme Corp, Design System Team"
-                                  className="bg-slate-950 border-slate-800 text-slate-100 focus:border-indigo-500"
+                                  className="bg-background border-border text-foreground focus:border-primary"
                                   autoFocus
                                 />
                               </FormControl>
@@ -345,22 +345,22 @@ export function CreateWorkspacePage() {
                           name="slug"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-slate-200">Workspace URL Slug</FormLabel>
+                              <FormLabel className="text-foreground">Workspace URL Slug</FormLabel>
                               <FormControl>
                                 <div className="relative">
                                   <Input
                                     {...field}
                                     placeholder="acme-corp"
-                                    className="bg-slate-950 border-slate-800 text-slate-100 pl-3 pr-24 focus:border-indigo-500 font-mono text-sm"
+                                    className="bg-background border-border text-foreground pl-3 pr-24 focus:border-primary font-mono text-sm"
                                   />
-                                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono px-2 py-0.5 rounded bg-surface-raised text-muted-foreground border border-border-strong">
                                     .onetab.ai
                                   </span>
                                 </div>
                               </FormControl>
-                              <FormDescription className="text-xs text-slate-400 flex items-center gap-1.5 pt-1">
-                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                                Your workspace will be hosted at: <code className="text-indigo-300 font-mono">onetab.ai/w/{field.value || 'your-slug'}</code>
+                              <FormDescription className="text-xs text-muted-foreground flex items-center gap-1.5 pt-1">
+                                <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
+                                Your workspace will be hosted at: <code className="text-primary font-mono">onetab.ai/w/{field.value || 'your-slug'}</code>
                               </FormDescription>
                               <FormMessage />
                             </FormItem>
@@ -372,13 +372,13 @@ export function CreateWorkspacePage() {
                           name="description"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-slate-200">Description <span className="text-slate-500 font-normal">(Optional)</span></FormLabel>
+                              <FormLabel className="text-foreground">Description <span className="text-subtle font-normal">(Optional)</span></FormLabel>
                               <FormControl>
                                 <Textarea
                                   {...field}
                                   rows={3}
                                   placeholder="What is this workspace for? (e.g., Central hub for team updates, docs, and chat)"
-                                  className="bg-slate-950 border-slate-800 text-slate-100 focus:border-indigo-500"
+                                  className="bg-background border-border text-foreground focus:border-primary"
                                 />
                               </FormControl>
                               <FormMessage />
@@ -391,7 +391,7 @@ export function CreateWorkspacePage() {
                     {/* STEP 2: TEAM TYPE PRESETS */}
                     {currentStep === 2 && (
                       <div className="space-y-4">
-                        <label className="text-sm font-medium text-slate-200 block">Select a workspace template</label>
+                        <label className="text-sm font-medium text-foreground block">Select a workspace template</label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {WORKSPACE_PRESETS.map((preset) => {
                             const isSelected = selectedPreset.id === preset.id;
@@ -401,8 +401,8 @@ export function CreateWorkspacePage() {
                                 onClick={() => handleSelectPreset(preset)}
                                 className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
                                   isSelected
-                                    ? 'border-indigo-500 bg-indigo-950/40 text-slate-100 ring-2 ring-indigo-500/40'
-                                    : 'border-slate-800 bg-slate-950/60 text-slate-300 hover:border-slate-700 hover:bg-slate-950'
+                                    ? 'border-primary bg-primary/10 text-foreground ring-2 ring-ring/40'
+                                    : 'border-border bg-background/60 text-secondary-foreground hover:border-border-strong hover:bg-background'
                                 }`}
                               >
                                 <div className="flex items-start justify-between mb-2">
@@ -414,14 +414,14 @@ export function CreateWorkspacePage() {
                                   </div>
                                   <Badge
                                     variant="neutral"
-                                    className="text-[10px] bg-slate-800 text-slate-300 border-slate-700"
+                                    className="text-[10px] bg-surface-raised text-secondary-foreground border-border-strong"
                                   >
                                     {preset.badge}
                                   </Badge>
                                 </div>
                                 <div>
-                                  <h3 className="font-medium text-sm text-slate-100">{preset.name}</h3>
-                                  <p className="text-xs text-slate-400 mt-1 line-clamp-2">{preset.tagline}</p>
+                                  <h3 className="font-medium text-sm text-foreground">{preset.name}</h3>
+                                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{preset.tagline}</p>
                                 </div>
                               </div>
                             );
@@ -435,8 +435,8 @@ export function CreateWorkspacePage() {
                       <div className="space-y-6">
                         {/* Icon & Color Customizer */}
                         <div>
-                          <label className="text-sm font-medium text-slate-200 block mb-2">Workspace Icon & Accent Color</label>
-                          <div className="flex items-center gap-4 bg-slate-950 p-4 rounded-xl border border-slate-800">
+                          <label className="text-sm font-medium text-foreground block mb-2">Workspace Icon & Accent Color</label>
+                          <div className="flex items-center gap-4 bg-background p-4 rounded-xl border border-border">
                             <IconPickerPopover
                               icon={iconName}
                               iconColor={iconColor}
@@ -456,18 +456,18 @@ export function CreateWorkspacePage() {
                             />
 
                             <div>
-                              <p className="text-sm font-medium text-slate-200">Click icon to customize</p>
-                              <p className="text-xs text-slate-400">Choose from icons and curated theme colors</p>
+                              <p className="text-sm font-medium text-foreground">Click icon to customize</p>
+                              <p className="text-xs text-muted-foreground">Choose from icons and curated theme colors</p>
                             </div>
                           </div>
                         </div>
 
                         {/* Starter Channels Customizer */}
                         <div className="space-y-3">
-                          <label className="text-sm font-medium text-slate-200 block">Starter Channels</label>
+                          <label className="text-sm font-medium text-foreground block">Starter Channels</label>
                           <div className="flex items-center gap-2">
                             <div className="relative flex-1">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-mono text-xs">#</span>
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-subtle font-mono text-xs">#</span>
                               <Input
                                 value={newChannelInput}
                                 onChange={(e) => setNewChannelInput(e.target.value)}
@@ -478,7 +478,7 @@ export function CreateWorkspacePage() {
                                   }
                                 }}
                                 placeholder="add-custom-channel"
-                                className="bg-slate-950 border-slate-800 text-slate-100 pl-7 text-xs focus:border-indigo-500"
+                                className="bg-background border-border text-foreground pl-7 text-xs focus:border-primary"
                               />
                             </div>
                             <Button
@@ -486,7 +486,7 @@ export function CreateWorkspacePage() {
                               onClick={handleAddChannel}
                               size="sm"
                               variant="outline"
-                              className="bg-slate-800 text-slate-200 hover:bg-slate-700 border-slate-700"
+                              className="bg-surface-raised text-foreground hover:bg-selected border-border-strong"
                             >
                               <Plus className="h-4 w-4 mr-1" /> Add
                             </Button>
@@ -496,15 +496,15 @@ export function CreateWorkspacePage() {
                             {channels.map((ch) => (
                               <span
                                 key={ch}
-                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono bg-slate-950 border border-slate-800 text-slate-300"
+                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono bg-background border border-border text-secondary-foreground"
                               >
-                                <Hash className="h-3 w-3 text-indigo-400" />
+                                <Hash className="h-3 w-3 text-primary" />
                                 {ch}
                                 {channels.length > 1 && (
                                   <button
                                     type="button"
                                     onClick={() => handleRemoveChannel(ch)}
-                                    className="hover:text-rose-400 text-slate-500 transition-colors"
+                                    className="hover:text-destructive text-subtle transition-colors"
                                   >
                                     <X className="h-3 w-3" />
                                   </button>
@@ -520,7 +520,7 @@ export function CreateWorkspacePage() {
                     {currentStep === 4 && (
                       <div className="space-y-6">
                         <div className="space-y-3">
-                          <label className="text-sm font-medium text-slate-200 block">Invite Team Members via Email</label>
+                          <label className="text-sm font-medium text-foreground block">Invite Team Members via Email</label>
                           <div className="flex items-center gap-2">
                             <Input
                               type="email"
@@ -533,13 +533,13 @@ export function CreateWorkspacePage() {
                                 }
                               }}
                               placeholder="colleague@company.com"
-                              className="bg-slate-950 border-slate-800 text-slate-100 text-xs focus:border-indigo-500"
+                              className="bg-background border-border text-foreground text-xs focus:border-primary"
                             />
                             <Button
                               type="button"
                               onClick={handleAddInvite}
                               size="sm"
-                              className="bg-indigo-600 hover:bg-indigo-500 text-white"
+                              className="bg-primary hover:bg-primary text-white"
                             >
                               <Plus className="h-4 w-4 mr-1" /> Add Email
                             </Button>
@@ -548,18 +548,18 @@ export function CreateWorkspacePage() {
                           {/* Invited Emails List */}
                           {invitedEmails.length > 0 && (
                             <div className="space-y-2 pt-2">
-                              <p className="text-xs text-slate-400 font-medium">Invites to be sent ({invitedEmails.length}):</p>
-                              <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto p-2 bg-slate-950 rounded-lg border border-slate-800">
+                              <p className="text-xs text-muted-foreground font-medium">Invites to be sent ({invitedEmails.length}):</p>
+                              <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto p-2 bg-background rounded-lg border border-border">
                                 {invitedEmails.map((email) => (
                                   <span
                                     key={email}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs bg-slate-900 border border-slate-800 text-slate-200"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs bg-surface border border-border text-foreground"
                                   >
                                     {email}
                                     <button
                                       type="button"
                                       onClick={() => handleRemoveInvite(email)}
-                                      className="hover:text-rose-400 text-slate-500"
+                                      className="hover:text-destructive text-subtle"
                                     >
                                       <X className="h-3 w-3" />
                                     </button>
@@ -570,19 +570,19 @@ export function CreateWorkspacePage() {
                           )}
                         </div>
 
-                        <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center justify-between">
+                        <div className="p-4 rounded-xl bg-background/60 border border-border flex items-center justify-between">
                           <div>
-                            <h4 className="text-xs font-medium text-slate-200">Shareable Workspace Invite Link</h4>
-                            <p className="text-[11px] text-slate-400">Share this link directly with your team</p>
+                            <h4 className="text-xs font-medium text-foreground">Shareable Workspace Invite Link</h4>
+                            <p className="text-[11px] text-muted-foreground">Share this link directly with your team</p>
                           </div>
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             onClick={handleCopyInviteLink}
-                            className="bg-slate-900 border-slate-700 text-slate-200 hover:bg-slate-800"
+                            className="bg-surface border-border-strong text-foreground hover:bg-surface-raised"
                           >
-                            {copiedLink ? <Check className="h-3.5 w-3.5 mr-1 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
+                            {copiedLink ? <Check className="h-3.5 w-3.5 mr-1 text-success" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
                             {copiedLink ? 'Copied!' : 'Copy Link'}
                           </Button>
                         </div>
@@ -592,7 +592,7 @@ export function CreateWorkspacePage() {
                     {/* STEP 5: REVIEW & LAUNCH */}
                     {currentStep === 5 && (
                       <div className="space-y-4">
-                        <div className="p-4 rounded-xl bg-indigo-950/30 border border-indigo-500/30 space-y-3">
+                        <div className="p-4 rounded-xl bg-primary/10 border border-primary/30 space-y-3">
                           <div className="flex items-center gap-3">
                             <div
                               className="h-12 w-12 rounded-xl flex items-center justify-center text-white shadow-lg"
@@ -601,50 +601,50 @@ export function CreateWorkspacePage() {
                               <IconRenderer icon={iconName} className="h-6 w-6" />
                             </div>
                             <div>
-                              <h3 className="font-semibold text-slate-100 text-base">{name || 'Untitled Workspace'}</h3>
-                              <p className="text-xs text-indigo-300 font-mono">onetab.ai/w/{slug || 'workspace'}</p>
+                              <h3 className="font-semibold text-foreground text-base">{name || 'Untitled Workspace'}</h3>
+                              <p className="text-xs text-primary font-mono">onetab.ai/w/{slug || 'workspace'}</p>
                             </div>
                           </div>
 
-                          <p className="text-xs text-slate-300 italic">
+                          <p className="text-xs text-secondary-foreground italic">
                             {form.getValues('description') || 'No description provided.'}
                           </p>
 
-                          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/80 text-center text-xs">
-                            <div className="bg-slate-950/60 p-2 rounded-lg border border-slate-800">
-                              <span className="block font-bold text-slate-100">{selectedPreset.badge}</span>
-                              <span className="text-[10px] text-slate-400">Template</span>
+                          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/80 text-center text-xs">
+                            <div className="bg-background/60 p-2 rounded-lg border border-border">
+                              <span className="block font-bold text-foreground">{selectedPreset.badge}</span>
+                              <span className="text-[10px] text-muted-foreground">Template</span>
                             </div>
-                            <div className="bg-slate-950/60 p-2 rounded-lg border border-slate-800">
-                              <span className="block font-bold text-slate-100">{channels.length}</span>
-                              <span className="text-[10px] text-slate-400">Channels</span>
+                            <div className="bg-background/60 p-2 rounded-lg border border-border">
+                              <span className="block font-bold text-foreground">{channels.length}</span>
+                              <span className="text-[10px] text-muted-foreground">Channels</span>
                             </div>
-                            <div className="bg-slate-950/60 p-2 rounded-lg border border-slate-800">
-                              <span className="block font-bold text-slate-100">{invitedEmails.length + 1}</span>
-                              <span className="text-[10px] text-slate-400">Members</span>
+                            <div className="bg-background/60 p-2 rounded-lg border border-border">
+                              <span className="block font-bold text-foreground">{invitedEmails.length + 1}</span>
+                              <span className="text-[10px] text-muted-foreground">Members</span>
                             </div>
                           </div>
                         </div>
 
-                        <p className="text-xs text-slate-400 text-center">
+                        <p className="text-xs text-muted-foreground text-center">
                           Click <strong>Create Workspace</strong> to launch your new workspace instantly.
                         </p>
                       </div>
                     )}
 
                     {/* Step Navigation Bar */}
-                    <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
+                    <div className="pt-4 border-t border-border flex items-center justify-between">
                       {currentStep > 1 ? (
                         <Button
                           type="button"
                           variant="ghost"
                           onClick={handlePrevStep}
-                          className="text-slate-300 hover:text-white"
+                          className="text-secondary-foreground hover:text-white"
                         >
                           <ChevronLeft className="h-4 w-4 mr-1" /> Back
                         </Button>
                       ) : (
-                        <Button asChild variant="ghost" className="text-slate-400 hover:text-slate-200">
+                        <Button asChild variant="ghost" className="text-muted-foreground hover:text-foreground">
                           <Link to="/">Cancel</Link>
                         </Button>
                       )}
@@ -653,7 +653,7 @@ export function CreateWorkspacePage() {
                         <Button
                           type="button"
                           onClick={handleNextStep}
-                          className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-lg shadow-indigo-600/30"
+                          className="bg-primary hover:bg-primary text-white font-medium shadow-lg shadow-primary/30"
                         >
                           Continue <ChevronRight className="h-4 w-4 ml-1" />
                         </Button>
@@ -661,7 +661,7 @@ export function CreateWorkspacePage() {
                         <Button
                           type="submit"
                           loading={form.formState.isSubmitting || createWorkspace.isPending}
-                          className="bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white font-semibold shadow-xl shadow-indigo-500/25 px-6"
+                          className="bg-gradient-to-r from-primary to-primary-hover hover:from-primary hover:to-primary-hover text-white font-semibold shadow-xl shadow-primary/25 px-6"
                         >
                           <Sparkles className="h-4 w-4 mr-2" /> Launch Workspace
                         </Button>
@@ -675,21 +675,21 @@ export function CreateWorkspacePage() {
 
           {/* Live Preview Side Panel */}
           <div className="lg:col-span-5 hidden lg:block sticky top-24">
-            <Card className="bg-slate-900/60 border-slate-800 backdrop-blur shadow-xl overflow-hidden">
-              <div className="bg-slate-950/80 px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+            <Card className="bg-surface/60 border-border backdrop-blur shadow-xl overflow-hidden">
+              <div className="bg-background/80 px-4 py-3 border-b border-border flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="h-2.5 w-2.5 rounded-full bg-rose-500/80" />
-                  <div className="h-2.5 w-2.5 rounded-full bg-amber-500/80" />
-                  <div className="h-2.5 w-2.5 rounded-full bg-emerald-500/80" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-destructive/80" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-warning/80" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-success/80" />
                 </div>
-                <span className="text-[11px] font-mono text-slate-400 flex items-center gap-1">
-                  <Wand2 className="h-3 w-3 text-indigo-400" /> Live Sidebar Preview
+                <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1">
+                  <Wand2 className="h-3 w-3 text-primary" /> Live Sidebar Preview
                 </span>
               </div>
 
               <CardContent className="p-4 space-y-4">
                 {/* Mock Workspace Sidebar Header */}
-                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                <div className="p-3 rounded-xl bg-background border border-border flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div
                       className="h-10 w-10 rounded-xl flex items-center justify-center text-white shadow"
@@ -698,57 +698,57 @@ export function CreateWorkspacePage() {
                       <IconRenderer icon={iconName} className="h-5 w-5" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-slate-100 text-sm truncate max-w-[140px]">
+                      <h4 className="font-semibold text-foreground text-sm truncate max-w-[140px]">
                         {name || 'Your Workspace'}
                       </h4>
-                      <p className="text-[10px] text-slate-400 font-mono truncate max-w-[140px]">
+                      <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[140px]">
                         {slug ? `${slug}.onetab.ai` : 'onetab.ai/w/...'}
                       </p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-[10px] border-indigo-500/40 text-indigo-300 bg-indigo-950/30">
+                  <Badge variant="outline" className="text-[10px] border-primary/40 text-primary bg-primary/10">
                     Active
                   </Badge>
                 </div>
 
                 {/* Mock Channel List */}
-                <div className="space-y-1 bg-slate-950/40 p-3 rounded-xl border border-slate-800/60">
-                  <div className="flex items-center justify-between text-[11px] font-medium text-slate-400 mb-2">
+                <div className="space-y-1 bg-background/40 p-3 rounded-xl border border-border/60">
+                  <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground mb-2">
                     <span>CHANNELS ({channels.length})</span>
                     <Plus className="h-3 w-3 opacity-60" />
                   </div>
                   {channels.slice(0, 5).map((ch) => (
                     <div
                       key={ch}
-                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-slate-300 hover:bg-slate-800/60 font-mono"
+                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-secondary-foreground hover:bg-surface-raised/60 font-mono"
                     >
-                      <Hash className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+                      <Hash className="h-3.5 w-3.5 text-primary shrink-0" />
                       <span className="truncate">{ch}</span>
                     </div>
                   ))}
                   {channels.length > 5 && (
-                    <p className="text-[10px] text-slate-500 italic pl-2.5">+ {channels.length - 5} more channels</p>
+                    <p className="text-[10px] text-subtle italic pl-2.5">+ {channels.length - 5} more channels</p>
                   )}
                 </div>
 
                 {/* Mock Direct Messages & Team */}
-                <div className="space-y-2 bg-slate-950/40 p-3 rounded-xl border border-slate-800/60">
-                  <div className="flex items-center justify-between text-[11px] font-medium text-slate-400">
+                <div className="space-y-2 bg-background/40 p-3 rounded-xl border border-border/60">
+                  <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
                     <span>TEAM MEMBERS ({invitedEmails.length + 1})</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Avatar className="h-7 w-7 border border-indigo-500">
-                      <AvatarFallback className="bg-indigo-600 text-white text-xs font-bold">YOU</AvatarFallback>
+                    <Avatar className="h-7 w-7 border border-primary">
+                      <AvatarFallback className="bg-primary text-white text-xs font-bold">YOU</AvatarFallback>
                     </Avatar>
                     {invitedEmails.slice(0, 3).map((email) => (
-                      <Avatar key={email} className="h-7 w-7 border border-slate-700">
-                        <AvatarFallback className="bg-slate-800 text-slate-300 text-[10px] font-bold">
+                      <Avatar key={email} className="h-7 w-7 border border-border-strong">
+                        <AvatarFallback className="bg-surface-raised text-secondary-foreground text-[10px] font-bold">
                           {email.substring(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                     ))}
                     {invitedEmails.length > 3 && (
-                      <span className="h-7 w-7 rounded-full bg-slate-800 text-slate-400 text-[10px] font-bold flex items-center justify-center border border-slate-700">
+                      <span className="h-7 w-7 rounded-full bg-surface-raised text-muted-foreground text-[10px] font-bold flex items-center justify-center border border-border-strong">
                         +{invitedEmails.length - 3}
                       </span>
                     )}
@@ -761,7 +761,7 @@ export function CreateWorkspacePage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800/60 bg-slate-950 py-4 px-6 text-center text-xs text-slate-500">
+      <footer className="border-t border-border/60 bg-background py-4 px-6 text-center text-xs text-subtle">
         OneTab AI Workspace Onboarding &bull; Crafting collaboration spaces in seconds
       </footer>
     </div>

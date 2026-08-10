@@ -122,11 +122,11 @@
    * rather than picking a t-shirt size and drifting from the spec. Corners get
    * *less* round as a surface gets smaller and more interactive.
    */
-  --radius-card: 10px;
-  --radius-btn: 8px;
-  --radius-input: 8px;
-  --radius-popup: 12px;
-  --radius-dialog: 14px;
+  --radius-card: 8px;
+  --radius-btn: 6px;
+  --radius-input: 6px;
+  --radius-popup: 8px;
+  --radius-dialog: 12px;
 
   --font-sans: var(--font-sans-stack);
   --font-mono: var(--font-mono-stack);
@@ -166,7 +166,7 @@
   --z-tooltip: 70;
 
   /* Base step the sm/md/lg/xl ramp is derived from. */
-  --radius: 8px;
+  --radius: 6px;
 
   --font-sans-stack:
     'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
@@ -175,149 +175,194 @@
     ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono',
     monospace;
 
-  /* Default Light Mode Canvas values */
+  /*
+   * Light theme. Linear's light canvas is a pure white page with a faintly
+   * warm-grey chrome; text steps down #08090a → #3c4149 → #6b6f76 → #8a8f98
+   * rather than fading to a single grey, which is what keeps dense lists
+   * readable without borders doing the work.
+   */
   --background: #FFFFFF;
-  --foreground: #09090B;
+  --foreground: #08090A;
 
   --card: #FFFFFF;
-  --card-foreground: #09090B;
+  --card-foreground: #08090A;
 
   --popover: #FFFFFF;
-  --popover-foreground: #09090B;
+  --popover-foreground: #08090A;
 
-  --primary: #6E56CF;
+  /* Linear's brand indigo. */
+  --primary: #5E6AD2;
   --primary-foreground: #FFFFFF;
-  --primary-hover: #5B45BA;
+  --primary-hover: #525EC4;
 
-  --secondary: #F4F4F5;
-  --secondary-foreground: #18181B;
+  --secondary: #F4F5F8;
+  --secondary-foreground: #3C4149;
 
-  --muted: #F4F4F5;
-  --muted-foreground: #71717A;
+  --muted: #F4F5F8;
+  --muted-foreground: #6B6F76;
 
-  --accent: #F4F4F5;
-  --accent-foreground: #09090B;
+  --accent: #F1F2F4;
+  --accent-foreground: #08090A;
 
-  --selected: #ECECEE;
+  --selected: #E9EAEE;
 
-  --subtle: #71717A;
-  --disabled: #A1A1AA;
+  --subtle: #8A8F98;
+  --disabled: #B3B6BD;
 
-  --destructive: #E5484D;
+  --destructive: #EB5757;
   --destructive-foreground: #FFFFFF;
 
-  --success: #30A46C;
+  --success: #4CB782;
   --success-foreground: #FFFFFF;
 
-  --warning: #F59E0B;
-  --warning-foreground: #09090B;
+  --warning: #F2994A;
+  --warning-foreground: #08090A;
 
-  --info: #6E56CF;
+  --info: #4EA7FC;
   --info-foreground: #FFFFFF;
 
-  --border: #E4E4E7;
-  --border-strong: rgba(0, 0, 0, 0.12);
-  --input: #E4E4E7;
-  --ring: #6E56CF;
+  --border: #E6E7EA;
+  --border-strong: rgba(0, 0, 0, 0.1);
+  --input: #DCDEE3;
+  --ring: #5E6AD2;
 
   --surface: #FFFFFF;
-  --surface-muted: #F8F9FA;
-  --surface-raised: #F4F4F5;
-  --surface-inset: #F1F3F5;
+  --surface-muted: #FAFAFA;
+  --surface-raised: #F4F5F8;
+  --surface-inset: #F0F1F3;
 
-  --accent-violet: #6E56CF;
-  --accent-violet-soft: rgba(110, 86, 207, 0.1);
-  --accent-blue: #3E63DD;
-  --accent-blue-soft: rgba(62, 99, 221, 0.1);
-  --accent-cyan: #0091FF;
-  --accent-cyan-soft: rgba(0, 145, 255, 0.1);
-  --accent-teal: #12A594;
-  --accent-teal-soft: rgba(18, 165, 148, 0.1);
-  --accent-green: #30A46C;
-  --accent-green-soft: rgba(48, 164, 108, 0.1);
-  --accent-amber: #F59E0B;
-  --accent-amber-soft: rgba(245, 158, 11, 0.1);
-  --accent-orange: #F76B15;
-  --accent-orange-soft: rgba(247, 107, 21, 0.1);
-  --accent-rose: #E5484D;
-  --accent-rose-soft: rgba(229, 72, 77, 0.1);
-  --accent-pink: #D6409F;
-  --accent-pink-soft: rgba(214, 64, 159, 0.1);
-  --accent-indigo: #5B5BD6;
-  --accent-indigo-soft: rgba(91, 91, 214, 0.1);
+  --accent-violet: #5E6AD2;
+  --accent-violet-soft: rgba(94, 106, 210, 0.12);
+  --accent-blue: #4EA7FC;
+  --accent-blue-soft: rgba(78, 167, 252, 0.12);
+  --accent-cyan: #26B5CE;
+  --accent-cyan-soft: rgba(38, 181, 206, 0.12);
+  --accent-teal: #0F9B8E;
+  --accent-teal-soft: rgba(15, 155, 142, 0.12);
+  --accent-green: #4CB782;
+  --accent-green-soft: rgba(76, 183, 130, 0.12);
+  --accent-amber: #F2C94C;
+  --accent-amber-soft: rgba(242, 201, 76, 0.16);
+  --accent-orange: #FC7840;
+  --accent-orange-soft: rgba(252, 120, 64, 0.12);
+  --accent-rose: #EB5757;
+  --accent-rose-soft: rgba(235, 87, 87, 0.12);
+  --accent-pink: #E07BB8;
+  --accent-pink-soft: rgba(224, 123, 184, 0.12);
+  --accent-indigo: #6771D4;
+  --accent-indigo-soft: rgba(103, 113, 212, 0.12);
 
   --sidebar: #FAFAFA;
-  --sidebar-foreground: #09090B;
-  --sidebar-muted: #71717A;
-  --sidebar-accent: #F4F4F5;
-  --sidebar-accent-foreground: #09090B;
-  --sidebar-border: #E4E4E7;
-  --sidebar-ring: #6E56CF;
+  --sidebar-foreground: #08090A;
+  --sidebar-muted: #6B6F76;
+  --sidebar-accent: #ECEEF1;
+  --sidebar-accent-foreground: #08090A;
+  --sidebar-border: #E6E7EA;
+  --sidebar-ring: #5E6AD2;
 
-  --shadow-elevated-value: 0 4px 18px rgba(0, 0, 0, 0.08);
-  --shadow-overlay-value: 0 20px 60px rgba(0, 0, 0, 0.15);
+  /*
+   * Linear keeps elevation quiet: a tight contact shadow plus a wider, very
+   * low-alpha ambient pass, rather than one large soft blur.
+   */
+  --shadow-elevated-value:
+    0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-overlay-value:
+    0 2px 8px rgba(0, 0, 0, 0.08), 0 12px 32px rgba(0, 0, 0, 0.12);
 }
 
+/*
+ * Dark theme — Linear's default. The canvas is near-black (#08090a) and
+ * elevation is expressed by getting *lighter*, so panels and popovers step up
+ * #0f1011 → #16171a → #1c1d20 instead of relying on shadow.
+ */
 .dark {
-  --background: #09090B;
-  --foreground: #FAFAFA;
+  --background: #08090A;
+  --foreground: #F7F8F8;
 
-  --card: #111113;
-  --card-foreground: #FAFAFA;
+  --card: #0F1011;
+  --card-foreground: #F7F8F8;
 
-  --popover: #111113;
-  --popover-foreground: #FAFAFA;
+  /* Popovers sit highest, so they read clearly over a panel. */
+  --popover: #1C1D20;
+  --popover-foreground: #F7F8F8;
 
-  --primary: #6E56CF;
-  --primary-foreground: #FAFAFA;
-  --primary-hover: #7C6AF5;
+  --primary: #5E6AD2;
+  --primary-foreground: #FFFFFF;
+  --primary-hover: #6E79D6;
 
   --secondary: #16171A;
-  --secondary-foreground: #A1A1AA;
+  --secondary-foreground: #D0D6E0;
 
   --muted: #16171A;
-  --muted-foreground: #A1A1AA;
+  --muted-foreground: #8A8F98;
 
-  --accent: #1E1F23;
-  --accent-foreground: #FAFAFA;
+  --accent: #1C1D20;
+  --accent-foreground: #F7F8F8;
 
   --selected: #23242A;
 
-  --subtle: #71717A;
-  --disabled: #52525B;
+  --subtle: #6F757E;
+  --disabled: #4A4D54;
 
-  --destructive: #E5484D;
-  --destructive-foreground: #FAFAFA;
+  --destructive: #EB5757;
+  --destructive-foreground: #FFFFFF;
 
-  --success: #30A46C;
-  --success-foreground: #FAFAFA;
+  --success: #4CB782;
+  --success-foreground: #08090A;
 
-  --warning: #FFB224;
-  --warning-foreground: #09090B;
+  --warning: #F2994A;
+  --warning-foreground: #08090A;
 
-  --info: #6E56CF;
-  --info-foreground: #FAFAFA;
+  --info: #4EA7FC;
+  --info-foreground: #08090A;
 
-  --border: #27272A;
-  --border-strong: rgba(255, 255, 255, 0.12);
-  --input: #27272A;
-  --ring: #6E56CF;
+  --border: #23252A;
+  --border-strong: rgba(255, 255, 255, 0.1);
+  --input: #2A2C31;
+  --ring: #5E6AD2;
 
-  --surface: #111113;
-  --surface-muted: #09090B;
+  --surface: #0F1011;
+  --surface-muted: #0B0C0E;
   --surface-raised: #16171A;
-  --surface-inset: #09090B;
+  --surface-inset: #0A0B0C;
 
-  --sidebar: #09090B;
-  --sidebar-foreground: #FAFAFA;
-  --sidebar-muted: #71717A;
-  --sidebar-accent: #1E1F23;
-  --sidebar-accent-foreground: #FAFAFA;
-  --sidebar-border: #27272A;
-  --sidebar-ring: #6E56CF;
+  /*
+   * Accents are lifted a few points against the dark canvas, and their soft
+   * tints carry more alpha — 12% reads as nothing at these luminances.
+   */
+  --accent-violet: #7B87E8;
+  --accent-violet-soft: rgba(123, 135, 232, 0.18);
+  --accent-blue: #4EA7FC;
+  --accent-blue-soft: rgba(78, 167, 252, 0.18);
+  --accent-cyan: #3FC7E0;
+  --accent-cyan-soft: rgba(63, 199, 224, 0.18);
+  --accent-teal: #2CB3A3;
+  --accent-teal-soft: rgba(44, 179, 163, 0.18);
+  --accent-green: #4CB782;
+  --accent-green-soft: rgba(76, 183, 130, 0.18);
+  --accent-amber: #F2C94C;
+  --accent-amber-soft: rgba(242, 201, 76, 0.18);
+  --accent-orange: #FC7840;
+  --accent-orange-soft: rgba(252, 120, 64, 0.18);
+  --accent-rose: #EB5757;
+  --accent-rose-soft: rgba(235, 87, 87, 0.18);
+  --accent-pink: #E07BB8;
+  --accent-pink-soft: rgba(224, 123, 184, 0.18);
+  --accent-indigo: #6771D4;
+  --accent-indigo-soft: rgba(103, 113, 212, 0.18);
 
-  --shadow-elevated-value: 0 4px 18px rgba(0, 0, 0, 0.18);
-  --shadow-overlay-value: 0 20px 60px rgba(0, 0, 0, 0.45);
+  --sidebar: #08090A;
+  --sidebar-foreground: #F7F8F8;
+  --sidebar-muted: #8A8F98;
+  --sidebar-accent: #1C1D20;
+  --sidebar-accent-foreground: #F7F8F8;
+  --sidebar-border: #1B1D21;
+  --sidebar-ring: #5E6AD2;
+
+  --shadow-elevated-value:
+    0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.32);
+  --shadow-overlay-value:
+    0 2px 8px rgba(0, 0, 0, 0.5), 0 12px 32px rgba(0, 0, 0, 0.6);
 }
 
 @layer base {
@@ -334,21 +379,32 @@
     color-scheme: light dark;
   }
 
+  /*
+   * Linear sets application chrome at 14px with a slight negative tracking —
+   * at this size Inter's default spacing reads loose, and the tightening is
+   * what gives dense lists their compact, deliberate feel.
+   */
   body {
     background-color: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans-stack);
-    font-size: 15px;
+    font-size: 14px;
     line-height: 1.5;
+    letter-spacing: -0.012em;
     font-synthesis-weight: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
+  /* Tracking tightens as type scales up, so headings stay optically even. */
   h1, h2, h3, h4, h5, h6 {
-    letter-spacing: -0.02em;
-    font-weight: 600;
+    letter-spacing: -0.022em;
+    font-weight: 590;
+  }
+
+  h1 {
+    letter-spacing: -0.028em;
   }
 
   @media (prefers-reduced-motion: reduce) {

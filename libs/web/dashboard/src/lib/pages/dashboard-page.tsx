@@ -104,7 +104,7 @@ function MetricCard({
             {value}
           </span>
           {trend ? (
-            <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+            <span className="text-[11px] font-medium text-accent-green">
               {trend}
             </span>
           ) : null}
@@ -315,7 +315,7 @@ export function DashboardPage() {
                     <div className="flex items-start gap-3 min-w-0">
                       <div className="mt-0.5 shrink-0">
                         {step.done ? (
-                          <CheckCircle2 className="size-4 text-emerald-500" aria-hidden />
+                          <CheckCircle2 className="size-4 text-accent-green" aria-hidden />
                         ) : (
                           <div className="size-4 rounded-full border-2 border-muted-foreground/40" />
                         )}

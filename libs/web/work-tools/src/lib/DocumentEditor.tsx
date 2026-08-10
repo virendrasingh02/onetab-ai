@@ -97,7 +97,6 @@ export function DocumentEditor() {
           onDuplicateDoc={duplicateDoc}
           onToggleFavorite={toggleFavorite}
           onDeleteDoc={deleteDoc}
-          onUpdateIcon={(id, ic, col) => updateDocIcon(id, ic, col)}
           onUpdateTitle={(id, title) => updateDocTitle(id, title)}
         />
 
