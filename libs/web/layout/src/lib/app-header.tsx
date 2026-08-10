@@ -13,6 +13,7 @@ import {
 } from '@org/ui';
 import { useLogout } from '@org/auth';
 import { cn } from '@org/utils';
+import { openExternal, useDesktop } from '@org/web-desktop';
 import {
   HelpCircle,
   LogOut,
@@ -55,6 +56,17 @@ export function AppHeader({
 }: AppHeaderProps) {
   const { theme, setTheme } = useTheme();
   const logout = useLogout();
+  const { appInfo } = useDesktop();
+
+  /*
+   * The palette listens for Cmd *or* Ctrl, so the hint has to say which one the
+   * user actually has. In the browser `navigator.platform` is the only signal;
+   * in the shell the main process reports the real platform.
+   */
+  const isApple = appInfo
+    ? appInfo.platform === 'darwin'
+    : /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
+  const searchShortcut = isApple ? '⌘K' : 'Ctrl K';
 
   return (
     <header className="h-12 gap-2 sm:gap-3 px-2.5 sm:px-4 flex shrink-0 items-center border-b border-border bg-background">
@@ -100,7 +112,7 @@ export function AppHeader({
         <Search className="size-4 shrink-0" aria-hidden />
         <span className="truncate">Search…</span>
         <kbd className="ml-auto shrink-0 rounded-sm border border-border px-1.5 py-0.5 font-mono text-[10px] text-subtle">
-          ⌘K
+          {searchShortcut}
         </kbd>
       </button>
 
@@ -121,7 +133,17 @@ export function AppHeader({
         </Hint>
 
         <Hint label="Help & Resources">
-          <Button variant="ghost" size="sm" className="gap-1 hidden sm:flex">
+          {/*
+            Documentation is an external site. In the shell `window.open` is
+            denied by the navigation policy, so this goes through the bridge,
+            which hands the URL to the system browser.
+          */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1 hidden sm:flex"
+            onClick={() => void openExternal('https://github.com/onetab-ai')}
+          >
             <HelpCircle className="size-4" />
             <span className="hidden md:inline">Help</span>
           </Button>

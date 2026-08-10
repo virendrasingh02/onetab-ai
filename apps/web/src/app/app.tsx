@@ -137,7 +137,7 @@ const StorageAnalyticsView = lazy(() =>
 
 function NotFoundPage() {
   return (
-    <div className="p-6 grid min-h-dvh place-items-center">
+    <div className="p-6 grid min-h-full place-items-center">
       <EmptyState
         size="lg"
         title="Page not found"

@@ -224,7 +224,7 @@ export function CreateWorkspacePage() {
   const progressPercentage = (currentStep / STEPS.length) * 100;
 
   return (
-    <div className="min-h-dvh bg-background text-foreground flex flex-col justify-between selection:bg-primary selection:text-white">
+    <div className="min-h-full bg-background text-foreground flex flex-col justify-between selection:bg-primary selection:text-white">
       {/* Top Header */}
       <header className="border-b border-border/80 bg-surface/60 backdrop-blur px-6 py-4 flex items-center justify-between sticky top-0 z-20">
         <div className="flex items-center gap-3">

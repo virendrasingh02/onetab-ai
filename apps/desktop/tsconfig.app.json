@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    /*
+     * The main process runs in Node, not through a bundler, so this project
+     * actually emits JavaScript — unlike the libraries, which only emit
+     * declarations.
+     */
+    "emitDeclarationOnly": false,
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo",
+    /*
+     * `apps/desktop/package.json` has no `"type": "module"`, so under
+     * `nodenext` every `.ts` here compiles to CommonJS. That is deliberate:
+     * `sandbox: true` preload scripts must be CommonJS, and Electron loads a
+     * CommonJS main process on every supported platform.
+     */
+    "sourceMap": true,
+    "lib": ["es2023"],
+    "types": ["node", "electron"],
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["dist", "**/*.spec.ts", "**/*.test.ts"]
+}

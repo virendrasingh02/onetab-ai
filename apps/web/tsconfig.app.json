@@ -32,6 +32,9 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
+      "path": "../../libs/web/desktop/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/shared/design-system/tsconfig.lib.json"
     },
     {

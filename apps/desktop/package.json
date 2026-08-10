@@ -1,12 +1,65 @@
 {
   "name": "@org/desktop",
   "version": "0.0.1",
+  "description": "OneTab AI desktop shell — hosts the web app in Electron and adds the native capabilities a browser tab cannot provide.",
   "private": true,
-  "main": "./src/main.ts",
+  "main": "./dist/main.js",
   "nx": {
-    "tags": [
-      "type:app",
-      "scope:desktop"
-    ]
+    "tags": ["type:app", "scope:desktop"],
+    "targets": {
+      "build": {
+        "executor": "nx:run-commands",
+        "cache": true,
+        "inputs": [
+          "production",
+          "^production",
+          "!{projectRoot}/dist/**/*",
+          "!{projectRoot}/release/**/*"
+        ],
+        "outputs": ["{projectRoot}/dist", "{projectRoot}/resources"],
+        "options": {
+          "commands": [
+            "tsc -b apps/desktop/tsconfig.app.json --force",
+            "node apps/desktop/scripts/make-icons.mjs"
+          ],
+          "parallel": false
+        }
+      },
+      "test": {
+        "executor": "nx:run-commands",
+        "cache": true,
+        "outputs": ["{projectRoot}/test-output/vitest/coverage"],
+        "options": {
+          "command": "node apps/desktop/scripts/run-tests.mjs",
+          "cwd": "{workspaceRoot}"
+        }
+      },
+      "icons": {
+        "executor": "nx:run-commands",
+        "cache": true,
+        "outputs": ["{projectRoot}/resources"],
+        "options": {
+          "command": "node apps/desktop/scripts/make-icons.mjs"
+        }
+      },
+      "serve": {
+        "executor": "nx:run-commands",
+        "cache": false,
+        "dependsOn": ["build"],
+        "options": {
+          "command": "node apps/desktop/scripts/run-electron.mjs",
+          "cwd": "{workspaceRoot}"
+        }
+      },
+      "package": {
+        "executor": "nx:run-commands",
+        "cache": false,
+        "dependsOn": ["build", "@org/web:build"],
+        "options": {
+          "command": "electron-builder --config apps/desktop/electron-builder.json --publish never",
+          "cwd": "{workspaceRoot}"
+        }
+      }
+    }
   }
 }

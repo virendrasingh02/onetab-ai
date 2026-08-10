@@ -29,6 +29,9 @@
       "path": "../ai/tsconfig.lib.json"
     },
     {
+      "path": "../desktop/tsconfig.lib.json"
+    },
+    {
       "path": "../workspace/tsconfig.lib.json"
     },
     {

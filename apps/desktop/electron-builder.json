@@ -1,0 +1,59 @@
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "ai.onetab.desktop",
+  "productName": "OneTab AI",
+  "copyright": "Copyright © OneTab AI",
+  "directories": {
+    "output": "apps/desktop/release",
+    "buildResources": "apps/desktop/resources"
+  },
+  "files": [
+    "apps/desktop/dist/**/*",
+    "apps/desktop/resources/**/*",
+    "apps/desktop/package.json",
+    "!**/*.map"
+  ],
+  "extraResources": [
+    {
+      "comment": "The built web bundle; `resolveAppUrl()` serves it from process.resourcesPath.",
+      "from": "apps/web/dist",
+      "to": "web"
+    }
+  ],
+  "asar": true,
+  "protocols": [
+    {
+      "name": "OneTab AI",
+      "schemes": ["onetab"]
+    }
+  ],
+  "win": {
+    "target": ["nsis"],
+    "icon": "apps/desktop/resources/icon.png"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true
+  },
+  "mac": {
+    "target": ["dmg", "zip"],
+    "category": "public.app-category.productivity",
+    "icon": "apps/desktop/resources/icon.png",
+    "hardenedRuntime": true,
+    "entitlements": "apps/desktop/resources/entitlements.mac.plist",
+    "entitlementsInherit": "apps/desktop/resources/entitlements.mac.plist"
+  },
+  "linux": {
+    "target": ["AppImage", "deb"],
+    "category": "Office",
+    "icon": "apps/desktop/resources/icon.png",
+    "desktop": {
+      "entry": {
+        "MimeType": "x-scheme-handler/onetab;"
+      }
+    }
+  }
+}

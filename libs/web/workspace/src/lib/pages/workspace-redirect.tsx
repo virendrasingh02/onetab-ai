@@ -21,7 +21,7 @@ export function WorkspaceRedirect() {
   if (first) return <Navigate to={`/w/${first.slug}`} replace />;
 
   return (
-    <div className="p-6 grid min-h-dvh place-items-center">
+    <div className="p-6 grid min-h-full place-items-center">
       <EmptyState
         size="lg"
         icon={<Building2 />}

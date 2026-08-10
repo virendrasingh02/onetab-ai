@@ -23,7 +23,7 @@ export function AuthLayout({
   className,
 }: AuthLayoutProps) {
   return (
-    <div className="lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] grid min-h-dvh">
+    <div className="lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] grid min-h-full">
       <aside className="p-10 lg:flex relative hidden flex-col justify-between overflow-hidden bg-sidebar text-sidebar-foreground">
         {/* Decorative wash — purely presentational, hidden from AT. */}
         <div

@@ -191,6 +191,9 @@
     },
     {
       "path": "./apps/extension"
+    },
+    {
+      "path": "./libs/web/desktop"
     }
   ],
   "compilerOptions": {}

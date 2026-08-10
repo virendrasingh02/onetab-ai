@@ -54,6 +54,7 @@ import {
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useLocation, useSearchParams } from 'react-router-dom';
+import { DesktopSettingsCard } from '@org/web-desktop';
 import { SlackNotionImportView } from '@org/web-integrations';
 import {
   useCurrentWorkspace,
@@ -365,6 +366,9 @@ export function WorkspaceSettingsPage() {
               ))}
             </CardContent>
           </Card>
+
+          {/* Renders only inside the Electron shell. */}
+          <DesktopSettingsCard />
         </TabsContent>
 
         {/* Tab 3: Account Security */}

@@ -15,6 +15,7 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useChannels } from '@org/web-channels';
+import { useDesktopCommand } from '@org/web-desktop';
 import { useCurrentWorkspace, useWorkspaces } from '@org/web-workspace';
 import {
   ArrowUp,
@@ -137,12 +138,28 @@ export function AppShell() {
   const { slug, workspace, workspaceId, isLoading } = useCurrentWorkspace();
   const channelsQuery = useChannels(workspaceId);
 
+  /*
+   * The native menu bar, the tray menu and the global shortcut all reach the UI
+   * through these. Registered before the early returns below so the hook order
+   * stays stable, and no-ops in the browser where nothing ever fires them.
+   */
+  useDesktopCommand('open-search', () => palette.setOpen(true));
+  useDesktopCommand('open-shortcuts', () => palette.setOpen(true));
+  useDesktopCommand('open-ai-assistant', () => setRightPanelOpen(true));
+  useDesktopCommand('toggle-sidebar', () => setSidebarOpen((value) => !value));
+  useDesktopCommand('new-channel', () => {
+    if (slug) navigate(`/w/${slug}/channels/new`);
+  });
+  useDesktopCommand('open-settings', () => {
+    if (slug) navigate(`/w/${slug}/settings`);
+  });
+
   if (!user) return <LoadingState fullPage />;
 
   // Signed in but with no workspace yet — send them to onboarding.
   if (workspacesQuery.isSuccess && workspacesQuery.data.length === 0) {
     return (
-      <div className="p-6 grid min-h-dvh place-items-center">
+      <div className="p-6 grid min-h-full place-items-center">
         <EmptyState
           size="lg"
           icon={<Building2 />}
@@ -164,7 +181,7 @@ export function AppShell() {
 
   if (!workspace || !slug || !workspaceId) {
     return (
-      <div className="p-6 grid min-h-dvh place-items-center">
+      <div className="p-6 grid min-h-full place-items-center">
         <EmptyState
           icon={<Building2 />}
           title="Workspace not found"
@@ -183,7 +200,9 @@ export function AppShell() {
     <TooltipProvider delayDuration={300}>
       <div
         className={cn(
-          'flex h-dvh overflow-hidden bg-background text-foreground font-sans relative',
+          // `h-full`, not `h-dvh`: `DesktopChrome` owns the viewport height and
+          // this fills whatever is left below the title bar.
+          'flex h-full overflow-hidden bg-background text-foreground font-sans relative',
           isResizing && 'select-none cursor-col-resize',
         )}
       >
