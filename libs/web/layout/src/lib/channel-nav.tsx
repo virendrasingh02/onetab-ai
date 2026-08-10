@@ -275,21 +275,12 @@ function ProjectsTreeSection({ workspaceSlug }: { workspaceSlug: string }) {
         </Hint>
       }
     >
-      <li>
-        <NavLink
-          to={`/w/${workspaceSlug}/tasks?view=projects`}
-          className={({ isActive }) =>
-            navRowClass(isActive && location.search.includes('view=projects'))
-          }
-        >
-          <FolderKanban className="size-4 shrink-0 text-primary" aria-hidden />
-          <span className="flex-1 truncate font-medium">All Projects</span>
-        </NavLink>
-      </li>
-
-      {projects.map((proj: any) => {
+      {projects.map((proj: any, index: number) => {
         const projTo = `/w/${workspaceSlug}/tasks?project=${proj.id}`;
-        const isSelected = location.pathname.includes('/tasks') && location.search.includes(`project=${proj.id}`);
+        const isSelected =
+          location.pathname.includes('/tasks') &&
+          (location.search.includes(`project=${proj.id}`) ||
+            (!location.search.includes('project=') && index === 0));
 
         return (
           <li key={proj.id} className="group/proj relative">
@@ -341,6 +332,19 @@ function ProjectsTreeSection({ workspaceSlug }: { workspaceSlug: string }) {
           </li>
         );
       })}
+
+      <NavLink
+        to={`/w/${workspaceSlug}/tasks?newProject=true`}
+        className={cn(
+          'group flex w-full items-center gap-2.5 rounded-btn py-1.5 pr-2 pl-3 text-[13px]',
+          'text-muted-foreground transition-colors duration-(--duration-fast) ease-standard',
+          'hover:bg-accent hover:text-foreground',
+          'outline-none focus-visible:ring-1 focus-visible:ring-ring',
+        )}
+      >
+        <Plus className="size-4 shrink-0" aria-hidden />
+        <span className="flex-1 truncate text-left">Add project</span>
+      </NavLink>
     </Section>
   );
 }

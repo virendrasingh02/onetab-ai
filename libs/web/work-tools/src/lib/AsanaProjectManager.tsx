@@ -1,4 +1,5 @@
 import {
+  Badge,
   Button,
   Dialog,
   DialogContent,
@@ -21,32 +22,46 @@ import {
 import { cn } from '@org/utils';
 import {
   ClipboardList,
+  Filter,
   Kanban,
   LayoutDashboard,
   MoreHorizontal,
   Pencil,
   Plus,
   Search,
+  SlidersHorizontal,
   Sparkles,
   Timeline,
   Trash2,
 } from 'lucide-react';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ProjectDashboardView } from './asana/ProjectDashboardView.js';
 import { ProjectListView } from './asana/ProjectListView.js';
 import { ProjectTimelineView } from './asana/ProjectTimelineView.js';
 import { boardReducer, type BoardAction } from './kanban/board-state.js';
+import {
+  countActiveFilters,
+  EMPTY_FILTER,
+  type BoardFilter,
+} from './kanban/card-meta.js';
 import { CardDetailsDialog } from './kanban/CardDetailsDialog.js';
+import { LinearFilterMenu } from './kanban/LinearFilterMenu.js';
 import {
   useProjectBoards,
   type ProjectCategory,
   type ProjectColor,
 } from './kanban/project-boards-hook.js';
+import {
+  ViewDisplayMenu,
+  type DisplayPropertiesState,
+} from './kanban/ViewDisplayMenu.js';
 import { KanbanBoard } from './KanbanBoard.js';
 
 export type AsanaViewMode = 'list' | 'board' | 'timeline' | 'dashboard';
 
 export function AsanaProjectManager() {
+  const [searchParams] = useSearchParams();
   const {
     projects,
     activeProject,
@@ -58,9 +73,47 @@ export function AsanaProjectManager() {
     deleteProject,
   } = useProjectBoards();
 
-  const [viewMode, setViewMode] = useState<AsanaViewMode>('list');
+  // Sync project selection from URL search params
+  useEffect(() => {
+    const projParam = searchParams.get('project');
+    if (projParam && projects.some((p) => p.id === projParam)) {
+      setActiveProjectId(projParam);
+    }
+  }, [searchParams, projects, setActiveProjectId]);
+
+  const [viewMode, setViewMode] = useState<AsanaViewMode>('board');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+
+  // Board Filter & Menu State (Moved to top header next to Display button)
+  const [filter, setFilter] = useState<BoardFilter>(EMPTY_FILTER);
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+  const [showAIFilterInput, setShowAIFilterInput] = useState(false);
+  const filterCount = countActiveFilters(filter);
+
+  // View Display Options Popover State (Ref matching Linear style)
+  const [isViewDisplayOpen, setIsViewDisplayOpen] = useState(false);
+  const [grouping, setGrouping] = useState('no_grouping');
+  const [ordering, setOrdering] = useState('manual');
+  const [showClosed, setShowClosed] = useState('all');
+  const [displayProps, setDisplayProps] = useState<DisplayPropertiesState>({
+    milestones: true,
+    summary: true,
+    priority: true,
+    status: true,
+    health: true,
+    teams: false,
+    lead: true,
+    members: true,
+    dependencies: false,
+    startDate: false,
+    targetDate: true,
+    issues: true,
+    created: true,
+    updated: true,
+    completed: true,
+    labels: true,
+  });
 
   // New Project Dialog State
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
@@ -157,143 +210,164 @@ export function AsanaProjectManager() {
   return (
     <div className="flex flex-col h-full w-full bg-background text-foreground overflow-hidden">
       {/* Top Header */}
-      <header className="flex flex-col border-b border-border/50 bg-card/60 px-6 pt-4 pb-0 gap-3">
-        {/* Project Selector & Actions Row */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <IconPickerPopover
-              icon={activeProject.icon}
-              iconColor={activeProject.iconColor}
-              onSelectIcon={(newIcon: string, newColor?: string) =>
-                updateProjectIcon(activeProject.id, newIcon, newColor)
-              }
-              onRemoveIcon={() =>
-                updateProjectIcon(activeProject.id, 'Folder', undefined)
-              }
-              trigger={
-                <button
-                  type="button"
-                  className="size-8 rounded-lg bg-surface-raised border border-border flex items-center justify-center hover:scale-105 transition-all cursor-pointer shadow-sm"
-                  title="Click to update project icon & color"
-                >
-                  <IconRenderer
-                    icon={activeProject.icon}
-                    iconColor={activeProject.iconColor}
-                    fallbackEmoji="📁"
-                    sizeClassName="size-4"
-                  />
-                </button>
-              }
-            />
+      <header className="relative flex flex-wrap items-center justify-between border-b border-border/50 bg-card/60 px-6 py-3.5 gap-4">
+        {/* Project Icon & Title */}
+        <div className="flex items-center gap-2.5">
+          <IconPickerPopover
+            icon={activeProject.icon}
+            iconColor={activeProject.iconColor}
+            onSelectIcon={(newIcon: string, newColor?: string) =>
+              updateProjectIcon(activeProject.id, newIcon, newColor)
+            }
+            onRemoveIcon={() =>
+              updateProjectIcon(activeProject.id, 'Folder', undefined)
+            }
+            trigger={
+              <button
+                type="button"
+                className="size-8 rounded-lg bg-surface-raised border border-border flex items-center justify-center hover:scale-105 transition-all cursor-pointer shadow-sm"
+                title="Click to update project icon & color"
+              >
+                <IconRenderer
+                  icon={activeProject.icon}
+                  iconColor={activeProject.iconColor}
+                  fallbackEmoji="📁"
+                  sizeClassName="size-4"
+                />
+              </button>
+            }
+          />
 
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Projects</h1>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">
+            {activeProject.name}
+          </h1>
 
-            {/* Project Options Actions Menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                  title="Project Options"
+          {/* Project Options Actions Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                title="Project Options"
+              >
+                <MoreHorizontal className="size-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              <DropdownMenuItem onClick={handleOpenEditProject} className="text-xs gap-2">
+                <Pencil className="size-3.5 text-primary" />
+                Edit Project Details
+              </DropdownMenuItem>
+              {projects.length > 1 && (
+                <DropdownMenuItem
+                  onClick={() => deleteProject(activeProject.id)}
+                  className="text-xs gap-2 text-destructive focus:text-destructive"
                 >
-                  <MoreHorizontal className="size-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48">
-                <DropdownMenuItem onClick={handleOpenEditProject} className="text-xs gap-2">
-                  <Pencil className="size-3.5 text-primary" />
-                  Edit Project Details
+                  <Trash2 className="size-3.5" />
+                  Delete Project
                 </DropdownMenuItem>
-                {projects.length > 1 && (
-                  <DropdownMenuItem
-                    onClick={() => deleteProject(activeProject.id)}
-                    className="text-xs gap-2 text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="size-3.5" />
-                    Delete Project
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Search Input */}
-            <div className="relative w-48 sm:w-64">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
-              <Input
-                placeholder="Search tasks..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 text-xs h-8 bg-muted/40"
-              />
-            </div>
-
-            {/* Quick Add Task Button */}
-            <Button size="sm" onClick={handleQuickAddTask} className="gap-1.5 font-semibold text-xs">
-              <Plus className="w-4 h-4" />
-              Add Task
-            </Button>
-          </div>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        {/* View Navigation Tabs (Asana Style) */}
-        <div className="flex items-center gap-1 border-t border-border/30 pt-1 -mb-px overflow-x-auto">
-          <button
-            type="button"
-            onClick={() => setViewMode('list')}
-            className={cn(
-              'flex items-center gap-2 px-3 py-2 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap',
-              viewMode === 'list'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <ClipboardList className="w-4 h-4" />
-            List
-          </button>
+        {/* Right Action Bar */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Search / Filter Cards Input */}
+          <div className="relative w-36 sm:w-52">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
+            <Input
+              placeholder="Filter cards..."
+              value={filter.query || searchQuery}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSearchQuery(val);
+                setFilter((prev) => ({ ...prev, query: val }));
+              }}
+              className="pl-8 text-xs h-8 bg-muted/40"
+            />
+          </div>
 
-          <button
-            type="button"
-            onClick={() => setViewMode('board')}
-            className={cn(
-              'flex items-center gap-2 px-3 py-2 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap',
-              viewMode === 'board'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            )}
+          {/* AI Filter Quick Toggle */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowAIFilterInput(!showAIFilterInput)}
+            className="gap-1.5 text-xs h-8 border-accent-violet/30 text-accent-violet hover:bg-accent-violet-soft cursor-pointer"
           >
-            <Kanban className="w-4 h-4" />
-            Board
-          </button>
+            <Sparkles className="size-3.5 text-accent-violet shrink-0" />
+            <span className="hidden sm:inline">AI filter</span>
+          </Button>
 
-          <button
-            type="button"
-            onClick={() => setViewMode('timeline')}
-            className={cn(
-              'flex items-center gap-2 px-3 py-2 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap',
-              viewMode === 'timeline'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <Timeline className="w-4 h-4" />
-            Timeline
-          </button>
+          {/* Filter Menu Trigger Button (Linear Style) */}
+          <div className="relative">
+            <Button
+              variant={isFilterMenuOpen || filterCount > 0 ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
+              className="gap-1.5 text-xs h-8 font-medium cursor-pointer"
+            >
+              <Filter className="size-3.5 text-muted-foreground" />
+              <span>Filter</span>
+              {filterCount > 0 ? (
+                <Badge variant="count" className="bg-primary/20 text-primary">
+                  {filterCount}
+                </Badge>
+              ) : null}
+            </Button>
 
-          <button
-            type="button"
-            onClick={() => setViewMode('dashboard')}
-            className={cn(
-              'flex items-center gap-2 px-3 py-2 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap',
-              viewMode === 'dashboard'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <LayoutDashboard className="w-4 h-4" />
-            Dashboard
-          </button>
+            {/* Linear Filter Menu Popover */}
+            <LinearFilterMenu
+              filter={filter}
+              setFilter={setFilter}
+              labels={board.labels}
+              members={board.members}
+              lists={board.lists}
+              isOpen={isFilterMenuOpen}
+              onClose={() => setIsFilterMenuOpen(false)}
+              onActivateAIFilter={() => setShowAIFilterInput(true)}
+            />
+          </div>
+
+          {/* Display & View Options Button (Linear Ref Popover) */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsViewDisplayOpen(!isViewDisplayOpen)}
+              className={cn(
+                'flex items-center gap-1.5 px-3 h-8 rounded-md text-xs font-medium border border-border/60 hover:bg-accent transition-colors cursor-pointer',
+                isViewDisplayOpen && 'bg-accent border-primary/50 text-foreground font-semibold'
+              )}
+              title="Display properties & View options"
+            >
+              <SlidersHorizontal className="size-3.5 text-muted-foreground" />
+              <span>Display</span>
+            </button>
+
+            {/* View Display Menu Popover */}
+            <ViewDisplayMenu
+              isOpen={isViewDisplayOpen}
+              onClose={() => setIsViewDisplayOpen(false)}
+              viewMode={viewMode}
+              onViewModeChange={(m) => setViewMode(m)}
+              grouping={grouping}
+              onGroupingChange={setGrouping}
+              ordering={ordering}
+              onOrderingChange={setOrdering}
+              showClosed={showClosed}
+              onShowClosedChange={setShowClosed}
+              displayProps={displayProps}
+              onToggleDisplayProp={(key) =>
+                setDisplayProps((prev) => ({ ...prev, [key]: !prev[key] }))
+              }
+            />
+          </div>
+
+          {/* Quick Add Task Button */}
+          <Button size="sm" onClick={handleQuickAddTask} className="gap-1.5 font-semibold text-xs h-8">
+            <Plus className="w-4 h-4" />
+            Add Task
+          </Button>
         </div>
       </header>
 
@@ -315,12 +389,19 @@ export function AsanaProjectManager() {
               dispatchBoardAction({ type: 'card/add', listId, title, edge: 'bottom' })
             }
             onSelectCard={(card) => setSelectedCardId(card.id)}
-            searchQuery={searchQuery}
+            searchQuery={filter.query || searchQuery}
           />
         )}
 
         {viewMode === 'board' && (
-          <KanbanBoard />
+          <KanbanBoard
+            filter={filter}
+            setFilter={setFilter}
+            isFilterMenuOpen={isFilterMenuOpen}
+            setIsFilterMenuOpen={setIsFilterMenuOpen}
+            showAIFilterInput={showAIFilterInput}
+            setShowAIFilterInput={setShowAIFilterInput}
+          />
         )}
 
         {viewMode === 'timeline' && (

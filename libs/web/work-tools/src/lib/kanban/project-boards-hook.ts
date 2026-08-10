@@ -41,6 +41,17 @@ function createSeedProjects(): ProjectBoardItem[] {
 
   return [
     {
+      id: 'proj_shopify',
+      name: 'Shopify',
+      category: 'Product',
+      color: 'amber',
+      icon: 'ShoppingBag',
+      iconColor: '#f59e0b',
+      description: 'E-commerce storefront integration and custom theme workflows.',
+      board: { ...seedBoard, title: 'Shopify' },
+      updatedAt: new Date().toISOString(),
+    },
+    {
       id: 'proj_product',
       name: 'Q3 Product & Platform Release',
       category: 'Product',

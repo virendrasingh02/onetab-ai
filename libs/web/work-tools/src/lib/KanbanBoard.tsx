@@ -87,7 +87,23 @@ type DragState =
 const EDGE_ZONE = 96;
 const EDGE_SPEED = 22;
 
-export function KanbanBoard() {
+export interface KanbanBoardProps {
+  filter?: BoardFilter;
+  setFilter?: React.Dispatch<React.SetStateAction<BoardFilter>>;
+  isFilterMenuOpen?: boolean;
+  setIsFilterMenuOpen?: (open: boolean) => void;
+  showAIFilterInput?: boolean;
+  setShowAIFilterInput?: (show: boolean) => void;
+}
+
+export function KanbanBoard({
+  filter: externalFilter,
+  setFilter: externalSetFilter,
+  isFilterMenuOpen: externalIsFilterMenuOpen,
+  setIsFilterMenuOpen: externalSetIsFilterMenuOpen,
+  showAIFilterInput: externalShowAIFilterInput,
+  setShowAIFilterInput: externalSetShowAIFilterInput,
+}: KanbanBoardProps = {}) {
   const [searchParams] = useSearchParams();
   const {
     projects,
@@ -138,9 +154,17 @@ export function KanbanBoard() {
     updateActiveBoardState(board);
   }, [board]);
 
-  const [filter, setFilter] = useState<BoardFilter>(EMPTY_FILTER);
-  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
-  const [showAIFilterInput, setShowAIFilterInput] = useState(false);
+  const [internalFilter, setInternalFilter] = useState<BoardFilter>(EMPTY_FILTER);
+  const filter = externalFilter ?? internalFilter;
+  const setFilter = externalSetFilter ?? setInternalFilter;
+
+  const [internalIsFilterMenuOpen, setInternalIsFilterMenuOpen] = useState(false);
+  const isFilterMenuOpen = externalIsFilterMenuOpen ?? internalIsFilterMenuOpen;
+  const setIsFilterMenuOpen = externalSetIsFilterMenuOpen ?? setInternalIsFilterMenuOpen;
+
+  const [internalShowAIFilterInput, setInternalShowAIFilterInput] = useState(false);
+  const showAIFilterInput = externalShowAIFilterInput ?? internalShowAIFilterInput;
+  const setShowAIFilterInput = externalSetShowAIFilterInput ?? setInternalShowAIFilterInput;
   const [aiPromptInput, setAiPromptInput] = useState('');
   const [showLabelText] = useState(true);
   const [openCardId, setOpenCardId] = useState<string | null>(null);
@@ -336,287 +360,10 @@ export function KanbanBoard() {
 
   return (
     <div className="group/board min-h-128 px-4 sm:px-6 py-4 sm:py-6 flex h-full flex-col overflow-hidden text-foreground">
-      {/* 1. Top Header: Project Selector & View Mode Switcher */}
-      <header className="mb-4 gap-x-4 gap-y-3 flex flex-wrap items-center justify-between">
-        <div className="min-w-0 flex items-center gap-3">
-          {/* Project Switcher Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="group flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-left hover:bg-accent transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                aria-label="Switch project board"
-              >
-                <div
-                  className={cn(
-                    'flex size-7 shrink-0 items-center justify-center rounded-md text-primary-foreground font-bold text-xs',
-                    accentClasses[activeProject.color].bg,
-                  )}
-                >
-                  <Kanban className="size-4" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="truncate text-xs sm:text-sm font-semibold text-foreground">
-                      {activeProject.name}
-                    </span>
-                    <ChevronDown className="size-3.5 text-subtle group-hover:text-foreground transition-colors" />
-                  </div>
-                  <p className="text-[10px] text-muted-foreground truncate">
-                    {activeProject.category} · {totals.all} tasks
-                  </p>
-                </div>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-72 p-1 text-xs">
-              <DropdownMenuLabel className="px-2 py-1 text-[10px] uppercase font-semibold text-subtle">
-                Project Boards ({projects.length})
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <div className="space-y-0.5 max-h-60 overflow-y-auto">
-                {projects.map((p) => {
-                  const isSelected = p.id === activeProjectId;
-                  const totalCards = p.board.lists.reduce((acc, l) => acc + l.cards.length, 0);
-                  const doneCards = p.board.lists.find((l) => l.title.toLowerCase().includes('done'))?.cards.length ?? 0;
-
-                  return (
-                    <DropdownMenuItem
-                      key={p.id}
-                      onSelect={() => {
-                        setActiveProjectId(p.id);
-                        setViewMode('board');
-                      }}
-                      className={cn(
-                        'flex items-center justify-between gap-2 p-2 rounded-md cursor-pointer',
-                        isSelected && 'bg-selected font-medium',
-                      )}
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span
-                          className={cn(
-                            'size-2.5 rounded-full shrink-0',
-                            accentClasses[p.color].bg,
-                          )}
-                        />
-                        <div className="min-w-0">
-                          <p className="font-medium truncate text-foreground">{p.name}</p>
-                          <p className="text-[10px] text-subtle truncate">
-                            {p.category} · {doneCards}/{totalCards} completed
-                          </p>
-                        </div>
-                      </div>
-                      {isSelected ? <Check className="size-3.5 text-primary shrink-0" /> : null}
-                    </DropdownMenuItem>
-                  );
-                })}
-              </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={() => setIsNewProjectOpen(true)}
-                className="cursor-pointer text-primary font-medium flex items-center gap-1.5"
-              >
-                <Plus className="size-3.5" />
-                <span>Create New Project Board</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* View Mode Pills */}
-          <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1">
-            <button
-              onClick={() => setViewMode('board')}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors select-none',
-                viewMode === 'board'
-                  ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <SquareKanban className="size-3.5" />
-              <span>Board</span>
-            </button>
-            <button
-              onClick={() => setViewMode('projects')}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors select-none',
-                viewMode === 'projects'
-                  ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <LayoutGrid className="size-3.5" />
-              <span>All Projects ({projects.length})</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Header Right Actions */}
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            onClick={() => setIsNewProjectOpen(true)}
-            className="gap-1 text-xs px-3 bg-primary hover:bg-primary-hover text-primary-foreground font-medium shadow-xs"
-          >
-            <Plus className="size-3.5" />
-            <span>New Project</span>
-          </Button>
-        </div>
-      </header>
-
-      {/* 2. Content View: Either All Projects Grid OR Active Board View */}
-      {viewMode === 'projects' ? (
-        /* ALL PROJECTS GRID VIEW */
-        <div className="flex-1 overflow-y-auto space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Company Project Boards
-            </h2>
-            <span className="text-xs text-subtle">
-              Showing {projects.length} project board{projects.length === 1 ? '' : 's'}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {projects.map((proj) => {
-              const totalCards = proj.board.lists.reduce((acc, l) => acc + l.cards.length, 0);
-              const doneCards = proj.board.lists.find((l) => l.title.toLowerCase().includes('done'))?.cards.length ?? 0;
-              const percent = totalCards > 0 ? Math.round((doneCards / totalCards) * 100) : 0;
-              const isCurrent = proj.id === activeProjectId;
-
-              return (
-                <Card
-                  key={proj.id}
-                  className={cn(
-                    'relative flex flex-col justify-between transition-all duration-200 hover:border-primary/50 hover:shadow-xs',
-                    isCurrent && 'border-primary/60 ring-1 ring-primary/30',
-                  )}
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <Badge
-                        variant="neutral"
-                        className={cn(
-                          'text-[10px] font-semibold uppercase',
-                          accentClasses[proj.color].soft,
-                        )}
-                      >
-                        {proj.category}
-                      </Badge>
-                      {projects.length > 1 ? (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteProject(proj.id);
-                          }}
-                          className="text-subtle hover:text-destructive p-1 rounded-md transition-colors"
-                          title="Delete project"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      ) : null}
-                    </div>
-
-                    <CardTitle className="text-base font-semibold mt-2 group-hover:text-primary transition-colors">
-                      {proj.name}
-                    </CardTitle>
-                    <CardDescription className="text-xs line-clamp-2 leading-relaxed">
-                      {proj.description}
-                    </CardDescription>
-                  </CardHeader>
-
-                  <CardContent className="space-y-3 pt-0">
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-xs font-medium">
-                        <span className="text-muted-foreground text-[11px]">Task Progress</span>
-                        <span className="font-mono text-[11px] text-foreground">
-                          {doneCards}/{totalCards} ({percent}%)
-                        </span>
-                      </div>
-                      <Progress value={percent} className="h-1.5" />
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2 border-t border-border/60">
-                      <div className="flex items-center -space-x-1.5 overflow-hidden">
-                        {proj.board.members.slice(0, 3).map((m) => (
-                          <UserAvatar
-                            key={m.id}
-                            name={m.name}
-                            seed={m.id}
-                            size="xs"
-                            className="ring-2 ring-background"
-                          />
-                        ))}
-                      </div>
-
-                      <Button
-                        size="sm"
-                        variant={isCurrent ? 'primary' : 'outline'}
-                        onClick={() => {
-                          setActiveProjectId(proj.id);
-                          setViewMode('board');
-                        }}
-                        className="text-xs gap-1 h-7"
-                      >
-                        <span>{isCurrent ? 'Active Board' : 'Open Board'}</span>
-                        <ArrowRight className="size-3" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      ) : (
-        /* ACTIVE KANBAN BOARD VIEW */
-        <Fragment>
-          {/* Board Filter Toolbar & Controls */}
-          <div className="relative mb-4 shrink-0 space-y-2">
-            <Toolbar className="flex items-center justify-between gap-2">
-              <div className="relative flex-1 max-w-xs">
-                <Search
-                  aria-hidden
-                  className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
-                />
-                <Input
-                  value={filter.query}
-                  placeholder="Filter cards..."
-                  aria-label="Filter cards by title"
-                  className="pl-8 text-xs h-8"
-                  onChange={(event) =>
-                    setFilter((prev) => ({ ...prev, query: event.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                {/* AI Filter Quick Toggle */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAIFilterInput(!showAIFilterInput)}
-                  className="gap-1.5 text-xs h-8 border-accent-violet/30 text-accent-violet hover:bg-accent-violet-soft"
-                >
-                  <Sparkles className="size-3.5 text-accent-violet shrink-0" />
-                  <span className="hidden sm:inline">AI filter</span>
-                </Button>
-
-                {/* Filter Menu Trigger Button (Linear Style) */}
-                <Button
-                  variant={isFilterMenuOpen || filterCount > 0 ? 'secondary' : 'outline'}
-                  size="sm"
-                  onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
-                  className="gap-1.5 text-xs h-8 font-medium"
-                >
-                  <Filter className="size-3.5" />
-                  <span>Filter</span>
-                  {filterCount > 0 ? (
-                    <Badge variant="count" className="bg-primary/20 text-primary">
-                      {filterCount}
-                    </Badge>
-                  ) : null}
-                </Button>
-              </div>
-            </Toolbar>
+      {/* ACTIVE KANBAN BOARD VIEW */}
+      <Fragment>
+          {/* Board Filter Controls & AI Overlay */}
+          <div className="relative mb-2 shrink-0 space-y-2">
 
             {/* AI Filter Input Prompt Overlay Bar */}
             {showAIFilterInput && (
@@ -822,7 +569,6 @@ export function KanbanBoard() {
             )}
           </div>
         </Fragment>
-      )}
 
       {/* Card Details Dialog */}
       {openCardId ? (
