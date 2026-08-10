@@ -7,6 +7,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -52,10 +54,12 @@ import {
   ArrowRight,
   SquarePen,
   Settings,
+  Headphones,
+  UserPlus,
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 
 interface NavEntry {
   path: string;
@@ -992,6 +996,7 @@ export function ChannelNav({
   onCreateChannel,
   onBrowseChannels,
 }: ChannelNavProps) {
+  const navigate = useNavigate();
   const groups = useGroupedChannels(channels);
   const preferences = useChannelPreferences(workspaceId);
 
@@ -1225,16 +1230,193 @@ export function ChannelNav({
             </kbd>
           </button>
 
-          <button
-            onClick={onCreateChannel}
-            className={cn(
-              'flex size-9 items-center justify-center rounded-full bg-secondary/80 hover:bg-secondary text-secondary-foreground transition-colors border border-border/30 shrink-0',
-              'outline-none focus-visible:ring-1 focus-visible:ring-ring',
-            )}
-            aria-label="New item"
-          >
-            <SquarePen className="size-4 text-muted-foreground hover:text-foreground" />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  'flex size-9 items-center justify-center rounded-full bg-secondary/80 hover:bg-secondary text-secondary-foreground transition-colors border border-border/30 shrink-0 cursor-pointer',
+                  'outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                )}
+                aria-label="Create item"
+                title="Create..."
+              >
+                <Plus className="size-4 text-muted-foreground hover:text-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent
+              align="end"
+              side="top"
+              sideOffset={8}
+              className="w-80 p-1.5 bg-popover text-popover-foreground border border-border/80 shadow-2xl rounded-xl space-y-0.5 z-50"
+            >
+              <DropdownMenuLabel className="px-2.5 py-1.5 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                Create
+              </DropdownMenuLabel>
+
+              {/* AI Chat */}
+              <DropdownMenuItem
+                onClick={() => navigate(`/w/${workspaceSlug}/home`)}
+                className="flex items-center gap-3 px-2.5 py-2 rounded-lg cursor-pointer focus:bg-accent focus:text-accent-foreground transition-colors"
+              >
+                <div className="size-8 rounded-full bg-violet-500/15 border border-violet-500/30 flex items-center justify-center shrink-0">
+                  <Sparkles className="size-4 text-violet-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-foreground">AI Chat</span>
+                    <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border/40">
+                      Ctrl+O
+                    </kbd>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    Start a session with AI Copilot
+                  </p>
+                </div>
+              </DropdownMenuItem>
+
+              {/* Direct Message */}
+              <DropdownMenuItem
+                onClick={onCreateChannel}
+                className="flex items-center gap-3 px-2.5 py-2 rounded-lg cursor-pointer focus:bg-accent focus:text-accent-foreground transition-colors"
+              >
+                <div className="size-8 rounded-full bg-purple-500/15 border border-purple-500/30 flex items-center justify-center shrink-0">
+                  <SquarePen className="size-4 text-purple-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-foreground">Direct Message</span>
+                    <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border/40">
+                      Ctrl+N
+                    </kbd>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    Send a private message to a teammate
+                  </p>
+                </div>
+              </DropdownMenuItem>
+
+              {/* Channel */}
+              <DropdownMenuItem
+                onClick={onCreateChannel}
+                className="flex items-center gap-3 px-2.5 py-2 rounded-lg cursor-pointer focus:bg-accent focus:text-accent-foreground transition-colors"
+              >
+                <div className="size-8 rounded-full bg-muted border border-border/60 flex items-center justify-center shrink-0">
+                  <Hash className="size-4 text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-semibold text-foreground block">Channel</span>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    Create a topic or team channel
+                  </p>
+                </div>
+              </DropdownMenuItem>
+
+              {/* Project Board */}
+              <DropdownMenuItem
+                onClick={() => navigate(`/w/${workspaceSlug}/tasks`)}
+                className="flex items-center gap-3 px-2.5 py-2 rounded-lg cursor-pointer focus:bg-accent focus:text-accent-foreground transition-colors"
+              >
+                <div className="size-8 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
+                  <FolderKanban className="size-4 text-amber-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-semibold text-foreground block">Project Board</span>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    Track tasks & project boards
+                  </p>
+                </div>
+              </DropdownMenuItem>
+
+              {/* AI Agent */}
+              <DropdownMenuItem
+                onClick={() => navigate(`/w/${workspaceSlug}/agents/builder`)}
+                className="flex items-center gap-3 px-2.5 py-2 rounded-lg cursor-pointer focus:bg-accent focus:text-accent-foreground transition-colors"
+              >
+                <div className="size-8 rounded-full bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center shrink-0">
+                  <Bot className="size-4 text-cyan-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-semibold text-foreground block">AI Agent</span>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    Build a custom autonomous agent
+                  </p>
+                </div>
+              </DropdownMenuItem>
+
+              {/* Workflow */}
+              <DropdownMenuItem
+                onClick={() => navigate(`/w/${workspaceSlug}/automations/builder`)}
+                className="flex items-center gap-3 px-2.5 py-2 rounded-lg cursor-pointer focus:bg-accent focus:text-accent-foreground transition-colors"
+              >
+                <div className="size-8 rounded-full bg-rose-500/15 border border-rose-500/30 flex items-center justify-center shrink-0">
+                  <Workflow className="size-4 text-rose-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-semibold text-foreground block">Workflow</span>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    Automate tasks with visual builder
+                  </p>
+                </div>
+              </DropdownMenuItem>
+
+              {/* Doc & Note */}
+              <DropdownMenuItem
+                onClick={() => navigate(`/w/${workspaceSlug}/docs`)}
+                className="flex items-center gap-3 px-2.5 py-2 rounded-lg cursor-pointer focus:bg-accent focus:text-accent-foreground transition-colors"
+              >
+                <div className="size-8 rounded-full bg-blue-500/15 border border-blue-500/30 flex items-center justify-center shrink-0">
+                  <FileText className="size-4 text-blue-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-foreground">Doc & Note</span>
+                    <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border/40">
+                      Ctrl+Shift+N
+                    </kbd>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    Write collaborative documents & notes
+                  </p>
+                </div>
+              </DropdownMenuItem>
+
+              {/* Meeting */}
+              <DropdownMenuItem
+                onClick={() => navigate(`/w/${workspaceSlug}/meetings`)}
+                className="flex items-center gap-3 px-2.5 py-2 rounded-lg cursor-pointer focus:bg-accent focus:text-accent-foreground transition-colors"
+              >
+                <div className="size-8 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                  <Headphones className="size-4 text-emerald-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-semibold text-foreground block">Meeting</span>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    Start or schedule a video/audio chat
+                  </p>
+                </div>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator className="my-1 border-t border-border/60" />
+
+              {/* Invite Teammates */}
+              <DropdownMenuItem
+                onClick={() => navigate(`/w/${workspaceSlug}/directory`)}
+                className="flex items-center gap-3 px-2.5 py-2 rounded-lg cursor-pointer focus:bg-accent focus:text-accent-foreground transition-colors"
+              >
+                <div className="size-8 flex items-center justify-center shrink-0 text-muted-foreground">
+                  <UserPlus className="size-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-semibold text-foreground block">Invite Teammates</span>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    Add members to this workspace
+                  </p>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </div>

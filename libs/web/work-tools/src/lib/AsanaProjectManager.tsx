@@ -21,17 +21,13 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  ClipboardList,
   Filter,
-  Kanban,
-  LayoutDashboard,
   MoreHorizontal,
   Pencil,
   Plus,
   Search,
   SlidersHorizontal,
   Sparkles,
-  Timeline,
   Trash2,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -60,20 +56,6 @@ import { KanbanBoard } from './KanbanBoard.js';
 
 export type AsanaViewMode = 'list' | 'board' | 'timeline' | 'dashboard';
 
-/**
- * The view switcher also lives in the Display popover; this strip mirrors it so
- * the four views are reachable in one click rather than two.
- */
-const VIEW_TABS: readonly {
-  mode: AsanaViewMode;
-  label: string;
-  icon: typeof Kanban;
-}[] = [
-  { mode: 'list', label: 'List', icon: ClipboardList },
-  { mode: 'board', label: 'Board', icon: Kanban },
-  { mode: 'timeline', label: 'Timeline', icon: Timeline },
-  { mode: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-];
 
 export function AsanaProjectManager() {
   const [searchParams] = useSearchParams();
@@ -288,33 +270,6 @@ export function AsanaProjectManager() {
 
         {/* Right Action Bar */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* View Mode Tabs */}
-          <div
-            role="tablist"
-            aria-label="Project view"
-            className="flex items-center rounded-md border border-border/60 p-0.5"
-          >
-            {VIEW_TABS.map(({ mode, label, icon: Icon }) => (
-              <button
-                key={mode}
-                type="button"
-                role="tab"
-                aria-selected={viewMode === mode}
-                onClick={() => setViewMode(mode)}
-                title={`${label} view`}
-                className={cn(
-                  'flex items-center gap-1.5 rounded px-2 h-7 text-xs font-medium transition-colors cursor-pointer',
-                  viewMode === mode
-                    ? 'bg-accent text-foreground font-semibold'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <Icon className="size-3.5" />
-                <span className="hidden lg:inline">{label}</span>
-              </button>
-            ))}
-          </div>
-
           {/* Search / Filter Cards Input */}
           <div className="relative w-36 sm:w-52">
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />

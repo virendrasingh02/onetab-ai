@@ -35,7 +35,6 @@ import {
   Plus,
   Search,
   Sparkles,
-  SquareKanban,
   Trash2,
   X,
 } from 'lucide-react';
@@ -208,13 +207,6 @@ export function KanbanBoard({
     }
     return map;
   }, [board.lists, board.labels, filter]);
-
-  const totals = useMemo(() => {
-    const all = board.lists.reduce((sum, list) => sum + list.cards.length, 0);
-    let shown = 0;
-    for (const cards of visibleByList.values()) shown += cards.length;
-    return { all, shown };
-  }, [board.lists, visibleByList]);
 
   const filterCount = useMemo(() => countActiveFilters(filter), [filter]);
 
@@ -433,30 +425,7 @@ export function KanbanBoard({
       {/* ACTIVE KANBAN BOARD VIEW */}
       {viewMode === 'board' && (
         <Fragment>
-          {/* Board Context Strip: project switcher + visible card count */}
-          <Toolbar className="mb-2 shrink-0 justify-between">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setViewMode('projects')}
-                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                title="Browse all project boards"
-              >
-                <SquareKanban className="size-3.5" />
-                <span>All projects</span>
-              </button>
-              <span className="text-xs font-semibold text-foreground">
-                {activeProject.name}
-              </span>
-              <Badge variant="neutral">{activeProject.category}</Badge>
-            </div>
 
-            <span className="text-[11px] tabular-nums text-muted-foreground">
-              {totals.shown === totals.all
-                ? `${totals.all} cards`
-                : `Showing ${totals.shown} of ${totals.all} cards`}
-            </span>
-          </Toolbar>
 
           {/* Board Filter Controls & AI Overlay */}
           <div className="relative mb-2 shrink-0 space-y-2">
