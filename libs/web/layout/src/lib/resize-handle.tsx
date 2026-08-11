@@ -8,7 +8,8 @@ export interface ResizeHandleProps {
   currentWidth: number;
   minWidth: number;
   maxWidth: number;
-  onPointerDown: (e: React.PointerEvent) => void;
+  /** Receives the handle element itself — the drag reads its geometry. */
+  onPointerDown: (e: React.PointerEvent<HTMLElement>) => void;
   onDoubleClick: () => void;
   onStepWidth: (delta: number) => void;
   onResetWidth: () => void;
@@ -72,12 +73,18 @@ export function ResizeHandle({
       {/* Invisible expanded touch hit target */}
       <div className="absolute inset-y-0 -left-1.5 -right-1.5" />
 
-      {/* Visual Separator Line */}
+      {/*
+        Separator line. The active glow is expressed as a ring in `primary/40`
+        rather than a hand-built rgba shadow — the previous
+        `rgba(var(--primary-rgb), .5)` referenced a token the theme never
+        defined, so the whole shadow resolved to an invalid colour and no glow
+        ever painted.
+      */}
       <div
         className={cn(
-          'h-full w-[1px] transition-colors duration-150',
+          'h-full w-px transition-colors duration-(--duration-fast) ease-standard',
           isResizing
-            ? 'bg-primary shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]'
+            ? 'bg-primary ring-2 ring-primary/40'
             : 'bg-border group-hover:bg-primary/70 group-focus-visible:bg-primary',
         )}
       />

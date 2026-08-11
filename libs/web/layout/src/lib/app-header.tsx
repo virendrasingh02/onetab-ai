@@ -69,7 +69,7 @@ export function AppHeader({
   const searchShortcut = isApple ? '⌘K' : 'Ctrl K';
 
   return (
-    <header className="h-12 gap-2 sm:gap-3 px-2.5 sm:px-4 flex shrink-0 items-center border-b border-border bg-background">
+    <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-background px-2.5 sm:gap-3 sm:px-4">
       <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
         {onToggleSidebar ? (
           <Hint label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}>
@@ -78,18 +78,23 @@ export function AppHeader({
               size="icon-sm"
               onClick={onToggleSidebar}
               aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-              className={sidebarOpen ? 'hidden md:flex' : 'flex'}
+              aria-expanded={sidebarOpen}
+              /*
+               * Always rendered. It used to unmount itself on mobile whenever
+               * the sidebar was open, which shifted the whole title row
+               * sideways every time the drawer was toggled.
+               */
             >
               <PanelLeft className="size-4" />
             </Button>
           </Hint>
         ) : null}
 
-        <h1 className="text-[13px] font-medium text-foreground truncate tracking-tight">
+        <h1 className="truncate text-[13px] font-medium tracking-tight text-foreground">
           {title}
         </h1>
         {subtitle ? (
-          <span className="text-xs truncate text-subtle hidden sm:inline">
+          <span className="hidden truncate text-xs text-subtle sm:inline">
             · {subtitle}
           </span>
         ) : null}
@@ -155,11 +160,21 @@ export function AppHeader({
             size="sm"
             onClick={onToggleRightPanel}
             aria-pressed={rightPanelOpen}
-            aria-label="Ask AI"
-            className="gap-1 sm:gap-1.5 font-medium px-2 sm:px-3 text-xs"
+            aria-label={rightPanelOpen ? 'Close AI assistant' : 'Ask AI'}
+            className="gap-1 px-2 text-xs font-medium sm:gap-1.5 sm:px-3"
           >
-            <Sparkles className="size-3.5 text-primary" />
-            <span className="hidden xs:inline">Ask AI</span>
+            {/*
+              The icon inherits the button's own colour. Hard-coding
+              `text-primary` put primary on primary in the active state, which
+              made the glyph all but vanish exactly when the panel was open.
+            */}
+            <Sparkles className="size-3.5" />
+            {/*
+              Was `hidden xs:inline`. The theme defines no `xs` breakpoint, so
+              Tailwind generated no `xs:` rule at all and the label was hidden
+              at every width — the button read as an unlabelled icon.
+            */}
+            <span className="hidden sm:inline">Ask AI</span>
           </Button>
         </Hint>
 

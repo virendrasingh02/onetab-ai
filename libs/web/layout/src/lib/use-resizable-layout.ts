@@ -1,6 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const LAYOUT_STORAGE_KEY = 'onetab_layout_preferences_v1';
+
+/** Matches the `md:` breakpoint the shell uses to switch to drawer mode. */
+const MOBILE_BREAKPOINT = 768;
+
+/** No side panel may eat more than this share of the viewport. */
+const MAX_PANEL_VIEWPORT_RATIO = 0.45;
 
 export interface LayoutBounds {
   leftMin: number;
@@ -31,61 +37,109 @@ export interface UseResizableLayoutOptions {
   bounds?: Partial<LayoutBounds>;
 }
 
-export function useResizableLayout(options: UseResizableLayoutOptions = {}) {
-  const bounds: LayoutBounds = {
-    ...DEFAULT_LAYOUT_BOUNDS,
-    ...options.bounds,
-  };
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max);
 
-  // Safe initial load from localStorage
-  const getInitialState = (): StoredLayoutConfig => {
-    try {
-      const saved = localStorage.getItem(LAYOUT_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return {
-          leftWidth: typeof parsed.leftWidth === 'number'
-            ? Math.min(Math.max(parsed.leftWidth, bounds.leftMin), bounds.leftMax)
-            : bounds.leftDefault,
-          rightWidth: typeof parsed.rightWidth === 'number'
-            ? Math.min(Math.max(parsed.rightWidth, bounds.rightMin), bounds.rightMax)
-            : bounds.rightDefault,
-          sidebarOpen: typeof parsed.sidebarOpen === 'boolean' ? parsed.sidebarOpen : true,
-          rightPanelOpen: typeof parsed.rightPanelOpen === 'boolean' ? parsed.rightPanelOpen : true,
-        };
-      }
-    } catch (e) {
-      console.warn('Failed to load saved layout preferences:', e);
-    }
-    return {
+/** `window` is absent during SSR and during the desktop shell's prerender. */
+const canUseDOM = () => typeof window !== 'undefined';
+
+/**
+ * The hard ceiling for a panel: whichever is smaller, the configured maximum or
+ * a fixed share of the viewport. Recomputed per drag frame so the constraint
+ * still holds while the window itself is being resized.
+ */
+function viewportMax(configuredMax: number) {
+  if (!canUseDOM()) return configuredMax;
+  return Math.min(configuredMax, Math.floor(window.innerWidth * MAX_PANEL_VIEWPORT_RATIO));
+}
+
+/**
+ * Widths, open/closed state and drag behaviour for the shell's two resizable
+ * columns.
+ *
+ * Two things here are deliberate and easy to regress:
+ *
+ *  - Persistence is *desktop-only*. Below `md` the shell renders both panels as
+ *    overlay drawers whose open state is transient, so writing it back would let
+ *    a single phone visit clobber the widths and toggles the user set on their
+ *    desktop.
+ *  - Dragging uses pointer capture rather than bare `window` listeners, so the
+ *    gesture survives the cursor crossing an iframe or leaving the window — the
+ *    failure mode there was a panel stuck in resize mode after mouse-up.
+ */
+export function useResizableLayout(options: UseResizableLayoutOptions = {}) {
+  const { bounds: boundsOption } = options;
+
+  const bounds = useMemo<LayoutBounds>(
+    () => ({ ...DEFAULT_LAYOUT_BOUNDS, ...boundsOption }),
+    [boundsOption],
+  );
+
+  /* Read once, lazily. Guarded because `localStorage` throws in SSR and in
+     Safari's private mode. */
+  const [initial] = useState<StoredLayoutConfig>(() => {
+    const fallback: StoredLayoutConfig = {
       leftWidth: bounds.leftDefault,
       rightWidth: bounds.rightDefault,
       sidebarOpen: true,
       rightPanelOpen: true,
     };
-  };
 
-  const [initial] = useState<StoredLayoutConfig>(getInitialState);
+    if (!canUseDOM()) return fallback;
 
-  const [leftWidth, setLeftWidth] = useState<number>(initial.leftWidth);
-  const [rightWidth, setRightWidth] = useState<number>(initial.rightWidth);
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(initial.sidebarOpen);
-  const [rightPanelOpen, setRightPanelOpen] = useState<boolean>(initial.rightPanelOpen);
-  const [isResizing, setIsResizing] = useState<'left' | 'right' | null>(null);
-  const [isMobile, setIsMobile] = useState<boolean>(
-    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+    try {
+      const saved = window.localStorage.getItem(LAYOUT_STORAGE_KEY);
+      if (!saved) return fallback;
+
+      const parsed = JSON.parse(saved) as Partial<StoredLayoutConfig>;
+      return {
+        leftWidth:
+          typeof parsed.leftWidth === 'number'
+            ? clamp(parsed.leftWidth, bounds.leftMin, bounds.leftMax)
+            : fallback.leftWidth,
+        rightWidth:
+          typeof parsed.rightWidth === 'number'
+            ? clamp(parsed.rightWidth, bounds.rightMin, bounds.rightMax)
+            : fallback.rightWidth,
+        sidebarOpen:
+          typeof parsed.sidebarOpen === 'boolean'
+            ? parsed.sidebarOpen
+            : fallback.sidebarOpen,
+        rightPanelOpen:
+          typeof parsed.rightPanelOpen === 'boolean'
+            ? parsed.rightPanelOpen
+            : fallback.rightPanelOpen,
+      };
+    } catch {
+      return fallback;
+    }
+  });
+
+  const [isMobile, setIsMobile] = useState<boolean>(() =>
+    canUseDOM() ? window.innerWidth < MOBILE_BREAKPOINT : false,
   );
 
-  // Auto-collapse sidebars when first loaded on phone viewport
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      setSidebarOpen(false);
-      setRightPanelOpen(false);
-    }
-  }, []);
+  const [leftWidth, setLeftWidth] = useState(initial.leftWidth);
+  const [rightWidth, setRightWidth] = useState(initial.rightWidth);
+  const [isResizing, setIsResizing] = useState<'left' | 'right' | null>(null);
 
-  // Save to localStorage whenever dimensions or toggle states change
+  /*
+   * Drawers start closed on a phone regardless of what desktop preferred —
+   * an overlay covering the whole screen on first paint is never the right
+   * first impression.
+   */
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    canUseDOM() && window.innerWidth < MOBILE_BREAKPOINT ? false : initial.sidebarOpen,
+  );
+  const [rightPanelOpen, setRightPanelOpen] = useState(() =>
+    canUseDOM() && window.innerWidth < MOBILE_BREAKPOINT
+      ? false
+      : initial.rightPanelOpen,
+  );
+
+  /* Persist desktop layout only — see the note on the hook. */
   useEffect(() => {
+    if (isMobile || !canUseDOM()) return;
     try {
       const config: StoredLayoutConfig = {
         leftWidth,
@@ -93,106 +147,127 @@ export function useResizableLayout(options: UseResizableLayoutOptions = {}) {
         sidebarOpen,
         rightPanelOpen,
       };
-      localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(config));
-    } catch (e) {
-      console.warn('Failed to persist layout preferences:', e);
+      window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(config));
+    } catch {
+      /* Quota or private mode — layout preferences are not worth surfacing. */
     }
-  }, [leftWidth, rightWidth, sidebarOpen, rightPanelOpen]);
+  }, [isMobile, leftWidth, rightWidth, sidebarOpen, rightPanelOpen]);
 
-  // Recalculate widths and isMobile if screen window resizes
+  /*
+   * Track the breakpoint with `matchMedia` instead of a `resize` handler: it
+   * fires only when the boundary is actually crossed, not on every frame of a
+   * window drag.
+   */
   useEffect(() => {
+    if (!canUseDOM()) return;
+
+    const query = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+    const sync = (event: MediaQueryList | MediaQueryListEvent) => {
+      setIsMobile(event.matches);
+    };
+
+    sync(query);
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  }, []);
+
+  /* Shrink panels that no longer fit after the window narrows. */
+  useEffect(() => {
+    if (!canUseDOM()) return;
+
+    let frame = 0;
     const handleResize = () => {
-      const windowWidth = window.innerWidth;
-      setIsMobile(windowWidth < 768);
-      const maxSideWidth = Math.floor(windowWidth * 0.45);
-
-      setLeftWidth((prev) => {
-        const effectiveMax = Math.min(bounds.leftMax, maxSideWidth);
-        if (prev > effectiveMax && effectiveMax >= bounds.leftMin) {
-          return effectiveMax;
-        }
-        return prev;
-      });
-
-      setRightWidth((prev) => {
-        const effectiveMax = Math.min(bounds.rightMax, maxSideWidth);
-        if (prev > effectiveMax && effectiveMax >= bounds.rightMin) {
-          return effectiveMax;
-        }
-        return prev;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        setLeftWidth((prev) => Math.max(bounds.leftMin, Math.min(prev, viewportMax(bounds.leftMax))));
+        setRightWidth((prev) =>
+          Math.max(bounds.rightMin, Math.min(prev, viewportMax(bounds.rightMax))),
+        );
       });
     };
 
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', handleResize);
+    };
   }, [bounds.leftMax, bounds.leftMin, bounds.rightMax, bounds.rightMin]);
 
-  // Left sidebar dragging
-  const startLeftResize = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
-    setIsResizing('left');
+  /** Width of everything to the left of the resizable sidebar (the icon rail). */
+  const contentOffsetRef = useRef(0);
 
-    const handlePointerMove = (moveEvent: PointerEvent) => {
-      const newWidth = moveEvent.clientX;
-      const maxAllowed = Math.min(bounds.leftMax, Math.floor(window.innerWidth * 0.45));
-      const clamped = Math.min(Math.max(newWidth, bounds.leftMin), maxAllowed);
-      setLeftWidth(clamped);
-    };
+  const startResize = useCallback(
+    (side: 'left' | 'right') => (event: React.PointerEvent<HTMLElement>) => {
+      /* Ignore secondary buttons so a right-click never starts a drag. */
+      if (event.button !== 0) return;
+      event.preventDefault();
 
-    const handlePointerUp = () => {
-      setIsResizing(null);
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-    };
+      const handle = event.currentTarget;
+      handle.setPointerCapture(event.pointerId);
+      setIsResizing(side);
 
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-  }, [bounds.leftMax, bounds.leftMin]);
+      /*
+       * The sidebar no longer starts at x=0 now that the icon rail sits to its
+       * left, so width is measured from the panel's own left edge (the handle's
+       * immediately preceding sibling) rather than from the viewport.
+       */
+      contentOffsetRef.current =
+        side === 'left'
+          ? (handle.previousElementSibling?.getBoundingClientRect().left ?? 0)
+          : 0;
 
-  // Right sidebar dragging
-  const startRightResize = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
-    setIsResizing('right');
+      const handleMove = (moveEvent: PointerEvent) => {
+        if (side === 'left') {
+          const next = moveEvent.clientX - contentOffsetRef.current;
+          setLeftWidth(clamp(next, bounds.leftMin, viewportMax(bounds.leftMax)));
+        } else {
+          const next = window.innerWidth - moveEvent.clientX;
+          setRightWidth(clamp(next, bounds.rightMin, viewportMax(bounds.rightMax)));
+        }
+      };
 
-    const handlePointerMove = (moveEvent: PointerEvent) => {
-      const windowWidth = window.innerWidth;
-      const newWidth = windowWidth - moveEvent.clientX;
-      const maxAllowed = Math.min(bounds.rightMax, Math.floor(windowWidth * 0.45));
-      const clamped = Math.min(Math.max(newWidth, bounds.rightMin), maxAllowed);
-      setRightWidth(clamped);
-    };
+      const stop = () => {
+        setIsResizing(null);
+        handle.releasePointerCapture?.(event.pointerId);
+        handle.removeEventListener('pointermove', handleMove);
+        handle.removeEventListener('pointerup', stop);
+        handle.removeEventListener('pointercancel', stop);
+      };
 
-    const handlePointerUp = () => {
-      setIsResizing(null);
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-    };
+      handle.addEventListener('pointermove', handleMove);
+      handle.addEventListener('pointerup', stop);
+      handle.addEventListener('pointercancel', stop);
+    },
+    [bounds.leftMax, bounds.leftMin, bounds.rightMax, bounds.rightMin],
+  );
 
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-  }, [bounds.rightMax, bounds.rightMin]);
+  const startLeftResize = useMemo(() => startResize('left'), [startResize]);
+  const startRightResize = useMemo(() => startResize('right'), [startResize]);
 
-  const resetLeftWidth = useCallback(() => {
-    setLeftWidth(bounds.leftDefault);
-  }, [bounds.leftDefault]);
+  const resetLeftWidth = useCallback(
+    () => setLeftWidth(bounds.leftDefault),
+    [bounds.leftDefault],
+  );
+  const resetRightWidth = useCallback(
+    () => setRightWidth(bounds.rightDefault),
+    [bounds.rightDefault],
+  );
 
-  const resetRightWidth = useCallback(() => {
-    setRightWidth(bounds.rightDefault);
-  }, [bounds.rightDefault]);
+  const stepLeftWidth = useCallback(
+    (delta: number) =>
+      setLeftWidth((prev) =>
+        clamp(prev + delta, bounds.leftMin, viewportMax(bounds.leftMax)),
+      ),
+    [bounds.leftMax, bounds.leftMin],
+  );
 
-  const stepLeftWidth = useCallback((delta: number) => {
-    setLeftWidth((prev) => {
-      const maxAllowed = Math.min(bounds.leftMax, Math.floor(window.innerWidth * 0.45));
-      return Math.min(Math.max(prev + delta, bounds.leftMin), maxAllowed);
-    });
-  }, [bounds.leftMax, bounds.leftMin]);
-
-  const stepRightWidth = useCallback((delta: number) => {
-    setRightWidth((prev) => {
-      const maxAllowed = Math.min(bounds.rightMax, Math.floor(window.innerWidth * 0.45));
-      return Math.min(Math.max(prev + delta, bounds.rightMin), maxAllowed);
-    });
-  }, [bounds.rightMax, bounds.rightMin]);
+  const stepRightWidth = useCallback(
+    (delta: number) =>
+      setRightWidth((prev) =>
+        clamp(prev + delta, bounds.rightMin, viewportMax(bounds.rightMax)),
+      ),
+    [bounds.rightMax, bounds.rightMin],
+  );
 
   return {
     leftWidth,

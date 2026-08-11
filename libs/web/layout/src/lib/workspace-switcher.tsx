@@ -12,149 +12,22 @@ import { avatarTint } from '@org/design-system';
 import type { WorkspaceSummary } from '@org/types';
 import { cn, initials } from '@org/utils';
 import {
-  Activity,
   BarChart3,
   Check,
   ChevronDown,
-  FileText,
-  HardDrive,
-  Home,
-  MessageSquare,
-  MoreHorizontal,
   PanelLeft,
   Plus,
   Settings,
   Sparkles,
   UserPlus,
   Users,
-  type LucideIcon,
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
-
-export interface WorkspaceSwitcherProps {
-  workspaces: WorkspaceSummary[];
-  current?: WorkspaceSummary;
-}
-
-interface RailItem {
-  /** Shown under the icon; kept short enough to fit the 60px rail. */
-  label: string;
-  /** Tooltip text, when the label alone is too terse to be clear. */
-  hint?: string;
-  path: string;
-  icon: LucideIcon;
-}
-
-/** Destinations on the far-left rail, in display order. */
-const RAIL_ITEMS: readonly RailItem[] = [
-  { label: 'Home', hint: 'Home & AI Assistant', path: '', icon: Home },
-  { label: 'DMs', hint: 'Direct messages', path: '/dms', icon: MessageSquare },
-  { label: 'Pulse', hint: 'Team Activity Pulse', path: '/pulse', icon: Activity },
-  { label: 'Files', hint: 'Company File Storage', path: '/files', icon: HardDrive },
-  { label: 'Docs', hint: 'Company Knowledge & Docs', path: '/docs', icon: FileText },
-];
-
-const railItemClass = cn(
-  'flex size-10 flex-col items-center justify-center rounded-btn text-subtle',
-  'transition-colors duration-(--duration-fast) ease-standard',
-  'hover:bg-accent hover:text-foreground',
-  'outline-none focus-visible:ring-1 focus-visible:ring-ring',
-);
-
-export function WorkspaceSwitcher({
-  workspaces,
-  current,
-}: WorkspaceSwitcherProps) {
-  const navigate = useNavigate();
-
-  return (
-    <nav
-      aria-label="Workspaces rail"
-      className="z-(--z-rail) flex w-15 shrink-0 select-none flex-col items-center gap-3 border-r border-border bg-sidebar py-3"
-    >
-      {/* Workspace Tiles */}
-      <div className="flex flex-col items-center gap-2 w-full px-2">
-        {workspaces.map((workspace) => {
-          const isActive = workspace.id === current?.id;
-          return (
-            <Hint key={workspace.id} label={workspace.name} side="right">
-              <Link
-                to={`/w/${workspace.slug}`}
-                aria-current={isActive ? 'page' : undefined}
-                className={cn(
-                  'relative flex size-9 items-center justify-center rounded-btn text-xs font-semibold text-primary-foreground',
-                  'transition-opacity duration-(--duration-fast) ease-standard',
-                  'outline-none focus-visible:ring-1 focus-visible:ring-ring',
-                  isActive
-                    ? 'opacity-100 ring-2 ring-primary ring-offset-2 ring-offset-sidebar'
-                    : 'opacity-65 hover:opacity-100',
-                )}
-                style={{ backgroundColor: avatarTint(workspace.id) }}
-              >
-                {workspace.avatarUrl ? (
-                  <img
-                    src={workspace.avatarUrl}
-                    alt=""
-                    className="size-full rounded-[inherit] object-cover"
-                  />
-                ) : (
-                  initials(workspace.name)
-                )}
-              </Link>
-            </Hint>
-          );
-        })}
-
-        <Hint label="Create a workspace" side="right">
-          <button
-            className={cn(
-              'flex size-9 items-center justify-center rounded-btn border border-dashed border-border text-subtle',
-              'transition-colors duration-(--duration-fast) ease-standard',
-              'hover:border-border-strong hover:text-foreground',
-              'outline-none focus-visible:ring-1 focus-visible:ring-ring',
-            )}
-            onClick={() => navigate('/workspaces/new')}
-            aria-label="Create a workspace"
-          >
-            <Plus className="size-4" />
-          </button>
-        </Hint>
-      </div>
-
-      <div className="my-1 h-px w-8 shrink-0 bg-border" />
-
-      {/* Rail destinations */}
-      <div className="no-scrollbar flex w-full flex-1 flex-col items-center gap-1 overflow-y-auto px-1">
-        {RAIL_ITEMS.map(({ label, hint, icon: Icon, path }) => (
-          <Hint key={label} label={hint ?? label} side="right">
-            <Link
-              to={current ? `/w/${current.slug}${path}` : '/'}
-              className={railItemClass}
-            >
-              <Icon className="size-4 shrink-0" aria-hidden />
-              <span className="mt-0.5 text-[9px] leading-none font-medium">
-                {label}
-              </span>
-            </Link>
-          </Hint>
-        ))}
-
-        <Hint label="More options" side="right">
-          <button className={cn(railItemClass, 'mt-auto')} aria-label="More options">
-            <MoreHorizontal className="size-4 shrink-0" aria-hidden />
-            <span className="mt-0.5 text-[9px] leading-none font-medium">More</span>
-          </button>
-        </Hint>
-      </div>
-    </nav>
-  );
-}
+import { Link } from 'react-router-dom';
 
 export interface WorkspaceMenuProps {
   workspaces: WorkspaceSummary[];
   current: WorkspaceSummary;
   onToggleSidebar?: () => void;
-  isSidebarCollapsed?: boolean;
 }
 
 export function WorkspaceMenu({
