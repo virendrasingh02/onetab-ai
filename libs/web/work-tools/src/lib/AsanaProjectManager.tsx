@@ -21,7 +21,11 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
+  Check,
+  Copy,
   Filter,
+  Globe,
+  Lock,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -29,6 +33,8 @@ import {
   SlidersHorizontal,
   Sparkles,
   Trash2,
+  UserPlus,
+  X,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -129,6 +135,50 @@ export function AsanaProjectManager() {
   const [editProjectIcon, setEditProjectIcon] = useState('Folder');
   const [editProjectIconColor, setEditProjectIconColor] = useState('#8b5cf6');
   const [editProjectDescription, setEditProjectDescription] = useState('');
+
+  // Share & Board Access Controls State
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [invitedMembers, setInvitedMembers] = useState([
+    { id: 'm1', name: 'Virendra Singh', email: 'virendra@onetab.ai', role: 'Owner' },
+    { id: 'm2', name: 'Alex Morgan', email: 'alex@onetab.ai', role: 'Editor' },
+    { id: 'm3', name: 'Aisha Khan', email: 'aisha@onetab.ai', role: 'Viewer' },
+  ]);
+  const [inviteEmailInput, setInviteEmailInput] = useState('');
+  const [inviteRoleInput, setInviteRoleInput] = useState<'Editor' | 'Viewer' | 'Admin'>('Editor');
+  const [accessScope, setAccessScope] = useState<'private' | 'workspace'>('private');
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const handleAddInvite = () => {
+    const trimmed = inviteEmailInput.trim().toLowerCase();
+    if (!trimmed) return;
+    const namePart = trimmed.split('@')[0];
+    const formattedName = namePart
+      .split(/[\._-]/)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+
+    setInvitedMembers((prev) => [
+      ...prev,
+      {
+        id: `m_${Date.now()}`,
+        name: formattedName,
+        email: trimmed,
+        role: inviteRoleInput,
+      },
+    ]);
+    setInviteEmailInput('');
+  };
+
+  const handleRemoveInvite = (id: string) => {
+    setInvitedMembers((prev) => prev.filter((m) => m.id !== id));
+  };
+
+  const handleCopyShareLink = () => {
+    const url = `https://onetab.ai/board/${activeProject?.id || 'kanban'}`;
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
 
   const handleOpenEditProject = () => {
     if (activeProject) {
@@ -284,6 +334,20 @@ export function AsanaProjectManager() {
               className="pl-8 text-xs h-8 bg-muted/40"
             />
           </div>
+
+          {/* Share & Invite People Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsShareDialogOpen(true)}
+            className="gap-1.5 text-xs h-8 border-[#5865f2]/40 text-[#5865f2] hover:bg-[#5865f2]/10 font-semibold cursor-pointer"
+          >
+            <UserPlus className="size-3.5 text-[#5865f2] shrink-0" />
+            <span className="hidden sm:inline">Share</span>
+            <Badge variant="neutral" className="bg-[#5865f2]/15 text-[#5865f2] text-[10px] px-1.5 py-0 font-bold">
+              {invitedMembers.length}
+            </Badge>
+          </Button>
 
           {/* Filter Menu Trigger Button (Linear Style) */}
           <div className="relative">
@@ -645,6 +709,175 @@ export function AsanaProjectManager() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+      {/* Share & Access Dialog */}
+      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
+        <DialogContent className="sm:max-w-lg border-[#3f4147] bg-[#1e1f22] text-[#dbdee1] p-6 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-extrabold text-white flex items-center gap-2">
+              <UserPlus className="size-5 text-[#5865f2]" />
+              Share "{activeProject.name}"
+            </DialogTitle>
+            <p className="text-xs text-[#949ba4] mt-1">
+              Invite people or manage member access permissions for this board.
+            </p>
+          </DialogHeader>
+
+          <div className="space-y-5 py-3">
+            {/* Invite Input Row */}
+            <div className="flex items-center gap-2">
+              <Input
+                value={inviteEmailInput}
+                onChange={(e) => setInviteEmailInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddInvite();
+                  }
+                }}
+                placeholder="Enter email or username..."
+                className="bg-[#2b2d31] border-[#3f4147] text-white text-xs placeholder:text-[#80848e] focus-visible:ring-[#5865f2] flex-1"
+              />
+
+              <Select
+                value={inviteRoleInput}
+                onValueChange={(val) => setInviteRoleInput(val as any)}
+              >
+                <SelectTrigger className="w-28 h-9 text-xs bg-[#2b2d31] border-[#3f4147] text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1e1f22] border-[#3f4147] text-white text-xs">
+                  <SelectItem value="Editor">Editor</SelectItem>
+                  <SelectItem value="Viewer">Viewer</SelectItem>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button
+                onClick={handleAddInvite}
+                size="sm"
+                className="bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-semibold px-4"
+              >
+                Invite
+              </Button>
+            </div>
+
+            {/* Access Level Selector */}
+            <div className="rounded-xl border border-[#3f4147] bg-[#2b2d31] p-3 space-y-2">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-[#949ba4] flex items-center justify-between">
+                <span>General Access</span>
+                {accessScope === 'private' ? (
+                  <Badge variant="neutral" className="bg-[#ed4245]/20 text-[#ed4245] text-[10px] border-[#ed4245]/40">
+                    Restricted Access
+                  </Badge>
+                ) : (
+                  <Badge variant="neutral" className="bg-[#23a55a]/20 text-[#23a55a] text-[10px] border-[#23a55a]/40">
+                    Workspace Access
+                  </Badge>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setAccessScope('private')}
+                  className={cn(
+                    'flex items-center gap-2 p-2.5 rounded-lg border text-left text-xs font-semibold transition-all',
+                    accessScope === 'private'
+                      ? 'border-[#5865f2] bg-[#5865f2]/15 text-white'
+                      : 'border-[#3f4147] bg-[#1e1f22] text-[#949ba4] hover:bg-[#35373c]',
+                  )}
+                >
+                  <Lock className="size-4 shrink-0 text-[#5865f2]" />
+                  <div>
+                    <span className="block font-bold">Only invited people</span>
+                    <span className="block text-[10px] text-[#949ba4]">Must be added to access</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAccessScope('workspace')}
+                  className={cn(
+                    'flex items-center gap-2 p-2.5 rounded-lg border text-left text-xs font-semibold transition-all',
+                    accessScope === 'workspace'
+                      ? 'border-[#23a55a] bg-[#23a55a]/15 text-white'
+                      : 'border-[#3f4147] bg-[#1e1f22] text-[#949ba4] hover:bg-[#35373c]',
+                  )}
+                >
+                  <Globe className="size-4 shrink-0 text-[#23a55a]" />
+                  <div>
+                    <span className="block font-bold">Workspace members</span>
+                    <span className="block text-[10px] text-[#949ba4]">Anyone in team can view</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Invited Members List */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-[#949ba4]">
+                <span>People with access ({invitedMembers.length})</span>
+              </div>
+
+              <div className="max-h-48 overflow-y-auto scrollbar-subtle space-y-1.5 rounded-xl border border-[#3f4147] bg-[#2b2d31] p-2">
+                {invitedMembers.map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between p-2 rounded-lg bg-[#1e1f22] border border-[#35373c]"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="size-7 rounded-full bg-[#5865f2] text-white flex items-center justify-center font-bold text-xs shrink-0">
+                        {member.name.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-white truncate">{member.name}</p>
+                        <p className="text-[10px] font-mono text-[#949ba4] truncate">{member.email}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[11px] font-semibold text-[#5865f2] px-2 py-0.5 rounded bg-[#5865f2]/10 border border-[#5865f2]/20">
+                        {member.role}
+                      </span>
+                      {member.role !== 'Owner' ? (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveInvite(member.id)}
+                          className="p-1 text-[#949ba4] hover:text-[#ed4245] transition-colors"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center justify-between border-t border-[#3f4147] pt-4 mt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleCopyShareLink}
+              className="border-[#3f4147] bg-[#2b2d31] text-white hover:bg-[#35373c] text-xs font-semibold"
+            >
+              {copiedLink ? <Check className="size-3.5 mr-1 text-[#23a55a]" /> : <Copy className="size-3.5 mr-1" />}
+              {copiedLink ? 'Link Copied!' : 'Copy Private Link'}
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setIsShareDialogOpen(false)}
+              className="bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-semibold px-5"
+            >
+              Done
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
