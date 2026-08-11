@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@org/design-system": "*",
+    "@org/hooks": "*",
     "@org/ui": "*",
     "@org/utils": "*",
     "lucide-react": "^1.28.0",

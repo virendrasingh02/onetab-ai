@@ -1,6 +1,6 @@
+import { toggleRegistryItem, useInstalledAgents } from '@org/hooks';
 import { Badge, Button, Card, Page, PageHeader } from '@org/ui';
 import { Bot, Cpu, Download, ShieldCheck, Wrench } from 'lucide-react';
-import { useState } from 'react';
 
 export interface AgentCard {
   id: string;
@@ -9,7 +9,6 @@ export interface AgentCard {
   description: string;
   tools: string[];
   provider: string;
-  installed?: boolean;
 }
 
 const marketplaceAgents: AgentCard[] = [
@@ -43,15 +42,23 @@ const marketplaceAgents: AgentCard[] = [
 ];
 
 export function AgentMarketplaceView() {
-  const [agents, setAgents] = useState<AgentCard[]>(marketplaceAgents);
+  /*
+   * Which agents are deployed lives in the shared registry rather than in local
+   * state: the sidebar lists the deployed ones, and toggling here used to be
+   * forgotten the moment you navigated away.
+   */
+  const [installed, saveInstalled] = useInstalledAgents();
+  const agents = marketplaceAgents;
 
-  const toggleInstall = (id: string) => {
-    setAgents((prev) =>
-      prev.map((agent) =>
-        agent.id === id ? { ...agent, installed: !agent.installed } : agent,
-      ),
+  const toggleInstall = (agent: AgentCard) =>
+    saveInstalled(
+      toggleRegistryItem(installed, {
+        id: agent.id,
+        name: agent.name,
+        icon: 'Bot',
+        detail: agent.role,
+      }),
     );
-  };
 
   return (
     <Page>
@@ -63,71 +70,75 @@ export function AgentMarketplaceView() {
       />
 
       <ul className="gap-4 md:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">
-        {agents.map((agent) => (
-          <li key={agent.id}>
-            <Card className="p-5 h-full justify-between transition-colors duration-(--duration-fast) hover:border-border-strong">
-              <div>
-                <div className="mb-3 gap-2 flex items-start justify-between">
-                  <div className="min-w-0 gap-2.5 flex items-center">
-                    <span
-                      aria-hidden
-                      className="size-9 flex shrink-0 items-center justify-center rounded-lg bg-accent-blue-soft text-accent-blue"
-                    >
-                      <Bot className="size-4.5" />
-                    </span>
-                    <div className="min-w-0">
-                      <h2 className="text-sm font-semibold truncate text-foreground">
-                        {agent.name}
-                      </h2>
-                      <p className="text-xs text-muted-foreground">
-                        {agent.role}
-                      </p>
+        {agents.map((agent) => {
+          const isInstalled = installed.some((entry) => entry.id === agent.id);
+
+          return (
+            <li key={agent.id}>
+              <Card className="p-5 h-full justify-between transition-colors duration-(--duration-fast) hover:border-border-strong">
+                <div>
+                  <div className="mb-3 gap-2 flex items-start justify-between">
+                    <div className="min-w-0 gap-2.5 flex items-center">
+                      <span
+                        aria-hidden
+                        className="size-9 flex shrink-0 items-center justify-center rounded-lg bg-accent-blue-soft text-accent-blue"
+                      >
+                        <Bot className="size-4.5" />
+                      </span>
+                      <div className="min-w-0">
+                        <h2 className="text-sm font-semibold truncate text-foreground">
+                          {agent.name}
+                        </h2>
+                        <p className="text-xs text-muted-foreground">
+                          {agent.role}
+                        </p>
+                      </div>
                     </div>
+                    <Badge variant="neutral" className="font-mono uppercase">
+                      <Cpu className="text-accent-violet" aria-hidden />
+                      {agent.provider}
+                    </Badge>
                   </div>
-                  <Badge variant="neutral" className="font-mono uppercase">
-                    <Cpu className="text-accent-violet" aria-hidden />
-                    {agent.provider}
-                  </Badge>
+
+                  <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
+                    {agent.description}
+                  </p>
+
+                  <ul
+                    aria-label={`Tools available to ${agent.name}`}
+                    className="mb-4 gap-1 flex flex-wrap"
+                  >
+                    {agent.tools.map((tool) => (
+                      <li key={tool}>
+                        <Badge variant="primary" className="font-mono">
+                          <Wrench aria-hidden />
+                          {tool}
+                        </Badge>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
 
-                <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
-                  {agent.description}
-                </p>
-
-                <ul
-                  aria-label={`Tools available to ${agent.name}`}
-                  className="mb-4 gap-1 flex flex-wrap"
+                <Button
+                  variant={isInstalled ? 'outline' : 'primary'}
+                  size="sm"
+                  className="w-full"
+                  onClick={() => toggleInstall(agent)}
+                  leadingIcon={
+                    isInstalled ? (
+                      <ShieldCheck className="text-success" />
+                    ) : (
+                      <Download />
+                    )
+                  }
                 >
-                  {agent.tools.map((tool) => (
-                    <li key={tool}>
-                      <Badge variant="primary" className="font-mono">
-                        <Wrench aria-hidden />
-                        {tool}
-                      </Badge>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <Button
-                variant={agent.installed ? 'outline' : 'primary'}
-                size="sm"
-                className="w-full"
-                onClick={() => toggleInstall(agent.id)}
-                leadingIcon={
-                  agent.installed ? (
-                    <ShieldCheck className="text-success" />
-                  ) : (
-                    <Download />
-                  )
-                }
-              >
-                {agent.installed ? 'Installed' : 'Deploy'}
-                <span className="sr-only"> — {agent.name}</span>
-              </Button>
-            </Card>
-          </li>
-        ))}
+                  {isInstalled ? 'Installed' : 'Deploy'}
+                  <span className="sr-only"> — {agent.name}</span>
+                </Button>
+              </Card>
+            </li>
+          );
+        })}
       </ul>
     </Page>
   );

@@ -26,6 +26,9 @@
   ],
   "references": [
     {
+      "path": "../../shared/hooks/tsconfig.lib.json"
+    },
+    {
       "path": "../workspace/tsconfig.lib.json"
     },
     {

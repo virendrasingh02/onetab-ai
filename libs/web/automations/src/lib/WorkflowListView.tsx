@@ -1,45 +1,16 @@
+import { useWorkflows, type WorkflowRegistryItem } from '@org/hooks';
 import { Badge, Button, Card, Page, PageHeader } from '@org/ui';
 import { Clock, Play, Plus, Webhook, Workflow } from 'lucide-react';
-import { useState } from 'react';
 
-export interface WorkflowItem {
-  id: string;
-  name: string;
-  triggerType: 'WEBHOOK' | 'CRON' | 'EVENT';
-  isActive: boolean;
-  totalExecutions: number;
-  lastRun: string;
-}
-
-const sampleWorkflows: WorkflowItem[] = [
-  {
-    id: 'wf_1',
-    name: 'GitHub webhook → AI code review → Matrix alert',
-    triggerType: 'WEBHOOK',
-    isActive: true,
-    totalExecutions: 42,
-    lastRun: '12 mins ago',
-  },
-  {
-    id: 'wf_2',
-    name: 'Daily standup summary generator',
-    triggerType: 'CRON',
-    isActive: true,
-    totalExecutions: 15,
-    lastRun: '4 hours ago',
-  },
-  {
-    id: 'wf_3',
-    name: 'Overdue task escalation bot',
-    triggerType: 'EVENT',
-    isActive: false,
-    totalExecutions: 8,
-    lastRun: '1 day ago',
-  },
-];
+/**
+ * Kept as an alias so existing importers of `WorkflowItem` keep working. The
+ * list itself now comes from the shared registry the sidebar reads, so the two
+ * cannot drift.
+ */
+export type WorkflowItem = WorkflowRegistryItem;
 
 export function WorkflowListView() {
-  const [workflows] = useState<WorkflowItem[]>(sampleWorkflows);
+  const [workflows] = useWorkflows();
 
   return (
     <Page>

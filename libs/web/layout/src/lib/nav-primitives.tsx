@@ -252,12 +252,18 @@ export function Section({
         <CollapsibleContent>
           {isEmpty ? (
             <p className="px-3 py-1 text-[11px] text-subtle">{emptyLabel}</p>
-          ) : (
-            /* No horizontal padding: rows carry their own indent through
-               `depth`, and the extra `px-1` used to push every section row 4px
-               right of the section headers and the top-level nav rows. */
-            <ul className="mt-0.5 space-y-0.5">{children}</ul>
-          )}
+          ) : null}
+          {/*
+            The hint sits *above* the list rather than replacing it. Sections
+            put their affordances in the list — "Browse channels", "Add agent" —
+            and swapping the whole list out for the hint took those away at
+            exactly the moment they were most useful.
+
+            No horizontal padding: rows carry their own indent through `depth`,
+            and the extra `px-1` used to push every section row 4px right of the
+            section headers and the top-level nav rows.
+          */}
+          <ul className="mt-0.5 space-y-0.5">{children}</ul>
         </CollapsibleContent>
       </section>
     </Collapsible>

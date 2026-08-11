@@ -14,7 +14,6 @@ import { useChannelPreferences, useGroupedChannels } from '@org/web-channels';
 import {
   Activity,
   ArrowRight,
-  Bot,
   ChevronRight,
   Clock,
   FileText,
@@ -29,11 +28,9 @@ import {
   Package,
   Plus,
   Settings,
-  Share2,
   Star,
   Users,
   Video,
-  Workflow,
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -50,6 +47,11 @@ import {
   type NavEntry,
 } from './nav-primitives.js';
 import { ProjectsTreeSection } from './projects-section.js';
+import {
+  AgentsSection,
+  AppsSection,
+  WorkflowsSection,
+} from './resource-sections.js';
 import { usePromptDialog } from './use-prompt-dialog.js';
 
 /** Shown directly — the destinations people reach for constantly. */
@@ -71,45 +73,7 @@ const SECONDARY_LINKS: readonly NavEntry[] = [
   { path: 'settings', label: 'Settings', icon: Settings },
 ];
 
-const AGENTS_LINKS: readonly NavEntry[] = [
-  { path: 'agents', label: 'Agent Directory', icon: Bot, end: true },
-  { path: 'agents/builder', label: 'Agent Studio', icon: Bot },
-  { path: 'agents/logs', label: 'Agent Logs', icon: HardDrive },
-];
-
-const APPS_LINKS: readonly NavEntry[] = [
-  { path: 'integrations', label: 'App Directory', icon: Share2, end: true },
-];
-
-const AUTOMATION_LINKS: readonly NavEntry[] = [
-  { path: 'automations', label: 'Workflows', icon: Workflow, end: true },
-  { path: 'automations/builder', label: 'Workflow Builder', icon: Workflow },
-  { path: 'automations/logs', label: 'Workflow Logs', icon: HardDrive },
-];
-
 const UPGRADE_DISMISSED_KEY = 'onetab_sidebar_upgrade_dismissed_v1';
-
-function LinkSection({
-  title,
-  links,
-  workspaceSlug,
-  defaultOpen = true,
-}: {
-  title: string;
-  links: readonly NavEntry[];
-  workspaceSlug: string;
-  defaultOpen?: boolean;
-}) {
-  return (
-    <Section title={title} defaultOpen={defaultOpen}>
-      {links.map((entry) => (
-        <li key={entry.label}>
-          <NavRow entry={entry} workspaceSlug={workspaceSlug} />
-        </li>
-      ))}
-    </Section>
-  );
-}
 
 function ChannelRow({
   channel,
@@ -398,26 +362,11 @@ export function ChannelNav({
 
             <DocsTreeSection workspaceSlug={workspaceSlug} prompts={prompts} />
 
-            <LinkSection
-              title="AI Agents"
-              links={AGENTS_LINKS}
-              workspaceSlug={workspaceSlug}
-              defaultOpen={false}
-            />
+            <AgentsSection workspaceSlug={workspaceSlug} />
 
-            <LinkSection
-              title="Apps"
-              links={APPS_LINKS}
-              workspaceSlug={workspaceSlug}
-              defaultOpen={false}
-            />
+            <AppsSection workspaceSlug={workspaceSlug} />
 
-            <LinkSection
-              title="Automations"
-              links={AUTOMATION_LINKS}
-              workspaceSlug={workspaceSlug}
-              defaultOpen={false}
-            />
+            <WorkflowsSection workspaceSlug={workspaceSlug} />
           </div>
         </div>
       </ScrollArea>
