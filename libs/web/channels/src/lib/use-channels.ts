@@ -9,51 +9,38 @@ import type {
 } from '@org/validation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import {
+  sampleChannel,
+  sampleChannels,
+  sampleFiles,
+  sampleMembers,
+  samplePins,
+} from './sample-channels.js';
 
-const DEFAULT_MOCK_CHANNELS: ChannelSummary[] = [
-  {
-    id: 'chan_general',
-    workspaceId: 'ws_onetab',
-    name: 'general',
-    slug: 'general',
-    topic: 'Company-wide announcements and work-based matters',
-    description: 'Work-based matters and general discussion',
-    visibility: 'PUBLIC',
-    isArchived: false,
-    archivedAt: null,
-    createdById: 'usr_admin_001',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    memberCount: 2,
-    membership: {
-      role: 'MEMBER',
-      isFavorite: false,
-      isMuted: false,
-      lastReadAt: new Date().toISOString(),
-    },
-  },
-  {
-    id: 'chan_random',
-    workspaceId: 'ws_onetab',
-    name: 'random',
-    slug: 'random',
-    topic: 'Non-work banter and water cooler chat',
-    description: 'Water cooler talk',
-    visibility: 'PUBLIC',
-    isArchived: false,
-    archivedAt: null,
-    createdById: 'usr_admin_001',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    memberCount: 2,
-    membership: {
-      role: 'MEMBER',
-      isFavorite: false,
-      isMuted: false,
-      lastReadAt: new Date().toISOString(),
-    },
-  },
-];
+/**
+ * Runs a query, falling back to sample data when the API cannot answer.
+ *
+ * Every read below shares this shape so the channel screens degrade as one
+ * unit: the sidebar already listed sample channels, but opening one hit a
+ * detail query with no fallback and dead-ended on "Channel not found".
+ *
+ * Writes deliberately have no equivalent — a mutation that silently pretends
+ * to succeed is a bug, not a fallback.
+ */
+async function withSample<T>(
+  fetch: () => Promise<T>,
+  sample: () => T,
+  isEmpty?: (value: T) => boolean,
+): Promise<T> {
+  try {
+    const result = await fetch();
+    return isEmpty?.(result) ? sample() : result;
+  } catch {
+    return sample();
+  }
+}
+
+const isEmptyList = (value: unknown[]) => value.length === 0;
 
 export function useChannels(
   workspaceId: string | undefined,
@@ -61,14 +48,12 @@ export function useChannels(
 ) {
   return useQuery({
     queryKey: queryKeys.channels.list(workspaceId ?? '', includeArchived),
-    queryFn: async () => {
-      try {
-        const res = await channelApi.list(workspaceId as string, includeArchived);
-        return res.length > 0 ? res : DEFAULT_MOCK_CHANNELS;
-      } catch {
-        return DEFAULT_MOCK_CHANNELS;
-      }
-    },
+    queryFn: () =>
+      withSample(
+        () => channelApi.list(workspaceId as string, includeArchived),
+        () => sampleChannels(workspaceId),
+        isEmptyList,
+      ),
     enabled: !!workspaceId,
     staleTime: 30_000,
   });
@@ -122,8 +107,14 @@ export function useChannel(
 ) {
   return useQuery({
     queryKey: queryKeys.channels.detail(workspaceId ?? '', slug ?? ''),
-    queryFn: () => channelApi.bySlug(workspaceId as string, slug as string),
+    queryFn: () =>
+      withSample(
+        () => channelApi.bySlug(workspaceId as string, slug as string),
+        () => sampleChannel(workspaceId as string, slug as string),
+      ),
     enabled: !!workspaceId && !!slug,
+    // The fallback answers immediately, so retrying only delays the screen.
+    retry: false,
   });
 }
 
@@ -134,8 +125,13 @@ export function useChannelMembers(
   return useQuery({
     queryKey: queryKeys.channels.members(workspaceId ?? '', channelId ?? ''),
     queryFn: () =>
-      channelApi.members(workspaceId as string, channelId as string),
+      withSample(
+        () => channelApi.members(workspaceId as string, channelId as string),
+        () => sampleMembers(channelId as string),
+        isEmptyList,
+      ),
     enabled: !!workspaceId && !!channelId,
+    retry: false,
   });
 }
 
@@ -145,8 +141,14 @@ export function useChannelPins(
 ) {
   return useQuery({
     queryKey: queryKeys.channels.pins(workspaceId ?? '', channelId ?? ''),
-    queryFn: () => channelApi.pins(workspaceId as string, channelId as string),
+    queryFn: () =>
+      withSample(
+        () => channelApi.pins(workspaceId as string, channelId as string),
+        () => samplePins(channelId as string),
+        isEmptyList,
+      ),
     enabled: !!workspaceId && !!channelId,
+    retry: false,
   });
 }
 
@@ -156,8 +158,14 @@ export function useChannelFiles(
 ) {
   return useQuery({
     queryKey: queryKeys.channels.files(workspaceId ?? '', channelId ?? ''),
-    queryFn: () => channelApi.files(workspaceId as string, channelId as string),
+    queryFn: () =>
+      withSample(
+        () => channelApi.files(workspaceId as string, channelId as string),
+        () => sampleFiles(workspaceId as string, channelId as string),
+        isEmptyList,
+      ),
     enabled: !!workspaceId && !!channelId,
+    retry: false,
   });
 }
 

@@ -11,6 +11,7 @@ import {
   useRef,
   type ReactNode,
 } from 'react';
+import { UnreadDivider } from './channel-extras.js';
 import { DateSeparator } from './chat-bubble.js';
 
 /** Consecutive messages from one sender within this window are grouped. */
@@ -18,13 +19,22 @@ const GROUPING_WINDOW_MS = 5 * 60_000;
 
 type Row =
   | { kind: 'separator'; key: string; timestamp: number }
+  | { kind: 'unread'; key: string }
   | { kind: 'message'; key: string; message: Message; grouped: boolean };
 
 /**
  * Flattens messages into rows, inserting a separator at each day boundary and
  * marking which messages continue the previous sender's run.
+ *
+ * `unreadBeforeId` places the "new messages" line above that message. It also
+ * breaks grouping there: a run of messages split by the line would otherwise
+ * lose its avatar on the first unread one, which is exactly the message the
+ * reader is being sent to.
  */
-export function buildRows(messages: Message[]): Row[] {
+export function buildRows(
+  messages: Message[],
+  unreadBeforeId?: string | null,
+): Row[] {
   const rows: Row[] = [];
   let previous: Message | undefined;
 
@@ -42,8 +52,14 @@ export function buildRows(messages: Message[]): Row[] {
       });
     }
 
+    const isFirstUnread = !!unreadBeforeId && message.id === unreadBeforeId;
+    if (isFirstUnread) {
+      rows.push({ kind: 'unread', key: `unread-${message.id}` });
+    }
+
     const grouped =
       !isNewDay &&
+      !isFirstUnread &&
       !!previous &&
       previous.senderId === message.senderId &&
       message.timestamp - previous.timestamp < GROUPING_WINDOW_MS;
@@ -64,6 +80,8 @@ export interface MessageListProps {
   onRetry?: () => void;
   onLoadOlder?: () => void;
   renderMessage: (message: Message, grouped: boolean) => ReactNode;
+  /** Draws the "new messages" line above this message. */
+  unreadBeforeId?: string | null;
   className?: string;
 }
 
@@ -88,10 +106,14 @@ export function MessageList({
   onRetry,
   onLoadOlder,
   renderMessage,
+  unreadBeforeId,
   className,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const rows = useMemo(() => buildRows(messages), [messages]);
+  const rows = useMemo(
+    () => buildRows(messages, unreadBeforeId),
+    [messages, unreadBeforeId],
+  );
 
   /** Whether the user was pinned to the bottom before this render. */
   const wasAtBottom = useRef(true);
@@ -216,6 +238,8 @@ export function MessageList({
             >
               {row.kind === 'separator' ? (
                 <DateSeparator timestamp={row.timestamp} />
+              ) : row.kind === 'unread' ? (
+                <UnreadDivider />
               ) : (
                 renderMessage(row.message, row.grouped)
               )}

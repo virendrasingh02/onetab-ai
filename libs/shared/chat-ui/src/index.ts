@@ -9,15 +9,36 @@
 export {
   ChatBubble,
   DateSeparator,
+  ReactionPicker,
   type ChatBubbleProps,
 } from './lib/chat-bubble.js';
 
 export {
   Composer,
+  DEFAULT_SLASH_COMMANDS,
   EmojiPicker,
   type ComposerProps,
   type EmojiPickerProps,
+  type SlashCommand,
 } from './lib/composer.js';
+
+export {
+  BookmarksBar,
+  ConversationSearch,
+  HuddleBar,
+  PinnedPanel,
+  SavedPanel,
+  ThreadListPanel,
+  UnreadDivider,
+  type BookmarksBarProps,
+  type ChannelBookmark,
+  type ConversationSearchProps,
+  type HuddleBarProps,
+  type PinnedPanelProps,
+  type SavedPanelProps,
+  type ThreadListPanelProps,
+  type ThreadSummaryItem,
+} from './lib/channel-extras.js';
 
 export {
   AttachmentCard,

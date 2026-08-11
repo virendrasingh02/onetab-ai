@@ -14,16 +14,14 @@ import {
   UserAvatar,
 } from '@org/ui';
 import { cn, formatBytes, formatDate, formatRelative } from '@org/utils';
-import { ChannelChat } from '@org/web-chat';
+import { ChannelChat, ChannelMentions, ChannelThreads } from '@org/web-chat';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Archive,
   ArchiveRestore,
   AtSign,
-  Bookmark,
   FileText,
   Hash,
-  Headphones,
   Image as ImageIcon,
   Lock,
   MessageSquare,
@@ -32,7 +30,6 @@ import {
   Star,
   Users,
 } from 'lucide-react';
-import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   useArchiveChannel,
@@ -44,22 +41,38 @@ import {
   useJoinChannel,
 } from '../use-channels.js';
 
+/**
+ * Where an upload's bytes live.
+ *
+ * Real uploads are keys under the upload server; sample ones already carry a
+ * full URL, so passing those through keeps the Media tab renderable with no
+ * upload server running.
+ */
+function fileSrc(storageKey: string): string {
+  return /^(data:|https?:)/.test(storageKey)
+    ? storageKey
+    : `/uploads/${storageKey}`;
+}
+
 function ChannelHeader({ channel }: { channel: ChannelSummary }) {
   const { workspaceId } = useCurrentWorkspace();
   const preferences = useChannelPreferences(workspaceId);
   const archive = useArchiveChannel(workspaceId);
   const join = useJoinChannel(workspaceId);
   const members = useChannelMembers(workspaceId, channel.id);
-  const pins = useChannelPins(workspaceId, channel.id);
-  const [inHuddle, setInHuddle] = useState(false);
 
   const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
   const isFavorite = channel.membership?.isFavorite ?? false;
-  const pinCount = pins.data?.length ?? 0;
 
+  /*
+   * Identity and membership only.
+   *
+   * Everything scoped to the conversation — topic, pins, bookmarks, huddles,
+   * search — belongs to the chat header one row below, so the two stopped
+   * competing to show the same channel twice.
+   */
   return (
     <div className="border-b border-border bg-background">
-      {/* Top Header Row */}
       <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
           <div className="flex min-w-0 items-center gap-1.5">
@@ -98,18 +111,8 @@ function ChannelHeader({ channel }: { channel: ChannelSummary }) {
           </Hint>
         </div>
 
-        {/* Channel actions: huddle, member stack, membership, admin */}
+        {/* Channel actions: member stack, membership, admin */}
         <div className="flex items-center gap-2">
-          <Button
-            variant={inHuddle ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={() => setInHuddle((val) => !val)}
-            aria-pressed={inHuddle}
-            leadingIcon={<Headphones className="size-4" />}
-          >
-            {inHuddle ? 'In huddle' : 'Start huddle'}
-          </Button>
-
           {/* Member Stack */}
           <div className="flex items-center px-1 -space-x-1.5">
             {members.data?.slice(0, 3).map((m) => (
@@ -160,30 +163,6 @@ function ChannelHeader({ channel }: { channel: ChannelSummary }) {
               </Button>
             </Hint>
           ) : null}
-        </div>
-      </div>
-
-      {/* Sub-header: topic and channel shortcuts */}
-      <div className="flex h-10 items-center justify-between gap-3 border-t border-border px-3 sm:px-6 text-xs text-muted-foreground">
-        <p className="flex min-w-0 items-center gap-2 truncate">
-          <span className="shrink-0 text-subtle">Topic</span>
-          <span className="truncate">
-            {channel.topic || (
-              <span className="text-subtle">No topic set</span>
-            )}
-          </span>
-        </p>
-        <div className="flex shrink-0 items-center gap-1">
-          <Button variant="ghost" size="sm" leadingIcon={<Pin className="size-3.5" />}>
-            {pinCount} pinned
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            leadingIcon={<Bookmark className="size-3.5" />}
-          >
-            Canvas
-          </Button>
         </div>
       </div>
     </div>
@@ -266,30 +245,17 @@ export function ChannelPage() {
         </TabsContent>
 
         {/*
-          Threads and mentions have no query backing them yet. They render an
-          empty state rather than sample content so nothing on screen claims to
-          be a real conversation — wire a hook in and the tab is ready.
+          Threads and mentions are views over the same timeline the chat tab
+          renders, so they come from `@org/web-chat` rather than a query of
+          their own — including the fallback to sample data when no homeserver
+          is configured.
         */}
-        <TabsContent
-          value="threads"
-          className="min-h-0 overflow-y-auto px-6 py-4"
-        >
-          <EmptyState
-            icon={<MessagesSquare />}
-            title="No threads yet"
-            description="Replies to a message are grouped here as threads."
-          />
+        <TabsContent value="threads" className="min-h-0 overflow-y-auto">
+          <ChannelThreads channelId={channel.id} channelName={channel.name} />
         </TabsContent>
 
-        <TabsContent
-          value="mentions"
-          className="min-h-0 overflow-y-auto px-6 py-4"
-        >
-          <EmptyState
-            icon={<AtSign />}
-            title="No mentions"
-            description={`Messages that mention you in #${channel.name} will appear here.`}
-          />
+        <TabsContent value="mentions" className="min-h-0 overflow-y-auto">
+          <ChannelMentions channelId={channel.id} channelName={channel.name} />
         </TabsContent>
 
         {/*
@@ -420,7 +386,7 @@ export function ChannelPage() {
                     className="aspect-square overflow-hidden rounded-lg bg-muted"
                   >
                     <img
-                      src={`/uploads/${file.storageKey}`}
+                      src={fileSrc(file.storageKey)}
                       alt={file.filename}
                       className="size-full object-cover"
                       loading="lazy"

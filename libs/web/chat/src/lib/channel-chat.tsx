@@ -1,6 +1,7 @@
 import { ErrorState, LoadingState } from '@org/ui';
 import { ChatPanel } from './chat-panel.js';
 import { useMatrix } from './matrix-provider.js';
+import { SampleChatPanel } from './mock/sample-chat-panel.js';
 import { useChannelRoom } from './use-channel-room.js';
 
 export interface ChannelChatProps {
@@ -15,15 +16,23 @@ export interface ChannelChatProps {
  * This is the seam that keeps Matrix out of `@org/web-channels`: that library
  * passes a channel id and gets a working conversation back, without learning
  * that rooms — or Matrix — exist.
+ *
+ * It is also where a deployment without a homeserver falls back to sample data
+ * instead of an empty state. The two panels render the same surface, so the
+ * fallback is a change of data source, not a second design to keep in step.
  */
 export function ChannelChat({ channelId, title, subtitle }: ChannelChatProps) {
   const { enabled } = useMatrix();
   const { roomId, isLoading, error } = useChannelRoom(channelId);
 
-  // `ChatPanel` renders its own "not configured" state, so hand off early
-  // rather than reporting a room failure the deployment was never going to have.
   if (!enabled) {
-    return <ChatPanel roomId={null} title={title} subtitle={subtitle} />;
+    return (
+      <SampleChatPanel
+        channelId={channelId}
+        title={title}
+        subtitle={subtitle}
+      />
+    );
   }
 
   if (error) {
