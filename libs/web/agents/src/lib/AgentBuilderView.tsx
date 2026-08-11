@@ -1,121 +1,378 @@
-import {
-  Button,
-  Input,
-  Label,
-  Page,
-  PageHeader,
-  Panel,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Textarea,
-} from '@org/ui';
-import { Bot, Save } from 'lucide-react';
-import { useState } from 'react';
+/**
+ * Agent builder — a node graph rather than a form.
+ *
+ * Three columns: the node library, the React Flow canvas, and an inspector that
+ * edits whatever is selected. All three read and write one `useAgentGraph`
+ * store, so an edit anywhere repaints the canvas card, re-runs validation and
+ * updates the flattened agent summary in the same pass.
+ *
+ * Saving writes the graph to storage *and* upserts the agent into the shared
+ * workspace registry, which is what puts it in the sidebar.
+ */
 
-const PROVIDERS = [
-  { value: 'ollama', label: 'Ollama (local LLM)' },
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'anthropic', label: 'Anthropic' },
-  { value: 'gemini', label: 'Google Gemini' },
-];
+import { useTheme } from '@org/design-system';
+import { useInstalledAgents } from '@org/hooks';
+import { Badge, Button, Page, PageHeader } from '@org/ui';
+import { cn } from '@org/utils';
+import {
+  Background,
+  BackgroundVariant,
+  Controls,
+  MiniMap,
+  Panel as FlowPanel,
+  ReactFlow,
+  ReactFlowProvider,
+  useReactFlow,
+  type OnSelectionChangeParams,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import {
+  AlertTriangle,
+  Bot,
+  CheckCircle2,
+  LayoutGrid,
+  RotateCcw,
+  Save,
+} from 'lucide-react';
+import { useCallback, useMemo, type DragEvent } from 'react';
+import {
+  AgentInspector,
+  AgentNodePalette,
+  NODE_DRAG_TYPE,
+  NodeIssueProvider,
+  accentFor,
+  isAgentNodeKind,
+  nodeTypes,
+  useAgentGraph,
+  type AgentFlowNode,
+} from './agent-graph/index.js';
 
 export function AgentBuilderView() {
-  const [name, setName] = useState('Workspace Security Guard');
-  const [role, setRole] = useState('Security auditor');
-  const [provider, setProvider] = useState('ollama');
-  const [model, setModel] = useState('llama3');
-  const [systemPrompt, setSystemPrompt] = useState(
-    'You are an autonomous AI security auditor. Inspect workspace activities, audit user permissions, and report suspicious actions.',
+  /* `screenToFlowPosition` — used to place a dropped node under the cursor —
+     only exists inside the provider, so the screen body is a child. */
+  return (
+    <ReactFlowProvider>
+      <AgentBuilderCanvas />
+    </ReactFlowProvider>
+  );
+}
+
+/** Half a card wide, a little less than half tall — centres a drop on the cursor. */
+const DROP_OFFSET = { x: 120, y: 40 };
+
+function AgentBuilderCanvas() {
+  const graph = useAgentGraph();
+  const { screenToFlowPosition } = useReactFlow();
+  const { resolvedTheme } = useTheme();
+  const [installed, saveInstalled] = useInstalledAgents();
+
+  const {
+    nodes,
+    edges,
+    onNodesChange,
+    onEdgesChange,
+    connect,
+    isValidConnection,
+    selected,
+    focusNode,
+    setSelectedId,
+    addNode,
+    updateField,
+    removeNode,
+    duplicateNode,
+    placedKinds,
+    issues,
+    errorCount,
+    warningCount,
+    summary,
+    tidy,
+    reset,
+    save,
+    dirty,
+    savedAt,
+  } = graph;
+
+  const issueMap = useMemo(() => {
+    const errors = new Set<string>();
+    const warnings = new Set<string>();
+    for (const issue of issues) {
+      if (!issue.nodeId) continue;
+      (issue.severity === 'error' ? errors : warnings).add(issue.nodeId);
+    }
+    return { errors, warnings };
+  }, [issues]);
+
+  const onDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const onDrop = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      const kind = event.dataTransfer.getData(NODE_DRAG_TYPE);
+      if (!isAgentNodeKind(kind)) return;
+
+      const point = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      addNode(kind, { x: point.x - DROP_OFFSET.x, y: point.y - DROP_OFFSET.y });
+    },
+    [addNode, screenToFlowPosition],
   );
 
+  /* React Flow owns canvas selection; mirror it so the inspector, which is
+     outside the canvas, follows a click on a card. */
+  const onSelectionChange = useCallback(
+    ({ nodes: picked }: OnSelectionChangeParams) => {
+      setSelectedId(picked[0]?.id ?? null);
+    },
+    [setSelectedId],
+  );
+
+  /**
+   * Persist the draft, then publish it: the sidebar lists deployed agents out
+   * of the shared registry, so a save that only touched the graph store would
+   * leave the rest of the app showing the old name and role.
+   */
+  const handleSave = useCallback(() => {
+    save();
+
+    const core = nodes.find((node) => node.data.kind === 'agent');
+    if (!core) return;
+
+    const entry = {
+      id: core.id,
+      name: summary.name,
+      icon: 'Bot',
+      detail: summary.role,
+    };
+    saveInstalled(
+      installed.some((item) => item.id === entry.id)
+        ? installed.map((item) => (item.id === entry.id ? entry : item))
+        : [...installed, entry],
+    );
+  }, [installed, nodes, save, saveInstalled, summary.name, summary.role]);
+
+  const blocked = errorCount > 0;
+
   return (
-    <Page>
+    <Page width="full">
       <PageHeader
         title="Agent builder"
-        description="Configure an agent's instructions, model and permissions."
+        description="Wire a model, instructions, tools and guardrails into a runnable agent."
         icon={<Bot />}
         accent="violet"
         actions={
-          <Button form="agent-form" type="submit" leadingIcon={<Save />}>
-            Save agent
-          </Button>
+          <>
+            <ValidationBadge errorCount={errorCount} warningCount={warningCount} />
+            <Button variant="outline" leadingIcon={<LayoutGrid />} onClick={tidy}>
+              Tidy layout
+            </Button>
+            <Button variant="ghost" leadingIcon={<RotateCcw />} onClick={reset}>
+              Reset
+            </Button>
+            <Button
+              leadingIcon={<Save />}
+              onClick={handleSave}
+              disabled={blocked}
+              title={
+                blocked
+                  ? 'Fix the errors in the Issues tab before saving.'
+                  : undefined
+              }
+            >
+              {dirty ? 'Save agent' : 'Saved'}
+            </Button>
+          </>
         }
       />
 
-      {/*
-        Every control is now label-associated via htmlFor/id — the previous
-        markup used bare <label> elements that named nothing.
-      */}
-      <Panel className="max-w-2xl">
-        <form
-          id="agent-form"
-          className="gap-5 flex flex-col"
-          onSubmit={(event) => event.preventDefault()}
-        >
-          <div className="gap-4 sm:grid-cols-2 grid">
-            <div className="space-y-1.5">
-              <Label htmlFor="agent-name">Agent name</Label>
-              <Input
-                id="agent-name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="agent-role">Role</Label>
-              <Input
-                id="agent-role"
-                value={role}
-                onChange={(event) => setRole(event.target.value)}
-              />
-            </div>
-          </div>
+      {/* A fixed canvas height, as `WorkflowCanvasView` uses: the shell owns the
+          scrolling `<main>`, so sizing off `100vh` here overflows it by however
+          tall the chrome happens to be. */}
+      <div className="gap-3 lg:flex-row lg:h-160 flex flex-col">
+        <AgentNodePalette
+          onAdd={addNode}
+          placedKinds={placedKinds}
+          className="lg:w-60 lg:h-full h-64 shrink-0"
+        />
 
-          <div className="gap-4 sm:grid-cols-2 grid">
-            <div className="space-y-1.5">
-              <Label htmlFor="agent-provider">AI provider</Label>
-              <Select value={provider} onValueChange={setProvider}>
-                <SelectTrigger id="agent-provider" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PROVIDERS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="agent-model">Model</Label>
-              <Input
-                id="agent-model"
-                value={model}
-                onChange={(event) => setModel(event.target.value)}
-              />
-            </div>
+        {/* An explicit height below `lg`: stacked in a column with no height of
+            its own, `flex-1` would resolve against nothing and React Flow would
+            render into a zero-height box. */}
+        <div className="min-w-0 lg:h-full h-130 flex-1 rounded-xl border bg-background overflow-hidden relative">
+          <div
+            className="size-full"
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            /* React Flow renders its own canvas here; the wrapper only exists
+               to catch drops from the palette. */
+          >
+            <NodeIssueProvider value={issueMap}>
+              <ReactFlow<AgentFlowNode>
+                nodes={nodes}
+                edges={edges}
+                nodeTypes={nodeTypes}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={connect}
+                isValidConnection={isValidConnection}
+                onSelectionChange={onSelectionChange}
+                colorMode={resolvedTheme}
+                fitView
+                minZoom={0.3}
+                maxZoom={1.75}
+                proOptions={{ hideAttribution: false }}
+                className="[&_.react-flow__edge-path]:stroke-[1.5]"
+              >
+                <Background
+                  variant={BackgroundVariant.Dots}
+                  gap={18}
+                  size={1}
+                  className="opacity-60"
+                />
+                <Controls
+                  className="bg-surface! border-border! shadow-md!"
+                  showInteractive={false}
+                />
+                <MiniMap
+                  pannable
+                  zoomable
+                  className="bg-surface! border-border!"
+                  nodeColor={(node) =>
+                    accentFor((node as AgentFlowNode).data.kind).hex
+                  }
+                />
+                <FlowPanel position="top-left">
+                  <EdgeLegend />
+                </FlowPanel>
+              </ReactFlow>
+            </NodeIssueProvider>
           </div>
+        </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="agent-prompt">System instructions</Label>
-            <Textarea
-              id="agent-prompt"
-              value={systemPrompt}
-              onChange={(event) => setSystemPrompt(event.target.value)}
-              rows={5}
-              className="text-sm resize-none font-mono"
-              aria-describedby="agent-prompt-hint"
-            />
-            <p id="agent-prompt-hint" className="text-xs text-muted-foreground">
-              Describe how the agent should behave and what it may access.
-            </p>
-          </div>
-        </form>
-      </Panel>
+        <AgentInspector
+          nodes={nodes}
+          edges={edges}
+          selected={selected}
+          issues={issues}
+          summary={summary}
+          onFieldChange={updateField}
+          onSelect={focusNode}
+          onDuplicate={duplicateNode}
+          onDelete={removeNode}
+          className="lg:w-80 lg:h-full h-96 shrink-0"
+        />
+      </div>
+
+      <StatusBar
+        nodeCount={nodes.length}
+        edgeCount={edges.length}
+        errorCount={errorCount}
+        warningCount={warningCount}
+        dirty={dirty}
+        savedAt={savedAt}
+      />
     </Page>
+  );
+}
+
+/* --------------------------------------------------------------- parts ---- */
+
+function ValidationBadge({
+  errorCount,
+  warningCount,
+}: {
+  errorCount: number;
+  warningCount: number;
+}) {
+  if (errorCount > 0) {
+    return (
+      <Badge variant="destructive" className="px-2 py-1">
+        <AlertTriangle aria-hidden />
+        {errorCount} {errorCount === 1 ? 'error' : 'errors'}
+      </Badge>
+    );
+  }
+  if (warningCount > 0) {
+    return (
+      <Badge variant="warning" className="px-2 py-1">
+        <AlertTriangle aria-hidden />
+        {warningCount} {warningCount === 1 ? 'warning' : 'warnings'}
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="success" className="px-2 py-1">
+      <CheckCircle2 aria-hidden />
+      Valid
+    </Badge>
+  );
+}
+
+/**
+ * The two edge styles carry different meaning, and nothing else on the canvas
+ * says so — solid animated edges are the runtime path, dashed ones are wiring.
+ */
+function EdgeLegend() {
+  return (
+    <div className="gap-3 px-2.5 py-1.5 flex items-center rounded-lg border bg-surface/90 text-[10px] backdrop-blur text-muted-foreground">
+      <span className="gap-1.5 flex items-center">
+        <span aria-hidden className="w-5 h-px bg-foreground/60" />
+        Runtime path
+      </span>
+      <span className="gap-1.5 flex items-center">
+        <span
+          aria-hidden
+          className="w-5 h-px bg-[repeating-linear-gradient(to_right,currentColor_0_4px,transparent_4px_8px)]"
+        />
+        Capability wiring
+      </span>
+    </div>
+  );
+}
+
+function StatusBar({
+  nodeCount,
+  edgeCount,
+  errorCount,
+  warningCount,
+  dirty,
+  savedAt,
+}: {
+  nodeCount: number;
+  edgeCount: number;
+  errorCount: number;
+  warningCount: number;
+  dirty: boolean;
+  savedAt: Date | null;
+}) {
+  return (
+    <div className="mt-3 gap-x-4 gap-y-1 px-3 py-2 flex flex-wrap items-center rounded-lg border bg-surface text-[11px] text-muted-foreground">
+      <span className="font-mono">
+        {nodeCount} nodes · {edgeCount} connections
+      </span>
+      <span className="font-mono">
+        {errorCount} errors · {warningCount} warnings
+      </span>
+      <span
+        className={cn(
+          'gap-1.5 flex items-center ml-auto',
+          dirty ? 'text-warning' : 'text-muted-foreground',
+        )}
+      >
+        <span
+          aria-hidden
+          className={cn(
+            'size-1.5 rounded-full',
+            dirty ? 'bg-warning' : 'bg-accent-green',
+          )}
+        />
+        {dirty
+          ? 'Unsaved changes'
+          : savedAt
+            ? `Saved at ${savedAt.toLocaleTimeString()}`
+            : 'No changes yet'}
+      </span>
+    </div>
   );
 }
