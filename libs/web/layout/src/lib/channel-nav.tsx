@@ -287,8 +287,8 @@ export function ChannelNav({
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="start"
-                side="right"
-                sideOffset={8}
+                side="bottom"
+                sideOffset={4}
                 className="w-52"
               >
                 {SECONDARY_LINKS.map((entry) => {

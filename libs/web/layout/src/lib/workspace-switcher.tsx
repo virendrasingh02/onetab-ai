@@ -1,3 +1,4 @@
+import type { WorkspaceSummary } from '@org/types';
 import {
   Button,
   DropdownMenu,
@@ -9,12 +10,14 @@ import {
   Hint,
 } from '@org/ui';
 import { avatarTint } from '@org/design-system';
-import type { WorkspaceSummary } from '@org/types';
 import { cn, initials } from '@org/utils';
 import {
   BarChart3,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  History,
   PanelLeft,
   Plus,
   Settings,
@@ -22,19 +25,23 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export interface WorkspaceMenuProps {
   workspaces: WorkspaceSummary[];
   current: WorkspaceSummary;
   onToggleSidebar?: () => void;
+  onOpenSearch?: () => void;
 }
 
 export function WorkspaceMenu({
   workspaces,
   current,
   onToggleSidebar,
+  onOpenSearch,
 }: WorkspaceMenuProps) {
+  const navigate = useNavigate();
+
   return (
     <div className="flex items-center justify-between gap-1 w-full">
       <DropdownMenu>
@@ -185,20 +192,60 @@ export function WorkspaceMenu({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {onToggleSidebar ? (
-        <Hint label="Toggle sidebar" side="right">
+      {/* Navigation action controls inside workspace header: Toggle Sidebar, Back, Forward, History */}
+      <div className="flex items-center gap-0.5">
+        {onToggleSidebar ? (
+          <Hint label="Toggle sidebar">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onToggleSidebar}
+              aria-label="Toggle sidebar"
+              className="size-7 p-0"
+            >
+              <PanelLeft className="size-4 text-subtle hover:text-foreground" />
+            </Button>
+          </Hint>
+        ) : null}
+
+        <Hint label="Go back">
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={onToggleSidebar}
-            aria-label="Toggle sidebar"
+            onClick={() => navigate(-1)}
+            aria-label="Go back"
+            className="size-7 p-0"
           >
-            <PanelLeft className="size-4" />
+            <ChevronLeft className="size-4 text-subtle hover:text-foreground" />
           </Button>
         </Hint>
-      ) : null}
+
+        <Hint label="Go forward">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => navigate(1)}
+            aria-label="Go forward"
+            className="size-7 p-0"
+          >
+            <ChevronRight className="size-4 text-subtle hover:text-foreground" />
+          </Button>
+        </Hint>
+
+        {onOpenSearch ? (
+          <Hint label="Recent history">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onOpenSearch}
+              aria-label="Recent history"
+              className="size-7 p-0"
+            >
+              <History className="size-4 text-subtle hover:text-foreground" />
+            </Button>
+          </Hint>
+        ) : null}
+      </div>
     </div>
   );
 }
-
-

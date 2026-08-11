@@ -20,7 +20,6 @@ import {
   IconPickerPopover,
   IconRenderer,
   Input,
-  Progress,
   Textarea,
 } from '@org/ui';
 import { formErrorMessage } from '@org/auth';
@@ -221,8 +220,6 @@ export function CreateWorkspacePage() {
     }
   });
 
-  const progressPercentage = (currentStep / STEPS.length) * 100;
-
   return (
     <div className="min-h-full bg-background text-foreground flex flex-col justify-between selection:bg-primary selection:text-white">
       {/* Top Header */}
@@ -246,54 +243,6 @@ export function CreateWorkspacePage() {
 
       {/* Main Content Area */}
       <main className="max-w-6xl w-full mx-auto px-4 py-8 flex-1 flex flex-col justify-center">
-        {/* Step Progress Tracker */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-3 text-xs text-muted-foreground font-medium">
-            <span>Step {currentStep} of {STEPS.length}: <strong className="text-primary font-semibold">{STEPS[currentStep - 1].label}</strong></span>
-            <span>{Math.round(progressPercentage)}% completed</span>
-          </div>
-          <Progress value={progressPercentage} className="h-1.5 bg-surface-raised" />
-
-          {/* Stepper Badges */}
-          <div className="grid grid-cols-5 gap-2 mt-4">
-            {STEPS.map((step) => {
-              const isCompleted = step.id < currentStep;
-              const isCurrent = step.id === currentStep;
-
-              return (
-                <button
-                  key={step.id}
-                  type="button"
-                  onClick={() => {
-                    if (step.id < currentStep) setCurrentStep(step.id);
-                  }}
-                  disabled={step.id > currentStep}
-                  className={`text-left p-2.5 rounded-lg border transition-all text-xs flex items-center gap-2 ${
-                    isCurrent
-                      ? 'border-primary/80 bg-primary/10 text-primary ring-1 ring-ring/30'
-                      : isCompleted
-                      ? 'border-border bg-surface/50 text-secondary-foreground hover:border-border-strong cursor-pointer'
-                      : 'border-border bg-background/30 text-disabled opacity-60 cursor-not-allowed'
-                  }`}
-                >
-                  <div
-                    className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                      isCompleted
-                        ? 'bg-success text-success-foreground'
-                        : isCurrent
-                        ? 'bg-primary text-white'
-                        : 'bg-surface-raised text-subtle'
-                    }`}
-                  >
-                    {isCompleted ? <Check className="h-3 w-3" /> : step.id}
-                  </div>
-                  <span className="hidden sm:inline font-medium truncate">{step.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Wizard Form Layout (Form Left + Live Preview Right) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Form Side */}

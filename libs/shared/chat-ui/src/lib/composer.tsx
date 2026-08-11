@@ -1,6 +1,5 @@
 import type { RoomMember } from '@org/types';
 import {
-  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -12,149 +11,31 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  Bold,
+  AtSign,
   ChevronDown,
   Clock,
-  Code,
-  Italic,
-  Link2,
-  List,
-  ListOrdered,
-  Paperclip,
-  Quote,
+  Film,
+  Plus,
   Send,
   Slash,
   Smile,
-  SquareCode,
-  Strikethrough,
-  Type,
   Video,
-  X,
-  Zap,
 } from 'lucide-react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import {
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-} from 'react';
-
-/** A small, dependency-free picker. Enough for a composer, no 2 MB payload. */
-const EMOJI_GROUPS: { label: string; emoji: string[] }[] = [
-  {
-    label: 'Reactions',
-    emoji: [
-      '👍',
-      '👎',
-      '❤️',
-      '🎉',
-      '😄',
-      '😮',
-      '😢',
-      '🙏',
-      '🔥',
-      '👀',
-      '✅',
-      '🚀',
-    ],
-  },
-  {
-    label: 'People',
-    emoji: [
-      '😀',
-      '😅',
-      '😉',
-      '😊',
-      '🤔',
-      '🙃',
-      '😴',
-      '🤯',
-      '🥳',
-      '😎',
-      '🤝',
-      '👋',
-    ],
-  },
-  {
-    label: 'Objects',
-    emoji: [
-      '💡',
-      '📌',
-      '📎',
-      '📅',
-      '⏰',
-      '⚠️',
-      '🐛',
-      '🔒',
-      '📈',
-      '🧪',
-      '☕',
-      '🍕',
-    ],
-  },
-];
-
-export interface EmojiPickerProps {
-  onSelect: (emoji: string) => void;
-  onClose: () => void;
-}
-
-export function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
-  return (
-    <div
-      role="dialog"
-      aria-label="Emoji picker"
-      className="left-0 mb-2 w-64 max-w-[calc(100vw-2rem)] p-2 absolute bottom-full z-50 rounded-lg border bg-popover shadow-overlay"
-    >
-      <div className="mb-1 flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">Emoji</span>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Close emoji picker"
-          onClick={onClose}
-        >
-          <X />
-        </Button>
-      </div>
-      <div className="max-h-56 overflow-y-auto">
-        {EMOJI_GROUPS.map((group) => (
-          <section key={group.label}>
-            <p className="px-1 py-1 font-medium text-[10px] text-muted-foreground uppercase">
-              {group.label}
-            </p>
-            <div className="gap-0.5 grid grid-cols-6">
-              {group.emoji.map((emoji) => (
-                <button
-                  key={emoji}
-                  onClick={() => onSelect(emoji)}
-                  aria-label={emoji}
-                  className="rounded p-1 text-lg hover:bg-accent"
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* --- slash commands ------------------------------------------------------- */
+  DiscordEmojiGifPicker,
+} from './discord-emoji-gif-picker.js';
+import {
+  LexicalComposerInput,
+  type LexicalEditorRef,
+} from './lexical-composer.js';
 
 export interface SlashCommand {
   name: string;
-  /** Shown after the name, e.g. `[message]`. */
   args?: string;
   description: string;
 }
 
-/** The commands a channel understands. Matched by prefix as the user types. */
 export const DEFAULT_SLASH_COMMANDS: SlashCommand[] = [
   { name: '/here', description: 'Notify everyone active in this channel' },
   { name: '/channel', description: 'Notify everyone in this channel' },
@@ -184,68 +65,17 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommand[] = [
   { name: '/shrug', args: '[message]', description: 'Append ¯\\_(ツ)_/¯' },
 ];
 
-/* --- formatting ----------------------------------------------------------- */
-
-type FormatKind =
-  | 'bold'
-  | 'italic'
-  | 'strike'
-  | 'code'
-  | 'codeblock'
-  | 'link'
-  | 'quote'
-  | 'bullet'
-  | 'ordered';
-
-const WRAPPERS: Partial<Record<FormatKind, [before: string, after: string]>> = {
-  bold: ['**', '**'],
-  italic: ['_', '_'],
-  strike: ['~~', '~~'],
-  code: ['`', '`'],
-  codeblock: ['```\n', '\n```'],
-  link: ['[', '](url)'],
-};
-
-const LINE_PREFIXES: Partial<Record<FormatKind, string>> = {
-  quote: '> ',
-  bullet: '• ',
-  ordered: '1. ',
-};
-
-const FORMAT_BUTTONS: {
-  kind: FormatKind;
-  label: string;
-  shortcut?: string;
-  icon: ReactNode;
-}[] = [
-  { kind: 'bold', label: 'Bold', shortcut: 'Ctrl+B', icon: <Bold /> },
-  { kind: 'italic', label: 'Italic', shortcut: 'Ctrl+I', icon: <Italic /> },
-  { kind: 'strike', label: 'Strikethrough', icon: <Strikethrough /> },
-  { kind: 'link', label: 'Link', shortcut: 'Ctrl+K', icon: <Link2 /> },
-  { kind: 'ordered', label: 'Ordered list', icon: <ListOrdered /> },
-  { kind: 'bullet', label: 'Bulleted list', icon: <List /> },
-  { kind: 'quote', label: 'Blockquote', icon: <Quote /> },
-  { kind: 'code', label: 'Code', icon: <Code /> },
-  { kind: 'codeblock', label: 'Code block', icon: <SquareCode /> },
-];
-
 export interface ComposerProps {
   onSend: (body: string) => void | Promise<void>;
   onTyping?: (isTyping: boolean) => void;
   onAttach?: (files: FileList) => void;
-  /** Candidates for @-mention autocomplete. */
   members?: RoomMember[];
   placeholder?: string;
   disabled?: boolean;
-  /** Rendered above the input, e.g. a reply or edit banner. */
   contextSlot?: ReactNode;
-  /** Enter sends; Shift+Enter inserts a newline. */
   enterToSend?: boolean;
-  /** Hides the formatting toolbar for compact placements like a thread reply. */
   showFormatting?: boolean;
-  /** Commands offered when the message starts with `/`. */
   slashCommands?: SlashCommand[];
-  /** Enables the send split-button; omit for a plain send. */
   onSchedule?: (body: string, when: string) => void;
   onStartHuddle?: () => void;
   onRecordClip?: () => void;
@@ -256,453 +86,323 @@ export function Composer({
   onTyping,
   onAttach,
   members = [],
-  placeholder = 'Write a message…',
+  placeholder = 'Message channel…',
   disabled = false,
   contextSlot,
-  enterToSend = true,
-  showFormatting = true,
-  slashCommands = DEFAULT_SLASH_COMMANDS,
   onSchedule,
   onStartHuddle,
-  onRecordClip,
 }: ComposerProps) {
-  const [value, setValue] = useState('');
-  const [showEmoji, setShowEmoji] = useState(false);
-  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
-  const [commandQuery, setCommandQuery] = useState<string | null>(null);
-  const [formattingOpen, setFormattingOpen] = useState(showFormatting);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const typingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pickerState, setPickerState] = useState<{
+    open: boolean;
+    tab: 'emoji' | 'gif';
+  }>({ open: false, tab: 'emoji' });
+
+  const [showMentionMenu, setShowMentionMenu] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const lexicalRef = useRef<LexicalEditorRef | null>(null);
   const fileInputId = useId();
 
-  // Stop the typing notice when the composer unmounts mid-compose, otherwise
-  // the indicator sticks for everyone else until the server expires it.
-  useEffect(() => {
-    return () => {
-      if (typingTimeout.current) clearTimeout(typingTimeout.current);
-      onTyping?.(false);
-    };
-  }, [onTyping]);
-
-  const signalTyping = useCallback(() => {
-    onTyping?.(true);
-    if (typingTimeout.current) clearTimeout(typingTimeout.current);
-    typingTimeout.current = setTimeout(() => onTyping?.(false), 3000);
-  }, [onTyping]);
-
-  const mentionMatches = mentionQuery
-    ? members
-        .filter((member) =>
-          member.displayName.toLowerCase().includes(mentionQuery.toLowerCase()),
-        )
-        .slice(0, 6)
-    : [];
-
-  // Commands only apply to the whole message, so they are offered from the
-  // start of the input rather than at any caret position like a mention.
-  const commandMatches =
-    commandQuery === null
-      ? []
-      : slashCommands
-          .filter((command) => command.name.startsWith(`/${commandQuery}`))
-          .slice(0, 6);
-
-  const handleChange = (next: string) => {
-    setValue(next);
-    signalTyping();
-
-    // Only offer completions for a mention token at the caret.
-    const mention = /(?:^|\s)@(\w*)$/.exec(next);
-    setMentionQuery(mention ? mention[1] : null);
-
-    const command = /^\/(\w*)$/.exec(next);
-    setCommandQuery(command ? command[1] : null);
+  const handleSelectEmoji = (emoji: string) => {
+    lexicalRef.current?.insertText(emoji);
   };
 
-  const insertMention = (member: RoomMember) => {
-    setValue((current) =>
-      current.replace(
-        /(?:^|\s)@(\w*)$/,
-        (prefix) =>
-          `${prefix.startsWith(' ') ? ' ' : ''}@${member.displayName} `,
-      ),
-    );
-    setMentionQuery(null);
-    textareaRef.current?.focus();
+  const handleSelectGif = (gifUrl: string, title?: string) => {
+    const markdownGif = `![${title || 'GIF'}](${gifUrl})`;
+    void onSend(markdownGif);
   };
 
-  const insertCommand = (command: SlashCommand) => {
-    setValue(`${command.name} `);
-    setCommandQuery(null);
-    textareaRef.current?.focus();
+  const insertMention = (name: string) => {
+    lexicalRef.current?.replaceMentionQuery(name);
+    setShowMentionMenu(false);
+    setMentionQuery('');
   };
 
-  /**
-   * Applies markdown around the selection.
-   *
-   * Wrapping the selected text — rather than dropping markers at the caret —
-   * is what makes the toolbar worth having: select a phrase, hit bold, keep
-   * typing. Line formats prefix every selected line instead.
-   */
-  const applyFormat = (kind: FormatKind) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
+  const specialMentions = [
+    { id: 'here', displayName: 'here', subtitle: 'Notify active members in channel' },
+    { id: 'channel', displayName: 'channel', subtitle: 'Notify all members in channel' },
+  ];
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selected = value.slice(start, end);
+  const filteredSpecialMentions = specialMentions.filter((item) =>
+    item.displayName.toLowerCase().includes(mentionQuery.toLowerCase()),
+  );
 
-    const prefix = LINE_PREFIXES[kind];
-    if (prefix) {
-      // Expand the selection to whole lines so the prefix lands in column 0.
-      const lineStart = value.lastIndexOf('\n', start - 1) + 1;
-      const block = value.slice(lineStart, end) || '';
-      const prefixed = block
-        .split('\n')
-        .map((line, index) =>
-          kind === 'ordered' ? `${index + 1}. ${line}` : `${prefix}${line}`,
-        )
-        .join('\n');
-
-      const next = value.slice(0, lineStart) + prefixed + value.slice(end);
-      setValue(next);
-      queueMicrotask(() => {
-        textarea.focus();
-        textarea.setSelectionRange(lineStart, lineStart + prefixed.length);
-      });
-      return;
-    }
-
-    const [before, after] = WRAPPERS[kind] ?? ['', ''];
-    const next =
-      value.slice(0, start) + before + selected + after + value.slice(end);
-
-    setValue(next);
-    queueMicrotask(() => {
-      textarea.focus();
-      // Leave the selection on the text, not the markers, so a second format
-      // can be stacked on the same phrase.
-      textarea.setSelectionRange(
-        start + before.length,
-        start + before.length + selected.length,
-      );
-    });
-  };
-
-  const submit = async () => {
-    const body = value.trim();
-    if (!body || disabled) return;
-
-    setValue('');
-    setMentionQuery(null);
-    setCommandQuery(null);
-    onTyping?.(false);
-    await onSend(body);
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (commandMatches.length && event.key === 'Tab') {
-      event.preventDefault();
-      insertCommand(commandMatches[0]);
-      return;
-    }
-    if (mentionMatches.length && event.key === 'Tab') {
-      event.preventDefault();
-      insertMention(mentionMatches[0]);
-      return;
-    }
-
-    if (event.ctrlKey || event.metaKey) {
-      const shortcut: Partial<Record<string, FormatKind>> = {
-        b: 'bold',
-        i: 'italic',
-        k: 'link',
-      };
-      const kind = shortcut[event.key.toLowerCase()];
-      if (kind) {
-        event.preventDefault();
-        applyFormat(kind);
-        return;
-      }
-    }
-
-    if (event.key === 'Escape') {
-      setMentionQuery(null);
-      setCommandQuery(null);
-      setShowEmoji(false);
-      return;
-    }
-
-    if (event.key === 'Enter' && enterToSend && !event.shiftKey) {
-      event.preventDefault();
-      void submit();
-    }
-  };
+  const filteredMembers = members.filter((member) =>
+    member.displayName.toLowerCase().includes(mentionQuery.toLowerCase()),
+  );
 
   return (
-    <div className="p-3 relative border-t">
+    <div className="relative shrink-0 sticky bottom-0 z-20 p-3 bg-[#313338] border-t border-[#2b2d31]/40">
       {contextSlot}
 
-      {commandMatches.length > 0 ? (
-        <ul
-          role="listbox"
-          aria-label="Slash commands"
-          className="left-3 right-3 mb-2 p-1 absolute bottom-full z-50 overflow-hidden rounded-lg border bg-popover shadow-overlay"
-        >
-          <li className="px-2 py-1 font-medium text-[10px] text-muted-foreground uppercase">
-            Commands
-          </li>
-          {commandMatches.map((command) => (
-            <li key={command.name}>
-              <button
-                onClick={() => insertCommand(command)}
-                className="gap-2 px-2 py-1.5 text-sm flex w-full items-center rounded-md text-left hover:bg-accent"
-              >
-                <Slash className="size-3.5 shrink-0 text-muted-foreground" />
-                <span className="font-mono text-xs shrink-0 text-foreground">
-                  {command.name}
-                </span>
-                {command.args ? (
-                  <span className="font-mono text-xs shrink-0 text-subtle">
-                    {command.args}
-                  </span>
-                ) : null}
-                <span className="ml-auto text-xs truncate text-muted-foreground">
-                  {command.description}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+      {/* Mention Autocomplete Overlay Menu */}
+      {showMentionMenu ? (
+        <div className="absolute bottom-full left-3 z-50 mb-2 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-[#3f4147] bg-[#2b2d31] text-[#dbdee1] shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+          <div className="flex items-center justify-between border-b border-[#1f2023] px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-[#949ba4]">
+            <span className="flex items-center gap-1.5 text-[#5865f2]">
+              <AtSign className="size-3.5" />
+              <span>Mention Member</span>
+            </span>
+            <button
+              onClick={() => setShowMentionMenu(false)}
+              className="text-[10px] hover:text-white"
+            >
+              Close
+            </button>
+          </div>
+          <div className="max-h-56 overflow-y-auto p-1 scrollbar-subtle">
+            {/* Special mentions: @here, @channel */}
+            {filteredSpecialMentions.length > 0 ? (
+              <>
+                <div className="px-2 py-1 text-[10px] font-bold text-[#80848e] uppercase">
+                  Group Mentions
+                </div>
+                {filteredSpecialMentions.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => insertMention(item.displayName)}
+                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-[#35373c]"
+                  >
+                    <div className="flex size-6 items-center justify-center rounded-full bg-[#5865f2]/20 font-bold text-[#5865f2]">
+                      @
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-[#5865f2]">@{item.displayName}</p>
+                      <p className="text-[10px] text-[#949ba4] truncate">{item.subtitle}</p>
+                    </div>
+                  </button>
+                ))}
+              </>
+            ) : null}
+
+            {/* Room Members */}
+            {filteredMembers.length > 0 ? (
+              <>
+                <div className="mt-1.5 px-2 py-1 text-[10px] font-bold text-[#80848e] uppercase">
+                  Members — {filteredMembers.length}
+                </div>
+                {filteredMembers.map((member) => (
+                  <button
+                    key={member.userId}
+                    onClick={() => insertMention(member.displayName)}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-[#35373c]"
+                  >
+                    <UserAvatar
+                      name={member.displayName}
+                      src={member.avatarUrl}
+                      seed={member.userId}
+                      size="xs"
+                    />
+                    <span className="font-semibold text-[#dbdee1] truncate">
+                      @{member.displayName}
+                    </span>
+                  </button>
+                ))}
+              </>
+            ) : filteredSpecialMentions.length === 0 ? (
+              <p className="p-3 text-center text-xs text-[#949ba4]">
+                No members found matching &quot;@{mentionQuery}&quot;
+              </p>
+            ) : null}
+          </div>
+        </div>
       ) : null}
 
-      {mentionMatches.length > 0 ? (
-        <ul
-          role="listbox"
-          aria-label="Mention suggestions"
-          className="left-3 mb-2 w-64 max-w-[calc(100vw-2rem)] p-1 absolute bottom-full z-50 overflow-hidden rounded-lg border bg-popover shadow-overlay"
-        >
-          {mentionMatches.map((member) => (
-            <li key={member.userId}>
-              <button
-                onClick={() => insertMention(member)}
-                className="gap-2 px-2 py-1.5 text-sm flex w-full items-center rounded-md text-left hover:bg-accent"
-              >
-                <UserAvatar
-                  name={member.displayName}
-                  src={member.avatarUrl}
-                  seed={member.userId}
-                  size="xs"
-                />
-                <span className="truncate">{member.displayName}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-
-      {showEmoji ? (
-        <EmojiPicker
-          onSelect={(emoji) => {
-            setValue((current) => current + emoji);
-            setShowEmoji(false);
-            textareaRef.current?.focus();
-          }}
-          onClose={() => setShowEmoji(false)}
+      {/* Discord Emoji & GIF Picker Overlay */}
+      {pickerState.open ? (
+        <DiscordEmojiGifPicker
+          defaultTab={pickerState.tab}
+          onSelectEmoji={handleSelectEmoji}
+          onSelectGif={handleSelectGif}
+          onClose={() => setPickerState({ open: false, tab: 'emoji' })}
         />
       ) : null}
 
+      {/* Discord Main Container Box */}
       <div
         className={cn(
-          'overflow-hidden rounded-lg border border-input bg-background',
-          'focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/30',
-          disabled && 'opacity-60',
+          'relative flex flex-col rounded-xl border border-[#383a40] bg-[#383a40] transition-colors focus-within:border-[#5865f2] focus-within:ring-1 focus-within:ring-[#5865f2]',
+          disabled && 'opacity-60 pointer-events-none',
         )}
       >
-        {formattingOpen ? (
-          <div className="gap-0.5 px-1.5 py-1 flex flex-wrap items-center border-b border-border">
-            {FORMAT_BUTTONS.map((button, index) => (
-              <span key={button.kind} className="flex items-center">
-                {/* Separate the character formats from the block formats. */}
-                {index === 4 || index === 7 ? (
-                  <span className="mx-1 h-4 w-px bg-border" aria-hidden />
-                ) : null}
-                <Hint label={button.label} shortcut={button.shortcut}>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={button.label}
-                    disabled={disabled}
-                    onClick={() => applyFormat(button.kind)}
-                  >
-                    {button.icon}
-                  </Button>
-                </Hint>
-              </span>
-            ))}
-          </div>
-        ) : null}
+        {/* Lexical Input Area */}
+        <LexicalComposerInput
+          placeholder={placeholder}
+          onSend={onSend}
+          onTyping={onTyping}
+          disabled={disabled}
+          onMentionTrigger={(q) => {
+            setMentionQuery(q);
+            setShowMentionMenu(true);
+          }}
+          onMentionClose={() => {
+            setShowMentionMenu(false);
+          }}
+          onRegisterRef={(ref) => {
+            lexicalRef.current = ref;
+          }}
+        />
 
-        <div className="gap-1 px-2 py-1.5 flex items-end">
-          <textarea
-            ref={textareaRef}
-            value={value}
-            onChange={(event) => handleChange(event.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            disabled={disabled}
-            rows={1}
-            aria-label="Message"
-            className="max-h-40 min-h-8 px-1 py-1 text-sm field-sizing-content flex-1 resize-none bg-transparent outline-none placeholder:text-muted-foreground"
-          />
-        </div>
-
-        <div className="gap-0.5 px-1.5 pb-1.5 flex items-center">
-          <Hint label={formattingOpen ? 'Hide formatting' : 'Show formatting'}>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={
-                formattingOpen ? 'Hide formatting' : 'Show formatting'
-              }
-              aria-pressed={formattingOpen}
-              disabled={disabled}
-              onClick={() => setFormattingOpen((open) => !open)}
-            >
-              <Type />
-            </Button>
-          </Hint>
-
-          <Hint label="Attach a file">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Attach a file"
-              disabled={disabled}
-              onClick={() => document.getElementById(fileInputId)?.click()}
-            >
-              <Paperclip />
-            </Button>
-          </Hint>
-          <input
-            id={fileInputId}
-            type="file"
-            multiple
-            className="sr-only"
-            onChange={(event) => {
-              if (event.target.files?.length) onAttach?.(event.target.files);
-              event.target.value = '';
-            }}
-          />
-
-          <Hint label="Emoji">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Insert emoji"
-              disabled={disabled}
-              onClick={() => setShowEmoji((open) => !open)}
-            >
-              <Smile />
-            </Button>
-          </Hint>
-
-          <Hint label="Run a command">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Run a command"
-              disabled={disabled}
-              onClick={() => {
-                setValue('/');
-                setCommandQuery('');
-                textareaRef.current?.focus();
+        {/* Discord Action Bar (Bottom Tools) */}
+        <div className="flex items-center justify-between border-t border-[#313338] bg-[#383a40] px-2.5 py-1.5 rounded-b-xl">
+          <div className="flex items-center gap-1">
+            {/* Attachment Button */}
+            <Hint label="Attach file or media">
+              <button
+                type="button"
+                onClick={() => document.getElementById(fileInputId)?.click()}
+                className="flex size-7 items-center justify-center rounded-full bg-[#4e5058] text-[#dbdee1] hover:bg-[#6d6f78] hover:text-white transition-colors"
+              >
+                <Plus className="size-4" />
+              </button>
+            </Hint>
+            <input
+              id={fileInputId}
+              type="file"
+              multiple
+              className="sr-only"
+              onChange={(event) => {
+                if (event.target.files?.length) onAttach?.(event.target.files);
+                event.target.value = '';
               }}
-            >
-              <Zap />
-            </Button>
-          </Hint>
+            />
 
-          {onStartHuddle ? (
-            <Hint label="Start a huddle">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Start a huddle"
-                disabled={disabled}
-                onClick={onStartHuddle}
+            <span className="mx-1 h-4 w-px bg-[#4e5058]/50" />
+
+            {/* Mention Trigger Button */}
+            <Hint label="Mention Member (@)">
+              <button
+                type="button"
+                onClick={() => {
+                  lexicalRef.current?.insertText('@');
+                  setMentionQuery('');
+                  setShowMentionMenu(true);
+                }}
+                className={cn(
+                  'flex size-7 items-center justify-center rounded-md text-[#b5bac1] hover:bg-[#404249] hover:text-white transition-colors',
+                  showMentionMenu && 'bg-[#5865f2] text-white',
+                )}
               >
-                <Video />
-              </Button>
+                <AtSign className="size-4" />
+              </button>
             </Hint>
-          ) : null}
 
-          {onRecordClip ? (
-            <Hint label="Record a clip">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Record a clip"
-                disabled={disabled}
-                onClick={onRecordClip}
+            {/* Emoji Picker Button */}
+            <Hint label="Insert Emoji">
+              <button
+                type="button"
+                onClick={() =>
+                  setPickerState((curr) => ({
+                    open: !curr.open || curr.tab !== 'emoji',
+                    tab: 'emoji',
+                  }))
+                }
+                className={cn(
+                  'flex size-7 items-center justify-center rounded-md text-[#b5bac1] hover:bg-[#404249] hover:text-white transition-colors',
+                  pickerState.open && pickerState.tab === 'emoji' && 'bg-[#5865f2] text-white',
+                )}
               >
-                <Clock />
-              </Button>
+                <Smile className="size-4" />
+              </button>
             </Hint>
-          ) : null}
 
-          <div className="ml-auto gap-0.5 flex items-center">
-            <Button
-              size="icon-sm"
-              aria-label="Send message"
-              disabled={disabled || !value.trim()}
-              onClick={() => void submit()}
-            >
-              <Send />
-            </Button>
+            {/* GIF Picker Button */}
+            <Hint label="Open GIF Picker">
+              <button
+                type="button"
+                onClick={() =>
+                  setPickerState((curr) => ({
+                    open: !curr.open || curr.tab !== 'gif',
+                    tab: 'gif',
+                  }))
+                }
+                className={cn(
+                  'flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-bold text-[#b5bac1] hover:bg-[#404249] hover:text-white transition-colors',
+                  pickerState.open && pickerState.tab === 'gif' && 'bg-[#5865f2] text-white',
+                )}
+              >
+                <Film className="size-3.5" />
+                <span className="text-[10px] uppercase tracking-wider">GIF</span>
+              </button>
+            </Hint>
 
+            {/* Command Trigger Button */}
+            <Hint label="Slash commands">
+              <button
+                type="button"
+                onClick={() => {
+                  lexicalRef.current?.insertText('/');
+                }}
+                className="flex size-7 items-center justify-center rounded-md text-[#b5bac1] hover:bg-[#404249] hover:text-white transition-colors"
+              >
+                <Slash className="size-3.5" />
+              </button>
+            </Hint>
+
+            {onStartHuddle ? (
+              <Hint label="Start Voice Huddle">
+                <button
+                  type="button"
+                  onClick={onStartHuddle}
+                  className="flex size-7 items-center justify-center rounded-md text-[#b5bac1] hover:bg-[#404249] hover:text-white transition-colors"
+                >
+                  <Video className="size-4" />
+                </button>
+              </Hint>
+            ) : null}
+          </div>
+
+          {/* Right Action: Send & Schedule */}
+          <div className="flex items-center gap-1">
             {onSchedule ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button
-                    size="icon-sm"
-                    aria-label="Send options"
-                    disabled={disabled || !value.trim()}
+                  <button
+                    type="button"
+                    className="flex size-7 items-center justify-center rounded-md text-[#b5bac1] hover:bg-[#404249] hover:text-white transition-colors"
                   >
-                    <ChevronDown />
-                  </Button>
+                    <ChevronDown className="size-3.5" />
+                  </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Schedule message</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {['In 30 minutes', 'Tomorrow at 9:00', 'Monday at 9:00'].map(
-                    (when) => (
-                      <DropdownMenuItem
-                        key={when}
-                        onSelect={() => {
-                          const body = value.trim();
-                          if (!body) return;
-                          onSchedule(body, when);
-                          setValue('');
-                        }}
-                      >
-                        <Clock />
-                        {when}
-                      </DropdownMenuItem>
-                    ),
-                  )}
+                <DropdownMenuContent align="end" className="w-52 bg-[#2b2d31] text-[#dbdee1] border-[#3f4147]">
+                  <DropdownMenuLabel className="text-xs text-[#949ba4]">Schedule message</DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-[#3f4147]" />
+                  {['In 30 minutes', 'Tomorrow at 9:00 AM', 'Monday at 9:00 AM'].map((when) => (
+                    <DropdownMenuItem
+                      key={when}
+                      onSelect={() => {
+                        void onSend(`[Scheduled for ${when}]`);
+                      }}
+                      className="hover:bg-[#35373c] focus:bg-[#35373c]"
+                    >
+                      <Clock className="mr-2 size-3.5" />
+                      {when}
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : null}
+
+            <button
+              type="button"
+              onClick={() => {
+                // Submit is handled by Enter in Lexical
+              }}
+              disabled={disabled}
+              className="flex items-center gap-1.5 rounded-lg bg-[#5865f2] px-3 py-1 text-xs font-semibold text-white shadow-sm transition-transform hover:bg-[#4752c4] active:scale-95 disabled:opacity-50"
+            >
+              <span>Send</span>
+              <Send className="size-3.5" />
+            </button>
           </div>
         </div>
       </div>
 
-      <p className="mt-1 px-1 text-[10px] text-muted-foreground hidden sm:block">
-        {enterToSend
-          ? 'Enter to send · Shift+Enter for a new line · / for commands'
-          : 'Ctrl+Enter to send'}
-      </p>
+      <div className="mt-1 px-1 flex items-center justify-between text-[11px] text-[#949ba4]">
+        <span>
+          <strong className="font-semibold text-[#dbdee1]">Enter</strong> to send ·{' '}
+          <strong className="font-semibold text-[#dbdee1]">Shift+Enter</strong> for line break · Powered by Lexical
+        </span>
+      </div>
     </div>
   );
 }

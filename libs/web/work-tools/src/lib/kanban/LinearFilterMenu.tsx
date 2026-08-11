@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Sparkles,
   SlidersHorizontal,
   CircleDot,
   Signal,
@@ -258,17 +257,6 @@ export function LinearFilterMenu({
 
       {/* Main Filter Action Items */}
       <div className="space-y-0.5 px-1">
-        <button
-          onClick={() => {
-            onActivateAIFilter();
-            onClose();
-          }}
-          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs font-medium text-accent-violet hover:bg-accent-violet-soft transition-colors"
-        >
-          <Sparkles className="size-3.5 text-accent-violet shrink-0 animate-pulse" />
-          <span>AI filter</span>
-        </button>
-
         <button
           onClick={() => setActiveSubMenu(activeSubMenu === 'advanced' ? null : 'advanced')}
           className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"

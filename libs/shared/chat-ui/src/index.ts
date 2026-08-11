@@ -10,17 +10,39 @@ export {
   ChatBubble,
   DateSeparator,
   ReactionPicker,
+  formatShortTimestamp,
+  formatFullTimestamp,
   type ChatBubbleProps,
 } from './lib/chat-bubble.js';
 
 export {
+  UserProfileCard,
+  UserProfileRightPanel,
+  type UserProfileCardProps,
+} from './lib/user-profile-card.js';
+
+export {
   Composer,
   DEFAULT_SLASH_COMMANDS,
-  EmojiPicker,
   type ComposerProps,
-  type EmojiPickerProps,
   type SlashCommand,
 } from './lib/composer.js';
+
+export {
+  DiscordEmojiGifPicker,
+  EMOJI_CATEGORIES,
+  POPULAR_GIFS,
+  type DiscordEmojiGifPickerProps,
+  type EmojiCategory,
+  type GifItem,
+} from './lib/discord-emoji-gif-picker.js';
+
+export {
+  LexicalComposerInput,
+  LexicalToolbar,
+  type LexicalComposerInputProps,
+  type LexicalEditorRef,
+} from './lib/lexical-composer.js';
 
 export {
   BookmarksBar,
@@ -57,6 +79,7 @@ export {
   MemberList,
   PresenceBadge,
   TypingIndicator,
+  getUserColor,
   type ConnectionBannerProps,
   type MemberListProps,
   type TypingIndicatorProps,

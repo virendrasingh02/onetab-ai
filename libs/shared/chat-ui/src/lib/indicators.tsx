@@ -2,6 +2,33 @@ import type { ConnectionStatus, PresenceState, RoomMember } from '@org/types';
 import { Badge, ScrollArea, UserAvatar } from '@org/ui';
 import { cn } from '@org/utils';
 import { Loader2, ShieldCheck, WifiOff } from 'lucide-react';
+import { UserProfileCard } from './user-profile-card.js';
+
+const USER_COLORS = [
+  '#f43f5e', // Rose
+  '#ec4899', // Pink
+  '#d946ef', // Fuchsia
+  '#a855f7', // Purple
+  '#8b5cf6', // Violet
+  '#6366f1', // Indigo
+  '#3b82f6', // Blue
+  '#0ea5e9', // Sky
+  '#06b6d4', // Cyan
+  '#14b8a6', // Teal
+  '#10b981', // Emerald
+  '#22c55e', // Green
+  '#eab308', // Yellow
+  '#f97316', // Orange
+];
+
+export function getUserColor(userId: string): string {
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % USER_COLORS.length;
+  return USER_COLORS[index];
+}
 
 const PRESENCE_STYLES: Record<PresenceState, string> = {
   online: 'bg-success',
@@ -45,12 +72,6 @@ export interface TypingIndicatorProps {
   className?: string;
 }
 
-/**
- * "Alice is typing…"
- *
- * Reserves its row height even when idle, so the message list does not shift
- * every time someone starts and stops typing.
- */
 export function TypingIndicator({ names, className }: TypingIndicatorProps) {
   const label =
     names.length === 0
@@ -91,7 +112,6 @@ export interface ConnectionBannerProps {
   status: ConnectionStatus;
 }
 
-/** Shown only when the connection is not healthy. */
 export function ConnectionBanner({ status }: ConnectionBannerProps) {
   if (status.state === 'connected' || status.state === 'disconnected') {
     return null;
@@ -138,39 +158,46 @@ export function MemberList({
   onSelect,
   className,
 }: MemberListProps) {
-  // Power level 100 is admin, 50 moderator — the Matrix convention.
   const admins = members.filter((member) => member.powerLevel >= 50);
   const others = members.filter((member) => member.powerLevel < 50);
 
   const renderGroup = (label: string, group: RoomMember[]) =>
     group.length === 0 ? null : (
       <section key={label}>
-        <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase">
+        <p className="px-3 py-1.5 text-xs font-semibold text-[#949ba4] uppercase tracking-wider">
           {label} — {group.length}
         </p>
         <ul>
           {group.map((member) => (
             <li key={member.userId}>
-              <button
-                onClick={() => onSelect?.(member)}
-                className="gap-2.5 px-3 py-1.5 flex w-full items-center text-left hover:bg-muted"
+              <UserProfileCard
+                userId={member.userId}
+                name={member.displayName}
+                avatarUrl={member.avatarUrl}
+                powerLevel={member.powerLevel}
+                status={presenceOf ? presenceOf(member.userId) : 'online'}
               >
-                <UserAvatar
-                  name={member.displayName}
-                  seed={member.userId}
-                  src={member.avatarUrl}
-                  size="sm"
-                />
-                <span className="min-w-0 text-sm flex-1 truncate">
-                  {member.displayName}
-                </span>
-                {member.powerLevel >= 100 ? (
-                  <Badge variant="primary">Admin</Badge>
-                ) : null}
-                {presenceOf ? (
-                  <PresenceBadge state={presenceOf(member.userId)} />
-                ) : null}
-              </button>
+                <div
+                  onClick={() => onSelect?.(member)}
+                  className="gap-2.5 px-3 py-1.5 flex w-full items-center text-left hover:bg-[#35373c]/50 rounded-md transition-colors cursor-pointer"
+                >
+                  <UserAvatar
+                    name={member.displayName}
+                    seed={member.userId}
+                    src={member.avatarUrl}
+                    size="sm"
+                  />
+                  <span className="min-w-0 text-sm font-semibold text-[#dbdee1] flex-1 truncate">
+                    {member.displayName}
+                  </span>
+                  {member.powerLevel >= 100 ? (
+                    <Badge variant="primary">Admin</Badge>
+                  ) : null}
+                  {presenceOf ? (
+                    <PresenceBadge state={presenceOf(member.userId)} />
+                  ) : null}
+                </div>
+              </UserProfileCard>
             </li>
           ))}
         </ul>

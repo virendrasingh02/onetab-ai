@@ -285,17 +285,6 @@ export function AsanaProjectManager() {
             />
           </div>
 
-          {/* AI Filter Quick Toggle */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowAIFilterInput(!showAIFilterInput)}
-            className="gap-1.5 text-xs h-8 border-accent-violet/30 text-accent-violet hover:bg-accent-violet-soft cursor-pointer"
-          >
-            <Sparkles className="size-3.5 text-accent-violet shrink-0" />
-            <span className="hidden sm:inline">AI filter</span>
-          </Button>
-
           {/* Filter Menu Trigger Button (Linear Style) */}
           <div className="relative">
             <Button

@@ -1,13 +1,11 @@
-import { Button, Hint, LoadingState } from '@org/ui';
+import { Hint, LoadingState } from '@org/ui';
 import { cn } from '@org/utils';
-import { Lock, PanelRight, Users, X } from 'lucide-react';
+import { Hash, Lock, PanelRight, Users, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 export interface ChatLayoutProps {
   header: ReactNode;
-  /** Message list plus composer. */
   children: ReactNode;
-  /** Thread panel or member list; hidden when null. */
   sidePanel?: ReactNode;
   sidePanelTitle?: string;
   onCloseSidePanel?: () => void;
@@ -15,13 +13,6 @@ export interface ChatLayoutProps {
   className?: string;
 }
 
-/**
- * Two-pane chat surface: conversation plus an optional right panel.
- *
- * The panel is a sibling rather than an overlay so opening a thread narrows
- * the conversation instead of covering it — the pattern that makes it possible
- * to follow both at once.
- */
 export function ChatLayout({
   header,
   children,
@@ -32,34 +23,35 @@ export function ChatLayout({
   className,
 }: ChatLayoutProps) {
   return (
-    <div className={cn('min-h-0 flex h-full flex-col', className)}>
+    <div className={cn('min-h-0 flex h-full flex-col bg-[#313338] text-[#dbdee1]', className)}>
       {banner}
       {header}
 
-      <div className="min-h-0 flex flex-1">
-        <div className="min-w-0 flex flex-1 flex-col">{children}</div>
+      <div className="min-h-0 flex flex-1 overflow-hidden relative">
+        <div className="relative min-w-0 flex flex-1 flex-col overflow-hidden bg-[#313338]">{children}</div>
 
         {sidePanel ? (
           <aside
             aria-label={sidePanelTitle ?? 'Details'}
-            className="w-80 flex shrink-0 flex-col border-l"
+            className="w-80 flex shrink-0 flex-col border-l border-[#1f2023] bg-[#2b2d31] text-[#dbdee1] shadow-md"
           >
-            <div className="h-12 gap-2 px-3 flex shrink-0 items-center border-b">
-              <h3 className="text-sm font-semibold flex-1 truncate">
-                {sidePanelTitle}
+            <div className="h-12 flex shrink-0 items-center justify-between border-b border-[#1f2023] px-3.5">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-white truncate">
+                <Hash className="size-4 text-[#949ba4]" />
+                <span className="truncate">{sidePanelTitle}</span>
               </h3>
               {onCloseSidePanel ? (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
+                <button
+                  type="button"
                   aria-label="Close panel"
                   onClick={onCloseSidePanel}
+                  className="rounded-md p-1 text-[#949ba4] hover:bg-[#35373c] hover:text-white transition-colors"
                 >
-                  <X />
-                </Button>
+                  <X className="size-4" />
+                </button>
               ) : null}
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto">{sidePanel}</div>
+            <div className="min-h-0 flex-1 overflow-y-auto scrollbar-subtle">{sidePanel}</div>
           </aside>
         ) : null}
       </div>
@@ -87,51 +79,56 @@ export function ChatHeader({
   actions,
 }: ChatHeaderProps) {
   return (
-    <header className="h-12 gap-2 px-4 flex shrink-0 items-center border-b">
-      <div className="min-w-0 flex-1">
-        <h2 className="gap-1.5 text-sm font-semibold flex items-center truncate">
-          <span className="truncate">{title}</span>
-          {isEncrypted ? (
-            <Hint label="End-to-end encrypted">
-              <Lock
-                className="size-3 shrink-0 text-muted-foreground"
-                aria-label="End-to-end encrypted"
-              />
-            </Hint>
+    <header className="h-12 flex shrink-0 items-center justify-between border-b border-[#1f2023] bg-[#2b2d31] px-4 shadow-xs">
+      <div className="flex min-w-0 items-center gap-2">
+        <Hash className="size-5 shrink-0 text-[#80848e]" />
+        <div className="min-w-0 flex-1">
+          <h2 className="flex items-center gap-1.5 text-sm font-bold text-white truncate">
+            <span className="truncate">{title}</span>
+            {isEncrypted ? (
+              <Hint label="End-to-end encrypted">
+                <Lock
+                  className="size-3.5 shrink-0 text-[#949ba4]"
+                  aria-label="End-to-end encrypted"
+                />
+              </Hint>
+            ) : null}
+          </h2>
+          {subtitle ? (
+            <p className="text-xs text-[#80848e] truncate">{subtitle}</p>
           ) : null}
-        </h2>
-        {subtitle ? (
-          <p className="text-xs truncate text-muted-foreground">{subtitle}</p>
-        ) : null}
+        </div>
       </div>
 
-      {actions}
+      <div className="flex items-center gap-2 text-[#b5bac1]">
+        {actions}
 
-      {onToggleMembers ? (
-        <Hint label="Members">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onToggleMembers}
-            leadingIcon={<Users />}
-          >
-            {memberCount ?? ''}
-          </Button>
-        </Hint>
-      ) : null}
+        {onToggleMembers ? (
+          <Hint label="Channel Members">
+            <button
+              type="button"
+              onClick={onToggleMembers}
+              className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold hover:bg-[#35373c] hover:text-white transition-colors"
+            >
+              <Users className="size-4" />
+              <span>{memberCount ?? ''}</span>
+            </button>
+          </Hint>
+        ) : null}
 
-      {onToggleDetails ? (
-        <Hint label="Details">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Toggle details"
-            onClick={onToggleDetails}
-          >
-            <PanelRight />
-          </Button>
-        </Hint>
-      ) : null}
+        {onToggleDetails ? (
+          <Hint label="Details">
+            <button
+              type="button"
+              aria-label="Toggle details"
+              onClick={onToggleDetails}
+              className="rounded-md p-1.5 hover:bg-[#35373c] hover:text-white transition-colors"
+            >
+              <PanelRight className="size-4" />
+            </button>
+          </Hint>
+        ) : null}
+      </div>
     </header>
   );
 }
@@ -144,7 +141,6 @@ export interface ThreadPanelProps {
   replyCount: number;
 }
 
-/** Thread view: the root message, its replies and a scoped composer. */
 export function ThreadPanel({
   rootSlot,
   repliesSlot,
@@ -155,33 +151,34 @@ export function ThreadPanel({
   if (isLoading) return <LoadingState label="Loading thread…" />;
 
   return (
-    <div className="min-h-0 flex h-full flex-col">
-      <div className="pb-2 border-b">{rootSlot}</div>
+    <div className="min-h-0 flex h-full flex-col bg-[#2b2d31] relative">
+      <div className="border-b border-[#1f2023] pb-2 shrink-0">{rootSlot}</div>
 
-      <p className="px-4 py-2 text-xs font-medium text-muted-foreground">
-        {replyCount === 0
-          ? 'No replies yet'
-          : `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`}
-      </p>
+      <div className="flex items-center justify-between px-4 py-2 border-b border-[#1f2023] bg-[#232428] text-xs font-bold uppercase tracking-wider text-[#949ba4] shrink-0">
+        <span>
+          {replyCount === 0
+            ? 'No replies yet'
+            : `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`}
+        </span>
+      </div>
 
-      <div className="scrollbar-subtle min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto scrollbar-subtle bg-[#313338]">
         {repliesSlot}
       </div>
 
-      {composerSlot}
+      <div className="shrink-0 sticky bottom-0 z-20 w-full bg-[#2b2d31]">
+        {composerSlot}
+      </div>
     </div>
   );
 }
 
-/** Placeholder for in-conversation search, which lands with server-side search. */
 export function ChatSearchPlaceholder() {
   return (
-    <div className="p-4 text-sm text-muted-foreground">
-      <p className="font-medium">Search in conversation</p>
-      <p className="mt-1 text-xs">
-        Full-text search across messages requires server-side search on the
-        homeserver, which is not available for encrypted rooms. This arrives
-        with the search service in a later phase.
+    <div className="p-4 text-sm text-[#949ba4]">
+      <p className="font-semibold text-white">Search in conversation</p>
+      <p className="mt-1 text-xs text-[#80848e]">
+        Full-text search across messages in Discord mode. Search results are filtered instantly.
       </p>
     </div>
   );

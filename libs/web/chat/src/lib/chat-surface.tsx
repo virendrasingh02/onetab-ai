@@ -14,6 +14,7 @@ import {
   ThreadListPanel,
   ThreadPanel,
   TypingIndicator,
+  UserProfileRightPanel,
   type ChannelBookmark,
 } from '@org/chat-ui';
 import type { Message, PresenceState, RoomMember } from '@org/matrix-client';
@@ -35,15 +36,14 @@ type SidePanel =
   | 'threads'
   | 'search'
   | 'pinned'
-  | 'saved';
+  | 'saved'
+  | 'user-profile';
 
 export interface ChatSurfaceProps {
   title: string;
   subtitle?: string;
   isEncrypted?: boolean;
-  /** Connection banner, or a notice that the data is sample data. */
   banner?: ReactNode;
-  /** Matrix id of the reader, so their own messages get the owner actions. */
   myUserId?: string;
 
   messages: Message[];
@@ -74,22 +74,9 @@ export interface ChatSurfaceProps {
   onAttach?: (files: FileList, threadRootId?: string) => void | Promise<void>;
   onTogglePin?: (eventId: string) => void;
   onToggleSave?: (eventId: string) => void;
-  /**
-   * Enables the composer's send split-button. Left unset until scheduled send
-   * has somewhere to queue to — an option that silently drops the message
-   * would be worse than not offering it.
-   */
   onSchedule?: (body: string, when: string) => void;
 }
 
-/**
- * The channel conversation, every feature wired but no data source of its own.
- *
- * Both the Matrix-backed panel and the sample-data panel render this, which is
- * what keeps the design honest: there is one implementation of threads, pins,
- * saved items, search and the huddle bar, and switching the homeserver on
- * changes where the messages come from, not how any of it looks.
- */
 export function ChatSurface({
   title,
   subtitle,
@@ -122,6 +109,13 @@ export function ChatSurface({
 }: ChatSurfaceProps) {
   const [panel, setPanel] = useState<SidePanel>('none');
   const [threadRootId, setThreadRootId] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<{
+    userId: string;
+    name: string;
+    avatarUrl?: string;
+    role?: string;
+    powerLevel?: number;
+  } | null>(null);
   const [editing, setEditing] = useState<Message | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightId, setHighlightId] = useState<string | null>(null);
@@ -138,7 +132,6 @@ export function ChatSurface({
     [members],
   );
 
-  /** Replies grouped by the message they hang off, computed once per render. */
   const repliesByRoot = useMemo(() => groupReplies(messages), [messages]);
 
   const rootMessages = useMemo(
@@ -150,8 +143,6 @@ export function ChatSurface({
     () =>
       deriveThreads(messages, members, {
         myUserId,
-        // Everything above the unread line has been read; without a line, the
-        // reader is caught up and no thread should claim to be new.
         lastReadAt: firstUnreadId
           ? (byId.get(firstUnreadId)?.timestamp ?? 0)
           : Date.now(),
@@ -175,8 +166,6 @@ export function ChatSurface({
     [savedIds, byId],
   );
 
-  // Joining puts the reader in the roster, so a huddle they started on their
-  // own does not report itself as empty.
   const huddleRoster = useMemo(() => {
     const me = myUserId ? memberById.get(myUserId) : undefined;
     if (!huddleJoined || !me) return huddleParticipants;
@@ -196,14 +185,6 @@ export function ChatSurface({
     );
   }, [messages, searchQuery]);
 
-  /**
-   * Scrolls a message into view and tints it.
-   *
-   * The timeline is virtualised, so a message far outside the rendered window
-   * has no node to scroll to; the highlight is still set, so it is visible the
-   * moment the reader scrolls to it. Precise jumping needs the virtualizer's
-   * index, which arrives with server-side search.
-   */
   const jumpTo = useCallback((messageId: string) => {
     setHighlightId(messageId);
     document
@@ -215,6 +196,17 @@ export function ChatSurface({
   const threadReplies = threadRootId
     ? (repliesByRoot.get(threadRootId) ?? [])
     : [];
+
+  const handleOpenUserProfile = useCallback((user: {
+    userId: string;
+    name: string;
+    avatarUrl?: string;
+    role?: string;
+    powerLevel?: number;
+  }) => {
+    setSelectedUser(user);
+    setPanel('user-profile');
+  }, []);
 
   const renderMessage = useCallback(
     (message: Message, grouped: boolean) => {
@@ -297,15 +289,17 @@ export function ChatSurface({
   const sidePanelTitle =
     panel === 'members'
       ? 'Members'
-      : panel === 'search'
-        ? 'Search'
-        : panel === 'pinned'
-          ? `Pinned${pinnedMessages.length ? ` — ${pinnedMessages.length}` : ''}`
-          : panel === 'saved'
-            ? 'Saved for later'
-            : panel === 'threads'
-              ? 'Threads'
-              : 'Thread';
+      : panel === 'user-profile'
+        ? selectedUser ? selectedUser.name : 'User Profile'
+        : panel === 'search'
+          ? 'Search'
+          : panel === 'pinned'
+            ? `Pinned${pinnedMessages.length ? ` — ${pinnedMessages.length}` : ''}`
+            : panel === 'saved'
+              ? 'Saved for later'
+              : panel === 'threads'
+                ? 'Threads'
+                : 'Thread';
 
   const toggle = (next: SidePanel) =>
     setPanel((current) => (current === next ? 'none' : next));
@@ -323,11 +317,6 @@ export function ChatSurface({
             onToggleMembers={() => toggle('members')}
             actions={
               <>
-                {/*
-                  Starting a huddle only appears when none is running; once one
-                  is, `HuddleBar` below owns every huddle control, so the state
-                  never has two places to disagree about.
-                */}
                 {huddleParticipants.length === 0 && !huddleJoined ? (
                   <Hint label="Start a huddle">
                     <Button
@@ -410,8 +399,28 @@ export function ChatSurface({
       sidePanelTitle={sidePanelTitle}
       onCloseSidePanel={() => setPanel('none')}
       sidePanel={
-        panel === 'members' ? (
-          <MemberList members={members} presenceOf={presenceOf} />
+        panel === 'user-profile' && selectedUser ? (
+          <UserProfileRightPanel
+            userId={selectedUser.userId}
+            name={selectedUser.name}
+            avatarUrl={selectedUser.avatarUrl}
+            role={selectedUser.role}
+            powerLevel={selectedUser.powerLevel}
+          />
+        ) : panel === 'members' ? (
+          <MemberList
+            members={members}
+            presenceOf={presenceOf}
+            onSelect={(m) =>
+              handleOpenUserProfile({
+                userId: m.userId,
+                name: m.displayName,
+                avatarUrl: m.avatarUrl,
+                powerLevel: m.powerLevel,
+                role: m.powerLevel >= 100 ? 'Admin' : m.powerLevel >= 50 ? 'Moderator' : 'Member',
+              })
+            }
+          />
         ) : panel === 'search' ? (
           <ConversationSearch
             query={searchQuery}
@@ -464,48 +473,53 @@ export function ChatSurface({
         ) : null
       }
     >
-      <MessageList
-        messages={rootMessages}
-        isLoading={isLoading}
-        isLoadingOlder={isLoadingOlder}
-        hasMore={hasMore}
-        error={error}
-        unreadBeforeId={firstUnreadId}
-        onLoadOlder={onLoadOlder}
-        renderMessage={renderMessage}
-      />
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+        <MessageList
+          messages={rootMessages}
+          isLoading={isLoading}
+          isLoadingOlder={isLoadingOlder}
+          hasMore={hasMore}
+          error={error}
+          unreadBeforeId={firstUnreadId}
+          onLoadOlder={onLoadOlder}
+          renderMessage={renderMessage}
+        />
+      </div>
 
-      <TypingIndicator names={typingNames} />
-
-      <Composer
-        members={members}
-        onTyping={onTyping}
-        onAttach={onAttach ? (files) => void onAttach(files) : undefined}
-        placeholder={editing ? 'Edit your message…' : `Message ${title}`}
-        onSchedule={onSchedule}
-        contextSlot={
-          editing ? (
-            <div className="mb-2 gap-2 px-2 py-1 text-xs flex items-center rounded-md bg-muted">
-              <span className="flex-1 truncate">Editing: {editing.body}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setEditing(null)}
-              >
-                Cancel
-              </Button>
-            </div>
-          ) : null
-        }
-        onSend={async (body) => {
-          if (editing && onEdit) {
-            await onEdit(editing.id, body);
-            setEditing(null);
-          } else {
-            await onSend(body);
+      <div className="shrink-0 sticky bottom-0 z-20 w-full bg-[#313338] border-t border-[#2b2d31]/50">
+        <TypingIndicator names={typingNames} />
+        <Composer
+          members={members}
+          onTyping={onTyping}
+          onAttach={onAttach ? (files) => void onAttach(files) : undefined}
+          placeholder={editing ? 'Edit your message…' : `Message ${title}`}
+          onSchedule={onSchedule}
+          contextSlot={
+            editing ? (
+              <div className="mb-2 gap-2 px-2 py-1 text-xs flex items-center rounded-md bg-muted">
+                <span className="flex-1 truncate">Editing: {editing.body}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditing(null)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : null
           }
-        }}
-      />
+          onSend={async (body) => {
+            if (editing && onEdit) {
+              await onEdit(editing.id, body);
+              setEditing(null);
+            } else {
+              await onSend(body);
+            }
+          }}
+        />
+      </div>
+    </div>
     </ChatLayout>
   );
 }
