@@ -27,6 +27,8 @@ export function createId(prefix: string): string {
 export type BoardAction =
   | { type: 'board/rename'; title: string }
   | { type: 'board/reset' }
+  /** Swaps the whole board in — used when switching projects and on import. */
+  | { type: 'board/replace'; state: BoardState }
   | { type: 'list/add'; title: string }
   | { type: 'list/rename'; listId: string; title: string }
   | { type: 'list/remove'; listId: string }
@@ -144,6 +146,9 @@ export function boardReducer(
 
     case 'board/reset':
       return createSeedBoard();
+
+    case 'board/replace':
+      return action.state;
 
     case 'list/add':
       return {

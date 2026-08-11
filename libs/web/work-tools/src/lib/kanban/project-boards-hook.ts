@@ -305,6 +305,39 @@ export function useProjectBoards() {
     return newProject.id;
   };
 
+  /**
+   * Adds a board that already exists — an import, or a restored export. Unlike
+   * {@link createProject} the lists arrive fully populated, so no preset is
+   * applied and the board is used as given.
+   */
+  const importProject = ({
+    name,
+    category,
+    color,
+    description,
+    board,
+  }: {
+    name: string;
+    category: ProjectCategory;
+    color: ProjectColor;
+    description: string;
+    board: BoardState;
+  }) => {
+    const newProject: ProjectBoardItem = {
+      id: `proj_${Date.now()}`,
+      name,
+      category,
+      color,
+      description,
+      board: { ...board, title: name },
+      updatedAt: new Date().toISOString(),
+    };
+
+    setProjects((prev) => [newProject, ...prev]);
+    setActiveProjectId(newProject.id);
+    return newProject.id;
+  };
+
   const updateProjectIcon = (id: string, icon: string, iconColor?: string) => {
     setProjects((prev) =>
       prev.map((p) =>
@@ -345,6 +378,7 @@ export function useProjectBoards() {
     updateProjectIcon,
     updateProject,
     createProject,
+    importProject,
     deleteProject,
   };
 }

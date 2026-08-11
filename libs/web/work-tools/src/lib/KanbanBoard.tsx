@@ -28,8 +28,10 @@ import {
   ArrowRight,
   Check,
   ChevronDown,
+  Download,
   Filter,
   FolderKanban,
+  Import,
   Kanban,
   LayoutGrid,
   Plus,
@@ -60,6 +62,12 @@ import {
 import { LinearFilterMenu } from './kanban/LinearFilterMenu.js';
 import { CardDetailsDialog } from './kanban/CardDetailsDialog.js';
 import { KanbanListColumn } from './kanban/KanbanListColumn.js';
+import {
+  ImportBoardDialog,
+  type ImportResult,
+} from './kanban/import/ImportBoardDialog.js';
+import { exportBoard, mergeBoards } from './kanban/import/normalize.js';
+import { IMPORT_SOURCES } from './kanban/import/sources.js';
 import {
   useProjectBoards,
   type ProjectCategory,
@@ -122,11 +130,13 @@ export function KanbanBoard({
     setActiveProjectId,
     updateActiveBoardState,
     createProject,
+    importProject,
     deleteProject,
   } = useProjectBoards();
 
   const [viewMode, setViewMode] = useState<'board' | 'projects'>('board');
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectCategory, setNewProjectCategory] = useState<ProjectCategory>('Engineering');
   const [newProjectColor, setNewProjectColor] = useState<ProjectColor>('violet');
@@ -154,14 +164,27 @@ export function KanbanBoard({
     if (newProjParam === 'true') {
       setIsNewProjectOpen(true);
     }
+
+    // `?import=true` lets any entry point — the create menu, a link in an
+    // onboarding email — land straight on the importer.
+    if (searchParams.get('import') === 'true') {
+      setIsImportOpen(true);
+    }
   }, [searchParams, projects, setActiveProjectId]);
 
   // Active board state reducer
   const [board, dispatch] = useReducer(boardReducer, activeProject.board);
 
-  // Keep board state in sync when switching projects or dispatching actions
+  /*
+   * Load the selected project's own board. This has to be `board/replace` and
+   * not `board/reset` — the latter installs the seed board, which then syncs
+   * back over whatever the project actually contained.
+   */
   useEffect(() => {
-    dispatch({ type: 'board/reset' });
+    dispatch({ type: 'board/replace', state: activeProject.board });
+    // Only the identity of the project should trigger a reload; reacting to
+    // `activeProject.board` too would undo every edit as it is saved.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProjectId]);
 
   // Sync board state back to project container when board state updates
@@ -402,6 +425,48 @@ export function KanbanBoard({
     }
     if (event.key === 'Escape') setAddingList(false);
   };
+
+  /**
+   * A merge lands in the reducer so the open board updates in place; a new
+   * board goes through the project store, which then swaps the reducer over.
+   */
+  const handleImport = useCallback(
+    (result: ImportResult) => {
+      const sourceName =
+        IMPORT_SOURCES.find((entry) => entry.id === result.source)?.name ??
+        result.source;
+
+      if (result.mode === 'merge') {
+        dispatch({ type: 'board/replace', state: mergeBoards(board, result.board) });
+      } else {
+        importProject({
+          name: result.name,
+          category: result.category,
+          color: result.color,
+          description: `Imported from ${sourceName}.`,
+          board: result.board,
+        });
+      }
+      setViewMode('board');
+    },
+    [board, importProject],
+  );
+
+  /** Downloads a board as JSON that the `OneTab board` importer can read back. */
+  const handleExport = useCallback((projectId: string) => {
+    const project = projects.find((entry) => entry.id === projectId);
+    if (!project) return;
+
+    const blob = new Blob([exportBoard(project.board)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${project.name.replace(/[^\w.-]+/g, '-').toLowerCase()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [projects]);
 
   const handleCreateProjectSubmit = () => {
     if (!newProjectName.trim()) return;
@@ -736,6 +801,16 @@ export function KanbanBoard({
               </div>
 
               <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsImportOpen(true)}
+                className="h-8 gap-1.5 text-xs"
+              >
+                <Import className="size-3.5 text-muted-foreground" />
+                Import
+              </Button>
+
+              <Button
                 size="sm"
                 onClick={() => setIsNewProjectOpen(true)}
                 className="h-8 gap-1.5 text-xs font-semibold"
@@ -829,6 +904,13 @@ export function KanbanBoard({
                                 <ArrowRight className="size-3.5 text-primary" />
                                 Open board
                               </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleExport(project.id)}
+                                className="gap-2 text-xs"
+                              >
+                                <Download className="size-3.5 text-muted-foreground" />
+                                Export as JSON
+                              </DropdownMenuItem>
                               {projects.length > 1 && (
                                 <DropdownMenuItem
                                   onClick={() => deleteProject(project.id)}
@@ -905,6 +987,14 @@ export function KanbanBoard({
           onClose={() => setOpenCardId(null)}
         />
       ) : null}
+
+      {/* Import Board Dialog */}
+      <ImportBoardDialog
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
+        onImport={handleImport}
+        currentBoardName={activeProject?.name}
+      />
 
       {/* New Project Dialog */}
       <Dialog open={isNewProjectOpen} onOpenChange={setIsNewProjectOpen}>

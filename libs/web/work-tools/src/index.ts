@@ -10,6 +10,27 @@ export {
   type Priority,
   type TaskItem,
 } from './lib/KanbanBoard.js';
+export {
+  ACCEPTED_FILE_TYPES,
+  buildBoardState,
+  detectSource,
+  exportBoard,
+  ImportBoardDialog,
+  ImportError,
+  IMPORT_SOURCES,
+  mergeBoards,
+  parseCsv,
+  parseImport,
+  parseImportAuto,
+  type CsvFieldMapping,
+  type ImportBoardDialogProps,
+  type ImportResult,
+  type ImportSourceId,
+  type NormalizedBoard,
+  type NormalizedTask,
+  type ParsedFile,
+  type SourceDefinition,
+} from './lib/kanban/import/index.js';
 export { AsanaProjectManager, type AsanaViewMode } from './lib/AsanaProjectManager.js';
 export { ProjectListView } from './lib/asana/ProjectListView.js';
 export { ProjectTimelineView } from './lib/asana/ProjectTimelineView.js';

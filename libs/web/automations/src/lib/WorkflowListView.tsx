@@ -1,6 +1,29 @@
-import { useWorkflows, type WorkflowRegistryItem } from '@org/hooks';
-import { Badge, Button, Card, Page, PageHeader } from '@org/ui';
-import { Clock, Play, Plus, Webhook, Workflow } from 'lucide-react';
+import {
+  toggleRegistryItem,
+  useWorkflows,
+  type WorkflowRegistryItem,
+} from '@org/hooks';
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Page,
+  PageHeader,
+  SegmentedControl,
+} from '@org/ui';
+import {
+  Check,
+  Clock,
+  Play,
+  Plus,
+  SlidersHorizontal,
+  Webhook,
+  Workflow,
+  Zap,
+} from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 /**
  * Kept as an alias so existing importers of `WorkflowItem` keep working. The
@@ -9,8 +32,108 @@ import { Clock, Play, Plus, Webhook, Workflow } from 'lucide-react';
  */
 export type WorkflowItem = WorkflowRegistryItem;
 
+type TriggerType = WorkflowRegistryItem['triggerType'];
+
+interface WorkflowTemplate {
+  id: string;
+  name: string;
+  description: string;
+  triggerType: TriggerType;
+  /** Icon name from `ICON_REGISTRY` — the registry is persisted, so it stores a name. */
+  icon: string;
+  /** The shape of the automation, in the order it runs. */
+  steps: string[];
+}
+
+/**
+ * The pre-built catalogue. Adding one writes a real workflow into the registry
+ * — disabled and with no run history — so it shows up in the sidebar and can be
+ * opened in the canvas like any other.
+ */
+const workflowTemplates: WorkflowTemplate[] = [
+  {
+    id: 'tpl_pr_review',
+    name: 'Pull request → AI review → channel alert',
+    description:
+      'Reviews every incoming pull request and posts the summary where the team is watching.',
+    triggerType: 'WEBHOOK',
+    icon: 'Plug',
+    steps: ['GitHub webhook', 'AI code review', 'Post to channel'],
+  },
+  {
+    id: 'tpl_standup',
+    name: 'Daily standup digest',
+    description:
+      'Collects yesterday’s task activity each morning and posts a per-person digest.',
+    triggerType: 'CRON',
+    icon: 'Clock',
+    steps: ['Every weekday 09:00', 'Summarise activity', 'Post digest'],
+  },
+  {
+    id: 'tpl_overdue',
+    name: 'Overdue task escalation',
+    description:
+      'Watches task due dates and nudges the assignee, then their lead if it stays overdue.',
+    triggerType: 'EVENT',
+    icon: 'Zap',
+    steps: ['Task overdue', 'Notify assignee', 'Escalate after 24h'],
+  },
+  {
+    id: 'tpl_meeting_notes',
+    name: 'Meeting recap → doc',
+    description:
+      'Turns a finished meeting into a summary document with the action items pulled out.',
+    triggerType: 'EVENT',
+    icon: 'FileText',
+    steps: ['Meeting ended', 'Summarise transcript', 'Create doc'],
+  },
+  {
+    id: 'tpl_inbox_triage',
+    name: 'Inbox triage & routing',
+    description:
+      'Classifies new inbox items hourly and routes each one to the right channel or owner.',
+    triggerType: 'CRON',
+    icon: 'Inbox',
+    steps: ['Hourly sweep', 'Classify items', 'Route to owner'],
+  },
+];
+
+const TRIGGER_ICON: Record<TriggerType, typeof Webhook> = {
+  WEBHOOK: Webhook,
+  CRON: Clock,
+  EVENT: Zap,
+};
+
+type WorkflowTab = 'mine' | 'prebuilt';
+
 export function WorkflowListView() {
-  const [workflows] = useWorkflows();
+  const [workflows, saveWorkflows] = useWorkflows();
+  const [tab, setTab] = useState<WorkflowTab>('mine');
+  const navigate = useNavigate();
+
+  /* Relative to the `automations` route, so the `/w/:workspaceSlug` prefix does
+     not have to be rebuilt here. */
+  const openBuilder = () => navigate('builder');
+
+  /**
+   * Adding and removing are the same action, as on the agents page: the
+   * template's id becomes the workflow's id, so a second click on a card that
+   * says "Added" takes it back out again.
+   */
+  const toggleTemplate = (template: WorkflowTemplate) =>
+    saveWorkflows(
+      toggleRegistryItem(workflows, {
+        id: template.id,
+        name: template.name,
+        icon: template.icon,
+        detail: TRIGGER_LABEL[template.triggerType],
+        triggerType: template.triggerType,
+        /* Off until someone opens it and wires up the credentials. */
+        isActive: false,
+        totalExecutions: 0,
+        lastRun: 'Never',
+      }),
+    );
 
   return (
     <Page>
@@ -19,61 +142,200 @@ export function WorkflowListView() {
         description="Automate workspace tasks, webhooks, agent steps and integrations."
         icon={<Workflow />}
         accent="amber"
-        actions={<Button leadingIcon={<Plus />}>Create workflow</Button>}
+        actions={
+          <Button leadingIcon={<Plus />} onClick={openBuilder}>
+            Create workflow
+          </Button>
+        }
       />
 
-      <ul className="gap-4 md:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">
-        {workflows.map((workflow) => (
-          <li key={workflow.id}>
-            <Card className="p-5 h-full justify-between transition-colors duration-(--duration-fast) hover:border-border-strong">
-              <div>
-                <div className="mb-3 gap-2 flex items-center justify-between">
-                  <Badge variant="warning" className="font-mono uppercase">
-                    {workflow.triggerType === 'WEBHOOK' ? (
-                      <Webhook aria-hidden />
-                    ) : (
-                      <Clock aria-hidden />
-                    )}
-                    {workflow.triggerType}
-                  </Badge>
-                  <Badge variant={workflow.isActive ? 'success' : 'neutral'}>
-                    {workflow.isActive ? 'Active' : 'Disabled'}
-                  </Badge>
-                </div>
+      <SegmentedControl<WorkflowTab>
+        aria-label="Workflow list"
+        value={tab}
+        onChange={setTab}
+        className="mb-4 self-start"
+        options={[
+          { value: 'mine', label: `Your workflows (${workflows.length})` },
+          {
+            value: 'prebuilt',
+            label: `Pre-built (${workflowTemplates.length})`,
+            hint: 'Ready-made automations you can add and then edit.',
+          },
+        ]}
+      />
 
-                <h2 className="mb-2 text-sm font-semibold text-foreground">
-                  {workflow.name}
-                </h2>
-
-                <dl className="mb-4 gap-4 text-xs flex items-center text-muted-foreground">
-                  <div className="gap-1 flex">
-                    <dt>Runs:</dt>
-                    <dd className="font-medium text-foreground tabular-nums">
-                      {workflow.totalExecutions}
-                    </dd>
-                  </div>
-                  <div className="gap-1 flex">
-                    <dt>Last run:</dt>
-                    <dd className="font-medium text-foreground">
-                      {workflow.lastRun}
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-
-              <Button
-                variant="secondary"
-                size="sm"
-                className="w-full"
-                leadingIcon={<Play className="text-success" />}
-              >
-                Run now
-                <span className="sr-only"> — {workflow.name}</span>
+      {tab === 'mine' ? (
+        workflows.length === 0 ? (
+          <EmptyState
+            icon={<Workflow />}
+            title="No workflows yet"
+            description="Build one on the canvas, or add a pre-built automation and edit it from there."
+            action={
+              <Button leadingIcon={<Plus />} onClick={openBuilder}>
+                Create workflow
               </Button>
-            </Card>
-          </li>
-        ))}
-      </ul>
+            }
+            secondaryAction={
+              <Button variant="ghost" onClick={() => setTab('prebuilt')}>
+                Browse pre-built workflows
+              </Button>
+            }
+          />
+        ) : (
+          <ul className="gap-4 md:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">
+            {workflows.map((workflow) => (
+              <li key={workflow.id}>
+                <SavedWorkflowCard workflow={workflow} onOpen={openBuilder} />
+              </li>
+            ))}
+          </ul>
+        )
+      ) : (
+        <ul className="gap-4 md:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">
+          {workflowTemplates.map((template) => (
+            <li key={template.id}>
+              <TemplateCard
+                template={template}
+                added={workflows.some((entry) => entry.id === template.id)}
+                onToggle={() => toggleTemplate(template)}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
     </Page>
+  );
+}
+
+/* --------------------------------------------------------------- parts ---- */
+
+const TRIGGER_LABEL: Record<TriggerType, string> = {
+  WEBHOOK: 'Webhook',
+  CRON: 'Cron',
+  EVENT: 'Event',
+};
+
+function SavedWorkflowCard({
+  workflow,
+  onOpen,
+}: {
+  workflow: WorkflowRegistryItem;
+  onOpen: () => void;
+}) {
+  const TriggerIcon = TRIGGER_ICON[workflow.triggerType];
+
+  return (
+    <Card className="p-5 h-full justify-between transition-colors duration-(--duration-fast) hover:border-border-strong">
+      <div>
+        <div className="mb-3 gap-2 flex items-center justify-between">
+          <Badge variant="warning" className="font-mono uppercase">
+            <TriggerIcon aria-hidden />
+            {workflow.triggerType}
+          </Badge>
+          <Badge variant={workflow.isActive ? 'success' : 'neutral'}>
+            {workflow.isActive ? 'Active' : 'Disabled'}
+          </Badge>
+        </div>
+
+        <h2 className="mb-2 text-sm font-semibold text-foreground">
+          {workflow.name}
+        </h2>
+
+        <dl className="mb-4 gap-4 text-xs flex items-center text-muted-foreground">
+          <div className="gap-1 flex">
+            <dt>Runs:</dt>
+            <dd className="font-medium text-foreground tabular-nums">
+              {workflow.totalExecutions}
+            </dd>
+          </div>
+          <div className="gap-1 flex">
+            <dt>Last run:</dt>
+            <dd className="font-medium text-foreground">{workflow.lastRun}</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div className="gap-2 flex">
+        <Button
+          variant="secondary"
+          size="sm"
+          className="flex-1"
+          leadingIcon={<Play className="text-success" />}
+        >
+          Run now
+          <span className="sr-only"> — {workflow.name}</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onOpen}
+          title={`Edit ${workflow.name}`}
+        >
+          <SlidersHorizontal aria-hidden />
+          <span className="sr-only">Edit {workflow.name}</span>
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+function TemplateCard({
+  template,
+  added,
+  onToggle,
+}: {
+  template: WorkflowTemplate;
+  added: boolean;
+  onToggle: () => void;
+}) {
+  const TriggerIcon = TRIGGER_ICON[template.triggerType];
+
+  return (
+    <Card className="p-5 h-full justify-between transition-colors duration-(--duration-fast) hover:border-border-strong">
+      <div>
+        <div className="mb-3 gap-2 flex items-center justify-between">
+          <Badge variant="warning" className="font-mono uppercase">
+            <TriggerIcon aria-hidden />
+            {template.triggerType}
+          </Badge>
+          {added ? <Badge variant="success">Added</Badge> : null}
+        </div>
+
+        <h2 className="mb-2 text-sm font-semibold text-foreground">
+          {template.name}
+        </h2>
+
+        <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
+          {template.description}
+        </p>
+
+        {/* The steps read as a sequence, so they are chevron-separated rather
+            than a bag of badges like an agent's tools. */}
+        <ol
+          aria-label={`Steps in ${template.name}`}
+          className="mb-4 gap-1 flex flex-wrap items-center text-[11px] text-muted-foreground"
+        >
+          {template.steps.map((step, index) => (
+            <li key={step} className="gap-1 flex items-center">
+              {index > 0 ? <span aria-hidden>→</span> : null}
+              <span className="px-1.5 py-0.5 rounded-md border bg-surface-inset">
+                {step}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <Button
+        variant={added ? 'outline' : 'primary'}
+        size="sm"
+        className="w-full"
+        onClick={onToggle}
+        leadingIcon={added ? <Check className="text-success" /> : <Plus />}
+      >
+        {added ? 'Added' : 'Use template'}
+        <span className="sr-only"> — {template.name}</span>
+      </Button>
+    </Card>
   );
 }
