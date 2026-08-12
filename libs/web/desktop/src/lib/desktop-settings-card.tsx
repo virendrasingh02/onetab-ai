@@ -104,19 +104,25 @@ export function DesktopSettingsCard() {
               {appInfo && !appInfo.isPackaged ? ' (development build)' : ''}
             </p>
             <p className="text-[11px] text-muted-foreground">
-              {UPDATE_LABELS[updateStatus.state] ?? ''}
-              {updateStatus.state === 'error' ? ` — ${updateStatus.message}` : ''}
+              {appInfo?.isMas
+                ? 'Updates are managed via the App Store'
+                : (UPDATE_LABELS[updateStatus.state] ?? '')}
+              {!appInfo?.isMas && updateStatus.state === 'error'
+                ? ` — ${updateStatus.message}`
+                : ''}
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            loading={checking}
-            onClick={() => void checkForUpdates()}
-            leadingIcon={<RefreshCw className="size-3.5" />}
-          >
-            Check for updates
-          </Button>
+          {!appInfo?.isMas && (
+            <Button
+              variant="outline"
+              size="sm"
+              loading={checking}
+              onClick={() => void checkForUpdates()}
+              leadingIcon={<RefreshCw className="size-3.5" />}
+            >
+              Check for updates
+            </Button>
+          )}
         </div>
 
         <p className="pt-1 text-[11px] text-subtle">

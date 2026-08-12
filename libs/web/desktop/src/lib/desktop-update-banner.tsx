@@ -12,9 +12,9 @@ import { useDesktop } from './desktop-provider.js';
  * Renders nothing in the browser and nothing while idle.
  */
 export function DesktopUpdateBanner() {
-  const { isDesktop, updateStatus, installUpdate, checkForUpdates } = useDesktop();
+  const { isDesktop, appInfo, updateStatus, installUpdate, checkForUpdates } = useDesktop();
 
-  if (!isDesktop) return null;
+  if (!isDesktop || appInfo?.isMas) return null;
 
   if (updateStatus.state === 'downloading') {
     return (

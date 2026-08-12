@@ -102,6 +102,7 @@ export function registerIpcHandlers(isDev: boolean): void {
       platform: process.platform as DesktopPlatform,
       arch: process.arch,
       isPackaged: app.isPackaged,
+      isMas: Boolean(process.mas || process.env['IS_MAS'] || process.env['APP_STORE']),
       usesCustomTitleBar: USES_CUSTOM_TITLE_BAR,
       titleBarInset: TITLE_BAR_INSET,
       locale: app.getLocale(),

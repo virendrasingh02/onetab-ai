@@ -71,10 +71,11 @@ export function getUpdateStatus(): DesktopUpdateStatus {
   return lastStatus;
 }
 
+const isMas = Boolean(process.mas || process.env['IS_MAS'] || process.env['APP_STORE']);
+
 export async function checkForUpdates(isDev: boolean): Promise<DesktopUpdateStatus> {
-  // An unpackaged build has no `app-update.yml`, so a check would only ever
-  // throw — report the truthful "nothing to install" instead.
-  if (isDev || !app.isPackaged) {
+  // An unpackaged build has no `app-update.yml` and MAS builds prohibit self-updating.
+  if (isDev || !app.isPackaged || isMas) {
     publish({ state: 'not-available' });
     return lastStatus;
   }
@@ -95,6 +96,7 @@ export async function checkForUpdates(isDev: boolean): Promise<DesktopUpdateStat
 }
 
 export function installUpdate(): boolean {
+  if (isMas) return false;
   const updater = loadAutoUpdater();
   if (!updater || lastStatus.state !== 'ready') return false;
 
@@ -105,7 +107,7 @@ export function installUpdate(): boolean {
 
 /** Kicks off a check shortly after launch, then once a day. */
 export function scheduleUpdateChecks(isDev: boolean): void {
-  if (isDev || !app.isPackaged) return;
+  if (isDev || !app.isPackaged || isMas) return;
 
   const check = () => void checkForUpdates(isDev);
   // Delayed so the first paint is not competing with a network round trip.

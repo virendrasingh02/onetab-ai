@@ -53,6 +53,8 @@ export interface DesktopAppInfo {
   platform: DesktopPlatform;
   arch: string;
   isPackaged: boolean;
+  /** True when running inside a Mac App Store build where self-updates are forbidden. */
+  isMas: boolean;
   /** True when the OS draws no frame and the renderer owns the title bar. */
   usesCustomTitleBar: boolean;
   /** Reserved inset (px) for macOS traffic lights so content can offset. */

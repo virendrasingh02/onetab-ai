@@ -16,6 +16,7 @@ export interface DesktopAppInfo {
   platform: DesktopPlatform;
   arch: string;
   isPackaged: boolean;
+  isMas?: boolean;
   usesCustomTitleBar: boolean;
   titleBarInset: number;
   locale: string;

@@ -113,16 +113,16 @@ export function AIChatView() {
   const isLandingView = messages.length === 0;
 
   return (
-    <div className="flex flex-col h-full min-h-[calc(100vh-5rem)] w-full items-center justify-between text-foreground">
+    <div className="flex h-full min-h-[calc(100vh-5rem)] w-full flex-col items-center justify-between text-foreground">
       {/* Active Conversation Header (only when chat has messages) */}
       {!isLandingView ? (
-        <div className="w-full max-w-4xl px-4 py-2 border-b border-border flex items-center justify-between shrink-0 mb-4 bg-background/80 backdrop-blur-md rounded-xl">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-foreground text-background flex items-center justify-center font-bold text-xs">
+        <div className="max-w-4xl px-4 py-2 mb-4 backdrop-blur-md flex w-full shrink-0 items-center justify-between rounded-xl border-b border-border bg-background/80">
+          <div className="gap-2 flex items-center">
+            <div className="w-7 h-7 font-bold text-xs flex items-center justify-center rounded-full bg-foreground text-background">
               Logo
             </div>
             <span className="text-sm font-semibold">AI Assistant</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
+            <span className="text-xs px-2 py-0.5 font-medium rounded-full border border-primary/20 bg-primary/10 text-primary">
               {selectedModel}
             </span>
           </div>
@@ -131,7 +131,7 @@ export function AIChatView() {
             variant="ghost"
             size="sm"
             onClick={handleNewChat}
-            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5"
+            className="text-xs gap-1.5 flex items-center text-muted-foreground hover:text-foreground"
           >
             <RotateCcw className="size-3.5" />
             <span>New Chat</span>
@@ -140,37 +140,17 @@ export function AIChatView() {
       ) : null}
 
       {/* Main Content Area */}
-      <div className="flex-1 w-full max-w-3xl px-4 flex flex-col justify-center items-center py-6">
+      <div className="max-w-3xl px-4 py-6 flex w-full flex-1 flex-col items-center justify-center">
         {isLandingView ? (
           /* Landing Screen Hero View (Matches updated layout) */
-          <div className="flex flex-col items-center w-full my-auto transition-all animate-in fade-in duration-300">
-            {/* Centered Circular Logo Badge */}
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-foreground text-background flex items-center justify-center shadow-elevated mb-6 hover:scale-105 transition-transform duration-200 cursor-pointer group border border-border">
-              <svg
-                className="w-8 h-8 transition-transform duration-200 group-hover:rotate-6"
-                viewBox="0 0 100 100"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-label="OneTab AI Logo"
-              >
-                <circle cx="38" cy="40" r="3.5" fill="currentColor" />
-                <circle cx="62" cy="40" r="3.5" fill="currentColor" />
-                <path d="M 32 28 C 36 24, 44 24, 48 28" />
-                <path d="M 52 28 C 56 24, 64 24, 68 28" />
-                <path d="M 50 44 Q 48 58 40 60 L 52 60" fill="none" />
-              </svg>
-            </div>
-
+          <div className="animate-in fade-in my-auto flex w-full flex-col items-center transition-all duration-300">
             {/* Headline */}
-            <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-center text-foreground mb-8">
+            <h1 className="text-2xl sm:text-4xl font-bold tracking-tight mb-8 text-center text-foreground">
               How can I help you today?
             </h1>
 
             {/* Main AI Input Card */}
-            <div className="w-full max-w-2xl bg-surface-raised text-foreground border border-border rounded-2xl p-4 shadow-elevated transition-all duration-200 focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/40">
+            <div className="max-w-2xl rounded-2xl p-4 w-full border border-border bg-surface-raised text-foreground shadow-elevated transition-all duration-200 focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/40">
               {/* Textarea Input */}
               <textarea
                 ref={textareaRef}
@@ -180,17 +160,17 @@ export function AIChatView() {
                 placeholder="Do anything with AI..."
                 rows={2}
                 aria-label="Do anything with AI"
-                className="w-full bg-transparent border-none text-base placeholder:text-subtle text-foreground outline-none resize-none min-h-[56px] leading-relaxed"
+                className="text-base leading-relaxed min-h-[56px] w-full resize-none border-none bg-transparent text-foreground outline-none placeholder:text-subtle"
               />
 
               {/* Action Controls Row */}
-              <div className="flex items-center justify-between pt-2">
-                <div className="flex items-center gap-1.5">
+              <div className="pt-2 flex items-center justify-between">
+                <div className="gap-1.5 flex items-center">
                   <Hint label="Add attachments or context">
                     <button
                       type="button"
                       aria-label="Add attachment"
-                      className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                      className="p-1.5 rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                     >
                       <Plus className="size-4" />
                     </button>
@@ -200,21 +180,21 @@ export function AIChatView() {
                     <button
                       type="button"
                       aria-label="AI parameters"
-                      className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                      className="p-1.5 rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                     >
                       <SlidersHorizontal className="size-4" />
                     </button>
                   </Hint>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="gap-2 flex items-center">
                   {/* Model Selector Dropdown */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button
                         type="button"
                         aria-label={`Selected AI Model: ${modelLabel}`}
-                        className="px-3 py-1 rounded-full bg-accent hover:bg-selected text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors border border-border"
+                        className="px-3 py-1 text-xs font-medium gap-1.5 flex items-center rounded-full border border-border bg-accent text-foreground transition-colors hover:bg-selected"
                       >
                         <span>{modelLabel}</span>
                         <ChevronDown className="size-3 text-muted-foreground" />
@@ -242,8 +222,8 @@ export function AIChatView() {
                       className={cn(
                         'p-2 rounded-full transition-colors',
                         isVoiceActive
-                          ? 'bg-destructive/20 text-destructive animate-pulse'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-accent',
+                          ? 'animate-pulse bg-destructive/20 text-destructive'
+                          : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                       )}
                     >
                       <Mic className="size-4" />
@@ -257,10 +237,10 @@ export function AIChatView() {
                     disabled={!input.trim() || isPending}
                     aria-label="Send message"
                     className={cn(
-                      'size-8 rounded-full flex items-center justify-center transition-all duration-200',
+                      'size-8 flex items-center justify-center rounded-full transition-all duration-200',
                       input.trim() && !isPending
-                        ? 'bg-primary text-primary-foreground hover:bg-primary-hover shadow-md cursor-pointer'
-                        : 'bg-muted text-disabled cursor-not-allowed',
+                        ? 'shadow-md cursor-pointer bg-primary text-primary-foreground hover:bg-primary-hover'
+                        : 'cursor-not-allowed bg-muted text-disabled',
                     )}
                   >
                     <ArrowUp className="size-4 stroke-[2.5]" />
@@ -271,19 +251,19 @@ export function AIChatView() {
           </div>
         ) : (
           /* Active Chat Thread View */
-          <div className="w-full flex-1 flex flex-col space-y-4 overflow-y-auto scrollbar-subtle pr-2 min-h-0">
+          <div className="space-y-4 scrollbar-subtle pr-2 min-h-0 flex w-full flex-1 flex-col overflow-y-auto">
             {messages.map((message) => (
               <article
                 key={message.id}
                 className={cn(
                   'p-4 rounded-2xl max-w-2xl text-sm leading-relaxed space-y-1.5 shadow-sm transition-all',
                   message.role === 'user'
-                    ? 'ml-auto bg-primary text-primary-foreground font-medium'
-                    : 'mr-auto bg-surface-raised text-foreground border border-border',
+                    ? 'font-medium ml-auto bg-primary text-primary-foreground'
+                    : 'mr-auto border border-border bg-surface-raised text-foreground',
                 )}
               >
-                <div className="flex items-center justify-between gap-4 text-xs opacity-75 pb-1 border-b border-current/10">
-                  <span className="font-semibold flex items-center gap-1.5">
+                <div className="gap-4 text-xs pb-1 flex items-center justify-between border-b border-current/10 opacity-75">
+                  <span className="font-semibold gap-1.5 flex items-center">
                     {message.role === 'user' ? (
                       <User className="size-3.5" />
                     ) : (
@@ -298,14 +278,14 @@ export function AIChatView() {
             ))}
 
             {isPending ? (
-              <div className="mr-auto bg-surface-raised text-muted-foreground border border-border p-3 rounded-2xl text-xs flex items-center gap-2 animate-pulse">
-                <Sparkles className="size-4 text-accent-violet animate-spin" />
+              <div className="p-3 rounded-2xl text-xs gap-2 animate-pulse mr-auto flex items-center border border-border bg-surface-raised text-muted-foreground">
+                <Sparkles className="size-4 animate-spin text-accent-violet" />
                 <span>Synthesis in progress…</span>
               </div>
             ) : null}
 
             {chat.isError ? (
-              <div className="mr-auto gap-2 p-3 text-xs flex items-start rounded-2xl border border-destructive/40 bg-destructive/10 text-destructive">
+              <div className="gap-2 p-3 text-xs rounded-2xl mr-auto flex items-start border border-destructive/40 bg-destructive/10 text-destructive">
                 <TriangleAlert className="size-4 shrink-0" aria-hidden />
                 <div className="space-y-1.5">
                   <p>
@@ -342,8 +322,8 @@ export function AIChatView() {
 
       {/* Bottom Floating Prompt Card when chat is active */}
       {!isLandingView ? (
-        <div className="w-full max-w-2xl px-4 pb-4 pt-2 shrink-0">
-          <div className="w-full bg-surface-raised text-foreground border border-border rounded-2xl p-3 shadow-elevated flex items-center gap-2">
+        <div className="max-w-2xl px-4 pb-4 pt-2 w-full shrink-0">
+          <div className="rounded-2xl p-3 gap-2 flex w-full items-center border border-border bg-surface-raised text-foreground shadow-elevated">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -351,7 +331,7 @@ export function AIChatView() {
               placeholder="Ask a follow-up question..."
               rows={1}
               aria-label="Ask a follow-up question"
-              className="w-full bg-transparent border-none text-sm text-foreground placeholder:text-subtle outline-none resize-none"
+              className="text-sm w-full resize-none border-none bg-transparent text-foreground outline-none placeholder:text-subtle"
             />
             <button
               type="button"
@@ -359,10 +339,10 @@ export function AIChatView() {
               disabled={!input.trim() || isPending}
               aria-label="Send follow-up"
               className={cn(
-                'size-8 rounded-full flex items-center justify-center shrink-0 transition-colors',
+                'size-8 flex shrink-0 items-center justify-center rounded-full transition-colors',
                 input.trim() && !isPending
-                  ? 'bg-primary text-primary-foreground hover:bg-primary-hover cursor-pointer'
-                  : 'bg-muted text-disabled cursor-not-allowed',
+                  ? 'cursor-pointer bg-primary text-primary-foreground hover:bg-primary-hover'
+                  : 'cursor-not-allowed bg-muted text-disabled',
               )}
             >
               <ArrowUp className="size-4 stroke-[2.5]" />
@@ -373,5 +353,3 @@ export function AIChatView() {
     </div>
   );
 }
-
-
