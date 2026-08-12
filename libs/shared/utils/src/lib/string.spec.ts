@@ -1,13 +1,10 @@
 import { escapeRegExp, initials, slugify, truncate } from './string.js';
 
 describe('initials', () => {
-  it('takes the first and last word for multi-word names', () => {
-    expect(initials('Ada Lovelace')).toBe('AL');
-    expect(initials('Mary  Jane  Watson')).toBe('MW');
-  });
-
-  it('takes the first two characters for a single word', () => {
-    expect(initials('grace')).toBe('GR');
+  it('takes the first character for multi-word and single-word names', () => {
+    expect(initials('Ada Lovelace')).toBe('A');
+    expect(initials('Mary  Jane  Watson')).toBe('M');
+    expect(initials('grace')).toBe('G');
   });
 
   it('falls back to a placeholder for blank input', () => {

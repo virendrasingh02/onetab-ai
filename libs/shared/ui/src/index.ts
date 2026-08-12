@@ -28,9 +28,11 @@ export {
   AvatarFallback,
   AvatarImage,
   UserAvatar,
+  WorkspaceAvatar,
   type AvatarProps,
   type PresenceStatus,
   type UserAvatarProps,
+  type WorkspaceAvatarProps,
 } from './lib/components/avatar.js';
 
 export {

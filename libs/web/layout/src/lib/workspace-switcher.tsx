@@ -8,9 +8,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Hint,
+  WorkspaceAvatar,
 } from '@org/ui';
-import { avatarTint } from '@org/design-system';
-import { cn, initials } from '@org/utils';
+import { cn } from '@org/utils';
 import {
   BarChart3,
   Check,
@@ -21,7 +21,6 @@ import {
   PanelLeft,
   Plus,
   Settings,
-  Sparkles,
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -53,24 +52,12 @@ export function WorkspaceMenu({
               'outline-none focus-visible:ring-1 focus-visible:ring-ring',
             )}
           >
-            <div
-              className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary text-[11px] font-semibold text-primary-foreground"
-              style={{
-                backgroundColor: current.avatarUrl
-                  ? undefined
-                  : avatarTint(current.id),
-              }}
-            >
-              {current.avatarUrl ? (
-                <img
-                  src={current.avatarUrl}
-                  alt=""
-                  className="size-full rounded-[inherit] object-cover"
-                />
-              ) : (
-                initials(current.name) || <Sparkles className="size-3.5" />
-              )}
-            </div>
+            <WorkspaceAvatar
+              name={current.name}
+              src={current.avatarUrl}
+              seed={current.id}
+              size="sm"
+            />
 
             <span className="flex min-w-0 flex-1 items-center gap-1.5">
               <span className="truncate text-[13px] font-medium tracking-tight text-foreground">
@@ -101,13 +88,12 @@ export function WorkspaceMenu({
                   )}
                 >
                   <Link to={`/w/${workspace.slug}`}>
-                    <span
-                      aria-hidden
-                      className="flex size-5 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold text-primary-foreground"
-                      style={{ backgroundColor: avatarTint(workspace.id) }}
-                    >
-                      {initials(workspace.name)}
-                    </span>
+                    <WorkspaceAvatar
+                      name={workspace.name}
+                      src={workspace.avatarUrl}
+                      seed={workspace.id}
+                      size="xs"
+                    />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium">
                         {workspace.name}

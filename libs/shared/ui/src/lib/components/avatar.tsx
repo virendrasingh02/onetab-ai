@@ -120,3 +120,34 @@ export function UserAvatar({
     </span>
   );
 }
+
+export interface WorkspaceAvatarProps extends AvatarProps {
+  name: string;
+  src?: string | null;
+  /** Stable tint seed. Defaults to `name`; pass workspace id where available. */
+  seed?: string;
+}
+
+/**
+ * Workspace Avatar with image support and deterministic colour single-letter fallback.
+ * Uses squircle (rounded) shape by default.
+ */
+export function WorkspaceAvatar({
+  name,
+  src,
+  seed,
+  size = 'md',
+  shape = 'rounded',
+  className,
+  ...props
+}: WorkspaceAvatarProps) {
+  return (
+    <Avatar size={size} shape={shape} className={className} {...props}>
+      {src ? <AvatarImage src={src} alt={name} /> : null}
+      <AvatarFallback style={{ backgroundColor: avatarTint(seed ?? name) }}>
+        {initials(name)}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+

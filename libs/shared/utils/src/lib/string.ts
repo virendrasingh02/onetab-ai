@@ -1,16 +1,11 @@
 /**
- * Up to two initials from a display name.
- * "Ada Lovelace" → "AL", "ada@example.com" → "AD".
+ * Single letter initial from a display name or email.
+ * "Ada Lovelace" → "A", "ada@example.com" → "A".
  */
 export function initials(name: string): string {
   const trimmed = name.trim();
   if (!trimmed) return '?';
-
-  const words = trimmed.split(/\s+/).filter(Boolean);
-  if (words.length >= 2) {
-    return (words[0][0] + words[words.length - 1][0]).toUpperCase();
-  }
-  return trimmed.slice(0, 2).toUpperCase();
+  return trimmed[0].toUpperCase();
 }
 
 /**

@@ -23,7 +23,7 @@ import {
   Textarea,
 } from '@org/ui';
 import { formErrorMessage } from '@org/auth';
-import { slugify } from '@org/utils';
+import { initials, slugify } from '@org/utils';
 import {
   createWorkspaceSchema,
   type CreateWorkspaceInput,
@@ -692,7 +692,7 @@ export function CreateWorkspacePage() {
                     {invitedEmails.slice(0, 3).map((email) => (
                       <Avatar key={email} className="h-7 w-7 border border-border-strong">
                         <AvatarFallback className="bg-surface-raised text-secondary-foreground text-[10px] font-bold">
-                          {email.substring(0, 2).toUpperCase()}
+                          {initials(email)}
                         </AvatarFallback>
                       </Avatar>
                     ))}
