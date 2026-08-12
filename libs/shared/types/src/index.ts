@@ -1,9 +1,14 @@
 export {
   ChannelRole,
   ChannelVisibility,
+  DocumentKind,
   InvitationStatus,
   PresenceStatus,
+  ProjectStatus,
   SystemRole,
+  TASK_STATUS_ORDER,
+  TaskPriority,
+  TaskStatus,
   WORKSPACE_ROLE_ORDER,
   WorkspaceRole,
   hasWorkspaceRole,
@@ -31,6 +36,20 @@ export type {
   Paginated,
   PaginationParams,
 } from './lib/api.js';
+
+export type {
+  CalendarEvent,
+  Milestone,
+  Project,
+  ProjectDetail,
+  Sprint,
+  Task,
+  TaskComment,
+  TaskProjectRef,
+  Whiteboard,
+  WorkDocument,
+  WorkDocumentChild,
+} from './lib/work-tools.js';
 
 export * from './lib/chat.js';
 export * from './lib/analytics.js';

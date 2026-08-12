@@ -7,34 +7,16 @@ import type {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 
-const DEFAULT_MOCK_WORKSPACES: WorkspaceSummary[] = [
-  {
-    id: 'ws_onetab',
-    name: 'OneTab AI',
-    slug: 'onetab',
-    description: 'Primary workspace for OneTab AI collaboration',
-    avatarUrl: null,
-    ownerId: 'usr_admin_001',
-    role: 'OWNER',
-    memberCount: 2,
-    channelCount: 3,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
-
-/** Every workspace the signed-in user belongs to. Powers the switcher. */
+/**
+ * Every workspace the signed-in user belongs to. Powers the switcher.
+ *
+ * An empty list is a real answer — a brand-new account genuinely has no
+ * workspaces, and the UI routes that case to the create-workspace screen.
+ */
 export function useWorkspaces() {
   return useQuery({
     queryKey: queryKeys.workspaces.list(),
-    queryFn: async () => {
-      try {
-        const res = await workspaceApi.list();
-        return res.length > 0 ? res : DEFAULT_MOCK_WORKSPACES;
-      } catch {
-        return DEFAULT_MOCK_WORKSPACES;
-      }
-    },
+    queryFn: () => workspaceApi.list(),
     staleTime: 60_000,
   });
 }
@@ -42,29 +24,13 @@ export function useWorkspaces() {
 export function useWorkspace(slug: string | undefined) {
   return useQuery({
     queryKey: queryKeys.workspaces.detail(slug ?? ''),
-    queryFn: async (): Promise<WorkspaceSummary> => {
-      try {
-        return await workspaceApi.bySlug(slug as string);
-      } catch {
-        return (
-          DEFAULT_MOCK_WORKSPACES.find((w) => w.slug === slug) ?? {
-            id: `ws_${slug ?? 'onetab'}`,
-            name: (slug ?? 'OneTab').toUpperCase(),
-            slug: slug ?? 'onetab',
-            description: 'Workspace for OneTab AI collaboration',
-            avatarUrl: null,
-            ownerId: 'usr_admin_001',
-            role: 'OWNER',
-            memberCount: 2,
-            channelCount: 3,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          }
-        );
-      }
-    },
+    queryFn: (): Promise<WorkspaceSummary> =>
+      workspaceApi.bySlug(slug as string),
     enabled: !!slug,
     staleTime: 30_000,
+    // The API returns 404 both for a workspace that does not exist and for one
+    // the user cannot see. Neither improves on a retry.
+    retry: false,
   });
 }
 
@@ -98,29 +64,8 @@ export function useCreateWorkspace() {
   const navigate = useNavigate();
 
   return useMutation({
-    mutationFn: async (input: CreateWorkspaceInput): Promise<WorkspaceSummary> => {
-      try {
-        return await workspaceApi.create(input);
-      } catch {
-        // Dev / fallback workspace generation if API is unreachable
-        const newMockWorkspace: WorkspaceSummary = {
-          id: `ws_${input.slug || Date.now()}`,
-          name: input.name,
-          slug: input.slug,
-          description: input.description ?? null,
-          avatarUrl: null,
-          ownerId: 'usr_admin_001',
-          role: 'OWNER',
-          memberCount: 1,
-          channelCount: 3,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-
-        DEFAULT_MOCK_WORKSPACES.unshift(newMockWorkspace);
-        return newMockWorkspace;
-      }
-    },
+    mutationFn: (input: CreateWorkspaceInput): Promise<WorkspaceSummary> =>
+      workspaceApi.create(input),
     onSuccess: (workspace) => {
       queryClient.setQueryData(
         queryKeys.workspaces.list(),

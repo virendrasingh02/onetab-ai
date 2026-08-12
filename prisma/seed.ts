@@ -1,3 +1,6 @@
+// Run directly by `tsx`, outside Nest and outside the Prisma CLI, so nothing
+// else populates `process.env` from `.env` first.
+import 'dotenv/config';
 // The `prisma-client` generator emits `client.ts`, not an `index.ts` barrel —
 // same entry point `@org/database` re-exports.
 import { PrismaClient, SystemRole, WorkspaceRole, ChannelVisibility } from '../libs/api/database/src/generated/client.js';

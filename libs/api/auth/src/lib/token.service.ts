@@ -66,19 +66,18 @@ export class TokenService {
     const refreshToken = generateToken();
     const refreshExpiresAt = expiresAt(this.refreshTtl);
 
-    try {
-      await this.prisma.refreshToken.create({
-        data: {
-          userId: user.id,
-          tokenHash: hashToken(refreshToken),
-          expiresAt: refreshExpiresAt,
-          userAgent: context.userAgent?.slice(0, 255),
-          ipAddress: context.ipAddress?.slice(0, 45),
-        },
-      });
-    } catch {
-      // Database may be offline during dev/demo mode; JWT issuance still succeeds.
-    }
+    // Not best-effort: a refresh token with no row behind it is indistinguishable
+    // from a forged one, so the session would die at the first rotation. Fail the
+    // sign-in instead of handing back a cookie that cannot work.
+    await this.prisma.refreshToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: hashToken(refreshToken),
+        expiresAt: refreshExpiresAt,
+        userAgent: context.userAgent?.slice(0, 255),
+        ipAddress: context.ipAddress?.slice(0, 45),
+      },
+    });
 
     return {
       tokens: {

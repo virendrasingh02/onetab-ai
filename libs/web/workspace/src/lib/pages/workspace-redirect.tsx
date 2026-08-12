@@ -1,4 +1,4 @@
-import { EmptyState, Button, LoadingState } from '@org/ui';
+import { EmptyState, Button, ErrorState, LoadingState } from '@org/ui';
 import { useWorkspaces } from '../use-workspaces.js';
 import { Building2 } from 'lucide-react';
 import { Navigate, useNavigate } from 'react-router-dom';
@@ -15,6 +15,20 @@ export function WorkspaceRedirect() {
 
   if (workspaces.isLoading) {
     return <LoadingState fullPage label="Loading your workspaces…" />;
+  }
+
+  // "We could not load your workspaces" and "you have none yet" look identical
+  // from `data`, and telling a member their workspaces are gone is the worse
+  // of the two mistakes — so a failed load must not fall through to onboarding.
+  if (workspaces.isError) {
+    return (
+      <ErrorState
+        fullPage
+        title="Could not load your workspaces"
+        description="Something went wrong reaching the server. Your workspaces are safe."
+        onRetry={() => workspaces.refetch()}
+      />
+    );
   }
 
   const first = workspaces.data?.[0];

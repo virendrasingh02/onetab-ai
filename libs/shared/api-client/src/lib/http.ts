@@ -6,11 +6,17 @@ import axios, {
 } from 'axios';
 
 /**
- * The access token lives in memory only.
+ * The access token, held in memory and mirrored to localStorage.
  *
- * Persisting it to localStorage would make it readable by any injected script;
- * the refresh token is an httpOnly cookie the browser sends automatically, so
- * a page reload recovers the session through `/auth/refresh` instead.
+ * The mirror exists for the browser extension: its content script reads
+ * `onetab_auth_token` off the app's origin so the extension inherits this
+ * session instead of running a second sign-in (see
+ * `apps/extension/src/content/session-bridge.ts`). That trades XSS readability
+ * of a 15-minute token for one credential store, which is why the *refresh*
+ * token stays an httpOnly cookie and never touches storage.
+ *
+ * The mirror is a cache, not an authority: a cold load still has to exchange
+ * the refresh cookie at `/auth/refresh` before the session counts as real.
  */
 let accessToken: string | null = null;
 
@@ -19,18 +25,14 @@ let onSessionExpired: (() => void) | null = null;
 
 export function setAccessToken(token: string | null): void {
   accessToken = token;
-  if (token) {
-    try {
+  try {
+    if (token) {
       localStorage.setItem('onetab_auth_token', token);
-    } catch {
-      // ignore
-    }
-  } else {
-    try {
+    } else {
       localStorage.removeItem('onetab_auth_token');
-    } catch {
-      // ignore
     }
+  } catch {
+    // Storage can be blocked by policy; the in-memory copy still works.
   }
 }
 

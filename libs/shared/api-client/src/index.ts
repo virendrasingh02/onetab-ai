@@ -17,6 +17,7 @@ export {
   matrixApi,
   memberApi,
   userApi,
+  workToolsApi,
   workspaceApi,
   type AuthResponse,
 } from './lib/endpoints.js';

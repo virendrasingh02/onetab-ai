@@ -42,18 +42,21 @@ const getInitialToken = (): string | null => {
 const initialUser = getInitialUser();
 const initialToken = getInitialToken();
 
+// Restored so the first request after a reload carries a token. Whether that
+// token is still good is `useSessionBootstrap`'s call, not this module's.
 if (initialToken) {
   setAccessToken(initialToken);
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: initialUser,
-  status: initialUser && initialToken ? 'authenticated' : 'idle',
+  // Cached identity is a hint, not a session: the bootstrap has to trade the
+  // refresh cookie for a fresh token before anything counts as authenticated.
+  status: 'idle',
 
   setSession: (user, accessToken) => {
     try {
       localStorage.setItem('onetab_auth_user', JSON.stringify(user));
-      localStorage.setItem('onetab_auth_token', accessToken);
     } catch {
       // ignore storage errors
     }
@@ -75,7 +78,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   clear: () => {
     try {
       localStorage.removeItem('onetab_auth_user');
-      localStorage.removeItem('onetab_auth_token');
     } catch {
       // ignore storage errors
     }

@@ -1,45 +1,78 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '@org/api-auth';
-import { CurrentUser } from '@org/api-common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { WorkspaceRoleGuard } from '@org/api-auth';
+import { CurrentUser, WorkspaceId, WorkspaceRoles } from '@org/api-common';
+import { WorkspaceRole } from '@org/types';
 import { IntegrationsService } from './integrations.service.js';
 import { SlackImporterService } from './slack-importer.service.js';
 import { NotionImporterService } from './notion-importer.service.js';
 
-@Controller('integrations')
-@UseGuards(JwtAuthGuard)
+/**
+ * Third-party connections for one workspace.
+ *
+ * Guarded by the workspace path parameter — the previous `?workspaceId=` shape
+ * let any signed-in account enumerate another tenant's connected providers and
+ * write imported content into their workspace.
+ *
+ * Connecting and importing require ADMIN: both hand an outside system a
+ * foothold in the workspace, which is not an ordinary member's decision.
+ */
+@Controller({ path: 'workspaces/:workspaceId/integrations', version: '1' })
+@UseGuards(WorkspaceRoleGuard)
 export class IntegrationsController {
   constructor(
     private readonly integrationsService: IntegrationsService,
     private readonly slackImporter: SlackImporterService,
-    private readonly notionImporter: NotionImporterService
+    private readonly notionImporter: NotionImporterService,
   ) {}
 
   @Get()
-  getConnectedIntegrations(@Query('workspaceId') workspaceId: string) {
+  getConnectedIntegrations(@WorkspaceId() workspaceId: string) {
     return this.integrationsService.getConnectedIntegrations(workspaceId);
   }
 
   @Post(':provider/connect')
+  @WorkspaceRoles(WorkspaceRole.ADMIN)
   connectProvider(
+    @WorkspaceId() workspaceId: string,
     @Param('provider') provider: string,
-    @Body() body: { workspaceId: string; accessToken?: string; config?: Record<string, unknown> }
+    @Body() body: { accessToken?: string; config?: Record<string, unknown> },
   ) {
-    return this.integrationsService.connectProvider(body.workspaceId, provider.toUpperCase(), body.accessToken, body.config);
+    return this.integrationsService.connectProvider(
+      workspaceId,
+      provider.toUpperCase(),
+      body.accessToken,
+      body.config,
+    );
   }
 
   @Post('import/slack')
+  @WorkspaceRoles(WorkspaceRole.ADMIN)
   importSlackArchive(
+    @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
-    @Body() body: { workspaceId: string; channels: Array<{ name: string; topic?: string; messagesCount: number }> }
+    @Body()
+    body: {
+      channels: Array<{ name: string; topic?: string; messagesCount: number }>;
+    },
   ) {
-    return this.slackImporter.importSlackArchive(body.workspaceId, userId, body.channels);
+    return this.slackImporter.importSlackArchive(
+      workspaceId,
+      userId,
+      body.channels,
+    );
   }
 
   @Post('import/notion')
+  @WorkspaceRoles(WorkspaceRole.ADMIN)
   importNotionPages(
+    @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
-    @Body() body: { workspaceId: string; pages: Array<{ title: string; content: string }> }
+    @Body() body: { pages: Array<{ title: string; content: string }> },
   ) {
-    return this.notionImporter.importNotionPages(body.workspaceId, userId, body.pages);
+    return this.notionImporter.importNotionPages(
+      workspaceId,
+      userId,
+      body.pages,
+    );
   }
 }

@@ -21,6 +21,15 @@ import { TokenService, type IssuedSession } from './token.service.js';
 const BCRYPT_ROUNDS = 12;
 const PASSWORD_RESET_TTL = '1h';
 
+/**
+ * A well-formed bcrypt digest of a random string, compared against when the
+ * email is unknown. It has to be a real digest: `bcrypt.compare` rejects a
+ * malformed hash immediately, which would reintroduce the timing difference
+ * this exists to hide.
+ */
+const UNMATCHABLE_HASH =
+  '$2b$12$SnhqiqVsf7JjLwjzc0miE.s0qU9XSG/V835wkvgzGd5I5KQ3Ib9QC';
+
 export interface SessionContext {
   userAgent?: string;
   ipAddress?: string;
@@ -69,70 +78,31 @@ export class AuthService {
     input: LoginInput,
     context: SessionContext = {},
   ): Promise<{ user: CurrentUser; session: IssuedSession }> {
-    let user = null;
-    try {
-      user = await this.prisma.user.findUnique({
-        where: { email: input.email },
-      });
-    } catch {
-      // Database connection error; handled via fallback below
-    }
-
-    if (!user) {
-      // If DB is offline or account doesn't exist, enable demo logins for admin/dev
-      const isDemoAdmin = input.email === 'admin@onetab.ai';
-      const isDemoDev = input.email === 'dev@onetab.ai';
-      const isDemoPassword = input.password === 'password123';
-
-      if (isDemoAdmin || isDemoDev || isDemoPassword) {
-        const demoDbUser = {
-          id: isDemoAdmin ? 'usr_admin_001' : 'usr_dev_002',
-          email: input.email || 'dev@onetab.ai',
-          name: isDemoAdmin ? 'System Admin' : 'Developer User',
-          displayName: isDemoAdmin ? 'Admin' : 'Dev',
-          avatarUrl: null,
-          bio: isDemoAdmin ? 'OneTab AI Administrator' : 'OneTab AI Engineer',
-          timezone: 'UTC',
-          systemRole: isDemoAdmin ? 'SUPERADMIN' : 'USER',
-          presence: 'ONLINE',
-          emailVerifiedAt: new Date(),
-          lastSeenAt: new Date(),
-          createdAt: new Date(),
-        };
-        const session = await this.tokens.issueSession(demoDbUser, context);
-        return { user: toCurrentUser(demoDbUser), session };
-      }
-
-      throw new UnauthorizedException({
-        code: ApiErrorCode.INVALID_CREDENTIALS,
-        message: 'Incorrect email or password.',
-      });
-    }
+    const user = await this.prisma.user.findUnique({
+      where: { email: input.email },
+    });
 
     // Always run a hash comparison, even when the account is unknown, so the
     // response time does not reveal whether an email is registered.
-    const passwordHash =
-      user.passwordHash ?? '$2b$12$invalidinvalidinvalidinvalidinvalidinvalidin';
-    const valid = await bcrypt.compare(input.password, passwordHash);
+    const valid = await bcrypt.compare(
+      input.password,
+      user?.passwordHash ?? UNMATCHABLE_HASH,
+    );
 
-    if (!valid) {
+    if (!user || !valid) {
       throw new UnauthorizedException({
         code: ApiErrorCode.INVALID_CREDENTIALS,
         message: 'Incorrect email or password.',
       });
     }
 
-    try {
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: { lastSeenAt: new Date(), presence: 'ONLINE' },
-      });
-    } catch {
-      // ignore
-    }
+    const signedIn = await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastSeenAt: new Date(), presence: 'ONLINE' },
+    });
 
-    const session = await this.tokens.issueSession(user, context);
-    return { user: toCurrentUser(user), session };
+    const session = await this.tokens.issueSession(signedIn, context);
+    return { user: toCurrentUser(signedIn), session };
   }
 
   async logout(refreshToken: string | undefined, userId?: string): Promise<void> {
@@ -177,30 +147,18 @@ export class AuthService {
   }
 
   async me(userId: string): Promise<CurrentUser> {
-    try {
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    // The token verified, but the account behind it is gone — a deleted user
+    // holding a still-valid access token. Treat it as no session at all.
+    if (!user) {
+      throw new UnauthorizedException({
+        code: ApiErrorCode.UNAUTHORIZED,
+        message: 'Your account is no longer available.',
       });
-      if (user) return toCurrentUser(user);
-    } catch {
-      // ignore
     }
 
-    const isDemoAdmin = userId === 'usr_admin_001';
-    return {
-      id: userId,
-      email: isDemoAdmin ? 'admin@onetab.ai' : 'dev@onetab.ai',
-      name: isDemoAdmin ? 'System Admin' : 'Developer User',
-      displayName: isDemoAdmin ? 'Admin' : 'Dev',
-      avatarUrl: null,
-      bio: isDemoAdmin ? 'OneTab AI Administrator' : 'OneTab AI Engineer',
-      timezone: 'UTC',
-      systemRole: isDemoAdmin ? 'SUPERADMIN' : 'USER',
-      presence: 'ONLINE',
-      emailVerifiedAt: new Date().toISOString(),
-      lastSeenAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-    };
+    return toCurrentUser(user);
   }
 
   /**

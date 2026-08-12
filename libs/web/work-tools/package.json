@@ -14,9 +14,14 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
+    "@org/api-client": "*",
     "@org/design-system": "*",
+    "@org/types": "*",
+    "@org/validation": "*",
+    "@tanstack/react-query": "^5.101.4",
     "@org/ui": "*",
     "@org/utils": "*",
+    "@org/web-workspace": "*",
     "lucide-react": "^1.28.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

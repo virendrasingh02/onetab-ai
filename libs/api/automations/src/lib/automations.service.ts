@@ -1,7 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@org/database';
 import { WorkflowEngineService } from './workflow-engine.service.js';
 
+/**
+ * Workflows belong to a workspace, so every lookup is filtered by it — a
+ * workflow id supplied by the caller is not proof they may run it.
+ */
 @Injectable()
 export class AutomationsService {
   constructor(
@@ -31,15 +35,29 @@ export class AutomationsService {
     });
   }
 
-  async triggerWorkflow(workflowId: string, payload: Record<string, unknown> = {}) {
+  async triggerWorkflow(
+    workspaceId: string,
+    workflowId: string,
+    payload: Record<string, unknown> = {},
+  ) {
+    await this.assertWorkflow(workspaceId, workflowId);
     return this.workflowEngine.executeWorkflow(workflowId, payload);
   }
 
-  async getExecutions(workflowId: string) {
+  async getExecutions(workspaceId: string, workflowId: string) {
+    await this.assertWorkflow(workspaceId, workflowId);
     return this.prisma.workflowExecution.findMany({
       where: { workflowId },
       orderBy: { startedAt: 'desc' },
       take: 20,
     });
+  }
+
+  private async assertWorkflow(workspaceId: string, workflowId: string) {
+    const found = await this.prisma.automationWorkflow.findFirst({
+      where: { id: workflowId, workspaceId },
+      select: { id: true },
+    });
+    if (!found) throw new NotFoundException('Workflow not found.');
   }
 }

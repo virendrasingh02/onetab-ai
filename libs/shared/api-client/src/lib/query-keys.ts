@@ -88,4 +88,24 @@ export const queryKeys = {
     channelRoom: (channelId: string) =>
       ['matrix', 'channel-room', channelId] as const,
   },
+  workTools: {
+    all: (workspaceId: string) => ['work-tools', workspaceId] as const,
+    projects: (workspaceId: string) =>
+      ['work-tools', workspaceId, 'projects'] as const,
+    /** `projectId` narrows the board; `undefined` is the all-tasks view. */
+    tasks: (workspaceId: string, projectId?: string) =>
+      ['work-tools', workspaceId, 'tasks', projectId ?? 'all'] as const,
+    taskComments: (workspaceId: string, taskId: string) =>
+      ['work-tools', workspaceId, 'tasks', taskId, 'comments'] as const,
+    calendar: (workspaceId: string, from?: string, to?: string) =>
+      ['work-tools', workspaceId, 'calendar', from ?? '', to ?? ''] as const,
+    documents: (workspaceId: string, kind?: string) =>
+      ['work-tools', workspaceId, 'documents', kind ?? 'all'] as const,
+    document: (workspaceId: string, docId: string) =>
+      ['work-tools', workspaceId, 'documents', docId] as const,
+    whiteboards: (workspaceId: string) =>
+      ['work-tools', workspaceId, 'whiteboards'] as const,
+    whiteboard: (workspaceId: string, whiteboardId: string) =>
+      ['work-tools', workspaceId, 'whiteboards', whiteboardId] as const,
+  },
 } as const;

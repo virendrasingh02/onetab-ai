@@ -1,4 +1,22 @@
 export {
+  groupTasksByStatus,
+  useAddTaskComment,
+  useCalendarEvents,
+  useCalendarMutations,
+  useDocument,
+  useDocumentMutations,
+  useDocuments,
+  useProjectMutations,
+  useProjects,
+  useTaskComments,
+  useTaskMutations,
+  useTasks,
+  useWhiteboard,
+  useWhiteboardMutations,
+  useWhiteboards,
+} from './lib/use-work-tools.js';
+
+export {
   KanbanBoard,
   type BoardLabel,
   type BoardMember,
@@ -37,7 +55,7 @@ export { ProjectTimelineView } from './lib/asana/ProjectTimelineView.js';
 export { ProjectDashboardView } from './lib/asana/ProjectDashboardView.js';
 export { DocumentEditor } from './lib/DocumentEditor.js';
 export { WhiteboardCanvas, type CanvasNode } from './lib/WhiteboardCanvas.js';
-export { CalendarView, type EventItem } from './lib/CalendarView.js';
+export { CalendarView } from './lib/CalendarView.js';
 export { FileManagerView, type FileEntry } from './lib/FileManagerView.js';
 export { ActivityTimelineView } from './lib/ActivityTimelineView.js';
 export { MeetingsView, type MeetingItem } from './lib/MeetingsView.js';

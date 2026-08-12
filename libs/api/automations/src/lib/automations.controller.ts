@@ -1,36 +1,59 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '@org/api-auth';
-import { CurrentUser } from '@org/api-common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { WorkspaceRoleGuard } from '@org/api-auth';
+import { CurrentUser, WorkspaceId } from '@org/api-common';
 import { AutomationsService } from './automations.service.js';
 
-@Controller('automations')
-@UseGuards(JwtAuthGuard)
+/**
+ * Automation workflows for one workspace.
+ *
+ * Guarded by the workspace path parameter. The previous `?workspaceId=` shape
+ * under `JwtAuthGuard` alone let any signed-in account read another tenant's
+ * workflows and trigger them.
+ */
+@Controller({ path: 'workspaces/:workspaceId/automations', version: '1' })
+@UseGuards(WorkspaceRoleGuard)
 export class AutomationsController {
   constructor(private readonly automationsService: AutomationsService) {}
 
   @Get('workflows')
-  getWorkflows(@Query('workspaceId') workspaceId: string) {
+  getWorkflows(@WorkspaceId() workspaceId: string) {
     return this.automationsService.getWorkflows(workspaceId);
   }
 
   @Post('workflows')
   createWorkflow(
+    @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
-    @Body() body: { workspaceId: string; name: string; description?: string; triggerType?: string; nodesJson?: string; edgesJson?: string }
+    @Body()
+    body: {
+      name: string;
+      description?: string;
+      triggerType?: string;
+      nodesJson?: string;
+      edgesJson?: string;
+    },
   ) {
-    return this.automationsService.createWorkflow(body.workspaceId, userId, body);
+    return this.automationsService.createWorkflow(workspaceId, userId, body);
   }
 
-  @Post('workflows/:id/trigger')
+  @Post('workflows/:workflowId/trigger')
   triggerWorkflow(
-    @Param('id') workflowId: string,
-    @Body() body: Record<string, unknown>
+    @WorkspaceId() workspaceId: string,
+    @Param('workflowId') workflowId: string,
+    @Body() body: Record<string, unknown>,
   ) {
-    return this.automationsService.triggerWorkflow(workflowId, body);
+    return this.automationsService.triggerWorkflow(
+      workspaceId,
+      workflowId,
+      body,
+    );
   }
 
-  @Get('workflows/:id/executions')
-  getExecutions(@Param('id') workflowId: string) {
-    return this.automationsService.getExecutions(workflowId);
+  @Get('workflows/:workflowId/executions')
+  getExecutions(
+    @WorkspaceId() workspaceId: string,
+    @Param('workflowId') workflowId: string,
+  ) {
+    return this.automationsService.getExecutions(workspaceId, workflowId);
   }
 }

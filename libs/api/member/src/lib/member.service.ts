@@ -108,9 +108,7 @@ export class MemberService {
       );
     }
 
-    await this.prisma.workspaceMember.delete({
-      where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
-    });
+    await this.detach(workspaceId, targetUserId);
   }
 
   /** Voluntary exit. The owner must transfer ownership first. */
@@ -127,9 +125,26 @@ export class MemberService {
       );
     }
 
-    await this.prisma.workspaceMember.delete({
-      where: { workspaceId_userId: { workspaceId, userId } },
-    });
+    await this.detach(workspaceId, userId);
+  }
+
+  /**
+   * Drops every trace of a user's membership in one transaction.
+   *
+   * Channel membership hangs off `channels`, not `workspace_members`, so no
+   * foreign key cascades from the workspace row. Deleting it alone would leave
+   * the person listed in — and counted against — every channel of a workspace
+   * they are no longer in.
+   */
+  private async detach(workspaceId: string, userId: string): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.channelMember.deleteMany({
+        where: { userId, channel: { workspaceId } },
+      }),
+      this.prisma.workspaceMember.delete({
+        where: { workspaceId_userId: { workspaceId, userId } },
+      }),
+    ]);
   }
 
   // --- invitations --------------------------------------------------------

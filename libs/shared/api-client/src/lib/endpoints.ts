@@ -1,12 +1,14 @@
 import type {
   AIUsageStats,
   AuthTokens,
+  CalendarEvent,
   Channel,
   ChannelMember,
   ChannelPin,
   ChannelSummary,
   CurrentUser,
   DashboardOverview,
+  DocumentKind,
   ErrorTrackingReport,
   GeneratedReport,
   HealthStatus,
@@ -26,12 +28,18 @@ import type {
   PluginManifestValidation,
   PluginRegistrationView,
   PluginSDKDescriptor,
+  Project,
+  ProjectDetail,
   PublicUser,
   ReportDefinition,
   ReportType,
   StorageAnalytics,
+  Task,
+  TaskComment,
   Upload,
   UserAnalytics,
+  Whiteboard,
+  WorkDocument,
   Workspace,
   WorkspaceAnalytics,
   WorkspaceMember,
@@ -40,17 +48,29 @@ import type {
 import type {
   AddChannelMembersInput,
   ChannelPreferencesInput,
+  CreateCalendarEventInput,
   CreateChannelInput,
+  CreateDocumentInput,
   CreatePinInput,
+  CreateProjectInput,
+  CreateTaskCommentInput,
+  CreateTaskInput,
+  CreateWhiteboardInput,
   CreateWorkspaceInput,
   ForgotPasswordInput,
   InviteMembersInput,
   LoginInput,
+  MoveTaskInput,
   RegisterInput,
   ResetPasswordInput,
+  UpdateCalendarEventInput,
   UpdateChannelInput,
+  UpdateDocumentInput,
   UpdateMemberRoleInput,
   UpdateProfileInput,
+  UpdateProjectInput,
+  UpdateTaskInput,
+  UpdateWhiteboardInput,
   UpdateWorkspaceInput,
 } from '@org/validation';
 import { http, request } from './http.js';
@@ -511,5 +531,197 @@ export const marketplaceApi = {
   rotatePluginKey: (slug: string) =>
     request<{ listingSlug: string; apiKey: string; apiKeyPrefix: string }>(
       http.post(`/marketplace/plugins/${slug}/rotate-key`),
+    ),
+};
+
+/**
+ * Projects, tasks, calendar, docs and whiteboards.
+ *
+ * Every path is nested under the workspace: the server resolves access from
+ * that path parameter, so the workspace is never a caller-supplied filter.
+ */
+export const workToolsApi = {
+  // --- projects -------------------------------------------------------------
+
+  projects: (workspaceId: string) =>
+    request<ProjectDetail[]>(
+      http.get(`/workspaces/${workspaceId}/work-tools/projects`),
+    ),
+
+  createProject: (workspaceId: string, input: CreateProjectInput) =>
+    request<Project>(
+      http.post(`/workspaces/${workspaceId}/work-tools/projects`, input),
+    ),
+
+  updateProject: (
+    workspaceId: string,
+    projectId: string,
+    input: UpdateProjectInput,
+  ) =>
+    request<Project>(
+      http.patch(
+        `/workspaces/${workspaceId}/work-tools/projects/${projectId}`,
+        input,
+      ),
+    ),
+
+  deleteProject: (workspaceId: string, projectId: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/work-tools/projects/${projectId}`),
+    ),
+
+  // --- tasks ----------------------------------------------------------------
+
+  tasks: (workspaceId: string, projectId?: string) =>
+    request<Task[]>(
+      http.get(`/workspaces/${workspaceId}/work-tools/tasks`, {
+        params: projectId ? { projectId } : undefined,
+      }),
+    ),
+
+  createTask: (workspaceId: string, input: CreateTaskInput) =>
+    request<Task>(
+      http.post(`/workspaces/${workspaceId}/work-tools/tasks`, input),
+    ),
+
+  updateTask: (workspaceId: string, taskId: string, input: UpdateTaskInput) =>
+    request<Task>(
+      http.patch(`/workspaces/${workspaceId}/work-tools/tasks/${taskId}`, input),
+    ),
+
+  /** Board drag-and-drop: column plus position, nothing else. */
+  moveTask: (workspaceId: string, taskId: string, input: MoveTaskInput) =>
+    request<Task>(
+      http.patch(
+        `/workspaces/${workspaceId}/work-tools/tasks/${taskId}/move`,
+        input,
+      ),
+    ),
+
+  deleteTask: (workspaceId: string, taskId: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/work-tools/tasks/${taskId}`),
+    ),
+
+  taskComments: (workspaceId: string, taskId: string) =>
+    request<TaskComment[]>(
+      http.get(`/workspaces/${workspaceId}/work-tools/tasks/${taskId}/comments`),
+    ),
+
+  addTaskComment: (
+    workspaceId: string,
+    taskId: string,
+    input: CreateTaskCommentInput,
+  ) =>
+    request<TaskComment>(
+      http.post(
+        `/workspaces/${workspaceId}/work-tools/tasks/${taskId}/comments`,
+        input,
+      ),
+    ),
+
+  // --- calendar -------------------------------------------------------------
+
+  calendar: (workspaceId: string, from?: string, to?: string) =>
+    request<CalendarEvent[]>(
+      http.get(`/workspaces/${workspaceId}/work-tools/calendar`, {
+        params: { ...(from ? { from } : {}), ...(to ? { to } : {}) },
+      }),
+    ),
+
+  createEvent: (workspaceId: string, input: CreateCalendarEventInput) =>
+    request<CalendarEvent>(
+      http.post(`/workspaces/${workspaceId}/work-tools/calendar`, input),
+    ),
+
+  updateEvent: (
+    workspaceId: string,
+    eventId: string,
+    input: UpdateCalendarEventInput,
+  ) =>
+    request<CalendarEvent>(
+      http.patch(
+        `/workspaces/${workspaceId}/work-tools/calendar/${eventId}`,
+        input,
+      ),
+    ),
+
+  deleteEvent: (workspaceId: string, eventId: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/work-tools/calendar/${eventId}`),
+    ),
+
+  // --- documents ------------------------------------------------------------
+
+  documents: (workspaceId: string, kind?: DocumentKind) =>
+    request<WorkDocument[]>(
+      http.get(`/workspaces/${workspaceId}/work-tools/documents`, {
+        params: kind ? { kind } : undefined,
+      }),
+    ),
+
+  document: (workspaceId: string, docId: string) =>
+    request<WorkDocument>(
+      http.get(`/workspaces/${workspaceId}/work-tools/documents/${docId}`),
+    ),
+
+  createDocument: (workspaceId: string, input: CreateDocumentInput) =>
+    request<WorkDocument>(
+      http.post(`/workspaces/${workspaceId}/work-tools/documents`, input),
+    ),
+
+  updateDocument: (
+    workspaceId: string,
+    docId: string,
+    input: UpdateDocumentInput,
+  ) =>
+    request<WorkDocument>(
+      http.patch(
+        `/workspaces/${workspaceId}/work-tools/documents/${docId}`,
+        input,
+      ),
+    ),
+
+  deleteDocument: (workspaceId: string, docId: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/work-tools/documents/${docId}`),
+    ),
+
+  // --- whiteboards ----------------------------------------------------------
+
+  whiteboards: (workspaceId: string) =>
+    request<Whiteboard[]>(
+      http.get(`/workspaces/${workspaceId}/work-tools/whiteboards`),
+    ),
+
+  whiteboard: (workspaceId: string, whiteboardId: string) =>
+    request<Whiteboard>(
+      http.get(
+        `/workspaces/${workspaceId}/work-tools/whiteboards/${whiteboardId}`,
+      ),
+    ),
+
+  createWhiteboard: (workspaceId: string, input: CreateWhiteboardInput) =>
+    request<Whiteboard>(
+      http.post(`/workspaces/${workspaceId}/work-tools/whiteboards`, input),
+    ),
+
+  updateWhiteboard: (
+    workspaceId: string,
+    whiteboardId: string,
+    input: UpdateWhiteboardInput,
+  ) =>
+    request<Whiteboard>(
+      http.patch(
+        `/workspaces/${workspaceId}/work-tools/whiteboards/${whiteboardId}`,
+        input,
+      ),
+    ),
+
+  deleteWhiteboard: (workspaceId: string, whiteboardId: string) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/work-tools/whiteboards/${whiteboardId}`,
+      ),
     ),
 };

@@ -1,8 +1,15 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@org/database';
 import { AIInfrastructureService } from '@org/api-ai';
 import { MCPToolRegistryService } from './mcp-tool-registry.service.js';
 
+/**
+ * Agents are workspace property.
+ *
+ * Every method takes the workspace the guard authorised and filters on it,
+ * including those addressing an agent by id — an id from the caller is not
+ * evidence they may use it.
+ */
 @Injectable()
 export class AgentsService {
   private readonly logger = new Logger(AgentsService.name);
@@ -66,8 +73,12 @@ export class AgentsService {
     });
   }
 
-  async executeAgent(agentId: string, promptText: string) {
-    const agent = await this.prisma.aIAgent.findUniqueOrThrow({ where: { id: agentId } });
+  async executeAgent(workspaceId: string, agentId: string, promptText: string) {
+    const agent = await this.prisma.aIAgent.findFirst({
+      where: { id: agentId, workspaceId },
+    });
+    if (!agent) throw new NotFoundException('Agent not found.');
+
     this.logger.log(`Executing AI Agent '${agent.name}' (${agent.id})`);
     const availableTools = this.mcpRegistry.getToolDefinitions();
 
@@ -98,7 +109,13 @@ export class AgentsService {
     };
   }
 
-  async getExecutionLogs(agentId: string) {
+  async getExecutionLogs(workspaceId: string, agentId: string) {
+    const agent = await this.prisma.aIAgent.findFirst({
+      where: { id: agentId, workspaceId },
+      select: { id: true },
+    });
+    if (!agent) throw new NotFoundException('Agent not found.');
+
     return this.prisma.agentExecutionLog.findMany({
       where: { agentId },
       orderBy: { executedAt: 'desc' },
