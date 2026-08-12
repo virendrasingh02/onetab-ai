@@ -9,8 +9,9 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { WorkspaceRoleGuard } from '@org/api-auth';
-import { CurrentUser, Public } from '@org/api-common';
+import { SystemRoleGuard, WorkspaceRoleGuard } from '@org/api-auth';
+import { CurrentUser, Public, SystemRoles } from '@org/api-common';
+import { SystemRole } from '@org/types';
 import type { Response } from 'express';
 import { AnalyticsService } from './analytics.service.js';
 import { normaliseHours } from './analytics.util.js';
@@ -37,6 +38,11 @@ export class AnalyticsController {
   ) {}
 
   // --- platform-wide -------------------------------------------------------
+  //
+  // Operator surface. These describe the API process rather than any one
+  // workspace, and the error report in particular carries messages and paths
+  // from every tenant — so they are gated on the platform role, not merely on
+  // being signed in.
 
   /** Public so container orchestrators and uptime probes can read it. */
   @Get('health')
@@ -46,16 +52,22 @@ export class AnalyticsController {
   }
 
   @Get('performance')
+  @UseGuards(SystemRoleGuard)
+  @SystemRoles(SystemRole.SUPERADMIN)
   getPerformance() {
     return this.metrics.getPerformanceMetrics();
   }
 
   @Get('errors')
+  @UseGuards(SystemRoleGuard)
+  @SystemRoles(SystemRole.SUPERADMIN)
   getPlatformErrors(@Query('hours') hours?: string) {
     return this.errors.getReport(null, normaliseHours(hours));
   }
 
   @Delete('errors')
+  @UseGuards(SystemRoleGuard)
+  @SystemRoles(SystemRole.SUPERADMIN)
   clearPlatformErrors() {
     return this.errors.clearBuffer();
   }

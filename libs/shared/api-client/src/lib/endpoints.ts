@@ -1,5 +1,14 @@
 import type {
   ActivityFeedItem,
+  AdminAuditLogEntry,
+  AdminDepartment,
+  AdminOrganization,
+  AdminOverview,
+  AdminPage,
+  AdminUser,
+  AdminUserDetail,
+  AdminWorkspace,
+  AdminWorkspaceDetail,
   AgentExecutionLog,
   AgentExecutionLogEntry,
   AgentRunResult,
@@ -48,6 +57,7 @@ import type {
   SearchCategory,
   SearchResultItem,
   StorageAnalytics,
+  SystemRole,
   Task,
   TaskComment,
   Upload,
@@ -1001,4 +1011,70 @@ export const notificationApi = {
 
   revokeDevice: (registrationId: string) =>
     request<void>(http.delete(`/notifications/devices/${registrationId}`)),
+};
+
+/**
+ * The operator console's API.
+ *
+ * Every route is SUPERADMIN-only server-side and answers 404 otherwise, so a
+ * non-operator loading the console sees "not found" rather than a wall of
+ * permission errors.
+ */
+export const adminApi = {
+  overview: () => request<AdminOverview>(http.get('/admin/overview')),
+
+  users: (params: {
+    q?: string;
+    role?: SystemRole;
+    page?: number;
+    pageSize?: number;
+  } = {}) =>
+    request<AdminPage<AdminUser>>(http.get('/admin/users', { params })),
+
+  user: (userId: string) =>
+    request<AdminUserDetail>(http.get(`/admin/users/${userId}`)),
+
+  setUserRole: (userId: string, role: SystemRole) =>
+    request<{ id: string; email: string; systemRole: SystemRole }>(
+      http.patch(`/admin/users/${userId}/role`, { role }),
+    ),
+
+  deleteUser: (userId: string) =>
+    request<void>(http.delete(`/admin/users/${userId}`)),
+
+  workspaces: (params: { q?: string; page?: number; pageSize?: number } = {}) =>
+    request<AdminPage<AdminWorkspace>>(
+      http.get('/admin/workspaces', { params }),
+    ),
+
+  workspace: (workspaceId: string) =>
+    request<AdminWorkspaceDetail>(http.get(`/admin/workspaces/${workspaceId}`)),
+
+  deleteWorkspace: (workspaceId: string) =>
+    request<void>(http.delete(`/admin/workspaces/${workspaceId}`)),
+
+  organizations: () =>
+    request<AdminOrganization[]>(http.get('/admin/organizations')),
+
+  createDepartment: (
+    organizationId: string,
+    input: { name: string; code?: string },
+  ) =>
+    request<AdminDepartment>(
+      http.post(`/admin/organizations/${organizationId}/departments`, input),
+    ),
+
+  deleteDepartment: (organizationId: string, departmentId: string) =>
+    request<void>(
+      http.delete(
+        `/admin/organizations/${organizationId}/departments/${departmentId}`,
+      ),
+    ),
+
+  auditLogs: (
+    params: { organizationId?: string; page?: number; pageSize?: number } = {},
+  ) =>
+    request<AdminPage<AdminAuditLogEntry>>(
+      http.get('/admin/audit-logs', { params }),
+    ),
 };

@@ -38,6 +38,19 @@ export type {
 } from './lib/api.js';
 
 export type {
+  AdminAuditLogEntry,
+  AdminDepartment,
+  AdminOrganization,
+  AdminOverview,
+  AdminPage,
+  AdminSubscription,
+  AdminUser,
+  AdminUserDetail,
+  AdminWorkspace,
+  AdminWorkspaceDetail,
+} from './lib/admin.js';
+
+export type {
   AgentExecutionLog,
   AgentExecutionLogEntry,
   AgentRunResult,

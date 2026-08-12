@@ -112,6 +112,20 @@ export const queryKeys = {
     list: (workspaceId: string) =>
       ['integrations', workspaceId, 'list'] as const,
   },
+  admin: {
+    all: () => ['admin'] as const,
+    overview: () => ['admin', 'overview'] as const,
+    users: (q: string, role: string, page: number) =>
+      ['admin', 'users', q, role, page] as const,
+    user: (userId: string) => ['admin', 'users', userId] as const,
+    workspaces: (q: string, page: number) =>
+      ['admin', 'workspaces', q, page] as const,
+    workspace: (workspaceId: string) =>
+      ['admin', 'workspaces', workspaceId] as const,
+    organizations: () => ['admin', 'organizations'] as const,
+    auditLogs: (organizationId: string, page: number) =>
+      ['admin', 'audit-logs', organizationId, page] as const,
+  },
   uploads: {
     all: (workspaceId: string) => ['uploads', workspaceId] as const,
     list: (workspaceId: string, channelId?: string) =>

@@ -75,6 +75,9 @@
     },
     {
       "path": "../../libs/api/ai/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/api/admin/tsconfig.lib.json"
     }
   ]
 }

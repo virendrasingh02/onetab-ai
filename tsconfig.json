@@ -197,6 +197,9 @@
     },
     {
       "path": "./libs/api/notifications"
+    },
+    {
+      "path": "./libs/api/admin"
     }
   ],
   "compilerOptions": {}

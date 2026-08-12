@@ -19,6 +19,7 @@ import { EnterpriseModule } from '@org/api-enterprise';
 import { IntegrationsModule } from '@org/api-integrations';
 import { AnalyticsModule } from '@org/api-analytics';
 import { MarketplaceModule } from '@org/api-marketplace';
+import { AdminModule } from '@org/api-admin';
 import { AIInfrastructureModule } from '@org/api-ai';
 import { NotificationsModule } from '@org/api-notifications';
 import { SearchModule } from '@org/api-search';
@@ -56,6 +57,7 @@ import { AppService } from './app.service';
     IntegrationsModule,
     AnalyticsModule,
     MarketplaceModule,
+    AdminModule,
     AIInfrastructureModule,
     NotificationsModule,
     SearchModule,

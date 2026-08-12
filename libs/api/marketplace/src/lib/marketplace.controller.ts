@@ -9,8 +9,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { WorkspaceRoleGuard } from '@org/api-auth';
-import { CurrentUser, type AuthenticatedUser } from '@org/api-common';
+import { SystemRoleGuard, WorkspaceRoleGuard } from '@org/api-auth';
+import {
+  CurrentUser,
+  SystemRoles,
+  type AuthenticatedUser,
+} from '@org/api-common';
+import { SystemRole } from '@org/types';
 import { CatalogService } from './catalog.service.js';
 import {
   CATEGORIES_BY_KIND,
@@ -77,18 +82,28 @@ export class MarketplaceController {
   }
 
   // --- publishing ----------------------------------------------------------
+  //
+  // Operator-gated. There is no publisher-ownership model yet, so without this
+  // any signed-in account could publish into the catalogue, unpublish someone
+  // else's listing, or reseed the whole storefront.
 
   @Post('listings')
+  @UseGuards(SystemRoleGuard)
+  @SystemRoles(SystemRole.SUPERADMIN)
   publish(@Body() body: PublishListingInput) {
     return this.marketplace.publish(body);
   }
 
   @Patch('listings/:slug/status')
+  @UseGuards(SystemRoleGuard)
+  @SystemRoles(SystemRole.SUPERADMIN)
   setStatus(@Param('slug') slug: string, @Body() body: { status: string }) {
     return this.marketplace.setStatus(slug, body.status);
   }
 
   @Post('catalog/seed')
+  @UseGuards(SystemRoleGuard)
+  @SystemRoles(SystemRole.SUPERADMIN)
   seedCatalog() {
     return this.catalog.seed();
   }
@@ -197,6 +212,8 @@ export class MarketplaceController {
   }
 
   @Post('plugins/:slug/register')
+  @UseGuards(SystemRoleGuard)
+  @SystemRoles(SystemRole.SUPERADMIN)
   registerPlugin(
     @Param('slug') slug: string,
     @Body() manifest: PluginManifest,
@@ -205,16 +222,23 @@ export class MarketplaceController {
   }
 
   @Get('plugins/:slug/registration')
+  @UseGuards(SystemRoleGuard)
+  @SystemRoles(SystemRole.SUPERADMIN)
   getRegistration(@Param('slug') slug: string) {
     return this.plugins.getRegistration(slug);
   }
 
+  /** Returns the new secret, so it is operator-only rather than merely signed-in. */
   @Post('plugins/:slug/rotate-key')
+  @UseGuards(SystemRoleGuard)
+  @SystemRoles(SystemRole.SUPERADMIN)
   rotateKey(@Param('slug') slug: string) {
     return this.plugins.rotateApiKey(slug);
   }
 
   @Patch('plugins/:slug/status')
+  @UseGuards(SystemRoleGuard)
+  @SystemRoles(SystemRole.SUPERADMIN)
   setPluginStatus(
     @Param('slug') slug: string,
     @Body() body: { status: 'ACTIVE' | 'SUSPENDED' },

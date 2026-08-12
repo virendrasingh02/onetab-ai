@@ -1,5 +1,5 @@
 {
-  "name": "@org/api-marketplace",
+  "name": "@org/api-admin",
   "version": "0.0.1",
   "private": true,
   "main": "./src/index.ts",
@@ -21,8 +21,7 @@
   "dependencies": {
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.4",
-    "@org/api-auth": "*",
-    "@org/api-common": "*",
+    "@nestjs/core": "^11.0.0",
     "@org/database": "*",
     "@org/types": "*"
   }
