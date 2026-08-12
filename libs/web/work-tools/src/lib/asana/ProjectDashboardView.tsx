@@ -25,33 +25,37 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react';
-import React, { useMemo, useState } from 'react';
+import { ProjectStatus } from '@org/types';
+import React, { useMemo } from 'react';
 import { daysUntil, PRIORITY_META } from '../kanban/card-meta.js';
 import type { BoardState, KanbanCard, Priority } from '../kanban/types.js';
 
-export type ProjectStatusType = 'ON_TRACK' | 'AT_RISK' | 'OFF_TRACK' | 'COMPLETED';
-
+/**
+ * The banner's states are `Project.status` — the field the API stores and the
+ * gallery filters on. It used to be a separate "health" enum held in component
+ * state, which meant the banner forgot what you set the moment you navigated.
+ */
 export const PROJECT_STATUS_META: Record<
-  ProjectStatusType,
+  ProjectStatus,
   { label: string; bg: string; text: string; icon: React.ReactNode }
 > = {
-  ON_TRACK: {
-    label: 'On Track',
+  PLANNING: {
+    label: 'Planning',
+    bg: 'bg-accent-violet-soft border-accent-violet/30',
+    text: 'text-accent-violet',
+    icon: <ListTodo className="w-4 h-4 text-accent-violet" />,
+  },
+  ACTIVE: {
+    label: 'Active',
     bg: 'bg-accent-green-soft border-accent-green/30',
     text: 'text-accent-green',
     icon: <ShieldCheck className="w-4 h-4 text-accent-green" />,
   },
-  AT_RISK: {
-    label: 'At Risk',
+  ON_HOLD: {
+    label: 'On Hold',
     bg: 'bg-accent-amber-soft border-accent-amber/30',
     text: 'text-accent-amber',
     icon: <AlertTriangle className="w-4 h-4 text-accent-amber" />,
-  },
-  OFF_TRACK: {
-    label: 'Off Track',
-    bg: 'bg-accent-rose-soft border-accent-rose/30',
-    text: 'text-accent-rose',
-    icon: <Flame className="w-4 h-4 text-accent-rose" />,
   },
   COMPLETED: {
     label: 'Completed',
@@ -59,15 +63,28 @@ export const PROJECT_STATUS_META: Record<
     text: 'text-accent-blue',
     icon: <CheckCircle2 className="w-4 h-4 text-accent-blue" />,
   },
+  ARCHIVED: {
+    label: 'Archived',
+    bg: 'bg-muted border-border',
+    text: 'text-muted-foreground',
+    icon: <Flame className="w-4 h-4 text-muted-foreground" />,
+  },
 };
 
 interface ProjectDashboardViewProps {
   board: BoardState;
+  /** The open project's status, or `undefined` while it is still loading. */
+  status?: ProjectStatus;
+  onStatusChange?: (status: ProjectStatus) => void;
   onSelectCard?: (card: KanbanCard, listId: string) => void;
 }
 
-export function ProjectDashboardView({ board, onSelectCard: _onSelectCard }: ProjectDashboardViewProps) {
-  const [projectStatus, setProjectStatus] = useState<ProjectStatusType>('ON_TRACK');
+export function ProjectDashboardView({
+  board,
+  status = ProjectStatus.ACTIVE,
+  onStatusChange,
+  onSelectCard: _onSelectCard,
+}: ProjectDashboardViewProps) {
 
   // Calculated Metrics
   const metrics = useMemo(() => {
@@ -116,7 +133,7 @@ export function ProjectDashboardView({ board, onSelectCard: _onSelectCard }: Pro
     };
   }, [board.lists]);
 
-  const currentStatusMeta = PROJECT_STATUS_META[projectStatus];
+  const currentStatusMeta = PROJECT_STATUS_META[status];
 
   return (
     <div className="flex flex-col gap-6 p-4 w-full text-foreground max-w-7xl mx-auto">
@@ -146,10 +163,10 @@ export function ProjectDashboardView({ board, onSelectCard: _onSelectCard }: Pro
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
-                  {(Object.keys(PROJECT_STATUS_META) as ProjectStatusType[]).map((statusKey) => (
+                  {(Object.keys(PROJECT_STATUS_META) as ProjectStatus[]).map((statusKey) => (
                     <DropdownMenuItem
                       key={statusKey}
-                      onClick={() => setProjectStatus(statusKey)}
+                      onClick={() => onStatusChange?.(statusKey)}
                       className="flex items-center gap-2"
                     >
                       {PROJECT_STATUS_META[statusKey].icon}
@@ -160,7 +177,11 @@ export function ProjectDashboardView({ board, onSelectCard: _onSelectCard }: Pro
               </DropdownMenu>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Overall project health is currently marked as <strong className={currentStatusMeta.text}>{currentStatusMeta.label}</strong>.
+              This project is marked as{' '}
+              <strong className={currentStatusMeta.text}>
+                {currentStatusMeta.label}
+              </strong>
+              .
             </p>
           </div>
         </div>

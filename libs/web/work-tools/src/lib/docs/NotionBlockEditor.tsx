@@ -32,7 +32,7 @@ import {
   Type,
 } from 'lucide-react';
 import React, { useState } from 'react';
-import type { BlockType, NotionBlock } from './docs-hook.js';
+import type { BlockType, NotionBlock } from './doc-types.js';
 
 interface NotionBlockEditorProps {
   blocks: NotionBlock[];

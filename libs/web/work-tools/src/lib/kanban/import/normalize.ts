@@ -1,13 +1,13 @@
 import { accentFor, type Accent } from '@org/design-system';
-import { createId } from '../board-state.js';
-import type {
-  BoardLabel,
-  BoardMember,
-  BoardState,
-  KanbanCard,
-  KanbanList,
-  Priority,
-} from '../types.js';
+import type { Priority } from '../types.js';
+import {
+  createId,
+  type ImportedBoard,
+  type ImportedCard,
+  type ImportedLabel,
+  type ImportedList,
+  type ImportedMember,
+} from './board-ir.js';
 
 /**
  * The shape every importer produces.
@@ -76,9 +76,9 @@ export interface BuildOptions {
 }
 
 /**
- * The whole board lives in `localStorage`, so an unbounded import would throw
- * a quota error halfway through and leave nothing behind. Truncating with a
- * warning fails visibly instead.
+ * Every imported card becomes one `POST /tasks`, so an unbounded import would
+ * spend minutes in flight and leave a half-written project behind if it failed
+ * partway. Truncating with a warning fails visibly instead.
  */
 export const MAX_IMPORTED_CARDS = 2000;
 
@@ -227,13 +227,13 @@ function titleCase(value: string): string {
 }
 
 /**
- * Turns a normalised export into board state: names become ids, tasks become
+ * Turns a normalised export into the import IR: names become ids, tasks become
  * cards, and column names become ordered lists.
  */
 export function buildBoardState(
   normalized: NormalizedBoard,
   options: BuildOptions = {},
-): { board: BoardState; warnings: string[] } {
+): { board: ImportedBoard; warnings: string[] } {
   const warnings = [...(normalized.warnings ?? [])];
 
   const excluded = options.includeArchived
@@ -259,7 +259,7 @@ export function buildBoardState(
 
   /* labels ---------------------------------------------------------------- */
 
-  const labels: BoardLabel[] = [];
+  const labels: ImportedLabel[] = [];
   const labelIds = new Map<string, string>();
 
   const labelId = (name: string): string => {
@@ -283,7 +283,7 @@ export function buildBoardState(
   // The viewer has to exist regardless of who the export mentions — comments
   // and the "assign me" shortcut are written against `currentMemberId`.
   const currentMemberId = 'm_you';
-  const members: BoardMember[] = [{ id: currentMemberId, name: 'You' }];
+  const members: ImportedMember[] = [{ id: currentMemberId, name: 'You' }];
   const memberIds = new Map<string, string>([['you', currentMemberId]]);
 
   const memberId = (name: string): string => {
@@ -335,7 +335,7 @@ export function buildBoardState(
   for (const task of tasks) pushList(task.listName);
   if (listNames.length === 0) pushList('Imported');
 
-  const lists: KanbanList[] = listNames.map((title) => ({
+  const lists: ImportedList[] = listNames.map((title) => ({
     id: createId('list'),
     title,
     cards: [],
@@ -353,7 +353,7 @@ export function buildBoardState(
 
     const done = task.completed ?? isDoneList(target.title);
 
-    const card: KanbanCard = {
+    const card: ImportedCard = {
       id: createId('c'),
       title: task.title.trim() || 'Untitled',
       description: task.description?.trim() ?? '',
@@ -389,7 +389,7 @@ export function buildBoardState(
     target.cards.push(card);
   }
 
-  const board: BoardState = {
+  const board: ImportedBoard = {
     title: (options.title ?? normalized.title).trim() || 'Imported board',
     lists,
     labels,
@@ -408,9 +408,9 @@ export function buildBoardState(
  * of duplicating them. Ids from `incoming` are remapped, never reused.
  */
 export function mergeBoards(
-  target: BoardState,
-  incoming: BoardState,
-): BoardState {
+  target: ImportedBoard,
+  incoming: ImportedBoard,
+): ImportedBoard {
   const labels = [...target.labels];
   const labelMap = new Map<string, string>();
   for (const label of incoming.labels) {
@@ -441,7 +441,7 @@ export function mergeBoards(
     }
   }
 
-  const remap = (card: KanbanCard): KanbanCard => ({
+  const remap = (card: ImportedCard): ImportedCard => ({
     ...card,
     id: createId('c'),
     labelIds: card.labelIds.map((id) => labelMap.get(id) ?? id),
@@ -480,7 +480,7 @@ export function mergeBoards(
 export const ONETAB_EXPORT_KIND = 'onetab.kanban.board';
 
 /** Serialises a board so it can be re-imported by the `onetab` adapter. */
-export function exportBoard(board: BoardState): string {
+export function exportBoard(board: ImportedBoard): string {
   return JSON.stringify(
     { kind: ONETAB_EXPORT_KIND, version: 1, exportedAt: new Date().toISOString(), board },
     null,

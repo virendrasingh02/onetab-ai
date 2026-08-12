@@ -1,3 +1,4 @@
+import { TaskStatus } from '@org/types';
 import {
   Button,
   DropdownMenu,
@@ -10,19 +11,15 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-  Input,
   Textarea,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   ArrowDownUp,
-  ArrowLeft,
-  ArrowRight,
   CornerUpRight,
   Eraser,
   MoreHorizontal,
   Plus,
-  Trash2,
   X,
 } from 'lucide-react';
 import {
@@ -34,15 +31,9 @@ import {
   type KeyboardEvent,
   type Ref,
 } from 'react';
-import type { BoardAction } from './board-state.js';
 import { KanbanCardTile } from './KanbanCardTile.js';
-import type {
-  BoardLabel,
-  BoardMember,
-  KanbanCard,
-  KanbanList,
-  SortKey,
-} from './types.js';
+import type { BoardAction } from './server-board.js';
+import type { BoardMember, KanbanCard, KanbanList, SortKey } from './types.js';
 
 const SORT_OPTIONS: Array<{ key: SortKey; label: string }> = [
   { key: 'due', label: 'Due date' },
@@ -54,14 +45,11 @@ const SORT_OPTIONS: Array<{ key: SortKey; label: string }> = [
 export interface KanbanListColumnProps {
   list: KanbanList;
   lists: KanbanList[];
-  labels: BoardLabel[];
   members: BoardMember[];
   /** Cards surviving the board filter, in list order. */
   visibleCards: KanbanCard[];
   /** How many of this list's cards the filter is holding back. */
   hiddenCount: number;
-  index: number;
-  showLabelText: boolean;
   dispatch: (action: BoardAction) => void;
 
   /** Id of the card currently being dragged, board-wide. */
@@ -71,12 +59,6 @@ export interface KanbanListColumnProps {
    * the frame it becomes safe to collapse the original out of the layout.
    */
   liftedCardId?: string;
-  /**
-   * True when this column has been picked up. Like a lifted card it collapses
-   * out of the row — leaving it in place would widen the board by one column
-   * and shift the very midpoints the drop index is measured against.
-   */
-  liftedList: boolean;
   /** Placeholder position, counted over the cards that are *not* being dragged. */
   dropIndex?: number;
   /** Height of the lifted card, so the placeholder matches its footprint. */
@@ -85,25 +67,19 @@ export interface KanbanListColumnProps {
   onOpenCard: (cardId: string) => void;
   onCardDragStart: (event: DragEvent<HTMLLIElement>, card: KanbanCard) => void;
   onCardDragEnd: () => void;
-  onCardDragOver: (listId: string, visualIndex: number) => void;
-  onCardDrop: (listId: string, visualIndex: number) => void;
-  onListDragStart: (event: DragEvent<HTMLElement>, listId: string) => void;
-  onListDragEnd: () => void;
+  onCardDragOver: (listId: TaskStatus, visualIndex: number) => void;
+  onCardDrop: (listId: TaskStatus, visualIndex: number) => void;
 }
 
 export function KanbanListColumn({
   list,
   lists,
-  labels,
   members,
   visibleCards,
   hiddenCount,
-  index,
-  showLabelText,
   dispatch,
   draggingCardId,
   liftedCardId,
-  liftedList,
   dropIndex,
   dropHeight,
   onOpenCard,
@@ -111,14 +87,11 @@ export function KanbanListColumn({
   onCardDragEnd,
   onCardDragOver,
   onCardDrop,
-  onListDragStart,
-  onListDragEnd,
 }: KanbanListColumnProps) {
   const sectionRef = useRef<HTMLElement>(null);
   const cardsRef = useRef<HTMLUListElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
-  const [renaming, setRenaming] = useState(false);
   const [composer, setComposer] = useState<'top' | 'bottom' | null>(null);
   const [draft, setDraft] = useState('');
 
@@ -197,12 +170,6 @@ export function KanbanListColumn({
     onCardDrop(list.id, resolveVisualIndex(event.clientY));
   };
 
-  const commitRename = (value: string) => {
-    const title = value.trim();
-    if (title) dispatch({ type: 'list/rename', listId: list.id, title });
-    setRenaming(false);
-  };
-
   const otherLists = lists.filter((other) => other.id !== list.id);
   const placeholder =
     draggingCardId && dropIndex !== undefined ? dropIndex : undefined;
@@ -232,61 +199,16 @@ export function KanbanListColumn({
       className={cn(
         'w-[82vw] sm:w-72 flex max-h-full shrink-0 flex-col rounded-xl border bg-surface-muted',
         'transition-[box-shadow] duration-(--duration-fast)',
-        liftedList && 'hidden',
         placeholder !== undefined && 'ring-2 ring-primary/25',
       )}
     >
-      <header
-        draggable={!renaming}
-        onDragStart={(event) => onListDragStart(event, list.id)}
-        onDragEnd={onListDragEnd}
-        className={cn(
-          'gap-1.5 px-3 py-2 flex items-center justify-between rounded-t-xl bg-surface/40 border-b border-border/40',
-          !renaming && 'cursor-grab active:cursor-grabbing',
-        )}
-      >
+      <header className="gap-1.5 px-3 py-2 flex items-center justify-between rounded-t-xl bg-surface/40 border-b border-border/40">
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          {/* Linear Status Column Icon */}
-          {list.title.toLowerCase().includes('backlog') ? (
-            <span className="size-3.5 rounded-full border-2 border-dashed border-accent-amber/30 shrink-0" />
-          ) : list.title.toLowerCase().includes('planned') ? (
-            <span className="size-3.5 rounded-full border-2 border-muted-foreground/60 shrink-0" />
-          ) : list.title.toLowerCase().includes('progress') ? (
-            <span className="size-3.5 rounded-full border-2 border-accent-amber/30 bg-accent-amber-soft shrink-0" />
-          ) : list.title.toLowerCase().includes('completed') || list.title.toLowerCase().includes('done') ? (
-            <span className="size-3.5 rounded-full bg-accent-blue dark:bg-accent-blue text-white flex items-center justify-center shrink-0 font-bold text-[9px]">
-              ✓
-            </span>
-          ) : (
-            <span className="size-3.5 rounded-full border-2 border-primary/60 shrink-0" />
-          )}
+          <StatusDot status={list.id} />
 
-          {renaming ? (
-            <Input
-              autoFocus
-              defaultValue={list.title}
-              aria-label="List name"
-              className="h-7 px-2 text-xs font-semibold"
-              onBlur={(event) => commitRename(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter')
-                  commitRename(event.currentTarget.value);
-                if (event.key === 'Escape') setRenaming(false);
-              }}
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={() => setRenaming(true)}
-              title="Rename list"
-              className={cn(
-                'min-w-0 py-0.5 rounded text-xs font-semibold flex-1 truncate text-left text-foreground',
-                'hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none',
-              )}
-            >
-              {list.title}
-            </button>
-          )}
+          <h2 className="min-w-0 py-0.5 text-xs font-semibold flex-1 truncate text-foreground">
+            {list.title}
+          </h2>
 
           <span className="text-xs font-medium text-muted-foreground/70 tabular-nums">
             {list.cards.length}
@@ -381,49 +303,12 @@ export function KanbanListColumn({
             <DropdownMenuSeparator />
 
             <DropdownMenuItem
-              disabled={index === 0}
-              onSelect={() =>
-                dispatch({
-                  type: 'list/move',
-                  listId: list.id,
-                  toIndex: index - 1,
-                })
-              }
-            >
-              <ArrowLeft />
-              Move list left
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={index === lists.length - 1}
-              onSelect={() =>
-                dispatch({
-                  type: 'list/move',
-                  listId: list.id,
-                  toIndex: index + 1,
-                })
-              }
-            >
-              <ArrowRight />
-              Move list right
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem
+              variant="destructive"
               disabled={list.cards.length === 0}
               onSelect={() => dispatch({ type: 'list/clear', listId: list.id })}
             >
               <Eraser />
-              Remove all cards
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={() =>
-                dispatch({ type: 'list/remove', listId: list.id })
-              }
-            >
-              <Trash2 />
-              Delete list
+              Delete all cards
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -467,12 +352,10 @@ export function KanbanListColumn({
               {placeholderHere ? renderPlaceholder(`ph-${card.id}`) : null}
               <KanbanCardTile
                 card={card}
-                labels={labels}
                 members={members}
                 lists={lists}
                 listId={list.id}
                 lifted={lifted}
-                showLabelText={showLabelText}
                 onOpen={() => onOpenCard(card.id)}
                 onCopy={() => dispatch({ type: 'card/copy', cardId: card.id })}
                 onDelete={() =>
@@ -527,6 +410,36 @@ export function KanbanListColumn({
         </div>
       ) : null}
     </section>
+  );
+}
+
+/* ----------------------------------------------------------- status dot --- */
+
+/**
+ * Linear's column glyph. Keyed off the status itself rather than sniffed out of
+ * the column's title, which is what it had to do while list names were free
+ * text.
+ */
+const STATUS_DOT: Record<TaskStatus, string> = {
+  BACKLOG: 'border-2 border-dashed border-accent-amber/30',
+  TODO: 'border-2 border-muted-foreground/60',
+  IN_PROGRESS: 'border-2 border-accent-amber/30 bg-accent-amber-soft',
+  IN_REVIEW: 'border-2 border-primary/60',
+  DONE: 'bg-accent-blue',
+  CANCELLED: 'border-2 border-destructive/40 bg-destructive/10',
+};
+
+function StatusDot({ status }: { status: TaskStatus }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'size-3.5 shrink-0 rounded-full flex items-center justify-center text-[9px] font-bold text-white',
+        STATUS_DOT[status],
+      )}
+    >
+      {status === TaskStatus.DONE ? '✓' : null}
+    </span>
   );
 }
 

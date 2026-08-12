@@ -32,11 +32,12 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useState } from 'react';
-import type { DocItem } from './docs-hook.js';
+import type { DocItem } from './doc-types.js';
 
 interface DocToolsDrawerProps {
   doc: DocItem;
-  onAddComment: (author: string, text: string) => void;
+  /** The author is the signed-in user, resolved by the caller. */
+  onAddComment: (text: string) => void;
 }
 
 export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
@@ -50,7 +51,7 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
 
   const handlePostComment = () => {
     if (!commentInput.trim()) return;
-    onAddComment('Current User', commentInput.trim());
+    onAddComment(commentInput.trim());
     setCommentInput('');
   };
 

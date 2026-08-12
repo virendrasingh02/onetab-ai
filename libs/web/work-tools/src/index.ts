@@ -18,16 +18,18 @@ export {
 
 export {
   KanbanBoard,
-  type BoardLabel,
   type BoardMember,
   type BoardState,
-  type CardComment,
-  type ChecklistItem,
   type KanbanCard,
   type KanbanList,
   type Priority,
-  type TaskItem,
 } from './lib/KanbanBoard.js';
+export { ProjectGallery } from './lib/kanban/ProjectGallery.js';
+export {
+  buildBoard,
+  useServerBoard,
+  type BoardAction,
+} from './lib/kanban/server-board.js';
 export {
   ACCEPTED_FILE_TYPES,
   buildBoardState,
@@ -49,11 +51,38 @@ export {
   type ParsedFile,
   type SourceDefinition,
 } from './lib/kanban/import/index.js';
+export {
+  exportProjectBoard,
+  importTasksInto,
+  statusForListName,
+  type ImportProgress,
+} from './lib/kanban/server-import.js';
 export { AsanaProjectManager, type AsanaViewMode } from './lib/AsanaProjectManager.js';
 export { ProjectListView } from './lib/asana/ProjectListView.js';
 export { ProjectTimelineView } from './lib/asana/ProjectTimelineView.js';
 export { ProjectDashboardView } from './lib/asana/ProjectDashboardView.js';
 export { DocumentEditor } from './lib/DocumentEditor.js';
+export { useDocsWorkspace, type DocsWorkspace } from './lib/docs/use-docs.js';
+export {
+  decodeDocContent,
+  encodeDocContent,
+  snippetFor,
+  type DocEnvelope,
+  type DocMeta,
+} from './lib/docs/doc-content.js';
+export {
+  COVER_PRESETS,
+  DOC_CATEGORIES,
+  DOC_STATUSES,
+  EMOJI_PRESETS,
+  type BlockType,
+  type CompanyItem,
+  type DocCategory,
+  type DocComment,
+  type DocItem,
+  type DocStatus,
+  type NotionBlock,
+} from './lib/docs/doc-types.js';
 export { WhiteboardCanvas, type CanvasNode } from './lib/WhiteboardCanvas.js';
 export { CalendarView } from './lib/CalendarView.js';
 export { FileManagerView } from './lib/FileManagerView.js';

@@ -27,11 +27,8 @@ import {
   type DragEvent,
   type ReactNode,
 } from 'react';
-import type { BoardState } from '../types.js';
-import type {
-  ProjectCategory,
-  ProjectColor,
-} from '../project-boards-hook.js';
+import { DEFAULT_PROJECT_HEX, PROJECT_COLORS } from '../project-color.js';
+import type { ImportedBoard } from './board-ir.js';
 import type { CsvTable } from './csv.js';
 import { buildBoardState, type ImportSourceId } from './normalize.js';
 import {
@@ -48,11 +45,13 @@ import {
 } from './sources.js';
 
 export interface ImportResult {
-  board: BoardState;
+  /** The parsed board, before it is narrowed to tasks. */
+  board: ImportedBoard;
   name: string;
-  category: ProjectCategory;
-  color: ProjectColor;
+  /** Hex, as `Project.color` stores it. Only used when `mode` is `new`. */
+  color: string;
   source: ImportSourceId;
+  /** `new` creates a project for the tasks; `merge` files them on the open one. */
   mode: 'new' | 'merge';
 }
 
@@ -60,37 +59,9 @@ export interface ImportBoardDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImport: (result: ImportResult) => void;
-  /** Enables the "merge into this board" option. */
-  currentBoardName?: string;
+  /** Enables the "merge into this project" option. */
+  currentProjectName?: string;
 }
-
-const CATEGORIES: readonly ProjectCategory[] = [
-  'Engineering',
-  'Design',
-  'Marketing',
-  'Product',
-  'Operations',
-];
-
-const COLORS: readonly ProjectColor[] = [
-  'violet',
-  'blue',
-  'green',
-  'amber',
-  'rose',
-  'cyan',
-];
-
-/** Category each source most often carries, so the field starts sensible. */
-const SOURCE_CATEGORY: Record<ImportSourceId, ProjectCategory> = {
-  trello: 'Operations',
-  linear: 'Engineering',
-  asana: 'Operations',
-  jira: 'Engineering',
-  github: 'Engineering',
-  onetab: 'Product',
-  csv: 'Product',
-};
 
 const selectClass =
   'w-full px-2 py-1.5 bg-surface border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary';
@@ -101,7 +72,7 @@ export function ImportBoardDialog({
   open,
   onOpenChange,
   onImport,
-  currentBoardName,
+  currentProjectName,
 }: ImportBoardDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -120,8 +91,7 @@ export function ImportBoardDialog({
 
   const [name, setName] = useState('');
   const [nameTouched, setNameTouched] = useState(false);
-  const [category, setCategory] = useState<ProjectCategory>('Product');
-  const [color, setColor] = useState<ProjectColor>('violet');
+  const [color, setColor] = useState<string>(DEFAULT_PROJECT_HEX);
 
   const reset = useCallback(() => {
     setSourceChoice('auto');
@@ -136,8 +106,7 @@ export function ImportBoardDialog({
     setMode('new');
     setName('');
     setNameTouched(false);
-    setCategory('Product');
-    setColor('violet');
+    setColor(DEFAULT_PROJECT_HEX);
   }, []);
 
   const close = useCallback(() => {
@@ -203,9 +172,6 @@ export function ImportBoardDialog({
       setGroupBy('');
       setNameTouched(false);
       setName('');
-
-      const detected = detectSource(value, sourceFileName);
-      if (detected) setCategory(SOURCE_CATEGORY[detected]);
     },
     [],
   );
@@ -233,7 +199,6 @@ export function ImportBoardDialog({
     onImport({
       board: { ...preview.board, title: effectiveName || preview.board.title },
       name: effectiveName || preview.board.title,
-      category,
       color,
       source: file.source,
       mode,
@@ -486,9 +451,13 @@ export function ImportBoardDialog({
                   </div>
                 </div>
 
-                {/* Labels carried across */}
+                {/*
+                  Shown, but struck through: tasks have no labels, so these are
+                  read out of the file and then dropped. Better to say so here
+                  than to have them quietly vanish.
+                */}
                 {preview.board.labels.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5 opacity-60 line-through">
                     <Tag className="size-3.5 text-muted-foreground" />
                     {preview.board.labels.slice(0, 8).map((label) => (
                       <span
@@ -525,26 +494,26 @@ export function ImportBoardDialog({
 
                 {/* Destination */}
                 <div className="space-y-2.5 rounded-card border border-border bg-surface/40 p-3">
-                  {currentBoardName && (
+                  {currentProjectName && (
                     <div className="flex flex-wrap items-center gap-3">
                       <RadioOption
                         checked={mode === 'new'}
                         onSelect={() => setMode('new')}
-                        label="Create a new board"
+                        label="Create a new project"
                       />
                       <RadioOption
                         checked={mode === 'merge'}
                         onSelect={() => setMode('merge')}
-                        label={`Merge into "${currentBoardName}"`}
+                        label={`Add to "${currentProjectName}"`}
                       />
                     </div>
                   )}
 
                   {mode === 'new' && (
-                    <div className="grid gap-2 sm:grid-cols-3">
-                      <label className="space-y-1 sm:col-span-3">
+                    <div className="space-y-2">
+                      <label className="space-y-1 block">
                         <span className="text-[11px] font-medium text-muted-foreground">
-                          Board name
+                          Project name
                         </span>
                         <input
                           type="text"
@@ -557,43 +526,30 @@ export function ImportBoardDialog({
                         />
                       </label>
 
-                      <label className="space-y-1 sm:col-span-2">
-                        <span className="text-[11px] font-medium text-muted-foreground">
-                          Category
-                        </span>
-                        <select
-                          value={category}
-                          onChange={(event) =>
-                            setCategory(event.target.value as ProjectCategory)
-                          }
-                          className={selectClass}
-                        >
-                          {CATEGORIES.map((entry) => (
-                            <option key={entry} value={entry}>
-                              {entry}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <label className="space-y-1">
+                      <div className="space-y-1">
                         <span className="text-[11px] font-medium text-muted-foreground">
                           Colour
                         </span>
-                        <select
-                          value={color}
-                          onChange={(event) =>
-                            setColor(event.target.value as ProjectColor)
-                          }
-                          className={cn(selectClass, 'capitalize')}
-                        >
-                          {COLORS.map((entry) => (
-                            <option key={entry} value={entry}>
-                              {entry}
-                            </option>
+                        <div className="flex items-center gap-1.5">
+                          {PROJECT_COLORS.map((option) => (
+                            <button
+                              key={option.hex}
+                              type="button"
+                              title={option.label}
+                              aria-label={option.label}
+                              aria-pressed={color === option.hex}
+                              onClick={() => setColor(option.hex)}
+                              style={{ backgroundColor: option.hex }}
+                              className={cn(
+                                'size-5 rounded-full transition-transform',
+                                color === option.hex
+                                  ? 'ring-2 ring-ring ring-offset-2 ring-offset-background scale-110'
+                                  : 'hover:scale-105',
+                              )}
+                            />
                           ))}
-                        </select>
-                      </label>
+                        </div>
+                      </div>
                     </div>
                   )}
 

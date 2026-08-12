@@ -1,7 +1,5 @@
 import {
-  accentClasses,
   Button,
-  Checkbox,
   DatePicker,
   Dialog,
   DialogContent,
@@ -13,14 +11,13 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
-  Input,
   Label,
-  Progress,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SkeletonList,
   Textarea,
   UserAvatar,
 } from '@org/ui';
@@ -28,29 +25,27 @@ import { cn, formatRelative } from '@org/utils';
 import {
   AlignLeft,
   CalendarDays,
-  Check,
-  CheckSquare,
   Copy,
   CornerUpRight,
   Flag,
   MessageSquare,
-  Tag,
   Trash2,
   UserPlus,
   X,
 } from 'lucide-react';
 import { useState } from 'react';
-import type { BoardAction } from './board-state.js';
-import { findCard } from './board-state.js';
+import { useAddTaskComment, useTaskComments } from '../use-work-tools.js';
 import {
   describeDue,
   DUE_TONE_CLASSES,
   PRIORITIES,
   PRIORITY_META,
 } from './card-meta.js';
-import type { BoardState, Priority } from './types.js';
+import type { BoardAction } from './server-board.js';
+import type { BoardState, KanbanCard, KanbanList, Priority } from './types.js';
 
 export interface CardDetailsDialogProps {
+  workspaceId: string | undefined;
   board: BoardState;
   /** Open card, or null when the dialog is closed. */
   cardId: string | null;
@@ -58,7 +53,19 @@ export interface CardDetailsDialogProps {
   onClose: () => void;
 }
 
+function findCard(
+  board: BoardState,
+  cardId: string,
+): { list: KanbanList; card: KanbanCard } | undefined {
+  for (const list of board.lists) {
+    const card = list.cards.find((entry) => entry.id === cardId);
+    if (card) return { list, card };
+  }
+  return undefined;
+}
+
 export function CardDetailsDialog({
+  workspaceId,
   board,
   cardId,
   dispatch,
@@ -84,6 +91,7 @@ export function CardDetailsDialog({
       >
         {found ? (
           <CardDetailsBody
+            workspaceId={workspaceId}
             board={board}
             card={found.card}
             listId={found.list.id}
@@ -100,15 +108,17 @@ export function CardDetailsDialog({
 /* ---------------------------------------------------------------- body --- */
 
 interface CardDetailsBodyProps {
+  workspaceId: string | undefined;
   board: BoardState;
-  card: NonNullable<ReturnType<typeof findCard>>['card'];
-  listId: string;
+  card: KanbanCard;
+  listId: KanbanList['id'];
   listTitle: string;
   dispatch: (action: BoardAction) => void;
   onClose: () => void;
 }
 
 function CardDetailsBody({
+  workspaceId,
   board,
   card,
   listId,
@@ -118,14 +128,16 @@ function CardDetailsBody({
 }: CardDetailsBodyProps) {
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState(card.description);
-  const [checklistDraft, setChecklistDraft] = useState('');
   const [commentDraft, setCommentDraft] = useState('');
 
+  /*
+   * Comments are their own resource, not a field on the card: the board only
+   * carries a count, and the thread is fetched when a card is actually opened.
+   */
+  const comments = useTaskComments(workspaceId, card.id);
+  const addComment = useAddTaskComment(workspaceId, card.id);
+
   const due = describeDue(card);
-  const doneCount = card.checklist.filter((item) => item.done).length;
-  const progress = card.checklist.length
-    ? (doneCount / card.checklist.length) * 100
-    : 0;
 
   const memberName = (id: string) =>
     board.members.find((member) => member.id === id)?.name ?? 'Unknown';
@@ -141,20 +153,20 @@ function CardDetailsBody({
         <DialogTitle className="sr-only">{card.title}</DialogTitle>
         <Textarea
           rows={1}
-          value={card.title}
+          defaultValue={card.title}
           aria-label="Card title"
-          onChange={(event) =>
-            dispatch({
-              type: 'card/update',
-              cardId: card.id,
-              patch: { title: event.target.value },
-            })
-          }
+          // Committed on blur rather than per keystroke: every change here is a
+          // PATCH, and one request per character is not a rename.
+          onBlur={(event) => {
+            const title = event.target.value.trim();
+            if (title && title !== card.title) {
+              dispatch({ type: 'card/update', cardId: card.id, patch: { title } });
+            }
+          }}
           className="mr-10 px-1 text-base font-semibold border-transparent bg-transparent shadow-none hover:border-input focus-visible:border-ring"
         />
         <DialogDescription className="mt-1 px-1 text-xs">
-          in list{' '}
-          <span className="font-medium text-foreground">{listTitle}</span>
+          in <span className="font-medium text-foreground">{listTitle}</span>
         </DialogDescription>
       </div>
 
@@ -162,35 +174,10 @@ function CardDetailsBody({
         {/* ------------------------------------------------------- main --- */}
         <div className="space-y-6 min-w-0">
           <div className="gap-4 flex flex-wrap">
-            {card.labelIds.length > 0 ? (
-              <div>
-                <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-                  Labels
-                </p>
-                <ul className="gap-1.5 flex flex-wrap">
-                  {card.labelIds.map((id) => {
-                    const label = board.labels.find((entry) => entry.id === id);
-                    if (!label) return null;
-                    return (
-                      <li
-                        key={id}
-                        className={cn(
-                          'px-2.5 py-1 text-xs font-medium rounded-md',
-                          accentClasses[label.color].soft,
-                        )}
-                      >
-                        {label.name}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ) : null}
-
             {card.memberIds.length > 0 ? (
               <div>
                 <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-                  Members
+                  Assignee
                 </p>
                 <ul className="gap-1 flex">
                   {card.memberIds.map((id) => (
@@ -207,38 +194,19 @@ function CardDetailsBody({
                 <p className="mb-1.5 text-xs font-medium text-muted-foreground">
                   Due date
                 </p>
-                <button
-                  type="button"
-                  onClick={() =>
-                    dispatch({
-                      type: 'card/update',
-                      cardId: card.id,
-                      patch: { dueComplete: !card.dueComplete },
-                    })
-                  }
-                  title={
-                    card.dueComplete
-                      ? 'Mark as not complete'
-                      : 'Mark as complete'
-                  }
+                {/*
+                  Read-only: "complete" is not a flag of its own any more, it is
+                  the card sitting in a terminal column — so it changes by
+                  moving the card, not by ticking the badge.
+                */}
+                <span
                   className={cn(
                     'gap-1.5 px-2.5 py-1 text-xs font-medium flex items-center rounded-md border',
                     DUE_TONE_CLASSES[due.tone],
                   )}
                 >
-                  <span
-                    className={cn(
-                      'size-3.5 flex items-center justify-center rounded-sm border border-current',
-                      card.dueComplete && 'bg-current',
-                    )}
-                    aria-hidden
-                  >
-                    {card.dueComplete ? (
-                      <Check className="size-2.5 text-background" />
-                    ) : null}
-                  </span>
                   {due.hint}
-                </button>
+                </span>
               </div>
             ) : null}
           </div>
@@ -304,100 +272,6 @@ function CardDetailsBody({
             )}
           </section>
 
-          {/* checklist */}
-          <section>
-            <div className="mb-2 gap-2 flex items-center justify-between">
-              <h3 className="gap-2 text-sm font-semibold flex items-center text-foreground">
-                <CheckSquare
-                  className="size-4 text-muted-foreground"
-                  aria-hidden
-                />
-                Checklist
-              </h3>
-              {card.checklist.length > 0 ? (
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  {doneCount}/{card.checklist.length}
-                </span>
-              ) : null}
-            </div>
-
-            {card.checklist.length > 0 ? (
-              <>
-                <Progress
-                  value={progress}
-                  size="sm"
-                  accent="green"
-                  label={`Checklist ${Math.round(progress)}% complete`}
-                  className="mb-3"
-                />
-                <ul className="mb-3 space-y-1">
-                  {card.checklist.map((item) => (
-                    <li
-                      key={item.id}
-                      className="group/item gap-2 flex items-center"
-                    >
-                      <label className="gap-2 text-sm flex flex-1 cursor-pointer items-center">
-                        <Checkbox
-                          checked={item.done}
-                          onCheckedChange={() =>
-                            dispatch({
-                              type: 'checklist/toggle',
-                              cardId: card.id,
-                              itemId: item.id,
-                            })
-                          }
-                        />
-                        <span
-                          className={cn(
-                            item.done && 'text-muted-foreground line-through',
-                          )}
-                        >
-                          {item.text}
-                        </span>
-                      </label>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="size-6 opacity-0 group-hover/item:opacity-100 focus-visible:opacity-100"
-                        aria-label={`Remove “${item.text}”`}
-                        onClick={() =>
-                          dispatch({
-                            type: 'checklist/remove',
-                            cardId: card.id,
-                            itemId: item.id,
-                          })
-                        }
-                      >
-                        <X className="size-3.5" />
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            ) : null}
-
-            <form
-              className="gap-2 flex"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const text = checklistDraft.trim();
-                if (!text) return;
-                dispatch({ type: 'checklist/add', cardId: card.id, text });
-                setChecklistDraft('');
-              }}
-            >
-              <Input
-                value={checklistDraft}
-                placeholder="Add an item"
-                aria-label="New checklist item"
-                onChange={(event) => setChecklistDraft(event.target.value)}
-              />
-              <Button type="submit" size="sm" disabled={!checklistDraft.trim()}>
-                Add
-              </Button>
-            </form>
-          </section>
-
           {/* activity */}
           <section>
             <h3 className="mb-2 gap-2 text-sm font-semibold flex items-center text-foreground">
@@ -412,9 +286,9 @@ function CardDetailsBody({
               className="mb-3 space-y-2"
               onSubmit={(event) => {
                 event.preventDefault();
-                const body = commentDraft.trim();
-                if (!body) return;
-                dispatch({ type: 'comment/add', cardId: card.id, body });
+                const content = commentDraft.trim();
+                if (!content) return;
+                addComment.mutate({ content });
                 setCommentDraft('');
               }}
             >
@@ -425,48 +299,42 @@ function CardDetailsBody({
                 aria-label="New comment"
                 onChange={(event) => setCommentDraft(event.target.value)}
               />
-              <Button type="submit" size="sm" disabled={!commentDraft.trim()}>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={!commentDraft.trim() || addComment.isPending}
+              >
                 Comment
               </Button>
             </form>
 
-            <ul className="space-y-3">
-              {card.comments.map((comment) => (
-                <li key={comment.id} className="group/comment gap-2 flex">
-                  <UserAvatar
-                    name={memberName(comment.authorId)}
-                    seed={comment.authorId}
-                    size="sm"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="gap-2 text-xs flex items-baseline text-muted-foreground">
-                      <span className="font-medium text-foreground">
-                        {memberName(comment.authorId)}
-                      </span>
-                      {formatRelative(comment.createdAt)}
-                    </p>
-                    <p className="mt-1 px-3 py-2 text-sm rounded-md border bg-surface whitespace-pre-wrap">
-                      {comment.body}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="size-6 shrink-0 opacity-0 group-hover/comment:opacity-100 focus-visible:opacity-100"
-                    aria-label="Delete comment"
-                    onClick={() =>
-                      dispatch({
-                        type: 'comment/remove',
-                        cardId: card.id,
-                        commentId: comment.id,
-                      })
-                    }
-                  >
-                    <X className="size-3.5" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
+            {comments.isLoading ? (
+              <SkeletonList rows={2} />
+            ) : (
+              <ul className="space-y-3">
+                {(comments.data ?? []).map((comment) => (
+                  <li key={comment.id} className="gap-2 flex">
+                    <UserAvatar
+                      name={comment.author.displayName ?? comment.author.name}
+                      seed={comment.author.id}
+                      src={comment.author.avatarUrl ?? undefined}
+                      size="sm"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="gap-2 text-xs flex items-baseline text-muted-foreground">
+                        <span className="font-medium text-foreground">
+                          {comment.author.displayName ?? comment.author.name}
+                        </span>
+                        {formatRelative(comment.createdAt)}
+                      </p>
+                      <p className="mt-1 px-3 py-2 text-sm rounded-md border bg-surface whitespace-pre-wrap">
+                        {comment.content}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         </div>
 
@@ -482,59 +350,20 @@ function CardDetailsBody({
                 <Button
                   variant="subtle"
                   size="sm"
-                  leadingIcon={<Tag />}
-                  className="w-full justify-start"
-                >
-                  Labels
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuLabel>Labels</DropdownMenuLabel>
-                {board.labels.map((label) => (
-                  <DropdownMenuCheckboxItem
-                    key={label.id}
-                    checked={card.labelIds.includes(label.id)}
-                    // Keeps the menu open so several labels can be toggled.
-                    onSelect={(event) => event.preventDefault()}
-                    onCheckedChange={() =>
-                      dispatch({
-                        type: 'card/toggleLabel',
-                        cardId: card.id,
-                        labelId: label.id,
-                      })
-                    }
-                  >
-                    <span
-                      className={cn(
-                        'size-3 rounded-sm',
-                        accentClasses[label.color].bg,
-                      )}
-                      aria-hidden
-                    />
-                    {label.name}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="subtle"
-                  size="sm"
                   leadingIcon={<UserPlus />}
                   className="w-full justify-start"
                 >
-                  Members
+                  Assignee
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuLabel>Board members</DropdownMenuLabel>
+                <DropdownMenuLabel>Workspace members</DropdownMenuLabel>
                 {board.members.map((member) => (
                   <DropdownMenuCheckboxItem
                     key={member.id}
                     checked={card.memberIds.includes(member.id)}
-                    onSelect={(event) => event.preventDefault()}
+                    // A task takes one assignee, so picking a second replaces
+                    // the first and picking the current one unassigns.
                     onCheckedChange={() =>
                       dispatch({
                         type: 'card/toggleMember',
@@ -543,7 +372,12 @@ function CardDetailsBody({
                       })
                     }
                   >
-                    <UserAvatar name={member.name} seed={member.id} size="xs" />
+                    <UserAvatar
+                      name={member.name}
+                      seed={member.id}
+                      src={member.avatarUrl}
+                      size="xs"
+                    />
                     {member.name}
                   </DropdownMenuCheckboxItem>
                 ))}
@@ -566,7 +400,7 @@ function CardDetailsBody({
                     dispatch({
                       type: 'card/update',
                       cardId: card.id,
-                      patch: { dueDate: date, dueComplete: date ? card.dueComplete : false },
+                      patch: { dueDate: date || null },
                     })
                   }
                   className="h-8 text-xs flex-1"
@@ -581,7 +415,7 @@ function CardDetailsBody({
                       dispatch({
                         type: 'card/update',
                         cardId: card.id,
-                        patch: { dueDate: undefined, dueComplete: false },
+                        patch: { dueDate: null },
                       })
                     }
                   >
@@ -644,7 +478,7 @@ function CardDetailsBody({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-48">
-                <DropdownMenuLabel>Move to list</DropdownMenuLabel>
+                <DropdownMenuLabel>Move to</DropdownMenuLabel>
                 {board.lists.map((list) => (
                   <DropdownMenuItem
                     key={list.id}

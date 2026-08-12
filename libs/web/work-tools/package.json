@@ -24,6 +24,7 @@
     "@org/validation": "*",
     "@org/web-channels": "*",
     "@org/web-integrations": "*",
+    "@org/web-members": "*",
     "@org/web-upload": "*",
     "@org/web-workspace": "*",
     "@tanstack/react-query": "^5.101.4",

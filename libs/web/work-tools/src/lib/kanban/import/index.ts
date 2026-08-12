@@ -14,6 +14,14 @@ export {
   type NormalizedTask,
 } from './normalize.js';
 
+export type {
+  ImportedBoard,
+  ImportedCard,
+  ImportedLabel,
+  ImportedList,
+  ImportedMember,
+} from './board-ir.js';
+
 export {
   detectSource,
   guessMapping,

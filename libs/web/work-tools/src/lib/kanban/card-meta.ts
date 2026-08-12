@@ -1,5 +1,6 @@
+import type { TaskStatus } from '@org/types';
 import type { BadgeProps } from '@org/ui';
-import type { BoardLabel, KanbanCard, Priority } from './types.js';
+import type { KanbanCard, Priority } from './types.js';
 
 /* --------------------------------------------------------------- dates --- */
 
@@ -108,21 +109,25 @@ export const PRIORITY_META: Record<
 
 export type DueFilter = 'any' | 'overdue' | 'today' | 'week' | 'none';
 
+/**
+ * The board filter.
+ *
+ * Every facet here is a property the API actually stores, so a filtered board
+ * and the tasks behind it always agree. Facets the local board once offered —
+ * labels, lead, creator, health, initiatives, templates — are gone with the
+ * fields they read.
+ */
 export interface BoardFilter {
   query: string;
   aiQuery?: string;
-  status: string[];
+  /** Status columns to keep. Empty means all of them. */
+  status: TaskStatus[];
   priorities: Priority[];
-  labelIds: string[];
-  leadIds: string[];
+  /** Assignee ids. */
   memberIds: string[];
-  creatorIds: string[];
-  health: string[];
   due: DueFilter;
+  /** Milestone titles, as the card carries them. */
   milestones: string[];
-  noInitiatives?: boolean;
-  template?: string;
-  specificProject?: string;
 }
 
 export const EMPTY_FILTER: BoardFilter = {
@@ -130,35 +135,13 @@ export const EMPTY_FILTER: BoardFilter = {
   aiQuery: '',
   status: [],
   priorities: [],
-  labelIds: [],
-  leadIds: [],
   memberIds: [],
-  creatorIds: [],
-  health: [],
   due: 'any',
   milestones: [],
-  noInitiatives: false,
-  template: '',
-  specificProject: '',
 };
 
 export function isFilterActive(filter: BoardFilter): boolean {
-  return (
-    filter.query.trim() !== '' ||
-    Boolean(filter.aiQuery?.trim()) ||
-    filter.status.length > 0 ||
-    filter.priorities.length > 0 ||
-    filter.labelIds.length > 0 ||
-    filter.leadIds.length > 0 ||
-    filter.memberIds.length > 0 ||
-    filter.creatorIds.length > 0 ||
-    filter.health.length > 0 ||
-    filter.due !== 'any' ||
-    filter.milestones.length > 0 ||
-    Boolean(filter.noInitiatives) ||
-    Boolean(filter.template) ||
-    Boolean(filter.specificProject)
-  );
+  return countActiveFilters(filter) > 0;
 }
 
 export function countActiveFilters(filter: BoardFilter): number {
@@ -167,16 +150,9 @@ export function countActiveFilters(filter: BoardFilter): number {
     (filter.aiQuery?.trim() ? 1 : 0) +
     filter.status.length +
     filter.priorities.length +
-    filter.labelIds.length +
-    filter.leadIds.length +
     filter.memberIds.length +
-    filter.creatorIds.length +
-    filter.health.length +
     (filter.due === 'any' ? 0 : 1) +
-    filter.milestones.length +
-    (filter.noInitiatives ? 1 : 0) +
-    (filter.template ? 1 : 0) +
-    (filter.specificProject ? 1 : 0)
+    filter.milestones.length
   );
 }
 
@@ -184,29 +160,23 @@ export function countActiveFilters(filter: BoardFilter): number {
 export function matchesFilter(
   card: KanbanCard,
   filter: BoardFilter,
-  labels: BoardLabel[],
-  listId?: string,
+  listId?: TaskStatus,
 ): boolean {
   const query = filter.query.trim().toLowerCase();
   if (query) {
-    const labelNames = card.labelIds
-      .map((id) => labels.find((label) => label.id === id)?.name ?? '')
-      .join(' ');
-    const haystack = `${card.title} ${card.description} ${labelNames}`.toLowerCase();
+    const haystack = `${card.title} ${card.description}`.toLowerCase();
     if (!haystack.includes(query)) return false;
   }
 
   // AI Prompt Natural Language Filter
   if (filter.aiQuery?.trim()) {
     const aiText = filter.aiQuery.trim().toLowerCase();
-    const fullContent = `${card.title} ${card.description} ${card.priority} ${card.health || ''} ${card.milestone || ''}`.toLowerCase();
+    const fullContent = `${card.title} ${card.description} ${card.priority} ${card.milestone || ''}`.toLowerCase();
 
     // Check key phrases
     if (aiText.includes('urgent') && card.priority !== 'URGENT') return false;
     if (aiText.includes('high') && card.priority !== 'HIGH') return false;
     if (aiText.includes('overdue') && (!card.dueDate || daysUntil(card.dueDate) >= 0 || card.dueComplete)) return false;
-    if (aiText.includes('at risk') && card.health !== 'AT_RISK') return false;
-    if (aiText.includes('on track') && card.health !== 'ON_TRACK') return false;
 
     // General fallback token match
     const tokens = aiText.split(/\s+/).filter((t) => !['show', 'me', 'all', 'tasks', 'projects', 'with', 'the', 'and', 'for', 'in'].includes(t));
@@ -225,41 +195,14 @@ export function matchesFilter(
   }
 
   if (
-    filter.labelIds.length > 0 &&
-    !filter.labelIds.some((id) => card.labelIds.includes(id))
-  ) {
-    return false;
-  }
-
-  if (
     filter.memberIds.length > 0 &&
     !filter.memberIds.some((id) => card.memberIds.includes(id))
   ) {
     return false;
   }
 
-  if (filter.leadIds.length > 0 && card.leadId) {
-    if (!filter.leadIds.includes(card.leadId)) return false;
-  }
-
-  if (filter.creatorIds.length > 0 && card.creatorId) {
-    if (!filter.creatorIds.includes(card.creatorId)) return false;
-  }
-
-  if (filter.health.length > 0) {
-    if (!card.health || !filter.health.includes(card.health)) return false;
-  }
-
   if (filter.milestones.length > 0) {
     if (!card.milestone || !filter.milestones.includes(card.milestone)) return false;
-  }
-
-  if (filter.noInitiatives) {
-    if (card.initiative) return false;
-  }
-
-  if (filter.template) {
-    if (card.template !== filter.template) return false;
   }
 
   switch (filter.due) {
@@ -279,16 +222,4 @@ export function matchesFilter(
     default:
       return true;
   }
-}
-
-/* ------------------------------------------------------------ progress --- */
-
-export function checklistProgress(card: KanbanCard): {
-  done: number;
-  total: number;
-  complete: boolean;
-} {
-  const total = card.checklist.length;
-  const done = card.checklist.filter((item) => item.done).length;
-  return { done, total, complete: total > 0 && done === total };
 }

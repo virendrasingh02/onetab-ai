@@ -36,7 +36,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
-import type { CompanyItem, DocCategory, DocItem } from './docs-hook.js';
+import type { CompanyItem, DocCategory, DocItem } from './doc-types.js';
 
 interface DocSidebarProps {
   companies: CompanyItem[];
@@ -73,9 +73,9 @@ export function DocSidebar({
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('All');
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [collapsedCompanies, setCollapsedCompanies] = useState<Record<string, boolean>>({});
-  const [expandedDocIds, setExpandedDocIds] = useState<Record<string, boolean>>({
-    doc_teamspace: true,
-  });
+  const [expandedDocIds, setExpandedDocIds] = useState<Record<string, boolean>>(
+    {},
+  );
 
   const toggleCompanyCollapse = (companyId: string) => {
     setCollapsedCompanies((prev) => ({

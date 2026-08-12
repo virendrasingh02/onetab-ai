@@ -20,6 +20,9 @@
       "path": "../upload/tsconfig.lib.json"
     },
     {
+      "path": "../members/tsconfig.lib.json"
+    },
+    {
       "path": "../integrations/tsconfig.lib.json"
     },
     {

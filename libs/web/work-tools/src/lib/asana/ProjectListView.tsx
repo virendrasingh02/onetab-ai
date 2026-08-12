@@ -8,6 +8,8 @@ import {
   Input,
   UserAvatar,
 } from '@org/ui';
+import { TaskStatus } from '@org/types';
+import { SkeletonList } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   Calendar,
@@ -25,43 +27,53 @@ import {
   PRIORITY_META,
   DUE_TONE_CLASSES,
 } from '../kanban/card-meta.js';
-import type {
-  BoardState,
-  KanbanCard,
-} from '../kanban/types.js';
+import type { BoardAction } from '../kanban/server-board.js';
+import type { BoardState, KanbanCard, KanbanList } from '../kanban/types.js';
 
 interface ProjectListViewProps {
   board: BoardState;
-  onUpdateCard: (listId: string, cardId: string, patch: Partial<KanbanCard>) => void;
-  onMoveCard: (cardId: string, sourceListId: string, targetListId: string, newIndex: number) => void;
-  onDeleteCard: (listId: string, cardId: string) => void;
-  onAddCard: (listId: string, title: string) => void;
-  onSelectCard: (card: KanbanCard, listId: string) => void;
+  dispatch: (action: BoardAction) => void;
+  onSelectCard: (card: KanbanCard, listId: KanbanList['id']) => void;
   searchQuery?: string;
+  isLoading?: boolean;
 }
 
 export function ProjectListView({
   board,
-  onUpdateCard,
-  onMoveCard,
-  onDeleteCard,
-  onAddCard,
+  dispatch,
   onSelectCard,
   searchQuery = '',
+  isLoading = false,
 }: ProjectListViewProps) {
   const [collapsedLists, setCollapsedLists] = useState<Record<string, boolean>>({});
-  const [newTaskInput, setNewTaskInput] = useState<{ listId: string; title: string } | null>(null);
+  const [newTaskInput, setNewTaskInput] = useState<{
+    listId: TaskStatus;
+    title: string;
+  } | null>(null);
 
   const toggleCollapse = (listId: string) => {
     setCollapsedLists((prev) => ({ ...prev, [listId]: !prev[listId] }));
   };
 
-  const handleCreateTask = (listId: string) => {
+  const handleCreateTask = (listId: TaskStatus) => {
     if (newTaskInput?.title.trim()) {
-      onAddCard(listId, newTaskInput.title.trim());
+      dispatch({
+        type: 'card/add',
+        listId,
+        title: newTaskInput.title.trim(),
+        edge: 'bottom',
+      });
       setNewTaskInput(null);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="p-4">
+        <SkeletonList rows={6} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 p-4 w-full max-w-full overflow-x-auto text-foreground">
@@ -141,10 +153,27 @@ export function ProjectListView({
                           {/* Task Name & Completion Toggle */}
                           <td className="py-2.5 px-4">
                             <div className="flex items-center gap-3">
+                              {/*
+                                "Done" is the column the task sits in, not a
+                                flag of its own, so ticking this moves the task
+                                rather than setting a field.
+                              */}
                               <button
                                 type="button"
+                                title={
+                                  card.dueComplete
+                                    ? 'Move back to Planned'
+                                    : 'Mark as completed'
+                                }
                                 onClick={() =>
-                                  onUpdateCard(list.id, card.id, { dueComplete: !card.dueComplete })
+                                  dispatch({
+                                    type: 'card/move',
+                                    cardId: card.id,
+                                    toListId: card.dueComplete
+                                      ? TaskStatus.TODO
+                                      : TaskStatus.DONE,
+                                    toIndex: 0,
+                                  })
                                 }
                                 className="text-muted-foreground hover:text-accent-green transition-colors"
                               >
@@ -166,9 +195,9 @@ export function ProjectListView({
                                 {card.title}
                               </button>
 
-                              {card.checklist.length > 0 && (
+                              {card.milestone && (
                                 <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border/40 ml-1">
-                                  ✓ {card.checklist.filter((i) => i.done).length}/{card.checklist.length}
+                                  {card.milestone}
                                 </span>
                               )}
                             </div>
@@ -201,10 +230,10 @@ export function ProjectListView({
                                   <DropdownMenuItem
                                     key={member.id}
                                     onClick={() =>
-                                      onUpdateCard(list.id, card.id, {
-                                        memberIds: card.memberIds.includes(member.id)
-                                          ? card.memberIds.filter((id) => id !== member.id)
-                                          : [member.id],
+                                      dispatch({
+                                        type: 'card/toggleMember',
+                                        cardId: card.id,
+                                        memberId: member.id,
                                       })
                                     }
                                     className="flex items-center gap-2"
@@ -257,7 +286,13 @@ export function ProjectListView({
                                 {PRIORITIES.map((p) => (
                                   <DropdownMenuItem
                                     key={p}
-                                    onClick={() => onUpdateCard(list.id, card.id, { priority: p })}
+                                    onClick={() =>
+                                      dispatch({
+                                        type: 'card/update',
+                                        cardId: card.id,
+                                        patch: { priority: p },
+                                      })
+                                    }
                                     className="flex items-center gap-2"
                                   >
                                     <span className={cn('w-2 h-2 rounded-full', PRIORITY_META[p].dot)} />
@@ -283,7 +318,14 @@ export function ProjectListView({
                                     <DropdownMenuItem
                                       key={targetList.id}
                                       disabled={targetList.id === list.id}
-                                      onClick={() => onMoveCard(card.id, list.id, targetList.id, targetList.cards.length)}
+                                      onClick={() =>
+                                        dispatch({
+                                          type: 'card/move',
+                                          cardId: card.id,
+                                          toListId: targetList.id,
+                                          toIndex: targetList.cards.length,
+                                        })
+                                      }
                                     >
                                       {targetList.title}
                                     </DropdownMenuItem>
@@ -293,7 +335,9 @@ export function ProjectListView({
 
                               <button
                                 type="button"
-                                onClick={() => onDeleteCard(list.id, card.id)}
+                                onClick={() =>
+                                  dispatch({ type: 'card/remove', cardId: card.id })
+                                }
                                 className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground/60 hover:text-destructive transition-all rounded"
                                 title="Delete task"
                               >

@@ -31,14 +31,12 @@ import {
   Tag,
 } from 'lucide-react';
 import { useState } from 'react';
-import type {
-  DocCategory,
-  DocItem,
-  DocStatus,
-} from './docs-hook.js';
 import {
   COVER_PRESETS,
-} from './docs-hook.js';
+  type DocCategory,
+  type DocItem,
+  type DocStatus,
+} from './doc-types.js';
 
 interface DocHeaderProps {
   doc: DocItem;

@@ -1,94 +1,67 @@
-import type { Accent } from '@org/design-system';
+import type { TaskStatus } from '@org/types';
 
 /**
- * The board is modelled the way Trello models it: an ordered array of lists,
- * each holding an ordered array of cards. Order *is* the data — there is no
- * separate `position` field to keep in sync, so a drag is a splice.
+ * The board's view of the tasks API.
+ *
+ * Columns are the `TaskStatus` values, in `TASK_STATUS_ORDER` — the server owns
+ * the column set, so a list has no identity of its own beyond its status and
+ * cannot be renamed, reordered or deleted. Order *within* a column is
+ * `Task.orderIndex`, which is why a drag is a `moveTask` and not a splice.
+ *
+ * Everything here is something the API can store. Exports from other trackers
+ * carry more (labels, checklists, several assignees per card); that lives in
+ * the import IR instead — see `import/board-ir.ts`.
  */
 
 export type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
-export interface BoardLabel {
-  id: string;
-  name: string;
-  color: Accent;
-}
-
 export interface BoardMember {
+  /** The user's id, as `Task.assigneeId` refers to them. */
   id: string;
   name: string;
   avatarUrl?: string;
 }
 
-export interface ChecklistItem {
-  id: string;
-  text: string;
-  done: boolean;
-}
-
-export interface CardComment {
-  id: string;
-  authorId: string;
-  body: string;
-  createdAt: string;
-}
-
-export type HealthStatus = 'ON_TRACK' | 'AT_RISK' | 'OFF_TRACK';
-
 export interface KanbanCard {
+  /** The task id. */
   id: string;
   title: string;
   description: string;
-  labelIds: string[];
+  /**
+   * The assignee, as a list.
+   *
+   * A task has at most one assignee, but the tile draws an avatar stack and the
+   * filter matches on membership, so the single id is carried as a one-or-zero
+   * element array rather than special-cased at every read site.
+   */
   memberIds: string[];
-  leadId?: string;
-  creatorId?: string;
-  health?: HealthStatus;
+  /** Milestone title, resolved from `Task.milestoneId`. */
   milestone?: string;
-  initiative?: string;
-  template?: string;
-  relations?: string[];
-  icon?: string;
-  iconColor?: string;
-  issuesCount?: number;
-  /** Local calendar day as `yyyy-mm-dd`; absent when the card has no deadline. */
+  /** From `Task._count.comments`; the thread itself is fetched per card. */
+  commentCount: number;
+  /** Local calendar day as `yyyy-mm-dd`; absent when the task has no deadline. */
   dueDate?: string;
+  /** True once the task reaches a terminal column — nothing is due any more. */
   dueComplete: boolean;
   priority: Priority;
-  checklist: ChecklistItem[];
-  comments: CardComment[];
   createdAt: string;
 }
 
 export interface KanbanList {
-  id: string;
+  /** The `TaskStatus` this column collects. */
+  id: TaskStatus;
   title: string;
   cards: KanbanCard[];
 }
 
 export interface BoardState {
+  /** The project's name. */
   title: string;
   lists: KanbanList[];
-  labels: BoardLabel[];
   members: BoardMember[];
-  /** The viewer: comment author, and the target of the "assign me" shortcut. */
+  /** The viewer: the target of the "assign me" shortcut, and comment author. */
   currentMemberId: string;
 }
 
-/** How a list's cards get reordered by the list menu. */
+/** How a column's cards get reordered by the list menu. */
 export type SortKey = 'due' | 'priority' | 'title' | 'created';
-
-/**
- * The flat task shape this library exported before the board grew lists.
- * Retained because it is part of the published surface; new code should use
- * {@link KanbanCard}.
- */
-export interface TaskItem {
-  id: string;
-  title: string;
-  description?: string;
-  status: 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE';
-  priority: Priority;
-  assigneeName?: string;
-  dueDate?: string;
-}

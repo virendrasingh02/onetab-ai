@@ -1,34 +1,27 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  SlidersHorizontal,
-  CircleDot,
-  Signal,
-  Tag,
-  User,
-  Users,
-  UserCheck,
-  Activity,
-  Calendar,
-  Compass,
-  Diamond,
-  Flag,
-  FileText,
-  FileEdit,
-  Target,
-  ChevronRight,
-  Check,
-  Search,
-} from 'lucide-react';
+import { TASK_STATUS_ORDER, type TaskStatus } from '@org/types';
 import { cn } from '@org/utils';
+import {
+  Calendar,
+  Check,
+  ChevronRight,
+  CircleDot,
+  Diamond,
+  Search,
+  Signal,
+  Sparkles,
+  Users,
+} from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { STATUS_TITLES } from './server-board.js';
 import type { BoardFilter, DueFilter } from './card-meta.js';
-import type { BoardLabel, BoardMember, Priority } from './types.js';
+import type { BoardMember, Priority } from './types.js';
 
 export interface LinearFilterMenuProps {
   filter: BoardFilter;
   setFilter: React.Dispatch<React.SetStateAction<BoardFilter>>;
-  labels: BoardLabel[];
   members: BoardMember[];
-  lists: Array<{ id: string; title: string }>;
+  /** Milestone titles on the open project. */
+  milestones: string[];
   isOpen: boolean;
   onClose: () => void;
   onActivateAIFilter: () => void;
@@ -37,9 +30,8 @@ export interface LinearFilterMenuProps {
 export function LinearFilterMenu({
   filter,
   setFilter,
-  labels,
   members,
-  lists,
+  milestones,
   isOpen,
   onClose,
   onActivateAIFilter,
@@ -77,12 +69,12 @@ export function LinearFilterMenu({
 
   if (!isOpen) return null;
 
-  const toggleStatus = (id: string) => {
+  const toggleStatus = (status: TaskStatus) => {
     setFilter((prev) => ({
       ...prev,
-      status: prev.status.includes(id)
-        ? prev.status.filter((s) => s !== id)
-        : [...prev.status, id],
+      status: prev.status.includes(status)
+        ? prev.status.filter((s) => s !== status)
+        : [...prev.status, status],
     }));
   };
 
@@ -95,15 +87,6 @@ export function LinearFilterMenu({
     }));
   };
 
-  const toggleLabel = (id: string) => {
-    setFilter((prev) => ({
-      ...prev,
-      labelIds: prev.labelIds.includes(id)
-        ? prev.labelIds.filter((l) => l !== id)
-        : [...prev.labelIds, id],
-    }));
-  };
-
   const toggleMember = (id: string) => {
     setFilter((prev) => ({
       ...prev,
@@ -113,21 +96,12 @@ export function LinearFilterMenu({
     }));
   };
 
-  const toggleLead = (id: string) => {
+  const toggleMilestone = (title: string) => {
     setFilter((prev) => ({
       ...prev,
-      leadIds: prev.leadIds.includes(id)
-        ? prev.leadIds.filter((l) => l !== id)
-        : [...prev.leadIds, id],
-    }));
-  };
-
-  const toggleHealth = (h: string) => {
-    setFilter((prev) => ({
-      ...prev,
-      health: prev.health.includes(h)
-        ? prev.health.filter((item) => item !== h)
-        : [...prev.health, h],
+      milestones: prev.milestones.includes(title)
+        ? prev.milestones.filter((item) => item !== title)
+        : [...prev.milestones, title],
     }));
   };
 
@@ -135,106 +109,52 @@ export function LinearFilterMenu({
     setFilter((prev) => ({ ...prev, due: prev.due === d ? 'any' : d }));
   };
 
-  const toggleNoInitiatives = () => {
-    setFilter((prev) => ({ ...prev, noInitiatives: !prev.noInitiatives }));
-  };
-
+  /*
+   * Only facets the tasks API stores. A filter the server cannot honour would
+   * hide cards on a rule nothing else in the product knows about.
+   */
   const filterCategories = [
     {
       id: 'status',
       label: 'Status',
       icon: CircleDot,
-      hasArrow: true,
       activeCount: filter.status.length,
     },
     {
       id: 'priority',
       label: 'Priority',
       icon: Signal,
-      hasArrow: true,
       activeCount: filter.priorities.length,
     },
     {
-      id: 'labels',
-      label: 'Labels',
-      icon: Tag,
-      hasArrow: true,
-      activeCount: filter.labelIds.length,
-    },
-    {
-      id: 'lead',
-      label: 'Lead',
-      icon: User,
-      hasArrow: true,
-      activeCount: filter.leadIds.length,
-    },
-    {
-      id: 'members',
-      label: 'Members',
+      id: 'assignee',
+      label: 'Assignee',
       icon: Users,
-      hasArrow: true,
       activeCount: filter.memberIds.length,
-    },
-    {
-      id: 'creator',
-      label: 'Creator',
-      icon: UserCheck,
-      hasArrow: true,
-      activeCount: filter.creatorIds.length,
-    },
-    {
-      id: 'health',
-      label: 'Health',
-      icon: Activity,
-      hasArrow: true,
-      activeCount: filter.health.length,
     },
     {
       id: 'dates',
       label: 'Dates',
       icon: Calendar,
-      hasArrow: true,
       activeCount: filter.due !== 'any' ? 1 : 0,
-    },
-    {
-      id: 'initiatives',
-      label: 'No Initiatives',
-      icon: Compass,
-      hasArrow: false,
-      activeCount: filter.noInitiatives ? 1 : 0,
-      onClick: toggleNoInitiatives,
     },
     {
       id: 'milestones',
       label: 'Milestones',
       icon: Diamond,
-      hasArrow: true,
       activeCount: filter.milestones.length,
     },
-    {
-      id: 'relations',
-      label: 'Relations',
-      icon: Flag,
-      hasArrow: true,
-      activeCount: 0,
-    },
-  ];
-
-  const propertyFilters = [
-    { id: 'template', label: 'Template', icon: FileText, hasArrow: true },
-    { id: 'summary', label: 'Title & summary', icon: FileEdit, hasArrow: true },
-    { id: 'project', label: 'Specific project', icon: Target, hasArrow: true },
   ];
 
   const filteredCategories = filterCategories.filter((cat) =>
-    cat.label.toLowerCase().includes(menuSearch.toLowerCase())
+    cat.label.toLowerCase().includes(menuSearch.toLowerCase()),
   );
 
   return (
     <div
       ref={menuRef}
       className={cn(
-        'absolute right-4 top-14 z-50 w-72 rounded-xl border border-border bg-popover/95 backdrop-blur-md shadow-2xl p-1.5 text-xs font-sans text-popover-foreground transition-all duration-200 animate-in fade-in slide-in-from-top-2'
+        'absolute right-4 top-14 z-50 w-72 rounded-xl border border-border bg-popover/95 backdrop-blur-md shadow-2xl p-1.5 text-xs font-sans text-popover-foreground transition-all duration-200 animate-in fade-in slide-in-from-top-2',
       )}
     >
       {/* Search Header */}
@@ -255,15 +175,17 @@ export function LinearFilterMenu({
         </div>
       </div>
 
-      {/* Main Filter Action Items */}
       <div className="space-y-0.5 px-1">
         <button
-          onClick={() => setActiveSubMenu(activeSubMenu === 'advanced' ? null : 'advanced')}
+          onClick={() => {
+            onActivateAIFilter();
+            onClose();
+          }}
           className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
         >
           <div className="flex items-center gap-2.5">
-            <SlidersHorizontal className="size-3.5 shrink-0" />
-            <span>Advanced filter</span>
+            <Sparkles className="size-3.5 shrink-0 text-accent-violet" />
+            <span>Ask AI to filter</span>
           </div>
           <ChevronRight className="size-3 text-muted-foreground/60" />
         </button>
@@ -280,16 +202,11 @@ export function LinearFilterMenu({
           return (
             <div key={cat.id} className="relative group">
               <button
-                onClick={() => {
-                  if (cat.onClick) {
-                    cat.onClick();
-                  } else {
-                    setActiveSubMenu(isSubOpen ? null : cat.id);
-                  }
-                }}
+                onClick={() => setActiveSubMenu(isSubOpen ? null : cat.id)}
                 className={cn(
                   'flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors',
-                  (isSubOpen || cat.activeCount > 0) && 'bg-accent/60 font-medium text-foreground'
+                  (isSubOpen || cat.activeCount > 0) &&
+                    'bg-accent/60 font-medium text-foreground',
                 )}
               >
                 <div className="flex items-center gap-2.5">
@@ -303,9 +220,7 @@ export function LinearFilterMenu({
                       {cat.activeCount}
                     </span>
                   )}
-                  {cat.hasArrow && (
-                    <ChevronRight className="size-3 text-muted-foreground/60 transition-transform duration-150" />
-                  )}
+                  <ChevronRight className="size-3 text-muted-foreground/60 transition-transform duration-150" />
                 </div>
               </button>
 
@@ -313,14 +228,16 @@ export function LinearFilterMenu({
               {isSubOpen && (
                 <div className="mt-1 ml-4 rounded-lg border border-border/80 bg-surface/95 p-1.5 shadow-lg space-y-0.5 text-xs animate-in fade-in">
                   {cat.id === 'status' &&
-                    lists.map((l) => (
+                    TASK_STATUS_ORDER.map((status) => (
                       <button
-                        key={l.id}
-                        onClick={() => toggleStatus(l.id)}
+                        key={status}
+                        onClick={() => toggleStatus(status)}
                         className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent hover:text-foreground"
                       >
-                        <span className="capitalize">{l.title}</span>
-                        {filter.status.includes(l.id) && <Check className="size-3 text-primary" />}
+                        <span>{STATUS_TITLES[status]}</span>
+                        {filter.status.includes(status) && (
+                          <Check className="size-3 text-primary" />
+                        )}
                       </button>
                     ))}
 
@@ -332,119 +249,75 @@ export function LinearFilterMenu({
                         className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent hover:text-foreground"
                       >
                         <span className="capitalize">{p.toLowerCase()}</span>
-                        {filter.priorities.includes(p) && <Check className="size-3 text-primary" />}
+                        {filter.priorities.includes(p) && (
+                          <Check className="size-3 text-primary" />
+                        )}
                       </button>
                     ))}
 
-                  {cat.id === 'labels' &&
-                    labels.map((lbl) => (
-                      <button
-                        key={lbl.id}
-                        onClick={() => toggleLabel(lbl.id)}
-                        className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent hover:text-foreground"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="size-2 rounded-full bg-primary" />
-                          <span>{lbl.name}</span>
-                        </div>
-                        {filter.labelIds.includes(lbl.id) && <Check className="size-3 text-primary" />}
-                      </button>
-                    ))}
-
-                  {cat.id === 'members' &&
-                    members.map((m) => (
-                      <button
-                        key={m.id}
-                        onClick={() => toggleMember(m.id)}
-                        className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent hover:text-foreground"
-                      >
-                        <span>{m.name}</span>
-                        {filter.memberIds.includes(m.id) && <Check className="size-3 text-primary" />}
-                      </button>
-                    ))}
-
-                  {cat.id === 'lead' &&
-                    members.map((m) => (
-                      <button
-                        key={m.id}
-                        onClick={() => toggleLead(m.id)}
-                        className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent hover:text-foreground"
-                      >
-                        <span>{m.name}</span>
-                        {filter.leadIds.includes(m.id) && <Check className="size-3 text-primary" />}
-                      </button>
-                    ))}
-
-                  {cat.id === 'health' &&
-                    ['ON_TRACK', 'AT_RISK', 'OFF_TRACK'].map((h) => (
-                      <button
-                        key={h}
-                        onClick={() => toggleHealth(h)}
-                        className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent hover:text-foreground"
-                      >
-                        <span>{h.replace('_', ' ')}</span>
-                        {filter.health.includes(h) && <Check className="size-3 text-primary" />}
-                      </button>
+                  {cat.id === 'assignee' &&
+                    (members.length === 0 ? (
+                      <p className="px-2 py-1 text-muted-foreground">
+                        No workspace members
+                      </p>
+                    ) : (
+                      members.map((m) => (
+                        <button
+                          key={m.id}
+                          onClick={() => toggleMember(m.id)}
+                          className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent hover:text-foreground"
+                        >
+                          <span>{m.name}</span>
+                          {filter.memberIds.includes(m.id) && (
+                            <Check className="size-3 text-primary" />
+                          )}
+                        </button>
+                      ))
                     ))}
 
                   {cat.id === 'dates' && (
                     <React.Fragment>
-                      {(['today', 'overdue', 'week', 'none'] as DueFilter[]).map((d) => (
-                        <button
-                          key={d}
-                          onClick={() => setDue(d)}
-                          className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent hover:text-foreground"
-                        >
-                          <span className="capitalize">{d === 'none' ? 'No due date' : d}</span>
-                          {filter.due === d && <Check className="size-3 text-primary" />}
-                        </button>
-                      ))}
+                      {(['today', 'overdue', 'week', 'none'] as DueFilter[]).map(
+                        (d) => (
+                          <button
+                            key={d}
+                            onClick={() => setDue(d)}
+                            className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent hover:text-foreground"
+                          >
+                            <span className="capitalize">
+                              {d === 'none' ? 'No due date' : d}
+                            </span>
+                            {filter.due === d && (
+                              <Check className="size-3 text-primary" />
+                            )}
+                          </button>
+                        ),
+                      )}
                     </React.Fragment>
                   )}
 
                   {cat.id === 'milestones' &&
-                    ['Sprint 1', 'Q3 Release', 'v2.0 Launch'].map((ms) => (
-                      <button
-                        key={ms}
-                        onClick={() =>
-                          setFilter((prev) => ({
-                            ...prev,
-                            milestones: prev.milestones.includes(ms)
-                              ? prev.milestones.filter((item) => item !== ms)
-                              : [...prev.milestones, ms],
-                          }))
-                        }
-                        className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent hover:text-foreground"
-                      >
-                        <span>{ms}</span>
-                        {filter.milestones.includes(ms) && <Check className="size-3 text-primary" />}
-                      </button>
+                    (milestones.length === 0 ? (
+                      <p className="px-2 py-1 text-muted-foreground">
+                        This project has no milestones
+                      </p>
+                    ) : (
+                      milestones.map((ms) => (
+                        <button
+                          key={ms}
+                          onClick={() => toggleMilestone(ms)}
+                          className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent hover:text-foreground"
+                        >
+                          <span>{ms}</span>
+                          {filter.milestones.includes(ms) && (
+                            <Check className="size-3 text-primary" />
+                          )}
+                        </button>
+                      ))
                     ))}
                 </div>
               )}
             </div>
-          );
-        })}
-      </div>
-
-      <div className="my-1.5 border-t border-border/50" />
-
-      {/* Property Filters */}
-      <div className="space-y-0.5 px-1">
-        {propertyFilters.map((prop) => {
-          const IconComponent = prop.icon;
-          return (
-            <button
-              key={prop.id}
-              onClick={() => setActiveSubMenu(activeSubMenu === prop.id ? null : prop.id)}
-              className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-            >
-              <div className="flex items-center gap-2.5">
-                <IconComponent className="size-3.5 text-muted-foreground/80 shrink-0" />
-                <span>{prop.label}</span>
-              </div>
-              <ChevronRight className="size-3 text-muted-foreground/60" />
-            </button>
           );
         })}
       </div>
