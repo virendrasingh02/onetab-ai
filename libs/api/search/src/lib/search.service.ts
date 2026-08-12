@@ -116,7 +116,8 @@ export class SearchService {
           category,
           title: `#${row.name}`,
           snippet: row.topic ?? row.description ?? undefined,
-          href: `channels/${row.slug}`,
+          // `/w/:slug/channels` is the browse screen; a single channel is `c/:slug`.
+          href: `c/${row.slug}`,
         }));
       }
 

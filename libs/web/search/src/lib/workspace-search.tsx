@@ -1,14 +1,55 @@
-import type { ChannelSummary, PublicUser } from '@org/types';
-import { UserAvatar } from '@org/ui';
+import type { SearchCategory, SearchResultItem } from '@org/types';
 import { cn } from '@org/utils';
-import { Hash, Lock } from 'lucide-react';
+import {
+  CheckSquare,
+  FileText,
+  FolderKanban,
+  Hash,
+  Paperclip,
+  Search,
+  Users,
+} from 'lucide-react';
+import type { ComponentType } from 'react';
 import { Link } from 'react-router-dom';
+import { MIN_QUERY_LENGTH } from './use-search.js';
+
+const CATEGORY_ORDER: SearchCategory[] = [
+  'channels',
+  'people',
+  'docs',
+  'tasks',
+  'projects',
+  'files',
+];
+
+const CATEGORY_LABEL: Record<SearchCategory, string> = {
+  channels: 'Channels',
+  people: 'People',
+  docs: 'Documents',
+  tasks: 'Tasks',
+  projects: 'Projects',
+  files: 'Files',
+};
+
+const CATEGORY_ICON: Record<SearchCategory, ComponentType<{ className?: string }>> = {
+  channels: Hash,
+  people: Users,
+  docs: FileText,
+  tasks: CheckSquare,
+  projects: FolderKanban,
+  files: Paperclip,
+};
 
 export interface WorkspaceSearchResultsProps {
   workspaceSlug: string;
-  channels: ChannelSummary[];
-  people: PublicUser[];
+  results: SearchResultItem[] | undefined;
   query: string;
+  isLoading?: boolean;
+  isError?: boolean;
+  /** Per-category totals for the filter chips; omitted hides the chip row. */
+  counts?: Record<SearchCategory, number>;
+  activeCategory?: SearchCategory;
+  onCategoryChange?: (category: SearchCategory | undefined) => void;
   onNavigate?: () => void;
 }
 
@@ -16,81 +57,152 @@ export interface WorkspaceSearchResultsProps {
  * Result list for the command palette.
  *
  * Rendering is split from data fetching so the palette shell can stay in
- * `@org/ui` (presentational) while the workspace-aware query lives here.
+ * `@org/ui` (presentational) while the workspace-aware query lives in
+ * `use-search.ts` beside this file.
  */
 export function WorkspaceSearchResults({
   workspaceSlug,
-  channels,
-  people,
+  results,
   query,
+  isLoading,
+  isError,
+  counts,
+  activeCategory,
+  onCategoryChange,
   onNavigate,
 }: WorkspaceSearchResultsProps) {
+  const trimmed = query.trim();
+
+  if (trimmed.length < MIN_QUERY_LENGTH) {
+    return (
+      <p className="px-2 py-6 text-sm text-center text-muted-foreground">
+        Type at least {MIN_QUERY_LENGTH} characters to search this workspace.
+      </p>
+    );
+  }
+
+  if (isError) {
+    return (
+      <p className="px-2 py-6 text-sm text-center text-destructive">
+        Search is unavailable right now.
+      </p>
+    );
+  }
+
+  const grouped = CATEGORY_ORDER.map((category) => ({
+    category,
+    items: (results ?? []).filter((item) => item.category === category),
+  })).filter((group) => group.items.length > 0);
+
   const rowClass = cn(
-    'gap-2 px-2 py-1.5 text-sm flex items-center rounded-md',
+    'gap-2 px-2 py-1.5 text-sm flex items-start rounded-md',
     'hover:bg-accent hover:text-accent-foreground',
   );
 
   return (
     <div className="space-y-3">
-      {channels.length > 0 ? (
-        <section>
-          <p className="px-2 py-1 text-xs font-medium text-muted-foreground">
-            Channels
-          </p>
-          <ul>
-            {channels.map((channel) => {
-              const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
-              return (
-                <li key={channel.id}>
-                  <Link
-                    to={`/w/${workspaceSlug}/c/${channel.slug}`}
-                    onClick={onNavigate}
-                    className={rowClass}
-                  >
-                    <Icon className="size-3.5 text-muted-foreground" />
-                    <span className="flex-1 truncate">{channel.name}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+      {counts && onCategoryChange ? (
+        <div className="gap-1 px-1 flex flex-wrap">
+          <CategoryChip
+            label="All"
+            count={Object.values(counts).reduce((sum, n) => sum + n, 0)}
+            isActive={!activeCategory}
+            onClick={() => onCategoryChange(undefined)}
+          />
+          {CATEGORY_ORDER.filter((category) => counts[category] > 0).map(
+            (category) => (
+              <CategoryChip
+                key={category}
+                label={CATEGORY_LABEL[category]}
+                count={counts[category]}
+                isActive={activeCategory === category}
+                onClick={() => onCategoryChange(category)}
+              />
+            ),
+          )}
+        </div>
       ) : null}
 
-      {people.length > 0 ? (
-        <section>
-          <p className="px-2 py-1 text-xs font-medium text-muted-foreground">
-            People
-          </p>
-          <ul>
-            {people.map((person) => (
-              <li key={person.id}>
-                <Link
-                  to={`/w/${workspaceSlug}/members`}
-                  onClick={onNavigate}
-                  className={rowClass}
-                >
-                  <UserAvatar
-                    name={person.displayName ?? person.name}
-                    src={person.avatarUrl}
-                    seed={person.id}
-                    size="xs"
-                  />
-                  <span className="flex-1 truncate">
-                    {person.displayName ?? person.name}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {channels.length === 0 && people.length === 0 && query ? (
+      {grouped.length === 0 ? (
         <p className="px-2 py-6 text-sm text-center text-muted-foreground">
-          Nothing matched that search.
+          {isLoading ? 'Searching…' : 'Nothing matched that search.'}
         </p>
-      ) : null}
+      ) : (
+        <div className={cn('space-y-3', isLoading && 'opacity-60')}>
+          {grouped.map(({ category, items }) => {
+            const Icon = CATEGORY_ICON[category];
+            return (
+              <section key={category}>
+                <p className="px-2 py-1 text-xs font-medium text-muted-foreground">
+                  {CATEGORY_LABEL[category]}
+                </p>
+                <ul>
+                  {items.map((item) => (
+                    <li key={`${item.category}-${item.id}`}>
+                      <Link
+                        // `href` is workspace-relative, so the prefix is added here.
+                        to={`/w/${workspaceSlug}/${item.href ?? ''}`}
+                        onClick={onNavigate}
+                        className={rowClass}
+                      >
+                        <Icon className="size-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+                        <span className="min-w-0 flex-1">
+                          <span className="truncate block">{item.title}</span>
+                          {item.snippet ? (
+                            <span className="truncate block text-xs text-muted-foreground">
+                              {item.snippet}
+                            </span>
+                          ) : null}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            );
+          })}
+        </div>
+      )}
     </div>
+  );
+}
+
+function CategoryChip({
+  label,
+  count,
+  isActive,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={isActive}
+      className={cn(
+        'gap-1 rounded-full border px-2 py-0.5 text-xs inline-flex items-center',
+        'transition-colors duration-(--duration-fast)',
+        isActive
+          ? 'border-primary bg-primary/10 text-primary'
+          : 'border-border text-muted-foreground hover:text-foreground',
+      )}
+    >
+      <span>{label}</span>
+      <span className="tabular-nums opacity-70">{count}</span>
+    </button>
+  );
+}
+
+/** Empty-state placeholder shown before the user has typed anything. */
+export function WorkspaceSearchHint() {
+  return (
+    <p className="gap-2 px-2 py-6 text-sm text-muted-foreground flex items-center justify-center">
+      <Search className="size-4" aria-hidden />
+      Search channels, people, docs, tasks, projects and files.
+    </p>
   );
 }

@@ -12,29 +12,28 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@org/ui';
+import type { AIChatMessage } from '@org/types';
 import { cn } from '@org/utils';
 import { Send, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { AI_MODELS, useAIChat, type AIModelValue } from './use-ai.js';
 
 export interface AISidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const PROVIDERS = [
-  { value: 'ollama', label: 'Ollama (local)' },
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'anthropic', label: 'Anthropic' },
-  { value: 'gemini', label: 'Google Gemini' },
-] as const;
-
-type Provider = (typeof PROVIDERS)[number]['value'];
-
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   text: string;
 }
+
+const WELCOME: Message = {
+  id: 'welcome',
+  role: 'assistant',
+  text: 'Hello! I am your OneTab AI Copilot. How can I help you with your workspace today?',
+};
 
 /**
  * The workspace-wide AI copilot, opened from the shell's floating trigger.
@@ -45,15 +44,11 @@ interface Message {
  */
 export function AISidebar({ isOpen, onClose }: AISidebarProps) {
   const [input, setInput] = useState('');
-  const [provider, setProvider] = useState<Provider>('ollama');
-  const [pending, setPending] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      text: 'Hello! I am your OneTab AI Copilot. How can I help you with your workspace today?',
-    },
-  ]);
+  const [model, setModel] = useState<AIModelValue>('auto');
+  const [messages, setMessages] = useState<Message[]>([WELCOME]);
+
+  const chat = useAIChat();
+  const pending = chat.isPending;
 
   const streamEndRef = useRef<HTMLDivElement>(null);
 
@@ -66,24 +61,51 @@ export function AISidebar({ isOpen, onClose }: AISidebarProps) {
     const prompt = input.trim();
     if (!prompt || pending) return;
 
-    setInput('');
-    setPending(true);
-    setMessages((prev) => [
-      ...prev,
-      { id: `u-${Date.now()}`, role: 'user', text: prompt },
-    ]);
+    const userMessage: Message = {
+      id: `u-${Date.now()}`,
+      role: 'user',
+      text: prompt,
+    };
 
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `a-${Date.now()}`,
-          role: 'assistant',
-          text: `[Copilot via ${provider}] I processed your request: "${prompt}". Here is the workspace synthesis.`,
+    /*
+     * The greeting is local scaffolding, not something the model said, so it
+     * is left out of the transcript that goes up.
+     */
+    const transcript: AIChatMessage[] = [...messages, userMessage]
+      .filter((message) => message.id !== WELCOME.id)
+      .map((message) => ({ role: message.role, content: message.text }));
+
+    setInput('');
+    setMessages((prev) => [...prev, userMessage]);
+
+    chat.mutate(
+      { messages: transcript, model },
+      {
+        onSuccess: (response) => {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `a-${Date.now()}`,
+              role: 'assistant',
+              text: response.message.content,
+            },
+          ]);
         },
-      ]);
-      setPending(false);
-    }, 600);
+        onError: (error) => {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `e-${Date.now()}`,
+              role: 'assistant',
+              text:
+                error instanceof Error
+                  ? `Sorry — ${error.message}`
+                  : 'Sorry, I could not reach the model.',
+            },
+          ]);
+        },
+      },
+    );
   };
 
   return (
@@ -112,14 +134,14 @@ export function AISidebar({ isOpen, onClose }: AISidebarProps) {
             Model
           </label>
           <Select
-            value={provider}
-            onValueChange={(value) => setProvider(value as Provider)}
+            value={model}
+            onValueChange={(value) => setModel(value as AIModelValue)}
           >
             <SelectTrigger id="ai-provider" size="sm" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {PROVIDERS.map((option) => (
+              {AI_MODELS.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>

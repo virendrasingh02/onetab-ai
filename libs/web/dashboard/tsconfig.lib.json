@@ -32,13 +32,22 @@
       "path": "../members/tsconfig.lib.json"
     },
     {
+      "path": "../integrations/tsconfig.lib.json"
+    },
+    {
       "path": "../channels/tsconfig.lib.json"
+    },
+    {
+      "path": "../analytics/tsconfig.lib.json"
     },
     {
       "path": "../../shared/utils/tsconfig.lib.json"
     },
     {
       "path": "../../shared/ui/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/types/tsconfig.lib.json"
     },
     {
       "path": "../auth/tsconfig.lib.json"

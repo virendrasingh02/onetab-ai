@@ -14,7 +14,9 @@ import {
 import { useLogout } from '@org/auth';
 import { cn } from '@org/utils';
 import { openExternal, useDesktop } from '@org/web-desktop';
+import { NotificationBadge } from '@org/notifications';
 import {
+  Bell,
   ChevronLeft,
   ChevronRight,
   HelpCircle,
@@ -40,6 +42,7 @@ export interface AppHeaderProps {
   rightPanelOpen: boolean;
   onToggleSidebar?: () => void;
   sidebarOpen?: boolean;
+  onOpenNotifications: () => void;
   unreadNotifications?: number;
   actions?: React.ReactNode;
 }
@@ -52,7 +55,8 @@ export function AppHeader({
   rightPanelOpen,
   onToggleSidebar,
   sidebarOpen = true,
-  unreadNotifications: _unreadNotifications = 0,
+  onOpenNotifications,
+  unreadNotifications = 0,
   actions,
 }: AppHeaderProps) {
   const { theme, setTheme } = useTheme();
@@ -153,6 +157,29 @@ export function AppHeader({
             className="flex sm:hidden"
           >
             <Search className="size-4" />
+          </Button>
+        </Hint>
+
+        <Hint
+          label={
+            unreadNotifications > 0
+              ? `Notifications (${unreadNotifications} new)`
+              : 'Notifications'
+          }
+        >
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onOpenNotifications}
+            aria-label={
+              unreadNotifications > 0
+                ? `Notifications, ${unreadNotifications} new`
+                : 'Notifications'
+            }
+            className="relative"
+          >
+            <Bell className="size-4" />
+            <NotificationBadge count={unreadNotifications} />
           </Button>
         </Hint>
 

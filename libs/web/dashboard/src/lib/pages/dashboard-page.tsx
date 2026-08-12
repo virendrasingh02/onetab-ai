@@ -1,4 +1,5 @@
 import { useCurrentUser } from '@org/auth';
+import type { TrendDelta } from '@org/types';
 import {
   Badge,
   Button,
@@ -10,10 +11,17 @@ import {
   EmptyState,
   Progress,
   SkeletonList,
+  TrendBadge,
   UserAvatar,
 } from '@org/ui';
-import { formatCount } from '@org/utils';
+import { formatBytes, formatCount, formatDate, formatRelative } from '@org/utils';
+import {
+  useAIUsageAnalytics,
+  useDashboardAnalytics,
+  useStorageAnalytics,
+} from '@org/web-analytics';
 import { useChannels, useGroupedChannels } from '@org/web-channels';
+import { useIntegrations } from '@org/web-integrations';
 import { useMembers } from '@org/web-members';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
@@ -83,12 +91,15 @@ function MetricCard({
   subtitle,
   icon: Icon,
   trend,
+  isLoading,
 }: {
   title: string;
   value: string | number;
   subtitle: string;
   icon: typeof Sparkles;
-  trend?: string;
+  /** Period-over-period movement from the analytics API, when it has one. */
+  trend?: TrendDelta;
+  isLoading?: boolean;
 }) {
   return (
     <Card className="relative overflow-hidden">
@@ -101,13 +112,9 @@ function MetricCard({
         </div>
         <div className="mt-2 flex items-baseline justify-between">
           <span className="text-2xl font-bold tracking-tight text-foreground tabular-nums">
-            {value}
+            {isLoading ? '—' : value}
           </span>
-          {trend ? (
-            <span className="text-[11px] font-medium text-accent-green">
-              {trend}
-            </span>
-          ) : null}
+          {trend && !isLoading ? <TrendBadge trend={trend} /> : null}
         </div>
         <p className="mt-1 text-[11px] text-muted-foreground truncate">{subtitle}</p>
       </CardContent>
@@ -115,17 +122,33 @@ function MetricCard({
   );
 }
 
+/** The dashboard summarises the last month; the analytics screens go deeper. */
+const RANGE_DAYS = 30;
+
 export function DashboardPage() {
   const user = useCurrentUser();
   const { slug, workspace, workspaceId } = useCurrentWorkspace();
   const channels = useChannels(workspaceId);
   const members = useMembers(workspaceId);
   const groups = useGroupedChannels(channels.data);
+  const overview = useDashboardAnalytics(RANGE_DAYS);
+  const aiUsage = useAIUsageAnalytics(RANGE_DAYS);
+  const storage = useStorageAnalytics(RANGE_DAYS);
+  const integrations = useIntegrations(workspaceId);
   const [showGuide, setShowGuide] = useState(true);
 
   const firstName = (user?.displayName ?? user?.name ?? '').split(' ')[0];
-  const channelCount = workspace?.channelCount ?? 0;
-  const memberCount = workspace?.memberCount ?? 0;
+  /*
+   * The workspace summary is already in cache when this screen mounts, so it
+   * seeds the counters while the aggregation request is in flight.
+   */
+  const channelCount = overview.data?.totals.channels ?? workspace?.channelCount ?? 0;
+  const memberCount = overview.data?.totals.members ?? workspace?.memberCount ?? 0;
+  const onlineCount =
+    members.data?.filter((m) => m.user.presence === 'ONLINE').length ?? 0;
+  const connectedIntegrations =
+    integrations.data?.filter((integration) => integration.status === 'CONNECTED')
+      .length ?? 0;
 
   // Company onboarding progress metrics
   const onboardingSteps = [
@@ -144,13 +167,15 @@ export function DashboardPage() {
     {
       title: 'Integrations',
       desc: 'Connect Slack, Notion, GitHub or Google Workspace.',
-      done: true,
+      done: connectedIntegrations > 0,
       link: `/w/${slug}/integrations`,
     },
     {
       title: 'AI & Automations',
       desc: 'Deploy custom AI agents & automated workflow triggers.',
-      done: true,
+      done:
+        (aiUsage.data?.totalAgents ?? 0) > 0 ||
+        (aiUsage.data?.totalWorkflows ?? 0) > 0,
       link: `/w/${slug}/agents/builder`,
     },
   ];
@@ -222,28 +247,32 @@ export function DashboardPage() {
           value={formatCount(channelCount)}
           subtitle={`${groups.joined.length + groups.favorites.length} joined channels`}
           icon={Hash}
-          trend="+2 new this week"
         />
         <MetricCard
           title="Team Members"
           value={formatCount(memberCount)}
-          subtitle={`${members.data?.filter((m) => m.user.presence === 'ONLINE').length ?? 1} online right now`}
+          subtitle={`${onlineCount} online right now`}
           icon={Users}
-          trend="Active"
+          trend={overview.data?.headline.members}
+          isLoading={overview.isLoading}
         />
         <MetricCard
           title="AI Agents Deployed"
-          value="4"
-          subtitle="Workspace copilots & auto-assistants"
+          value={formatCount(aiUsage.data?.totalAgents ?? 0)}
+          subtitle={`${aiUsage.data?.activeAgents ?? 0} active · ${formatCount(
+            aiUsage.data?.agentExecutions ?? 0,
+          )} runs in ${RANGE_DAYS}d`}
           icon={Bot}
-          trend="100% operational"
+          isLoading={aiUsage.isLoading}
         />
         <MetricCard
           title="Automated Workflows"
-          value="8"
-          subtitle="Active triggers & integrations"
+          value={formatCount(aiUsage.data?.totalWorkflows ?? 0)}
+          subtitle={`${aiUsage.data?.activeWorkflows ?? 0} active · ${
+            connectedIntegrations
+          } integrations connected`}
           icon={Workflow}
-          trend="Active"
+          isLoading={aiUsage.isLoading}
         />
       </div>
 
@@ -438,7 +467,11 @@ export function DashboardPage() {
                               {member.user.displayName ?? member.user.name}
                             </p>
                             <p className="text-[10px] text-subtle truncate">
-                              Team Member
+                              {member.user.presence === 'ONLINE'
+                                ? 'Online now'
+                                : member.user.lastSeenAt
+                                  ? `Last seen ${formatRelative(member.user.lastSeenAt)}`
+                                  : `Joined ${formatDate(member.joinedAt)}`}
                             </p>
                           </div>
                         </div>
@@ -482,12 +515,36 @@ export function DashboardPage() {
             <CardContent className="space-y-3">
               <div className="p-3 rounded-card bg-surface-raised border border-border space-y-2">
                 <div className="flex items-center justify-between text-xs font-medium">
-                  <span className="text-foreground">AI Token Usage</span>
-                  <span className="text-primary font-mono text-[11px]">64% allocated</span>
+                  <span className="text-foreground">Storage Used</span>
+                  <span className="text-primary font-mono text-[11px]">
+                    {storage.isLoading
+                      ? '—'
+                      : `${Math.round(storage.data?.usedPct ?? 0)}% of quota`}
+                  </span>
                 </div>
-                <Progress value={64} className="h-1.5" />
+                <Progress value={storage.data?.usedPct ?? 0} className="h-1.5" />
                 <p className="text-[10px] text-subtle">
-                  Unlimited queries enabled on Enterprise Tier.
+                  {storage.data
+                    ? `${formatBytes(storage.data.totalBytes)} across ${formatCount(
+                        storage.data.totalFiles,
+                      )} files · ${formatBytes(storage.data.quotaBytes)} included`
+                    : 'Measuring workspace storage…'}
+                </p>
+              </div>
+
+              <div className="p-3 rounded-card bg-surface-raised border border-border space-y-2">
+                <div className="flex items-center justify-between text-xs font-medium">
+                  <span className="text-foreground">AI Sessions</span>
+                  {overview.data ? (
+                    <TrendBadge trend={overview.data.headline.aiSessions} />
+                  ) : null}
+                </div>
+                <p className="text-[10px] text-subtle">
+                  {`${formatCount(
+                    aiUsage.data?.totalSessions ?? 0,
+                  )} sessions and ${formatCount(
+                    aiUsage.data?.estimatedTokens ?? 0,
+                  )} estimated tokens in the last ${RANGE_DAYS} days.`}
                 </p>
               </div>
 

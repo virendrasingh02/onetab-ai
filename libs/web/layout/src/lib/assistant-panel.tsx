@@ -8,7 +8,9 @@ import {
   Hint,
   ScrollArea,
 } from '@org/ui';
+import type { AIChatMessage } from '@org/types';
 import { cn } from '@org/utils';
+import { AI_MODELS, useAIChat, type AIModelValue } from '@org/web-ai';
 import {
   ArrowUp,
   ChevronDown,
@@ -22,16 +24,6 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-
-const MODELS = [
-  'Auto',
-  'Google Gemini',
-  'OpenAI GPT-4',
-  'Claude 3.5',
-  'Ollama Local',
-] as const;
-
-type Model = (typeof MODELS)[number];
 
 interface ChatMessage {
   id: string;
@@ -76,9 +68,14 @@ export interface AssistantPanelProps {
  */
 export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
   const [prompt, setPrompt] = useState('');
-  const [model, setModel] = useState<Model>('Auto');
-  const [isThinking, setIsThinking] = useState(false);
+  const [model, setModel] = useState<AIModelValue>('auto');
   const [messages, setMessages] = useState<ChatMessage[]>(() => [welcomeMessage()]);
+
+  const chat = useAIChat();
+  const isThinking = chat.isPending;
+
+  const modelLabel =
+    AI_MODELS.find((option) => option.value === model)?.label ?? 'Auto';
 
   const endRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -105,26 +102,55 @@ export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
     if (!query || isThinking) return;
 
     const now = new Date().toISOString();
-    setMessages((prev) => [
-      ...prev,
-      { id: `u-${Date.now()}`, role: 'user', text: query, at: now },
-    ]);
+    const userMessage: ChatMessage = {
+      id: `u-${Date.now()}`,
+      role: 'user',
+      text: query,
+      at: now,
+    };
+
+    /*
+     * The API holds no conversation state, so the transcript goes up in full
+     * each turn. The local greeting is dropped — the model never said it.
+     */
+    const transcript: AIChatMessage[] = [...messages, userMessage]
+      .filter((message) => !message.id.startsWith('welcome-'))
+      .map((message) => ({ role: message.role, content: message.text }));
+
+    setMessages((prev) => [...prev, userMessage]);
     setPrompt('');
-    setIsThinking(true);
     requestAnimationFrame(() => autoSize(composerRef.current));
 
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `a-${Date.now()}`,
-          role: 'assistant',
-          text: `[${model}] Processed request: "${query}". I analyzed your workspace channels and tasks to synthesize this report.`,
-          at: new Date().toISOString(),
+    chat.mutate(
+      { messages: transcript, model },
+      {
+        onSuccess: (response) => {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `a-${Date.now()}`,
+              role: 'assistant',
+              text: response.message.content,
+              at: new Date().toISOString(),
+            },
+          ]);
         },
-      ]);
-      setIsThinking(false);
-    }, 700);
+        onError: (error) => {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `e-${Date.now()}`,
+              role: 'assistant',
+              text:
+                error instanceof Error
+                  ? `Sorry — ${error.message}`
+                  : 'Sorry, I could not reach the model.',
+              at: new Date().toISOString(),
+            },
+          ]);
+        },
+      },
+    );
   };
 
   const reset = () => {
@@ -267,24 +293,24 @@ export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
                   variant="ghost"
                   size="sm"
                   className="h-6 gap-1 px-2 text-[11px] font-medium text-muted-foreground"
-                  aria-label={`Model: ${model}`}
+                  aria-label={`Model: ${modelLabel}`}
                 >
-                  <span>{model}</span>
+                  <span>{modelLabel}</span>
                   <ChevronDown className="size-3" aria-hidden />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-44">
                 <DropdownMenuRadioGroup
                   value={model}
-                  onValueChange={(value) => setModel(value as Model)}
+                  onValueChange={(value) => setModel(value as AIModelValue)}
                 >
-                  {MODELS.map((option) => (
+                  {AI_MODELS.map((option) => (
                     <DropdownMenuRadioItem
-                      key={option}
-                      value={option}
+                      key={option.value}
+                      value={option.value}
                       className="text-xs"
                     >
-                      {option}
+                      {option.label}
                     </DropdownMenuRadioItem>
                   ))}
                 </DropdownMenuRadioGroup>

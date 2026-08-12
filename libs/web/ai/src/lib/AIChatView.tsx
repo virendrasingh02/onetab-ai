@@ -1,3 +1,4 @@
+import type { AIChatMessage } from '@org/types';
 import {
   Button,
   DropdownMenu,
@@ -16,17 +17,11 @@ import {
   RotateCcw,
   SlidersHorizontal,
   Sparkles,
+  TriangleAlert,
   User,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-
-const MODELS = [
-  { value: 'Auto', label: 'Auto (Recommended)' },
-  { value: 'GPT-4o', label: 'OpenAI GPT-4o' },
-  { value: 'Claude 3.5 Sonnet', label: 'Claude 3.5 Sonnet' },
-  { value: 'Gemini 1.5 Pro', label: 'Google Gemini 1.5 Pro' },
-  { value: 'Ollama Llama 3', label: 'Ollama Llama 3 (Local)' },
-] as const;
+import { AI_MODELS, useAIChat, type AIModelValue } from './use-ai.js';
 
 interface ChatMessage {
   id: string;
@@ -35,15 +30,27 @@ interface ChatMessage {
   timestamp: string;
 }
 
+function nowLabel() {
+  return new Date().toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export function AIChatView() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
-  const [selectedModel, setSelectedModel] = useState<string>('Auto');
-  const [isPending, setIsPending] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<AIModelValue>('auto');
   const [isVoiceActive, setIsVoiceActive] = useState(false);
+
+  const chat = useAIChat();
+  const isPending = chat.isPending;
 
   const streamEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const modelLabel =
+    AI_MODELS.find((option) => option.value === selectedModel)?.label ?? 'Auto';
 
   useEffect(() => {
     streamEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -53,35 +60,41 @@ export function AIChatView() {
     const text = (textToSend ?? input).trim();
     if (!text || isPending) return;
 
-    const timeStr = new Date().toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-
     const userMessage: ChatMessage = {
       id: `u-${Date.now()}`,
       role: 'user',
       content: text,
-      timestamp: timeStr,
+      timestamp: nowLabel(),
     };
+
+    /*
+     * The API is stateless, so the whole transcript goes up each turn. Built
+     * from the pre-append array plus this message rather than from state,
+     * which has not re-rendered yet.
+     */
+    const transcript: AIChatMessage[] = [...messages, userMessage].map(
+      ({ role, content }) => ({ role, content }),
+    );
 
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
-    setIsPending(true);
 
-    setTimeout(() => {
-      const assistantMessage: ChatMessage = {
-        id: `a-${Date.now()}`,
-        role: 'assistant',
-        content: `[${selectedModel}] I have processed your request: "${text}". Here is the synthesis based on your connected workspace apps and memory vectors.`,
-        timestamp: new Date().toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-      setIsPending(false);
-    }, 750);
+    chat.mutate(
+      { messages: transcript, model: selectedModel },
+      {
+        onSuccess: (response) => {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `a-${Date.now()}`,
+              role: 'assistant',
+              content: response.message.content,
+              timestamp: nowLabel(),
+            },
+          ]);
+        },
+      },
+    );
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -94,7 +107,7 @@ export function AIChatView() {
   const handleNewChat = () => {
     setMessages([]);
     setInput('');
-    setIsPending(false);
+    chat.reset();
   };
 
   const isLandingView = messages.length === 0;
@@ -200,15 +213,15 @@ export function AIChatView() {
                     <DropdownMenuTrigger asChild>
                       <button
                         type="button"
-                        aria-label={`Selected AI Model: ${selectedModel}`}
+                        aria-label={`Selected AI Model: ${modelLabel}`}
                         className="px-3 py-1 rounded-full bg-accent hover:bg-selected text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors border border-border"
                       >
-                        <span>{selectedModel}</span>
+                        <span>{modelLabel}</span>
                         <ChevronDown className="size-3 text-muted-foreground" />
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48 text-xs">
-                      {MODELS.map((model) => (
+                      {AI_MODELS.map((model) => (
                         <DropdownMenuItem
                           key={model.value}
                           onClick={() => setSelectedModel(model.value)}
@@ -276,7 +289,7 @@ export function AIChatView() {
                     ) : (
                       <Bot className="size-3.5 text-accent-violet" />
                     )}
-                    {message.role === 'user' ? 'You' : `${selectedModel} Copilot`}
+                    {message.role === 'user' ? 'You' : `${modelLabel} Copilot`}
                   </span>
                   <span className="text-[10px]">{message.timestamp}</span>
                 </div>
@@ -288,6 +301,37 @@ export function AIChatView() {
               <div className="mr-auto bg-surface-raised text-muted-foreground border border-border p-3 rounded-2xl text-xs flex items-center gap-2 animate-pulse">
                 <Sparkles className="size-4 text-accent-violet animate-spin" />
                 <span>Synthesis in progress…</span>
+              </div>
+            ) : null}
+
+            {chat.isError ? (
+              <div className="mr-auto gap-2 p-3 text-xs flex items-start rounded-2xl border border-destructive/40 bg-destructive/10 text-destructive">
+                <TriangleAlert className="size-4 shrink-0" aria-hidden />
+                <div className="space-y-1.5">
+                  <p>
+                    {chat.error instanceof Error
+                      ? chat.error.message
+                      : 'The assistant could not respond.'}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 text-[11px]"
+                    onClick={() => {
+                      // The failed turn's prompt is still the last user message.
+                      const lastUser = [...messages]
+                        .reverse()
+                        .find((entry) => entry.role === 'user');
+                      if (!lastUser) return;
+                      setMessages((prev) =>
+                        prev.filter((entry) => entry.id !== lastUser.id),
+                      );
+                      handleSend(lastUser.content);
+                    }}
+                  >
+                    Retry
+                  </Button>
+                </div>
               </div>
             ) : null}
 

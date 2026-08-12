@@ -14,7 +14,14 @@ import type {
   AgentRunResult,
   AIAgent,
   AIAgentDetail,
+  AIChatRequest,
+  AIChatResponse,
+  AIImageResponse,
+  AIRagResult,
+  AISummaryResponse,
+  AITranslationResponse,
   AIUsageStats,
+  AIVisionResponse,
   AuthTokens,
   AutomationWorkflow,
   AutomationWorkflowDetail,
@@ -937,14 +944,37 @@ export const uploadApi = {
   /**
    * Multipart, so the Content-Type header is left to the browser — it has to
    * append the boundary, and setting it by hand produces an unparseable body.
+   *
+   * The instance-wide 15 s timeout is lifted here: it is sized for JSON round
+   * trips, and a large attachment on a slow link would abort mid-transfer.
    */
-  upload: (workspaceId: string, file: File, channelId?: string) => {
+  upload: (
+    workspaceId: string,
+    file: File,
+    options: {
+      channelId?: string;
+      /** Receives 0–100 as the body goes out. */
+      onProgress?: (percent: number) => void;
+      signal?: AbortSignal;
+    } = {},
+  ) => {
     const form = new FormData();
     form.append('file', file);
     return request<Upload>(
       http.post(`/workspaces/${workspaceId}/uploads`, form, {
-        params: channelId ? { channelId } : undefined,
+        params: options.channelId ? { channelId: options.channelId } : undefined,
         headers: { 'Content-Type': undefined as unknown as string },
+        timeout: 0,
+        signal: options.signal,
+        onUploadProgress: options.onProgress
+          ? (event) => {
+              // `total` is absent when the body length is unknown.
+              if (!event.total) return;
+              options.onProgress?.(
+                Math.round((event.loaded / event.total) * 100),
+              );
+            }
+          : undefined,
       }),
     );
   },
@@ -959,6 +989,68 @@ export const uploadApi = {
 
   remove: (workspaceId: string, uploadId: string) =>
     request<void>(http.delete(`/workspaces/${workspaceId}/uploads/${uploadId}`)),
+};
+
+/**
+ * Model inference for one workspace.
+ *
+ * Every route is a POST — these are actions with a cost, not cacheable reads —
+ * and each is rate limited well below the global default on the API side.
+ */
+export const aiApi = {
+  chat: (workspaceId: string, input: AIChatRequest, signal?: AbortSignal) =>
+    request<AIChatResponse>(
+      http.post(`/workspaces/${workspaceId}/ai/chat`, input, {
+        // Generation is slow; the instance-wide 15 s timeout would cut it off.
+        timeout: 120_000,
+        signal,
+      }),
+    ),
+
+  summarize: (workspaceId: string, text: string) =>
+    request<AISummaryResponse>(
+      http.post(
+        `/workspaces/${workspaceId}/ai/summarize`,
+        { text },
+        { timeout: 120_000 },
+      ),
+    ),
+
+  translate: (workspaceId: string, text: string, targetLanguage: string) =>
+    request<AITranslationResponse>(
+      http.post(
+        `/workspaces/${workspaceId}/ai/translate`,
+        { text, targetLanguage },
+        { timeout: 120_000 },
+      ),
+    ),
+
+  generateImage: (workspaceId: string, prompt: string, provider?: string) =>
+    request<AIImageResponse>(
+      http.post(
+        `/workspaces/${workspaceId}/ai/generate-image`,
+        { prompt, ...(provider ? { provider } : {}) },
+        { timeout: 180_000 },
+      ),
+    ),
+
+  analyzeVision: (workspaceId: string, imageUrl: string, prompt?: string) =>
+    request<AIVisionResponse>(
+      http.post(
+        `/workspaces/${workspaceId}/ai/vision`,
+        { imageUrl, ...(prompt ? { prompt } : {}) },
+        { timeout: 120_000 },
+      ),
+    ),
+
+  ragSearch: (workspaceId: string, query: string, limit?: number) =>
+    request<AIRagResult[]>(
+      http.post(
+        `/workspaces/${workspaceId}/ai/rag-search`,
+        { query, ...(limit ? { limit } : {}) },
+        { timeout: 60_000 },
+      ),
+    ),
 };
 
 export const searchApi = {

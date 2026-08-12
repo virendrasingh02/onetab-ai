@@ -1,21 +1,20 @@
-import { Button, Input, Page, PageHeader, Panel } from '@org/ui';
-import { Download, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { Button, EmptyState, Input, Page, PageHeader, Panel } from '@org/ui';
+import {
+  Download,
+  Image as ImageIcon,
+  Sparkles,
+  TriangleAlert,
+} from 'lucide-react';
 import { useState } from 'react';
+import { useAIImageGeneration } from './use-ai.js';
 
 export function AIImageGeneratorView() {
-  const [prompt, setPrompt] = useState(
-    'Futuristic dark mode UI design mockup with neon accents',
-  );
-  const [imageUrl] = useState<string | null>(
-    'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
-  );
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [prompt, setPrompt] = useState('');
+  /** The prompt the visible image was actually generated from. */
+  const [generatedFrom, setGeneratedFrom] = useState('');
+  const generate = useAIImageGeneration();
 
-  const handleGenerate = () => {
-    if (!prompt.trim()) return;
-    setIsGenerating(true);
-    setTimeout(() => setIsGenerating(false), 1200);
-  };
+  const imageUrl = generate.data?.imageUrl ?? null;
 
   return (
     <Page>
@@ -31,7 +30,10 @@ export function AIImageGeneratorView() {
           className="gap-2 sm:flex-row flex flex-col"
           onSubmit={(event) => {
             event.preventDefault();
-            handleGenerate();
+            const trimmed = prompt.trim();
+            if (!trimmed || generate.isPending) return;
+            setGeneratedFrom(trimmed);
+            generate.mutate({ prompt: trimmed });
           }}
         >
           <Input
@@ -42,20 +44,45 @@ export function AIImageGeneratorView() {
           />
           <Button
             type="submit"
-            loading={isGenerating}
+            loading={generate.isPending}
             disabled={!prompt.trim()}
             leadingIcon={<Sparkles />}
             className="shrink-0"
           >
-            {isGenerating ? 'Generating…' : 'Generate'}
+            {generate.isPending ? 'Generating…' : 'Generate'}
           </Button>
         </form>
+
+        {generate.isError ? (
+          <div className="mt-6">
+            <EmptyState
+              size="sm"
+              icon={<TriangleAlert />}
+              title="Generation failed"
+              description={
+                generate.error instanceof Error
+                  ? generate.error.message
+                  : 'The image could not be generated.'
+              }
+              action={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => generate.mutate({ prompt: generatedFrom })}
+                  disabled={!generatedFrom}
+                >
+                  Try again
+                </Button>
+              }
+            />
+          </div>
+        ) : null}
 
         {imageUrl ? (
           <figure className="group mt-6 max-w-xl relative overflow-hidden rounded-xl border bg-background">
             <img
               src={imageUrl}
-              alt={`Generated asset for the prompt: ${prompt}`}
+              alt={`Generated asset for the prompt: ${generatedFrom}`}
               className="h-80 w-full object-cover"
             />
             {/*

@@ -1,2 +1,8 @@
-export { useFileUpload, type UploadCandidate } from './lib/use-upload.js';
+export {
+  useFileUpload,
+  useUploadMutations,
+  useUploads,
+  type UploadCandidate,
+  type UseFileUploadOptions,
+} from './lib/use-upload.js';
 export { FileDropzone, type FileDropzoneProps } from './lib/file-dropzone.js';

@@ -11,6 +11,7 @@ export {
 export {
   adminApi,
   agentsApi,
+  aiApi,
   analyticsApi,
   authApi,
   automationsApi,

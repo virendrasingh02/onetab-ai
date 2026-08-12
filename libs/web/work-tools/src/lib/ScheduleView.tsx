@@ -1,3 +1,4 @@
+import type { CalendarEvent } from '@org/types';
 import {
   Badge,
   Button,
@@ -5,133 +6,160 @@ import {
   Page,
   PageHeader,
   Panel,
+  SkeletonList,
+  UserAvatar,
 } from '@org/ui';
-import {
-  Calendar,
-  Clock,
-  MessageSquare,
-  Plus,
-  Send,
-  Trash2,
-} from 'lucide-react';
-import { useState } from 'react';
+import { formatDateTime, formatRelative } from '@org/utils';
+import { useCurrentWorkspace } from '@org/web-workspace';
+import { CalendarClock, Clock, MapPin, Plus, Trash2, TriangleAlert } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useCalendarEvents, useCalendarMutations } from './use-work-tools.js';
 
-interface ScheduledItem {
-  id: string;
-  title: string;
-  destination: string;
-  scheduledFor: string;
-  status: 'QUEUED' | 'PENDING' | 'PAUSED';
-  type: 'MESSAGE' | 'DIGEST' | 'DOC_RELEASE';
+/** How far ahead the schedule looks. Beyond this it is a calendar, not a queue. */
+const HORIZON_DAYS = 30;
+
+function isoOffsetDays(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString();
 }
 
-const initialScheduleList: ScheduledItem[] = [
-  {
-    id: 's1',
-    title: 'Weekly Sprint Progress Summary & Retrospective Notes',
-    destination: '#announcements',
-    scheduledFor: 'Tomorrow at 09:00 AM',
-    status: 'QUEUED',
-    type: 'MESSAGE',
-  },
-  {
-    id: 's2',
-    title: 'AI Agent Activity Digest & Token Usage Summary',
-    destination: '#analytics-reports',
-    scheduledFor: 'Friday at 05:00 PM',
-    status: 'PENDING',
-    type: 'DIGEST',
-  },
-  {
-    id: 's3',
-    title: 'Product Release v2.4 Feature Specs Document Publication',
-    destination: 'Docs / Release Notes',
-    scheduledFor: 'Monday at 08:00 AM',
-    status: 'QUEUED',
-    type: 'DOC_RELEASE',
-  },
-];
+/** Groups events under a date heading in the viewer's own timezone. */
+function dayKey(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
 
 export function ScheduleView() {
-  const [items, setItems] = useState<ScheduledItem[]>(initialScheduleList);
+  const { slug, workspaceId } = useCurrentWorkspace();
+  const events = useCalendarEvents(
+    workspaceId,
+    new Date().toISOString(),
+    isoOffsetDays(HORIZON_DAYS),
+  );
+  const { remove } = useCalendarMutations(workspaceId);
 
-  const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
-  };
+  const groups = new Map<string, CalendarEvent[]>();
+  for (const event of events.data ?? []) {
+    const key = dayKey(event.startAt);
+    groups.set(key, [...(groups.get(key) ?? []), event]);
+  }
 
   return (
     <Page>
       <PageHeader
         title="Schedule"
-        description="Schedule messages, posts, and publications for automatic workspace delivery."
-        icon={<Clock />}
+        description={`Everything on this workspace's calendar over the next ${HORIZON_DAYS} days.`}
+        icon={<CalendarClock />}
         accent="blue"
         actions={
-          <Button leadingIcon={<Plus />}>
-            New Scheduled Item
+          <Button asChild leadingIcon={<Plus />}>
+            <Link to={`/w/${slug}/meetings`}>New event</Link>
           </Button>
         }
       />
 
       <Panel>
-        {items.length === 0 ? (
+        {events.isLoading ? (
+          <SkeletonList rows={5} />
+        ) : events.isError ? (
+          <EmptyState
+            icon={<TriangleAlert />}
+            title="Could not load the schedule"
+            description="Something went wrong fetching this workspace's calendar."
+            action={
+              <Button variant="outline" onClick={() => void events.refetch()}>
+                Try again
+              </Button>
+            }
+          />
+        ) : groups.size === 0 ? (
           <EmptyState
             icon={<Clock />}
-            title="No scheduled items"
-            description="Create a scheduled message or document publication to automate delivery."
+            title="Nothing scheduled"
+            description={`No events fall in the next ${HORIZON_DAYS} days.`}
+            action={
+              <Button asChild size="sm">
+                <Link to={`/w/${slug}/meetings`}>Schedule something</Link>
+              </Button>
+            }
           />
         ) : (
-          <ul className="divide-y divide-border">
-            {items.map((item) => (
-              <li
-                key={item.id}
-                className="py-4 first:pt-0 last:pb-0 flex items-center justify-between gap-4"
-              >
-                <div className="flex items-start gap-3 min-w-0">
-                  <span className="p-2 rounded-lg bg-primary/10 text-primary shrink-0 mt-0.5">
-                    {item.type === 'MESSAGE' ? (
-                      <Send className="size-4" />
-                    ) : item.type === 'DIGEST' ? (
-                      <MessageSquare className="size-4" />
-                    ) : (
-                      <Calendar className="size-4" />
-                    )}
-                  </span>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-foreground truncate">
-                        {item.title}
-                      </h3>
-                      <Badge variant={item.status === 'QUEUED' ? 'primary' : 'neutral'}>
-                        {item.status}
-                      </Badge>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Destination: <span className="font-medium text-foreground">{item.destination}</span>
-                    </p>
-                    <span className="mt-1 flex items-center gap-1 text-[11px] text-subtle font-mono">
-                      <Clock className="size-3" />
-                      <span>{item.scheduledFor}</span>
-                    </span>
-                  </div>
-                </div>
+          <div className="space-y-6">
+            {[...groups].map(([day, dayEvents]) => (
+              <section key={day}>
+                <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {day}
+                </h2>
+                <ul className="divide-y divide-border">
+                  {dayEvents.map((event) => (
+                    <li
+                      key={event.id}
+                      className="py-4 first:pt-0 last:pb-0 flex items-center justify-between gap-4"
+                    >
+                      <div className="flex items-start gap-3 min-w-0">
+                        <span className="p-2 rounded-lg bg-primary/10 text-primary shrink-0 mt-0.5">
+                          <Clock className="size-4" aria-hidden />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-sm font-semibold text-foreground truncate">
+                              {event.title}
+                            </h3>
+                            {event.isAllDay ? (
+                              <Badge variant="neutral">All day</Badge>
+                            ) : null}
+                          </div>
+                          {event.description ? (
+                            <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                              {event.description}
+                            </p>
+                          ) : null}
+                          <div className="mt-1 gap-3 text-[11px] text-subtle flex flex-wrap items-center font-mono">
+                            <span className="gap-1 flex items-center">
+                              <Clock className="size-3" aria-hidden />
+                              {event.isAllDay
+                                ? formatRelative(event.startAt)
+                                : formatDateTime(event.startAt)}
+                            </span>
+                            {event.location ? (
+                              <span className="gap-1 flex items-center">
+                                <MapPin className="size-3" aria-hidden />
+                                {event.location}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button variant="outline" size="sm">
-                    Edit
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Delete schedule"
-                    onClick={() => removeItem(item.id)}
-                  >
-                    <Trash2 className="size-4 text-subtle hover:text-destructive" />
-                  </Button>
-                </div>
-              </li>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <UserAvatar
+                          name={
+                            event.organizer.displayName ?? event.organizer.name
+                          }
+                          src={event.organizer.avatarUrl}
+                          seed={event.organizer.id}
+                          size="xs"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Delete ${event.title}`}
+                          disabled={remove.isPending}
+                          onClick={() => remove.mutate(event.id)}
+                        >
+                          <Trash2 className="size-4 text-subtle hover:text-destructive" />
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             ))}
-          </ul>
+          </div>
         )}
       </Panel>
     </Page>

@@ -19,7 +19,14 @@ export interface CommandPaletteProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   placeholder?: string;
+  /** Replaces the built-in command list entirely. */
   children?: ReactNode;
+  /**
+   * Workspace search results, rendered above the commands once the user has
+   * typed. Receives the live query so the caller can run its own request —
+   * this library stays presentational and never fetches.
+   */
+  renderResults?: (query: string) => ReactNode;
 }
 
 interface CommandItem {
@@ -36,6 +43,7 @@ export function CommandPalette({
   onOpenChange,
   placeholder = 'Type a command or search…',
   children,
+  renderResults,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -188,12 +196,25 @@ export function CommandPalette({
         </div>
 
         <div className="max-h-[24rem] overflow-y-auto p-1.5 scrollbar-subtle">
+          {/*
+            Results first: once someone has typed, the thing they are looking
+            for is far more likely to be a channel or a document than one of
+            the eight static navigation commands.
+          */}
+          {renderResults && query ? (
+            <div className="mb-2 border-b border-[#27272A] pb-2">
+              {renderResults(query)}
+            </div>
+          ) : null}
+
           {children ? (
             children
           ) : filtered.length === 0 ? (
-            <div className="p-8 text-center text-xs text-[#71717A]">
-              No commands found matching "{query}"
-            </div>
+            renderResults && query ? null : (
+              <div className="p-8 text-center text-xs text-[#71717A]">
+                No commands found matching "{query}"
+              </div>
+            )
           ) : (
             <div className="flex flex-col gap-0.5">
               {filtered.map((item, idx) => {

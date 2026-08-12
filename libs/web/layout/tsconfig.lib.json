@@ -56,7 +56,16 @@
       "path": "../../shared/design-system/tsconfig.lib.json"
     },
     {
+      "path": "../search/tsconfig.lib.json"
+    },
+    {
       "path": "../desktop/tsconfig.lib.json"
+    },
+    {
+      "path": "../ai/tsconfig.lib.json"
+    },
+    {
+      "path": "../notifications/tsconfig.lib.json"
     },
     {
       "path": "../../shared/hooks/tsconfig.lib.json"

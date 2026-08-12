@@ -87,6 +87,18 @@ export type {
   SearchResultItem,
 } from './lib/notifications.js';
 
+export type {
+  AIChatMessage,
+  AIChatRequest,
+  AIChatResponse,
+  AIImageResponse,
+  AIProvider,
+  AIRagResult,
+  AISummaryResponse,
+  AITranslationResponse,
+  AIVisionResponse,
+} from './lib/ai.js';
+
 export * from './lib/chat.js';
 export * from './lib/analytics.js';
 export * from './lib/marketplace.js';

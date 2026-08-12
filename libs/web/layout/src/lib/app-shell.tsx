@@ -14,9 +14,15 @@ import {
 import { cn } from '@org/utils';
 import { useChannels } from '@org/web-channels';
 import { useDesktopCommand } from '@org/web-desktop';
+import {
+  NotificationCenter,
+  useNotificationFeed,
+  useNotificationUnread,
+} from '@org/notifications';
+import { WorkspaceSearchPanel } from '@org/web-search';
 import { useCurrentWorkspace, useWorkspaces } from '@org/web-workspace';
 import { Building2 } from 'lucide-react';
-import { Suspense, useCallback, useEffect } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AppHeader } from './app-header.js';
 import { AssistantPanel } from './assistant-panel.js';
@@ -52,6 +58,15 @@ export function AppShell() {
   const workspacesQuery = useWorkspaces();
   const { slug, workspace, workspaceId, isLoading } = useCurrentWorkspace();
   const channelsQuery = useChannels(workspaceId);
+
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  /*
+   * The feed is fetched here as well as inside the centre so the bell can show
+   * a count before the sheet has ever been opened. Both calls share one query
+   * key, so this is a cache read rather than a second request.
+   */
+  const notificationFeed = useNotificationFeed(workspaceId);
+  const unread = useNotificationUnread(workspaceId, notificationFeed.data);
 
   /*
    * Navigating dismisses the mobile drawers — on a phone they cover the page
@@ -208,6 +223,8 @@ export function AppShell() {
             rightPanelOpen={rightPanelOpen}
             onToggleSidebar={toggleSidebar}
             sidebarOpen={sidebarOpen}
+            onOpenNotifications={() => setNotificationsOpen(true)}
+            unreadNotifications={unread.count}
           />
 
           <main className="min-w-0 flex-1 overflow-y-auto bg-background p-3 sm:p-4 lg:p-6">
@@ -288,7 +305,26 @@ export function AppShell() {
           </SheetContent>
         </Sheet>
 
-        <CommandPalette open={palette.open} onOpenChange={palette.setOpen} />
+        <NotificationCenter
+          open={notificationsOpen}
+          onOpenChange={setNotificationsOpen}
+          workspaceId={workspaceId}
+          workspaceSlug={slug}
+        />
+
+        <CommandPalette
+          open={palette.open}
+          onOpenChange={palette.setOpen}
+          placeholder="Search channels, people, docs…"
+          renderResults={(query) => (
+            <WorkspaceSearchPanel
+              workspaceId={workspaceId}
+              workspaceSlug={slug}
+              query={query}
+              onNavigate={() => palette.setOpen(false)}
+            />
+          )}
+        />
       </div>
     </TooltipProvider>
   );

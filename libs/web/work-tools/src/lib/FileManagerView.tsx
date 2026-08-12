@@ -1,8 +1,9 @@
+import { useCurrentUser } from '@org/auth';
+import type { Upload } from '@org/types';
 import {
   Button,
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DropdownMenu,
@@ -13,291 +14,148 @@ import {
   DropdownMenuTrigger,
   EmptyState,
   Hint,
+  SkeletonList,
   UserAvatar,
 } from '@org/ui';
-import { cn } from '@org/utils';
+import { cn, formatBytes, formatRelative } from '@org/utils';
+import { FileDropzone, useUploadMutations, useUploads } from '@org/web-upload';
+import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Check,
   ChevronDown,
-  Copy,
   Download,
-  Eye,
+  FileArchive,
+  FileJson,
   FileText,
   HardDrive,
-  List,
+  Image as ImageIcon,
   MoreVertical,
   Plus,
   Search,
-  Share2,
   SlidersHorizontal,
-  Star,
+  Table2,
   Trash2,
+  TriangleAlert,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
-export interface FileCollaborator {
-  id: string;
-  name: string;
-  avatarUrl?: string;
+/**
+ * Broad buckets over the allowed MIME types.
+ *
+ * The filter reads in the user's terms ("Images", "Spreadsheets") rather than
+ * `image/svg+xml`, and grouping keeps the menu from growing a row every time
+ * the allow-list gains a type.
+ */
+type FileKind = 'image' | 'document' | 'spreadsheet' | 'archive' | 'data';
+
+const KIND_LABEL: Record<FileKind, string> = {
+  image: 'Images',
+  document: 'Documents',
+  spreadsheet: 'Spreadsheets',
+  archive: 'Archives',
+  data: 'Data',
+};
+
+function kindOf(mimeType: string): FileKind {
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType === 'text/csv') return 'spreadsheet';
+  if (mimeType === 'application/zip') return 'archive';
+  if (mimeType === 'application/json') return 'data';
+  return 'document';
 }
 
-export interface FileEntry {
-  id: string;
-  name: string;
-  type: 'doc' | 'word' | 'pdf' | 'spreadsheet' | 'site' | string;
-  author: string;
-  isOwner?: boolean;
-  lastViewed: string;
-  readTime?: string;
-  unread?: boolean;
-  starred: boolean;
-  collaborators?: FileCollaborator[];
-  actionIcon?: 'download' | 'eye';
-  size?: string;
-}
+const KIND_STYLE: Record<FileKind, string> = {
+  image: 'bg-accent-cyan-soft border-accent-cyan/30 text-accent-cyan',
+  document: 'bg-accent-rose-soft border-accent-rose/30 text-accent-rose',
+  spreadsheet: 'bg-accent-green-soft border-accent-green/30 text-accent-green',
+  archive: 'bg-accent-amber-soft border-accent-amber/30 text-accent-amber',
+  data: 'bg-accent-blue-soft border-accent-blue/30 text-accent-blue',
+};
 
-const sampleFiles: FileEntry[] = [
-  {
-    id: '1',
-    name: 'ASCENT - Theme Design Consistency Reference (Updates by JJ)',
-    type: 'doc',
-    author: 'Virendra Singh (you)',
-    isOwner: true,
-    lastViewed: 'Last viewed today',
-    readTime: '1 min read',
-    starred: true,
-    collaborators: [
-      { id: 'u1', name: 'JJ' },
-      { id: 'u2', name: 'Virendra Singh' },
-    ],
-    actionIcon: 'download',
-  },
-  {
-    id: '2',
-    name: 'RC Theme Migration PostMortem',
-    type: 'word',
-    author: 'JJ',
-    isOwner: false,
-    lastViewed: 'Last viewed on July 31st',
-    starred: false,
-    collaborators: [],
-    actionIcon: 'download',
-  },
-  {
-    id: '3',
-    name: 'Virendra June Salary.pdf',
-    type: 'pdf',
-    author: 'Virendra Singh (you)',
-    isOwner: true,
-    lastViewed: 'Last viewed on July 16th',
-    starred: false,
-    collaborators: [],
-    actionIcon: 'download',
-  },
-  {
-    id: '4',
-    name: 'ASCENT Speed Report - Report_ 09 June 2026.csv',
-    type: 'spreadsheet',
-    author: 'Zeeshan Khan',
-    isOwner: false,
-    lastViewed: 'Last viewed on June 9th',
-    starred: false,
-    collaborators: [],
-    actionIcon: 'download',
-  },
-  {
-    id: '5',
-    name: 'NEW RC THEME: TO-DO LIST',
-    type: 'doc',
-    unread: true,
-    author: 'Zeeshan Khan',
-    isOwner: false,
-    lastViewed: 'Last viewed on June 5th',
-    readTime: '6 min read',
-    starred: false,
-    collaborators: [
-      { id: 'u3', name: 'Zeeshan Khan' },
-      { id: 'u2', name: 'Virendra Singh' },
-    ],
-    actionIcon: 'download',
-  },
-  {
-    id: '6',
-    name: 'RC_UAT_Plan.pdf',
-    type: 'pdf',
-    author: 'JJ',
-    isOwner: false,
-    lastViewed: 'Last viewed on June 5th',
-    starred: false,
-    collaborators: [],
-    actionIcon: 'download',
-  },
-  {
-    id: '7',
-    name: 'Site Migration Running Agenda (2).pdf',
-    type: 'pdf',
-    author: 'Caroline Homlish',
-    isOwner: false,
-    lastViewed: 'Last viewed on April 23rd',
-    starred: false,
-    collaborators: [],
-    actionIcon: 'download',
-  },
-  {
-    id: '8',
-    name: 'Designer internal Task',
-    type: 'doc',
-    author: 'Pallav Vyas',
-    isOwner: false,
-    lastViewed: 'Last viewed on March 13th',
-    readTime: '1 min read',
-    starred: false,
-    collaborators: [
-      { id: 'u4', name: 'Pallav Vyas' },
-      { id: 'u2', name: 'Virendra Singh' },
-    ],
-    actionIcon: 'download',
-  },
-  {
-    id: '9',
-    name: 'Untitled',
-    type: 'doc',
-    author: 'Virendra Singh (you)',
-    isOwner: true,
-    lastViewed: 'Last viewed on February 5th',
-    starred: false,
-    collaborators: [
-      { id: 'u2', name: 'Virendra Singh' },
-    ],
-    actionIcon: 'download',
-  },
-  {
-    id: '10',
-    name: 'New RC Site Development',
-    type: 'site',
-    author: 'Zeeshan Khan',
-    isOwner: false,
-    lastViewed: 'Last viewed on December 10th, 2025',
-    starred: false,
-    collaborators: [],
-    actionIcon: 'eye',
-  },
-];
+function FileTypeBadge({ mimeType }: { mimeType: string }) {
+  const kind = kindOf(mimeType);
+  const Icon =
+    kind === 'image'
+      ? ImageIcon
+      : kind === 'spreadsheet'
+        ? Table2
+        : kind === 'archive'
+          ? FileArchive
+          : kind === 'data'
+            ? FileJson
+            : FileText;
 
-function FileTypeBadge({ type, unread }: { type: string; unread?: boolean }) {
-  if (type === 'word') {
-    return (
-      <div className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent-blue text-[13px] font-bold text-white shadow-2xs select-none">
-        W
-      </div>
-    );
-  }
-
-  if (type === 'pdf') {
-    return (
-      <div className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent-rose-soft border border-accent-rose/30 text-accent-rose select-none">
-        <span className="text-[13px] font-bold tracking-tighter">PDF</span>
-      </div>
-    );
-  }
-
-  if (type === 'spreadsheet') {
-    return (
-      <div className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent-green-soft border border-accent-green/30 text-accent-green select-none font-bold text-sm">
-        X
-      </div>
-    );
-  }
-
-  if (type === 'site') {
-    return (
-      <div className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent-blue-soft border border-accent-blue/30 text-accent-blue select-none">
-        <List className="size-4" />
-      </div>
-    );
-  }
-
-  // Default 'doc' type (Soft cyan background with document text icon)
   return (
-    <div className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent-cyan-soft border border-accent-cyan/30 text-accent-cyan select-none">
-      {unread ? (
-        <span className="absolute -top-0.5 -left-0.5 size-2.5 rounded-full bg-accent-cyan ring-2 ring-background" />
-      ) : null}
-      <FileText className="size-4" />
+    <div
+      className={cn(
+        'relative flex size-9 shrink-0 items-center justify-center rounded-lg border select-none',
+        KIND_STYLE[kind],
+      )}
+    >
+      <Icon className="size-4" aria-hidden />
     </div>
   );
 }
 
+type OwnerTab = 'all' | 'created' | 'shared';
+type SortKey = 'recent' | 'name' | 'size';
+
 export function FileManagerView() {
-  const [files, setFiles] = useState<FileEntry[]>(sampleFiles);
+  const user = useCurrentUser();
+  const { workspaceId } = useCurrentWorkspace();
+  const uploads = useUploads(workspaceId);
+  const { remove, download } = useUploadMutations(workspaceId);
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'all' | 'created' | 'shared'>('all');
-  const [selectedType, setSelectedType] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<string>('recent');
+  const [activeTab, setActiveTab] = useState<OwnerTab>('all');
+  const [selectedKind, setSelectedKind] = useState<FileKind | 'all'>('all');
+  const [sortBy, setSortBy] = useState<SortKey>('recent');
   const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const [newFileName, setNewFileName] = useState('');
-  const [newFileType, setNewFileType] = useState('doc');
 
-  const toggleStar = (id: string) => {
-    setFiles((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, starred: !f.starred } : f)),
-    );
+  const visibleFiles = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    const filtered = (uploads.data ?? []).filter((file) => {
+      if (query && !file.filename.toLowerCase().includes(query)) return false;
+
+      const isOwner = file.uploader.id === user?.id;
+      if (activeTab === 'created' && !isOwner) return false;
+      if (activeTab === 'shared' && isOwner) return false;
+
+      if (selectedKind !== 'all' && kindOf(file.mimeType) !== selectedKind) {
+        return false;
+      }
+      return true;
+    });
+
+    // `toSorted` is not available in every target browser this ships to.
+    return [...filtered].sort((a, b) => {
+      if (sortBy === 'name') return a.filename.localeCompare(b.filename);
+      if (sortBy === 'size') return b.size - a.size;
+      return Date.parse(b.createdAt) - Date.parse(a.createdAt);
+    });
+  }, [uploads.data, searchQuery, activeTab, selectedKind, sortBy, user?.id]);
+
+  const resetFilters = () => {
+    setSearchQuery('');
+    setActiveTab('all');
+    setSelectedKind('all');
   };
-
-  const deleteFile = (id: string) => {
-    setFiles((prev) => prev.filter((f) => f.id !== id));
-  };
-
-  const handleCreateFile = () => {
-    if (!newFileName.trim()) return;
-    const newEntry: FileEntry = {
-      id: `f-${Date.now()}`,
-      name: newFileName.trim(),
-      type: newFileType,
-      author: 'Virendra Singh (you)',
-      isOwner: true,
-      lastViewed: 'Last viewed just now',
-      starred: false,
-      collaborators: [],
-      actionIcon: 'download',
-    };
-    setFiles((prev) => [newEntry, ...prev]);
-    setNewFileName('');
-    setIsUploadOpen(false);
-  };
-
-  // Filter logic
-  const filteredFiles = files.filter((file) => {
-    // Search query
-    if (searchQuery.trim() && !file.name.toLowerCase().includes(searchQuery.toLowerCase().trim())) {
-      return false;
-    }
-    // Filter tab
-    if (activeTab === 'created' && !file.isOwner) {
-      return false;
-    }
-    if (activeTab === 'shared' && file.isOwner) {
-      return false;
-    }
-    // Type filter
-    if (selectedType !== 'all' && file.type !== selectedType) {
-      return false;
-    }
-    return true;
-  });
 
   return (
     <div className="max-w-6xl space-y-4 mx-auto p-4 sm:p-6 font-sans text-foreground">
       {/* 1. Header Row */}
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-xl font-bold tracking-tight text-foreground">All files</h1>
+        <h1 className="text-xl font-bold tracking-tight text-foreground">
+          All files
+        </h1>
         <Button
           onClick={() => setIsUploadOpen(true)}
           size="sm"
-          className="bg-accent-green hover:bg-accent-green/90 text-white font-medium text-xs gap-1.5 px-3 rounded-md shadow-xs"
+          className="gap-1.5 px-3 text-xs font-medium"
         >
           <Plus className="size-4" />
-          <span>New</span>
+          <span>Upload</span>
         </Button>
       </div>
 
@@ -319,44 +177,30 @@ export function FileManagerView() {
 
       {/* 3. Segmented Filter Pills & Control Dropdowns */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-        {/* Left Segmented Filter Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-          <button
-            onClick={() => setActiveTab('all')}
-            className={cn(
-              'px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors select-none',
-              activeTab === 'all'
-                ? 'bg-accent-cyan-soft text-accent-cyan border border-accent-cyan/30 font-semibold'
-                : 'border border-border text-muted-foreground hover:bg-accent hover:text-foreground',
-            )}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setActiveTab('created')}
-            className={cn(
-              'px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors select-none',
-              activeTab === 'created'
-                ? 'bg-accent-cyan-soft text-accent-cyan border border-accent-cyan/30 font-semibold'
-                : 'border border-border text-muted-foreground hover:bg-accent hover:text-foreground',
-            )}
-          >
-            Created by you
-          </button>
-          <button
-            onClick={() => setActiveTab('shared')}
-            className={cn(
-              'px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors select-none',
-              activeTab === 'shared'
-                ? 'bg-accent-cyan-soft text-accent-cyan border border-accent-cyan/30 font-semibold'
-                : 'border border-border text-muted-foreground hover:bg-accent hover:text-foreground',
-            )}
-          >
-            Shared with you
-          </button>
+          {(
+            [
+              ['all', 'All'],
+              ['created', 'Uploaded by you'],
+              ['shared', 'From teammates'],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => setActiveTab(value)}
+              aria-pressed={activeTab === value}
+              className={cn(
+                'px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors select-none',
+                activeTab === value
+                  ? 'bg-accent-cyan-soft text-accent-cyan border border-accent-cyan/30 font-semibold'
+                  : 'border border-border text-muted-foreground hover:bg-accent hover:text-foreground',
+              )}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
-        {/* Right Dropdowns & View Controls */}
         <div className="flex items-center gap-2 self-end sm:self-auto">
           {/* File Types Dropdown */}
           <DropdownMenu>
@@ -367,17 +211,7 @@ export function FileManagerView() {
               >
                 <SlidersHorizontal className="size-3.5 text-accent-cyan" />
                 <span>
-                  {selectedType === 'all'
-                    ? '5 Types'
-                    : selectedType === 'doc'
-                    ? 'Docs'
-                    : selectedType === 'word'
-                    ? 'Word'
-                    : selectedType === 'pdf'
-                    ? 'PDFs'
-                    : selectedType === 'spreadsheet'
-                    ? 'Spreadsheets'
-                    : 'Sites & Code'}
+                  {selectedKind === 'all' ? 'All types' : KIND_LABEL[selectedKind]}
                 </span>
                 <ChevronDown className="size-3 text-subtle" />
               </button>
@@ -385,30 +219,23 @@ export function FileManagerView() {
             <DropdownMenuContent align="end" className="w-44 text-xs">
               <DropdownMenuLabel>Filter by type</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => setSelectedType('all')}>
-                <span>All 5 Types</span>
-                {selectedType === 'all' ? <Check className="ml-auto size-3.5 text-primary" /> : null}
+              <DropdownMenuItem onSelect={() => setSelectedKind('all')}>
+                <span>All types</span>
+                {selectedKind === 'all' ? (
+                  <Check className="ml-auto size-3.5 text-primary" />
+                ) : null}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setSelectedType('doc')}>
-                <span>Docs</span>
-                {selectedType === 'doc' ? <Check className="ml-auto size-3.5 text-primary" /> : null}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setSelectedType('word')}>
-                <span>Word Documents</span>
-                {selectedType === 'word' ? <Check className="ml-auto size-3.5 text-primary" /> : null}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setSelectedType('pdf')}>
-                <span>PDF Documents</span>
-                {selectedType === 'pdf' ? <Check className="ml-auto size-3.5 text-primary" /> : null}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setSelectedType('spreadsheet')}>
-                <span>Spreadsheets (CSV/XLS)</span>
-                {selectedType === 'spreadsheet' ? <Check className="ml-auto size-3.5 text-primary" /> : null}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setSelectedType('site')}>
-                <span>Sites &amp; Links</span>
-                {selectedType === 'site' ? <Check className="ml-auto size-3.5 text-primary" /> : null}
-              </DropdownMenuItem>
+              {(Object.keys(KIND_LABEL) as FileKind[]).map((kind) => (
+                <DropdownMenuItem
+                  key={kind}
+                  onSelect={() => setSelectedKind(kind)}
+                >
+                  <span>{KIND_LABEL[kind]}</span>
+                  {selectedKind === kind ? (
+                    <Check className="ml-auto size-3.5 text-primary" />
+                  ) : null}
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -421,220 +248,209 @@ export function FileManagerView() {
               >
                 <span>
                   {sortBy === 'recent'
-                    ? 'Recently viewed'
+                    ? 'Newest first'
                     : sortBy === 'name'
-                    ? 'Name (A-Z)'
-                    : 'Date modified'}
+                      ? 'Name (A-Z)'
+                      : 'Largest first'}
                 </span>
                 <ChevronDown className="size-3 text-subtle" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40 text-xs">
               <DropdownMenuItem onSelect={() => setSortBy('recent')}>
-                <span>Recently viewed</span>
+                <span>Newest first</span>
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setSortBy('name')}>
                 <span>Name (A-Z)</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setSortBy('date')}>
-                <span>Date modified</span>
+              <DropdownMenuItem onSelect={() => setSortBy('size')}>
+                <span>Largest first</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          {/* Filter options icon button */}
-          <Hint label="View options">
-            <button
-              className="flex size-7 items-center justify-center rounded-md border border-border bg-surface text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              aria-label="View options"
-            >
-              <SlidersHorizontal className="size-3.5" />
-            </button>
-          </Hint>
         </div>
       </div>
 
       {/* 4. Main Files List Container */}
       <div className="rounded-card border border-border bg-surface/60 overflow-hidden shadow-2xs divide-y divide-border/60">
-        {filteredFiles.length === 0 ? (
+        {uploads.isLoading ? (
+          <div className="p-4">
+            <SkeletonList rows={6} withAvatar />
+          </div>
+        ) : uploads.isError ? (
           <div className="p-8 text-center">
             <EmptyState
               size="sm"
-              icon={<HardDrive />}
-              title="No files match your search"
-              description="Try adjusting your filter pills or search query."
+              icon={<TriangleAlert />}
+              title="Could not load files"
+              description="Something went wrong fetching this workspace's files."
               action={
-                <Button size="sm" variant="outline" onClick={() => { setSearchQuery(''); setActiveTab('all'); setSelectedType('all'); }}>
-                  Reset filters
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void uploads.refetch()}
+                >
+                  Try again
                 </Button>
               }
             />
           </div>
+        ) : visibleFiles.length === 0 ? (
+          <div className="p-8 text-center">
+            <EmptyState
+              size="sm"
+              icon={<HardDrive />}
+              title={
+                uploads.data?.length
+                  ? 'No files match your search'
+                  : 'No files yet'
+              }
+              description={
+                uploads.data?.length
+                  ? 'Try adjusting your filter pills or search query.'
+                  : 'Upload a file to share it with the workspace.'
+              }
+              action={
+                uploads.data?.length ? (
+                  <Button size="sm" variant="outline" onClick={resetFilters}>
+                    Reset filters
+                  </Button>
+                ) : (
+                  <Button size="sm" onClick={() => setIsUploadOpen(true)}>
+                    Upload a file
+                  </Button>
+                )
+              }
+            />
+          </div>
         ) : (
-          filteredFiles.map((file) => (
-            <div
+          visibleFiles.map((file) => (
+            <FileRow
               key={file.id}
-              className="group flex items-center justify-between gap-3 p-3 sm:px-4 hover:bg-accent/40 transition-colors"
-            >
-              {/* Left File Badge & Meta Info */}
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <FileTypeBadge type={file.type} unread={file.unread} />
-
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-xs sm:text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                    {file.name}
-                  </h3>
-                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground truncate mt-0.5">
-                    <span className="truncate">{file.author}</span>
-                    <span>·</span>
-                    <span className="truncate">{file.lastViewed}</span>
-                    {file.readTime ? (
-                      <>
-                        <span>·</span>
-                        <span>{file.readTime}</span>
-                      </>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Side Actions & Collaborators */}
-              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                {/* Overlapping Collaborator Avatars */}
-                {file.collaborators && file.collaborators.length > 0 ? (
-                  <div className="hidden sm:flex items-center -space-x-2 overflow-hidden">
-                    {file.collaborators.map((c) => (
-                      <UserAvatar
-                        key={c.id}
-                        name={c.name}
-                        src={c.avatarUrl}
-                        seed={c.id}
-                        size="xs"
-                        className="ring-2 ring-background"
-                      />
-                    ))}
-                  </div>
-                ) : null}
-
-                {/* Star Button */}
-                <Hint label={file.starred ? 'Starred' : 'Star file'}>
-                  <button
-                    onClick={() => toggleStar(file.id)}
-                    aria-label={file.starred ? 'Unstar file' : 'Star file'}
-                    className={cn(
-                      'flex size-7 items-center justify-center rounded-md transition-colors',
-                      file.starred
-                        ? 'text-accent-amber bg-accent-amber-soft'
-                        : 'text-subtle hover:text-accent-amber hover:bg-accent',
-                    )}
-                  >
-                    <Star className={cn('size-3.5', file.starred && 'fill-accent-amber')} />
-                  </button>
-                </Hint>
-
-                {/* Action Icon (Download or View) */}
-                <Hint label={file.actionIcon === 'eye' ? 'Preview file' : 'Download file'}>
-                  <button
-                    aria-label={file.actionIcon === 'eye' ? 'Preview file' : 'Download file'}
-                    className="flex size-7 items-center justify-center rounded-md text-subtle hover:text-foreground hover:bg-accent transition-colors"
-                  >
-                    {file.actionIcon === 'eye' ? (
-                      <Eye className="size-3.5" />
-                    ) : (
-                      <Download className="size-3.5" />
-                    )}
-                  </button>
-                </Hint>
-
-                {/* Context Dropdown Menu */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      className="flex size-7 items-center justify-center rounded-md text-subtle hover:text-foreground hover:bg-accent transition-colors"
-                      aria-label="More options"
-                    >
-                      <MoreVertical className="size-3.5" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-44 text-xs">
-                    <DropdownMenuItem onSelect={() => toggleStar(file.id)}>
-                      <Star className="size-3.5 mr-2 text-accent-amber" />
-                      <span>{file.starred ? 'Remove star' : 'Star file'}</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Download className="size-3.5 mr-2" />
-                      <span>Download</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Share2 className="size-3.5 mr-2" />
-                      <span>Share with team</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Copy className="size-3.5 mr-2" />
-                      <span>Copy link</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onSelect={() => deleteFile(file.id)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="size-3.5 mr-2" />
-                      <span>Delete</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
+              file={file}
+              isOwner={file.uploader.id === user?.id}
+              isDownloading={
+                download.isPending && download.variables?.id === file.id
+              }
+              isDeleting={remove.isPending && remove.variables === file.id}
+              onDownload={() => download.mutate(file)}
+              onDelete={() => remove.mutate(file.id)}
+            />
           ))
         )}
       </div>
 
-      {/* New File Dialog */}
+      {/* Upload Dialog */}
       <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
         <DialogContent className="sm:max-w-md text-xs">
           <DialogHeader>
-            <DialogTitle className="text-sm font-semibold">Create or Upload File</DialogTitle>
+            <DialogTitle className="text-sm font-semibold">
+              Upload files
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1">
-              <label className="text-[11px] font-medium text-muted-foreground">
-                File Title
-              </label>
-              <input
-                type="text"
-                value={newFileName}
-                onChange={(e) => setNewFileName(e.target.value)}
-                placeholder="e.g. Q3 Design System Spec.pdf"
-                className="w-full px-3 py-1.5 bg-surface border border-border rounded-md text-xs text-foreground placeholder:text-subtle focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[11px] font-medium text-muted-foreground">
-                File Type
-              </label>
-              <select
-                value={newFileType}
-                onChange={(e) => setNewFileType(e.target.value)}
-                className="w-full px-3 py-1.5 bg-surface border border-border rounded-md text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="doc">Doc / Note</option>
-                <option value="word">Word Document (.docx)</option>
-                <option value="pdf">PDF Document (.pdf)</option>
-                <option value="spreadsheet">Spreadsheet (.csv / .xlsx)</option>
-                <option value="site">Site / Project Link</option>
-              </select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setIsUploadOpen(false)}>
-              Cancel
-            </Button>
-            <Button size="sm" onClick={handleCreateFile} disabled={!newFileName.trim()}>
-              Create File
-            </Button>
-          </DialogFooter>
+          <FileDropzone
+            workspaceId={workspaceId}
+            label="Add files to this workspace"
+          />
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function FileRow({
+  file,
+  isOwner,
+  isDownloading,
+  isDeleting,
+  onDownload,
+  onDelete,
+}: {
+  file: Upload;
+  isOwner: boolean;
+  isDownloading: boolean;
+  isDeleting: boolean;
+  onDownload: () => void;
+  onDelete: () => void;
+}) {
+  const uploaderName = file.uploader.displayName ?? file.uploader.name;
+
+  return (
+    <div
+      className={cn(
+        'group flex items-center justify-between gap-3 p-3 sm:px-4 transition-colors hover:bg-accent/40',
+        isDeleting && 'opacity-50',
+      )}
+    >
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <FileTypeBadge mimeType={file.mimeType} />
+
+        <div className="min-w-0 flex-1">
+          <h3 className="text-xs sm:text-sm font-medium text-foreground truncate">
+            {file.filename}
+          </h3>
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground truncate mt-0.5">
+            <span className="truncate">
+              {isOwner ? `${uploaderName} (you)` : uploaderName}
+            </span>
+            <span>·</span>
+            <span className="truncate">{formatRelative(file.createdAt)}</span>
+            <span>·</span>
+            <span>{formatBytes(file.size)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <UserAvatar
+          name={uploaderName}
+          src={file.uploader.avatarUrl}
+          seed={file.uploader.id}
+          size="xs"
+          className="hidden ring-2 ring-background sm:block"
+        />
+
+        <Hint label="Download file">
+          <button
+            onClick={onDownload}
+            disabled={isDownloading}
+            aria-label={`Download ${file.filename}`}
+            className="flex size-7 items-center justify-center rounded-md text-subtle transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+          >
+            <Download className="size-3.5" />
+          </button>
+        </Hint>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="flex size-7 items-center justify-center rounded-md text-subtle transition-colors hover:bg-accent hover:text-foreground"
+              aria-label={`More options for ${file.filename}`}
+            >
+              <MoreVertical className="size-3.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44 text-xs">
+            <DropdownMenuItem onSelect={onDownload}>
+              <Download className="size-3.5 mr-2" />
+              <span>Download</span>
+            </DropdownMenuItem>
+            {/*
+              `DELETE /uploads/:id` is guarded by workspace membership only, so
+              every member can remove any file. Offered to everyone here to
+              match what the API actually permits.
+            */}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={onDelete}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="size-3.5 mr-2" />
+              <span>Delete</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 }
