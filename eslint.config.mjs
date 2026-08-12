@@ -19,6 +19,8 @@ export default tseslint.config(
   {
     ignores: [
       '**/dist',
+      // electron-builder output: installers plus a copy of the built web bundle.
+      'apps/desktop/release',
       '**/out-tsc',
       '**/coverage',
       '**/test-output',

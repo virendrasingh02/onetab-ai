@@ -54,11 +54,7 @@ async function getAvailablePort(
   );
 }
 
-function getCorsOrigins(configuredOrigins: string[], isProduction: boolean) {
-  if (isProduction) {
-    return configuredOrigins;
-  }
-
+function getCorsOrigins(configuredOrigins: string[], _isProduction: boolean) {
   const localWebOrigins = Array.from(
     { length: 10 },
     (_, index) => `http://localhost:${4200 + index}`,

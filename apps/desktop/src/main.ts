@@ -1,5 +1,5 @@
-import { app, globalShortcut, nativeTheme, session } from 'electron';
-import { existsSync } from 'node:fs';
+import { app, dialog, globalShortcut, nativeTheme, session } from 'electron';
+import { appendFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { IPC_EVENT, type DesktopCommand } from './shared/ipc.js';
 import {
@@ -123,6 +123,31 @@ function registerGlobalShortcuts(): void {
   }
 }
 
+/**
+ * Startup failures have to be *visible*.
+ *
+ * A packaged Windows/macOS build has no console attached, so a throw out of
+ * `bootstrap()` used to end the process with no window and nothing written
+ * anywhere — indistinguishable from the app silently refusing to launch. The
+ * dialog says why, and the log file survives long enough to be pasted into a
+ * bug report.
+ */
+function reportFatal(error: unknown): void {
+  const detail = error instanceof Error ? (error.stack ?? error.message) : String(error);
+  console.error('[desktop] Failed to start:', detail);
+
+  try {
+    appendFileSync(
+      join(app.getPath('userData'), 'startup-error.log'),
+      `${new Date().toISOString()}\n${detail}\n\n`,
+    );
+  } catch {
+    // The log is a convenience; losing it is never a reason to fail louder.
+  }
+
+  dialog.showErrorBox('OneTab AI could not start', detail);
+}
+
 async function bootstrap(): Promise<void> {
   const appUrl = await resolveAppUrl();
   const preloadPath = join(here, 'preload.js');
@@ -134,6 +159,7 @@ async function bootstrap(): Promise<void> {
   const window = createMainWindow({ appUrl, preloadPath });
 
   window.webContents.on('did-finish-load', () => {
+    showMainWindow();
     flushPendingDeepLink();
     window.webContents.send(IPC_EVENT.onlineStatus, true);
   });
@@ -183,7 +209,7 @@ app.whenReady().then(() => {
   registerProtocol();
 
   bootstrap().catch((error) => {
-    console.error('[desktop] Failed to start:', error);
+    reportFatal(error);
     app.quit();
   });
 

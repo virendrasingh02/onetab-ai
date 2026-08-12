@@ -47,7 +47,7 @@ export class AuthController {
     response.cookie(REFRESH_COOKIE, session.refreshToken, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? 'strict' : 'lax',
+      sameSite: isProduction ? 'none' : 'lax',
       expires: session.refreshExpiresAt,
       path: '/api/v1/auth',
     });

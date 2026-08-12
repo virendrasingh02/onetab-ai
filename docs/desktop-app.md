@@ -32,6 +32,12 @@ nx test  @org/desktop    # unit tests for the static server and deep links
 nx package @org/desktop  # electron-builder installers into apps/desktop/release
 ```
 
+If `bootstrap()` throws — a missing web bundle, no free port in 4200–4209 — the
+app shows a native error dialog and appends the stack to
+`<userData>/startup-error.log` (`%APPDATA%\OneTab AI\` on Windows). A packaged
+build has no console, so without that a startup failure is indistinguishable
+from the app not launching at all.
+
 `nx serve` points Electron at `http://localhost:4200`, so HMR works exactly as it
 does in the browser. Set `WEB_APP_URL` to aim it somewhere else. If Electron wins
 the race against Vite's first compile it retries the load once a second for a
@@ -42,15 +48,21 @@ If Electron itself is missing (`npm`'s postinstall download can be skipped),
 
 ### Two environment traps, both already worked around
 
-Both bite only on a developer machine, never in CI or a packaged build, and both
-are handled by a launcher script rather than left for the next person to
-rediscover:
+Both bite only on a developer machine, never in CI, and both are handled by a
+launcher script rather than left for the next person to rediscover:
 
 - **`ELECTRON_RUN_AS_NODE=1`** — VS Code, Cursor and Windsurf export it into
   their integrated terminals, and it makes any Electron binary run as plain
   Node: no window, and the app dies on `app.isPackaged` being undefined.
   `scripts/run-electron.mjs` deletes the variable before spawning. Electron
   tests for its *presence*, so setting it empty does not help.
+
+  This catches the **packaged** app too, and there it has no launcher script to
+  protect it: run `release/win-unpacked/OneTab AI.exe` from one of those
+  terminals and it exits in under 100 ms with no window and nothing logged,
+  because `main.js` throws on `require('electron')` before a single line of ours
+  runs. Nothing is wrong with the build — launch it from the Start menu, a
+  shortcut, or `env -u ELECTRON_RUN_AS_NODE ./'OneTab AI.exe'`.
 - **Windows drive-letter case** — Nx invokes tasks with `d:\…` where a shell
   gives `D:\…`, and Vitest keys its module registry by absolute path, so every
   spec fails to collect before a test body runs. `scripts/run-tests.mjs` spawns
@@ -78,8 +90,8 @@ IPv6-only listener and hand back a port something else is already using.
 
 | Area | Status in the desktop app | What was done |
 | --- | --- | --- |
-| **Refresh cookie in production** | ⚠️ **Breaks** — see below | Needs a server-side change before the first production release |
-| **CORS in production** | ⚠️ **Breaks** until configured | Add the desktop origin to `CORS_ORIGINS` |
+| **Refresh cookie in production** | ✅ **Configured** | `sameSite: 'none'` (with `secure: true` in production) attached for cross-site desktop shell requests |
+| **CORS in production** | ✅ **Configured** | Desktop shell origins `http://localhost:4200–4209` included automatically |
 | `window.open` / target=`_blank` | Blocked by the navigation policy | Routed through `openExternal()` → system browser |
 | External links in message content | Would navigate the whole app window | `will-navigate` sends off-origin URLs to the system browser |
 | `navigator.clipboard` | Needs a secure context and a permission prompt | `copyText()` uses the native clipboard in the shell |
@@ -170,7 +182,31 @@ the contract with `satisfies`, so a rename that misses a file fails to compile.
 ## Packaging notes
 
 - `apps/desktop/electron-builder.json` copies `apps/web/dist` into the bundle as
-  `resources/web`, which is where `resolveAppUrl()` looks.
+  `resources/web`, which is where `resolveAppUrl()` looks. Installers land in
+  `apps/desktop/release/`, which is gitignored.
+- **electron-builder runs from the workspace root**, so it reads the *root*
+  `package.json` as the app manifest — which has no `main`, and a version of
+  `0.0.0`. `extraMetadata` supplies `main`, `name`, `version`, `description` and
+  `author` for the manifest written into the asar. Without it Electron finds no
+  entry point and silently falls through to its default app.
+- **`electronDist` points at `node_modules/electron/dist`.** The packaged
+  Electron is then by construction the same build as the pinned `electron`
+  devDependency, and packaging neither re-downloads a second 225 MB copy nor
+  extracts one — which on Windows is also what avoids `EPERM: rename
+  win-unpacked.tmp → win-unpacked`, where the on-access virus scanner still
+  holds the freshly written `electron.exe` when electron-builder renames the
+  directory.
+- **`files` lists the compiled output file by file** rather than
+  `apps/desktop/dist/**/*`. A glob over the whole directory sweeps in anything
+  else that has ever been written there — Nx caches `dist` as a build output, so
+  one stray directory stays in the cache and is restored into every later build.
+  That is how a 214 KB `app.asar` once shipped as 364 MB.
+- `node_modules` is excluded: the main process imports nothing but `electron`
+  and Node built-ins. The root `dependencies` (Nest, Prisma, React, Matrix,
+  native `bcrypt`) would otherwise all be packed and rebuilt. The
+  `node_modules/electron-updater/**` entries and its dependencies below the
+  exclusion are the re-includes that turn auto-update on the moment the package
+  is installed — extend that list if its dependency tree changes.
 - Icons in `apps/desktop/resources/` are generated placeholders
   (`node apps/desktop/scripts/make-icons.mjs`) — replace `icon.png` with real
   artwork before a release.

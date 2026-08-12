@@ -63,3 +63,6 @@ apps/web/.env.local
 
 # Local object storage (StorageService root)
 .storage/
+
+# electron-builder installers (`nx package @org/desktop`)
+apps/desktop/release/

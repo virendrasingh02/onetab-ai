@@ -7,15 +7,44 @@
     "output": "apps/desktop/release",
     "buildResources": "apps/desktop/resources"
   },
+  "electronDist": "node_modules/electron/dist",
+  "extraMetadata": {
+    "name": "onetab-ai",
+    "productName": "OneTab AI",
+    "version": "0.0.1",
+    "description": "OneTab AI desktop app",
+    "author": "OneTab AI",
+    "main": "apps/desktop/dist/main.js"
+  },
   "files": [
-    "apps/desktop/dist/**/*",
+    "apps/desktop/dist/main.js",
+    "apps/desktop/dist/preload.js",
+    "apps/desktop/dist/main/**/*",
+    "apps/desktop/dist/shared/**/*",
     "apps/desktop/resources/**/*",
     "apps/desktop/package.json",
-    "!**/*.map"
+    "!**/*.map",
+    "!**/*.d.ts",
+    "!node_modules/**/*",
+    "node_modules/electron-updater/**/*",
+    "node_modules/tiny-typed-emitter/**/*",
+    "node_modules/builder-util-runtime/**/*",
+    "node_modules/js-yaml/**/*",
+    "node_modules/lazy-val/**/*",
+    "node_modules/lodash.escaperegexp/**/*",
+    "node_modules/lodash.isequal/**/*",
+    "node_modules/semver/**/*",
+    "node_modules/fs-extra/**/*",
+    "node_modules/graceful-fs/**/*",
+    "node_modules/jsonfile/**/*",
+    "node_modules/universalify/**/*",
+    "node_modules/argparse/**/*",
+    "node_modules/sax/**/*",
+    "node_modules/debug/**/*",
+    "node_modules/ms/**/*"
   ],
   "extraResources": [
     {
-      "comment": "The built web bundle; `resolveAppUrl()` serves it from process.resourcesPath.",
       "from": "apps/web/dist",
       "to": "web"
     }
