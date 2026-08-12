@@ -1616,7 +1616,7 @@ export function WorkspaceSettingsPage() {
               variant="destructive"
               size="sm"
               disabled={confirmText !== workspace.slug}
-              loading={deleteWorkspace.mutateAsync ? deleteWorkspace.isPending : false}
+              loading={deleteWorkspace.isPending}
               onClick={() => deleteWorkspace.mutate(workspace.id)}
               className="text-xs"
             >

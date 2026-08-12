@@ -8,13 +8,6 @@ import axios, {
 /**
  * The access token, held in memory and mirrored to localStorage.
  *
- * The mirror exists for the browser extension: its content script reads
- * `onetab_auth_token` off the app's origin so the extension inherits this
- * session instead of running a second sign-in (see
- * `apps/extension/src/content/session-bridge.ts`). That trades XSS readability
- * of a 15-minute token for one credential store, which is why the *refresh*
- * token stays an httpOnly cookie and never touches storage.
- *
  * The mirror is a cache, not an authority: a cold load still has to exchange
  * the refresh cookie at `/auth/refresh` before the session counts as real.
  */

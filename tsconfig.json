@@ -190,9 +190,6 @@
       "path": "./apps/desktop"
     },
     {
-      "path": "./apps/extension"
-    },
-    {
       "path": "./libs/web/desktop"
     },
     {
