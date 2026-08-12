@@ -38,8 +38,8 @@ const STYLES = `
   .root {
     position: fixed;
     z-index: 2147483647;
-    font-family: 'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system,
-      'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+      Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
     font-size: 12px;
     line-height: 1.5;
     color: ${TOKENS.foreground};

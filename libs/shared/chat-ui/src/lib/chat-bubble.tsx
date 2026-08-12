@@ -203,8 +203,8 @@ export function ChatBubble({
         'group/message relative flex gap-4 px-4 transition-colors',
         'hover:bg-[#2e3035]',
         isGrouped ? 'py-0.5' : 'pt-2.5 pb-0.5',
-        isPinned && 'border-l-2 border-l-[#f59e0b] bg-[#f59e0b]/5',
-        (isHighlighted || isMentioned) && 'bg-[#5865f2]/10 border-l-2 border-l-[#5865f2]',
+        isPinned && 'border-l-2 border-l-[#f59e0b]',
+        (isHighlighted || isMentioned) && 'border-l-2 border-l-[#5865f2]',
       )}
     >
       {/* Avatar / Left Column with Profile Popover & Modal */}

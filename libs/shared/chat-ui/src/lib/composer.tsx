@@ -131,12 +131,12 @@ export function Composer({
   );
 
   return (
-    <div className="relative shrink-0 sticky bottom-0 z-20 p-3 bg-[#313338] border-t border-[#2b2d31]/40">
+    <div className="relative shrink-0 sticky bottom-0 z-20 p-3 bg-background border-t border-border">
       {contextSlot}
 
       {/* Mention Autocomplete Overlay Menu */}
       {showMentionMenu ? (
-        <div className="absolute bottom-full left-3 z-50 mb-2 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-[#3f4147] bg-[#2b2d31] text-[#dbdee1] shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute bottom-full left-3 z-50 mb-2 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl animate-in fade-in zoom-in-95 duration-150">
           <div className="flex items-center justify-between border-b border-[#1f2023] px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-[#949ba4]">
             <span className="flex items-center gap-1.5 text-[#5865f2]">
               <AtSign className="size-3.5" />
@@ -217,10 +217,10 @@ export function Composer({
         />
       ) : null}
 
-      {/* Discord Main Container Box */}
+      {/* Main Container Box */}
       <div
         className={cn(
-          'relative flex flex-col rounded-xl border border-[#383a40] bg-[#383a40] transition-colors focus-within:border-[#5865f2] focus-within:ring-1 focus-within:ring-[#5865f2]',
+          'relative flex flex-col rounded-xl border border-border bg-surface transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary',
           disabled && 'opacity-60 pointer-events-none',
         )}
       >
@@ -242,8 +242,8 @@ export function Composer({
           }}
         />
 
-        {/* Discord Action Bar (Bottom Tools) */}
-        <div className="flex items-center justify-between border-t border-[#313338] bg-[#383a40] px-2.5 py-1.5 rounded-b-xl">
+        {/* Action Bar (Bottom Tools) */}
+        <div className="flex items-center justify-between border-t border-border bg-surface-raised px-2.5 py-1.5 rounded-b-xl">
           <div className="flex items-center gap-1">
             {/* Attachment Button */}
             <Hint label="Attach file or media">

@@ -23,21 +23,21 @@ export function ChatLayout({
   className,
 }: ChatLayoutProps) {
   return (
-    <div className={cn('min-h-0 flex h-full flex-col bg-[#313338] text-[#dbdee1]', className)}>
+    <div className={cn('min-h-0 flex h-full flex-col bg-background text-foreground', className)}>
       {banner}
       {header}
 
       <div className="min-h-0 flex flex-1 overflow-hidden relative">
-        <div className="relative min-w-0 flex flex-1 flex-col overflow-hidden bg-[#313338]">{children}</div>
+        <div className="relative min-w-0 flex flex-1 flex-col overflow-hidden bg-background">{children}</div>
 
         {sidePanel ? (
           <aside
             aria-label={sidePanelTitle ?? 'Details'}
-            className="w-80 flex shrink-0 flex-col border-l border-[#1f2023] bg-[#2b2d31] text-[#dbdee1] shadow-md"
+            className="w-80 flex shrink-0 flex-col border-l border-border bg-surface text-foreground shadow-md"
           >
-            <div className="h-12 flex shrink-0 items-center justify-between border-b border-[#1f2023] px-3.5">
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-white truncate">
-                <Hash className="size-4 text-[#949ba4]" />
+            <div className="h-12 flex shrink-0 items-center justify-between border-b border-border px-3.5">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground truncate">
+                <Hash className="size-4 text-muted-foreground" />
                 <span className="truncate">{sidePanelTitle}</span>
               </h3>
               {onCloseSidePanel ? (
@@ -45,7 +45,7 @@ export function ChatLayout({
                   type="button"
                   aria-label="Close panel"
                   onClick={onCloseSidePanel}
-                  className="rounded-md p-1 text-[#949ba4] hover:bg-[#35373c] hover:text-white transition-colors"
+                  className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
                 >
                   <X className="size-4" />
                 </button>
@@ -79,28 +79,28 @@ export function ChatHeader({
   actions,
 }: ChatHeaderProps) {
   return (
-    <header className="h-12 flex shrink-0 items-center justify-between border-b border-[#1f2023] bg-[#2b2d31] px-4 shadow-xs">
+    <header className="h-12 flex shrink-0 items-center justify-between border-b border-border bg-surface px-4 shadow-xs">
       <div className="flex min-w-0 items-center gap-2">
-        <Hash className="size-5 shrink-0 text-[#80848e]" />
+        <Hash className="size-5 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
-          <h2 className="flex items-center gap-1.5 text-sm font-bold text-white truncate">
+          <h2 className="flex items-center gap-1.5 text-sm font-bold text-foreground truncate">
             <span className="truncate">{title}</span>
             {isEncrypted ? (
               <Hint label="End-to-end encrypted">
                 <Lock
-                  className="size-3.5 shrink-0 text-[#949ba4]"
+                  className="size-3.5 shrink-0 text-muted-foreground"
                   aria-label="End-to-end encrypted"
                 />
               </Hint>
             ) : null}
           </h2>
           {subtitle ? (
-            <p className="text-xs text-[#80848e] truncate">{subtitle}</p>
+            <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
           ) : null}
         </div>
       </div>
 
-      <div className="flex items-center gap-2 text-[#b5bac1]">
+      <div className="flex items-center gap-2 text-muted-foreground">
         {actions}
 
         {onToggleMembers ? (
@@ -108,7 +108,7 @@ export function ChatHeader({
             <button
               type="button"
               onClick={onToggleMembers}
-              className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold hover:bg-[#35373c] hover:text-white transition-colors"
+              className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold hover:bg-accent hover:text-accent-foreground transition-colors"
             >
               <Users className="size-4" />
               <span>{memberCount ?? ''}</span>
@@ -122,7 +122,7 @@ export function ChatHeader({
               type="button"
               aria-label="Toggle details"
               onClick={onToggleDetails}
-              className="rounded-md p-1.5 hover:bg-[#35373c] hover:text-white transition-colors"
+              className="rounded-md p-1.5 hover:bg-accent hover:text-accent-foreground transition-colors"
             >
               <PanelRight className="size-4" />
             </button>
@@ -151,10 +151,10 @@ export function ThreadPanel({
   if (isLoading) return <LoadingState label="Loading thread…" />;
 
   return (
-    <div className="min-h-0 flex h-full flex-col bg-[#2b2d31] relative">
-      <div className="border-b border-[#1f2023] pb-2 shrink-0">{rootSlot}</div>
+    <div className="min-h-0 flex h-full flex-col bg-surface relative">
+      <div className="border-b border-border pb-2 shrink-0">{rootSlot}</div>
 
-      <div className="flex items-center justify-between px-4 py-2 border-b border-[#1f2023] bg-[#232428] text-xs font-bold uppercase tracking-wider text-[#949ba4] shrink-0">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-surface-raised text-xs font-bold uppercase tracking-wider text-muted-foreground shrink-0">
         <span>
           {replyCount === 0
             ? 'No replies yet'
@@ -162,11 +162,11 @@ export function ThreadPanel({
         </span>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto scrollbar-subtle bg-[#313338]">
+      <div className="min-h-0 flex-1 overflow-y-auto scrollbar-subtle bg-background">
         {repliesSlot}
       </div>
 
-      <div className="shrink-0 sticky bottom-0 z-20 w-full bg-[#2b2d31]">
+      <div className="shrink-0 sticky bottom-0 z-20 w-full bg-surface border-t border-border">
         {composerSlot}
       </div>
     </div>
