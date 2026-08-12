@@ -84,15 +84,19 @@
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/throttler": "^6.5.0",
+    "@org/api-ai": "*",
+    "@org/api-notifications": "*",
+    "@org/api-search": "*",
+    "@org/api-storage": "*",
+    "cookie-parser": "^1.4.7",
+    "helmet": "^8.3.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",
-    "tslib": "^2.3.0",
-    "@nestjs/config": "^4.0.4",
-    "@nestjs/throttler": "^6.5.0",
-    "cookie-parser": "^1.4.7",
-    "helmet": "^8.3.0"
+    "tslib": "^2.3.0"
   },
   "devDependencies": {
     "@nestjs/testing": "^11.0.0"

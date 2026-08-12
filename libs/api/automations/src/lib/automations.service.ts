@@ -35,6 +35,41 @@ export class AutomationsService {
     });
   }
 
+  async updateWorkflow(
+    workspaceId: string,
+    workflowId: string,
+    data: {
+      name?: string;
+      description?: string;
+      triggerType?: string;
+      nodesJson?: string;
+      edgesJson?: string;
+      isActive?: boolean;
+    },
+  ) {
+    await this.assertWorkflow(workspaceId, workflowId);
+    return this.prisma.automationWorkflow.update({
+      where: { id: workflowId },
+      data: {
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.description !== undefined
+          ? { description: data.description }
+          : {}),
+        ...(data.triggerType !== undefined
+          ? { triggerType: data.triggerType }
+          : {}),
+        ...(data.nodesJson !== undefined ? { nodesJson: data.nodesJson } : {}),
+        ...(data.edgesJson !== undefined ? { edgesJson: data.edgesJson } : {}),
+        ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
+      },
+    });
+  }
+
+  async deleteWorkflow(workspaceId: string, workflowId: string): Promise<void> {
+    await this.assertWorkflow(workspaceId, workflowId);
+    await this.prisma.automationWorkflow.delete({ where: { id: workflowId } });
+  }
+
   async triggerWorkflow(
     workspaceId: string,
     workflowId: string,
@@ -50,6 +85,23 @@ export class AutomationsService {
       where: { workflowId },
       orderBy: { startedAt: 'desc' },
       take: 20,
+    });
+  }
+
+  /**
+   * Recent executions across every workflow in the workspace.
+   *
+   * Scoped by the parent workflow's workspace — the logs screen is
+   * workspace-wide, so there is no workflow id to check against.
+   */
+  async getWorkspaceExecutions(workspaceId: string, take = 50) {
+    return this.prisma.workflowExecution.findMany({
+      where: { workflow: { workspaceId } },
+      include: {
+        workflow: { select: { id: true, name: true, triggerType: true } },
+      },
+      orderBy: { startedAt: 'desc' },
+      take,
     });
   }
 

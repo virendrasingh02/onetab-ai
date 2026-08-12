@@ -9,13 +9,19 @@ export {
 } from './lib/http.js';
 
 export {
+  agentsApi,
   analyticsApi,
   authApi,
+  automationsApi,
   channelApi,
+  integrationsApi,
   invitationApi,
   marketplaceApi,
   matrixApi,
   memberApi,
+  notificationApi,
+  searchApi,
+  uploadApi,
   userApi,
   workToolsApi,
   workspaceApi,

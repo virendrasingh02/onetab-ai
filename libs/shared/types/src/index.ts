@@ -38,6 +38,21 @@ export type {
 } from './lib/api.js';
 
 export type {
+  AgentExecutionLog,
+  AgentExecutionLogEntry,
+  AgentRunResult,
+  AgentSchedule,
+  AIAgent,
+  AIAgentDetail,
+  AutomationWorkflow,
+  AutomationWorkflowDetail,
+  ExternalIntegration,
+  MarketplaceAgent,
+  WorkflowExecution,
+  WorkflowExecutionEntry,
+} from './lib/automation.js';
+
+export type {
   CalendarEvent,
   Milestone,
   Project,
@@ -50,6 +65,14 @@ export type {
   WorkDocument,
   WorkDocumentChild,
 } from './lib/work-tools.js';
+
+export type {
+  ActivityFeedItem,
+  NotificationPreference,
+  PushDevice,
+  SearchCategory,
+  SearchResultItem,
+} from './lib/notifications.js';
 
 export * from './lib/chat.js';
 export * from './lib/analytics.js';

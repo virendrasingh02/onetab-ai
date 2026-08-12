@@ -1,41 +1,77 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '@org/api-auth';
-import { AIInfrastructureService, type ChatMessage } from './ai-infrastructure.service.js';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { WorkspaceRoleGuard } from '@org/api-auth';
+import { WorkspaceId } from '@org/api-common';
+import {
+  AIInfrastructureService,
+  type ChatMessage,
+} from './ai-infrastructure.service.js';
 
-@Controller('ai')
-@UseGuards(JwtAuthGuard)
+/**
+ * Model inference for one workspace.
+ *
+ * Scoped to a workspace even though the models hold no workspace data: these
+ * calls cost money and compute, so they need an owner to attribute and rate
+ * limit against. Under `JwtAuthGuard` alone, any account could burn the
+ * platform's inference budget without belonging to anything.
+ *
+ * The throttle is far below the global default for the same reason — a chat
+ * round trip is orders of magnitude more expensive than a database read.
+ */
+@Controller({ path: 'workspaces/:workspaceId/ai', version: '1' })
+@UseGuards(WorkspaceRoleGuard)
+@Throttle({ default: { limit: 30, ttl: 60_000 } })
 export class AIPlatformController {
   constructor(private readonly aiService: AIInfrastructureService) {}
 
   @Post('chat')
   chat(
-    @Body() body: { messages: ChatMessage[]; provider?: 'ollama' | 'openai' | 'anthropic' | 'gemini'; model?: string }
+    @WorkspaceId() _workspaceId: string,
+    @Body()
+    body: {
+      messages: ChatMessage[];
+      provider?: 'ollama' | 'openai' | 'anthropic' | 'gemini';
+      model?: string;
+    },
   ) {
     return this.aiService.chat(body);
   }
 
   @Post('summarize')
-  summarize(@Body() body: { text: string }) {
+  summarize(@WorkspaceId() _workspaceId: string, @Body() body: { text: string }) {
     return this.aiService.summarizeThread(body.text);
   }
 
   @Post('translate')
-  translate(@Body() body: { text: string; targetLanguage: string }) {
+  translate(
+    @WorkspaceId() _workspaceId: string,
+    @Body() body: { text: string; targetLanguage: string },
+  ) {
     return this.aiService.translateText(body.text, body.targetLanguage);
   }
 
   @Post('generate-image')
-  generateImage(@Body() body: { prompt: string; provider?: string }) {
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  generateImage(
+    @WorkspaceId() _workspaceId: string,
+    @Body() body: { prompt: string; provider?: string },
+  ) {
     return this.aiService.generateImage(body.prompt, body.provider);
   }
 
   @Post('vision')
-  analyzeVision(@Body() body: { imageUrl: string; prompt?: string }) {
+  analyzeVision(
+    @WorkspaceId() _workspaceId: string,
+    @Body() body: { imageUrl: string; prompt?: string },
+  ) {
     return this.aiService.analyzeVision(body.imageUrl, body.prompt);
   }
 
   @Post('rag-search')
-  ragSearch(@Body() body: { query: string; limit?: number }) {
+  ragSearch(
+    @WorkspaceId() _workspaceId: string,
+    @Body() body: { query: string; limit?: number },
+  ) {
     return this.aiService.queryRAG(body.query, body.limit);
   }
 }

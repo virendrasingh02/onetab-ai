@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import { CurrentUser, WorkspaceId } from '@org/api-common';
 import { AgentsService } from './agents.service.js';
@@ -35,6 +46,18 @@ export class AgentsController {
     return this.agentsService.getAgents(workspaceId);
   }
 
+  /**
+   * Workspace-wide telemetry.
+   *
+   * Declared before `:agentId/logs` is irrelevant — the paths differ in depth —
+   * but it must stay above any future single-segment `:agentId` route, which
+   * would otherwise swallow `/logs`.
+   */
+  @Get('logs')
+  getWorkspaceLogs(@WorkspaceId() workspaceId: string) {
+    return this.agentsService.getWorkspaceLogs(workspaceId);
+  }
+
   @Post()
   createAgent(
     @WorkspaceId() workspaceId: string,
@@ -48,9 +71,38 @@ export class AgentsController {
       provider?: string;
       model?: string;
       tools?: string[];
+      isMarketplace?: boolean;
     },
   ) {
     return this.agentsService.createAgent(workspaceId, userId, body);
+  }
+
+  @Patch(':agentId')
+  updateAgent(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+    @Body()
+    body: {
+      name?: string;
+      role?: string;
+      description?: string;
+      systemPrompt?: string;
+      provider?: string;
+      model?: string;
+      tools?: string[];
+      isActive?: boolean;
+    },
+  ) {
+    return this.agentsService.updateAgent(workspaceId, agentId, body);
+  }
+
+  @Delete(':agentId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteAgent(
+    @WorkspaceId() workspaceId: string,
+    @Param('agentId') agentId: string,
+  ): Promise<void> {
+    return this.agentsService.deleteAgent(workspaceId, agentId);
   }
 
   @Post(':agentId/execute')

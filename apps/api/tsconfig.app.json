@@ -14,6 +14,27 @@
   "exclude": [],
   "references": [
     {
+      "path": "../../libs/api/marketplace/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/api/analytics/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/api/integrations/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/api/enterprise/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/api/automations/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/api/agents/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/api/work-tools/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/api/infrastructure/tsconfig.lib.json"
     },
     {
@@ -44,25 +65,16 @@
       "path": "../../libs/api/common/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/api/work-tools/tsconfig.lib.json"
+      "path": "../../libs/api/storage/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/api/agents/tsconfig.lib.json"
+      "path": "../../libs/api/search/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/api/automations/tsconfig.lib.json"
+      "path": "../../libs/api/notifications/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/api/enterprise/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/api/integrations/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/api/analytics/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/api/marketplace/tsconfig.lib.json"
+      "path": "../../libs/api/ai/tsconfig.lib.json"
     }
   ]
 }

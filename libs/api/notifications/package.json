@@ -1,5 +1,5 @@
 {
-  "name": "@org/api-common",
+  "name": "@org/api-notifications",
   "version": "0.0.1",
   "private": true,
   "main": "./src/index.ts",
@@ -14,13 +14,14 @@
   },
   "nx": {
     "tags": [
-      "type:util",
+      "type:feature",
       "scope:api"
     ]
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
-    "@org/types": "*",
-    "zod": "^4.4.3"
+    "@nestjs/config": "^4.0.4",
+    "@nestjs/core": "^11.0.0",
+    "@org/database": "*"
   }
 }

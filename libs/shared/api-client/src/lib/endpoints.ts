@@ -1,6 +1,14 @@
 import type {
+  ActivityFeedItem,
+  AgentExecutionLog,
+  AgentExecutionLogEntry,
+  AgentRunResult,
+  AIAgent,
+  AIAgentDetail,
   AIUsageStats,
   AuthTokens,
+  AutomationWorkflow,
+  AutomationWorkflowDetail,
   CalendarEvent,
   Channel,
   ChannelMember,
@@ -10,10 +18,12 @@ import type {
   DashboardOverview,
   DocumentKind,
   ErrorTrackingReport,
+  ExternalIntegration,
   GeneratedReport,
   HealthStatus,
   Invitation,
   MarketplaceBrowseParams,
+  MarketplaceAgent,
   MarketplaceCategoryCount,
   MarketplaceInstallation,
   MarketplaceKind,
@@ -22,6 +32,7 @@ import type {
   MarketplaceReview,
   MarketplaceStorefrontStat,
   MarketplaceStorefronts,
+  NotificationPreference,
   PerformanceMetrics,
   PluginCredentials,
   PluginManifest,
@@ -31,8 +42,11 @@ import type {
   Project,
   ProjectDetail,
   PublicUser,
+  PushDevice,
   ReportDefinition,
   ReportType,
+  SearchCategory,
+  SearchResultItem,
   StorageAnalytics,
   Task,
   TaskComment,
@@ -42,6 +56,8 @@ import type {
   WorkDocument,
   Workspace,
   WorkspaceAnalytics,
+  WorkflowExecution,
+  WorkflowExecutionEntry,
   WorkspaceMember,
   WorkspaceSummary,
 } from '@org/types';
@@ -724,4 +740,265 @@ export const workToolsApi = {
         `/workspaces/${workspaceId}/work-tools/whiteboards/${whiteboardId}`,
       ),
     ),
+};
+
+/** AI agents. Workspace-scoped; the catalogue is the one shared route. */
+export const agentsApi = {
+  catalogue: () => request<MarketplaceAgent[]>(http.get('/agents/marketplace')),
+
+  list: (workspaceId: string) =>
+    request<AIAgentDetail[]>(http.get(`/workspaces/${workspaceId}/agents`)),
+
+  create: (
+    workspaceId: string,
+    input: {
+      name: string;
+      role?: string;
+      description?: string;
+      systemPrompt?: string;
+      provider?: string;
+      model?: string;
+      tools?: string[];
+      isMarketplace?: boolean;
+    },
+  ) => request<AIAgent>(http.post(`/workspaces/${workspaceId}/agents`, input)),
+
+  update: (
+    workspaceId: string,
+    agentId: string,
+    input: {
+      name?: string;
+      role?: string;
+      description?: string;
+      systemPrompt?: string;
+      provider?: string;
+      model?: string;
+      tools?: string[];
+      isActive?: boolean;
+    },
+  ) =>
+    request<AIAgent>(
+      http.patch(`/workspaces/${workspaceId}/agents/${agentId}`, input),
+    ),
+
+  remove: (workspaceId: string, agentId: string) =>
+    request<void>(http.delete(`/workspaces/${workspaceId}/agents/${agentId}`)),
+
+  execute: (workspaceId: string, agentId: string, promptText: string) =>
+    request<AgentRunResult>(
+      http.post(`/workspaces/${workspaceId}/agents/${agentId}/execute`, {
+        promptText,
+      }),
+    ),
+
+  logs: (workspaceId: string, agentId: string) =>
+    request<AgentExecutionLog[]>(
+      http.get(`/workspaces/${workspaceId}/agents/${agentId}/logs`),
+    ),
+
+  /** Recent executions across every agent in the workspace. */
+  workspaceLogs: (workspaceId: string) =>
+    request<AgentExecutionLogEntry[]>(
+      http.get(`/workspaces/${workspaceId}/agents/logs`),
+    ),
+};
+
+export const automationsApi = {
+  list: (workspaceId: string) =>
+    request<AutomationWorkflowDetail[]>(
+      http.get(`/workspaces/${workspaceId}/automations/workflows`),
+    ),
+
+  create: (
+    workspaceId: string,
+    input: {
+      name: string;
+      description?: string;
+      triggerType?: string;
+      nodesJson?: string;
+      edgesJson?: string;
+    },
+  ) =>
+    request<AutomationWorkflow>(
+      http.post(`/workspaces/${workspaceId}/automations/workflows`, input),
+    ),
+
+  update: (
+    workspaceId: string,
+    workflowId: string,
+    input: {
+      name?: string;
+      description?: string;
+      triggerType?: string;
+      nodesJson?: string;
+      edgesJson?: string;
+      isActive?: boolean;
+    },
+  ) =>
+    request<AutomationWorkflow>(
+      http.patch(
+        `/workspaces/${workspaceId}/automations/workflows/${workflowId}`,
+        input,
+      ),
+    ),
+
+  remove: (workspaceId: string, workflowId: string) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/automations/workflows/${workflowId}`,
+      ),
+    ),
+
+  trigger: (
+    workspaceId: string,
+    workflowId: string,
+    payload: Record<string, unknown> = {},
+  ) =>
+    request<unknown>(
+      http.post(
+        `/workspaces/${workspaceId}/automations/workflows/${workflowId}/trigger`,
+        payload,
+      ),
+    ),
+
+  executions: (workspaceId: string, workflowId: string) =>
+    request<WorkflowExecution[]>(
+      http.get(
+        `/workspaces/${workspaceId}/automations/workflows/${workflowId}/executions`,
+      ),
+    ),
+
+  /** Recent runs across every workflow in the workspace. */
+  workspaceExecutions: (workspaceId: string) =>
+    request<WorkflowExecutionEntry[]>(
+      http.get(`/workspaces/${workspaceId}/automations/executions`),
+    ),
+};
+
+export const integrationsApi = {
+  list: (workspaceId: string) =>
+    request<ExternalIntegration[]>(
+      http.get(`/workspaces/${workspaceId}/integrations`),
+    ),
+
+  connect: (
+    workspaceId: string,
+    provider: string,
+    input: { accessToken?: string; config?: Record<string, unknown> } = {},
+  ) =>
+    request<ExternalIntegration>(
+      http.post(`/workspaces/${workspaceId}/integrations/${provider}/connect`, input),
+    ),
+
+  disconnect: (workspaceId: string, provider: string) =>
+    request<{ count: number }>(
+      http.delete(`/workspaces/${workspaceId}/integrations/${provider}`),
+    ),
+
+  importSlack: (
+    workspaceId: string,
+    channels: Array<{ name: string; topic?: string; messagesCount: number }>,
+  ) =>
+    request<unknown>(
+      http.post(`/workspaces/${workspaceId}/integrations/import/slack`, {
+        channels,
+      }),
+    ),
+
+  importNotion: (
+    workspaceId: string,
+    pages: Array<{ title: string; content: string }>,
+  ) =>
+    request<unknown>(
+      http.post(`/workspaces/${workspaceId}/integrations/import/notion`, {
+        pages,
+      }),
+    ),
+};
+
+export const uploadApi = {
+  list: (workspaceId: string, channelId?: string) =>
+    request<Upload[]>(
+      http.get(`/workspaces/${workspaceId}/uploads`, {
+        params: channelId ? { channelId } : undefined,
+      }),
+    ),
+
+  /**
+   * Multipart, so the Content-Type header is left to the browser — it has to
+   * append the boundary, and setting it by hand produces an unparseable body.
+   */
+  upload: (workspaceId: string, file: File, channelId?: string) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request<Upload>(
+      http.post(`/workspaces/${workspaceId}/uploads`, form, {
+        params: channelId ? { channelId } : undefined,
+        headers: { 'Content-Type': undefined as unknown as string },
+      }),
+    );
+  },
+
+  /** Authenticated download, so it goes through axios rather than a bare href. */
+  download: (workspaceId: string, uploadId: string) =>
+    request<Blob>(
+      http.get(`/workspaces/${workspaceId}/uploads/${uploadId}/content`, {
+        responseType: 'blob',
+      }),
+    ),
+
+  remove: (workspaceId: string, uploadId: string) =>
+    request<void>(http.delete(`/workspaces/${workspaceId}/uploads/${uploadId}`)),
+};
+
+export const searchApi = {
+  query: (
+    workspaceId: string,
+    q: string,
+    category?: SearchCategory,
+    limit?: number,
+  ) =>
+    request<SearchResultItem[]>(
+      http.get(`/workspaces/${workspaceId}/search`, {
+        params: { q, ...(category ? { category } : {}), ...(limit ? { limit } : {}) },
+      }),
+    ),
+
+  counts: (workspaceId: string, q: string) =>
+    request<Record<SearchCategory, number>>(
+      http.get(`/workspaces/${workspaceId}/search/counts`, { params: { q } }),
+    ),
+};
+
+export const notificationApi = {
+  preferences: (workspaceId: string) =>
+    request<NotificationPreference>(
+      http.get(`/workspaces/${workspaceId}/notifications/preferences`),
+    ),
+
+  updatePreferences: (
+    workspaceId: string,
+    input: Partial<Omit<NotificationPreference, 'id' | 'userId' | 'workspaceId'>>,
+  ) =>
+    request<NotificationPreference>(
+      http.patch(`/workspaces/${workspaceId}/notifications/preferences`, input),
+    ),
+
+  feed: (workspaceId: string, limit?: number) =>
+    request<ActivityFeedItem[]>(
+      http.get(`/workspaces/${workspaceId}/notifications/feed`, {
+        params: limit ? { limit } : undefined,
+      }),
+    ),
+
+  devices: () => request<PushDevice[]>(http.get('/notifications/devices')),
+
+  registerDevice: (input: {
+    pushKey: string;
+    appId: string;
+    deviceDisplayName?: string;
+  }) => request<PushDevice>(http.post('/notifications/devices', input)),
+
+  revokeDevice: (registrationId: string) =>
+    request<void>(http.delete(`/notifications/devices/${registrationId}`)),
 };

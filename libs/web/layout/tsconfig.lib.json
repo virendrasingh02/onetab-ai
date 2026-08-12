@@ -26,7 +26,13 @@
   ],
   "references": [
     {
-      "path": "../../shared/hooks/tsconfig.lib.json"
+      "path": "../integrations/tsconfig.lib.json"
+    },
+    {
+      "path": "../automations/tsconfig.lib.json"
+    },
+    {
+      "path": "../agents/tsconfig.lib.json"
     },
     {
       "path": "../workspace/tsconfig.lib.json"
@@ -51,6 +57,9 @@
     },
     {
       "path": "../desktop/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/hooks/tsconfig.lib.json"
     }
   ]
 }

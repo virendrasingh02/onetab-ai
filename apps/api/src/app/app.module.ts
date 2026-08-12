@@ -19,6 +19,10 @@ import { EnterpriseModule } from '@org/api-enterprise';
 import { IntegrationsModule } from '@org/api-integrations';
 import { AnalyticsModule } from '@org/api-analytics';
 import { MarketplaceModule } from '@org/api-marketplace';
+import { AIInfrastructureModule } from '@org/api-ai';
+import { NotificationsModule } from '@org/api-notifications';
+import { SearchModule } from '@org/api-search';
+import { StorageModule } from '@org/api-storage';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -52,6 +56,10 @@ import { AppService } from './app.service';
     IntegrationsModule,
     AnalyticsModule,
     MarketplaceModule,
+    AIInfrastructureModule,
+    NotificationsModule,
+    SearchModule,
+    StorageModule,
   ],
   controllers: [AppController],
   providers: [

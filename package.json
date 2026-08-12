@@ -74,6 +74,7 @@
     "@types/bcrypt": "^6.0.0",
     "@types/chrome": "^0.2.5",
     "@types/cookie-parser": "^1.4.10",
+    "@types/multer": "^2.2.0",
     "@types/node": "^24.0.0",
     "@types/passport-jwt": "^4.0.1",
     "@types/pg": "^8.20.3",

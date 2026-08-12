@@ -88,6 +88,51 @@ export const queryKeys = {
     channelRoom: (channelId: string) =>
       ['matrix', 'channel-room', channelId] as const,
   },
+  agents: {
+    all: (workspaceId: string) => ['agents', workspaceId] as const,
+    list: (workspaceId: string) => ['agents', workspaceId, 'list'] as const,
+    /** The catalogue is platform-wide, so it is not keyed by workspace. */
+    catalogue: () => ['agents', 'catalogue'] as const,
+    logs: (workspaceId: string, agentId: string) =>
+      ['agents', workspaceId, agentId, 'logs'] as const,
+    workspaceLogs: (workspaceId: string) =>
+      ['agents', workspaceId, 'logs'] as const,
+  },
+  automations: {
+    all: (workspaceId: string) => ['automations', workspaceId] as const,
+    list: (workspaceId: string) =>
+      ['automations', workspaceId, 'list'] as const,
+    executions: (workspaceId: string, workflowId: string) =>
+      ['automations', workspaceId, workflowId, 'executions'] as const,
+    workspaceExecutions: (workspaceId: string) =>
+      ['automations', workspaceId, 'executions'] as const,
+  },
+  integrations: {
+    all: (workspaceId: string) => ['integrations', workspaceId] as const,
+    list: (workspaceId: string) =>
+      ['integrations', workspaceId, 'list'] as const,
+  },
+  uploads: {
+    all: (workspaceId: string) => ['uploads', workspaceId] as const,
+    list: (workspaceId: string, channelId?: string) =>
+      ['uploads', workspaceId, 'list', channelId ?? 'all'] as const,
+  },
+  search: {
+    all: (workspaceId: string) => ['search', workspaceId] as const,
+    query: (workspaceId: string, q: string, category?: string) =>
+      ['search', workspaceId, q, category ?? 'all'] as const,
+    counts: (workspaceId: string, q: string) =>
+      ['search', workspaceId, 'counts', q] as const,
+  },
+  notifications: {
+    all: (workspaceId: string) => ['notifications', workspaceId] as const,
+    preferences: (workspaceId: string) =>
+      ['notifications', workspaceId, 'preferences'] as const,
+    feed: (workspaceId: string) =>
+      ['notifications', workspaceId, 'feed'] as const,
+    /** Devices belong to the person, not a workspace. */
+    devices: () => ['notifications', 'devices'] as const,
+  },
   workTools: {
     all: (workspaceId: string) => ['work-tools', workspaceId] as const,
     projects: (workspaceId: string) =>

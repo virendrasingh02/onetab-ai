@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { PrismaService } from '@org/database';
 import type { AuthenticatedUser } from '@org/api-common';
+import type { SystemRole } from '@org/types';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import type { AccessTokenPayload } from './token.service.js';
 
@@ -29,13 +30,16 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   async validate(payload: AccessTokenPayload): Promise<AuthenticatedUser> {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, email: true, name: true },
+      // `systemRole` is read here rather than carried in the JWT so that
+      // revoking an operator takes effect on the next request, not whenever
+      // their current access token happens to expire.
+      select: { id: true, email: true, name: true, systemRole: true },
     });
 
     if (!user) {
       throw new UnauthorizedException('The account no longer exists.');
     }
 
-    return user;
+    return { ...user, systemRole: user.systemRole as SystemRole };
   }
 }

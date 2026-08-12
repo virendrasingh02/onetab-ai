@@ -3,18 +3,30 @@ import {
   createParamDecorator,
   type ExecutionContext,
 } from '@nestjs/common';
-import type { WorkspaceRole } from '@org/types';
+import type { SystemRole, WorkspaceRole } from '@org/types';
 
 /** Identity attached to the request by JwtStrategy. */
 export interface AuthenticatedUser {
   id: string;
   email: string;
   name: string;
+  /** Platform-wide role. Workspace permissions come from WorkspaceRoleGuard. */
+  systemRole: SystemRole;
 }
 
 export const IS_PUBLIC_KEY = 'isPublic';
 /** Opts a route out of the global JWT guard. */
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
+
+export const SYSTEM_ROLES_KEY = 'systemRoles';
+/**
+ * Restricts a route to platform operators.
+ *
+ * For administration that is not scoped to any one workspace — where
+ * `WorkspaceRoleGuard` has no workspace to resolve and so cannot help.
+ */
+export const SystemRoles = (...roles: SystemRole[]) =>
+  SetMetadata(SYSTEM_ROLES_KEY, roles);
 
 export const WORKSPACE_ROLES_KEY = 'workspaceRoles';
 /**

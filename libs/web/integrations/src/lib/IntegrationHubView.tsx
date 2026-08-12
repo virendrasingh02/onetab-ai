@@ -1,5 +1,4 @@
 import type { Accent } from '@org/design-system';
-import { toggleRegistryItem, useConnectedApps } from '@org/hooks';
 import {
   Badge,
   Button,
@@ -34,6 +33,11 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useState } from 'react';
+import {
+  useIntegrationMutations,
+  useIntegrations,
+} from './use-integrations.js';
+import { useWorkspaceId } from './use-workspace-id.js';
 
 export interface IntegrationCard {
   id: string;
@@ -178,20 +182,30 @@ const integrationsList: IntegrationCard[] = [
 ];
 
 export function IntegrationHubView() {
-  const [connected, saveConnected] = useConnectedApps();
+  const workspaceId = useWorkspaceId();
+  const integrations = useIntegrations(workspaceId);
+  const { connect, disconnect } = useIntegrationMutations(workspaceId);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'All' | AppCategory>('All');
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
-  const toggleConnection = (card: IntegrationCard) =>
-    saveConnected(
-      toggleRegistryItem(connected, {
-        id: card.id,
-        name: card.name,
-        icon: 'Plug',
-        detail: card.category,
-      }),
-    );
+  /*
+   * The catalogue below is the set of apps we can offer; the server records
+   * which of them this workspace actually connected. Provider codes are stored
+   * upper-case, so the card id is matched case-insensitively.
+   */
+  const connectedProviders = new Set(
+    (integrations.data ?? [])
+      .filter((integration) => integration.status === 'CONNECTED')
+      .map((integration) => integration.provider.toUpperCase()),
+  );
+
+  const toggleConnection = (card: IntegrationCard) => {
+    const provider = card.id.toUpperCase();
+    if (connectedProviders.has(provider)) disconnect.mutate(provider);
+    else connect.mutate({ provider });
+  };
 
   const filteredCards = integrationsList.filter((card) => {
     const matchesSearch =
@@ -216,7 +230,7 @@ export function IntegrationHubView() {
         actions={
           <div className="flex items-center gap-2">
             <Badge variant="neutral">
-              {connected.length} of {integrationsList.length} connected
+              {connectedProviders.size} of {integrationsList.length} connected
             </Badge>
             <Button variant="outline" size="sm" leadingIcon={<ExternalLink />}>
               Open in Marketplace
@@ -365,7 +379,7 @@ export function IntegrationHubView() {
           {filteredCards.map((card) => {
             const meta = CATEGORY_META[card.category] || CATEGORY_META['Other'];
             const Icon = meta.icon;
-            const isConnected = connected.some((entry) => entry.id === card.id);
+            const isConnected = connectedProviders.has(card.id.toUpperCase());
 
             return (
               <li key={card.id}>

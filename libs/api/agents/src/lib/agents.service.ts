@@ -57,7 +57,7 @@ export class AgentsService {
     ];
   }
 
-  async createAgent(workspaceId: string, creatorId: string, data: { name: string; role?: string; description?: string; systemPrompt?: string; provider?: string; model?: string; tools?: string[] }) {
+  async createAgent(workspaceId: string, creatorId: string, data: { name: string; role?: string; description?: string; systemPrompt?: string; provider?: string; model?: string; tools?: string[]; isMarketplace?: boolean }) {
     return this.prisma.aIAgent.create({
       data: {
         workspaceId,
@@ -69,8 +69,52 @@ export class AgentsService {
         provider: data.provider ?? 'ollama',
         model: data.model ?? 'llama3',
         tools: JSON.stringify(data.tools ?? ['search_docs', 'create_task']),
+        // Set when deploying a catalogue template, so the card can tell a
+        // pre-built agent from one built by hand.
+        isMarketplace: data.isMarketplace ?? false,
       },
     });
+  }
+
+  async updateAgent(
+    workspaceId: string,
+    agentId: string,
+    data: {
+      name?: string;
+      role?: string;
+      description?: string;
+      systemPrompt?: string;
+      provider?: string;
+      model?: string;
+      tools?: string[];
+      isActive?: boolean;
+    },
+  ) {
+    await this.assertAgent(workspaceId, agentId);
+    return this.prisma.aIAgent.update({
+      where: { id: agentId },
+      data: {
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.role !== undefined ? { role: data.role } : {}),
+        ...(data.description !== undefined
+          ? { description: data.description }
+          : {}),
+        ...(data.systemPrompt !== undefined
+          ? { systemPrompt: data.systemPrompt }
+          : {}),
+        ...(data.provider !== undefined ? { provider: data.provider } : {}),
+        ...(data.model !== undefined ? { model: data.model } : {}),
+        ...(data.tools !== undefined
+          ? { tools: JSON.stringify(data.tools) }
+          : {}),
+        ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
+      },
+    });
+  }
+
+  async deleteAgent(workspaceId: string, agentId: string): Promise<void> {
+    await this.assertAgent(workspaceId, agentId);
+    await this.prisma.aIAgent.delete({ where: { id: agentId } });
   }
 
   async executeAgent(workspaceId: string, agentId: string, promptText: string) {
@@ -110,16 +154,34 @@ export class AgentsService {
   }
 
   async getExecutionLogs(workspaceId: string, agentId: string) {
-    const agent = await this.prisma.aIAgent.findFirst({
-      where: { id: agentId, workspaceId },
-      select: { id: true },
-    });
-    if (!agent) throw new NotFoundException('Agent not found.');
-
+    await this.assertAgent(workspaceId, agentId);
     return this.prisma.agentExecutionLog.findMany({
       where: { agentId },
       orderBy: { executedAt: 'desc' },
       take: 20,
     });
+  }
+
+  /**
+   * Recent executions across every agent in the workspace.
+   *
+   * The telemetry screen is workspace-wide, so filtering by the agent's parent
+   * workspace is what scopes this — there is no agent id to check.
+   */
+  async getWorkspaceLogs(workspaceId: string, take = 50) {
+    return this.prisma.agentExecutionLog.findMany({
+      where: { agent: { workspaceId } },
+      include: { agent: { select: { id: true, name: true } } },
+      orderBy: { executedAt: 'desc' },
+      take,
+    });
+  }
+
+  private async assertAgent(workspaceId: string, agentId: string) {
+    const found = await this.prisma.aIAgent.findFirst({
+      where: { id: agentId, workspaceId },
+      select: { id: true },
+    });
+    if (!found) throw new NotFoundException('Agent not found.');
   }
 }

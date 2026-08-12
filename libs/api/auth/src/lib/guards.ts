@@ -9,11 +9,12 @@ import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import {
   IS_PUBLIC_KEY,
+  SYSTEM_ROLES_KEY,
   WORKSPACE_ROLES_KEY,
   type AuthenticatedUser,
 } from '@org/api-common';
 import { PrismaService } from '@org/database';
-import { WorkspaceRole, hasWorkspaceRole } from '@org/types';
+import { SystemRole, WorkspaceRole, hasWorkspaceRole } from '@org/types';
 
 /**
  * Applied globally in `AppModule`, so routes are authenticated by default and
@@ -33,6 +34,38 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     ]);
     if (isPublic) return true;
     return super.canActivate(context);
+  }
+}
+
+/**
+ * Enforces `@SystemRoles(...)` — the platform-operator gate.
+ *
+ * For administration that belongs to no single workspace, where
+ * `WorkspaceRoleGuard` has nothing to resolve. Fails closed: a route carrying
+ * this guard without the decorator admits nobody, so a missing annotation
+ * cannot silently open an operator endpoint to every signed-in account.
+ */
+@Injectable()
+export class SystemRoleGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector) {}
+
+  canActivate(context: ExecutionContext): boolean {
+    const request = context.switchToHttp().getRequest();
+    const user = request.user as AuthenticatedUser | undefined;
+    if (!user) throw new ForbiddenException('Authentication is required.');
+
+    const required = this.reflector.getAllAndOverride<SystemRole[]>(
+      SYSTEM_ROLES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
+    if (!required?.length || !required.includes(user.systemRole)) {
+      // 404, not 403: that these endpoints exist is not worth confirming to
+      // an account that may not use them.
+      throw new NotFoundException('Not found.');
+    }
+
+    return true;
   }
 }
 

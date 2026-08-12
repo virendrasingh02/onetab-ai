@@ -1,10 +1,8 @@
-import {
-  useConnectedApps,
-  useInstalledAgents,
-  useWorkflows,
-  type RegistryItem,
-} from '@org/hooks';
 import { Button, Hint, IconRenderer } from '@org/ui';
+import { useAgents } from '@org/web-agents';
+import { useWorkflows } from '@org/web-automations';
+import { useIntegrations } from '@org/web-integrations';
+import { useCurrentWorkspace } from '@org/web-workspace';
 import { Plus } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
@@ -13,6 +11,47 @@ import {
   navRowClass,
   Section,
 } from './nav-primitives.js';
+
+/** The display shape these sidebar rows need, whatever the source row looks like. */
+interface RegistryItem {
+  id: string;
+  name: string;
+  /** Lucide icon name, resolved through `IconRenderer`. */
+  icon?: string;
+  /** Secondary line: an agent's role, an app's category, a workflow's trigger. */
+  detail?: string;
+}
+
+/**
+ * Icon per provider.
+ *
+ * Names must exist in `ICON_REGISTRY` (`@org/ui`) — an unknown name renders as
+ * literal text rather than an icon.
+ */
+const PROVIDER_ICON: Record<string, string> = {
+  GITHUB: 'Code',
+  JIRA: 'Code',
+  GDRIVE: 'HardDrive',
+  GOOGLE_DRIVE: 'HardDrive',
+  SLACK: 'FileText',
+  NOTION: 'FileText',
+  WEBHOOKS: 'Plug',
+};
+
+const TRIGGER_ICON: Record<string, string> = {
+  WEBHOOK: 'Plug',
+  CRON: 'Clock',
+  EVENT: 'Zap',
+};
+
+/** `GOOGLE_DRIVE` -> `Google Drive`. */
+function titleCaseProvider(provider: string): string {
+  return provider
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
 
 /**
  * A sidebar section listing what the workspace actually uses — the deployed
@@ -104,12 +143,20 @@ function ResourceSection({
 }
 
 export function AgentsSection({ workspaceSlug }: { workspaceSlug: string }) {
-  const [agents] = useInstalledAgents();
+  const { workspaceId } = useCurrentWorkspace();
+  const agents = useAgents(workspaceId);
+
+  const items: RegistryItem[] = (agents.data ?? []).map((agent) => ({
+    id: agent.id,
+    name: agent.name,
+    icon: 'Bot',
+    detail: agent.role,
+  }));
 
   return (
     <ResourceSection
       title="AI Agents"
-      items={agents}
+      items={items}
       basePath={`/w/${workspaceSlug}/agents`}
       queryKey="agent"
       addPath={`/w/${workspaceSlug}/agents/builder`}
@@ -121,12 +168,23 @@ export function AgentsSection({ workspaceSlug }: { workspaceSlug: string }) {
 }
 
 export function AppsSection({ workspaceSlug }: { workspaceSlug: string }) {
-  const [apps] = useConnectedApps();
+  const { workspaceId } = useCurrentWorkspace();
+  const integrations = useIntegrations(workspaceId);
+
+  // A disconnected row is history, not something the sidebar should offer.
+  const items: RegistryItem[] = (integrations.data ?? [])
+    .filter((integration) => integration.status === 'CONNECTED')
+    .map((integration) => ({
+      id: integration.provider,
+      name: titleCaseProvider(integration.provider),
+      icon: PROVIDER_ICON[integration.provider] ?? 'Plug',
+      detail: 'Connected',
+    }));
 
   return (
     <ResourceSection
       title="Apps"
-      items={apps}
+      items={items}
       basePath={`/w/${workspaceSlug}/integrations`}
       queryKey="app"
       addPath={`/w/${workspaceSlug}/integrations`}
@@ -138,12 +196,20 @@ export function AppsSection({ workspaceSlug }: { workspaceSlug: string }) {
 }
 
 export function WorkflowsSection({ workspaceSlug }: { workspaceSlug: string }) {
-  const [workflows] = useWorkflows();
+  const { workspaceId } = useCurrentWorkspace();
+  const workflows = useWorkflows(workspaceId);
+
+  const items: RegistryItem[] = (workflows.data ?? []).map((workflow) => ({
+    id: workflow.id,
+    name: workflow.name,
+    icon: TRIGGER_ICON[workflow.triggerType] ?? 'Zap',
+    detail: workflow.triggerType,
+  }));
 
   return (
     <ResourceSection
       title="Automations"
-      items={workflows}
+      items={items}
       basePath={`/w/${workspaceSlug}/automations`}
       queryKey="workflow"
       addPath={`/w/${workspaceSlug}/automations/builder`}

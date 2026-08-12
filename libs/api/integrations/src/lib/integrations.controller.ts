@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import { CurrentUser, WorkspaceId, WorkspaceRoles } from '@org/api-common';
 import { WorkspaceRole } from '@org/types';
@@ -42,6 +50,18 @@ export class IntegrationsController {
       provider.toUpperCase(),
       body.accessToken,
       body.config,
+    );
+  }
+
+  @Delete(':provider')
+  @WorkspaceRoles(WorkspaceRole.ADMIN)
+  disconnectProvider(
+    @WorkspaceId() workspaceId: string,
+    @Param('provider') provider: string,
+  ) {
+    return this.integrationsService.disconnectProvider(
+      workspaceId,
+      provider.toUpperCase(),
     );
   }
 

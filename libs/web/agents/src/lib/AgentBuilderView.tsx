@@ -11,9 +11,9 @@
  */
 
 import { useTheme } from '@org/design-system';
-import { useInstalledAgents } from '@org/hooks';
 import { Badge, Button, Page, PageHeader } from '@org/ui';
 import { cn } from '@org/utils';
+import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Background,
   BackgroundVariant,
@@ -26,6 +26,7 @@ import {
   type OnSelectionChangeParams,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { useAgentMutations, useAgents } from './use-agents.js';
 import {
   AlertTriangle,
   Bot,
@@ -64,7 +65,9 @@ function AgentBuilderCanvas() {
   const graph = useAgentGraph();
   const { screenToFlowPosition } = useReactFlow();
   const { resolvedTheme } = useTheme();
-  const [installed, saveInstalled] = useInstalledAgents();
+  const { workspaceId } = useCurrentWorkspace();
+  const agents = useAgents(workspaceId);
+  const { create, update } = useAgentMutations(workspaceId);
 
   const {
     nodes,
@@ -129,28 +132,31 @@ function AgentBuilderCanvas() {
   );
 
   /**
-   * Persist the draft, then publish it: the sidebar lists deployed agents out
-   * of the shared registry, so a save that only touched the graph store would
-   * leave the rest of the app showing the old name and role.
+   * Persist the graph, then publish the agent itself.
+   *
+   * The graph store keeps the canvas; the agent row is what the rest of the app
+   * reads, so a save that only touched the store would leave the sidebar and
+   * the directory showing the old name and role. An agent already carrying this
+   * name is updated rather than duplicated — saving twice is an edit, not a
+   * second agent.
    */
   const handleSave = useCallback(() => {
     save();
 
     const core = nodes.find((node) => node.data.kind === 'agent');
-    if (!core) return;
+    if (!core || !workspaceId) return;
 
-    const entry = {
-      id: core.id,
-      name: summary.name,
-      icon: 'Bot',
-      detail: summary.role,
-    };
-    saveInstalled(
-      installed.some((item) => item.id === entry.id)
-        ? installed.map((item) => (item.id === entry.id ? entry : item))
-        : [...installed, entry],
-    );
-  }, [installed, nodes, save, saveInstalled, summary.name, summary.role]);
+    const existing = agents.data?.find((agent) => agent.name === summary.name);
+    if (existing) {
+      update.mutate({
+        agentId: existing.id,
+        input: { name: summary.name, role: summary.role },
+      });
+      return;
+    }
+
+    create.mutate({ name: summary.name, role: summary.role });
+  }, [agents.data, create, nodes, save, summary.name, summary.role, update, workspaceId]);
 
   const blocked = errorCount > 0;
 

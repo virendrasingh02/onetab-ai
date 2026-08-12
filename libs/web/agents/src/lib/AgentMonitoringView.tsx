@@ -1,8 +1,11 @@
 import {
   Badge,
+  EmptyState,
+  ErrorState,
   Page,
   PageHeader,
   Panel,
+  SkeletonList,
   Table,
   TableBody,
   TableCell,
@@ -10,39 +13,32 @@ import {
   TableHeader,
   TableRow,
 } from '@org/ui';
-import { Activity, CheckCircle, Wrench } from 'lucide-react';
+import { useCurrentWorkspace } from '@org/web-workspace';
+import { formatDistanceToNow } from 'date-fns';
+import { Activity, AlertCircle, CheckCircle, Wrench } from 'lucide-react';
+import { useWorkspaceAgentLogs } from './use-agents.js';
 
-const logs = [
-  {
-    id: 'log_1',
-    agent: 'Agile sprint manager',
-    prompt: 'Audit task backlog and summarise sprint status',
-    status: 'SUCCESS',
-    toolUsed: 'search_docs',
-    tokens: 184,
-    time: '5 mins ago',
-  },
-  {
-    id: 'log_2',
-    agent: 'Code sentinel & reviewer',
-    prompt: 'Inspect PR #42 security patches',
-    status: 'SUCCESS',
-    toolUsed: 'create_task',
-    tokens: 210,
-    time: '20 mins ago',
-  },
-  {
-    id: 'log_3',
-    agent: 'Workspace knowledge curator',
-    prompt: 'Re-index modified documentation into the vector collection',
-    status: 'SUCCESS',
-    toolUsed: 'search_docs',
-    tokens: 140,
-    time: '1 hour ago',
-  },
-];
+/**
+ * `toolCalls` is stored as a JSON string of tool definitions. The table shows
+ * the first tool's name, which is what the column is for; anything unparseable
+ * degrades to a dash rather than breaking the row.
+ */
+function firstToolName(toolCalls: string): string | null {
+  try {
+    const parsed: unknown = JSON.parse(toolCalls);
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    const [first] = parsed as Array<{ name?: string } | string>;
+    if (typeof first === 'string') return first;
+    return first?.name ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export function AgentMonitoringView() {
+  const { workspaceId } = useCurrentWorkspace();
+  const logs = useWorkspaceAgentLogs(workspaceId);
+
   return (
     <Page>
       <PageHeader
@@ -53,46 +49,80 @@ export function AgentMonitoringView() {
       />
 
       <Panel flush>
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead>Agent</TableHead>
-              <TableHead>Prompt</TableHead>
-              <TableHead>Tool call</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Tokens</TableHead>
-              <TableHead>When</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {logs.map((log) => (
-              <TableRow key={log.id}>
-                <TableCell className="font-medium">{log.agent}</TableCell>
-                <TableCell className="max-w-xs truncate text-muted-foreground">
-                  {log.prompt}
-                </TableCell>
-                <TableCell>
-                  <span className="gap-1 text-xs flex items-center font-mono text-accent-violet">
-                    <Wrench className="size-3.5" aria-hidden />
-                    {log.toolUsed}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="success">
-                    <CheckCircle aria-hidden />
-                    {log.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-xs font-mono text-muted-foreground tabular-nums">
-                  {log.tokens}
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {log.time}
-                </TableCell>
+        {logs.isLoading ? (
+          <div className="p-4">
+            <SkeletonList rows={5} />
+          </div>
+        ) : logs.isError ? (
+          <ErrorState
+            title="Could not load telemetry"
+            description="Something went wrong reaching the server."
+            onRetry={() => logs.refetch()}
+          />
+        ) : (logs.data?.length ?? 0) === 0 ? (
+          <EmptyState
+            icon={<Activity />}
+            title="No agent runs yet"
+            description="Once an agent executes, its prompt, tool calls and token usage appear here."
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Agent</TableHead>
+                <TableHead>Prompt</TableHead>
+                <TableHead>Tool call</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Tokens</TableHead>
+                <TableHead>When</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {logs.data?.map((log) => {
+                const tool = firstToolName(log.toolCalls);
+                const succeeded = log.status === 'SUCCESS';
+                return (
+                  <TableRow key={log.id}>
+                    <TableCell className="font-medium">
+                      {log.agent.name}
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate text-muted-foreground">
+                      {log.promptText}
+                    </TableCell>
+                    <TableCell>
+                      {tool ? (
+                        <span className="gap-1 text-xs flex items-center font-mono text-accent-violet">
+                          <Wrench className="size-3.5" aria-hidden />
+                          {tool}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={succeeded ? 'success' : 'destructive'}>
+                        {succeeded ? (
+                          <CheckCircle aria-hidden />
+                        ) : (
+                          <AlertCircle aria-hidden />
+                        )}
+                        {log.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs font-mono text-muted-foreground tabular-nums">
+                      {log.tokensUsed}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {formatDistanceToNow(new Date(log.executedAt), {
+                        addSuffix: true,
+                      })}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
       </Panel>
     </Page>
   );

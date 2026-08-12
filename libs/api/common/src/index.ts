@@ -5,6 +5,8 @@ export {
   CurrentUser,
   IS_PUBLIC_KEY,
   Public,
+  SYSTEM_ROLES_KEY,
+  SystemRoles,
   WORKSPACE_ROLES_KEY,
   WorkspaceId,
   WorkspaceMemberRole,
