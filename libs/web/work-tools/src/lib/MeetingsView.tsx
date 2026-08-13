@@ -39,46 +39,118 @@ import {
 import { useMemo, useState } from 'react';
 import { useCalendarEvents, useCalendarMutations } from './use-work-tools.js';
 
+interface MeetingApp {
+  id: string;
+  /** Provider code stored by the integrations API, or `null` when inbuilt. */
+  provider: string | null;
+  /** Other codes the same app is stored under, so a match is never missed. */
+  aliases?: string[];
+  name: string;
+  blurb: string;
+  accent: keyof typeof accentClasses;
+}
+
 /**
- * Meeting apps the workspace can link.
+ * The inbuilt huddle. It needs no integration, so it is always listed and can
+ * never be disconnected.
+ */
+const INBUILT_HUDDLE: MeetingApp = {
+  id: 'huddle',
+  provider: null,
+  name: 'OneTab Inbuilt Huddle',
+  blurb: 'Natively built-in high performance Matrix video and voice huddles.',
+  accent: 'teal',
+};
+
+/**
+ * Meeting and calendar apps the workspace can link.
  *
  * `provider` is the key the integrations API stores, upper-cased on the way
- * in by the controller — the same string `useIntegrations` reports back.
+ * in by the controller — the same string `useIntegrations` reports back. The
+ * app hub connects some of these under a shorter code (Google Calendar goes in
+ * as `GCAL`), which is what `aliases` covers.
  */
-const MEETING_APPS = [
-  {
-    id: 'huddle',
-    provider: null,
-    name: 'OneTab Inbuilt Huddle',
-    blurb:
-      'Natively built-in high performance Matrix video and voice huddles.',
-    iconColor: accentClasses.teal.soft,
-  },
+const MEETING_APP_CATALOG: MeetingApp[] = [
   {
     id: 'zoom',
     provider: 'ZOOM',
+    aliases: ['ZOOM_MEETINGS'],
     name: 'Zoom Meetings',
     blurb:
       'Connect Zoom to sync calls, calendar invitations and meeting links into OneTab.',
-    iconColor: accentClasses.blue.soft,
+    accent: 'blue',
   },
   {
     id: 'gmeet',
     provider: 'GOOGLE_MEET',
+    aliases: ['GMEET'],
     name: 'Google Meet',
     blurb:
       'Connect Google Meet to sync calls, calendar invitations and meeting links into OneTab.',
-    iconColor: accentClasses.green.soft,
+    accent: 'green',
   },
   {
     id: 'msteams',
     provider: 'MICROSOFT_TEAMS',
+    aliases: ['TEAMS', 'MS_TEAMS'],
     name: 'Microsoft Teams',
     blurb:
       'Connect Teams to sync calls, calendar invitations and meeting links into OneTab.',
-    iconColor: accentClasses.indigo.soft,
+    accent: 'indigo',
   },
-] as const;
+  {
+    id: 'gcal',
+    provider: 'GCAL',
+    aliases: ['GOOGLE_CALENDAR'],
+    name: 'Google Calendar',
+    blurb:
+      'Pull Google Calendar invitations in so their events and join links land on this page.',
+    accent: 'amber',
+  },
+  {
+    id: 'outlook',
+    provider: 'OUTLOOK',
+    aliases: ['MICROSOFT_OUTLOOK', 'MS_OUTLOOK', 'OUTLOOK_CALENDAR'],
+    name: 'Microsoft Outlook',
+    blurb:
+      'Pull Outlook calendar invitations in so their events and join links land on this page.',
+    accent: 'cyan',
+  },
+  {
+    id: 'webex',
+    provider: 'WEBEX',
+    aliases: ['CISCO_WEBEX'],
+    name: 'Cisco Webex',
+    blurb:
+      'Connect Webex to sync calls, calendar invitations and meeting links into OneTab.',
+    accent: 'violet',
+  },
+];
+
+/** Every provider code the catalogue answers to. */
+const CATALOG_CODES = new Set(
+  MEETING_APP_CATALOG.flatMap((app) => [app.provider as string, ...(app.aliases ?? [])]),
+);
+
+/**
+ * Provider codes that read as a meeting or calendar app.
+ *
+ * Anything connected outside the catalogue is matched against this so a
+ * workspace that links a meeting app we do not ship a card for still sees it
+ * here rather than nowhere.
+ */
+const MEETING_PROVIDER_HINT =
+  /MEET|CALENDAR|CALL|CONFERENC|HUDDLE|WEBINAR|VIDEO|ZOOM|TEAMS|WEBEX|OUTLOOK|CAL$/;
+
+/** `OUTLOOK_CALENDAR` → `Outlook Calendar`, for apps with no catalogue entry. */
+function humanizeProvider(provider: string): string {
+  return provider
+    .toLowerCase()
+    .split(/[_\-\s]+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
 
 /** How far ahead the meeting list reaches. */
 const HORIZON_DAYS = 30;
@@ -117,6 +189,74 @@ function durationLabel(event: CalendarEvent): string {
   return rest ? `${hours} h ${rest} min` : `${hours} h`;
 }
 
+/**
+ * One meeting app, connected or not.
+ *
+ * The inbuilt huddle has no provider to disconnect, so it shows a badge in
+ * place of the toggle.
+ */
+function MeetingAppCard({
+  app,
+  connected,
+  busy,
+  onToggle,
+}: {
+  app: MeetingApp;
+  connected: boolean;
+  busy: boolean;
+  onToggle: () => void;
+}) {
+  const isInbuilt = !app.provider;
+
+  return (
+    <Card className="p-5 flex flex-col justify-between">
+      <div>
+        <div className="flex items-center gap-3 mb-3">
+          <span
+            className={cn(
+              'size-10 flex items-center justify-center rounded-lg font-bold text-sm',
+              accentClasses[app.accent].soft,
+            )}
+            aria-hidden
+          >
+            {app.name.charAt(0)}
+          </span>
+          <div>
+            <h4 className="text-sm font-semibold text-foreground">{app.name}</h4>
+            <p className="text-xs text-muted-foreground">
+              {isInbuilt
+                ? 'Built-in native'
+                : connected
+                  ? 'Connected to this workspace'
+                  : 'Not connected'}
+            </p>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+          {app.blurb}
+        </p>
+      </div>
+
+      {isInbuilt ? (
+        <Badge variant="primary" className="w-fit">
+          Natively active
+        </Badge>
+      ) : (
+        <Button
+          variant={connected ? 'outline' : 'primary'}
+          size="sm"
+          className="w-full"
+          loading={busy}
+          onClick={onToggle}
+          leadingIcon={connected ? <Check className="text-success" /> : <Plus />}
+        >
+          {connected ? 'Disconnect' : 'Connect app'}
+        </Button>
+      )}
+    </Card>
+  );
+}
+
 /** Scheduled and live calls for the workspace, with connected meeting apps. */
 export function MeetingsView() {
   const { workspaceId } = useCurrentWorkspace();
@@ -152,10 +292,48 @@ export function MeetingsView() {
         ? linkedMeetings
         : meetings;
 
-  const connectedAppsCount =
-    MEETING_APPS.filter(
-      (app) => !app.provider || connectedProviders.has(app.provider),
-    ).length;
+  /** Catalogue apps this workspace has actually linked. */
+  const connectedCatalogApps = useMemo(
+    () =>
+      MEETING_APP_CATALOG.filter((app) =>
+        [app.provider as string, ...(app.aliases ?? [])].some((code) =>
+          connectedProviders.has(code),
+        ),
+      ),
+    [connectedProviders],
+  );
+
+  /**
+   * Connected meeting apps with no catalogue card — anything else someone
+   * links that looks like a meeting or calendar provider.
+   */
+  const connectedOtherApps = useMemo<MeetingApp[]>(
+    () =>
+      [...connectedProviders]
+        .filter(
+          (code) => !CATALOG_CODES.has(code) && MEETING_PROVIDER_HINT.test(code),
+        )
+        .sort()
+        .map((code) => ({
+          id: code.toLowerCase(),
+          provider: code,
+          name: humanizeProvider(code),
+          blurb:
+            'Linked to this workspace. Its invitations and join links show up on the meetings below.',
+          accent: 'rose' as const,
+        })),
+    [connectedProviders],
+  );
+
+  /* Inbuilt first, then whatever the workspace connected. */
+  const activeApps = [
+    INBUILT_HUDDLE,
+    ...connectedCatalogApps,
+    ...connectedOtherApps,
+  ];
+  const availableApps = MEETING_APP_CATALOG.filter(
+    (app) => !connectedCatalogApps.includes(app),
+  );
 
   return (
     <Page>
@@ -179,39 +357,39 @@ export function MeetingsView() {
           <div>
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <span>Meeting apps</span>
-              <Badge variant="primary">{connectedAppsCount} active</Badge>
+              <Badge variant="primary">{activeApps.length} active</Badge>
             </h3>
             <p className="text-xs text-muted-foreground">
-              Inbuilt OneTab Matrix huddles run natively. Linked apps appear on
-              calendar events as a join link.
+              Inbuilt OneTab Matrix huddles run natively. Any meeting or
+              calendar app you connect joins this list and appears on calendar
+              events as a join link.
             </p>
           </div>
         </div>
 
+        {/*
+          Only what is actually running: the inbuilt huddle plus every meeting
+          app the workspace connected. Apps that are not linked live on the
+          "Meeting apps" tab instead of sitting greyed out here.
+        */}
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          {MEETING_APPS.map((app) => {
-            const linked = !app.provider || connectedProviders.has(app.provider);
-            return (
-              <span
-                key={app.id}
-                title={`${app.name}: ${linked ? 'Connected' : 'Not connected'}`}
-                className={cn(
-                  'px-2 py-1 rounded-md text-[11px] font-medium flex items-center gap-1 border',
-                  linked
-                    ? 'bg-selected/60 border-primary/30 text-foreground'
-                    : 'bg-surface text-subtle border-border',
-                )}
-              >
-                <span
-                  className={cn(
-                    'size-1.5 rounded-full',
-                    linked ? 'bg-success' : 'bg-subtle',
-                  )}
-                />
-                <span>{app.name}</span>
-              </span>
-            );
-          })}
+          {activeApps.map((app) => (
+            <span
+              key={app.id}
+              title={
+                app.provider ? `${app.name}: Connected` : `${app.name}: Built in`
+              }
+              className="px-2 py-1 rounded-md text-[11px] font-medium flex items-center gap-1 border bg-selected/60 border-primary/30 text-foreground"
+            >
+              <span className="size-1.5 rounded-full bg-success" />
+              <span>{app.name}</span>
+            </span>
+          ))}
+          {activeApps.length === 1 ? (
+            <span className="text-[11px] text-subtle">
+              No external meeting apps linked yet
+            </span>
+          ) : null}
         </div>
       </Card>
 
@@ -235,6 +413,7 @@ export function MeetingsView() {
           <TabsTrigger value="apps-hub" className="gap-1.5">
             <Share2 className="size-4" />
             <span>Meeting apps</span>
+            <Badge variant="neutral">{activeApps.length}</Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -376,74 +555,60 @@ export function MeetingsView() {
           </TabsContent>
         ))}
 
-        <TabsContent value="apps-hub" className="mt-4">
-          <div className="gap-4 grid md:grid-cols-2 xl:grid-cols-3">
-            {MEETING_APPS.map((app) => {
-              const isInbuilt = !app.provider;
-              const linked = !!app.provider && connectedProviders.has(app.provider);
-              const isBusy =
-                (connect.isPending && connect.variables?.provider === app.provider) ||
-                (disconnect.isPending && disconnect.variables === app.provider);
+        <TabsContent value="apps-hub" className="mt-4 space-y-6">
+          <section className="space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">
+                Active in this workspace
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                The inbuilt huddle is always on. Everything else here is a
+                meeting or calendar app someone connected.
+              </p>
+            </div>
+            <div className="gap-4 grid md:grid-cols-2 xl:grid-cols-3">
+              {activeApps.map((app) => (
+                <MeetingAppCard
+                  key={app.id}
+                  app={app}
+                  connected
+                  busy={
+                    disconnect.isPending && disconnect.variables === app.provider
+                  }
+                  onToggle={() => disconnect.mutate(app.provider as string)}
+                />
+              ))}
+            </div>
+          </section>
 
-              return (
-                <Card key={app.id} className="p-5 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-3 mb-3">
-                      <span
-                        className={cn(
-                          'size-10 flex items-center justify-center rounded-lg font-bold text-sm',
-                          app.iconColor,
-                        )}
-                        aria-hidden
-                      >
-                        {app.name.charAt(0)}
-                      </span>
-                      <div>
-                        <h4 className="text-sm font-semibold text-foreground">
-                          {app.name}
-                        </h4>
-                        <p className="text-xs text-muted-foreground">
-                          {isInbuilt
-                            ? 'Built-in native'
-                            : linked
-                              ? 'Connected to this workspace'
-                              : 'Not connected'}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-                      {app.blurb}
-                    </p>
-                  </div>
-
-                  {isInbuilt ? (
-                    <Badge variant="primary" className="w-fit">
-                      Natively active
-                    </Badge>
-                  ) : (
-                    <Button
-                      variant={linked ? 'outline' : 'primary'}
-                      size="sm"
-                      className="w-full"
-                      loading={isBusy}
-                      onClick={() => {
-                        if (linked) {
-                          disconnect.mutate(app.provider);
-                        } else {
-                          connect.mutate({ provider: app.provider });
-                        }
-                      }}
-                      leadingIcon={
-                        linked ? <Check className="text-success" /> : <Plus />
-                      }
-                    >
-                      {linked ? 'Disconnect' : 'Connect app'}
-                    </Button>
-                  )}
-                </Card>
-              );
-            })}
-          </div>
+          {availableApps.length > 0 ? (
+            <section className="space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">
+                  Available to connect
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Link one and its meetings show up on this page straight away.
+                </p>
+              </div>
+              <div className="gap-4 grid md:grid-cols-2 xl:grid-cols-3">
+                {availableApps.map((app) => (
+                  <MeetingAppCard
+                    key={app.id}
+                    app={app}
+                    connected={false}
+                    busy={
+                      connect.isPending &&
+                      connect.variables?.provider === app.provider
+                    }
+                    onToggle={() =>
+                      connect.mutate({ provider: app.provider as string })
+                    }
+                  />
+                ))}
+              </div>
+            </section>
+          ) : null}
         </TabsContent>
       </Tabs>
     </Page>

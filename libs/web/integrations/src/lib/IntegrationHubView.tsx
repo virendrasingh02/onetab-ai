@@ -119,6 +119,12 @@ const integrationsList: IntegrationCard[] = [
     description: 'Auto-schedule meetings, sync availability, and event reminders.',
   },
   {
+    id: 'outlook',
+    name: 'Microsoft Outlook',
+    category: 'Productivity & Project Management',
+    description: 'Sync Outlook calendar invitations, availability, and meeting join links.',
+  },
+  {
     id: 'zendesk',
     name: 'Zendesk',
     category: 'Customer Support & Communication',
