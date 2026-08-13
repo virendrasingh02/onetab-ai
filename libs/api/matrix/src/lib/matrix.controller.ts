@@ -6,6 +6,7 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   Post,
   Put,
@@ -67,6 +68,34 @@ export class MatrixController {
       throw new ServiceUnavailableException('Matrix is not configured.');
     }
     return { roomId };
+  }
+
+  /**
+   * The Matrix identity of a teammate, so the browser can open a DM with them.
+   *
+   * The room itself is created client-side — `getOrCreateDirectMessage` reuses
+   * an existing one and records `m.direct` so both ends group the conversation
+   * — but the identity mapping is ours, and provisioning the peer's account is
+   * something only the admin credentials can do.
+   */
+  @Get('users/:userId/identity')
+  async peerIdentity(
+    @Param('userId') peerUserId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    if (!this.admin.isEnabled) {
+      throw new ServiceUnavailableException('Matrix is not configured.');
+    }
+
+    const matrixUserId = await this.auth.resolvePeerIdentity(
+      userId,
+      peerUserId,
+    );
+    if (!matrixUserId) {
+      throw new NotFoundException('No such person in your workspaces.');
+    }
+
+    return { matrixUserId };
   }
 }
 

@@ -1,6 +1,11 @@
 export { MatrixProvider, useMatrix } from './lib/matrix-provider.js';
 export { usePresence, useRoom, useRoomActions } from './lib/use-chat.js';
 export { useChannelRoom } from './lib/use-channel-room.js';
+export { useDirectRoom } from './lib/use-direct-room.js';
+export {
+  useAllThreads,
+  type CrossRoomThread,
+} from './lib/use-all-threads.js';
 export { ChatPanel, type ChatPanelProps } from './lib/chat-panel.js';
 export { ChatSurface, type ChatSurfaceProps } from './lib/chat-surface.js';
 export { ChannelChat, type ChannelChatProps } from './lib/channel-chat.js';
@@ -15,8 +20,5 @@ export {
   groupReplies,
   type ChannelMention,
 } from './lib/derive-threads.js';
-export {
-  DirectMessagesView,
-  type DirectConversation,
-} from './lib/DirectMessagesView.js';
-export { ThreadsView, type ThreadSummary } from './lib/ThreadsView.js';
+export { DirectMessagesView } from './lib/DirectMessagesView.js';
+export { ThreadsView } from './lib/ThreadsView.js';

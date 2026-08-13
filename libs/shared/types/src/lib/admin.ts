@@ -123,3 +123,39 @@ export interface AdminAuditLogEntry {
   createdAt: IsoDateString;
   organization: { id: string; name: string };
 }
+
+/**
+ * An organisation's identity-provider binding.
+ *
+ * `scimToken` is the bearer the IdP presents to the SCIM endpoints. It is only
+ * ever returned on the operator-gated enterprise routes, which are
+ * SUPERADMIN-only — the console has to show it because setting up provisioning
+ * means pasting it into Okta or Entra.
+ */
+export interface SSOConfiguration {
+  id: string;
+  organizationId: string;
+  providerType: string;
+  idpEntityId: string | null;
+  ssoUrl: string | null;
+  certificate: string | null;
+  scimToken: string | null;
+  isActive: boolean;
+  createdAt: IsoDateString;
+  updatedAt: IsoDateString;
+}
+
+/** One organisation, with everything the enterprise screens read. */
+export interface EnterpriseOrganization {
+  id: string;
+  name: string;
+  domain: string;
+  logoUrl: string | null;
+  billingEmail: string | null;
+  createdAt: IsoDateString;
+  updatedAt: IsoDateString;
+  departments: AdminDepartment[];
+  subscriptions: AdminSubscription[];
+  ssoConfigs: SSOConfiguration[];
+  _count: { auditLogs: number };
+}

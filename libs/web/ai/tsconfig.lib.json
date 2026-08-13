@@ -17,6 +17,9 @@
       "path": "../workspace/tsconfig.lib.json"
     },
     {
+      "path": "../../shared/validation/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/utils/tsconfig.lib.json"
     },
     {

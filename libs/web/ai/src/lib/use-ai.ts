@@ -1,6 +1,10 @@
-import { aiApi } from '@org/api-client';
+import { aiApi, promptTemplateApi, queryKeys } from '@org/api-client';
 import type { AIChatMessage, AIProvider } from '@org/types';
-import { useMutation } from '@tanstack/react-query';
+import type {
+  CreatePromptTemplateInput,
+  UpdatePromptTemplateInput,
+} from '@org/validation';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentWorkspace } from '@org/web-workspace';
 
 /**
@@ -127,4 +131,58 @@ export function useAIRagSearch() {
     mutationFn: ({ query, limit }: { query: string; limit?: number }) =>
       aiApi.ragSearch(workspaceId as string, query, limit),
   });
+}
+
+/* ----------------------------------------------------- prompt library --- */
+
+/**
+ * The workspace's prompt library.
+ *
+ * A plain query, unlike the inference hooks above: templates are stored rows,
+ * not model calls, so they cache and invalidate the way every other list in the
+ * app does.
+ */
+export function usePromptTemplates() {
+  const workspaceId = useAIWorkspaceId();
+
+  return useQuery({
+    queryKey: queryKeys.promptTemplates.list(workspaceId ?? ''),
+    queryFn: () => promptTemplateApi.list(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 60_000,
+  });
+}
+
+export function usePromptTemplateMutations() {
+  const workspaceId = useAIWorkspaceId();
+  const queryClient = useQueryClient();
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.promptTemplates.all(workspaceId ?? ''),
+    });
+
+  const create = useMutation({
+    mutationFn: (input: CreatePromptTemplateInput) =>
+      promptTemplateApi.create(workspaceId as string, input),
+    onSuccess: invalidate,
+  });
+
+  const update = useMutation({
+    mutationFn: ({
+      templateId,
+      input,
+    }: {
+      templateId: string;
+      input: UpdatePromptTemplateInput;
+    }) => promptTemplateApi.update(workspaceId as string, templateId, input),
+    onSuccess: invalidate,
+  });
+
+  const remove = useMutation({
+    mutationFn: (templateId: string) =>
+      promptTemplateApi.remove(workspaceId as string, templateId),
+    onSuccess: invalidate,
+  });
+
+  return { create, update, remove };
 }

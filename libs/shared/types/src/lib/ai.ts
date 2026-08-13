@@ -3,6 +3,7 @@
  * screens so a change to a response shape breaks the compile rather than the
  * screen.
  */
+import type { IsoDateString } from './entities.js';
 
 export type AIProvider = 'ollama' | 'openai' | 'anthropic' | 'gemini';
 
@@ -48,4 +49,21 @@ export interface AIRagResult {
   text: string;
   score: number;
   metadata?: Record<string, unknown>;
+}
+
+/**
+ * A saved prompt.
+ *
+ * `workspaceId` is null for the system templates that ship with the platform:
+ * they appear in every workspace's library and are read-only there.
+ */
+export interface PromptTemplate {
+  id: string;
+  workspaceId: string | null;
+  title: string;
+  category: string;
+  promptText: string;
+  isSystem: boolean;
+  createdAt: IsoDateString;
+  updatedAt: IsoDateString;
 }

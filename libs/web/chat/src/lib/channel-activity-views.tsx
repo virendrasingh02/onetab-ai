@@ -2,15 +2,11 @@ import { ThreadListPanel } from '@org/chat-ui';
 import type { Message, RoomMember } from '@org/matrix-client';
 import { Badge, EmptyState, LoadingState, UserAvatar } from '@org/ui';
 import { formatListTimestamp } from '@org/utils';
-import { AtSign } from 'lucide-react';
+import { AtSign, MessageSquareOff } from 'lucide-react';
 import { useMemo } from 'react';
 import { deriveMentions, deriveThreads } from './derive-threads.js';
 import { useMatrix } from './matrix-provider.js';
 import { useChannelRoom } from './use-channel-room.js';
-import {
-  buildMockConversation,
-  MOCK_USER_ID,
-} from './mock/mock-conversation.js';
 import { useRoom } from './use-chat.js';
 
 export interface ChannelActivityProps {
@@ -23,43 +19,29 @@ export interface ChannelActivityProps {
  *
  * They live here rather than in `@org/web-channels` for the same reason
  * `ChannelChat` does: the channel library asks for a channel's threads and
- * gets them, without learning where a timeline comes from — including that
- * without a homeserver it comes from sample data.
+ * gets them, without learning where a timeline comes from.
+ *
+ * `myUserId` comes from the Matrix session, not the application user: the
+ * timeline addresses people by their Matrix id, so a mention of "me" can only
+ * be recognised in those terms.
  */
-function useChannelTimeline(channelId: string, channelName: string) {
-  const { enabled } = useMatrix();
+function useChannelTimeline(channelId: string) {
+  const { client, enabled } = useMatrix();
   const { roomId } = useChannelRoom(channelId);
   const live = useRoom(roomId ?? undefined);
-
-  const sample = useMemo(
-    () => buildMockConversation(channelId, channelName),
-    [channelId, channelName],
-  );
-
-  if (!enabled) {
-    return {
-      messages: sample.messages,
-      members: sample.members,
-      myUserId: MOCK_USER_ID,
-      isLoading: false,
-      isSample: true,
-    };
-  }
 
   return {
     messages: live.messages,
     members: live.members,
-    myUserId: undefined as string | undefined,
-    isLoading: live.isLoading,
-    isSample: false,
+    myUserId: client?.getSession()?.userId,
+    // Without a homeserver there is no timeline to wait for.
+    isLoading: enabled && live.isLoading,
+    isConfigured: enabled,
   };
 }
 
-export function ChannelThreads({
-  channelId,
-  channelName,
-}: ChannelActivityProps) {
-  const timeline = useChannelTimeline(channelId, channelName);
+export function ChannelThreads({ channelId }: ChannelActivityProps) {
+  const timeline = useChannelTimeline(channelId);
 
   const threads = useMemo(
     () =>
@@ -71,6 +53,8 @@ export function ChannelThreads({
 
   if (timeline.isLoading) return <LoadingState label="Loading threads…" />;
 
+  if (!timeline.isConfigured) return <ChatNotConfigured subject="Threads" />;
+
   return <ThreadListPanel threads={threads} />;
 }
 
@@ -78,7 +62,7 @@ export function ChannelMentions({
   channelId,
   channelName,
 }: ChannelActivityProps) {
-  const timeline = useChannelTimeline(channelId, channelName);
+  const timeline = useChannelTimeline(channelId);
 
   const myDisplayName = timeline.members.find(
     (member: RoomMember) => member.userId === timeline.myUserId,
@@ -94,6 +78,8 @@ export function ChannelMentions({
   );
 
   if (timeline.isLoading) return <LoadingState label="Loading mentions…" />;
+
+  if (!timeline.isConfigured) return <ChatNotConfigured subject="Mentions" />;
 
   if (mentions.length === 0) {
     return (
@@ -111,6 +97,17 @@ export function ChannelMentions({
         <MentionRow key={message.id} message={message} trigger={trigger} />
       ))}
     </ul>
+  );
+}
+
+/** Shown in place of a timeline-derived tab when there is no homeserver. */
+function ChatNotConfigured({ subject }: { subject: string }) {
+  return (
+    <EmptyState
+      icon={<MessageSquareOff />}
+      title="Chat is not configured"
+      description={`${subject} are derived from this channel's conversation, and this deployment has no Matrix homeserver.`}
+    />
   );
 }
 

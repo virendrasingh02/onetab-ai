@@ -87,6 +87,9 @@ export const queryKeys = {
     /** Cached per channel: provisioning a room is not free. */
     channelRoom: (channelId: string) =>
       ['matrix', 'channel-room', channelId] as const,
+    /** A peer's Matrix id, cached because the mapping never changes. */
+    peerIdentity: (userId: string) =>
+      ['matrix', 'peer-identity', userId] as const,
   },
   agents: {
     all: (workspaceId: string) => ['agents', workspaceId] as const,
@@ -126,10 +129,20 @@ export const queryKeys = {
     auditLogs: (organizationId: string, page: number) =>
       ['admin', 'audit-logs', organizationId, page] as const,
   },
+  enterprise: {
+    all: () => ['enterprise'] as const,
+    organization: (organizationId: string) =>
+      ['enterprise', 'organizations', organizationId] as const,
+  },
   uploads: {
     all: (workspaceId: string) => ['uploads', workspaceId] as const,
     list: (workspaceId: string, channelId?: string) =>
       ['uploads', workspaceId, 'list', channelId ?? 'all'] as const,
+  },
+  promptTemplates: {
+    all: (workspaceId: string) => ['prompt-templates', workspaceId] as const,
+    list: (workspaceId: string) =>
+      ['prompt-templates', workspaceId, 'list'] as const,
   },
   search: {
     all: (workspaceId: string) => ['search', workspaceId] as const,

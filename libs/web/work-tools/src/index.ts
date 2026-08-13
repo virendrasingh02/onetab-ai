@@ -83,7 +83,11 @@ export {
   type DocStatus,
   type NotionBlock,
 } from './lib/docs/doc-types.js';
-export { WhiteboardCanvas, type CanvasNode } from './lib/WhiteboardCanvas.js';
+export {
+  WhiteboardCanvas,
+  type CanvasEdge,
+  type CanvasNode,
+} from './lib/WhiteboardCanvas.js';
 export { CalendarView } from './lib/CalendarView.js';
 export { FileManagerView } from './lib/FileManagerView.js';
 export { ActivityTimelineView } from './lib/ActivityTimelineView.js';

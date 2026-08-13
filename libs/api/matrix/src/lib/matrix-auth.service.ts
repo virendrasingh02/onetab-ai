@@ -124,6 +124,36 @@ export class MatrixAuthService {
     return roomId;
   }
 
+  /**
+   * The Matrix identity of someone the caller shares a workspace with.
+   *
+   * The browser needs the peer's Matrix id to open a direct message, and it
+   * cannot derive one: the localpart is hashed from our user id and the server
+   * name is deployment configuration. Provisioning happens here too, so a DM to
+   * someone who has never opened chat still lands in a room they can join.
+   *
+   * Returns `null` when the two do not share a workspace — the caller turns
+   * that into a 404 rather than a 403, so this cannot be used to probe whether
+   * a given user id exists.
+   */
+  async resolvePeerIdentity(
+    callerUserId: string,
+    peerUserId: string,
+  ): Promise<string | null> {
+    if (!this.admin.isEnabled || callerUserId === peerUserId) return null;
+
+    const shared = await this.prisma.workspaceMember.findFirst({
+      where: {
+        userId: peerUserId,
+        workspace: { members: { some: { userId: callerUserId } } },
+      },
+      select: { id: true },
+    });
+    if (!shared) return null;
+
+    return this.ensureIdentity(peerUserId);
+  }
+
   /** Mirrors a channel membership change into the Matrix room. */
   async syncChannelMembership(
     channelId: string,

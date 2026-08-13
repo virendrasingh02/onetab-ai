@@ -77,6 +77,32 @@ const PRESENCE_STYLES: Record<PresenceStatus, string> = {
   offline: 'bg-muted-foreground',
 };
 
+export const PRESENCE_LABELS: Record<PresenceStatus, string> = {
+  online: 'Online',
+  away: 'Away',
+  busy: 'Do not disturb',
+  offline: 'Offline',
+};
+
+/**
+ * Narrows the API's `PresenceStatus` (`'ONLINE' | 'AWAY' | …`) to the lowercase
+ * union this library draws with.
+ *
+ * The two enums have the same members, but they are declared in different
+ * packages — `@org/ui` does not depend on `@org/types` — so the crossing has to
+ * happen somewhere. Doing it here keeps every call site from open-coding a
+ * `toLowerCase()` cast, which is how the members list ended up rendering both
+ * "away" and "busy" as offline.
+ */
+export function toPresenceStatus(value: string | null | undefined): PresenceStatus {
+  const normalized = value?.toLowerCase();
+  return normalized === 'online' ||
+    normalized === 'away' ||
+    normalized === 'busy'
+    ? normalized
+    : 'offline';
+}
+
 export interface UserAvatarProps extends AvatarProps {
   name: string;
   src?: string | null;

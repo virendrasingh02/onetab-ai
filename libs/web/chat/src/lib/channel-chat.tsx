@@ -1,7 +1,6 @@
 import { ErrorState, LoadingState } from '@org/ui';
 import { ChatPanel } from './chat-panel.js';
 import { useMatrix } from './matrix-provider.js';
-import { SampleChatPanel } from './mock/sample-chat-panel.js';
 import { useChannelRoom } from './use-channel-room.js';
 
 export interface ChannelChatProps {
@@ -17,22 +16,18 @@ export interface ChannelChatProps {
  * passes a channel id and gets a working conversation back, without learning
  * that rooms — or Matrix — exist.
  *
- * It is also where a deployment without a homeserver falls back to sample data
- * instead of an empty state. The two panels render the same surface, so the
- * fallback is a change of data source, not a second design to keep in step.
+ * A deployment with no homeserver falls through to `ChatPanel`, which says so.
+ * This used to render a scripted sample conversation instead, which meant a
+ * misconfigured deployment looked like a working one with other people's
+ * messages in it.
  */
 export function ChannelChat({ channelId, title, subtitle }: ChannelChatProps) {
   const { enabled } = useMatrix();
   const { roomId, isLoading, error } = useChannelRoom(channelId);
 
+  // `ChatPanel` renders the "chat is not configured" state itself.
   if (!enabled) {
-    return (
-      <SampleChatPanel
-        channelId={channelId}
-        title={title}
-        subtitle={subtitle}
-      />
-    );
+    return <ChatPanel roomId={null} title={title} subtitle={subtitle} />;
   }
 
   if (error) {

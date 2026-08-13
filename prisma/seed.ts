@@ -141,6 +141,52 @@ async function main() {
 
   console.log(`📢 Channels seeded: ${channels.map((c) => c.name).join(', ')}`);
 
+  // 5. Seed the built-in prompt library
+  //
+  // System templates have no workspace: they are read-only and appear in every
+  // workspace's library alongside whatever that team saves of its own.
+  const systemPrompts = [
+    {
+      title: 'Sprint review summary generator',
+      category: 'Project management',
+      promptText:
+        'Analyze the following tasks and generate a 3-bullet sprint executive summary for stakeholders:',
+    },
+    {
+      title: 'Bug fix & code review',
+      category: 'Development',
+      promptText:
+        'Review the following TypeScript code block for potential null pointer errors and memory leaks:',
+    },
+    {
+      title: 'Product requirements spec (PRD)',
+      category: 'Product',
+      promptText:
+        'Structure a PRD document containing Goals, User Stories, Acceptance Criteria, and Tech Architecture for:',
+    },
+  ];
+
+  for (const prompt of systemPrompts) {
+    // No natural key to upsert on, so re-running the seed matches on title.
+    const existing = await prisma.promptTemplate.findFirst({
+      where: { title: prompt.title, isSystem: true },
+      select: { id: true },
+    });
+
+    if (existing) {
+      await prisma.promptTemplate.update({
+        where: { id: existing.id },
+        data: prompt,
+      });
+    } else {
+      await prisma.promptTemplate.create({
+        data: { ...prompt, isSystem: true, workspaceId: null },
+      });
+    }
+  }
+
+  console.log(`📝 Prompt templates seeded: ${systemPrompts.length}`);
+
   console.log('✅ Seed completed successfully!');
 }
 

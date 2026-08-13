@@ -11,6 +11,8 @@ import {
   Hint,
   IconRenderer,
 } from '@org/ui';
+import { useDocsWorkspace } from '@org/web-work-tools';
+import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Building,
   ChevronDown,
@@ -24,7 +26,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   navActionClass,
   navGroupHeaderClass,
@@ -33,9 +35,16 @@ import {
   navRowClass,
   Section,
 } from './nav-primitives.js';
-import { useSidebarDocs, type SidebarDoc } from './sidebar-stores.js';
 import type { PromptDialog } from './use-prompt-dialog.js';
 
+/**
+ * The docs tree, over the same `useDocsWorkspace` projection the editor uses.
+ *
+ * Sharing that hook is the point: the sidebar and `/docs` read one cache, so a
+ * page created here opens in the editor by the id the server assigned it. The
+ * tree used to be a local-storage store with ids of its own, which meant every
+ * row in it navigated to a document that did not exist.
+ */
 export function DocsTreeSection({
   workspaceSlug,
   prompts,
@@ -44,10 +53,12 @@ export function DocsTreeSection({
   prompts: PromptDialog;
 }) {
   const location = useLocation();
-  const [store, saveStore] = useSidebarDocs();
+  const navigate = useNavigate();
+  const { workspaceId } = useCurrentWorkspace();
+  const workspace = useDocsWorkspace(workspaceId);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-  const { companies, docs } = store;
+  const { companies, docs } = workspace;
 
   const toggleCompany = (id: string) =>
     setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -60,16 +71,7 @@ export function DocsTreeSection({
       confirmLabel: 'Add company',
     });
     if (!name) return;
-
-    const company = { id: `company_${Date.now()}`, name, icon: '🏢' };
-    const doc: SidebarDoc = {
-      id: `doc_${Date.now()}`,
-      companyId: company.id,
-      title: `${name} Overview`,
-      icon: '📝',
-      snippet: 'Welcome to company documentation.',
-    };
-    saveStore({ companies: [...companies, company], docs: [doc, ...docs] });
+    await workspace.addCompany(name);
   };
 
   const renameCompany = async (id: string, currentName: string) => {
@@ -80,10 +82,7 @@ export function DocsTreeSection({
       confirmLabel: 'Rename',
     });
     if (!name) return;
-    saveStore({
-      companies: companies.map((c) => (c.id === id ? { ...c, name } : c)),
-      docs,
-    });
+    workspace.renameCompany(id, name);
   };
 
   const deleteCompany = async (id: string, name: string) => {
@@ -102,21 +101,19 @@ export function DocsTreeSection({
     });
     if (!confirmed) return;
 
-    saveStore({
-      companies: companies.filter((c) => c.id !== id),
-      docs: docs.filter((d) => d.companyId !== id),
-    });
+    await workspace.deleteCompany(id);
   };
 
-  const addDoc = (companyId: string) => {
-    const doc: SidebarDoc = {
-      id: `doc_${Date.now()}`,
+  /** Creates the page server-side, then opens it — ids come from the API. */
+  const addDoc = async (companyId: string, parentId?: string) => {
+    const docId = await workspace.createDoc(
       companyId,
-      title: 'Untitled Document',
-      icon: '📝',
-      snippet: 'Start writing…',
-    };
-    saveStore({ companies, docs: [doc, ...docs] });
+      undefined,
+      undefined,
+      undefined,
+      parentId,
+    );
+    if (docId) navigate(`/w/${workspaceSlug}/docs?doc=${docId}`);
   };
 
   const renameDoc = async (id: string, currentTitle: string) => {
@@ -127,23 +124,15 @@ export function DocsTreeSection({
       confirmLabel: 'Rename',
     });
     if (!title) return;
-    saveStore({ companies, docs: docs.map((d) => (d.id === id ? { ...d, title } : d)) });
+    workspace.updateDocTitle(id, title);
   };
 
-  const duplicateDoc = (id: string) => {
-    const source = docs.find((d) => d.id === id);
-    if (!source) return;
-    saveStore({
-      companies,
-      docs: [
-        { ...source, id: `doc_${Date.now()}`, title: `${source.title} (Copy)`, updatedAt: 'Just now' },
-        ...docs,
-      ],
-    });
+  const duplicateDoc = async (id: string) => {
+    const docId = await workspace.duplicateDoc(id);
+    if (docId) navigate(`/w/${workspaceSlug}/docs?doc=${docId}`);
   };
 
   const deleteDoc = async (id: string, title: string) => {
-    if (docs.length <= 1) return;
     const confirmed = await prompts.confirmAction({
       title: `Delete “${title}”?`,
       description: 'This cannot be undone.',
@@ -151,18 +140,20 @@ export function DocsTreeSection({
       destructive: true,
     });
     if (!confirmed) return;
-    saveStore({ companies, docs: docs.filter((d) => d.id !== id) });
+    workspace.deleteDoc(id);
   };
-
-  const moveDoc = (id: string, companyId: string) =>
-    saveStore({
-      companies,
-      docs: docs.map((d) => (d.id === id ? { ...d, companyId } : d)),
-    });
 
   return (
     <Section
       title="Docs & Knowledge"
+      count={companies.length}
+      emptyLabel={
+        workspace.isLoading
+          ? 'Loading docs…'
+          : workspace.isError
+            ? 'Docs could not be loaded'
+            : 'No docs yet'
+      }
       action={
         <div className="flex items-center gap-0.5">
           <Hint label="Add company">
@@ -193,10 +184,7 @@ export function DocsTreeSection({
       }
     >
       {companies.map((company) => {
-        const companyDocs = docs.filter(
-          (d) => d.companyId === company.id ||
-            (!d.companyId && company.id === companies[0]?.id),
-        );
+        const companyDocs = docs.filter((d) => d.companyId === company.id);
         const rootDocs = companyDocs.filter((d) => !d.parentId);
         const isCollapsed = !!collapsed[company.id];
 
@@ -237,7 +225,7 @@ export function DocsTreeSection({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    onClick={() => addDoc(company.id)}
+                    onClick={() => void addDoc(company.id)}
                     aria-label={`Add doc in ${company.name}`}
                     className="size-5 p-0"
                   >
@@ -257,7 +245,7 @@ export function DocsTreeSection({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-44">
                     <DropdownMenuItem
-                      onSelect={() => addDoc(company.id)}
+                      onSelect={() => void addDoc(company.id)}
                       className="gap-2 text-xs"
                     >
                       <Plus className="size-3" />
@@ -294,7 +282,7 @@ export function DocsTreeSection({
                   <li>
                     <button
                       type="button"
-                      onClick={() => addDoc(company.id)}
+                      onClick={() => void addDoc(company.id)}
                       className={navActionClass({ depth: 1 })}
                     >
                       <Plus className={navIconClass(1)} aria-hidden />
@@ -340,6 +328,13 @@ export function DocsTreeSection({
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-44">
                               <DropdownMenuItem
+                                onSelect={() => void addDoc(company.id, doc.id)}
+                                className="gap-2 text-xs"
+                              >
+                                <Plus className="size-3" />
+                                Add subpage
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
                                 onSelect={() => void renameDoc(doc.id, doc.title)}
                                 className="gap-2 text-xs"
                               >
@@ -347,7 +342,7 @@ export function DocsTreeSection({
                                 Rename doc
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                onSelect={() => duplicateDoc(doc.id)}
+                                onSelect={() => void duplicateDoc(doc.id)}
                                 className="gap-2 text-xs"
                               >
                                 <Copy className="size-3" />
@@ -365,7 +360,9 @@ export function DocsTreeSection({
                                       .map((c) => (
                                         <DropdownMenuItem
                                           key={c.id}
-                                          onSelect={() => moveDoc(doc.id, c.id)}
+                                          onSelect={() =>
+                                            workspace.moveDocToCompany(doc.id, c.id)
+                                          }
                                           className="gap-2 text-xs"
                                         >
                                           <Building className="size-3" />
@@ -375,16 +372,14 @@ export function DocsTreeSection({
                                   </DropdownMenuSubContent>
                                 </DropdownMenuSub>
                               ) : null}
-                              {docs.length > 1 ? (
-                                <DropdownMenuItem
-                                  variant="destructive"
-                                  onSelect={() => void deleteDoc(doc.id, doc.title)}
-                                  className="gap-2 text-xs"
-                                >
-                                  <Trash2 className="size-3" />
-                                  Delete doc
-                                </DropdownMenuItem>
-                              ) : null}
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onSelect={() => void deleteDoc(doc.id, doc.title)}
+                                className="gap-2 text-xs"
+                              >
+                                <Trash2 className="size-3" />
+                                Delete doc
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>

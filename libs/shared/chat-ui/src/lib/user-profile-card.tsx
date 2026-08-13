@@ -285,6 +285,35 @@ export function UserProfileCard({
                   </div>
                   <p className="mt-1 text-xs font-semibold text-white">{powerLevel} / 100</p>
                 </div>
+
+                {/*
+                  The modal took `email` and `joinedAt` and drew neither, so the
+                  fallback profile showed strictly less than the side panel it
+                  stands in for.
+                */}
+                {email ? (
+                  <div className="rounded-xl border border-[#2b2d31] bg-[#2b2d31]/50 p-3">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#949ba4]">
+                      <Mail className="size-3.5 text-[#3ba55d]" />
+                      <span>Email</span>
+                    </div>
+                    <p className="mt-1 text-xs font-semibold break-all text-white">
+                      {email}
+                    </p>
+                  </div>
+                ) : null}
+
+                <div className="rounded-xl border border-[#2b2d31] bg-[#2b2d31]/50 p-3">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#949ba4]">
+                    <Calendar className="size-3.5 text-[#949ba4]" />
+                    <span>Member since</span>
+                  </div>
+                  <p className="mt-1 text-xs font-semibold text-white">
+                    {joinedAt
+                      ? new Date(joinedAt).toLocaleDateString()
+                      : 'Workspace Member'}
+                  </p>
+                </div>
               </div>
             </div>
           </div>

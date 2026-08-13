@@ -33,6 +33,7 @@ import type {
   CurrentUser,
   DashboardOverview,
   DocumentKind,
+  EnterpriseOrganization,
   ErrorTrackingReport,
   ExternalIntegration,
   GeneratedReport,
@@ -57,12 +58,14 @@ import type {
   PluginSDKDescriptor,
   Project,
   ProjectDetail,
+  PromptTemplate,
   PublicUser,
   PushDevice,
   ReportDefinition,
   ReportType,
   SearchCategory,
   SearchResultItem,
+  SSOConfiguration,
   StorageAnalytics,
   SystemRole,
   Task,
@@ -86,6 +89,7 @@ import type {
   CreateDocumentInput,
   CreatePinInput,
   CreateProjectInput,
+  CreatePromptTemplateInput,
   CreateTaskCommentInput,
   CreateTaskInput,
   CreateWhiteboardInput,
@@ -102,6 +106,7 @@ import type {
   UpdateMemberRoleInput,
   UpdateProfileInput,
   UpdateProjectInput,
+  UpdatePromptTemplateInput,
   UpdateTaskInput,
   UpdateWhiteboardInput,
   UpdateWorkspaceInput,
@@ -353,6 +358,18 @@ export const matrixApi = {
   channelRoom: (channelId: string) =>
     request<{ roomId: string }>(
       http.post(`/matrix/channels/${channelId}/room`),
+    ),
+
+  /**
+   * A teammate's Matrix id, so the browser can open a direct message with them.
+   *
+   * The mapping is not derivable client-side — the localpart is hashed from our
+   * user id — and asking for it provisions the peer's Matrix account if they
+   * have never opened chat.
+   */
+  peerIdentity: (userId: string) =>
+    request<{ matrixUserId: string }>(
+      http.get(`/matrix/users/${userId}/identity`),
     ),
 };
 
@@ -1053,6 +1070,41 @@ export const aiApi = {
     ),
 };
 
+/**
+ * The prompt library.
+ *
+ * Reads return the workspace's own templates alongside the read-only system
+ * ones; writes only ever touch the workspace's.
+ */
+export const promptTemplateApi = {
+  list: (workspaceId: string) =>
+    request<PromptTemplate[]>(
+      http.get(`/workspaces/${workspaceId}/prompt-templates`),
+    ),
+
+  create: (workspaceId: string, input: CreatePromptTemplateInput) =>
+    request<PromptTemplate>(
+      http.post(`/workspaces/${workspaceId}/prompt-templates`, input),
+    ),
+
+  update: (
+    workspaceId: string,
+    templateId: string,
+    input: UpdatePromptTemplateInput,
+  ) =>
+    request<PromptTemplate>(
+      http.patch(
+        `/workspaces/${workspaceId}/prompt-templates/${templateId}`,
+        input,
+      ),
+    ),
+
+  remove: (workspaceId: string, templateId: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/prompt-templates/${templateId}`),
+    ),
+};
+
 export const searchApi = {
   query: (
     workspaceId: string,
@@ -1168,5 +1220,50 @@ export const adminApi = {
   ) =>
     request<AdminPage<AdminAuditLogEntry>>(
       http.get('/admin/audit-logs', { params }),
+    ),
+};
+
+/**
+ * Enterprise governance — organisations, SSO and SCIM.
+ *
+ * Separate from `adminApi` because it is a separate controller with a separate
+ * job: `adminApi` reads the platform's own tables, while these routes configure
+ * a tenant's identity provider. Both are SUPERADMIN-only.
+ */
+export const enterpriseApi = {
+  organization: (organizationId: string) =>
+    request<EnterpriseOrganization>(
+      http.get(`/enterprise/organizations/${organizationId}`),
+    ),
+
+  createOrganization: (input: {
+    name: string;
+    domain: string;
+    billingEmail?: string;
+  }) => request<EnterpriseOrganization>(http.post('/enterprise/organizations', input)),
+
+  configureSSO: (
+    organizationId: string,
+    input: {
+      providerType: string;
+      idpEntityId?: string;
+      ssoUrl?: string;
+      certificate?: string;
+    },
+  ) =>
+    request<SSOConfiguration>(
+      http.post(`/enterprise/organizations/${organizationId}/sso`, input),
+    ),
+
+  rotateScimToken: (organizationId: string) =>
+    request<SSOConfiguration>(
+      http.post(
+        `/enterprise/organizations/${organizationId}/sso/rotate-scim-token`,
+      ),
+    ),
+
+  auditLogs: (organizationId: string) =>
+    request<AdminAuditLogEntry[]>(
+      http.get(`/enterprise/organizations/${organizationId}/audit-logs`),
     ),
 };

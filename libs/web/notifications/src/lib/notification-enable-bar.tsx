@@ -204,14 +204,17 @@ export function NotificationEnableBar({
       }
 
       // Register Push Device with Backend API
-      let pushKey = '';
+      let pushKey: string;
       try {
-        pushKey = localStorage.getItem('onetab:notifications:push-key') || '';
+        pushKey =
+          localStorage.getItem('onetab:notifications:push-key') || '';
         if (!pushKey) {
           pushKey = `device-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
           localStorage.setItem('onetab:notifications:push-key', pushKey);
         }
       } catch {
+        // Storage blocked by policy: the device still registers, it just gets
+        // a fresh key each time rather than a stable one.
         pushKey = `device-${Date.now()}`;
       }
 

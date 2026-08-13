@@ -1,6 +1,6 @@
 export { AISidebar, type AISidebarProps } from './lib/AISidebar.js';
 export { AIChatView } from './lib/AIChatView.js';
-export { PromptLibraryView, type PromptTemplateItem } from './lib/PromptLibraryView.js';
+export { PromptLibraryView } from './lib/PromptLibraryView.js';
 export { AIImageGeneratorView } from './lib/AIImageGeneratorView.js';
 
 export {
@@ -13,5 +13,7 @@ export {
   useAITranslate,
   useAIVision,
   useAIWorkspaceId,
+  usePromptTemplateMutations,
+  usePromptTemplates,
   type AIModelValue,
 } from './lib/use-ai.js';

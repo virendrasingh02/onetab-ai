@@ -1,3 +1,4 @@
+import type { ProjectDetail } from '@org/types';
 import {
   Button,
   DropdownMenu,
@@ -5,8 +6,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   Hint,
-  IconRenderer,
 } from '@org/ui';
+import { cn } from '@org/utils';
+import { useProjectMutations, useProjects } from '@org/web-work-tools';
+import { useCurrentWorkspace } from '@org/web-workspace';
 import { MoreVertical, Pencil, Plus, Trash2 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
@@ -15,7 +18,6 @@ import {
   navRowClass,
   Section,
 } from './nav-primitives.js';
-import { useSidebarProjects } from './sidebar-stores.js';
 import type { PromptDialog } from './use-prompt-dialog.js';
 
 export function ProjectsTreeSection({
@@ -26,35 +28,40 @@ export function ProjectsTreeSection({
   prompts: PromptDialog;
 }) {
   const location = useLocation();
-  const [projects, saveProjects] = useSidebarProjects();
+  const { workspaceId } = useCurrentWorkspace();
+  const query = useProjects(workspaceId);
+  const mutations = useProjectMutations(workspaceId);
 
-  const rename = async (id: string, currentName: string) => {
+  const projects: ProjectDetail[] = query.data ?? [];
+
+  const rename = async (project: ProjectDetail) => {
     const name = await prompts.promptText({
       title: 'Rename project',
       label: 'Project name',
-      defaultValue: currentName,
+      defaultValue: project.name,
       confirmLabel: 'Rename',
     });
     if (!name) return;
-    saveProjects(projects.map((p) => (p.id === id ? { ...p, name } : p)));
+    mutations.update.mutate({ projectId: project.id, input: { name } });
   };
 
-  const remove = async (id: string, name: string) => {
-    if (projects.length <= 1) return;
+  const remove = async (project: ProjectDetail) => {
     const confirmed = await prompts.confirmAction({
-      title: `Delete “${name}”?`,
-      description: 'This removes the board from your sidebar. This cannot be undone.',
+      title: `Delete “${project.name}”?`,
+      description:
+        'The project and every task on its board are deleted for everyone. This cannot be undone.',
       confirmLabel: 'Delete project',
       destructive: true,
     });
     if (!confirmed) return;
-    saveProjects(projects.filter((p) => p.id !== id));
+    mutations.remove.mutate(project.id);
   };
 
   return (
     <Section
       title="Projects"
       count={projects.length}
+      emptyLabel={query.isLoading ? 'Loading projects…' : 'No projects yet'}
       action={
         <Hint label="New project">
           <Button
@@ -72,6 +79,11 @@ export function ProjectsTreeSection({
       }
     >
       {projects.map((project, index) => {
+        /*
+         * `AsanaProjectManager` falls back to the first project when the URL
+         * carries no `?project=`, so the first row is the selected one on a
+         * bare `/tasks` — the highlight has to agree with that.
+         */
         const isSelected =
           location.pathname.includes('/tasks') &&
           (location.search.includes(`project=${project.id}`) ||
@@ -83,11 +95,22 @@ export function ProjectsTreeSection({
               to={`/w/${workspaceSlug}/tasks?project=${project.id}`}
               className={navRowClass(isSelected, { depth: 1, extra: 'pr-8' })}
             >
-              <IconRenderer
-                icon={project.icon}
-                iconColor={project.iconColor}
-                fallbackEmoji="📁"
-                sizeClassName={navIconClass(1)}
+              {/*
+                Projects carry a colour, not an icon, so the row marker is the
+                project's own swatch — the same one the board header draws.
+              */}
+              <span
+                aria-hidden
+                className={navIconClass(
+                  1,
+                  cn(
+                    'rounded-[4px] border border-border/60',
+                    !project.color && 'bg-muted',
+                  ),
+                )}
+                style={
+                  project.color ? { backgroundColor: project.color } : undefined
+                }
               />
               <span className="flex-1 truncate">{project.name}</span>
             </NavLink>
@@ -111,22 +134,20 @@ export function ProjectsTreeSection({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-40">
                   <DropdownMenuItem
-                    onSelect={() => void rename(project.id, project.name)}
+                    onSelect={() => void rename(project)}
                     className="gap-2 text-xs"
                   >
                     <Pencil className="size-3" />
                     Rename project
                   </DropdownMenuItem>
-                  {projects.length > 1 ? (
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onSelect={() => void remove(project.id, project.name)}
-                      className="gap-2 text-xs"
-                    >
-                      <Trash2 className="size-3" />
-                      Delete project
-                    </DropdownMenuItem>
-                  ) : null}
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onSelect={() => void remove(project)}
+                    className="gap-2 text-xs"
+                  >
+                    <Trash2 className="size-3" />
+                    Delete project
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

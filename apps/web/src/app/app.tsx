@@ -89,8 +89,17 @@ const ScheduleView = lazy(() =>
 const MeetingsView = lazy(() =>
   import('@org/web-work-tools').then((m) => ({ default: m.MeetingsView })),
 );
+const WhiteboardCanvas = lazy(() =>
+  import('@org/web-work-tools').then((m) => ({ default: m.WhiteboardCanvas })),
+);
 const AIChatView = lazy(() =>
   import('@org/web-ai').then((m) => ({ default: m.AIChatView })),
+);
+const PromptLibraryView = lazy(() =>
+  import('@org/web-ai').then((m) => ({ default: m.PromptLibraryView })),
+);
+const AIImageGeneratorView = lazy(() =>
+  import('@org/web-ai').then((m) => ({ default: m.AIImageGeneratorView })),
 );
 const AgentMarketplaceView = lazy(() =>
   import('@org/web-agents').then((m) => ({ default: m.AgentMarketplaceView })),
@@ -202,6 +211,9 @@ export function App() {
             <Route path="dms" element={<DirectMessagesView />} />
             <Route path="threads" element={<ThreadsView />} />
             <Route path="ai-chat" element={<AIChatView />} />
+            <Route path="ai/prompts" element={<PromptLibraryView />} />
+            <Route path="ai/images" element={<AIImageGeneratorView />} />
+            <Route path="whiteboards" element={<WhiteboardCanvas />} />
             <Route path="agents" element={<AgentMarketplaceView />} />
             <Route path="agents/builder" element={<AgentBuilderView />} />
             <Route path="agents/logs" element={<AgentMonitoringView />} />

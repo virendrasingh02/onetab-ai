@@ -56,7 +56,13 @@
       "path": "../../shared/design-system/tsconfig.lib.json"
     },
     {
+      "path": "../work-tools/tsconfig.lib.json"
+    },
+    {
       "path": "../search/tsconfig.lib.json"
+    },
+    {
+      "path": "../members/tsconfig.lib.json"
     },
     {
       "path": "../desktop/tsconfig.lib.json"

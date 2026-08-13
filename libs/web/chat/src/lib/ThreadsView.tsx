@@ -2,6 +2,7 @@ import {
   Badge,
   Button,
   EmptyState,
+  LoadingState,
   Panel,
   Page,
   PageHeader,
@@ -11,56 +12,29 @@ import {
   TabsTrigger,
   UserAvatar,
 } from '@org/ui';
-import { Hash, MessagesSquare, Reply } from 'lucide-react';
+import { formatRelative } from '@org/utils';
+import { Hash, MessagesSquare, MessageSquareOff, Reply } from 'lucide-react';
 import { useState } from 'react';
+import { useMatrix } from './matrix-provider.js';
+import { useAllThreads, type CrossRoomThread } from './use-all-threads.js';
 
-export interface ThreadSummary {
-  id: string;
-  channel: string;
-  title: string;
-  author: string;
-  replies: number;
-  lastReply: string;
-  unread: boolean;
-}
+function ThreadList({
+  items,
+  isLoading,
+  emptyDescription,
+}: {
+  items: CrossRoomThread[];
+  isLoading: boolean;
+  emptyDescription: string;
+}) {
+  if (isLoading) return <LoadingState label="Loading threads…" />;
 
-const threads: ThreadSummary[] = [
-  {
-    id: '1',
-    channel: 'engineering',
-    title: 'Qdrant collection schema — one collection per workspace?',
-    author: 'Dev User',
-    replies: 8,
-    lastReply: '12m ago',
-    unread: true,
-  },
-  {
-    id: '2',
-    channel: 'design',
-    title: 'Sidebar grouping: platform sections vs. flat list',
-    author: 'Priya Raman',
-    replies: 4,
-    lastReply: '2h ago',
-    unread: true,
-  },
-  {
-    id: '3',
-    channel: 'general',
-    title: 'Notes from the Slack import dry run',
-    author: 'Admin',
-    replies: 12,
-    lastReply: 'Yesterday',
-    unread: false,
-  },
-];
-
-function ThreadList({ items }: { items: ThreadSummary[] }) {
   if (items.length === 0) {
     return (
       <EmptyState
         icon={<MessagesSquare />}
         title="Nothing here"
-        description="Threads you follow or are mentioned in will collect here."
+        description={emptyDescription}
       />
     );
   }
@@ -72,27 +46,34 @@ function ThreadList({ items }: { items: ThreadSummary[] }) {
           key={thread.id}
           className="gap-3 p-4 flex items-start hover:bg-muted/50"
         >
-          <UserAvatar name={thread.author} seed={thread.id} />
+          <UserAvatar
+            name={thread.authorName}
+            src={thread.root?.senderAvatarUrl}
+            seed={thread.root?.senderId ?? thread.id}
+          />
 
           <div className="min-w-0 flex-1">
             <div className="gap-2 flex flex-wrap items-center">
               <Badge variant="outline">
                 <Hash aria-hidden />
-                {thread.channel}
+                {thread.roomName}
               </Badge>
-              {thread.unread ? <Badge variant="primary">Unread</Badge> : null}
+              {thread.hasUnread ? <Badge variant="primary">Unread</Badge> : null}
             </div>
 
-            <p className="mt-1.5 text-sm font-medium text-foreground">
+            <p className="mt-1.5 text-sm font-medium line-clamp-2 text-foreground">
               {thread.title}
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Started by {thread.author} · {thread.replies} replies · last reply{' '}
-              {thread.lastReply}
+              Started by {thread.authorName} · {thread.replyCount}{' '}
+              {thread.replyCount === 1 ? 'reply' : 'replies'}
+              {thread.lastReplyAt
+                ? ` · last reply ${formatRelative(new Date(thread.lastReplyAt).toISOString())}`
+                : ''}
             </p>
           </div>
 
-          <Button variant="ghost" size="sm" leadingIcon={<Reply />}>
+          <Button variant="ghost" size="sm" leadingIcon={<Reply />} disabled>
             Reply
           </Button>
         </li>
@@ -101,9 +82,19 @@ function ThreadList({ items }: { items: ThreadSummary[] }) {
   );
 }
 
-/** Every thread the reader follows, across channels, in one place. */
+/**
+ * Every thread the reader can see, across rooms, in one place.
+ *
+ * The rows come from the Matrix client's own view of each room's threads, so
+ * this is the same data the in-channel thread panel shows — not a second,
+ * separately-maintained list.
+ */
 export function ThreadsView() {
   const [tab, setTab] = useState('all');
+  const { enabled } = useMatrix();
+  const { threads, isLoading } = useAllThreads();
+
+  const unread = threads.filter((thread) => thread.hasUnread);
 
   return (
     <Page>
@@ -114,24 +105,42 @@ export function ThreadsView() {
         accent="amber"
       />
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList aria-label="Thread filters" className="mb-4">
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="unread">Unread</TabsTrigger>
-        </TabsList>
+      {!enabled ? (
+        <Panel flush>
+          <EmptyState
+            icon={<MessageSquareOff />}
+            title="Chat is not configured"
+            description="This deployment has no Matrix homeserver, so there are no conversations to thread. Set MATRIX_ENABLED and the homeserver settings to turn on messaging."
+          />
+        </Panel>
+      ) : (
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList aria-label="Thread filters" className="mb-4">
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="unread">Unread</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="all">
-          <Panel flush>
-            <ThreadList items={threads} />
-          </Panel>
-        </TabsContent>
+          <TabsContent value="all">
+            <Panel flush>
+              <ThreadList
+                items={threads}
+                isLoading={isLoading}
+                emptyDescription="Reply in a thread from any channel and it will collect here."
+              />
+            </Panel>
+          </TabsContent>
 
-        <TabsContent value="unread">
-          <Panel flush>
-            <ThreadList items={threads.filter((thread) => thread.unread)} />
-          </Panel>
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="unread">
+            <Panel flush>
+              <ThreadList
+                items={unread}
+                isLoading={isLoading}
+                emptyDescription="You are caught up on every thread."
+              />
+            </Panel>
+          </TabsContent>
+        </Tabs>
+      )}
     </Page>
   );
 }

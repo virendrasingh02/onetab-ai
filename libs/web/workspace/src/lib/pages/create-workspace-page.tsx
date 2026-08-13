@@ -637,7 +637,7 @@ export function CreateWorkspacePage() {
               </div>
 
               <CardContent className="p-4 space-y-4">
-                {/* Mock Workspace Sidebar Header */}
+                {/* Preview: workspace header, drawn from the form state above. */}
                 <div className="p-3 rounded-xl bg-background border border-border flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div
@@ -660,7 +660,7 @@ export function CreateWorkspacePage() {
                   </Badge>
                 </div>
 
-                {/* Mock Channel List */}
+                {/* Preview: the channels the form has collected so far. */}
                 <div className="space-y-1 bg-background/40 p-3 rounded-xl border border-border/60">
                   <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground mb-2">
                     <span>CHANNELS ({channels.length})</span>
@@ -680,7 +680,7 @@ export function CreateWorkspacePage() {
                   )}
                 </div>
 
-                {/* Mock Direct Messages & Team */}
+                {/* Preview: the people the form has invited so far. */}
                 <div className="space-y-2 bg-background/40 p-3 rounded-xl border border-border/60">
                   <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
                     <span>TEAM MEMBERS ({invitedEmails.length + 1})</span>

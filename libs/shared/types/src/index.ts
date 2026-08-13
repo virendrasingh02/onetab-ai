@@ -48,6 +48,8 @@ export type {
   AdminUserDetail,
   AdminWorkspace,
   AdminWorkspaceDetail,
+  EnterpriseOrganization,
+  SSOConfiguration,
 } from './lib/admin.js';
 
 export type {
@@ -97,6 +99,7 @@ export type {
   AISummaryResponse,
   AITranslationResponse,
   AIVisionResponse,
+  PromptTemplate,
 } from './lib/ai.js';
 
 export * from './lib/chat.js';

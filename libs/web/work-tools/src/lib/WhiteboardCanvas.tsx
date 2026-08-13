@@ -1,8 +1,27 @@
 import type { Accent } from '@org/design-system';
-import { accentClasses, Button, Page, PageHeader } from '@org/ui';
+import type { Whiteboard } from '@org/types';
+import {
+  accentClasses,
+  Button,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  Page,
+  PageHeader,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@org/ui';
 import { cn } from '@org/utils';
+import { useCurrentWorkspace } from '@org/web-workspace';
 import { Layout, Plus, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import {
+  useWhiteboardMutations,
+  useWhiteboards,
+} from './use-work-tools.js';
 
 export interface CanvasNode {
   id: string;
@@ -12,30 +31,72 @@ export interface CanvasNode {
   accent: Accent;
 }
 
-const CONNECTIONS = [
-  { id: 'auth-ai', x1: 180, y1: 120, x2: 320, y2: 120 },
-  { id: 'ai-vector', x1: 400, y1: 150, x2: 400, y2: 240 },
-];
+export interface CanvasEdge {
+  id: string;
+  from: string;
+  to: string;
+}
+
+interface CanvasData {
+  nodes: CanvasNode[];
+  edges: CanvasEdge[];
+}
+
+const ACCENTS: Accent[] = ['blue', 'violet', 'green', 'amber', 'cyan', 'rose'];
+
+const EMPTY_CANVAS: CanvasData = { nodes: [], edges: [] };
+
+/** Node dimensions, so edges can be drawn between centres. */
+const NODE_WIDTH = 192;
+const NODE_HEIGHT = 72;
+
+/**
+ * `canvasData` is an opaque JSON string on the wire, so every read has to cope
+ * with a board written by an older version — or by hand.
+ */
+function decodeCanvas(canvasData: string): CanvasData {
+  try {
+    const parsed: unknown = JSON.parse(canvasData);
+    if (!parsed || typeof parsed !== 'object') return EMPTY_CANVAS;
+
+    const { nodes, edges } = parsed as Partial<CanvasData>;
+    return {
+      nodes: Array.isArray(nodes) ? nodes : [],
+      edges: Array.isArray(edges) ? edges : [],
+    };
+  } catch {
+    return EMPTY_CANVAS;
+  }
+}
 
 export function WhiteboardCanvas() {
-  const [nodes, setNodes] = useState<CanvasNode[]>([
-    { id: '1', title: 'User auth module', x: 80, y: 100, accent: 'blue' },
-    { id: '2', title: 'Ollama AI runner', x: 320, y: 100, accent: 'violet' },
-    { id: '3', title: 'Qdrant vector DB', x: 320, y: 240, accent: 'green' },
-  ]);
+  const { workspaceId } = useCurrentWorkspace();
+  const query = useWhiteboards(workspaceId);
+  const { create } = useWhiteboardMutations(workspaceId);
 
-  const addNode = () => {
-    setNodes((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        title: 'New flow node',
-        x: 150 + Math.random() * 100,
-        y: 150 + Math.random() * 100,
-        accent: 'amber',
-      },
-    ]);
-  };
+  const [selectedId, setSelectedId] = useState<string>();
+
+  const boards = query.data ?? [];
+  const active = boards.find((board) => board.id === selectedId) ?? boards[0];
+
+  if (query.isLoading) {
+    return (
+      <Page width="full">
+        <LoadingState label="Loading whiteboards…" />
+      </Page>
+    );
+  }
+
+  if (query.isError) {
+    return (
+      <Page width="full">
+        <ErrorState
+          title="Could not load whiteboards"
+          description="This workspace's boards are unavailable."
+        />
+      </Page>
+    );
+  }
 
   return (
     <Page width="full">
@@ -45,11 +106,135 @@ export function WhiteboardCanvas() {
         icon={<Layout />}
         accent="violet"
         actions={
-          <Button leadingIcon={<Plus />} onClick={addNode}>
-            Add node
-          </Button>
+          <div className="gap-2 flex items-center">
+            {boards.length > 0 ? (
+              <Select value={active?.id} onValueChange={setSelectedId}>
+                <SelectTrigger className="w-56" aria-label="Whiteboard">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {boards.map((board) => (
+                    <SelectItem key={board.id} value={board.id}>
+                      {board.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+            <Button
+              variant={boards.length > 0 ? 'outline' : 'primary'}
+              leadingIcon={<Plus />}
+              disabled={create.isPending}
+              onClick={() =>
+                create.mutate(
+                  { name: `Board ${boards.length + 1}` },
+                  { onSuccess: (board) => setSelectedId(board.id) },
+                )
+              }
+            >
+              New board
+            </Button>
+          </div>
         }
       />
+
+      {active ? (
+        // Keyed so switching boards reloads the canvas from that board's data
+        // rather than carrying the previous board's unsaved nodes across.
+        <BoardCanvas key={active.id} board={active} workspaceId={workspaceId} />
+      ) : (
+        <EmptyState
+          icon={<Layout />}
+          title="No whiteboards yet"
+          description="Create a board to start sketching flows and architecture with your team."
+        />
+      )}
+    </Page>
+  );
+}
+
+function BoardCanvas({
+  board,
+  workspaceId,
+}: {
+  board: Whiteboard;
+  workspaceId: string | undefined;
+}) {
+  const { update, remove } = useWhiteboardMutations(workspaceId);
+  const [canvas, setCanvas] = useState<CanvasData>(() =>
+    decodeCanvas(board.canvasData),
+  );
+
+  /*
+   * Edits are debounced into one PATCH rather than saved per interaction:
+   * dragging a node would otherwise be a request per frame, and the canvas is
+   * sent whole each time.
+   */
+  const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const isDirty = useRef(false);
+
+  useEffect(() => () => clearTimeout(saveTimer.current), []);
+
+  const edit = (next: CanvasData) => {
+    setCanvas(next);
+    isDirty.current = true;
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      isDirty.current = false;
+      update.mutate({
+        whiteboardId: board.id,
+        input: { canvasData: JSON.stringify(next) },
+      });
+    }, 600);
+  };
+
+  const addNode = () =>
+    edit({
+      ...canvas,
+      nodes: [
+        ...canvas.nodes,
+        {
+          id: `node_${Date.now()}`,
+          title: 'New flow node',
+          x: 80 + (canvas.nodes.length % 4) * 220,
+          y: 80 + Math.floor(canvas.nodes.length / 4) * 140,
+          accent: ACCENTS[canvas.nodes.length % ACCENTS.length],
+        },
+      ],
+    });
+
+  const removeNode = (nodeId: string) =>
+    edit({
+      nodes: canvas.nodes.filter((node) => node.id !== nodeId),
+      // An edge to a node that no longer exists would draw to nowhere.
+      edges: canvas.edges.filter(
+        (edge) => edge.from !== nodeId && edge.to !== nodeId,
+      ),
+    });
+
+  const nodeById = new Map(canvas.nodes.map((node) => [node.id, node]));
+
+  return (
+    <>
+      <div className="mb-3 gap-2 flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          {update.isPending ? 'Saving…' : `Last saved ${board.name}`}
+        </p>
+        <div className="gap-2 flex items-center">
+          <Button size="sm" leadingIcon={<Plus />} onClick={addNode}>
+            Add node
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            leadingIcon={<Trash2 />}
+            disabled={remove.isPending}
+            onClick={() => remove.mutate(board.id)}
+          >
+            Delete board
+          </Button>
+        </div>
+      </div>
 
       {/*
         The dot grid is drawn from `--border` rather than a fixed hex, so the
@@ -65,53 +250,78 @@ export function WhiteboardCanvas() {
           className="inset-0 pointer-events-none absolute size-full"
           aria-hidden
         >
-          {CONNECTIONS.map((line) => (
-            <line
-              key={line.id}
-              x1={line.x1}
-              y1={line.y1}
-              x2={line.x2}
-              y2={line.y2}
-              stroke="var(--border-strong)"
-              strokeWidth="2"
-              strokeDasharray="4"
-            />
-          ))}
+          {canvas.edges.map((edge) => {
+            const from = nodeById.get(edge.from);
+            const to = nodeById.get(edge.to);
+            if (!from || !to) return null;
+
+            return (
+              <line
+                key={edge.id}
+                x1={from.x + NODE_WIDTH / 2}
+                y1={from.y + NODE_HEIGHT / 2}
+                x2={to.x + NODE_WIDTH / 2}
+                y2={to.y + NODE_HEIGHT / 2}
+                stroke="var(--border-strong)"
+                strokeWidth="2"
+                strokeDasharray="4"
+              />
+            );
+          })}
         </svg>
 
-        {nodes.map((node) => (
+        {canvas.nodes.length === 0 ? (
+          <EmptyState
+            size="sm"
+            icon={<Layout />}
+            title="This board is empty"
+            description="Add a node to start mapping out the flow."
+          />
+        ) : null}
+
+        {canvas.nodes.map((node) => (
           <div
             key={node.id}
             style={{ left: `${node.x}px`, top: `${node.y}px` }}
             className={cn(
               'w-48 p-3 shadow-xs absolute cursor-grab rounded-xl border',
               'transition-transform duration-(--duration-fast) hover:scale-105',
-              accentClasses[node.accent].soft,
-              accentClasses[node.accent].border,
+              accentClasses[node.accent]?.soft,
+              accentClasses[node.accent]?.border,
             )}
           >
             <div className="mb-1 gap-2 flex items-center justify-between">
-              <span className="text-xs font-semibold truncate">
-                {node.title}
-              </span>
+              <input
+                value={node.title}
+                aria-label="Node title"
+                onChange={(event) =>
+                  edit({
+                    ...canvas,
+                    nodes: canvas.nodes.map((item) =>
+                      item.id === node.id
+                        ? { ...item, title: event.target.value }
+                        : item,
+                    ),
+                  })
+                }
+                className="min-w-0 flex-1 bg-transparent text-xs font-semibold focus:outline-none"
+              />
               <Button
                 variant="ghost"
                 size="icon-sm"
                 className="size-6 shrink-0"
                 aria-label={`Delete node ${node.title}`}
-                onClick={() =>
-                  setNodes((prev) => prev.filter((item) => item.id !== node.id))
-                }
+                onClick={() => removeNode(node.id)}
               >
                 <Trash2 className="size-3" />
               </Button>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Interactive canvas element
+              {board.author.displayName ?? board.author.name}
             </p>
           </div>
         ))}
       </div>
-    </Page>
+    </>
   );
 }

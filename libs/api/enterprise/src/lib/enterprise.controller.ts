@@ -53,6 +53,12 @@ export class EnterpriseController {
     return this.enterpriseService.configureSSO(orgId, body);
   }
 
+  /** Issues a new SCIM bearer, invalidating the one the IdP currently holds. */
+  @Post('organizations/:id/sso/rotate-scim-token')
+  rotateScimToken(@Param('id') orgId: string) {
+    return this.enterpriseService.rotateScimToken(orgId);
+  }
+
   @Get('organizations/:id/audit-logs')
   getAuditLogs(@Param('id') orgId: string) {
     return this.enterpriseService.getAuditLogs(orgId);

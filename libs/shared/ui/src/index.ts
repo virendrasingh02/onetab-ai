@@ -27,6 +27,8 @@ export {
   Avatar,
   AvatarFallback,
   AvatarImage,
+  PRESENCE_LABELS,
+  toPresenceStatus,
   UserAvatar,
   WorkspaceAvatar,
   type AvatarProps,
