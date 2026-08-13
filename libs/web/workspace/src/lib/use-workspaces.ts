@@ -1,5 +1,5 @@
-import { queryKeys, workspaceApi } from '@org/api-client';
-import type { WorkspaceSummary } from '@org/types';
+import { invitationApi, queryKeys, workspaceApi } from '@org/api-client';
+import { WorkspaceRole, type WorkspaceSummary } from '@org/types';
 import type {
   CreateWorkspaceInput,
   UpdateWorkspaceInput,
@@ -67,21 +67,101 @@ export function useCreateWorkspace() {
     mutationFn: (input: CreateWorkspaceInput): Promise<WorkspaceSummary> =>
       workspaceApi.create(input),
     onSuccess: (workspace) => {
-      queryClient.setQueryData(
-        queryKeys.workspaces.list(),
-        (old: WorkspaceSummary[] | undefined) => {
-          if (!old) return [workspace];
-          return [workspace, ...old.filter((w) => w.slug !== workspace.slug)];
-        },
-      );
-      queryClient.setQueryData(
-        queryKeys.workspaces.detail(workspace.slug),
-        workspace,
-      );
-      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all() });
+      primeWorkspaceCaches(queryClient, workspace);
       navigate(`/w/${workspace.slug}`);
     },
   });
+}
+
+export interface CreateWorkspaceFlowInput extends CreateWorkspaceInput {
+  /** Optional logo, uploaded once the workspace exists to own it. */
+  logo?: File | null;
+  /** Optional invitations, sent as OWNER after creation. Empty means "skip". */
+  invites?: string[];
+}
+
+export interface CreateWorkspaceFlowResult {
+  workspace: WorkspaceSummary;
+  /** Non-fatal problems from the steps that follow creation. */
+  warnings: string[];
+}
+
+/**
+ * The whole create-workspace wizard as one call: workspace, then logo, then
+ * invitations.
+ *
+ * They cannot collapse into a single request — the logo and the invitations
+ * both need a workspace id to attach to. Only the first step is fatal: once the
+ * workspace exists, a failed logo or a failed invite is worth reporting but not
+ * worth discarding the workspace over, so those surface as warnings and the
+ * user lands in a workspace either way.
+ */
+export function useCreateWorkspaceFlow() {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  return useMutation({
+    mutationFn: async ({
+      logo,
+      invites,
+      ...input
+    }: CreateWorkspaceFlowInput): Promise<CreateWorkspaceFlowResult> => {
+      let workspace = await workspaceApi.create(input);
+      const warnings: string[] = [];
+
+      if (logo) {
+        try {
+          const updated = await workspaceApi.uploadLogo(workspace.id, logo);
+          workspace = { ...workspace, avatarUrl: updated.avatarUrl };
+        } catch {
+          warnings.push(
+            'The logo could not be uploaded. You can add it from workspace settings.',
+          );
+        }
+      }
+
+      const emails = invites?.filter(Boolean) ?? [];
+      if (emails.length > 0) {
+        try {
+          await invitationApi.create(workspace.id, {
+            emails,
+            role: WorkspaceRole.MEMBER,
+          });
+        } catch {
+          warnings.push(
+            'The invitations could not be sent. You can invite people from workspace settings.',
+          );
+        }
+      }
+
+      return { workspace, warnings };
+    },
+    onSuccess: ({ workspace, warnings }) => {
+      primeWorkspaceCaches(queryClient, workspace);
+      // With warnings, the page holds the user long enough to read them and
+      // offers the same jump behind a button.
+      if (warnings.length === 0) navigate(`/w/${workspace.slug}`);
+    },
+  });
+}
+
+/** Makes a freshly created workspace visible before its list refetch lands. */
+function primeWorkspaceCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  workspace: WorkspaceSummary,
+): void {
+  queryClient.setQueryData(
+    queryKeys.workspaces.list(),
+    (old: WorkspaceSummary[] | undefined) => {
+      if (!old) return [workspace];
+      return [workspace, ...old.filter((w) => w.slug !== workspace.slug)];
+    },
+  );
+  queryClient.setQueryData(
+    queryKeys.workspaces.detail(workspace.slug),
+    workspace,
+  );
+  queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all() });
 }
 
 export function useUpdateWorkspace(workspaceId: string | undefined) {

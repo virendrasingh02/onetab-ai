@@ -125,6 +125,22 @@ export const http: AxiosInstance = axios.create({
   timeout: 15_000,
 });
 
+/**
+ * Turns an API-relative asset path into something an `<img>` can load.
+ *
+ * Some media URLs are stored relative (`/workspaces/:id/logo`) because the API
+ * host is not fixed — it is configurable per environment and hops ports in
+ * development. Absolute URLs and data URLs are already loadable and pass
+ * straight through.
+ */
+export function resolveMediaUrl(
+  url: string | null | undefined,
+): string | undefined {
+  if (!url) return undefined;
+  if (/^(https?:|data:|blob:)/i.test(url)) return url;
+  return `${activeBaseURL}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
 http.interceptors.request.use(async (config) => {
   config.baseURL = await resolveBaseURL();
 

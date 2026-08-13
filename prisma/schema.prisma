@@ -59,6 +59,9 @@ model Workspace {
   slug                     String                    @unique
   description              String?
   avatarUrl                String?
+  /// Object-store key behind `avatarUrl` when the logo was uploaded to us.
+  /// Null when the avatar is an external URL, or when there is no avatar.
+  avatarKey                String?
   ownerId                  String
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt

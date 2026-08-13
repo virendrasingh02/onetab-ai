@@ -17,118 +17,68 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  IconPickerPopover,
-  IconRenderer,
   Input,
   Textarea,
+  WorkspaceAvatar,
 } from '@org/ui';
 import { formErrorMessage } from '@org/auth';
 import { initials, slugify } from '@org/utils';
 import {
   createWorkspaceSchema,
+  workspaceLogoError,
+  WORKSPACE_LOGO_MIME_TYPES,
   type CreateWorkspaceInput,
 } from '@org/validation';
 import {
+  AlertTriangle,
   Building2,
-  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Copy,
-  Hash,
-  Paintbrush,
+  ImagePlus,
   Plus,
-  Rocket,
   Sparkles,
+  Trash2,
   Users,
   Wand2,
   X,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link } from 'react-router-dom';
-import { useCreateWorkspace, useSlugSuggestion } from '../use-workspaces.js';
-
-// Pre-defined workspace presets with starter channels and styling
-interface WorkspacePreset {
-  id: string;
-  name: string;
-  tagline: string;
-  icon: string;
-  color: string;
-  badge: string;
-  defaultChannels: string[];
-}
-
-const WORKSPACE_PRESETS: WorkspacePreset[] = [
-  {
-    id: 'engineering',
-    name: 'Product & Engineering',
-    tagline: 'Built for dev teams, release tracking, and bug triage.',
-    icon: 'Laptop',
-    color: '#3B82F6',
-    badge: 'Tech & Dev',
-    defaultChannels: ['general', 'dev-team', 'releases', 'bug-triage', 'standup'],
-  },
-  {
-    id: 'design',
-    name: 'Design & Creative',
-    tagline: 'Ideal for design critiques, brand assets, and user feedback.',
-    icon: 'Paintbrush',
-    color: '#EC4899',
-    badge: 'Creative',
-    defaultChannels: ['general', 'design-system', 'critique', 'brand-assets', 'inspiration'],
-  },
-  {
-    id: 'growth',
-    name: 'Sales & Marketing',
-    tagline: 'Tailored for pipeline tracking, campaigns, and customer wins.',
-    icon: 'TrendingUp',
-    color: '#10B981',
-    badge: 'Growth',
-    defaultChannels: ['general', 'leads', 'campaigns', 'customer-wins', 'announcements'],
-  },
-  {
-    id: 'operations',
-    name: 'Operations & Strategy',
-    tagline: 'Perfect for project roadmaps, team syncs, and company ops.',
-    icon: 'Zap',
-    color: '#8B5CF6',
-    badge: 'Operations',
-    defaultChannels: ['general', 'announcements', 'roadmap', 'team-sync', 'ops'],
-  },
-  {
-    id: 'custom',
-    name: 'Custom Workspace',
-    tagline: 'Start with a blank canvas and customize every detail.',
-    icon: 'Building2',
-    color: '#6366F1',
-    badge: 'Flexible',
-    defaultChannels: ['general', 'random'],
-  },
-];
+import { Link, useNavigate } from 'react-router-dom';
+import { useCreateWorkspaceFlow, useSlugSuggestion } from '../use-workspaces.js';
 
 const STEPS = [
-  { id: 1, label: 'Identity', description: 'Workspace name & URL' },
-  { id: 2, label: 'Team Type', description: 'Choose a starter preset' },
-  { id: 3, label: 'Customization', description: 'Icon & starter channels' },
-  { id: 4, label: 'Invites', description: 'Add your team members' },
-  { id: 5, label: 'Launch', description: 'Review & create workspace' },
-];
+  {
+    id: 1,
+    label: 'Workspace',
+    description: 'Name, URL and logo',
+    icon: Building2,
+  },
+  {
+    id: 2,
+    label: 'Invite your team',
+    description: 'Optional — you can do this later',
+    icon: Users,
+  },
+] as const;
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function CreateWorkspacePage() {
-  const createWorkspace = useCreateWorkspace();
-  const [currentStep, setCurrentStep] = useState<number>(1);
+  const navigate = useNavigate();
+  const createWorkspace = useCreateWorkspaceFlow();
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
 
-  // Wizard Customization States
-  const [selectedPreset, setSelectedPreset] = useState<WorkspacePreset>(WORKSPACE_PRESETS[0]);
-  const [iconName, setIconName] = useState<string>('Laptop');
-  const [iconColor, setIconColor] = useState<string>('#3B82F6');
-  const [channels, setChannels] = useState<string[]>(WORKSPACE_PRESETS[0].defaultChannels);
-  const [newChannelInput, setNewChannelInput] = useState<string>('');
+  // Logo: held locally until the workspace exists to attach it to.
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
   const [invitedEmails, setInvitedEmails] = useState<string[]>([]);
-  const [inviteEmailInput, setInviteEmailInput] = useState<string>('');
-  const [copiedLink, setCopiedLink] = useState<boolean>(false);
+  const [inviteEmailInput, setInviteEmailInput] = useState('');
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   const form = useForm<CreateWorkspaceInput>({
     resolver: zodResolver(createWorkspaceSchema),
@@ -148,77 +98,116 @@ export function CreateWorkspacePage() {
     if (suggested) form.setValue('slug', suggested, { shouldValidate: true });
   }, [name, suggestion.data?.slug, slugTouched, form]);
 
-  // Handle Preset Switch
-  const handleSelectPreset = (preset: WorkspacePreset) => {
-    setSelectedPreset(preset);
-    setIconName(preset.icon);
-    setIconColor(preset.color);
-    setChannels(preset.defaultChannels);
-  };
-
-  // Channel Management
-  const handleAddChannel = () => {
-    const trimmed = slugify(newChannelInput.trim());
-    if (trimmed && !channels.includes(trimmed)) {
-      setChannels([...channels, trimmed]);
-      setNewChannelInput('');
-    }
-  };
-
-  const handleRemoveChannel = (channelToRemove: string) => {
-    if (channels.length <= 1) return; // Keep at least one channel
-    setChannels(channels.filter((c) => c !== channelToRemove));
-  };
-
-  // Team Email Management
-  const handleAddInvite = () => {
-    const trimmed = inviteEmailInput.trim().toLowerCase();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (trimmed && emailRegex.test(trimmed) && !invitedEmails.includes(trimmed)) {
-      setInvitedEmails([...invitedEmails, trimmed]);
-      setInviteEmailInput('');
-    }
-  };
-
-  const handleRemoveInvite = (emailToRemove: string) => {
-    setInvitedEmails(invitedEmails.filter((e) => e !== emailToRemove));
-  };
-
-  const handleCopyInviteLink = () => {
-    const url = `https://onetab.ai/invite/${slug || 'workspace'}`;
-    navigator.clipboard.writeText(url);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
-  };
-
-  // Step Navigation Validation
-  const handleNextStep = async () => {
-    if (currentStep === 1) {
-      const isValid = await form.trigger(['name', 'slug']);
-      if (!isValid) return;
-    }
-    if (currentStep < STEPS.length) {
-      setCurrentStep((prev) => prev + 1);
-    }
-  };
-
-  const handlePrevStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep((prev) => prev - 1);
-    }
-  };
-
-  const onSubmit = form.handleSubmit(async (values) => {
-    if (currentStep < STEPS.length) {
-      await handleNextStep();
+  // Object URLs are a leak if they outlive the file they point at.
+  useEffect(() => {
+    if (!logoFile) {
+      setLogoPreview(null);
       return;
     }
-    try {
-      await createWorkspace.mutateAsync(values);
-    } catch {
-      // Error handles visually in <FormError>
+    const url = URL.createObjectURL(logoFile);
+    setLogoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [logoFile]);
+
+  const handleSelectLogo = (file: File | undefined) => {
+    if (!file) return;
+    // Checked here as well as on the API so a doomed upload never leaves the
+    // browser, and the reason lands next to the control that caused it.
+    const problem = workspaceLogoError(file);
+    setLogoError(problem);
+    setLogoFile(problem ? null : file);
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoFile(null);
+    setLogoError(null);
+    if (logoInputRef.current) logoInputRef.current.value = '';
+  };
+
+  const handleAddInvite = () => {
+    const trimmed = inviteEmailInput.trim().toLowerCase();
+    if (!trimmed) return;
+    if (!EMAIL_PATTERN.test(trimmed)) {
+      setInviteError('Enter a valid email address.');
+      return;
     }
-  });
+    if (invitedEmails.includes(trimmed)) {
+      setInviteError('That address is already on the list.');
+      return;
+    }
+    setInvitedEmails([...invitedEmails, trimmed]);
+    setInviteEmailInput('');
+    setInviteError(null);
+  };
+
+  const handleRemoveInvite = (email: string) => {
+    setInvitedEmails(invitedEmails.filter((e) => e !== email));
+  };
+
+  const handleContinue = async () => {
+    const isValid = await form.trigger(['name', 'slug', 'description']);
+    if (isValid) setCurrentStep(2);
+  };
+
+  /** `withInvites: false` is the Skip path — same creation, no invitations. */
+  const submit = (withInvites: boolean) =>
+    form.handleSubmit(async (values) => {
+      try {
+        await createWorkspace.mutateAsync({
+          ...values,
+          logo: logoFile,
+          invites: withInvites ? invitedEmails : [],
+        });
+      } catch {
+        // Surfaced by <FormError> below.
+      }
+    });
+
+  const result = createWorkspace.data;
+  const isBusy = createWorkspace.isPending;
+
+  // Creation succeeded but the logo or the invitations did not. The navigation
+  // is held back so the user actually sees why.
+  if (result && result.warnings.length > 0) {
+    return (
+      <div className="min-h-full bg-background text-foreground flex items-center justify-center p-6">
+        <Card className="bg-surface/80 border-border backdrop-blur shadow-2xl max-w-lg w-full">
+          <CardHeader>
+            <CardTitle className="text-lg text-foreground flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-success" />
+              {result.workspace.name} is ready
+            </CardTitle>
+            <CardDescription>
+              The workspace was created, but a follow-up step did not finish.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <ul className="space-y-2">
+              {result.warnings.map((warning) => (
+                <li
+                  key={warning}
+                  className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs text-foreground"
+                >
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
+                  {warning}
+                </li>
+              ))}
+            </ul>
+            <Button
+              type="button"
+              className="w-full bg-primary text-white"
+              onClick={() => navigate(`/w/${result.workspace.slug}`)}
+            >
+              Go to workspace <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const step = STEPS[currentStep - 1];
+  const StepIcon = step.icon;
 
   return (
     <div className="min-h-full bg-background text-foreground flex flex-col justify-between selection:bg-primary selection:text-white">
@@ -230,46 +219,142 @@ export function CreateWorkspacePage() {
           </div>
           <div>
             <h1 className="font-semibold text-foreground text-sm tracking-tight">OneTab AI</h1>
-            <p className="text-xs text-muted-foreground">Workspace Onboarding Wizard</p>
+            <p className="text-xs text-muted-foreground">Create a workspace</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-            <Link to="/">Cancel & Exit</Link>
-          </Button>
-        </div>
+        <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+          <Link to="/">Cancel &amp; Exit</Link>
+        </Button>
       </header>
 
-      {/* Main Content Area */}
       <main className="max-w-6xl w-full mx-auto px-4 py-8 flex-1 flex flex-col justify-center">
-        {/* Wizard Form Layout (Form Left + Live Preview Right) */}
+        {/* Two-step progress rail */}
+        <ol className="flex items-center gap-3 mb-6 max-w-md">
+          {STEPS.map((entry) => {
+            const isDone = currentStep > entry.id;
+            const isCurrent = currentStep === entry.id;
+            return (
+              <li key={entry.id} className="flex-1">
+                <div
+                  className={`h-1 rounded-full transition-colors ${
+                    isDone || isCurrent ? 'bg-primary' : 'bg-border'
+                  }`}
+                />
+                <p
+                  className={`mt-2 text-[11px] font-medium ${
+                    isCurrent ? 'text-foreground' : 'text-muted-foreground'
+                  }`}
+                >
+                  Step {entry.id} · {entry.label}
+                </p>
+              </li>
+            );
+          })}
+        </ol>
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Form Side */}
           <div className="lg:col-span-7">
             <Card className="bg-surface/80 border-border backdrop-blur shadow-2xl">
               <CardHeader className="pb-4">
                 <CardTitle className="text-xl text-foreground flex items-center gap-2">
-                  {currentStep === 1 && <Building2 className="h-5 w-5 text-primary" />}
-                  {currentStep === 2 && <Wand2 className="h-5 w-5 text-primary" />}
-                  {currentStep === 3 && <Paintbrush className="h-5 w-5 text-primary" />}
-                  {currentStep === 4 && <Users className="h-5 w-5 text-primary" />}
-                  {currentStep === 5 && <Rocket className="h-5 w-5 text-primary" />}
-                  {STEPS[currentStep - 1].label}
+                  <StepIcon className="h-5 w-5 text-primary" />
+                  {step.label}
                 </CardTitle>
                 <CardDescription className="text-muted-foreground text-sm">
-                  {STEPS[currentStep - 1].description}
+                  {step.description}
                 </CardDescription>
               </CardHeader>
 
               <CardContent>
                 <Form {...form}>
-                  <form onSubmit={onSubmit} className="space-y-6" noValidate>
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      if (currentStep === 1) {
+                        void handleContinue();
+                        return;
+                      }
+                      void submit(true)(event);
+                    }}
+                    className="space-y-6"
+                    noValidate
+                  >
                     <FormError error={formErrorMessage(createWorkspace.error)} />
 
-                    {/* STEP 1: IDENTITY */}
+                    {/* STEP 1: IDENTITY + LOGO */}
                     {currentStep === 1 && (
-                      <div className="space-y-4">
+                      <div className="space-y-5">
+                        {/* Logo uploader */}
+                        <div>
+                          <label className="text-sm font-medium text-foreground block mb-2">
+                            Workspace Logo <span className="text-subtle font-normal">(Optional)</span>
+                          </label>
+                          <div className="flex items-center gap-4 bg-background p-4 rounded-xl border border-border">
+                            <button
+                              type="button"
+                              onClick={() => logoInputRef.current?.click()}
+                              className="relative h-16 w-16 shrink-0 rounded-2xl overflow-hidden border border-border-strong bg-surface-raised flex items-center justify-center transition-transform hover:scale-105"
+                              aria-label="Upload workspace logo"
+                            >
+                              {logoPreview ? (
+                                <img
+                                  src={logoPreview}
+                                  alt="Workspace logo preview"
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <ImagePlus className="h-6 w-6 text-muted-foreground" />
+                              )}
+                            </button>
+
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => logoInputRef.current?.click()}
+                                  className="bg-surface-raised text-foreground hover:bg-selected border-border-strong"
+                                >
+                                  <ImagePlus className="h-4 w-4 mr-1" />
+                                  {logoFile ? 'Replace' : 'Upload image'}
+                                </Button>
+                                {logoFile && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={handleRemoveLogo}
+                                    className="text-muted-foreground hover:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-1" /> Remove
+                                  </Button>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1.5 truncate">
+                                {logoFile
+                                  ? logoFile.name
+                                  : 'PNG, JPEG, WebP or GIF · up to 2 MB'}
+                              </p>
+                              {logoError && (
+                                <p className="text-xs text-destructive mt-1">{logoError}</p>
+                              )}
+                            </div>
+                          </div>
+
+                          <input
+                            ref={logoInputRef}
+                            type="file"
+                            accept={WORKSPACE_LOGO_MIME_TYPES.join(',')}
+                            className="hidden"
+                            onChange={(event) =>
+                              handleSelectLogo(event.target.files?.[0])
+                            }
+                          />
+                        </div>
+
                         <FormField
                           control={form.control}
                           name="name"
@@ -337,144 +422,21 @@ export function CreateWorkspacePage() {
                       </div>
                     )}
 
-                    {/* STEP 2: TEAM TYPE PRESETS */}
+                    {/* STEP 2: INVITES */}
                     {currentStep === 2 && (
-                      <div className="space-y-4">
-                        <label className="text-sm font-medium text-foreground block">Select a workspace template</label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {WORKSPACE_PRESETS.map((preset) => {
-                            const isSelected = selectedPreset.id === preset.id;
-                            return (
-                              <div
-                                key={preset.id}
-                                onClick={() => handleSelectPreset(preset)}
-                                className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
-                                  isSelected
-                                    ? 'border-primary bg-primary/10 text-foreground ring-2 ring-ring/40'
-                                    : 'border-border bg-background/60 text-secondary-foreground hover:border-border-strong hover:bg-background'
-                                }`}
-                              >
-                                <div className="flex items-start justify-between mb-2">
-                                  <div
-                                    className="h-10 w-10 rounded-lg flex items-center justify-center text-white shadow-md"
-                                    style={{ backgroundColor: preset.color }}
-                                  >
-                                    <IconRenderer icon={preset.icon} className="h-5 w-5" />
-                                  </div>
-                                  <Badge
-                                    variant="neutral"
-                                    className="text-[10px] bg-surface-raised text-secondary-foreground border-border-strong"
-                                  >
-                                    {preset.badge}
-                                  </Badge>
-                                </div>
-                                <div>
-                                  <h3 className="font-medium text-sm text-foreground">{preset.name}</h3>
-                                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{preset.tagline}</p>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* STEP 3: BRANDING & CHANNELS */}
-                    {currentStep === 3 && (
-                      <div className="space-y-6">
-                        {/* Icon & Color Customizer */}
-                        <div>
-                          <label className="text-sm font-medium text-foreground block mb-2">Workspace Icon & Accent Color</label>
-                          <div className="flex items-center gap-4 bg-background p-4 rounded-xl border border-border">
-                            <IconPickerPopover
-                              icon={iconName}
-                              iconColor={iconColor}
-                              onSelectIcon={(selectedIcon, selectedColor) => {
-                                setIconName(selectedIcon);
-                                if (selectedColor) setIconColor(selectedColor);
-                              }}
-                              trigger={
-                                <button
-                                  type="button"
-                                  className="h-14 w-14 rounded-2xl flex items-center justify-center text-white shadow-lg transition-transform hover:scale-105"
-                                  style={{ backgroundColor: iconColor }}
-                                >
-                                  <IconRenderer icon={iconName} className="h-7 w-7" />
-                                </button>
-                              }
-                            />
-
-                            <div>
-                              <p className="text-sm font-medium text-foreground">Click icon to customize</p>
-                              <p className="text-xs text-muted-foreground">Choose from icons and curated theme colors</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Starter Channels Customizer */}
+                      <div className="space-y-5">
                         <div className="space-y-3">
-                          <label className="text-sm font-medium text-foreground block">Starter Channels</label>
-                          <div className="flex items-center gap-2">
-                            <div className="relative flex-1">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-subtle font-mono text-xs">#</span>
-                              <Input
-                                value={newChannelInput}
-                                onChange={(e) => setNewChannelInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    handleAddChannel();
-                                  }
-                                }}
-                                placeholder="add-custom-channel"
-                                className="bg-background border-border text-foreground pl-7 text-xs focus:border-primary"
-                              />
-                            </div>
-                            <Button
-                              type="button"
-                              onClick={handleAddChannel}
-                              size="sm"
-                              variant="outline"
-                              className="bg-surface-raised text-foreground hover:bg-selected border-border-strong"
-                            >
-                              <Plus className="h-4 w-4 mr-1" /> Add
-                            </Button>
-                          </div>
-
-                          <div className="flex flex-wrap gap-2 pt-1">
-                            {channels.map((ch) => (
-                              <span
-                                key={ch}
-                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono bg-background border border-border text-secondary-foreground"
-                              >
-                                <Hash className="h-3 w-3 text-primary" />
-                                {ch}
-                                {channels.length > 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveChannel(ch)}
-                                    className="hover:text-destructive text-subtle transition-colors"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                )}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* STEP 4: TEAM INVITES */}
-                    {currentStep === 4 && (
-                      <div className="space-y-6">
-                        <div className="space-y-3">
-                          <label className="text-sm font-medium text-foreground block">Invite Team Members via Email</label>
+                          <label className="text-sm font-medium text-foreground block">
+                            Invite people by email
+                          </label>
                           <div className="flex items-center gap-2">
                             <Input
                               type="email"
                               value={inviteEmailInput}
-                              onChange={(e) => setInviteEmailInput(e.target.value)}
+                              onChange={(e) => {
+                                setInviteEmailInput(e.target.value);
+                                setInviteError(null);
+                              }}
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
                                   e.preventDefault();
@@ -490,14 +452,18 @@ export function CreateWorkspacePage() {
                               size="sm"
                               className="bg-primary hover:bg-primary text-white"
                             >
-                              <Plus className="h-4 w-4 mr-1" /> Add Email
+                              <Plus className="h-4 w-4 mr-1" /> Add
                             </Button>
                           </div>
+                          {inviteError && (
+                            <p className="text-xs text-destructive">{inviteError}</p>
+                          )}
 
-                          {/* Invited Emails List */}
                           {invitedEmails.length > 0 && (
-                            <div className="space-y-2 pt-2">
-                              <p className="text-xs text-muted-foreground font-medium">Invites to be sent ({invitedEmails.length}):</p>
+                            <div className="space-y-2 pt-1">
+                              <p className="text-xs text-muted-foreground font-medium">
+                                Invites to be sent ({invitedEmails.length}):
+                              </p>
                               <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto p-2 bg-background rounded-lg border border-border">
                                 {invitedEmails.map((email) => (
                                   <span
@@ -509,6 +475,7 @@ export function CreateWorkspacePage() {
                                       type="button"
                                       onClick={() => handleRemoveInvite(email)}
                                       className="hover:text-destructive text-subtle"
+                                      aria-label={`Remove ${email}`}
                                     >
                                       <X className="h-3 w-3" />
                                     </button>
@@ -519,76 +486,22 @@ export function CreateWorkspacePage() {
                           )}
                         </div>
 
-                        <div className="p-4 rounded-xl bg-background/60 border border-border flex items-center justify-between">
-                          <div>
-                            <h4 className="text-xs font-medium text-foreground">Shareable Workspace Invite Link</h4>
-                            <p className="text-[11px] text-muted-foreground">Share this link directly with your team</p>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={handleCopyInviteLink}
-                            className="bg-surface border-border-strong text-foreground hover:bg-surface-raised"
-                          >
-                            {copiedLink ? <Check className="h-3.5 w-3.5 mr-1 text-success" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
-                            {copiedLink ? 'Copied!' : 'Copy Link'}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* STEP 5: REVIEW & LAUNCH */}
-                    {currentStep === 5 && (
-                      <div className="space-y-4">
-                        <div className="p-4 rounded-xl bg-primary/10 border border-primary/30 space-y-3">
-                          <div className="flex items-center gap-3">
-                            <div
-                              className="h-12 w-12 rounded-xl flex items-center justify-center text-white shadow-lg"
-                              style={{ backgroundColor: iconColor }}
-                            >
-                              <IconRenderer icon={iconName} className="h-6 w-6" />
-                            </div>
-                            <div>
-                              <h3 className="font-semibold text-foreground text-base">{name || 'Untitled Workspace'}</h3>
-                              <p className="text-xs text-primary font-mono">onetab.ai/w/{slug || 'workspace'}</p>
-                            </div>
-                          </div>
-
-                          <p className="text-xs text-secondary-foreground italic">
-                            {form.getValues('description') || 'No description provided.'}
-                          </p>
-
-                          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/80 text-center text-xs">
-                            <div className="bg-background/60 p-2 rounded-lg border border-border">
-                              <span className="block font-bold text-foreground">{selectedPreset.badge}</span>
-                              <span className="text-[10px] text-muted-foreground">Template</span>
-                            </div>
-                            <div className="bg-background/60 p-2 rounded-lg border border-border">
-                              <span className="block font-bold text-foreground">{channels.length}</span>
-                              <span className="text-[10px] text-muted-foreground">Channels</span>
-                            </div>
-                            <div className="bg-background/60 p-2 rounded-lg border border-border">
-                              <span className="block font-bold text-foreground">{invitedEmails.length + 1}</span>
-                              <span className="text-[10px] text-muted-foreground">Members</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <p className="text-xs text-muted-foreground text-center">
-                          Click <strong>Create Workspace</strong> to launch your new workspace instantly.
+                        <p className="text-xs text-muted-foreground">
+                          Everyone invited joins as a <strong>member</strong>. You can invite
+                          more people, or change roles, from workspace settings at any time.
                         </p>
                       </div>
                     )}
 
                     {/* Step Navigation Bar */}
-                    <div className="pt-4 border-t border-border flex items-center justify-between">
+                    <div className="pt-4 border-t border-border flex items-center justify-between gap-3">
                       {currentStep > 1 ? (
                         <Button
                           type="button"
                           variant="ghost"
-                          onClick={handlePrevStep}
-                          className="text-secondary-foreground hover:text-white"
+                          onClick={() => setCurrentStep(1)}
+                          disabled={isBusy}
+                          className="text-secondary-foreground hover:text-foreground"
                         >
                           <ChevronLeft className="h-4 w-4 mr-1" /> Back
                         </Button>
@@ -598,22 +511,35 @@ export function CreateWorkspacePage() {
                         </Button>
                       )}
 
-                      {currentStep < STEPS.length ? (
+                      {currentStep === 1 ? (
                         <Button
-                          type="button"
-                          onClick={handleNextStep}
+                          type="submit"
                           className="bg-primary hover:bg-primary text-white font-medium shadow-lg shadow-primary/30"
                         >
                           Continue <ChevronRight className="h-4 w-4 ml-1" />
                         </Button>
                       ) : (
-                        <Button
-                          type="submit"
-                          loading={form.formState.isSubmitting || createWorkspace.isPending}
-                          className="bg-gradient-to-r from-primary to-primary-hover hover:from-primary hover:to-primary-hover text-white font-semibold shadow-xl shadow-primary/25 px-6"
-                        >
-                          <Sparkles className="h-4 w-4 mr-2" /> Launch Workspace
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            disabled={isBusy}
+                            onClick={() => void submit(false)()}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            Skip &amp; create
+                          </Button>
+                          <Button
+                            type="submit"
+                            loading={isBusy}
+                            className="bg-gradient-to-r from-primary to-primary-hover hover:from-primary hover:to-primary-hover text-white font-semibold shadow-xl shadow-primary/25 px-6"
+                          >
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            {invitedEmails.length > 0
+                              ? `Invite ${invitedEmails.length} & launch`
+                              : 'Launch workspace'}
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </form>
@@ -632,26 +558,26 @@ export function CreateWorkspacePage() {
                   <div className="h-2.5 w-2.5 rounded-full bg-success/80" />
                 </div>
                 <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1">
-                  <Wand2 className="h-3 w-3 text-primary" /> Live Sidebar Preview
+                  <Wand2 className="h-3 w-3 text-primary" /> Live Preview
                 </span>
               </div>
 
               <CardContent className="p-4 space-y-4">
                 {/* Preview: workspace header, drawn from the form state above. */}
                 <div className="p-3 rounded-xl bg-background border border-border flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="h-10 w-10 rounded-xl flex items-center justify-center text-white shadow"
-                      style={{ backgroundColor: iconColor }}
-                    >
-                      <IconRenderer icon={iconName} className="h-5 w-5" />
-                    </div>
-                    <div>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <WorkspaceAvatar
+                      name={name || 'Your Workspace'}
+                      src={logoPreview}
+                      seed={slug || name}
+                      size="lg"
+                    />
+                    <div className="min-w-0">
                       <h4 className="font-semibold text-foreground text-sm truncate max-w-[140px]">
                         {name || 'Your Workspace'}
                       </h4>
                       <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[140px]">
-                        {slug ? `${slug}.onetab.ai` : 'onetab.ai/w/...'}
+                        {slug ? `onetab.ai/w/${slug}` : 'onetab.ai/w/...'}
                       </p>
                     </div>
                   </div>
@@ -660,48 +586,37 @@ export function CreateWorkspacePage() {
                   </Badge>
                 </div>
 
-                {/* Preview: the channels the form has collected so far. */}
-                <div className="space-y-1 bg-background/40 p-3 rounded-xl border border-border/60">
-                  <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground mb-2">
-                    <span>CHANNELS ({channels.length})</span>
-                    <Plus className="h-3 w-3 opacity-60" />
-                  </div>
-                  {channels.slice(0, 5).map((ch) => (
-                    <div
-                      key={ch}
-                      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-secondary-foreground hover:bg-surface-raised/60 font-mono"
-                    >
-                      <Hash className="h-3.5 w-3.5 text-primary shrink-0" />
-                      <span className="truncate">{ch}</span>
-                    </div>
-                  ))}
-                  {channels.length > 5 && (
-                    <p className="text-[10px] text-subtle italic pl-2.5">+ {channels.length - 5} more channels</p>
-                  )}
-                </div>
+                {form.watch('description') && (
+                  <p className="text-xs text-secondary-foreground italic px-1">
+                    {form.watch('description')}
+                  </p>
+                )}
 
-                {/* Preview: the people the form has invited so far. */}
+                {/* Preview: the people this workspace will start with. */}
                 <div className="space-y-2 bg-background/40 p-3 rounded-xl border border-border/60">
                   <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
                     <span>TEAM MEMBERS ({invitedEmails.length + 1})</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Avatar className="h-7 w-7 border border-primary">
                       <AvatarFallback className="bg-primary text-white text-xs font-bold">YOU</AvatarFallback>
                     </Avatar>
-                    {invitedEmails.slice(0, 3).map((email) => (
+                    {invitedEmails.slice(0, 4).map((email) => (
                       <Avatar key={email} className="h-7 w-7 border border-border-strong">
                         <AvatarFallback className="bg-surface-raised text-secondary-foreground text-[10px] font-bold">
                           {initials(email)}
                         </AvatarFallback>
                       </Avatar>
                     ))}
-                    {invitedEmails.length > 3 && (
+                    {invitedEmails.length > 4 && (
                       <span className="h-7 w-7 rounded-full bg-surface-raised text-muted-foreground text-[10px] font-bold flex items-center justify-center border border-border-strong">
-                        +{invitedEmails.length - 3}
+                        +{invitedEmails.length - 4}
                       </span>
                     )}
                   </div>
+                  <p className="text-[10px] text-subtle">
+                    Your workspace starts with a <span className="font-mono">#general</span> channel.
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -716,5 +631,3 @@ export function CreateWorkspacePage() {
     </div>
   );
 }
-
-

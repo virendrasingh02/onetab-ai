@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -6,20 +7,41 @@ import {
 } from '@nestjs/common';
 import { PUBLIC_USER_SELECT, toWorkspace } from '@org/api-common';
 import { PrismaService } from '@org/database';
+import { StorageService, type IncomingFile } from '@org/api-storage';
 import {
   ApiErrorCode,
   WorkspaceRole,
   type Workspace,
   type WorkspaceSummary,
 } from '@org/types';
-import type {
-  CreateWorkspaceInput,
-  UpdateWorkspaceInput,
+import {
+  workspaceLogoError,
+  type CreateWorkspaceInput,
+  type UpdateWorkspaceInput,
+  type WorkspaceLogoMimeType,
 } from '@org/validation';
+
+/** Extension per accepted logo type, so the stored key carries its own format. */
+const LOGO_EXTENSIONS: Record<WorkspaceLogoMimeType, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+};
+
+const LOGO_MIME_TYPES: Record<string, WorkspaceLogoMimeType> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  webp: 'image/webp',
+  gif: 'image/gif',
+};
 
 @Injectable()
 export class WorkspaceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   /** Every workspace the user belongs to, for the switcher. */
   async listForUser(userId: string): Promise<WorkspaceSummary[]> {
@@ -125,7 +147,11 @@ export class WorkspaceService {
         ...(input.description !== undefined
           ? { description: input.description }
           : {}),
-        ...(input.avatarUrl !== undefined ? { avatarUrl: input.avatarUrl } : {}),
+        // Pointing the avatar at an external URL retires any uploaded logo:
+        // leaving the key behind would strand bytes nothing renders.
+        ...(input.avatarUrl !== undefined
+          ? { avatarUrl: input.avatarUrl, avatarKey: null }
+          : {}),
       },
     });
     return toWorkspace(workspace);
@@ -190,6 +216,92 @@ export class WorkspaceService {
         data: { role: WorkspaceRole.ADMIN },
       }),
     ]);
+  }
+
+  /**
+   * Stores a workspace logo and points `avatarUrl` at the route that serves it.
+   *
+   * The URL is API-relative (`/workspaces/:id/logo`) rather than absolute: in
+   * development the API moves between ports 3000-3009, so an absolute URL baked
+   * into a row goes stale. The client resolves it against its API base.
+   *
+   * The checksum rides along as `?v=` so a replaced logo defeats the browser
+   * cache without needing a new path.
+   */
+  async setLogo(workspaceId: string, file: IncomingFile): Promise<Workspace> {
+    if (!file?.buffer?.byteLength) {
+      throw new BadRequestException('No image was uploaded.');
+    }
+
+    const problem = workspaceLogoError({
+      type: file.mimetype,
+      size: file.size,
+    });
+    if (problem) throw new BadRequestException(problem);
+
+    const current = await this.prisma.workspace.findUniqueOrThrow({
+      where: { id: workspaceId },
+      select: { avatarKey: true },
+    });
+
+    const extension = LOGO_EXTENSIONS[file.mimetype as WorkspaceLogoMimeType];
+    const key = this.storage.buildKey(workspaceId, `logo.${extension}`);
+    const stored = await this.storage.put(key, file.buffer);
+
+    const workspace = await this.prisma.workspace.update({
+      where: { id: workspaceId },
+      data: {
+        avatarKey: stored.key,
+        avatarUrl: `/workspaces/${workspaceId}/logo?v=${stored.checksum.slice(0, 12)}`,
+      },
+    });
+
+    // Only after the row points at the new bytes — a failure here costs disk,
+    // whereas deleting first would leave the logo broken if the update failed.
+    if (current.avatarKey && current.avatarKey !== stored.key) {
+      await this.storage.delete(current.avatarKey);
+    }
+
+    return toWorkspace(workspace);
+  }
+
+  /** The logo bytes, for the public read route. */
+  async readLogo(
+    workspaceId: string,
+  ): Promise<{ mimeType: string; content: Buffer }> {
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { avatarKey: true },
+    });
+
+    if (!workspace?.avatarKey) {
+      throw new NotFoundException('This workspace has no logo.');
+    }
+    if (!(await this.storage.exists(workspace.avatarKey))) {
+      throw new NotFoundException('The stored logo is no longer available.');
+    }
+
+    const extension = workspace.avatarKey.split('.').pop() ?? '';
+    return {
+      mimeType: LOGO_MIME_TYPES[extension] ?? 'application/octet-stream',
+      content: await this.storage.get(workspace.avatarKey),
+    };
+  }
+
+  async removeLogo(workspaceId: string): Promise<Workspace> {
+    const current = await this.prisma.workspace.findUniqueOrThrow({
+      where: { id: workspaceId },
+      select: { avatarKey: true },
+    });
+
+    const workspace = await this.prisma.workspace.update({
+      where: { id: workspaceId },
+      data: { avatarKey: null, avatarUrl: null },
+    });
+
+    if (current.avatarKey) await this.storage.delete(current.avatarKey);
+
+    return toWorkspace(workspace);
   }
 
   /** Suggests an unused slug, for the create-workspace form. */

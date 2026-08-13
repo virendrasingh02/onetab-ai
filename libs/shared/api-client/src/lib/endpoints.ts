@@ -111,7 +111,7 @@ import type {
   UpdateWhiteboardInput,
   UpdateWorkspaceInput,
 } from '@org/validation';
-import { http, request } from './http.js';
+import { http, request, resolveMediaUrl } from './http.js';
 
 /** `POST /auth/*` responses carry the user alongside the token pair. */
 export interface AuthResponse extends AuthTokens {
@@ -141,20 +141,60 @@ export const authApi = {
     request<void>(http.post('/auth/reset-password', input)),
 };
 
+/**
+ * An uploaded workspace logo is stored as an API-relative path, because the API
+ * host is not fixed. Resolving it here means every consumer — switcher,
+ * settings, the create wizard — can render `avatarUrl` directly.
+ */
+function withResolvedAvatar<T extends { avatarUrl?: string | null }>(
+  workspace: T,
+): T {
+  return { ...workspace, avatarUrl: resolveMediaUrl(workspace.avatarUrl) ?? null };
+}
+
 export const workspaceApi = {
-  list: () => request<WorkspaceSummary[]>(http.get('/workspaces')),
+  list: () =>
+    request<WorkspaceSummary[]>(http.get('/workspaces')).then((list) =>
+      list.map(withResolvedAvatar),
+    ),
 
   bySlug: (slug: string) =>
-    request<WorkspaceSummary>(http.get(`/workspaces/${slug}`)),
+    request<WorkspaceSummary>(http.get(`/workspaces/${slug}`)).then(
+      withResolvedAvatar,
+    ),
 
   create: (input: CreateWorkspaceInput) =>
-    request<WorkspaceSummary>(http.post('/workspaces', input)),
+    request<WorkspaceSummary>(http.post('/workspaces', input)).then(
+      withResolvedAvatar,
+    ),
 
   update: (workspaceId: string, input: UpdateWorkspaceInput) =>
-    request<Workspace>(http.patch(`/workspaces/${workspaceId}`, input)),
+    request<Workspace>(http.patch(`/workspaces/${workspaceId}`, input)).then(
+      withResolvedAvatar,
+    ),
 
   remove: (workspaceId: string) =>
     request<void>(http.delete(`/workspaces/${workspaceId}`)),
+
+  /**
+   * Multipart, so the Content-Type header is left to the browser — it has to
+   * append the boundary, and setting it by hand produces an unparseable body.
+   */
+  uploadLogo: (workspaceId: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request<Workspace>(
+      http.post(`/workspaces/${workspaceId}/logo`, form, {
+        headers: { 'Content-Type': undefined as unknown as string },
+        timeout: 0,
+      }),
+    ).then(withResolvedAvatar);
+  },
+
+  removeLogo: (workspaceId: string) =>
+    request<Workspace>(http.delete(`/workspaces/${workspaceId}/logo`)).then(
+      withResolvedAvatar,
+    ),
 
   suggestSlug: (name: string) =>
     request<{ slug: string }>(

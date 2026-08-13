@@ -3,6 +3,7 @@ export {
   getAccessToken,
   http,
   request,
+  resolveMediaUrl,
   setAccessToken,
   setSessionExpiredHandler,
   toApiError,

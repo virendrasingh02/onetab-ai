@@ -11,10 +11,13 @@ Creating a workspace also creates the owner membership and a `#general` channel 
 - `GET /workspaces` — the switcher list, with the caller role and counts.
 - `POST /workspaces`, `PATCH /workspaces/:id` (ADMIN+), `DELETE /workspaces/:id` (OWNER).
 - `POST /workspaces/:id/transfer-ownership` — atomically promotes the target and demotes the previous owner.
+- `POST /workspaces/:id/logo` (ADMIN+, multipart `file`), `GET /workspaces/:id/logo` (public), `DELETE /workspaces/:id/logo` (ADMIN+).
 
 ## Notes
 
 Non-members receive 404 rather than 403: confirming a workspace exists is itself a disclosure.
+
+The logo lives in object storage; `Workspace.avatarKey` holds the key and `avatarUrl` holds the API-relative path that serves it, suffixed with a checksum so a replacement defeats the browser cache. The read route is `@Public()` because an `<img>` tag cannot carry a bearer token. `avatarUrl` stays free for externally hosted images — setting one through `PATCH` clears the uploaded key.
 
 ## Commands
 

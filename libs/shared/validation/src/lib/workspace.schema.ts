@@ -40,6 +40,43 @@ export const workspaceNameSchema = z
   .min(2, 'Name must be at least 2 characters')
   .max(60, 'Name must be at most 60 characters');
 
+/**
+ * Workspace logo constraints, shared so the browser can reject a bad file
+ * before spending an upload on it and the API can reject the same file again.
+ *
+ * SVG is deliberately absent: the logo is served inline, and an SVG is a
+ * script-bearing document on the API's own origin.
+ */
+export const WORKSPACE_LOGO_MAX_BYTES = 2 * 1024 * 1024;
+
+export const WORKSPACE_LOGO_MIME_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+] as const;
+
+export type WorkspaceLogoMimeType = (typeof WORKSPACE_LOGO_MIME_TYPES)[number];
+
+/** `null` when the file is acceptable, otherwise the message to show. */
+export function workspaceLogoError(file: {
+  type: string;
+  size: number;
+}): string | null {
+  if (
+    !(WORKSPACE_LOGO_MIME_TYPES as readonly string[]).includes(file.type)
+  ) {
+    return 'Upload a PNG, JPEG, WebP or GIF image.';
+  }
+  if (file.size > WORKSPACE_LOGO_MAX_BYTES) {
+    return `Logos must be ${WORKSPACE_LOGO_MAX_BYTES / (1024 * 1024)} MB or smaller.`;
+  }
+  if (file.size === 0) {
+    return 'That file is empty.';
+  }
+  return null;
+}
+
 export const createWorkspaceSchema = z.object({
   name: workspaceNameSchema,
   slug: workspaceSlugSchema,
