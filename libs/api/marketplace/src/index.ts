@@ -2,13 +2,6 @@ export { MarketplaceModule } from './lib/marketplace.module.js';
 export { MarketplaceService } from './lib/marketplace.service.js';
 export { MarketplaceController } from './lib/marketplace.controller.js';
 export { PluginSDKService } from './lib/plugin-sdk.service.js';
-export { CatalogService } from './lib/catalog.service.js';
-
-export {
-  BUILT_IN_CATALOG,
-  FEATURED_SLUGS,
-  OFFICIAL_PUBLISHERS,
-} from './lib/marketplace.catalog.js';
 
 export {
   CATEGORIES_BY_KIND,

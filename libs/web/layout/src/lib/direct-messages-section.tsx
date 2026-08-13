@@ -10,7 +10,7 @@ import {
 import { cn } from '@org/utils';
 import { useMembers } from '@org/web-members';
 import { useCurrentWorkspace } from '@org/web-workspace';
-import { Plus, Sparkles } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { navActionClass, navIconClass, navRowClass, Section } from './nav-primitives.js';
 
@@ -22,7 +22,7 @@ const PRESENCE_DOT: Record<PresenceStatus, string> = {
 };
 
 /**
- * The people this workspace can be messaged, plus the assistant.
+ * The people this workspace can be messaged.
  *
  * There is no DM endpoint yet, so the roster is the workspace's member list
  * rather than a list of open conversations — which is what it should be either
@@ -43,7 +43,7 @@ export function DirectMessagesSection({ workspaceSlug }: { workspaceSlug: string
   return (
     <Section
       title="Direct Messages"
-      count={people.length + 1}
+      count={people.length}
       action={
         <Hint label="New direct message">
           <Button
@@ -60,23 +60,6 @@ export function DirectMessagesSection({ workspaceSlug }: { workspaceSlug: string
         </Hint>
       }
     >
-      {/* The assistant is a real destination, not a person: it opens AI chat. */}
-      <li>
-        <NavLink
-          to={`/w/${workspaceSlug}/ai-chat`}
-          className={({ isActive }) => navRowClass(isActive, { depth: 1 })}
-        >
-          <span
-            className={navIconClass(1, 'relative flex items-center justify-center')}
-          >
-            <span className="flex size-full items-center justify-center rounded-md bg-primary/20 text-primary">
-              <Sparkles className="size-2.5" aria-hidden />
-            </span>
-          </span>
-          <span className="flex-1 truncate">AI Workspace Copilot</span>
-        </NavLink>
-      </li>
-
       {people.map((member) => {
         const name = member.user.displayName ?? member.user.name;
         const presence = toPresenceStatus(member.user.presence);

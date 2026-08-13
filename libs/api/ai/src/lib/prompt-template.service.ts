@@ -48,7 +48,7 @@ export class PromptTemplateService {
         title: input.title,
         category: input.category ?? 'General',
         promptText: input.promptText,
-        // Only a seed or a migration mints a system template.
+        // Only a migration mints a system template.
         isSystem: false,
       },
     });

@@ -1,4 +1,4 @@
-import type { AIAgentDetail, MarketplaceAgent } from '@org/types';
+import type { AIAgentDetail } from '@org/types';
 import {
   Badge,
   Button,
@@ -7,43 +7,18 @@ import {
   ErrorState,
   Page,
   PageHeader,
-  SegmentedControl,
   SkeletonList,
 } from '@org/ui';
 import { useCurrentWorkspace } from '@org/web-workspace';
-import {
-  Activity,
-  Bot,
-  Cpu,
-  Download,
-  Plus,
-  ShieldCheck,
-  Trash2,
-  Wrench,
-} from 'lucide-react';
-import { useState } from 'react';
+import { Activity, Bot, Plus, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useAgentCatalogue, useAgentMutations, useAgents } from './use-agents.js';
-
-/** `tools` crosses the wire as a JSON-encoded array of tool names. */
-function parseTools(tools: string): string[] {
-  try {
-    const parsed: unknown = JSON.parse(tools);
-    return Array.isArray(parsed) ? parsed.filter((t): t is string => typeof t === 'string') : [];
-  } catch {
-    return [];
-  }
-}
-
-type AgentTab = 'deployed' | 'prebuilt';
+import { useAgentMutations, useAgents } from './use-agents.js';
 
 export function AgentMarketplaceView() {
   const { workspaceId } = useCurrentWorkspace();
   const agents = useAgents(workspaceId);
-  const catalogue = useAgentCatalogue();
-  const { create, remove } = useAgentMutations(workspaceId);
+  const { remove } = useAgentMutations(workspaceId);
 
-  const [tab, setTab] = useState<AgentTab>('deployed');
   const navigate = useNavigate();
 
   /* Relative to the `agents` route, so the `/w/:workspaceSlug` prefix does not
@@ -51,30 +26,6 @@ export function AgentMarketplaceView() {
   const openBuilder = () => navigate('builder');
 
   const installed = agents.data ?? [];
-  const templates = catalogue.data ?? [];
-
-  /*
-   * Catalogue entries are templates, not rows: deploying one writes a new agent
-   * with its own id. Matching on name is what tells us a template is already
-   * deployed, since the ids cannot line up.
-   */
-  const deployedNames = new Set(installed.map((agent) => agent.name));
-
-  const deploy = (template: MarketplaceAgent) => {
-    const existing = installed.find((agent) => agent.name === template.name);
-    if (existing) {
-      remove.mutate(existing.id);
-      return;
-    }
-    create.mutate({
-      name: template.name,
-      role: template.role,
-      description: template.description,
-      systemPrompt: template.systemPrompt,
-      tools: parseTools(template.tools),
-      isMarketplace: true,
-    });
-  };
 
   return (
     <Page>
@@ -90,59 +41,21 @@ export function AgentMarketplaceView() {
         }
       />
 
-      <SegmentedControl<AgentTab>
-        aria-label="Agent list"
-        value={tab}
-        onChange={setTab}
-        className="mb-4 self-start"
-        options={[
-          { value: 'deployed', label: `Your agents (${installed.length})` },
-          {
-            value: 'prebuilt',
-            label: `Pre-built (${templates.length})`,
-            hint: 'Agents that ship with the workspace, ready to deploy.',
-          },
-        ]}
-      />
-
-      {tab === 'deployed' ? (
-        agents.isLoading ? (
-          <SkeletonList rows={3} />
-        ) : agents.isError ? (
-          <ErrorState
-            title="Could not load your agents"
-            description="Something went wrong reaching the server."
-            onRetry={() => agents.refetch()}
-          />
-        ) : (
-          <DeployedAgents
-            agents={installed}
-            onNew={openBuilder}
-            onBrowse={() => setTab('prebuilt')}
-            onLogs={() => navigate('logs')}
-            onRemove={(id) => remove.mutate(id)}
-          />
-        )
-      ) : catalogue.isLoading ? (
+      {agents.isLoading ? (
         <SkeletonList rows={3} />
-      ) : catalogue.isError ? (
+      ) : agents.isError ? (
         <ErrorState
-          title="Could not load the catalogue"
+          title="Could not load your agents"
           description="Something went wrong reaching the server."
-          onRetry={() => catalogue.refetch()}
+          onRetry={() => agents.refetch()}
         />
       ) : (
-        <ul className="gap-4 md:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">
-          {templates.map((template) => (
-            <li key={template.id}>
-              <PrebuiltAgentCard
-                agent={template}
-                installed={deployedNames.has(template.name)}
-                onToggle={() => deploy(template)}
-              />
-            </li>
-          ))}
-        </ul>
+        <DeployedAgents
+          agents={installed}
+          onNew={openBuilder}
+          onLogs={() => navigate('logs')}
+          onRemove={(id) => remove.mutate(id)}
+        />
       )}
     </Page>
   );
@@ -153,13 +66,11 @@ export function AgentMarketplaceView() {
 function DeployedAgents({
   agents,
   onNew,
-  onBrowse,
   onLogs,
   onRemove,
 }: {
   agents: AIAgentDetail[];
   onNew: () => void;
-  onBrowse: () => void;
   onLogs: () => void;
   onRemove: (id: string) => void;
 }) {
@@ -168,15 +79,10 @@ function DeployedAgents({
       <EmptyState
         icon={<Bot />}
         title="No agents deployed yet"
-        description="Build one in the agent builder, or deploy one of the pre-built agents to start from something that already works."
+        description="Build one in the agent builder to give this workspace its first autonomous agent."
         action={
           <Button leadingIcon={<Plus />} onClick={onNew}>
             New agent
-          </Button>
-        }
-        secondaryAction={
-          <Button variant="ghost" onClick={onBrowse}>
-            Browse pre-built agents
           </Button>
         }
       />
@@ -241,74 +147,5 @@ function DeployedAgents({
         );
       })}
     </ul>
-  );
-}
-
-function PrebuiltAgentCard({
-  agent,
-  installed,
-  onToggle,
-}: {
-  agent: MarketplaceAgent;
-  installed: boolean;
-  onToggle: () => void;
-}) {
-  const tools = parseTools(agent.tools);
-  return (
-    <Card className="p-5 h-full justify-between transition-colors duration-(--duration-fast) hover:border-border-strong">
-      <div>
-        <div className="mb-3 gap-2 flex items-start justify-between">
-          <div className="min-w-0 gap-2.5 flex items-center">
-            <span
-              aria-hidden
-              className="size-9 flex shrink-0 items-center justify-center rounded-lg bg-accent-blue-soft text-accent-blue"
-            >
-              <Bot className="size-4.5" />
-            </span>
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold truncate text-foreground">
-                {agent.name}
-              </h2>
-              <p className="text-xs text-muted-foreground">{agent.role}</p>
-            </div>
-          </div>
-          <Badge variant="neutral" className="font-mono uppercase">
-            <Cpu className="text-accent-violet" aria-hidden />
-            {tools.length} tools
-          </Badge>
-        </div>
-
-        <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
-          {agent.description}
-        </p>
-
-        <ul
-          aria-label={`Tools available to ${agent.name}`}
-          className="mb-4 gap-1 flex flex-wrap"
-        >
-          {tools.map((tool) => (
-            <li key={tool}>
-              <Badge variant="primary" className="font-mono">
-                <Wrench aria-hidden />
-                {tool}
-              </Badge>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <Button
-        variant={installed ? 'outline' : 'primary'}
-        size="sm"
-        className="w-full"
-        onClick={onToggle}
-        leadingIcon={
-          installed ? <ShieldCheck className="text-success" /> : <Download />
-        }
-      >
-        {installed ? 'Deployed' : 'Deploy'}
-        <span className="sr-only"> — {agent.name}</span>
-      </Button>
-    </Card>
   );
 }

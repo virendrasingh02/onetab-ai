@@ -16,7 +16,6 @@ import {
   type AuthenticatedUser,
 } from '@org/api-common';
 import { SystemRole } from '@org/types';
-import { CatalogService } from './catalog.service.js';
 import {
   CATEGORIES_BY_KIND,
   LISTING_KINDS,
@@ -43,7 +42,6 @@ export class MarketplaceController {
   constructor(
     private readonly marketplace: MarketplaceService,
     private readonly plugins: PluginSDKService,
-    private readonly catalog: CatalogService,
   ) {}
 
   // --- storefronts ---------------------------------------------------------
@@ -99,13 +97,6 @@ export class MarketplaceController {
   @SystemRoles(SystemRole.SUPERADMIN)
   setStatus(@Param('slug') slug: string, @Body() body: { status: string }) {
     return this.marketplace.setStatus(slug, body.status);
-  }
-
-  @Post('catalog/seed')
-  @UseGuards(SystemRoleGuard)
-  @SystemRoles(SystemRole.SUPERADMIN)
-  seedCatalog() {
-    return this.catalog.seed();
   }
 
   // --- reviews -------------------------------------------------------------

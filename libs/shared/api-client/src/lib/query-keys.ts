@@ -94,8 +94,6 @@ export const queryKeys = {
   agents: {
     all: (workspaceId: string) => ['agents', workspaceId] as const,
     list: (workspaceId: string) => ['agents', workspaceId, 'list'] as const,
-    /** The catalogue is platform-wide, so it is not keyed by workspace. */
-    catalogue: () => ['agents', 'catalogue'] as const,
     logs: (workspaceId: string, agentId: string) =>
       ['agents', workspaceId, agentId, 'logs'] as const,
     workspaceLogs: (workspaceId: string) =>

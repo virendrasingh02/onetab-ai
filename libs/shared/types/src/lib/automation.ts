@@ -33,16 +33,6 @@ export interface AIAgentDetail extends AIAgent {
   _count: { logs: number };
 }
 
-/** A catalogue entry — a template, not yet an agent in any workspace. */
-export interface MarketplaceAgent {
-  id: string;
-  name: string;
-  role: string;
-  description: string;
-  systemPrompt: string;
-  tools: string;
-}
-
 export interface AgentExecutionLog {
   id: string;
   agentId: string;

@@ -62,7 +62,6 @@ export type {
   AutomationWorkflow,
   AutomationWorkflowDetail,
   ExternalIntegration,
-  MarketplaceAgent,
   WorkflowExecution,
   WorkflowExecutionEntry,
 } from './lib/automation.js';

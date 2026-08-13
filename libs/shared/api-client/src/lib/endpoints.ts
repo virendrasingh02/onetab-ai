@@ -40,7 +40,6 @@ import type {
   HealthStatus,
   Invitation,
   MarketplaceBrowseParams,
-  MarketplaceAgent,
   MarketplaceCategoryCount,
   MarketplaceInstallation,
   MarketplaceKind,
@@ -816,10 +815,8 @@ export const workToolsApi = {
     ),
 };
 
-/** AI agents. Workspace-scoped; the catalogue is the one shared route. */
+/** AI agents. Every route is workspace-scoped. */
 export const agentsApi = {
-  catalogue: () => request<MarketplaceAgent[]>(http.get('/agents/marketplace')),
-
   list: (workspaceId: string) =>
     request<AIAgentDetail[]>(http.get(`/workspaces/${workspaceId}/agents`)),
 

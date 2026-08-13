@@ -188,60 +188,9 @@ const nodeTypes = {
   apiActionNode: ApiActionNode,
 };
 
-const initialNodes: Node[] = [
-  {
-    id: 'n1',
-    type: 'triggerNode',
-    position: { x: 250, y: 30 },
-    data: {
-      label: 'Webhook Trigger',
-      subtitle: 'POST /api/v1/automations/webhook',
-    },
-  },
-  {
-    id: 'n2',
-    type: 'conditionNode',
-    position: { x: 250, y: 160 },
-    data: {
-      label: 'Filter Payload Severity',
-      subtitle: 'if event.severity == "CRITICAL"',
-    },
-  },
-  {
-    id: 'n3',
-    type: 'aiActionNode',
-    position: { x: 100, y: 300 },
-    data: {
-      label: 'AI Incident Summarizer',
-      subtitle: 'Generate summary with Ollama Llama3',
-    },
-  },
-  {
-    id: 'n4',
-    type: 'apiActionNode',
-    position: { x: 400, y: 300 },
-    data: {
-      label: 'Post to #engineering-alerts',
-      subtitle: 'Matrix Room Notification',
-    },
-  },
-  {
-    id: 'n5',
-    type: 'apiActionNode',
-    position: { x: 100, y: 440 },
-    data: {
-      label: 'Jira Issue Creator',
-      subtitle: 'Create P1 incident ticket',
-    },
-  },
-];
-
-const initialEdges: Edge[] = [
-  { id: 'e1-2', source: 'n1', target: 'n2', animated: true },
-  { id: 'e2-3', source: 'n2', target: 'n3', label: 'True' },
-  { id: 'e2-4', source: 'n2', target: 'n4', label: 'False' },
-  { id: 'e3-5', source: 'n3', target: 'n5', animated: true },
-];
+/* The canvas opens empty — nodes come from the toolbar above it. */
+const initialNodes: Node[] = [];
+const initialEdges: Edge[] = [];
 
 export function WorkflowCanvasView() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);

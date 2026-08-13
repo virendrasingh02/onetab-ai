@@ -15,20 +15,6 @@ import { CurrentUser, WorkspaceId } from '@org/api-common';
 import { AgentsService } from './agents.service.js';
 
 /**
- * The agent catalogue. Not workspace data, so it needs no workspace context —
- * but it is still behind the global JWT guard.
- */
-@Controller({ path: 'agents', version: '1' })
-export class AgentMarketplaceController {
-  constructor(private readonly agentsService: AgentsService) {}
-
-  @Get('marketplace')
-  getMarketplaceAgents() {
-    return this.agentsService.getMarketplaceAgents();
-  }
-}
-
-/**
  * A workspace's own agents.
  *
  * The workspace is a guarded path parameter rather than `?workspaceId=` under

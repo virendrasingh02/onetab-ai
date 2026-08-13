@@ -11,20 +11,6 @@ export function useAgents(workspaceId: string | undefined) {
   });
 }
 
-/**
- * The installable agent catalogue.
- *
- * Platform-wide rather than workspace data, so it needs no workspace and is
- * cached for longer — it only changes when the platform ships new templates.
- */
-export function useAgentCatalogue() {
-  return useQuery({
-    queryKey: queryKeys.agents.catalogue(),
-    queryFn: () => agentsApi.catalogue(),
-    staleTime: 5 * 60_000,
-  });
-}
-
 export function useAgentLogs(
   workspaceId: string | undefined,
   agentId: string | undefined,

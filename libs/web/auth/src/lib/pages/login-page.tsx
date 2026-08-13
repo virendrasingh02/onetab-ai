@@ -12,7 +12,7 @@ import {
   Input,
 } from '@org/ui';
 import { loginSchema, type LoginInput } from '@org/validation';
-import { Eye, EyeOff, ShieldCheck, UserCheck } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -43,14 +43,6 @@ export function LoginPage() {
   };
 
   const onSubmit = form.handleSubmit(handleLogin);
-
-  const handleQuickDemoLogin = (email: string) => {
-    const password = 'password123';
-    form.setValue('email', email, { shouldValidate: true });
-    form.setValue('password', password, { shouldValidate: true });
-    form.setValue('rememberMe', true);
-    void handleLogin({ email, password, rememberMe: true });
-  };
 
   return (
     <AuthLayout
@@ -83,7 +75,7 @@ export function LoginPage() {
                     {...field}
                     type="text"
                     autoComplete="username"
-                    placeholder="admin@onetab.ai or dev@onetab.ai"
+                    placeholder="you@company.com"
                   />
                 </FormControl>
                 <FormMessage />
@@ -160,42 +152,6 @@ export function LoginPage() {
           >
             Sign in
           </Button>
-
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or quick sign-in with demo accounts
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-full text-xs"
-              onClick={() => handleQuickDemoLogin('admin@onetab.ai')}
-              disabled={form.formState.isSubmitting || login.isPending}
-            >
-              <ShieldCheck className="mr-1.5 size-3.5 text-primary" />
-              Admin Demo
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-full text-xs"
-              onClick={() => handleQuickDemoLogin('dev@onetab.ai')}
-              disabled={form.formState.isSubmitting || login.isPending}
-            >
-              <UserCheck className="mr-1.5 size-3.5 text-primary" />
-              Developer Demo
-            </Button>
-          </div>
         </form>
       </Form>
     </AuthLayout>

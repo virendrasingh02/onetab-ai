@@ -1,5 +1,4 @@
 export {
-  useAgentCatalogue,
   useAgentLogs,
   useAgentMutations,
   useAgents,

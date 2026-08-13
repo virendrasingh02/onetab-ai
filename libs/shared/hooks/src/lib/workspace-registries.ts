@@ -37,68 +37,19 @@ const APPS_EVENT = 'onetab_apps_updated';
 const WORKFLOWS_KEY = 'onetab_workflows_v1';
 const WORKFLOWS_EVENT = 'onetab_workflows_updated';
 
-const SEED_AGENTS: RegistryItem[] = [
-  { id: '1', name: 'Agile sprint manager', icon: 'Bot', detail: 'Scrum master' },
-  { id: '3', name: 'Workspace knowledge curator', icon: 'Bot', detail: 'Docs architect' },
-];
-
-/* Icon names must exist in `ICON_REGISTRY` (`@org/ui`) — an unknown name is
-   rendered as literal text, not an icon. `Share2` and `Webhook` are not in it,
-   hence the near-equivalents below. These mirror `CATEGORY_ICON` in
-   `IntegrationHubView`, so a seeded row and a freshly connected one match. */
-const SEED_APPS: RegistryItem[] = [
-  { id: 'github', name: 'GitHub', icon: 'Code', detail: 'Dev Tools' },
-  { id: 'jira', name: 'Jira', icon: 'Code', detail: 'Dev Tools' },
-  { id: 'gdrive', name: 'Google Drive', icon: 'HardDrive', detail: 'Storage' },
-  { id: 'slack', name: 'Slack Import', icon: 'FileText', detail: 'Importer' },
-  { id: 'notion', name: 'Notion Import', icon: 'FileText', detail: 'Importer' },
-  { id: 'webhooks', name: 'Webhooks Hub', icon: 'Plug', detail: 'API' },
-];
-
-const SEED_WORKFLOWS: WorkflowRegistryItem[] = [
-  {
-    id: 'wf_1',
-    name: 'GitHub webhook → AI code review → Matrix alert',
-    icon: 'Plug',
-    detail: 'Webhook',
-    triggerType: 'WEBHOOK',
-    isActive: true,
-    totalExecutions: 42,
-    lastRun: '12 mins ago',
-  },
-  {
-    id: 'wf_2',
-    name: 'Daily standup summary generator',
-    icon: 'Clock',
-    detail: 'Cron',
-    triggerType: 'CRON',
-    isActive: true,
-    totalExecutions: 15,
-    lastRun: '4 hours ago',
-  },
-  {
-    id: 'wf_3',
-    name: 'Overdue task escalation bot',
-    icon: 'Zap',
-    detail: 'Event',
-    triggerType: 'EVENT',
-    isActive: false,
-    totalExecutions: 8,
-    lastRun: '1 day ago',
-  },
-];
-
-function read<T extends RegistryItem>(key: string, seed: T[]): T[] {
-  if (typeof window === 'undefined') return seed;
+/**
+ * A registry starts empty: a workspace owns nothing until someone deploys,
+ * connects or saves it here.
+ */
+function read<T extends RegistryItem>(key: string): T[] {
+  if (typeof window === 'undefined') return [];
   try {
     const raw = window.localStorage.getItem(key);
-    if (!raw) return seed;
+    if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
-    /* An empty array is a real state here — you can disconnect every app —
-       so unlike the seeded project list it must not fall back to the seed. */
-    return Array.isArray(parsed) ? (parsed as T[]) : seed;
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
   } catch {
-    return seed;
+    return [];
   }
 }
 
@@ -106,19 +57,17 @@ function read<T extends RegistryItem>(key: string, seed: T[]): T[] {
  * Read on mount, re-read when this tab or another tab writes, and persist +
  * broadcast through the returned setter.
  */
-function useRegistry<T extends RegistryItem>(key: string, event: string, seed: T[]) {
-  const [items, setItems] = useState<T[]>(() => read(key, seed));
+function useRegistry<T extends RegistryItem>(key: string, event: string) {
+  const [items, setItems] = useState<T[]>(() => read<T>(key));
 
   useEffect(() => {
-    const sync = () => setItems(read(key, seed));
+    const sync = () => setItems(read<T>(key));
     window.addEventListener(event, sync);
     window.addEventListener('storage', sync);
     return () => {
       window.removeEventListener(event, sync);
       window.removeEventListener('storage', sync);
     };
-    // `seed` is a module constant.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, event]);
 
   const save = useCallback(
@@ -152,15 +101,15 @@ export function toggleRegistryItem<T extends RegistryItem>(items: T[], item: T):
 
 /** Agents deployed into the workspace. */
 export function useInstalledAgents() {
-  return useRegistry(AGENTS_KEY, AGENTS_EVENT, SEED_AGENTS);
+  return useRegistry<RegistryItem>(AGENTS_KEY, AGENTS_EVENT);
 }
 
 /** Apps and integrations that have been connected. */
 export function useConnectedApps() {
-  return useRegistry(APPS_KEY, APPS_EVENT, SEED_APPS);
+  return useRegistry<RegistryItem>(APPS_KEY, APPS_EVENT);
 }
 
 /** Workflows saved in this workspace. */
 export function useWorkflows() {
-  return useRegistry(WORKFLOWS_KEY, WORKFLOWS_EVENT, SEED_WORKFLOWS);
+  return useRegistry<WorkflowRegistryItem>(WORKFLOWS_KEY, WORKFLOWS_EVENT);
 }

@@ -30,7 +30,6 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset",
     "infra:start": "docker compose -f docker/docker-compose.yml -f docker/docker-compose.override.yml up -d",
     "infra:stop": "docker compose -f docker/docker-compose.yml -f docker/docker-compose.override.yml down",
