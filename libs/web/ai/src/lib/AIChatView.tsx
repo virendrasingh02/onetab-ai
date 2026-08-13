@@ -15,7 +15,6 @@ import {
   Mic,
   Plus,
   RotateCcw,
-  SlidersHorizontal,
   Sparkles,
   TriangleAlert,
   User,
@@ -146,7 +145,7 @@ export function AIChatView() {
           <div className="animate-in fade-in my-auto flex w-full flex-col items-center transition-all duration-300">
             {/* Headline */}
             <h1 className="text-2xl sm:text-4xl font-bold tracking-tight mb-8 text-center text-foreground">
-              How can I help you today?
+              Your AI Copilot
             </h1>
 
             {/* Main AI Input Card */}

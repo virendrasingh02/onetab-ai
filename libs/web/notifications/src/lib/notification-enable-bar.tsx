@@ -1,5 +1,4 @@
 import {
-  Badge,
   Button,
   DropdownMenu,
   DropdownMenuContent,
@@ -42,13 +41,16 @@ export interface UseNotificationPermissionBarReturn {
 }
 
 /**
-  * Hook managing browser notification permission state, local snooze durations,
-  * and dismissal persistence.
-  */
+ * Hook managing browser notification permission state, local snooze durations,
+ * and dismissal persistence.
+ */
 export function useNotificationPermissionBar(): UseNotificationPermissionBarReturn {
-  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(() => {
+  const [permission, setPermission] = useState<
+    NotificationPermission | 'unsupported'
+  >(() => {
     if (isDesktop) return 'granted';
-    if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
+    if (typeof window === 'undefined' || !('Notification' in window))
+      return 'unsupported';
     return Notification.permission;
   });
 
@@ -99,7 +101,8 @@ export function useNotificationPermissionBar(): UseNotificationPermissionBarRetu
       return true;
     }
 
-    if (typeof window === 'undefined' || !('Notification' in window)) return false;
+    if (typeof window === 'undefined' || !('Notification' in window))
+      return false;
     try {
       const res = await Notification.requestPermission();
       setPermission(res);
@@ -171,8 +174,8 @@ export interface NotificationEnableBarProps {
 }
 
 /**
-  * A top action bar prompting the user to enable notifications or customize reminder settings.
-  */
+ * A top action bar prompting the user to enable notifications or customize reminder settings.
+ */
 export function NotificationEnableBar({
   workspaceId,
   className,
@@ -206,8 +209,7 @@ export function NotificationEnableBar({
       // Register Push Device with Backend API
       let pushKey: string;
       try {
-        pushKey =
-          localStorage.getItem('onetab:notifications:push-key') || '';
+        pushKey = localStorage.getItem('onetab:notifications:push-key') || '';
         if (!pushKey) {
           pushKey = `device-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
           localStorage.setItem('onetab:notifications:push-key', pushKey);
@@ -222,19 +224,19 @@ export function NotificationEnableBar({
       const platform = isDesktop
         ? 'Desktop App'
         : /Mac/.test(ua)
-        ? 'macOS'
-        : /Win/.test(ua)
-        ? 'Windows'
-        : /Linux/.test(ua)
-        ? 'Linux'
-        : 'Web';
+          ? 'macOS'
+          : /Win/.test(ua)
+            ? 'Windows'
+            : /Linux/.test(ua)
+              ? 'Linux'
+              : 'Web';
       const browser = /Chrome/.test(ua)
         ? 'Chrome'
         : /Firefox/.test(ua)
-        ? 'Firefox'
-        : /Safari/.test(ua)
-        ? 'Safari'
-        : 'Browser';
+          ? 'Firefox'
+          : /Safari/.test(ua)
+            ? 'Safari'
+            : 'Browser';
 
       registerDevice.mutate({
         pushKey,
@@ -252,7 +254,7 @@ export function NotificationEnableBar({
     return (
       <div
         className={cn(
-          'relative flex items-center justify-between border-b border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs text-emerald-700 dark:text-emerald-300 backdrop-blur-md transition-all duration-300',
+          'relative flex items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-card to-emerald-500/5 px-4 py-2.5 text-xs text-emerald-700 dark:text-emerald-300 shadow-xs overflow-hidden transition-all duration-300',
           className,
         )}
       >
@@ -284,14 +286,15 @@ export function NotificationEnableBar({
     return (
       <div
         className={cn(
-          'relative flex flex-wrap items-center justify-between gap-3 border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs text-amber-800 dark:text-amber-200 backdrop-blur-md',
+          'relative flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-card to-amber-500/5 px-4 py-2.5 text-xs text-amber-800 dark:text-amber-200 shadow-xs overflow-hidden',
           className,
         )}
       >
         <div className="flex items-center gap-2 min-w-0">
           <ShieldAlert className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
           <span className="truncate">
-            Notifications are blocked in your browser settings. Unblock them in your site settings to receive alerts.
+            Notifications are blocked in your browser settings. Unblock them in
+            your site settings to receive alerts.
           </span>
         </div>
         <Button
@@ -311,39 +314,33 @@ export function NotificationEnableBar({
   return (
     <div
       className={cn(
-        'relative flex flex-wrap items-center justify-between gap-3 border-b border-primary/20 bg-gradient-to-r from-primary/10 via-background to-accent/10 px-4 py-2.5 shadow-sm backdrop-blur-md transition-all duration-300',
+        'relative flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-gradient-to-r from-primary/10 via-card to-accent/10 px-4 py-2.5 shadow-xs overflow-hidden transition-all duration-300',
         className,
       )}
       role="region"
       aria-label="Notification setup bar"
     >
       {/* Left: Icon & Headline */}
-      <div className="flex items-center gap-3 min-w-0 flex-1">
-        <div className="relative flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary shadow-inner">
+      <div className="gap-3 min-w-0 flex flex-1 items-center">
+        <div className="size-8 shadow-inner relative flex shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
           <BellRing className="size-4 animate-pulse" />
-          <span className="absolute -top-1 -right-1 flex size-2.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
-            <span className="relative inline-flex size-2.5 rounded-full bg-primary"></span>
+          <span className="-top-1 -right-1 size-2.5 absolute flex">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+            <span className="size-2.5 relative inline-flex rounded-full bg-primary"></span>
           </span>
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             <h4 className="text-xs font-semibold tracking-tight text-foreground">
               Enable Real-time Notifications
             </h4>
-            <Badge variant="primary" className="text-[10px] py-0 px-1.5 h-4 font-medium">
-              Recommended
-            </Badge>
           </div>
-          <p className="text-[11px] text-muted-foreground truncate">
-            Stay in sync with mentions, messages, and important workspace activity.
-          </p>
         </div>
       </div>
 
       {/* Right: Actions & Options */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="gap-2 flex shrink-0 items-center">
         {/* Quick Preference Selector */}
         {workspaceId && preferences.data ? (
           <DropdownMenu>
@@ -354,7 +351,7 @@ export function NotificationEnableBar({
                 className="h-8 gap-1.5 text-xs bg-background/80 hover:bg-accent"
               >
                 <Settings2 className="size-3.5 text-muted-foreground" />
-                <span className="hidden sm:inline">Scope:</span>
+                <span className="sm:inline hidden">Scope:</span>
                 <span className="font-medium">
                   {isMentionsOnly ? 'Mentions Only' : 'All Activity'}
                 </span>
@@ -377,7 +374,9 @@ export function NotificationEnableBar({
                     Messages, mentions & replies
                   </span>
                 </div>
-                {!isMentionsOnly && <Check className="size-3.5 ml-auto text-primary" />}
+                {!isMentionsOnly && (
+                  <Check className="size-3.5 ml-auto text-primary" />
+                )}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => update.mutate({ mentionsOnly: true })}
@@ -390,7 +389,9 @@ export function NotificationEnableBar({
                     Direct @mentions & DMs
                   </span>
                 </div>
-                {isMentionsOnly && <Check className="size-3.5 ml-auto text-primary" />}
+                {isMentionsOnly && (
+                  <Check className="size-3.5 ml-auto text-primary" />
+                )}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

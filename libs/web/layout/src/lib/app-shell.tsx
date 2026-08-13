@@ -166,100 +166,103 @@ export function AppShell() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div
-        className={cn(
-          'relative flex h-full overflow-hidden bg-background p-[6px] gap-[6px] dark:bg-zinc-950 font-sans text-foreground',
-          isResizing && 'cursor-col-resize select-none',
-        )}
-      >
-        {/*
-          Column 1 / Box 1: Navigation Sidebar Box
-        */}
-        {sidebarOpen && !isMobile ? (
-          <>
-            <aside
-              className="flex shrink-0 flex-col rounded-xl border border-border/70 bg-gradient-to-b from-white via-[#F7F7F8] to-[#EFEFF0] dark:from-zinc-900 dark:via-zinc-900/90 dark:to-zinc-950 text-sidebar-foreground shadow-xs overflow-hidden h-full"
-              style={{ width: `${leftWidth}px` }}
-              aria-label="Sidebar navigation"
-            >
-              <div className="flex h-12 shrink-0 items-center border-b border-border/60 px-2 bg-transparent">
-                <WorkspaceMenu
-                  workspaces={workspaces}
-                  current={workspace}
-                  onToggleSidebar={closeSidebar}
-                  onOpenSearch={() => palette.setOpen(true)}
-                />
-              </div>
-              <div className="flex min-h-0 flex-1 flex-col">{channelNav}</div>
-            </aside>
+      <div className="flex h-full flex-col overflow-hidden bg-background p-[6px] gap-[6px] dark:bg-zinc-950 font-sans text-foreground">
+        <div
+          className={cn(
+            'relative flex min-h-0 flex-1 overflow-hidden gap-[6px]',
+            isResizing && 'cursor-col-resize select-none',
+          )}
+        >
+          {/*
+            Column 1 / Box 1: Navigation Sidebar Box
+          */}
+          {sidebarOpen && !isMobile ? (
+            <>
+              <aside
+                className="flex shrink-0 flex-col rounded-xl border border-border/70 bg-gradient-to-b from-white via-[#F7F7F8] to-[#EFEFF0] dark:from-zinc-900 dark:via-zinc-900/90 dark:to-zinc-950 text-sidebar-foreground shadow-xs overflow-hidden h-full"
+                style={{ width: `${leftWidth}px` }}
+                aria-label="Sidebar navigation"
+              >
+                <div className="flex h-12 shrink-0 items-center border-b border-border/60 px-2 bg-transparent">
+                  <WorkspaceMenu
+                    workspaces={workspaces}
+                    current={workspace}
+                    onToggleSidebar={closeSidebar}
+                    onOpenSearch={() => palette.setOpen(true)}
+                  />
+                </div>
+                <div className="flex min-h-0 flex-1 flex-col">{channelNav}</div>
+              </aside>
 
-            <ResizeHandle
-              side="left"
-              isResizing={isResizing === 'left'}
-              currentWidth={leftWidth}
-              minWidth={bounds.leftMin}
-              maxWidth={bounds.leftMax}
-              onPointerDown={startLeftResize}
-              onDoubleClick={resetLeftWidth}
-              onStepWidth={stepLeftWidth}
-              onResetWidth={resetLeftWidth}
+              <ResizeHandle
+                side="left"
+                isResizing={isResizing === 'left'}
+                currentWidth={leftWidth}
+                minWidth={bounds.leftMin}
+                maxWidth={bounds.leftMax}
+                onPointerDown={startLeftResize}
+                onDoubleClick={resetLeftWidth}
+                onStepWidth={stepLeftWidth}
+                onResetWidth={resetLeftWidth}
+              />
+            </>
+          ) : null}
+
+          {/* Column 2 / Box 2: Main Content Box */}
+          <div className="flex min-w-0 flex-1 flex-col rounded-xl border border-border/70 bg-card text-card-foreground shadow-xs overflow-hidden h-full">
+            <AppHeader
+              user={user}
+              workspaceSlug={slug}
+              title={workspace.name}
+              subtitle={`${workspace.memberCount} members · ${workspace.channelCount} channels`}
+              onOpenSearch={() => palette.setOpen(true)}
+              onToggleRightPanel={toggleAssistant}
+              rightPanelOpen={rightPanelOpen}
+              onToggleSidebar={toggleSidebar}
+              sidebarOpen={sidebarOpen}
+              onOpenNotifications={() => setNotificationsOpen(true)}
+              unreadNotifications={unread.count}
             />
-          </>
-        ) : null}
 
-        {/* Column 2 / Box 2: Main Content Box */}
-        <div className="flex min-w-0 flex-1 flex-col rounded-xl border border-border/70 bg-card text-card-foreground shadow-xs overflow-hidden h-full">
-          <AppHeader
-            user={user}
-            workspaceSlug={slug}
-            title={workspace.name}
-            subtitle={`${workspace.memberCount} members · ${workspace.channelCount} channels`}
-            onOpenSearch={() => palette.setOpen(true)}
-            onToggleRightPanel={toggleAssistant}
-            rightPanelOpen={rightPanelOpen}
-            onToggleSidebar={toggleSidebar}
-            sidebarOpen={sidebarOpen}
-            onOpenNotifications={() => setNotificationsOpen(true)}
-            unreadNotifications={unread.count}
-          />
+            <main className="min-w-0 flex-1 overflow-y-auto bg-card p-3 sm:p-4 lg:p-6">
+              <div className="w-full">
+                <ErrorBoundary resetKeys={[location.pathname]}>
+                  <Suspense fallback={<LoadingState fullPage />}>
+                    <Outlet />
+                  </Suspense>
+                </ErrorBoundary>
+              </div>
+            </main>
+          </div>
 
-          <NotificationEnableBar workspaceId={workspaceId} />
+          {/* Column 3 / Box 3: AI Assistant Panel Box */}
+          {rightPanelOpen && !isMobile ? (
+            <>
+              <ResizeHandle
+                side="right"
+                isResizing={isResizing === 'right'}
+                currentWidth={rightWidth}
+                minWidth={bounds.rightMin}
+                maxWidth={bounds.rightMax}
+                onPointerDown={startRightResize}
+                onDoubleClick={resetRightWidth}
+                onStepWidth={stepRightWidth}
+                onResetWidth={resetRightWidth}
+              />
 
-          <main className="min-w-0 flex-1 overflow-y-auto bg-card p-3 sm:p-4 lg:p-6">
-            <div className="w-full">
-              <ErrorBoundary resetKeys={[location.pathname]}>
-                <Suspense fallback={<LoadingState fullPage />}>
-                  <Outlet />
-                </Suspense>
-              </ErrorBoundary>
-            </div>
-          </main>
+              <aside
+                className="flex shrink-0 flex-col rounded-xl border border-border/70 bg-card text-card-foreground shadow-xs overflow-hidden h-full"
+                style={{ width: `${rightWidth}px` }}
+                aria-label="AI assistant"
+              >
+                <AssistantPanel onClose={closeAssistant} />
+              </aside>
+            </>
+          ) : null}
         </div>
 
-        {/* Column 3 / Box 3: AI Assistant Panel Box */}
-        {rightPanelOpen && !isMobile ? (
-          <>
-            <ResizeHandle
-              side="right"
-              isResizing={isResizing === 'right'}
-              currentWidth={rightWidth}
-              minWidth={bounds.rightMin}
-              maxWidth={bounds.rightMax}
-              onPointerDown={startRightResize}
-              onDoubleClick={resetRightWidth}
-              onStepWidth={stepRightWidth}
-              onResetWidth={resetRightWidth}
-            />
-
-            <aside
-              className="flex shrink-0 flex-col rounded-xl border border-border/70 bg-card text-card-foreground shadow-xs overflow-hidden h-full"
-              style={{ width: `${rightWidth}px` }}
-              aria-label="AI assistant"
-            >
-              <AssistantPanel onClose={closeAssistant} />
-            </aside>
-          </>
-        ) : null}
+        {/* Notification Enable Bar at the bottom outside of all boxes */}
+        <NotificationEnableBar workspaceId={workspaceId} />
 
         {/*
           Below `md` both panels become Radix sheets instead of hand-rolled
