@@ -159,7 +159,7 @@ export function AIChatView() {
                 onKeyDown={handleKeyDown}
                 placeholder="Do anything with AI..."
                 rows={2}
-                aria-label="Do anything with AI"
+                aria-label="Ask anything and @mention the AI model if you want to use a specific one"
                 className="text-base leading-relaxed min-h-[56px] w-full resize-none border-none bg-transparent text-foreground outline-none placeholder:text-subtle"
               />
 
@@ -173,16 +173,6 @@ export function AIChatView() {
                       className="p-1.5 rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                     >
                       <Plus className="size-4" />
-                    </button>
-                  </Hint>
-
-                  <Hint label="AI Parameters & Options">
-                    <button
-                      type="button"
-                      aria-label="AI parameters"
-                      className="p-1.5 rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                    >
-                      <SlidersHorizontal className="size-4" />
                     </button>
                   </Hint>
                 </div>

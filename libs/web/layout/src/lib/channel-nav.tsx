@@ -371,7 +371,7 @@ export function ChannelNav({
         </div>
       </ScrollArea>
 
-      <div className="shrink-0 space-y-3 border-t border-border/60 bg-sidebar p-3">
+      <div className="shrink-0 space-y-3 border-t border-border/60 bg-transparent p-3">
         <UpgradeCard workspaceSlug={workspaceSlug} />
         <SidebarFooterActions
           workspaceSlug={workspaceSlug}

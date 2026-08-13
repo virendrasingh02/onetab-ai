@@ -65,13 +65,13 @@ export function ResizeHandle({
       onDoubleClick={onDoubleClick}
       onKeyDown={handleKeyDown}
       className={cn(
-        'group relative z-20 flex w-1.5 -mx-0.75 cursor-col-resize select-none items-center justify-center touch-none',
+        'group relative z-20 flex w-0 -mx-[3px] cursor-col-resize select-none items-center justify-center touch-none',
         'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
         className,
       )}
     >
       {/* Invisible expanded touch hit target */}
-      <div className="absolute inset-y-0 -left-1.5 -right-1.5" />
+      <div className="absolute inset-y-0 -left-3 -right-3" />
 
       {/*
         Separator line. The active glow is expressed as a ring in `primary/40`

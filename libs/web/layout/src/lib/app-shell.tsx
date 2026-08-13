@@ -168,26 +168,21 @@ export function AppShell() {
     <TooltipProvider delayDuration={300}>
       <div
         className={cn(
-          // `h-full`, not `h-dvh`: `DesktopChrome` owns the viewport height and
-          // this fills whatever is left below the title bar.
-          'relative flex h-full overflow-hidden bg-background font-sans text-foreground',
+          'relative flex h-full overflow-hidden bg-background p-[6px] gap-[6px] dark:bg-zinc-950 font-sans text-foreground',
           isResizing && 'cursor-col-resize select-none',
         )}
       >
         {/*
-          Column 1: navigation sidebar (desktop only — mobile uses the Sheet).
-          The 60px workspace rail that used to sit to the left of it is gone:
-          it duplicated destinations the sidebar already lists, and workspace
-          switching lives in `WorkspaceMenu` at the top of this column.
+          Column 1 / Box 1: Navigation Sidebar Box
         */}
         {sidebarOpen && !isMobile ? (
           <>
             <aside
-              className="flex shrink-0 flex-col bg-sidebar"
+              className="flex shrink-0 flex-col rounded-xl border border-border/70 bg-gradient-to-b from-white via-[#F7F7F8] to-[#EFEFF0] dark:from-zinc-900 dark:via-zinc-900/90 dark:to-zinc-950 text-sidebar-foreground shadow-xs overflow-hidden h-full"
               style={{ width: `${leftWidth}px` }}
               aria-label="Sidebar navigation"
             >
-              <div className="flex h-12 shrink-0 items-center border-b border-border px-2">
+              <div className="flex h-12 shrink-0 items-center border-b border-border/60 px-2 bg-transparent">
                 <WorkspaceMenu
                   workspaces={workspaces}
                   current={workspace}
@@ -212,8 +207,8 @@ export function AppShell() {
           </>
         ) : null}
 
-        {/* Column 2: main content */}
-        <div className="flex min-w-0 flex-1 flex-col bg-background">
+        {/* Column 2 / Box 2: Main Content Box */}
+        <div className="flex min-w-0 flex-1 flex-col rounded-xl border border-border/70 bg-card text-card-foreground shadow-xs overflow-hidden h-full">
           <AppHeader
             user={user}
             workspaceSlug={slug}
@@ -230,13 +225,8 @@ export function AppShell() {
 
           <NotificationEnableBar workspaceId={workspaceId} />
 
-          <main className="min-w-0 flex-1 overflow-y-auto bg-background p-3 sm:p-4 lg:p-6">
-            {/*
-              `mx-auto`, not `mr-auto`: the old rule pinned the column to the
-              left edge, so on a wide display every page sat against the
-              sidebar with all the slack dumped on the right.
-            */}
-            <div className="mx-auto w-full max-w-[1600px]">
+          <main className="min-w-0 flex-1 overflow-y-auto bg-card p-3 sm:p-4 lg:p-6">
+            <div className="w-full">
               <ErrorBoundary resetKeys={[location.pathname]}>
                 <Suspense fallback={<LoadingState fullPage />}>
                   <Outlet />
@@ -246,7 +236,7 @@ export function AppShell() {
           </main>
         </div>
 
-        {/* Column 3: AI assistant (desktop only — mobile uses the Sheet) */}
+        {/* Column 3 / Box 3: AI Assistant Panel Box */}
         {rightPanelOpen && !isMobile ? (
           <>
             <ResizeHandle
@@ -262,7 +252,7 @@ export function AppShell() {
             />
 
             <aside
-              className="flex shrink-0 flex-col border-l border-border"
+              className="flex shrink-0 flex-col rounded-xl border border-border/70 bg-card text-card-foreground shadow-xs overflow-hidden h-full"
               style={{ width: `${rightWidth}px` }}
               aria-label="AI assistant"
             >

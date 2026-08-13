@@ -190,9 +190,11 @@
   --radius: 6px;
 
   --font-sans-stack:
-    'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+    'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
   --font-mono-stack:
-    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', monospace;
 
   /*
    * Light theme — the default. Linear's light canvas is a faintly cool grey
@@ -204,64 +206,64 @@
    * are the white panels that sit on it. That one step of contrast is what
    * gives light mode depth without shadows.
    */
-  --background: #FBFBFC;
-  --foreground: #08090A;
+  --background: #fbfbfc;
+  --foreground: #08090a;
 
-  --card: #FFFFFF;
-  --card-foreground: #08090A;
+  --card: #ffffff;
+  --card-foreground: #08090a;
 
-  --popover: #FFFFFF;
-  --popover-foreground: #08090A;
+  --popover: #ffffff;
+  --popover-foreground: #08090a;
 
   /* Linear's brand indigo. */
-  --primary: #5E6AD2;
-  --primary-foreground: #FFFFFF;
-  --primary-hover: #525EC4;
+  --primary: #5e6ad2;
+  --primary-foreground: #ffffff;
+  --primary-hover: #525ec4;
 
-  --secondary: #F4F5F8;
-  --secondary-foreground: #3C4149;
+  --secondary: #f4f5f8;
+  --secondary-foreground: #3c4149;
 
-  --muted: #F4F5F8;
-  --muted-foreground: #6B6F76;
+  --muted: #f4f5f8;
+  --muted-foreground: #6b6f76;
 
   /* `accent` is hover, `selected` the resting state — one step apart, so a
      selected row still visibly responds to the pointer. */
-  --accent: #F1F2F4;
-  --accent-foreground: #08090A;
+  --accent: #f1f2f4;
+  --accent-foreground: #08090a;
 
-  --selected: #E8E9ED;
+  --selected: #e8e9ed;
 
-  --subtle: #8A8F98;
-  --disabled: #B3B6BD;
+  --subtle: #8a8f98;
+  --disabled: #b3b6bd;
 
-  --destructive: #EB5757;
-  --destructive-foreground: #FFFFFF;
+  --destructive: #eb5757;
+  --destructive-foreground: #ffffff;
 
-  --success: #4CB782;
-  --success-foreground: #FFFFFF;
+  --success: #4cb782;
+  --success-foreground: #ffffff;
 
-  --warning: #F2994A;
-  --warning-foreground: #08090A;
+  --warning: #f2994a;
+  --warning-foreground: #08090a;
 
-  --info: #4EA7FC;
-  --info-foreground: #FFFFFF;
+  --info: #4ea7fc;
+  --info-foreground: #ffffff;
 
   /* Text-weight status colours — see the `-text` block in `@theme inline`. */
-  --primary-text: #4C57BE;
-  --destructive-text: #C43D3D;
-  --success-text: #1F7A55;
-  --warning-text: #96590F;
-  --info-text: #1668C7;
+  --primary-text: #4c57be;
+  --destructive-text: #c43d3d;
+  --success-text: #1f7a55;
+  --warning-text: #96590f;
+  --info-text: #1668c7;
 
   /*
    * Hairlines, not rules. Linear's light borders sit only a few points off the
    * surface they divide — the separation comes from the surface step above, so
    * a heavier border just makes a dense list look ruled.
    */
-  --border: #EBECEF;
-  --border-strong: #DCDEE3;
-  --input: #DFE1E6;
-  --ring: #5E6AD2;
+  --border: #ebecef;
+  --border-strong: #dcdee3;
+  --input: #dfe1e6;
+  --ring: #5e6ad2;
 
   /*
    * The ladder runs the other way from dark: there, each step gets lighter than
@@ -269,30 +271,30 @@
    * a slightly deeper grey. `raised` is what chips and inline tints sit on, so
    * it has to stay visibly off-white against a white card.
    */
-  --surface: #FFFFFF;
-  --surface-muted: #F7F8F9;
-  --surface-raised: #F1F2F4;
-  --surface-inset: #ECEDF0;
+  --surface: #ffffff;
+  --surface-muted: #f7f8f9;
+  --surface-raised: #f1f2f4;
+  --surface-inset: #ecedf0;
 
-  --accent-violet: #5E6AD2;
+  --accent-violet: #5e6ad2;
   --accent-violet-soft: rgba(94, 106, 210, 0.12);
-  --accent-blue: #4EA7FC;
+  --accent-blue: #4ea7fc;
   --accent-blue-soft: rgba(78, 167, 252, 0.12);
-  --accent-cyan: #26B5CE;
+  --accent-cyan: #26b5ce;
   --accent-cyan-soft: rgba(38, 181, 206, 0.12);
-  --accent-teal: #0F9B8E;
+  --accent-teal: #0f9b8e;
   --accent-teal-soft: rgba(15, 155, 142, 0.12);
-  --accent-green: #4CB782;
+  --accent-green: #4cb782;
   --accent-green-soft: rgba(76, 183, 130, 0.12);
-  --accent-amber: #F2C94C;
+  --accent-amber: #f2c94c;
   --accent-amber-soft: rgba(242, 201, 76, 0.16);
-  --accent-orange: #FC7840;
+  --accent-orange: #fc7840;
   --accent-orange-soft: rgba(252, 120, 64, 0.12);
-  --accent-rose: #EB5757;
+  --accent-rose: #eb5757;
   --accent-rose-soft: rgba(235, 87, 87, 0.12);
-  --accent-pink: #E07BB8;
+  --accent-pink: #e07bb8;
   --accent-pink-soft: rgba(224, 123, 184, 0.12);
-  --accent-indigo: #6771D4;
+  --accent-indigo: #6771d4;
   --accent-indigo-soft: rgba(103, 113, 212, 0.12);
 
   /*
@@ -300,13 +302,13 @@
    * behind it, only the hairline where the white content panel begins. Giving
    * it its own grey produced a third tone and made the seam read as a seam.
    */
-  --sidebar: #FBFBFC;
-  --sidebar-foreground: #08090A;
-  --sidebar-muted: #6B6F76;
-  --sidebar-accent: #EFF0F3;
-  --sidebar-accent-foreground: #08090A;
-  --sidebar-border: #EBECEF;
-  --sidebar-ring: #5E6AD2;
+  --sidebar: #fbfbfc;
+  --sidebar-foreground: #08090a;
+  --sidebar-muted: #6b6f76;
+  --sidebar-accent: #eff0f3;
+  --sidebar-accent-foreground: #08090a;
+  --sidebar-border: #ebecef;
+  --sidebar-ring: #5e6ad2;
 
   /*
    * Linear keeps elevation quiet: a tight contact shadow plus a wider, very
@@ -328,95 +330,97 @@
  */
 .dark {
   --background: #010102;
-  --foreground: #F7F8F8;
+  --foreground: #f7f8f8;
 
-  --card: #0F1011;
-  --card-foreground: #F7F8F8;
+  --card: #0f1011;
+  --card-foreground: #f7f8f8;
 
   /* Popovers sit at surface-3 level */
-  --popover: #18191A;
-  --popover-foreground: #F7F8F8;
+  --popover: #18191a;
+  --popover-foreground: #f7f8f8;
 
-  --primary: #5E6AD2;
-  --primary-foreground: #FFFFFF;
-  --primary-hover: #828FFF;
-  --primary-focus: #5E69D1;
+  --primary: #5e6ad2;
+  --primary-foreground: #ffffff;
+  --primary-hover: #828fff;
+  --primary-focus: #5e69d1;
 
-  --secondary: #0F1011;
-  --secondary-foreground: #F7F8F8;
+  --secondary: #0f1011;
+  --secondary-foreground: #f7f8f8;
 
   --muted: #141516;
-  --muted-foreground: #D0D6E0;
+  --muted-foreground: #d0d6e0;
 
-  --accent: #18191A;
-  --accent-foreground: #F7F8F8;
+  --accent: #18191a;
+  --accent-foreground: #f7f8f8;
 
   --selected: #141516;
 
-  --subtle: #8A8F98;
-  --disabled: #62666D;
+  --subtle: #8a8f98;
+  --disabled: #62666d;
 
-  --destructive: #EB5757;
-  --destructive-foreground: #FFFFFF;
+  --destructive: #eb5757;
+  --destructive-foreground: #ffffff;
 
-  --success: #27A644;
-  --success-foreground: #FFFFFF;
+  --success: #27a644;
+  --success-foreground: #ffffff;
 
-  --warning: #F2994A;
+  --warning: #f2994a;
   --warning-foreground: #010102;
 
-  --info: #4EA7FC;
-  --info-foreground: #FFFFFF;
+  --info: #4ea7fc;
+  --info-foreground: #ffffff;
 
   /* Lifted text colours */
-  --primary-text: #828FFF;
-  --destructive-text: #F17878;
-  --success-text: #27A644;
-  --warning-text: #F0A868;
-  --info-text: #7CBEFD;
+  --primary-text: #828fff;
+  --destructive-text: #f17878;
+  --success-text: #27a644;
+  --warning-text: #f0a868;
+  --info-text: #7cbefd;
 
-  --border: #23252A;
-  --border-strong: #34343A;
-  --input: #23252A;
-  --ring: #5E69D1;
+  --border: #23252a;
+  --border-strong: #34343a;
+  --input: #23252a;
+  --ring: #5e69d1;
 
-  --surface: #0F1011;
+  --surface: #0f1011;
   --surface-muted: #141516;
-  --surface-raised: #18191A;
-  --surface-inset: #191A1B;
+  --surface-raised: #18191a;
+  --surface-inset: #191a1b;
 
   /* Accent tints */
-  --accent-violet: #5E6AD2;
+  --accent-violet: #5e6ad2;
   --accent-violet-soft: rgba(94, 106, 210, 0.16);
-  --accent-blue: #4EA7FC;
+  --accent-blue: #4ea7fc;
   --accent-blue-soft: rgba(78, 167, 252, 0.16);
-  --accent-cyan: #3FC7E0;
+  --accent-cyan: #3fc7e0;
   --accent-cyan-soft: rgba(63, 199, 224, 0.16);
-  --accent-teal: #2CB3A3;
+  --accent-teal: #2cb3a3;
   --accent-teal-soft: rgba(44, 179, 163, 0.16);
-  --accent-green: #27A644;
+  --accent-green: #27a644;
   --accent-green-soft: rgba(39, 166, 68, 0.16);
-  --accent-amber: #F2C94C;
+  --accent-amber: #f2c94c;
   --accent-amber-soft: rgba(242, 201, 76, 0.16);
-  --accent-orange: #FC7840;
+  --accent-orange: #fc7840;
   --accent-orange-soft: rgba(252, 120, 64, 0.16);
-  --accent-rose: #EB5757;
+  --accent-rose: #eb5757;
   --accent-rose-soft: rgba(235, 87, 87, 0.16);
-  --accent-pink: #E07BB8;
+  --accent-pink: #e07bb8;
   --accent-pink-soft: rgba(224, 123, 184, 0.16);
-  --accent-indigo: #6771D4;
+  --accent-indigo: #6771d4;
   --accent-indigo-soft: rgba(103, 113, 212, 0.16);
 
   --sidebar: #010102;
-  --sidebar-foreground: #F7F8F8;
-  --sidebar-muted: #8A8F98;
-  --sidebar-accent: #0F1011;
-  --sidebar-accent-foreground: #F7F8F8;
-  --sidebar-border: #23252A;
-  --sidebar-ring: #5E69D1;
+  --sidebar-foreground: #f7f8f8;
+  --sidebar-muted: #8a8f98;
+  --sidebar-accent: #0f1011;
+  --sidebar-accent-foreground: #f7f8f8;
+  --sidebar-border: #23252a;
+  --sidebar-ring: #5e69d1;
 
-  --shadow-elevated-value: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.32);
-  --shadow-overlay-value: 0 2px 8px rgba(0, 0, 0, 0.5), 0 12px 32px rgba(0, 0, 0, 0.6);
+  --shadow-elevated-value:
+    0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.32);
+  --shadow-overlay-value:
+    0 2px 8px rgba(0, 0, 0, 0.5), 0 12px 32px rgba(0, 0, 0, 0.6);
 }
 
 @layer base {
@@ -433,7 +437,7 @@
    */
   html {
     -webkit-text-size-adjust: 100%;
-    scrollbar-gutter: stable;
+    /* scrollbar-gutter: stable; */
     background-color: var(--background);
     color: var(--foreground);
     color-scheme: light;
@@ -462,7 +466,10 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  code, kbd, samp, pre {
+  code,
+  kbd,
+  samp,
+  pre {
     font-family: var(--font-mono-stack);
     font-feature-settings: 'calt' 1;
   }
@@ -520,7 +527,12 @@
   }
 
   /* Tracking tightens as type scales up, so headings stay optically even. */
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     letter-spacing: -0.022em;
     font-weight: 600;
   }
@@ -553,4 +565,3 @@
     display: none;
   }
 }
-
