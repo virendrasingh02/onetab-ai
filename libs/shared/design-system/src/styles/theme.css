@@ -1,3 +1,11 @@
+/*
+ * Both typefaces the tokens below reference. This lives with the tokens rather
+ * than in each app so a consumer only has to import this one file to get the
+ * design system's type. Apps that also `<link>` it in their HTML must keep that
+ * URL byte-identical to this one, or the browser fetches the sheet twice.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+
 /**
  * OneTab AI — design tokens.
  *
@@ -169,7 +177,7 @@
   --radius: 6px;
 
   --font-sans-stack:
-    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+    'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
   --font-mono-stack:
     'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
 
@@ -379,7 +387,7 @@
 
   /*
    * Linear sets application chrome at 14px with a slight negative tracking —
-   * at this size Inter's default spacing reads loose, and the tightening is
+   * at this size Geist's default spacing reads loose, and the tightening is
    * what gives dense lists their compact, deliberate feel.
    */
   body {
@@ -389,7 +397,6 @@
     font-size: 14px;
     line-height: 1.5;
     letter-spacing: -0.011em;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     font-variation-settings: normal;
     font-synthesis-weight: none;
     text-rendering: optimizeLegibility;
