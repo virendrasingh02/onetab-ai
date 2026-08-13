@@ -6,7 +6,11 @@ export function Card({ className, ...props }: ComponentProps<'div'>) {
     <div
       data-slot="card"
       className={cn(
-        'bg-[#111113] text-[#FAFAFA] flex flex-col rounded-[10px] border border-[#27272A] transition-all duration-[120ms] hover:border-[#27272A]/80 hover:shadow-[0_4px_18px_rgba(0,0,0,0.18)]',
+        // The white panel that sits on the grey app canvas. Hover lifts the
+        // border a step rather than dropping a shadow: a card in a grid of
+        // cards should not jump when the pointer crosses it.
+        'flex flex-col rounded-card border border-border bg-card text-card-foreground',
+        'transition-colors duration-(--duration-fast) ease-standard hover:border-border-strong',
         className,
       )}
       {...props}
@@ -32,7 +36,7 @@ export function CardTitle({ className, ...props }: ComponentProps<'h3'>) {
   return (
     <h3
       data-slot="card-title"
-      className={cn('text-sm font-semibold tracking-tight text-[#FAFAFA]', className)}
+      className={cn('text-sm font-semibold tracking-tight text-foreground', className)}
       {...props}
     />
   );
@@ -42,7 +46,7 @@ export function CardDescription({ className, ...props }: ComponentProps<'p'>) {
   return (
     <p
       data-slot="card-description"
-      className={cn('text-[#A1A1AA] text-xs', className)}
+      className={cn('text-xs text-muted-foreground', className)}
       {...props}
     />
   );

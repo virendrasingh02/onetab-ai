@@ -10,7 +10,17 @@
       name="description"
       content="OneTab AI — workspaces, channels and files for focused team collaboration."
     />
-    <meta name="theme-color" content="#1b1e2b" />
+    <!-- Matches the palette's `--background` in each theme. -->
+    <meta
+      name="theme-color"
+      content="#FBFBFC"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#010102"
+      media="(prefers-color-scheme: dark)"
+    />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -22,7 +32,15 @@
 
     <!--
       Applies the stored theme before first paint. React mounts too late to
-      prevent a white flash when reloading into the dark theme.
+      prevent a flash when reloading into the dark theme.
+
+      Light is the default, so the OS preference is only consulted when the user
+      has explicitly chosen `system`. An unset key means "never chose" — reading
+      it as `system` put dark-desktop users into dark for one frame, then
+      <ThemeProvider defaultTheme="light"> immediately flipped them back.
+
+      Must stay behaviourally identical to `themeInitScript` in
+      libs/shared/design-system/src/lib/theme-provider.tsx.
     -->
     <script>
       (function () {
@@ -30,7 +48,7 @@
           var k = localStorage.getItem('onetab.theme');
           var d =
             k === 'dark' ||
-            ((!k || k === 'system') &&
+            (k === 'system' &&
               matchMedia('(prefers-color-scheme: dark)').matches);
           document.documentElement.classList.toggle('dark', d);
           document.documentElement.style.colorScheme = d ? 'dark' : 'light';

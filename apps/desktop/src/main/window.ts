@@ -135,7 +135,10 @@ export function createMainWindow({ appUrl, preloadPath }: CreateWindowOptions): 
     // Painting the window only once the renderer has content avoids the white
     // flash that `show: true` produces before first paint.
     show: false,
-    backgroundColor: '#0b0b0f',
+    // The palette's light `--background`. This is what the OS paints during a
+    // resize, before the renderer has repainted — a dark value here flashed
+    // near-black around the edges of a light window on every drag.
+    backgroundColor: '#fbfbfc',
     autoHideMenuBar: process.platform !== 'darwin',
     titleBarStyle: 'hidden',
     ...(process.platform === 'darwin'

@@ -6,6 +6,17 @@
     <base href="/" />
 
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Matches the palette's `--background` in each theme. -->
+    <meta
+      name="theme-color"
+      content="#FBFBFC"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#010102"
+      media="(prefers-color-scheme: dark)"
+    />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,6 +25,29 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/src/styles.css" />
+
+    <!--
+      Applies the stored theme before first paint; without it the admin app
+      always painted its first frame light and then jumped for anyone who had
+      chosen dark. Light is the default, so the OS preference is consulted only
+      when the user explicitly picked `system`.
+
+      Must stay behaviourally identical to `themeInitScript` in
+      libs/shared/design-system/src/lib/theme-provider.tsx.
+    -->
+    <script>
+      (function () {
+        try {
+          var k = localStorage.getItem('onetab.theme');
+          var d =
+            k === 'dark' ||
+            (k === 'system' &&
+              matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('dark', d);
+          document.documentElement.style.colorScheme = d ? 'dark' : 'light';
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

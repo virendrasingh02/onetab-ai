@@ -415,7 +415,7 @@ export function IconPickerPopover({
               className={cn(
                 'text-xs font-medium transition-colors pb-0.5 border-b-2 cursor-pointer',
                 activeTab === 'emoji'
-                  ? 'border-white text-white'
+                  ? 'border-foreground text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground',
               )}
             >
@@ -427,7 +427,7 @@ export function IconPickerPopover({
               className={cn(
                 'text-xs font-medium transition-colors pb-0.5 border-b-2 cursor-pointer',
                 activeTab === 'icons'
-                  ? 'border-white text-white'
+                  ? 'border-foreground text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground',
               )}
             >
@@ -439,7 +439,7 @@ export function IconPickerPopover({
               className={cn(
                 'text-xs font-medium transition-colors pb-0.5 border-b-2 cursor-pointer',
                 activeTab === 'upload'
-                  ? 'border-white text-white'
+                  ? 'border-foreground text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground',
               )}
             >
@@ -481,7 +481,7 @@ export function IconPickerPopover({
                 type="button"
                 onClick={handleRandomIcon}
                 title="Random Icon"
-                className="size-8 rounded-md bg-surface-raised/80 hover:bg-selected border border-border/60 flex items-center justify-center text-secondary-foreground hover:text-white transition-colors cursor-pointer shrink-0"
+                className="size-8 rounded-md bg-surface-raised/80 hover:bg-selected border border-border/60 flex items-center justify-center text-secondary-foreground hover:text-foreground transition-colors cursor-pointer shrink-0"
               >
                 <Shuffle className="size-3.5" />
               </button>

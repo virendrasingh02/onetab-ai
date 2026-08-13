@@ -156,6 +156,15 @@ async function bootstrap(): Promise<void> {
   registerIpcHandlers(isDev);
   installAppMenu(isDev);
 
+  /*
+   * Match the renderer's default before it has mounted. Electron starts on
+   * `system`, so on a dark desktop the menus, native scrollbars and title bar
+   * came up dark around a light app until `DesktopProvider` pushed the real
+   * theme — which it then does, including switching this back to `system` for
+   * anyone who chose that.
+   */
+  nativeTheme.themeSource = 'light';
+
   const window = createMainWindow({ appUrl, preloadPath });
 
   window.webContents.on('did-finish-load', () => {

@@ -43,18 +43,25 @@ export function EmptyState({
   ...props
 }: EmptyStateProps) {
   return (
-    <div className={cn(emptyStateVariants({ size }), 'rounded-[10px] border border-[#27272A] bg-[#111113] p-8', className)} {...props}>
+    <div
+      className={cn(
+        emptyStateVariants({ size }),
+        'rounded-card border border-border bg-card p-8',
+        className,
+      )}
+      {...props}
+    >
       {icon ? (
         <div
           aria-hidden
-          className="bg-[#16171A] text-[#A1A1AA] border border-[#27272A] mb-2 flex size-10 items-center justify-center rounded-[8px] [&_svg]:size-4"
+          className="mb-2 flex size-10 items-center justify-center rounded-btn border border-border bg-surface-raised text-muted-foreground [&_svg]:size-4"
         >
           {icon}
         </div>
       ) : null}
-      <p className="text-[#FAFAFA] text-xs font-semibold tracking-tight">{title}</p>
+      <p className="text-xs font-semibold tracking-tight text-foreground">{title}</p>
       {description ? (
-        <p className="text-[#71717A] max-w-xs text-xs text-balance leading-relaxed">
+        <p className="max-w-xs text-xs leading-relaxed text-balance text-muted-foreground">
           {description}
         </p>
       ) : null}

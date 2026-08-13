@@ -11,19 +11,20 @@ export const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 export const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
 
 const menuSurface = [
-  'bg-[#111113] text-[#FAFAFA] z-50 min-w-[10rem] overflow-hidden',
-  'rounded-[12px] border border-[#27272A] p-1 shadow-[0_20px_60px_rgba(0,0,0,0.45)]',
+  'z-50 min-w-[10rem] overflow-hidden bg-popover text-popover-foreground',
+  'rounded-popup border border-border p-1 shadow-overlay',
   'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-98',
   'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-98',
-  'duration-[120ms] ease-out',
+  'duration-(--duration-fast) ease-standard',
   'data-[side=bottom]:slide-in-from-top-1 data-[side=top]:slide-in-from-bottom-1',
   'data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1',
 ];
 
 const menuItem = [
-  'relative flex cursor-default items-center gap-2 rounded-[6px] px-2 py-1.5 text-xs outline-none select-none transition-colors duration-[120ms]',
-  'focus:bg-[#1E1F23] focus:text-[#FAFAFA]',
-  'data-[disabled]:pointer-events-none data-[disabled]:opacity-40',
+  'relative flex cursor-default items-center gap-2 rounded-btn px-2 py-1.5 text-xs outline-none select-none',
+  'transition-colors duration-(--duration-fast) ease-standard',
+  'focus:bg-accent focus:text-accent-foreground',
+  'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
   "[&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-3.5 [&_svg]:shrink-0",
 ];
 

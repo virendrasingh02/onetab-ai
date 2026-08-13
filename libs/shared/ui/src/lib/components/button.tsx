@@ -4,40 +4,54 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { Loader2 } from 'lucide-react';
 import type { ComponentProps, ReactNode } from 'react';
 
+/*
+ * Every colour here is a palette token, never a literal. The variants used to
+ * be hard-coded to a dark ramp (#16171A surfaces, #FAFAFA text), so in the
+ * light theme — now the default — every button rendered as a dark slab on a
+ * white page and ignored the theme switch entirely.
+ *
+ * `outline` and `ghost` deliberately carry `text-foreground`/`text-muted-
+ * foreground` rather than a fixed near-white: on a white card the label has to
+ * be ink, and only the token knows which way round the theme currently is.
+ */
 const buttonVariants = cva(
   [
     'inline-flex items-center justify-center gap-2 whitespace-nowrap',
-    'rounded-[8px] text-xs font-medium',
-    'transition-all duration-[120ms] ease-out',
-    'outline-none focus-visible:ring-1 focus-visible:ring-primary/60',
-    'disabled:pointer-events-none disabled:opacity-40',
+    'rounded-btn text-xs font-medium',
+    'transition-colors duration-(--duration-fast) ease-standard',
+    'outline-none focus-visible:ring-2 focus-visible:ring-ring/55',
+    'disabled:pointer-events-none disabled:opacity-50',
     "[&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0",
   ],
   {
     variants: {
       variant: {
         primary:
-          'bg-[#6E56CF] text-[#FAFAFA] hover:bg-[#7C6AF5] active:scale-[0.98]',
+          'bg-primary text-primary-foreground shadow-xs hover:bg-primary-hover active:scale-[0.98]',
         secondary:
-          'bg-[#16171A] text-[#A1A1AA] hover:bg-[#1E1F23] hover:text-[#FAFAFA] active:scale-[0.98]',
+          'bg-surface-raised text-foreground hover:bg-selected active:scale-[0.98]',
+        /*
+         * A hairline border plus the panel fill, not a transparent cut-out:
+         * against the grey app chrome a transparent "outline" button
+         * disappeared into the background it sat on.
+         */
         outline:
-          'border border-[#27272A] bg-transparent text-[#FAFAFA] hover:bg-[#1E1F23]',
-        ghost:
-          'text-[#A1A1AA] hover:bg-[#1E1F23] hover:text-[#FAFAFA]',
+          'border border-border-strong bg-surface text-foreground shadow-xs hover:bg-accent',
+        ghost: 'text-muted-foreground hover:bg-accent hover:text-foreground',
         subtle:
-          'bg-[#16171A] text-[#A1A1AA] hover:bg-[#1E1F23] hover:text-[#FAFAFA]',
+          'bg-surface-raised text-muted-foreground hover:bg-selected hover:text-foreground',
         destructive:
-          'bg-[#E5484D] text-[#FAFAFA] hover:bg-[#E5484D]/90 active:scale-[0.98]',
-        link: 'text-[#6E56CF] underline-offset-4 hover:underline',
+          'bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90 active:scale-[0.98]',
+        link: 'text-primary underline-offset-4 hover:underline',
         sidebar:
-          'text-[#A1A1AA] hover:bg-[#1E1F23] hover:text-[#FAFAFA] focus-visible:ring-primary/40',
+          'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-sidebar-ring/50',
       },
       size: {
-        sm: 'h-[28px] px-2.5 text-xs',
-        md: 'h-[34px] px-[12px] text-xs',
-        lg: 'h-[38px] px-4 text-sm',
-        icon: 'size-[34px]',
-        'icon-sm': 'size-[28px]',
+        sm: 'h-7 px-2.5 text-xs',
+        md: 'h-8 px-3 text-xs',
+        lg: 'h-9 px-4 text-sm',
+        icon: 'size-8',
+        'icon-sm': 'size-7',
       },
     },
     defaultVariants: { variant: 'primary', size: 'md' },

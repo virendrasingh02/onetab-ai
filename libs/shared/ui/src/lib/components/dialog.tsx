@@ -16,9 +16,11 @@ export function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        'fixed inset-0 z-50 bg-black/60 backdrop-blur-md',
+        // 40%, not 60%: a scrim tuned for a near-black app reads as a blackout
+        // over a white one. The blur is what separates the layers here.
+        'fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px]',
         'data-[state=open]:animate-in data-[state=open]:fade-in-0',
-        'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 duration-[200ms]',
+        'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 duration-(--duration-base)',
         className,
       )}
       {...props}
@@ -44,12 +46,13 @@ export function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          'bg-[#111113] text-[#FAFAFA] fixed top-1/2 left-1/2 z-50 w-[calc(100vw-2rem)] sm:w-full max-w-lg max-h-[90dvh] overflow-y-auto',
+          'fixed top-1/2 left-1/2 z-50 max-h-[90dvh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto sm:w-full',
+          'bg-popover text-popover-foreground',
           '-translate-x-1/2 -translate-y-1/2',
-          'rounded-[14px] border border-[#27272A] shadow-[0_20px_60px_rgba(0,0,0,0.45)]',
+          'rounded-dialog border border-border shadow-overlay',
           'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-98',
           'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-98',
-          'duration-[200ms] ease-out outline-none',
+          'duration-(--duration-base) ease-standard outline-none',
           className,
         )}
         {...props}
@@ -58,9 +61,9 @@ export function DialogContent({
         {hideCloseButton ? null : (
           <DialogPrimitive.Close
             className={cn(
-              'absolute top-3.5 right-3.5 rounded-[6px] p-1 text-[#A1A1AA] opacity-70',
-              'transition-opacity hover:opacity-100 hover:bg-[#1E1F23]',
-              'focus-visible:ring-1 focus-visible:ring-[#6E56CF] focus-visible:outline-none',
+              'absolute top-3.5 right-3.5 rounded-btn p-1 text-muted-foreground',
+              'transition-colors duration-(--duration-fast) hover:bg-accent hover:text-foreground',
+              'focus-visible:ring-2 focus-visible:ring-ring/55 focus-visible:outline-none',
               'disabled:pointer-events-none',
             )}
           >
@@ -103,7 +106,7 @@ export function DialogTitle({
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn('text-sm font-semibold tracking-tight text-[#FAFAFA]', className)}
+      className={cn('text-sm font-semibold tracking-tight text-foreground', className)}
       {...props}
     />
   );
@@ -116,7 +119,7 @@ export function DialogDescription({
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn('text-[#A1A1AA] text-xs', className)}
+      className={cn('text-xs text-muted-foreground', className)}
       {...props}
     />
   );
