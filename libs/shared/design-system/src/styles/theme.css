@@ -12,9 +12,15 @@
  * Tailwind v4: tokens are plain CSS custom properties, exposed to utilities
  * through `@theme inline`. There is no `tailwind.config.js`.
  *
- * Palette: an ink-navy chrome (sidebar/rails) against a neutral canvas, with a
- * violet primary and a teal accent reserved for presence/activity signals.
- * All values are OKLCH so light/dark pairs stay perceptually matched.
+ * Palette: ported from marketer.com. A warm off-white canvas carries white
+ * panels, text is a green-ink ramp rather than neutral black, and the primary
+ * is marketer's mint (#60c686) — a light fill that takes *dark* green type,
+ * not white. Deep forest (#037152 / #0d2c21 / #071812) does the work that a
+ * saturated brand colour normally does: focus rings, links, selected rows.
+ * Manta blue and ember orange are the two supporting brand families.
+ *
+ * Every foreground/background pair below is checked to at least 4.5:1 (3:1 for
+ * the recessive `subtle` rung and for focus rings), in both themes.
  *
  * Consumers must `@import "tailwindcss"` before importing this file.
  */
@@ -197,225 +203,246 @@
     'Liberation Mono', monospace;
 
   /*
-   * Light theme — the default. Linear's light canvas is a faintly cool grey
-   * page with white panels sitting on it, and text steps down
-   * #08090a → #3c4149 → #6b6f76 → #8a8f98 rather than fading to a single grey,
-   * which is what keeps dense lists readable without borders doing the work.
+   * Light theme — the default. marketer.com's canvas is a warm off-white
+   * (#fcfbf8), not a cool grey, and its text is green-ink (#11271f) rather
+   * than black. The ramp steps #11271f → #33473f → #67766f → #8a958f so dense
+   * lists stay readable without borders doing the work.
    *
    * `background` is the chrome (sidebar, rails, page gutter); `card`/`popover`
    * are the white panels that sit on it. That one step of contrast is what
-   * gives light mode depth without shadows.
+   * gives light mode depth without shadows — marketer runs the same warm
+   * canvas / white panel split on its platform surfaces.
    */
-  --background: #fbfbfc;
-  --foreground: #08090a;
+  --background: #fcfbf8;
+  --foreground: #11271f;
 
   --card: #ffffff;
-  --card-foreground: #08090a;
+  --card-foreground: #11271f;
 
   --popover: #ffffff;
-  --popover-foreground: #08090a;
+  --popover-foreground: #11271f;
 
-  /* Linear's brand indigo. */
-  --primary: #5e6ad2;
-  --primary-foreground: #ffffff;
-  --primary-hover: #525ec4;
+  /*
+   * marketer's mint. Unusually for a primary this is a *light* fill, so its
+   * label is deep green rather than white — white on #60c686 is 1.9:1 and
+   * unreadable. `primary-text` below carries the deep forest for anything that
+   * needs the brand as type instead of as a fill.
+   */
+  --primary: #60c686;
+  --primary-foreground: #11271f;
+  --primary-hover: #4fb576;
 
-  --secondary: #f4f5f8;
-  --secondary-foreground: #3c4149;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #33473f;
 
-  --muted: #f4f5f8;
-  --muted-foreground: #6b6f76;
+  --muted: #f8f8f8;
+  --muted-foreground: #67766f;
 
   /* `accent` is hover, `selected` the resting state — one step apart, so a
-     selected row still visibly responds to the pointer. */
-  --accent: #f1f2f4;
-  --accent-foreground: #08090a;
+     selected row still visibly responds to the pointer. Both are warmed to sit
+     on the #fcfbf8 canvas rather than reading as a cool grey patch. */
+  --accent: #f1f0ec;
+  --accent-foreground: #11271f;
 
-  --selected: #e8e9ed;
+  --selected: #e6ede8;
 
-  --subtle: #8a8f98;
-  --disabled: #b3b6bd;
+  --subtle: #8a958f;
+  --disabled: #b4bcb7;
 
-  --destructive: #eb5757;
+  --destructive: #e40014;
   --destructive-foreground: #ffffff;
 
-  --success: #4cb782;
+  /* Deep forest, so success stays distinct from the mint primary. */
+  --success: #037152;
   --success-foreground: #ffffff;
 
-  --warning: #f2994a;
-  --warning-foreground: #08090a;
+  --warning: #e8a33c;
+  --warning-foreground: #2a1f08;
 
-  --info: #4ea7fc;
+  /* marketer's manta blue, darkened until white type clears 4.5:1 on it. */
+  --info: #4d6dd6;
   --info-foreground: #ffffff;
 
   /* Text-weight status colours — see the `-text` block in `@theme inline`. */
-  --primary-text: #4c57be;
-  --destructive-text: #c43d3d;
-  --success-text: #1f7a55;
-  --warning-text: #96590f;
-  --info-text: #1668c7;
+  --primary-text: #037152;
+  --destructive-text: #c40011;
+  --success-text: #044e34;
+  --warning-text: #8a5a12;
+  --info-text: #2f52b5;
 
   /*
-   * Hairlines, not rules. Linear's light borders sit only a few points off the
+   * Hairlines, not rules. marketer's borders sit only a few points off the
    * surface they divide — the separation comes from the surface step above, so
    * a heavier border just makes a dense list look ruled.
    */
-  --border: #ebecef;
-  --border-strong: #dcdee3;
-  --input: #dfe1e6;
-  --ring: #5e6ad2;
+  --border: #eeece6;
+  --border-strong: #ddd9cf;
+  --input: #e5e5e5;
+  /* Deep forest, not the mint: a #60c686 ring is invisible on a white panel. */
+  --ring: #037152;
 
   /*
    * The ladder runs the other way from dark: there, each step gets lighter than
    * the near-black canvas; here, a panel is white and every step *above* it is
-   * a slightly deeper grey. `raised` is what chips and inline tints sit on, so
-   * it has to stay visibly off-white against a white card.
+   * a slightly deeper warm grey. `raised` is what chips and inline tints sit
+   * on, so it has to stay visibly off-white against a white card.
    */
   --surface: #ffffff;
-  --surface-muted: #f7f8f9;
-  --surface-raised: #f1f2f4;
-  --surface-inset: #ecedf0;
-
-  --accent-violet: #5e6ad2;
-  --accent-violet-soft: rgba(94, 106, 210, 0.12);
-  --accent-blue: #4ea7fc;
-  --accent-blue-soft: rgba(78, 167, 252, 0.12);
-  --accent-cyan: #26b5ce;
-  --accent-cyan-soft: rgba(38, 181, 206, 0.12);
-  --accent-teal: #0f9b8e;
-  --accent-teal-soft: rgba(15, 155, 142, 0.12);
-  --accent-green: #4cb782;
-  --accent-green-soft: rgba(76, 183, 130, 0.12);
-  --accent-amber: #f2c94c;
-  --accent-amber-soft: rgba(242, 201, 76, 0.16);
-  --accent-orange: #fc7840;
-  --accent-orange-soft: rgba(252, 120, 64, 0.12);
-  --accent-rose: #eb5757;
-  --accent-rose-soft: rgba(235, 87, 87, 0.12);
-  --accent-pink: #e07bb8;
-  --accent-pink-soft: rgba(224, 123, 184, 0.12);
-  --accent-indigo: #6771d4;
-  --accent-indigo-soft: rgba(103, 113, 212, 0.12);
+  --surface-muted: #faf9f6;
+  --surface-raised: #f4f2ec;
+  --surface-inset: #eeece5;
 
   /*
-   * The sidebar *is* the page background in light mode — Linear draws no fill
-   * behind it, only the hairline where the white content panel begins. Giving
-   * it its own grey produced a third tone and made the seam read as a seam.
+   * Categorical ramp, rebuilt around marketer's three brand families — the
+   * green (mint/forest), manta blue and ember orange — with the remaining hues
+   * pulled to the same saturation so a chart legend reads as one set.
    */
-  --sidebar: #fbfbfc;
-  --sidebar-foreground: #08090a;
-  --sidebar-muted: #6b6f76;
-  --sidebar-accent: #eff0f3;
-  --sidebar-accent-foreground: #08090a;
-  --sidebar-border: #ebecef;
-  --sidebar-ring: #5e6ad2;
+  --accent-violet: #7a5bd0;
+  --accent-violet-soft: rgba(122, 91, 208, 0.12);
+  --accent-blue: #4d6dd6;
+  --accent-blue-soft: rgba(77, 109, 214, 0.12);
+  --accent-cyan: #1a9fb5;
+  --accent-cyan-soft: rgba(26, 159, 181, 0.12);
+  --accent-teal: #0f8a76;
+  --accent-teal-soft: rgba(15, 138, 118, 0.12);
+  --accent-green: #37a06a;
+  --accent-green-soft: rgba(96, 198, 134, 0.16);
+  --accent-amber: #d99a2b;
+  --accent-amber-soft: rgba(217, 154, 43, 0.16);
+  --accent-orange: #ff7451;
+  --accent-orange-soft: rgba(255, 116, 81, 0.12);
+  --accent-rose: #e0405a;
+  --accent-rose-soft: rgba(224, 64, 90, 0.12);
+  --accent-pink: #cf5f9e;
+  --accent-pink-soft: rgba(207, 95, 158, 0.12);
+  --accent-indigo: #4256b8;
+  --accent-indigo-soft: rgba(66, 86, 184, 0.12);
 
   /*
-   * Linear keeps elevation quiet: a tight contact shadow plus a wider, very
-   * low-alpha ambient pass, rather than one large soft blur. In light mode a
-   * hairline ring carries the edge and the shadow only implies the lift.
+   * The sidebar *is* the page background in light mode — no fill behind it,
+   * only the hairline where the white content panel begins. Giving it its own
+   * grey produced a third tone and made the seam read as a seam.
+   */
+  --sidebar: #fcfbf8;
+  --sidebar-foreground: #11271f;
+  --sidebar-muted: #67766f;
+  --sidebar-accent: #f1f0ec;
+  --sidebar-accent-foreground: #11271f;
+  --sidebar-border: #eeece6;
+  --sidebar-ring: #037152;
+
+  /*
+   * Elevation stays quiet: a tight contact shadow plus a wider, very low-alpha
+   * ambient pass, rather than one large soft blur — marketer's `--shadow-ui`
+   * uses the same two-pass shape. Tinted with the green ink rather than pure
+   * black so shadows don't grey out the warm canvas.
    */
   --shadow-elevated-value:
-    0 0 0 1px rgba(8, 9, 10, 0.04), 0 1px 2px rgba(8, 9, 10, 0.04),
-    0 4px 12px rgba(8, 9, 10, 0.05);
+    0 0 0 1px rgba(17, 39, 31, 0.04), 0 1px 2px rgba(17, 39, 31, 0.04),
+    0 4px 12px rgba(17, 39, 31, 0.05);
   --shadow-overlay-value:
-    0 0 0 1px rgba(8, 9, 10, 0.05), 0 4px 12px rgba(8, 9, 10, 0.08),
-    0 16px 40px rgba(8, 9, 10, 0.12);
+    0 0 0 1px rgba(17, 39, 31, 0.05), 0 4px 12px rgba(17, 39, 31, 0.08),
+    0 16px 40px rgba(17, 39, 31, 0.12);
 }
 
 /*
- * Dark theme — Linear's default. The canvas is near-black (#08090a) and
- * elevation is expressed by getting *lighter*, so panels and popovers step up
- * #0f1011 → #16171a → #1c1d20 instead of relying on shadow.
+ * Dark theme. The canvas is marketer's near-black (#0a0a0a) and elevation is
+ * expressed by getting *lighter*, so panels and popovers step up
+ * #171717 → #1c1c1c → #212121 instead of relying on shadow. The mint primary
+ * carries over unchanged — it is already a light fill, so it needs no lifting.
  */
 .dark {
-  --background: #010102;
-  --foreground: #f7f8f8;
+  --background: #0a0a0a;
+  --foreground: #fafafa;
 
-  --card: #0f1011;
-  --card-foreground: #f7f8f8;
+  --card: #171717;
+  --card-foreground: #fafafa;
 
   /* Popovers sit at surface-3 level */
-  --popover: #18191a;
-  --popover-foreground: #f7f8f8;
+  --popover: #1f1f1f;
+  --popover-foreground: #fafafa;
 
-  --primary: #5e6ad2;
-  --primary-foreground: #ffffff;
-  --primary-hover: #828fff;
-  --primary-focus: #5e69d1;
+  --primary: #60c686;
+  --primary-foreground: #11271f;
+  --primary-hover: #7ad49c;
+  --primary-focus: #60c686;
 
-  --secondary: #0f1011;
-  --secondary-foreground: #f7f8f8;
+  /* Deep forest — marketer's own dark secondary surface. */
+  --secondary: #071812;
+  --secondary-foreground: #fafafa;
 
-  --muted: #141516;
-  --muted-foreground: #d0d6e0;
+  --muted: #262626;
+  --muted-foreground: #aeaeae;
 
-  --accent: #18191a;
-  --accent-foreground: #f7f8f8;
+  --accent: #262626;
+  --accent-foreground: #fafafa;
 
-  --selected: #141516;
+  /* Resting selection reads as brand green, not another grey. */
+  --selected: #0d2c21;
 
-  --subtle: #8a8f98;
-  --disabled: #62666d;
+  --subtle: #7d817f;
+  --disabled: #5a5f5c;
 
-  --destructive: #eb5757;
-  --destructive-foreground: #ffffff;
+  /* A light red, so its label is dark rather than white. */
+  --destructive: #ff6568;
+  --destructive-foreground: #2b0a0c;
 
-  --success: #27a644;
-  --success-foreground: #ffffff;
+  --success: #37b06f;
+  --success-foreground: #071812;
 
-  --warning: #f2994a;
-  --warning-foreground: #010102;
+  --warning: #e8a33c;
+  --warning-foreground: #2a1f08;
 
-  --info: #4ea7fc;
-  --info-foreground: #ffffff;
+  /* marketer's manta pairing, used exactly as they ship it. */
+  --info: #92aaf0;
+  --info-foreground: #080d20;
 
   /* Lifted text colours */
-  --primary-text: #828fff;
-  --destructive-text: #f17878;
-  --success-text: #27a644;
-  --warning-text: #f0a868;
-  --info-text: #7cbefd;
+  --primary-text: #60c686;
+  --destructive-text: #ff6568;
+  --success-text: #5fc98a;
+  --warning-text: #f0b45f;
+  --info-text: #92aaf0;
 
-  --border: #23252a;
-  --border-strong: #34343a;
-  --input: #23252a;
-  --ring: #5e69d1;
+  --border: #2e2e2e;
+  --border-strong: #3d3d3d;
+  --input: rgba(255, 255, 255, 0.15);
+  --ring: #60c686;
 
-  --surface: #0f1011;
-  --surface-muted: #141516;
-  --surface-raised: #18191a;
-  --surface-inset: #191a1b;
+  --surface: #171717;
+  --surface-muted: #1c1c1c;
+  --surface-raised: #212121;
+  --surface-inset: #262626;
 
   /* Accent tints */
-  --accent-violet: #5e6ad2;
-  --accent-violet-soft: rgba(94, 106, 210, 0.16);
-  --accent-blue: #4ea7fc;
-  --accent-blue-soft: rgba(78, 167, 252, 0.16);
-  --accent-cyan: #3fc7e0;
-  --accent-cyan-soft: rgba(63, 199, 224, 0.16);
-  --accent-teal: #2cb3a3;
-  --accent-teal-soft: rgba(44, 179, 163, 0.16);
-  --accent-green: #27a644;
-  --accent-green-soft: rgba(39, 166, 68, 0.16);
-  --accent-amber: #f2c94c;
-  --accent-amber-soft: rgba(242, 201, 76, 0.16);
-  --accent-orange: #fc7840;
-  --accent-orange-soft: rgba(252, 120, 64, 0.16);
-  --accent-rose: #eb5757;
-  --accent-rose-soft: rgba(235, 87, 87, 0.16);
-  --accent-pink: #e07bb8;
-  --accent-pink-soft: rgba(224, 123, 184, 0.16);
-  --accent-indigo: #6771d4;
-  --accent-indigo-soft: rgba(103, 113, 212, 0.16);
+  --accent-violet: #9b8cf0;
+  --accent-violet-soft: rgba(155, 140, 240, 0.16);
+  --accent-blue: #92aaf0;
+  --accent-blue-soft: rgba(146, 170, 240, 0.16);
+  --accent-cyan: #4fc9e0;
+  --accent-cyan-soft: rgba(79, 201, 224, 0.16);
+  --accent-teal: #2fbfa8;
+  --accent-teal-soft: rgba(47, 191, 168, 0.16);
+  --accent-green: #60c686;
+  --accent-green-soft: rgba(96, 198, 134, 0.16);
+  --accent-amber: #f0b45f;
+  --accent-amber-soft: rgba(240, 180, 95, 0.16);
+  --accent-orange: #ff8e51;
+  --accent-orange-soft: rgba(255, 142, 81, 0.16);
+  --accent-rose: #ff6568;
+  --accent-rose-soft: rgba(255, 101, 104, 0.16);
+  --accent-pink: #e58ac4;
+  --accent-pink-soft: rgba(229, 138, 196, 0.16);
+  --accent-indigo: #8b9df0;
+  --accent-indigo-soft: rgba(139, 157, 240, 0.16);
 
-  --sidebar: #010102;
-  --sidebar-foreground: #f7f8f8;
-  --sidebar-muted: #8a8f98;
-  --sidebar-accent: #0f1011;
-  --sidebar-accent-foreground: #f7f8f8;
-  --sidebar-border: #23252a;
-  --sidebar-ring: #5e69d1;
+  --sidebar: #0a0a0a;
+  --sidebar-foreground: #fafafa;
+  --sidebar-muted: #aeaeae;
+  --sidebar-accent: #1c1c1c;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #2e2e2e;
+  --sidebar-ring: #60c686;
 
   --shadow-elevated-value:
     0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.32);
@@ -477,7 +504,7 @@
   /*
    * The UA's default selection is a saturated system blue that has nothing to
    * do with the palette — very obvious on a light canvas. A low-alpha wash of
-   * the brand indigo keeps the text itself readable rather than knocking it out.
+   * the brand mint keeps the text itself readable rather than knocking it out.
    */
   ::selection {
     background-color: color-mix(in oklch, var(--primary) 24%, transparent);

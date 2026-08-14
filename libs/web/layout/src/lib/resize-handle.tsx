@@ -92,8 +92,12 @@ export function ResizeHandle({
       {/* Center Grip Pill Handle */}
       <div
         className={cn(
-          'absolute flex h-7 w-3.5 items-center justify-center rounded-full border border-border bg-background shadow-xs transition-opacity duration-150',
-          isResizing ? 'opacity-100 border-primary text-primary' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 text-muted-foreground',
+          /* `bg-card`, not `bg-background`: the gutter this pill floats in *is*
+             `background`, so the fill has to step off it to be visible. */
+          'absolute flex h-7 w-3.5 items-center justify-center rounded-full border border-border bg-card shadow-xs transition-opacity duration-150',
+          isResizing
+            ? 'border-primary text-primary opacity-100'
+            : 'text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100',
         )}
       >
         <GripVertical className="size-2.5" aria-hidden="true" />

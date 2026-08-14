@@ -70,7 +70,12 @@ export function AppHeader({
   const searchShortcut = isApple ? '⌘K' : 'Ctrl K';
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-background px-2.5 sm:gap-3 sm:px-4">
+    /*
+     * No fill of its own: the header is the top of the editor panel, so it
+     * inherits that panel's surface and only the hairline marks the split.
+     * Painting `bg-background` here put a second tone inside the white panel.
+     */
+    <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-2.5 sm:gap-3 sm:px-4">
       <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
         {!sidebarOpen && onToggleSidebar ? (
           <Hint label="Expand sidebar">
@@ -86,8 +91,13 @@ export function AppHeader({
           </Hint>
         ) : null}
 
+        {/*
+          Only shown while the rail is collapsed, and only from `sm` up: on a
+          phone `sidebarOpen` is the drawer's state, so its resting `false`
+          would otherwise push three extra buttons into the tightest header.
+        */}
         {!sidebarOpen ? (
-          <div className="flex items-center gap-0.5">
+          <div className="hidden items-center gap-0.5 sm:flex">
             <Hint label="Go back">
               <Button
                 variant="ghost"

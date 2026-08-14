@@ -160,7 +160,9 @@ export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
   };
 
   return (
-    <div className={cn('flex h-full min-h-0 flex-col bg-background', className)}>
+    /* Surface comes from the host — the rail `aside` on desktop, the sheet on
+       mobile — so the panel never paints a second tone over it. */
+    <div className={cn('flex h-full min-h-0 flex-col', className)}>
       <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-3">
         <span className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
           <Sparkles className="size-4 text-primary" aria-hidden />

@@ -166,24 +166,29 @@ export function AppShell() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex h-full flex-col overflow-hidden bg-background p-[6px] gap-[6px] dark:bg-zinc-950 font-sans text-foreground">
+      <div className="flex h-full flex-col gap-1.5 overflow-hidden bg-background p-1.5 font-sans text-foreground">
         <div
           className={cn(
-            'relative flex min-h-0 flex-1 overflow-hidden gap-[6px]',
+            'relative flex min-h-0 flex-1 gap-1.5 overflow-hidden',
             isResizing && 'cursor-col-resize select-none',
           )}
         >
           {/*
-            Column 1 / Box 1: Navigation Sidebar Box
+            Column 1 / Box 1: navigation rail.
+            Both rails sit one step *below* the editor panel — `surface-muted`
+            against the panel's `card` — which is the only tonal difference in
+            the shell. Everything else is carried by the 1px border and the 6px
+            gutter, so the three panes read as one flat surface set rather than
+            three floating cards.
           */}
           {sidebarOpen && !isMobile ? (
             <>
               <aside
-                className="flex shrink-0 flex-col rounded-xl border border-border/70 bg-gradient-to-b from-white via-[#F7F7F8] to-[#EFEFF0] dark:from-zinc-900 dark:via-zinc-900/90 dark:to-zinc-950 text-sidebar-foreground shadow-xs overflow-hidden h-full"
+                className="flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-surface-muted text-sidebar-foreground"
                 style={{ width: `${leftWidth}px` }}
                 aria-label="Sidebar navigation"
               >
-                <div className="flex h-12 shrink-0 items-center border-b border-border/60 px-2 bg-transparent">
+                <div className="flex h-12 shrink-0 items-center border-b border-border px-2">
                   <WorkspaceMenu
                     workspaces={workspaces}
                     current={workspace}
@@ -208,8 +213,8 @@ export function AppShell() {
             </>
           ) : null}
 
-          {/* Column 2 / Box 2: Main Content Box */}
-          <div className="flex min-w-0 flex-1 flex-col rounded-xl border border-border/70 bg-card text-card-foreground shadow-xs overflow-hidden h-full">
+          {/* Column 2 / Box 2: the editor panel — the one lifted surface. */}
+          <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground">
             <AppHeader
               user={user}
               workspaceSlug={slug}
@@ -224,14 +229,12 @@ export function AppShell() {
               unreadNotifications={unread.count}
             />
 
-            <main className="min-w-0 flex-1 overflow-y-auto bg-card p-3 sm:p-4 lg:p-6">
-              <div className="w-full">
-                <ErrorBoundary resetKeys={[location.pathname]}>
-                  <Suspense fallback={<LoadingState fullPage />}>
-                    <Outlet />
-                  </Suspense>
-                </ErrorBoundary>
-              </div>
+            <main className="min-w-0 flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
+              <ErrorBoundary resetKeys={[location.pathname]}>
+                <Suspense fallback={<LoadingState fullPage />}>
+                  <Outlet />
+                </Suspense>
+              </ErrorBoundary>
             </main>
           </div>
 
@@ -251,7 +254,7 @@ export function AppShell() {
               />
 
               <aside
-                className="flex shrink-0 flex-col rounded-xl border border-border/70 bg-card text-card-foreground shadow-xs overflow-hidden h-full"
+                className="flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-surface-muted text-foreground"
                 style={{ width: `${rightWidth}px` }}
                 aria-label="AI assistant"
               >
@@ -276,7 +279,7 @@ export function AppShell() {
           <SheetContent
             side="left"
             hideCloseButton
-            className="w-75 max-w-[85vw] gap-0 bg-sidebar p-0"
+            className="w-75 max-w-[85vw] gap-0 bg-surface-muted p-0"
           >
             <SheetTitle className="sr-only">Workspace navigation</SheetTitle>
             <div className="flex h-12 shrink-0 items-center border-b border-border px-2">
@@ -294,7 +297,7 @@ export function AppShell() {
           <SheetContent
             side="right"
             hideCloseButton
-            className="w-85 max-w-[90vw] gap-0 p-0"
+            className="w-85 max-w-[90vw] gap-0 bg-surface-muted p-0"
           >
             <SheetTitle className="sr-only">AI assistant</SheetTitle>
             <AssistantPanel onClose={closeAssistant} />
