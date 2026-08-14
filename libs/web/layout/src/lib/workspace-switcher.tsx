@@ -55,6 +55,8 @@ export function WorkspaceMenu({
             <WorkspaceAvatar
               name={current.name}
               src={current.avatarUrl}
+              icon={current.icon}
+              iconColor={current.iconColor}
               seed={current.id}
               size="sm"
             />
@@ -91,6 +93,8 @@ export function WorkspaceMenu({
                     <WorkspaceAvatar
                       name={workspace.name}
                       src={workspace.avatarUrl}
+                      icon={workspace.icon}
+                      iconColor={workspace.iconColor}
                       seed={workspace.id}
                       size="xs"
                     />

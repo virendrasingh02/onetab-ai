@@ -30,7 +30,23 @@ export interface CurrentUser extends PublicUser {
   createdAt: IsoDateString;
 }
 
-export interface Workspace {
+/**
+ * A chosen icon, as it is stored and transported.
+ *
+ * `icon` is one of three things, told apart by inspecting the value rather than
+ * by a discriminator: a Lucide icon name from the shared registry ("Rocket"),
+ * an emoji ("🚀"), or an `http(s)` image URL. `iconColor` is a hex colour and
+ * only applies to the registry case — emoji and images carry their own colour.
+ *
+ * Both are nullable everywhere: "no icon chosen" is a real state, and every
+ * render site falls back to something derived from the entity itself.
+ */
+export interface IconSelection {
+  icon: string | null;
+  iconColor: string | null;
+}
+
+export interface Workspace extends IconSelection {
   id: string;
   name: string;
   slug: string;

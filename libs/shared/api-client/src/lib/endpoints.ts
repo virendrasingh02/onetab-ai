@@ -94,6 +94,7 @@ import type {
   CreateWhiteboardInput,
   CreateWorkspaceInput,
   ForgotPasswordInput,
+  IconPatch,
   InviteMembersInput,
   LoginInput,
   MoveTaskInput,
@@ -174,6 +175,19 @@ export const workspaceApi = {
 
   remove: (workspaceId: string) =>
     request<void>(http.delete(`/workspaces/${workspaceId}`)),
+
+  /**
+   * The icon half of a workspace update, on its own.
+   *
+   * It shares the `PATCH` route with everything else about a workspace, but the
+   * global icon layer addresses entities through one saver per kind rather than
+   * through each screen's form patch — so this is the workspace's saver, and
+   * nothing about picking an icon has to know the shape of the settings form.
+   */
+  setIcon: (workspaceId: string, selection: IconPatch) =>
+    request<Workspace>(http.patch(`/workspaces/${workspaceId}`, selection)).then(
+      withResolvedAvatar,
+    ),
 
   /**
    * Multipart, so the Content-Type header is left to the browser — it has to

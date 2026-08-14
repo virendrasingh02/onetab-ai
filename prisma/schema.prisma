@@ -62,6 +62,12 @@ model Workspace {
   /// Object-store key behind `avatarUrl` when the logo was uploaded to us.
   /// Null when the avatar is an external URL, or when there is no avatar.
   avatarKey                String?
+  /// A Lucide icon name, an emoji, or an image URL. Independent of the logo:
+  /// an uploaded logo wins where both are set, and the icon remains the
+  /// fallback if the logo is later removed.
+  icon                     String?
+  /// Hex tint for `icon`, and only meaningful when `icon` is a Lucide name.
+  iconColor                String?
   ownerId                  String
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt

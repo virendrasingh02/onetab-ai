@@ -22,6 +22,7 @@ import {
   WorkspaceAvatar,
 } from '@org/ui';
 import { formErrorMessage } from '@org/auth';
+import { IconPicker, useLocalIcon } from '@org/icons';
 import { initials, slugify } from '@org/utils';
 import {
   createWorkspaceSchema,
@@ -79,6 +80,10 @@ export function CreateWorkspacePage() {
   const [invitedEmails, setInvitedEmails] = useState<string[]>([]);
   const [inviteEmailInput, setInviteEmailInput] = useState('');
   const [inviteError, setInviteError] = useState<string | null>(null);
+
+  // No workspace exists to attach an icon to yet, so the choice is held here
+  // and posted with the creation itself.
+  const iconEditor = useLocalIcon({ icon: 'Rocket', iconColor: '#4EA7FC' });
 
   const form = useForm<CreateWorkspaceInput>({
     resolver: zodResolver(createWorkspaceSchema),
@@ -155,6 +160,7 @@ export function CreateWorkspacePage() {
       try {
         await createWorkspace.mutateAsync({
           ...values,
+          ...iconEditor.selection,
           logo: logoFile,
           invites: withInvites ? invitedEmails : [],
         });
@@ -283,9 +289,36 @@ export function CreateWorkspacePage() {
                   >
                     <FormError error={formErrorMessage(createWorkspace.error)} />
 
-                    {/* STEP 1: IDENTITY + LOGO */}
+                    {/* STEP 1: IDENTITY + ICON + LOGO */}
                     {currentStep === 1 && (
                       <div className="space-y-5">
+                        {/* Icon picker. Held locally and posted with the
+                            workspace — see `useLocalIcon` above. Images go
+                            through the logo uploader below, which is why the
+                            upload tab is off here. */}
+                        <div>
+                          <label className="text-sm font-medium text-foreground block mb-2">
+                            Workspace Icon
+                          </label>
+                          <div className="flex items-center gap-4 bg-background p-4 rounded-xl border border-border">
+                            <IconPicker
+                              editor={iconEditor}
+                              align="start"
+                              allowUpload={false}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-foreground">
+                                Click the icon to change it
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Choose an icon or emoji and a colour. It appears in
+                                the workspace switcher and anywhere this workspace
+                                is listed — and you can change it later in settings.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
                         {/* Logo uploader */}
                         <div>
                           <label className="text-sm font-medium text-foreground block mb-2">
@@ -569,6 +602,8 @@ export function CreateWorkspacePage() {
                     <WorkspaceAvatar
                       name={name || 'Your Workspace'}
                       src={logoPreview}
+                      icon={iconEditor.icon}
+                      iconColor={iconEditor.iconColor}
                       seed={slug || name}
                       size="lg"
                     />

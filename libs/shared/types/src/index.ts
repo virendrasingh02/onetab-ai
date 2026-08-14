@@ -20,6 +20,7 @@ export type {
   ChannelPin,
   ChannelSummary,
   CurrentUser,
+  IconSelection,
   Invitation,
   IsoDateString,
   PublicUser,

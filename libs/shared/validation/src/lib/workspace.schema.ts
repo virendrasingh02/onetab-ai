@@ -1,5 +1,6 @@
 import { WorkspaceRole } from '@org/types';
 import { z } from 'zod';
+import { iconPatchShape } from './icon.schema.js';
 
 /** Slugs appear in URLs (/w/:slug) and must not collide with app routes. */
 const RESERVED_SLUGS = new Set([
@@ -81,12 +82,16 @@ export const createWorkspaceSchema = z.object({
   name: workspaceNameSchema,
   slug: workspaceSlugSchema,
   description: z.string().trim().max(280).optional().or(z.literal('')),
+  // The wizard picks an icon before the workspace exists, so it rides along
+  // with creation rather than costing a second request.
+  ...iconPatchShape,
 });
 
 export const updateWorkspaceSchema = z.object({
   name: workspaceNameSchema.optional(),
   description: z.string().trim().max(280).nullable().optional(),
   avatarUrl: z.string().url('Enter a valid URL').nullable().optional(),
+  ...iconPatchShape,
 });
 
 export const workspaceRoleSchema = z.enum([

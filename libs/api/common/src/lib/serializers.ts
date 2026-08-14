@@ -43,6 +43,8 @@ interface WorkspaceRow {
   slug: string;
   description: string | null;
   avatarUrl: string | null;
+  icon: string | null;
+  iconColor: string | null;
   ownerId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -55,6 +57,8 @@ export function toWorkspace(workspace: WorkspaceRow): Workspace {
     slug: workspace.slug,
     description: workspace.description,
     avatarUrl: workspace.avatarUrl,
+    icon: workspace.icon,
+    iconColor: workspace.iconColor,
     ownerId: workspace.ownerId,
     createdAt: workspace.createdAt.toISOString(),
     updatedAt: workspace.updatedAt.toISOString(),

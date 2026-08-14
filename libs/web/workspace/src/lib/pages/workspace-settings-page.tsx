@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { http, userApi } from '@org/api-client';
 import { formErrorMessage, useAuthStore, useCurrentUser } from '@org/auth';
 import { useTheme } from '@org/design-system';
+import { WorkspaceIconPicker } from '@org/icons';
 import {
   Button,
   Dialog,
@@ -1310,6 +1311,8 @@ export function WorkspaceSettingsPage() {
               <WorkspaceAvatar
                 name={workspaceForm.watch('name') || workspace.name}
                 src={workspaceForm.watch('avatarUrl') || workspace.avatarUrl}
+                icon={workspace.icon}
+                iconColor={workspace.iconColor}
                 seed={workspace.id}
                 size="xl"
               />
@@ -1319,6 +1322,25 @@ export function WorkspaceSettingsPage() {
                 </h3>
                 <p className="text-xs text-muted-foreground">
                   Workspace Avatar & Logo — displays image when set or single letter initial &quot;{initials(workspaceForm.watch('name') || workspace.name)}&quot;.
+                </p>
+              </div>
+            </div>
+
+            {/*
+              The icon saves on selection rather than with the form below it —
+              it is a one-click choice, and the picker already shows the result.
+            */}
+            <div className="flex items-start gap-4 pb-6 border-b border-border/40">
+              <WorkspaceIconPicker workspace={workspace} align="start" />
+              <div className="space-y-1 pt-1">
+                <h3 className="text-sm font-semibold text-foreground">Workspace Icon</h3>
+                <p className="text-xs text-muted-foreground max-w-md">
+                  Pick an icon or emoji and a colour. It shows in the workspace
+                  switcher and anywhere this workspace is listed — an uploaded
+                  logo, set below, takes precedence over it.
+                  {isAdmin
+                    ? ' Changes save as soon as you choose.'
+                    : ' Only admins can change it.'}
                 </p>
               </div>
             </div>

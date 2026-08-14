@@ -3,6 +3,7 @@ import { cn, initials } from '@org/utils';
 import * as AvatarPrimitive from '@radix-ui/react-avatar';
 import { cva, type VariantProps } from 'class-variance-authority';
 import type { ComponentProps } from 'react';
+import { IconRenderer } from './icon-picker-popover.js';
 
 const avatarVariants = cva(
   'relative flex shrink-0 overflow-hidden select-none',
@@ -152,16 +153,36 @@ export interface WorkspaceAvatarProps extends AvatarProps {
   src?: string | null;
   /** Stable tint seed. Defaults to `name`; pass workspace id where available. */
   seed?: string;
+  /** Chosen icon — a registry name, an emoji, or an image URL. */
+  icon?: string | null;
+  /** Hex tint for `icon`, applied only to registry icons. */
+  iconColor?: string | null;
 }
 
+/** Icon glyphs shrink inside the avatar box so they do not touch its edges. */
+const ICON_SIZES: Record<NonNullable<AvatarProps['size']>, string> = {
+  xs: 'size-3',
+  sm: 'size-3.5',
+  md: 'size-4.5',
+  lg: 'size-5.5',
+  xl: 'size-8',
+};
+
 /**
- * Workspace Avatar with image support and deterministic colour single-letter fallback.
- * Uses squircle (rounded) shape by default.
+ * Workspace avatar: uploaded logo, else chosen icon, else a deterministic
+ * single-letter tile. Squircle by default, because workspaces read as "apps".
+ *
+ * The precedence matters and is deliberate — a workspace can hold both a logo
+ * and an icon, and the logo is the more specific choice. Keeping the icon
+ * behind it means removing a logo reveals the icon again rather than dropping
+ * all the way back to an initial.
  */
 export function WorkspaceAvatar({
   name,
   src,
   seed,
+  icon,
+  iconColor,
   size = 'md',
   shape = 'rounded',
   className,
@@ -170,8 +191,23 @@ export function WorkspaceAvatar({
   return (
     <Avatar size={size} shape={shape} className={className} {...props}>
       {src ? <AvatarImage src={src} alt={name} /> : null}
-      <AvatarFallback style={{ backgroundColor: avatarTint(seed ?? name) }}>
-        {initials(name)}
+      <AvatarFallback
+        style={
+          // An icon supplies its own colour; the tinted tile is for initials.
+          icon ? undefined : { backgroundColor: avatarTint(seed ?? name) }
+        }
+        className={icon ? 'bg-surface-raised border border-border' : undefined}
+      >
+        {icon ? (
+          <IconRenderer
+            icon={icon}
+            iconColor={iconColor ?? undefined}
+            sizeClassName={ICON_SIZES[size ?? 'md']}
+            fallbackEmoji={initials(name)}
+          />
+        ) : (
+          initials(name)
+        )}
       </AvatarFallback>
     </Avatar>
   );

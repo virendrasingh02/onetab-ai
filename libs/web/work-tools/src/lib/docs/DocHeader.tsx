@@ -13,12 +13,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  IconPickerPopover,
   Input,
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@org/ui';
+import { IconPicker, useIconEditor, type IconSource } from '@org/icons';
 import { cn } from '@org/utils';
 import {
   ChevronDown,
@@ -30,7 +30,7 @@ import {
   Star,
   Tag,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   COVER_PRESETS,
   type DocCategory,
@@ -58,6 +58,26 @@ export function DocHeader({
   onToggleFavorite,
 }: DocHeaderProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
+
+  /*
+   * A doc keeps its icon inside its encoded content rather than in a column of
+   * its own, so the saver is the doc mutation it already had. Everything around
+   * it — the optimistic swap, the rollback, the pending trigger — comes from
+   * the shared editor, the same one the workspace icon uses.
+   */
+  const iconEditor = useIconEditor(
+    useMemo<IconSource>(
+      () => ({
+        icon: doc.icon,
+        iconColor: doc.iconColor,
+        // A doc always shows something in its header, so clearing lands on the
+        // default page glyph instead of nothing.
+        save: ({ icon, iconColor }) =>
+          onUpdateIcon(icon ?? '📝', iconColor ?? undefined),
+      }),
+      [doc.icon, doc.iconColor, onUpdateIcon],
+    ),
+  );
   const [titleInput, setTitleInput] = useState(doc.title);
 
   // Compute metrics
@@ -158,13 +178,7 @@ export function DocHeader({
       <div className="px-6 pb-6 pt-0 relative bg-surface">
         {/* Floating Notion Page Icon */}
         <div className="-mt-9 mb-3 flex items-center justify-between">
-          <IconPickerPopover
-            icon={doc.icon}
-            iconColor={doc.iconColor}
-            onSelectIcon={(newIcon: string, newColor?: string) => onUpdateIcon(newIcon, newColor)}
-            onRemoveIcon={() => onUpdateIcon('📝', undefined)}
-            align="start"
-          />
+          <IconPicker editor={iconEditor} required align="start" />
 
           {/* Status & Category Selector */}
           <div className="flex items-center gap-2 pt-8">

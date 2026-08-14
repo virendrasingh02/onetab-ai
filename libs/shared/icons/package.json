@@ -1,5 +1,5 @@
 {
-  "name": "@org/web-work-tools",
+  "name": "@org/icons",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -13,30 +13,10 @@
     },
     "./package.json": "./package.json"
   },
-  "dependencies": {
-    "@org/api-client": "*",
-    "@org/auth": "*",
-    "@org/design-system": "*",
-    "@org/notifications": "*",
-    "@org/types": "*",
-    "@org/ui": "*",
-    "@org/utils": "*",
-    "@org/validation": "*",
-    "@org/web-channels": "*",
-    "@org/web-integrations": "*",
-    "@org/web-members": "*",
-    "@org/web-upload": "*",
-    "@org/web-workspace": "*",
-    "@tanstack/react-query": "^5.101.4",
-    "lucide-react": "^1.28.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "@org/icons": "*"
-  },
   "nx": {
     "tags": [
       "type:feature",
-      "scope:web"
+      "scope:shared"
     ],
     "targets": {
       "test": {
@@ -47,9 +27,17 @@
         ],
         "options": {
           "command": "vitest run --passWithNoTests",
-          "cwd": "libs/web/work-tools"
+          "cwd": "libs/shared/icons"
         }
       }
     }
+  },
+  "dependencies": {
+    "@org/api-client": "*",
+    "@org/types": "*",
+    "@org/ui": "*",
+    "@org/validation": "*",
+    "@tanstack/react-query": "^5.101.4",
+    "react": "^19.0.0"
   }
 }

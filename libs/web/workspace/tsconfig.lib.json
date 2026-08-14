@@ -50,6 +50,9 @@
       "path": "../../shared/ui/tsconfig.lib.json"
     },
     {
+      "path": "../../shared/icons/tsconfig.lib.json"
+    },
+    {
       "path": "../desktop/tsconfig.lib.json"
     }
   ]

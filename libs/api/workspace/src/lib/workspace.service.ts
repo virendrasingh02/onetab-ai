@@ -113,6 +113,8 @@ export class WorkspaceService {
         name: input.name,
         slug: input.slug,
         description: input.description || null,
+        icon: input.icon ?? null,
+        iconColor: input.iconColor ?? null,
         ownerId: userId,
         members: { create: { userId, role: WorkspaceRole.OWNER } },
         channels: {
@@ -152,6 +154,10 @@ export class WorkspaceService {
         ...(input.avatarUrl !== undefined
           ? { avatarUrl: input.avatarUrl, avatarKey: null }
           : {}),
+        // Each icon field is written only when the caller sent it, so changing
+        // the colour alone does not clear the icon and vice versa.
+        ...(input.icon !== undefined ? { icon: input.icon } : {}),
+        ...(input.iconColor !== undefined ? { iconColor: input.iconColor } : {}),
       },
     });
     return toWorkspace(workspace);

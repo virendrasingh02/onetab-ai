@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   AlarmClock,
@@ -324,11 +324,27 @@ export function IconRenderer({
   return <span className={className}>{icon}</span>;
 }
 
-interface IconPickerPopoverProps {
+export interface IconPickerPopoverProps {
   icon?: string;
   iconColor?: string;
   onSelectIcon: (icon: string, iconColor?: string) => void;
   onRemoveIcon?: () => void;
+  /**
+   * Takes the chosen file instead of the picker inlining it as a `data:` URI.
+   *
+   * Anything that persists its icon to a column wants this: the caller uploads
+   * the bytes and calls `onSelectIcon` with the resulting URL. Left out, the
+   * upload tab falls back to a data URI, which suits callers that keep their
+   * icon inside a document body rather than a field of its own.
+   */
+  onUploadFile?: (file: File) => void;
+  /** Hides the Upload tab entirely, for callers that store icons elsewhere. */
+  allowUpload?: boolean;
+  /** Shown under the upload control — a rejected file, a failed upload. */
+  uploadError?: string | null;
+  /** A save is in flight: the picker stays readable but refuses new input. */
+  isPending?: boolean;
+  disabled?: boolean;
   trigger?: React.ReactNode;
   align?: 'start' | 'center' | 'end';
 }
@@ -338,6 +354,11 @@ export function IconPickerPopover({
   iconColor = ICON_COLOR_PRESETS[0].hex,
   onSelectIcon,
   onRemoveIcon,
+  onUploadFile,
+  allowUpload = true,
+  uploadError,
+  isPending = false,
+  disabled = false,
   trigger,
   align = 'start',
 }: IconPickerPopoverProps) {
@@ -347,6 +368,10 @@ export function IconPickerPopover({
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const [uploadedUrl, setUploadedUrl] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+
+  // The colour is editable here but owned by the entity, so a change that lands
+  // from elsewhere — another tab, a rollback after a failed save — wins.
+  useEffect(() => setSelectedColor(iconColor), [iconColor]);
 
   const iconNames = useMemo(() => Object.keys(ICON_REGISTRY), []);
 
@@ -366,17 +391,26 @@ export function IconPickerPopover({
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        if (result) {
-          onSelectIcon(result);
-          setIsOpen(false);
-        }
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    // Let the same file be picked again after a rejection — without this the
+    // input holds the value and the second attempt fires no change event.
+    e.target.value = '';
+
+    if (onUploadFile) {
+      onUploadFile(file);
+      return;
     }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      if (result) {
+        onSelectIcon(result);
+        setIsOpen(false);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleUrlSubmit = (e: React.FormEvent) => {
@@ -389,13 +423,24 @@ export function IconPickerPopover({
   };
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    <Popover
+      open={isOpen}
+      onOpenChange={(next) => {
+        if (!disabled) setIsOpen(next);
+      }}
+    >
       <PopoverTrigger asChild>
         {trigger || (
           <button
             type="button"
-            className="size-16 rounded-2xl bg-surface-raised border-2 border-surface shadow-lg flex items-center justify-center text-3xl hover:scale-105 transition-transform cursor-pointer overflow-hidden"
-            title="Change Icon"
+            disabled={disabled}
+            aria-busy={isPending}
+            className={cn(
+              'size-16 rounded-2xl bg-surface-raised border-2 border-surface shadow-lg flex items-center justify-center text-3xl transition-transform cursor-pointer overflow-hidden',
+              disabled ? 'opacity-60 cursor-not-allowed' : 'hover:scale-105',
+              isPending && 'animate-pulse',
+            )}
+            title={disabled ? 'You cannot change this icon' : 'Change Icon'}
           >
             <IconRenderer icon={icon} iconColor={selectedColor} sizeClassName="size-8" />
           </button>
@@ -433,18 +478,20 @@ export function IconPickerPopover({
             >
               Icons
             </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('upload')}
-              className={cn(
-                'text-xs font-medium transition-colors pb-0.5 border-b-2 cursor-pointer',
-                activeTab === 'upload'
-                  ? 'border-foreground text-foreground'
-                  : 'border-transparent text-muted-foreground hover:text-foreground',
-              )}
-            >
-              Upload
-            </button>
+            {allowUpload && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('upload')}
+                className={cn(
+                  'text-xs font-medium transition-colors pb-0.5 border-b-2 cursor-pointer',
+                  activeTab === 'upload'
+                    ? 'border-foreground text-foreground'
+                    : 'border-transparent text-muted-foreground hover:text-foreground',
+                )}
+              >
+                Upload
+              </button>
+            )}
           </div>
 
           {onRemoveIcon && (
@@ -610,7 +657,7 @@ export function IconPickerPopover({
         )}
 
         {/* Tab 3: UPLOAD */}
-        {activeTab === 'upload' && (
+        {activeTab === 'upload' && allowUpload && (
           <div className="p-4 space-y-4 text-xs">
             <div>
               <p className="font-semibold text-foreground mb-1">Upload File</p>
@@ -619,14 +666,20 @@ export function IconPickerPopover({
                 <span className="text-secondary-foreground font-medium text-center">
                   Click or drag image file here
                 </span>
-                <span className="text-[10px] text-subtle">PNG, JPG, SVG up to 5MB</span>
+                <span className="text-[10px] text-subtle">
+                  {isPending ? 'Uploading…' : 'PNG, JPG, SVG up to 5MB'}
+                </span>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handleFileUpload}
+                  disabled={isPending}
                   className="hidden"
                 />
               </label>
+              {uploadError ? (
+                <p className="text-[11px] text-destructive mt-1.5">{uploadError}</p>
+              ) : null}
             </div>
 
             <div className="relative flex items-center gap-2 my-2">

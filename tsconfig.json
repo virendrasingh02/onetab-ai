@@ -197,6 +197,9 @@
     },
     {
       "path": "./libs/api/admin"
+    },
+    {
+      "path": "./libs/shared/icons"
     }
   ],
   "compilerOptions": {}

@@ -252,8 +252,10 @@ export {
 export {
   IconPickerPopover,
   IconRenderer,
+  EMOJI_CATEGORIES,
   ICON_REGISTRY,
   ICON_COLOR_PRESETS,
+  type IconPickerPopoverProps,
   type IconRendererProps,
 } from './lib/components/icon-picker-popover.js';
 
