@@ -673,6 +673,23 @@ export const workToolsApi = {
       http.delete(`/workspaces/${workspaceId}/work-tools/projects/${projectId}`),
     ),
 
+  /**
+   * The icon half of a project update, on its own — the project's saver for the
+   * global icon layer, which addresses entities through one saver per kind
+   * rather than through each screen's form patch. See `workspaceApi.setIcon`.
+   */
+  setProjectIcon: (
+    workspaceId: string,
+    projectId: string,
+    selection: IconPatch,
+  ) =>
+    request<Project>(
+      http.patch(
+        `/workspaces/${workspaceId}/work-tools/projects/${projectId}`,
+        selection,
+      ),
+    ),
+
   // --- tasks ----------------------------------------------------------------
 
   tasks: (workspaceId: string, projectId?: string) =>

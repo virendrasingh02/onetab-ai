@@ -57,6 +57,8 @@ export class WorkToolsService {
         slug: input.slug,
         description: input.description ?? null,
         ...(input.color ? { color: input.color } : {}),
+        icon: input.icon ?? null,
+        iconColor: input.iconColor ?? null,
         startDate: at(input.startDate) ?? null,
         targetDate: at(input.targetDate) ?? null,
       },
@@ -75,6 +77,10 @@ export class WorkToolsService {
         ? { description: input.description }
         : {}),
       ...(input.color !== undefined ? { color: input.color } : {}),
+      // Each icon field is written only when the caller sent it, so changing
+      // the colour alone does not clear the icon and vice versa.
+      ...(input.icon !== undefined ? { icon: input.icon } : {}),
+      ...(input.iconColor !== undefined ? { iconColor: input.iconColor } : {}),
       ...(input.status !== undefined ? { status: input.status } : {}),
       ...(input.startDate !== undefined
         ? { startDate: at(input.startDate) }
@@ -102,7 +108,16 @@ export class WorkToolsService {
       },
       include: {
         assignee: { select: PUBLIC_USER_SELECT },
-        project: { select: { id: true, name: true, slug: true, color: true } },
+        project: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            color: true,
+            icon: true,
+            iconColor: true,
+          },
+        },
         _count: { select: { comments: true } },
       },
       orderBy: [{ status: 'asc' }, { orderIndex: 'asc' }],

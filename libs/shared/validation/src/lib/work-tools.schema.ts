@@ -5,6 +5,7 @@ import {
   TaskStatus,
 } from '@org/types';
 import { z } from 'zod';
+import { iconPatchShape } from './icon.schema.js';
 
 /**
  * An ISO timestamp, left as a string.
@@ -49,6 +50,9 @@ export const createProjectSchema = z.object({
     .optional(),
   startDate: isoDate.optional(),
   targetDate: isoDate.optional(),
+  // The create dialog picks an icon before the project exists, so it rides
+  // along with creation rather than costing a second request.
+  ...iconPatchShape,
 });
 
 export const updateProjectSchema = z.object({
@@ -61,6 +65,7 @@ export const updateProjectSchema = z.object({
   status: z.enum(ProjectStatus).optional(),
   startDate: isoDate.nullable().optional(),
   targetDate: isoDate.nullable().optional(),
+  ...iconPatchShape,
 });
 
 // --- tasks ------------------------------------------------------------------

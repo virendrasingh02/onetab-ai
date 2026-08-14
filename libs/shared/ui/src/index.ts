@@ -38,6 +38,12 @@ export {
 } from './lib/components/avatar.js';
 
 export {
+  ProjectGlyph,
+  type ProjectGlyphProps,
+  type ProjectGlyphSize,
+} from './lib/components/project-glyph.js';
+
+export {
   Badge,
   badgeVariants,
   type BadgeProps,

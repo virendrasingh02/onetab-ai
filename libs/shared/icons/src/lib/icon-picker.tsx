@@ -1,7 +1,8 @@
-import type { Workspace, WorkspaceSummary } from '@org/types';
+import type { Project, Workspace, WorkspaceSummary } from '@org/types';
 import { IconPickerPopover, type IconPickerPopoverProps } from '@org/ui';
 import type { ReactNode } from 'react';
 import type { IconEditor } from './use-icon-editor.js';
+import { useProjectIcon } from './use-project-icon.js';
 import { useWorkspaceIcon } from './use-workspace-icon.js';
 
 export interface IconPickerProps extends Pick<
@@ -79,5 +80,28 @@ export function WorkspaceIconPicker({
   ...props
 }: WorkspaceIconPickerProps): ReactNode {
   const editor = useWorkspaceIcon(workspace);
+  return <IconPicker editor={editor} allowUpload={allowUpload} {...props} />;
+}
+
+export interface ProjectIconPickerProps extends Omit<IconPickerProps, 'editor'> {
+  workspaceId: string | undefined;
+  project: Pick<Project, 'id' | 'icon' | 'iconColor'> | undefined;
+}
+
+/**
+ * A project's icon, editable in place.
+ *
+ * Saves on selection, so it belongs anywhere the project is already shown —
+ * the board header, the gallery card — as opposed to the create and edit
+ * dialogs, which hold the choice in their draft and send it with the form.
+ */
+export function ProjectIconPicker({
+  workspaceId,
+  project,
+  // Projects have no image store of their own — see `use-project-icon.ts`.
+  allowUpload = false,
+  ...props
+}: ProjectIconPickerProps): ReactNode {
+  const editor = useProjectIcon(workspaceId, project);
   return <IconPicker editor={editor} allowUpload={allowUpload} {...props} />;
 }

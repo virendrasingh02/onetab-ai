@@ -346,6 +346,12 @@ model Project {
   slug        String
   description String?
   color       String?       @default("#3b82f6")
+  /// A Lucide icon name, an emoji, or an image URL. Independent of `color`,
+  /// which still tints the board, the progress bars and the task badges — the
+  /// icon replaces the plain swatch wherever one is drawn.
+  icon        String?
+  /// Hex tint for `icon`, and only meaningful when `icon` is a Lucide name.
+  iconColor   String?
   status      ProjectStatus @default(ACTIVE)
   startDate   DateTime?
   targetDate  DateTime?

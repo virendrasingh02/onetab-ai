@@ -8,6 +8,7 @@ import {
   EmptyState,
   Page,
   PageHeader,
+  ProjectGlyph,
   SkeletonList,
   Tabs,
   TabsContent,
@@ -342,7 +343,19 @@ export function InboxView() {
                           </Badge>
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground truncate">
-                          {task.project ? task.project.name : 'No project'}
+                          {task.project ? (
+                            <span className="inline-flex items-center gap-1 align-middle">
+                              <ProjectGlyph
+                                icon={task.project.icon}
+                                iconColor={task.project.iconColor}
+                                color={task.project.color}
+                                size="xs"
+                              />
+                              {task.project.name}
+                            </span>
+                          ) : (
+                            'No project'
+                          )}
                           {task.dueDate ? (
                             <>
                               {' · '}

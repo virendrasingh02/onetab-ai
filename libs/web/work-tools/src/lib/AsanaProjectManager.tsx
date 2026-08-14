@@ -1,4 +1,10 @@
-import { ProjectStatus, TaskStatus, type ProjectDetail } from '@org/types';
+import { IconPicker, ProjectIconPicker, useIconEditor } from '@org/icons';
+import {
+  ProjectStatus,
+  TaskStatus,
+  type IconSelection,
+  type ProjectDetail,
+} from '@org/types';
 import {
   Badge,
   Button,
@@ -13,6 +19,7 @@ import {
   DropdownMenuTrigger,
   EmptyState,
   Input,
+  ProjectGlyph,
   Select,
   SelectContent,
   SelectItem,
@@ -173,12 +180,14 @@ export function AsanaProjectManager() {
     null,
   );
 
-  const [draft, setDraft] = useState({
+  const [draft, setDraft] = useState<ProjectDraft>({
     name: '',
     slug: '',
     description: '',
     color: DEFAULT_PROJECT_HEX,
     status: ProjectStatus.ACTIVE as ProjectStatus,
+    icon: null,
+    iconColor: null,
   });
 
   const openNewProject = () => {
@@ -188,6 +197,12 @@ export function AsanaProjectManager() {
       description: '',
       color: DEFAULT_PROJECT_HEX,
       status: ProjectStatus.ACTIVE,
+      // A suggestion rather than a blank: an unpicked project still gets a
+      // glyph, and changing one is a click where choosing one from nothing is
+      // a decision. `Folder` is in `ICON_REGISTRY` — a name that is not falls
+      // through to being drawn as literal text.
+      icon: 'Folder',
+      iconColor: DEFAULT_PROJECT_HEX,
     });
     setIsNewProjectOpen(true);
   };
@@ -200,6 +215,8 @@ export function AsanaProjectManager() {
       description: activeProject.description ?? '',
       color: activeProject.color ?? DEFAULT_PROJECT_HEX,
       status: activeProject.status,
+      icon: activeProject.icon,
+      iconColor: activeProject.iconColor,
     });
     setIsEditProjectOpen(true);
   };
@@ -214,6 +231,8 @@ export function AsanaProjectManager() {
       slug: draft.slug.trim() || slugify(name),
       description: draft.description.trim() || null,
       color: draft.color,
+      icon: draft.icon,
+      iconColor: draft.iconColor,
     });
 
     setIsNewProjectOpen(false);
@@ -231,6 +250,8 @@ export function AsanaProjectManager() {
         description: draft.description.trim() || null,
         color: draft.color,
         status: draft.status,
+        icon: draft.icon,
+        iconColor: draft.iconColor,
       },
     });
     setIsEditProjectOpen(false);
@@ -409,18 +430,34 @@ export function AsanaProjectManager() {
       {/* Top Header */}
       <header className="relative flex flex-wrap items-center justify-between border-b border-border/50 bg-card/60 px-6 py-3.5 gap-4">
         <div className="flex items-center gap-2.5">
-          <span
-            aria-hidden
-            className={cn(
-              'size-2.5 shrink-0 rounded-full',
-              !activeProject?.color && 'bg-muted',
-            )}
-            style={
-              activeProject?.color
-                ? { backgroundColor: activeProject.color }
-                : undefined
-            }
-          />
+          {/*
+            On a board there is a project to write to, so the header marker is
+            the picker itself and a change saves on selection — unlike the
+            dialogs, which hold the choice until the form is submitted.
+          */}
+          {activeProject ? (
+            <ProjectIconPicker
+              workspaceId={workspaceId}
+              project={activeProject}
+              align="start"
+              trigger={
+                <button
+                  type="button"
+                  aria-label={`Change icon for ${activeProject.name}`}
+                  className="flex size-7 items-center justify-center rounded-md transition-colors hover:bg-muted"
+                >
+                  <ProjectGlyph
+                    icon={activeProject.icon}
+                    iconColor={activeProject.iconColor}
+                    color={activeProject.color}
+                    size="md"
+                  />
+                </button>
+              }
+            />
+          ) : (
+            <ProjectGlyph size="md" />
+          )}
 
           <h1 className="text-xl font-bold tracking-tight text-foreground">
             {activeProject?.name ?? 'Projects'}
@@ -632,6 +669,8 @@ interface ProjectDraft {
   description: string;
   color: string;
   status: ProjectStatus;
+  icon: string | null;
+  iconColor: string | null;
 }
 
 interface ProjectDialogProps {
@@ -662,6 +701,24 @@ function ProjectDialog({
   error,
   onSubmit,
 }: ProjectDialogProps) {
+  /*
+   * The picker writes into the draft instead of to the server. `useIconEditor`
+   * takes anything that can report a current icon and persist a new one, and
+   * here "persist" is `setDraft` — so the dialog's Cancel discards the icon
+   * along with everything else the user typed.
+   */
+  const iconEditor = useIconEditor(
+    useMemo(
+      () => ({
+        icon: draft.icon,
+        iconColor: draft.iconColor,
+        save: (selection: IconSelection) =>
+          setDraft((prev) => ({ ...prev, ...selection })),
+      }),
+      [draft.icon, draft.iconColor, setDraft],
+    ),
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
@@ -674,29 +731,60 @@ function ProjectDialog({
           </DialogHeader>
 
           <div className="flex flex-col gap-4 py-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold" htmlFor="project-name">
-                Project name
-              </label>
-              <Input
-                id="project-name"
-                required
-                placeholder="e.g. Q4 Mobile App Launch"
-                value={draft.name}
-                onChange={(e) =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    name: e.target.value,
-                    // The slug follows the name until it is edited by hand, at
-                    // which point it stops tracking.
-                    slug:
-                      prev.slug === '' || prev.slug === slugify(prev.name)
-                        ? slugify(e.target.value)
-                        : prev.slug,
-                  }))
-                }
-                className="text-xs"
-              />
+            <div className="flex items-end gap-3">
+              {/*
+                The icon sits beside the name because it is part of naming the
+                project. It saves with the form rather than on selection — the
+                project may not exist yet, and on edit the rest of the dialog is
+                still a draft the user can abandon.
+              */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold">Icon</label>
+                <IconPicker
+                  editor={iconEditor}
+                  align="start"
+                  allowUpload={false}
+                  trigger={
+                    <button
+                      type="button"
+                      aria-label="Choose project icon"
+                      className="flex size-9 items-center justify-center rounded-md border border-border bg-surface-raised transition-colors hover:border-border-strong"
+                    >
+                      <ProjectGlyph
+                        icon={draft.icon}
+                        iconColor={draft.iconColor}
+                        color={draft.color}
+                        size="md"
+                      />
+                    </button>
+                  }
+                />
+              </div>
+
+              <div className="flex flex-1 flex-col gap-1.5">
+                <label className="text-xs font-semibold" htmlFor="project-name">
+                  Project name
+                </label>
+                <Input
+                  id="project-name"
+                  required
+                  placeholder="e.g. Q4 Mobile App Launch"
+                  value={draft.name}
+                  onChange={(e) =>
+                    setDraft((prev) => ({
+                      ...prev,
+                      name: e.target.value,
+                      // The slug follows the name until it is edited by hand, at
+                      // which point it stops tracking.
+                      slug:
+                        prev.slug === '' || prev.slug === slugify(prev.name)
+                          ? slugify(e.target.value)
+                          : prev.slug,
+                    }))
+                  }
+                  className="text-xs"
+                />
+              </div>
             </div>
 
             {!showStatus ? (

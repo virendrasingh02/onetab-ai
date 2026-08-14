@@ -4,7 +4,7 @@ import type {
   TaskPriority,
   TaskStatus,
 } from './enums.js';
-import type { IsoDateString, PublicUser } from './entities.js';
+import type { IconSelection, IsoDateString, PublicUser } from './entities.js';
 
 export interface Milestone {
   id: string;
@@ -29,7 +29,13 @@ export interface Sprint {
   updatedAt: IsoDateString;
 }
 
-export interface Project {
+/**
+ * `icon`/`iconColor` come from `IconSelection` and follow the same rules as a
+ * workspace's. They sit alongside `color` rather than replacing it: the colour
+ * still tints boards, progress bars and task badges, while the icon takes the
+ * place of the plain swatch wherever the project is named.
+ */
+export interface Project extends IconSelection {
   id: string;
   workspaceId: string;
   name: string;
@@ -50,8 +56,13 @@ export interface ProjectDetail extends Project {
   _count: { tasks: number };
 }
 
-/** The project badge carried on a task, without the full project payload. */
-export interface TaskProjectRef {
+/**
+ * The project badge carried on a task, without the full project payload.
+ *
+ * It carries the icon as well as the colour so a card can draw the project the
+ * same way the sidebar and the gallery do, without loading the project itself.
+ */
+export interface TaskProjectRef extends IconSelection {
   id: string;
   name: string;
   slug: string;

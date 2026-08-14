@@ -10,8 +10,10 @@
 
 export {
   IconPicker,
+  ProjectIconPicker,
   WorkspaceIconPicker,
   type IconPickerProps,
+  type ProjectIconPickerProps,
   type WorkspaceIconPickerProps,
 } from './lib/icon-picker.js';
 
@@ -22,6 +24,8 @@ export {
 } from './lib/use-icon-editor.js';
 
 export { useLocalIcon, type LocalIconEditor } from './lib/use-local-icon.js';
+
+export { useProjectIcon } from './lib/use-project-icon.js';
 
 export { useWorkspaceIcon } from './lib/use-workspace-icon.js';
 

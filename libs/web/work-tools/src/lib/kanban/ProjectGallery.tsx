@@ -22,6 +22,7 @@ import {
   EmptyState,
   Input,
   Progress,
+  ProjectGlyph,
   SkeletonList,
   Toolbar,
 } from '@org/ui';
@@ -293,13 +294,27 @@ export function ProjectGallery({
                   <CardHeader>
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2">
-                        <span
-                          className={cn(
-                            'size-2 shrink-0 rounded-full',
-                            accent.bg,
-                          )}
-                          aria-hidden
-                        />
+                        {/*
+                          The icon when the project has one, else the card's own
+                          accent dot rather than `ProjectGlyph`'s raw swatch —
+                          the accent is themed and already tints the progress
+                          bar and the selected ring below it.
+                        */}
+                        {project.icon ? (
+                          <ProjectGlyph
+                            icon={project.icon}
+                            iconColor={project.iconColor}
+                            size="sm"
+                          />
+                        ) : (
+                          <span
+                            className={cn(
+                              'size-2 shrink-0 rounded-full',
+                              accent.bg,
+                            )}
+                            aria-hidden
+                          />
+                        )}
                         <CardTitle className="truncate text-foreground">
                           {project.name}
                         </CardTitle>

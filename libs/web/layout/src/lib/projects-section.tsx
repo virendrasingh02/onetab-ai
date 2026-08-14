@@ -6,8 +6,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   Hint,
+  ProjectGlyph,
 } from '@org/ui';
-import { cn } from '@org/utils';
 import { useProjectMutations, useProjects } from '@org/web-work-tools';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { MoreVertical, Pencil, Plus, Trash2 } from 'lucide-react';
@@ -96,21 +96,16 @@ export function ProjectsTreeSection({
               className={navRowClass(isSelected, { depth: 1, extra: 'pr-8' })}
             >
               {/*
-                Projects carry a colour, not an icon, so the row marker is the
-                project's own swatch — the same one the board header draws.
+                The row marker is the project's icon, falling back to its
+                colour swatch — the same glyph the board header and the gallery
+                draw, so a project looks like itself everywhere it is listed.
               */}
-              <span
-                aria-hidden
-                className={navIconClass(
-                  1,
-                  cn(
-                    'rounded-[4px] border border-border/60',
-                    !project.color && 'bg-muted',
-                  ),
-                )}
-                style={
-                  project.color ? { backgroundColor: project.color } : undefined
-                }
+              <ProjectGlyph
+                icon={project.icon}
+                iconColor={project.iconColor}
+                color={project.color}
+                size="xs"
+                className={navIconClass(1)}
               />
               <span className="flex-1 truncate">{project.name}</span>
             </NavLink>
