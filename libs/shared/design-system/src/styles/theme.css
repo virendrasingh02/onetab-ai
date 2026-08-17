@@ -510,6 +510,10 @@
     font-feature-settings: 'calt' 1;
   }
 
+  :where(button, a) {
+    cursor: pointer;
+  }
+
   /*
    * The UA's default selection is a saturated system blue that has nothing to
    * do with the palette — very obvious on a light canvas. A low-alpha wash of

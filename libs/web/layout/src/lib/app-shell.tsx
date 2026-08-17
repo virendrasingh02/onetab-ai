@@ -188,7 +188,7 @@ export function AppShell() {
                 style={{ width: `${leftWidth}px` }}
                 aria-label="Sidebar navigation"
               >
-                <div className="flex h-12 shrink-0 items-center border-b border-border px-2">
+                <div className="flex h-12 shrink-0 items-center border-b border-border/60 px-3">
                   <WorkspaceMenu
                     workspaces={workspaces}
                     current={workspace}

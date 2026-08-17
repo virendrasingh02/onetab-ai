@@ -5,6 +5,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
   EmptyState,
   ErrorState,
@@ -29,16 +31,21 @@ import {
   Bell,
   BellOff,
   Check,
+  ChevronRight,
   Copy,
   FileText,
   Hash,
   Image as ImageIcon,
   Lock,
+  Mail,
   MessageSquare,
   MessagesSquare,
   MoreHorizontal,
+  Pencil,
   Pin,
+  Share2,
   Star,
+  Trash2,
   Users,
 } from 'lucide-react';
 import { useCallback, useState } from 'react';
@@ -152,7 +159,34 @@ function ChannelHeader({ channel }: { channel: ChannelSummary }) {
                     <MoreHorizontal className="size-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" side="bottom" className="w-52">
+                <DropdownMenuContent align="start" side="bottom" className="w-64">
+                  <DropdownMenuItem className="justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <Mail className="size-4" />
+                      <span>Mark as unread</span>
+                    </div>
+                    <DropdownMenuShortcut>U</DropdownMenuShortcut>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem className="gap-2.5">
+                    <Pencil className="size-4" />
+                    <span>Rename</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem onClick={handleCopyLink} className="justify-between">
+                    <div className="flex items-center gap-2.5">
+                      {copied ? (
+                        <Check className="size-4 text-emerald-500" />
+                      ) : (
+                        <Copy className="size-4" />
+                      )}
+                      <span>{copied ? 'Link copied!' : 'Copy link'}</span>
+                    </div>
+                    <DropdownMenuShortcut>C</DropdownMenuShortcut>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+
                   <DropdownMenuItem
                     onClick={() =>
                       preferences.mutate({
@@ -160,19 +194,30 @@ function ChannelHeader({ channel }: { channel: ChannelSummary }) {
                         input: { isFavorite: !isFavorite },
                       })
                     }
-                    className="gap-2.5 text-xs"
+                    className="justify-between"
                   >
-                    <Star
-                      className={cn(
-                        'size-4',
-                        isFavorite && 'fill-current text-[#eab308]',
-                      )}
-                    />
-                    <span>
-                      {isFavorite
-                        ? 'Remove from favorites'
-                        : 'Add to favorites'}
-                    </span>
+                    <div className="flex items-center gap-2.5">
+                      <Star
+                        className={cn(
+                          'size-4',
+                          isFavorite && 'fill-current text-[#eab308]',
+                        )}
+                      />
+                      <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
+                    </div>
+                    <ChevronRight className="size-4 text-muted-foreground/70" />
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuItem className="gap-2.5">
+                    <Mail className="size-4" />
+                    <span>Email to Channel</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem className="gap-2.5">
+                    <Bell className="size-4" />
+                    <span>Notification settings</span>
                   </DropdownMenuItem>
 
                   <DropdownMenuItem
@@ -182,37 +227,20 @@ function ChannelHeader({ channel }: { channel: ChannelSummary }) {
                         input: { isMuted: !isMuted },
                       })
                     }
-                    className="gap-2.5 text-xs"
+                    description="Follow this Channel in the future to show it in your sidebar again."
                   >
-                    {isMuted ? (
-                      <>
-                        <Bell className="size-4" />
-                        <span>Unmute notifications</span>
-                      </>
-                    ) : (
-                      <>
-                        <BellOff className="size-4 text-muted-foreground" />
-                        <span>Mute notifications</span>
-                      </>
-                    )}
+                    <BellOff className="size-4" />
+                    <span>{isMuted ? 'Follow Channel' : 'Unfollow'}</span>
                   </DropdownMenuItem>
 
-                  <DropdownMenuItem
-                    onClick={handleCopyLink}
-                    className="gap-2.5 text-xs"
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="size-4 text-emerald-500" />
-                        <span>Link copied!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="size-4 text-muted-foreground" />
-                        <span>Copy channel link</span>
-                      </>
-                    )}
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuItem className="gap-2.5">
+                    <Share2 className="size-4" />
+                    <span>Sharing & Permissions</span>
                   </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
 
                   {channel.membership?.role === 'ADMIN' ? (
                     <DropdownMenuItem
@@ -222,7 +250,8 @@ function ChannelHeader({ channel }: { channel: ChannelSummary }) {
                           archived: !channel.isArchived,
                         })
                       }
-                      className="gap-2.5 text-xs text-destructive focus:text-destructive"
+                      variant="destructive"
+                      className="gap-2.5"
                     >
                       {channel.isArchived ? (
                         <>
@@ -231,12 +260,17 @@ function ChannelHeader({ channel }: { channel: ChannelSummary }) {
                         </>
                       ) : (
                         <>
-                          <Archive className="size-4" />
-                          <span>Archive channel</span>
+                          <Trash2 className="size-4" />
+                          <span>Delete Channel</span>
                         </>
                       )}
                     </DropdownMenuItem>
-                  ) : null}
+                  ) : (
+                    <DropdownMenuItem variant="destructive" className="gap-2.5">
+                      <Trash2 className="size-4" />
+                      <span>Delete Channel</span>
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : null}

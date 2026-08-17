@@ -26,9 +26,9 @@ export interface NavEntry {
 export type NavDepth = 0 | 1 | 2;
 
 const DEPTH_PADDING: Record<NavDepth, string> = {
-  0: 'pl-3',
-  1: 'pl-6',
-  2: 'pl-9',
+  0: 'pl-2.5 pr-2',
+  1: 'pl-6 pr-2',
+  2: 'pl-9 pr-2',
 };
 
 const DEPTH_TEXT: Record<NavDepth, string> = {
@@ -54,8 +54,8 @@ export function navIconClass(depth: NavDepth = 0, extra?: string) {
 }
 
 /**
- * One nav row. The active indicator is a 2px pseudo-element rather than a real
- * border so switching rows never reflows the list by a pixel.
+ * One nav row. The active indicator is a 2.5px rounded pill element positioned
+ * neatly inside the row so switching rows never reflows the list.
  */
 export function navRowClass(
   isActive: boolean,
@@ -63,17 +63,17 @@ export function navRowClass(
 ) {
   const { depth = 0, extra } = options;
   return cn(
-    'group relative flex items-center gap-2.5 rounded-btn py-1.5 pr-2',
+    'group relative flex items-center gap-2.5 rounded-xl py-1.5',
     DEPTH_PADDING[depth],
     DEPTH_TEXT[depth],
-    'transition-colors duration-(--duration-fast) ease-standard',
+    'transition-all duration-(--duration-fast) ease-standard',
     'outline-none focus-visible:ring-1 focus-visible:ring-ring',
-    'before:absolute before:top-1/2 before:left-0 before:h-4 before:w-0.5',
+    'before:absolute before:top-1/2 before:left-1 before:h-4 before:w-1',
     'before:-translate-y-1/2 before:rounded-full before:bg-primary',
     'before:transition-opacity before:duration-(--duration-fast)',
     isActive
-      ? 'bg-selected font-medium text-foreground before:opacity-100'
-      : 'text-muted-foreground hover:bg-accent hover:text-foreground before:opacity-0',
+      ? 'font-medium bg-accent/80 text-foreground before:opacity-100 shadow-2xs'
+      : 'text-muted-foreground before:opacity-0 hover:bg-accent/60 hover:text-foreground',
     extra,
   );
 }
@@ -90,11 +90,11 @@ export function navActionClass(
 ) {
   const { depth = 0, extra } = options;
   return cn(
-    'group flex w-full items-center gap-2.5 rounded-btn py-1.5 pr-2 text-left',
+    'group flex w-full items-center gap-2.5 rounded-xl py-1.5 text-left',
     DEPTH_PADDING[depth],
     DEPTH_TEXT[depth],
-    'text-muted-foreground transition-colors duration-(--duration-fast) ease-standard',
-    'hover:bg-accent hover:text-foreground',
+    'text-muted-foreground transition-all duration-(--duration-fast) ease-standard',
+    'hover:bg-accent/60 hover:text-foreground',
     'outline-none focus-visible:ring-1 focus-visible:ring-ring',
     extra,
   );
@@ -111,18 +111,18 @@ export function navGroupHeaderClass(
 ) {
   const { depth = 0, extra } = options;
   return cn(
-    'flex w-full items-center gap-1.5 rounded-btn py-1.5 pr-2 text-left',
+    'flex w-full items-center gap-2 rounded-xl py-1.5 text-left',
     DEPTH_PADDING[depth],
     DEPTH_TEXT[depth],
     'font-medium text-foreground',
-    'transition-colors duration-(--duration-fast) ease-standard hover:bg-accent',
+    'transition-colors duration-(--duration-fast) ease-standard hover:bg-accent/60',
     extra,
   );
 }
 
 /** The disclosure button inside a `navGroupHeaderClass` container. */
 export const navGroupTriggerClass = cn(
-  'flex min-w-0 flex-1 items-center gap-1.5 truncate rounded-btn text-left',
+  'min-w-0 gap-1.5 flex flex-1 items-center truncate rounded-btn text-left',
   'outline-none focus-visible:ring-1 focus-visible:ring-ring',
 );
 
@@ -148,107 +148,78 @@ export function NavRow({
     >
       <Icon className={navIconClass(depth)} aria-hidden />
       <span className="flex-1 truncate">{entry.label}</span>
-      {entry.badge ? (
-        <Badge variant="count" aria-label={`${entry.badge} unread`}>
+      {entry.badge !== undefined && (
+        <Badge
+          variant="secondary"
+          className="px-1.5 py-0 h-4 font-medium ml-auto font-mono text-[10px]"
+        >
           {entry.badge}
         </Badge>
-      ) : null}
+      )}
     </NavLink>
   );
 }
 
-const SECTION_STORAGE_KEY = 'onetab_sidebar_sections_v1';
-
-function readSectionState(): Record<string, boolean> {
-  if (typeof window === 'undefined') return {};
-  try {
-    const raw = window.localStorage.getItem(SECTION_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : null;
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
 /**
- * Collapsible sidebar group.
- *
- * Open/closed state is keyed by title and persisted: with ten sections all
- * defaulting to open, the sidebar was several screens tall on load and every
- * reload discarded whatever the user had collapsed to tame it.
+ * Section container. Wraps a titled group of rows (Favorites, Channels, DMs,
+ * Projects) in a `Collapsible` box so people can collapse what they are not using.
  */
 export function Section({
   title,
   count,
-  children,
+  emptyLabel,
   action,
   defaultOpen = true,
-  emptyLabel,
+  children,
 }: {
   title: string;
   count?: number;
-  children: ReactNode;
+  emptyLabel?: string;
   action?: ReactNode;
   defaultOpen?: boolean;
-  /** Shown instead of hiding the whole section when `count` is 0. */
-  emptyLabel?: string;
+  children: ReactNode;
 }) {
-  const [open, setOpen] = useState(
-    () => readSectionState()[title] ?? defaultOpen,
-  );
+  const [open, setOpen] = useState(defaultOpen);
 
-  const handleOpenChange = useCallback(
-    (next: boolean) => {
-      setOpen(next);
-      if (typeof window === 'undefined') return;
-      try {
-        window.localStorage.setItem(
-          SECTION_STORAGE_KEY,
-          JSON.stringify({ ...readSectionState(), [title]: next }),
-        );
-      } catch {
-        /* Preference only — not worth surfacing. */
-      }
-    },
-    [title],
-  );
+  const handleOpenChange = useCallback((nextOpen: boolean) => {
+    setOpen(nextOpen);
+  }, []);
 
   const isEmpty = count === 0;
-  /* Previously an empty section returned null, so "Favorites" silently
-     disappeared and the affordance to add one vanished with it. */
-  if (isEmpty && !emptyLabel) return null;
 
   return (
     <Collapsible
       open={open}
       onOpenChange={handleOpenChange}
-      className="mt-3 mb-1"
+      className="mt-2.5 mb-1"
       asChild
     >
       <section>
-        {/* `px-3`, matching `DEPTH_PADDING[0]`, so the chevron sits on the same
-            x as the row icons underneath it. */}
-        <div className="group flex items-center gap-1.5 px-3 py-1 select-none">
+        <div className="group/section flex items-center justify-between gap-1.5 px-2.5 py-1 select-none">
           <CollapsibleTrigger
             className={cn(
-              'group/trigger flex flex-1 items-center gap-1.5 rounded-md',
+              'group/trigger flex items-center gap-1 rounded-md',
               'text-[11px] font-medium tracking-wide text-subtle uppercase',
               'transition-colors duration-(--duration-fast) hover:text-muted-foreground',
               'outline-none focus-visible:ring-1 focus-visible:ring-ring',
             )}
           >
+            <span>{title}</span>
             <ChevronDown
-              className="size-3.5 shrink-0 transition-transform duration-(--duration-fast) group-data-[state=closed]/trigger:-rotate-90"
+              className={cn(
+                'size-3 shrink-0 opacity-0 transition-opacity duration-(--duration-fast)',
+                'group-hover/section:opacity-100 group-focus-within/section:opacity-100',
+                'group-data-[state=closed]/trigger:-rotate-90',
+              )}
               aria-hidden
             />
-            <span>{title}</span>
           </CollapsibleTrigger>
           {action}
         </div>
 
         <CollapsibleContent>
           {isEmpty ? (
-            <p className="px-3 py-1 text-[11px] text-subtle">{emptyLabel}</p>
+            <p className="px-2 py-1 text-[11px] text-subtle">{emptyLabel}</p>
           ) : null}
           {/*
             The hint sits *above* the list rather than replacing it. Sections

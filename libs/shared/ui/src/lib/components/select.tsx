@@ -54,12 +54,12 @@ export function SelectContent({
         position={position}
         className={cn(
           'relative z-50 max-h-(--radix-select-content-available-height) bg-popover text-popover-foreground',
-          'min-w-32 overflow-hidden rounded-lg border shadow-overlay',
+          'min-w-36 overflow-hidden rounded-2xl border border-border/80 p-1.5 shadow-2xl backdrop-blur-sm',
           'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
           'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
           'duration-150',
           position === 'popper' &&
-            'data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1',
+            'data-[side=bottom]:translate-y-1.5 data-[side=top]:-translate-y-1.5',
           className,
         )}
         {...props}
@@ -67,7 +67,7 @@ export function SelectContent({
         <SelectScrollUpButton />
         <SelectPrimitive.Viewport
           className={cn(
-            'p-1',
+            'p-0.5 space-y-0.5',
             position === 'popper' &&
               'scroll-my-1 h-(--radix-select-trigger-height) w-full min-w-(--radix-select-trigger-width)',
           )}
@@ -88,7 +88,7 @@ export function SelectLabel({
     <SelectPrimitive.Label
       data-slot="select-label"
       className={cn(
-        'px-2 py-1.5 text-xs font-medium text-muted-foreground',
+        'px-2.5 py-1.5 text-[11px] font-semibold tracking-wider uppercase text-muted-foreground/70',
         className,
       )}
       {...props}
@@ -105,19 +105,19 @@ export function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        'gap-2 py-1.5 pr-8 pl-2 relative flex w-full cursor-default items-center rounded-md',
-        'text-sm outline-none select-none',
+        'gap-2.5 py-2 pr-8 pl-2.5 relative flex w-full cursor-pointer items-center rounded-xl',
+        'text-[13px] font-medium outline-none select-none transition-colors duration-100',
         'focus:bg-accent focus:text-accent-foreground',
-        'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-        "[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+        'data-[disabled]:pointer-events-none data-[disabled]:opacity-40',
+        "[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:text-muted-foreground focus:[&_svg]:text-accent-foreground",
         className,
       )}
       {...props}
     >
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
-      <span className="right-2 size-3.5 absolute flex items-center justify-center">
+      <span className="right-2.5 size-4 absolute flex items-center justify-center">
         <SelectPrimitive.ItemIndicator>
-          <Check className="size-4" />
+          <Check className="size-4 text-foreground" />
         </SelectPrimitive.ItemIndicator>
       </span>
     </SelectPrimitive.Item>

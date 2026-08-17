@@ -11,6 +11,7 @@ import {
   IconRenderer,
   type PromptDialog,
 } from '@org/ui';
+import { cn } from '@org/utils';
 import { useDocsWorkspace } from '@org/web-work-tools';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
@@ -200,21 +201,27 @@ export function DocsTreeSection({
                 type="button"
                 onClick={() => toggleCompany(company.id)}
                 aria-expanded={!isCollapsed}
-                className={navGroupTriggerClass}
+                className={cn(navGroupTriggerClass, 'group/comp-btn')}
               >
+                <span className="shrink-0">{company.icon || '🏠'}</span>
+                <span className="truncate">{company.name}</span>
                 {isCollapsed ? (
                   <ChevronRight
-                    className={navIconClass(0, 'text-subtle')}
+                    className={navIconClass(
+                      0,
+                      'text-subtle ml-1 opacity-0 transition-opacity duration-(--duration-fast) group-hover/comp-btn:opacity-100 group-focus-within/comp-btn:opacity-100',
+                    )}
                     aria-hidden
                   />
                 ) : (
                   <ChevronDown
-                    className={navIconClass(0, 'text-subtle')}
+                    className={navIconClass(
+                      0,
+                      'text-subtle ml-1 opacity-0 transition-opacity duration-(--duration-fast) group-hover/comp-btn:opacity-100 group-focus-within/comp-btn:opacity-100',
+                    )}
                     aria-hidden
                   />
                 )}
-                <span className="shrink-0">{company.icon || '🏠'}</span>
-                <span className="truncate">{company.name}</span>
               </button>
 
               <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/comp:opacity-100 group-focus-within/comp:opacity-100">

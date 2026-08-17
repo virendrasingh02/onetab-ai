@@ -3,6 +3,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
   Hint,
   ScrollArea,
@@ -27,11 +29,15 @@ import {
   Home,
   Inbox,
   Lock,
+  Mail,
   MessagesSquare,
   MoreHorizontal,
+  Pencil,
   Plus,
   Settings,
+  Share2,
   Star,
+  Trash2,
   Users,
   Video,
 } from 'lucide-react';
@@ -54,7 +60,6 @@ import {
   AppsSection,
   WorkflowsSection,
 } from './resource-sections.js';
-
 
 /** Shown directly — the destinations people reach for constantly. */
 const MOST_USED_LINKS: readonly NavEntry[] = [
@@ -80,13 +85,19 @@ function ChannelRow({
   workspaceSlug,
   onToggleFavorite,
   onToggleMute,
+  prompts,
 }: {
   channel: ChannelSummary;
   workspaceSlug: string;
   onToggleFavorite: (channel: ChannelSummary) => void;
   onToggleMute: (channel: ChannelSummary) => void;
+  prompts: ReturnType<typeof usePromptDialog>;
 }) {
   const [copied, setCopied] = useState(false);
+  const [emailCopied, setEmailCopied] = useState(false);
+  const [unreadState, setUnreadState] = useState(false);
+  const [shared, setShared] = useState(false);
+
   const isFavorite = channel.membership?.isFavorite ?? false;
   const isMuted = channel.membership?.isMuted ?? false;
   const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
@@ -102,15 +113,67 @@ function ChannelRow({
     [workspaceSlug, channel.slug],
   );
 
+  const handleEmailChannel = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const email = `${channel.slug}-${workspaceSlug}@onetab.ai`;
+      navigator.clipboard.writeText(email);
+      setEmailCopied(true);
+      setTimeout(() => setEmailCopied(false), 2000);
+    },
+    [workspaceSlug, channel.slug],
+  );
+
+  const handleMarkUnread = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setUnreadState(true);
+    setTimeout(() => setUnreadState(false), 2000);
+  }, []);
+
+  const handleRename = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      prompts.prompt({
+        title: `Rename #${channel.name}`,
+        description: 'Enter a new name for this channel.',
+        defaultValue: channel.name,
+        confirmText: 'Rename',
+      });
+    },
+    [channel.name, prompts],
+  );
+
+  const handleDeleteChannel = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      prompts.confirm({
+        title: `Delete #${channel.name}?`,
+        description:
+          'Are you sure you want to delete this channel? All messages and attachments will be removed.',
+        confirmText: 'Delete Channel',
+        variant: 'destructive',
+      });
+    },
+    [channel.name, prompts],
+  );
+
+  const handleShare = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const url = `${window.location.origin}/w/${workspaceSlug}/c/${channel.slug}`;
+      navigator.clipboard.writeText(url);
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+    },
+    [workspaceSlug, channel.slug],
+  );
+
   return (
     <li className="group/row relative">
       <NavLink
         to={`/w/${workspaceSlug}/c/${channel.slug}`}
         className={({ isActive }) =>
           navRowClass(isActive, {
-            /* Depth 1: channels live inside a section, like DMs and projects.
-               They were rendering at depth 0, so they sat a level out of step
-               with every other section list. */
             depth: 1,
             extra: cn(
               channel.membership ? 'pr-14' : 'pr-8',
@@ -132,13 +195,15 @@ function ChannelRow({
       {channel.membership ? (
         <div
           className={cn(
-            'absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-0.5 transition-opacity',
+            'right-1 gap-0.5 absolute top-1/2 flex -translate-y-1/2 items-center transition-opacity',
             isFavorite
               ? 'opacity-100'
-              : 'opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 group-focus-within/row:opacity-100',
+              : 'opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 focus-within:opacity-100',
           )}
         >
-          <Hint label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}>
+          <Hint
+            label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          >
             <Button
               variant="ghost"
               size="icon-sm"
@@ -146,7 +211,9 @@ function ChannelRow({
                 e.stopPropagation();
                 onToggleFavorite(channel);
               }}
-              aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+              aria-label={
+                isFavorite ? 'Remove from favorites' : 'Add to favorites'
+              }
               aria-pressed={isFavorite}
               className={cn(
                 'size-5 p-0',
@@ -165,50 +232,138 @@ function ChannelRow({
                 variant="ghost"
                 size="icon-sm"
                 aria-label="Channel options"
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
                 className="size-5 p-0 text-muted-foreground hover:text-foreground"
               >
                 <MoreHorizontal className="size-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="bottom" className="w-48">
+            <DropdownMenuContent align="end" side="bottom" className="w-64">
               <DropdownMenuItem
+                onSelect={handleMarkUnread}
+                onClick={handleMarkUnread}
+                className="justify-between"
+              >
+                <div className="gap-2.5 flex items-center">
+                  {unreadState ? (
+                    <Check className="size-4 text-emerald-500" />
+                  ) : (
+                    <Mail className="size-4" />
+                  )}
+                  <span>
+                    {unreadState ? 'Marked as unread!' : 'Mark as unread'}
+                  </span>
+                </div>
+                <DropdownMenuShortcut>U</DropdownMenuShortcut>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onSelect={handleRename}
+                onClick={handleRename}
+                className="gap-2.5"
+              >
+                <Pencil className="size-4" />
+                <span>Rename</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onSelect={handleCopyLink}
+                onClick={handleCopyLink}
+                className="justify-between"
+              >
+                <div className="gap-2.5 flex items-center">
+                  {copied ? (
+                    <Check className="size-4 text-emerald-500" />
+                  ) : (
+                    <Copy className="size-4" />
+                  )}
+                  <span>{copied ? 'Link copied!' : 'Copy link'}</span>
+                </div>
+                <DropdownMenuShortcut>C</DropdownMenuShortcut>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                onSelect={() => onToggleFavorite(channel)}
                 onClick={() => onToggleFavorite(channel)}
-                className="gap-2 text-xs"
+                className="justify-between"
               >
-                <Star className={cn('size-3.5', isFavorite && 'fill-current text-[#eab308]')} />
-                <span>{isFavorite ? 'Remove from favorites' : 'Add to favorites'}</span>
+                <div className="gap-2.5 flex items-center">
+                  <Star
+                    className={cn(
+                      'size-4',
+                      isFavorite && 'fill-current text-[#eab308]',
+                    )}
+                  />
+                  <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
+                </div>
+                <ChevronRight className="size-4 text-muted-foreground/70" />
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                onSelect={handleEmailChannel}
+                onClick={handleEmailChannel}
+                className="gap-2.5"
+              >
+                {emailCopied ? (
+                  <Check className="size-4 text-emerald-500" />
+                ) : (
+                  <Mail className="size-4" />
+                )}
+                <span>
+                  {emailCopied ? 'Email address copied!' : 'Email to Channel'}
+                </span>
               </DropdownMenuItem>
 
               <DropdownMenuItem
+                onSelect={() => onToggleMute(channel)}
                 onClick={() => onToggleMute(channel)}
-                className="gap-2 text-xs"
+                className="gap-2.5"
               >
-                {isMuted ? (
-                  <>
-                    <Bell className="size-3.5" />
-                    <span>Unmute notifications</span>
-                  </>
-                ) : (
-                  <>
-                    <BellOff className="size-3.5 text-muted-foreground" />
-                    <span>Mute notifications</span>
-                  </>
-                )}
+                <Bell className="size-4" />
+                <span>Notification settings</span>
               </DropdownMenuItem>
 
-              <DropdownMenuItem onClick={handleCopyLink} className="gap-2 text-xs">
-                {copied ? (
-                  <>
-                    <Check className="size-3.5 text-emerald-500" />
-                    <span>Link copied!</span>
-                  </>
+              <DropdownMenuItem
+                onSelect={() => onToggleMute(channel)}
+                onClick={() => onToggleMute(channel)}
+                description="Follow this Channel in the future to show it in your sidebar again."
+              >
+                <BellOff className="size-4" />
+                <span>{isMuted ? 'Follow Channel' : 'Unfollow'}</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                onSelect={handleShare}
+                onClick={handleShare}
+                className="gap-2.5"
+              >
+                {shared ? (
+                  <Check className="size-4 text-emerald-500" />
                 ) : (
-                  <>
-                    <Copy className="size-3.5 text-muted-foreground" />
-                    <span>Copy channel link</span>
-                  </>
+                  <Share2 className="size-4" />
                 )}
+                <span>{shared ? 'Link copied!' : 'Sharing & Permissions'}</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                onSelect={handleDeleteChannel}
+                onClick={handleDeleteChannel}
+                variant="destructive"
+                className="gap-2.5"
+              >
+                <Trash2 className="size-4" />
+                <span>Delete Channel</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -298,7 +453,8 @@ export function ChannelNav({
    */
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'o') return;
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'o')
+        return;
 
       const target = event.target as HTMLElement | null;
       if (
@@ -328,21 +484,29 @@ export function ChannelNav({
     workspaceSlug,
     onToggleFavorite: toggleFavorite,
     onToggleMute: toggleMute,
+    prompts,
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="min-h-0 flex h-full flex-col">
       {/* Padding lives on the content, not the root — see ScrollArea's docs. */}
-      <ScrollArea className="min-h-0 flex-1" contentClassName="px-2 pt-2">
+      <ScrollArea className="min-h-0 flex-1" contentClassName="px-3.5 pt-3 pb-6">
         <div className="pb-4">
           <nav aria-label="Primary navigation" className="space-y-0.5">
             {primaryLinks.map((entry) => (
-              <NavRow key={entry.label} entry={entry} workspaceSlug={workspaceSlug} />
+              <NavRow
+                key={entry.label}
+                entry={entry}
+                workspaceSlug={workspaceSlug}
+              />
             ))}
 
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
-                <button className={navActionClass()} aria-label="More destinations">
+                <button
+                  className={navActionClass()}
+                  aria-label="More destinations"
+                >
                   <MoreHorizontal className={navIconClass(0)} aria-hidden />
                   <span className="flex-1 truncate">More</span>
                   <ChevronRight
@@ -360,7 +524,11 @@ export function ChannelNav({
                 {SECONDARY_LINKS.map((entry) => {
                   const Icon = entry.icon;
                   return (
-                    <DropdownMenuItem key={entry.label} asChild className="gap-2.5 text-xs">
+                    <DropdownMenuItem
+                      key={entry.label}
+                      asChild
+                      className="gap-2.5 text-xs"
+                    >
                       <NavLink
                         to={
                           entry.path
@@ -369,7 +537,10 @@ export function ChannelNav({
                         }
                         end={entry.end}
                       >
-                        <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                        <Icon
+                          className="size-4 shrink-0 text-muted-foreground"
+                          aria-hidden
+                        />
                         <span className="flex-1 truncate">{entry.label}</span>
                       </NavLink>
                     </DropdownMenuItem>
@@ -379,7 +550,7 @@ export function ChannelNav({
             </DropdownMenu>
           </nav>
 
-          <div className="mt-3 border-t border-border pt-2">
+          <div className="mt-3 pt-2 border-t border-border">
             <Section
               title="Favorites"
               count={groups.favorites.length}
@@ -424,7 +595,10 @@ export function ChannelNav({
 
             <DirectMessagesSection workspaceSlug={workspaceSlug} />
 
-            <ProjectsTreeSection workspaceSlug={workspaceSlug} prompts={prompts} />
+            <ProjectsTreeSection
+              workspaceSlug={workspaceSlug}
+              prompts={prompts}
+            />
 
             <DocsTreeSection workspaceSlug={workspaceSlug} prompts={prompts} />
 
@@ -437,7 +611,7 @@ export function ChannelNav({
         </div>
       </ScrollArea>
 
-      <div className="shrink-0 border-t border-border/60 bg-transparent p-3">
+      <div className="p-3.5 shrink-0 border-t border-border/60 bg-transparent">
         <SidebarFooterActions
           workspaceSlug={workspaceSlug}
           onCreateChannel={onCreateChannel}

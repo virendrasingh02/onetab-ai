@@ -52,7 +52,7 @@ export function AppHeader({
   rightPanelOpen,
   onToggleSidebar,
   sidebarOpen = true,
-  unreadNotifications = 0,
+  _unreadNotifications = 0,
   actions,
 }: AppHeaderProps) {
   const { theme, setTheme } = useTheme();
