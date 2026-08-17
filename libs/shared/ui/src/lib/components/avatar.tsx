@@ -159,13 +159,13 @@ export interface WorkspaceAvatarProps extends AvatarProps {
   iconColor?: string | null;
 }
 
-/** Icon glyphs shrink inside the avatar box so they do not touch its edges. */
+/** Icon glyphs scaled to comfortably fill the avatar box alongside image avatars. */
 const ICON_SIZES: Record<NonNullable<AvatarProps['size']>, string> = {
-  xs: 'size-3',
-  sm: 'size-3.5',
-  md: 'size-4.5',
-  lg: 'size-5.5',
-  xl: 'size-8',
+  xs: 'size-3.5',
+  sm: 'size-4.5',
+  md: 'size-5.5',
+  lg: 'size-7',
+  xl: 'size-11',
 };
 
 /**
@@ -188,27 +188,41 @@ export function WorkspaceAvatar({
   className,
   ...props
 }: WorkspaceAvatarProps) {
+  const isImageIcon =
+    !src &&
+    Boolean(
+      icon &&
+        (icon.startsWith('http://') ||
+          icon.startsWith('https://') ||
+          icon.startsWith('data:image') ||
+          icon.startsWith('/')),
+    );
+
+  const imageSrc = src || (isImageIcon ? icon : null);
+
   return (
     <Avatar size={size} shape={shape} className={className} {...props}>
-      {src ? <AvatarImage src={src} alt={name} /> : null}
-      <AvatarFallback
-        style={
-          // An icon supplies its own colour; the tinted tile is for initials.
-          icon ? undefined : { backgroundColor: avatarTint(seed ?? name) }
-        }
-        className={icon ? 'bg-surface-raised border border-border' : undefined}
-      >
-        {icon ? (
-          <IconRenderer
-            icon={icon}
-            iconColor={iconColor ?? undefined}
-            sizeClassName={ICON_SIZES[size ?? 'md']}
-            fallbackEmoji={initials(name)}
-          />
-        ) : (
-          initials(name)
-        )}
-      </AvatarFallback>
+      {imageSrc ? <AvatarImage src={imageSrc} alt={name} /> : null}
+      {!imageSrc ? (
+        <AvatarFallback
+          style={
+            // An icon supplies its own colour; the tinted tile is for initials.
+            icon ? undefined : { backgroundColor: avatarTint(seed ?? name) }
+          }
+          className={icon ? 'bg-surface-raised border border-border' : undefined}
+        >
+          {icon ? (
+            <IconRenderer
+              icon={icon}
+              iconColor={iconColor ?? undefined}
+              sizeClassName={ICON_SIZES[size ?? 'md']}
+              fallbackEmoji={initials(name)}
+            />
+          ) : (
+            initials(name)
+          )}
+        </AvatarFallback>
+      ) : null}
     </Avatar>
   );
 }

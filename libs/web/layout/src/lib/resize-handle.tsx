@@ -75,7 +75,7 @@ export function ResizeHandle({
       )}
     >
       {/* Invisible expanded touch hit target */}
-      <div className="inset-y-0 -left-3 -right-3 absolute" />
+      <div className="inset-y-0 -left-1 -right-1 absolute" />
 
       {/*
         Separator line. The active glow is expressed as a ring in `primary/40`
