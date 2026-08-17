@@ -78,7 +78,10 @@ export function AppShell() {
     setRightPanelOpen(false);
   }, [location.pathname, isMobile, setSidebarOpen, setRightPanelOpen]);
 
-  const closeSidebar = useCallback(() => setSidebarOpen(false), [setSidebarOpen]);
+  const closeSidebar = useCallback(
+    () => setSidebarOpen(false),
+    [setSidebarOpen],
+  );
   const toggleSidebar = useCallback(
     () => setSidebarOpen((open) => !open),
     [setSidebarOpen],
@@ -113,7 +116,7 @@ export function AppShell() {
   // Signed in but with no workspace yet — send them to onboarding.
   if (workspacesQuery.isSuccess && workspacesQuery.data.length === 0) {
     return (
-      <div className="grid min-h-full place-items-center p-6">
+      <div className="p-6 grid min-h-full place-items-center">
         <EmptyState
           size="lg"
           icon={<Building2 />}
@@ -135,7 +138,7 @@ export function AppShell() {
 
   if (!workspace || !slug || !workspaceId) {
     return (
-      <div className="grid min-h-full place-items-center p-6">
+      <div className="p-6 grid min-h-full place-items-center">
         <EmptyState
           icon={<Building2 />}
           title="Workspace not found"
@@ -166,10 +169,10 @@ export function AppShell() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex h-full flex-col gap-1.5 overflow-hidden bg-background p-1.5 font-sans text-foreground">
+      <div className="gap-1.5 p-1.5 flex h-full flex-col overflow-hidden bg-background font-sans text-foreground">
         <div
           className={cn(
-            'relative flex min-h-0 flex-1 gap-1.5 overflow-hidden',
+            'min-h-0 gap-1.5 relative flex flex-1 overflow-hidden',
             isResizing && 'cursor-col-resize select-none',
           )}
         >
@@ -188,14 +191,14 @@ export function AppShell() {
                 style={{ width: `${leftWidth}px` }}
                 aria-label="Sidebar navigation"
               >
-                <div className="flex h-12 shrink-0 items-center border-b border-border/60 px-3">
+                <div className="h-12 px-2 flex shrink-0 items-center border-b border-border/60">
                   <WorkspaceMenu
                     workspaces={workspaces}
                     current={workspace}
                     onToggleSidebar={closeSidebar}
                   />
                 </div>
-                <div className="flex min-h-0 flex-1 flex-col">{channelNav}</div>
+                <div className="min-h-0 flex flex-1 flex-col">{channelNav}</div>
               </aside>
 
               <ResizeHandle
@@ -213,7 +216,7 @@ export function AppShell() {
           ) : null}
 
           {/* Column 2 / Box 2: the editor panel — the one lifted surface. */}
-          <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground">
+          <div className="min-w-0 flex h-full flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground">
             <AppHeader
               user={user}
               workspaceSlug={slug}
@@ -234,7 +237,7 @@ export function AppShell() {
               min-h-0` rather than `h-full` — a percentage height has nothing
               definite to resolve against inside a scrolled content box.
             */}
-            <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+            <main className="min-w-0 flex flex-1 flex-col overflow-hidden">
               <ScrollArea
                 className="min-h-0 flex-1"
                 contentClassName="flex min-h-full flex-col p-3 sm:p-4 lg:p-6"
@@ -289,25 +292,28 @@ export function AppShell() {
           <SheetContent
             side="left"
             hideCloseButton
-            className="w-75 max-w-[85vw] gap-0 bg-surface-muted p-0"
+            className="w-75 gap-0 p-0 max-w-[85vw] bg-surface-muted"
           >
             <SheetTitle className="sr-only">Workspace navigation</SheetTitle>
-            <div className="flex h-12 shrink-0 items-center border-b border-border px-2">
+            <div className="h-12 px-2 flex shrink-0 items-center border-b border-border">
               <WorkspaceMenu
                 workspaces={workspaces}
                 current={workspace}
                 onToggleSidebar={closeSidebar}
               />
             </div>
-            <div className="flex min-h-0 flex-1 flex-col">{channelNav}</div>
+            <div className="min-h-0 flex flex-1 flex-col">{channelNav}</div>
           </SheetContent>
         </Sheet>
 
-        <Sheet open={isMobile && rightPanelOpen} onOpenChange={setRightPanelOpen}>
+        <Sheet
+          open={isMobile && rightPanelOpen}
+          onOpenChange={setRightPanelOpen}
+        >
           <SheetContent
             side="right"
             hideCloseButton
-            className="w-85 max-w-[90vw] gap-0 bg-surface-muted p-0"
+            className="w-85 gap-0 p-0 max-w-[90vw] bg-surface-muted"
           >
             <SheetTitle className="sr-only">AI assistant</SheetTitle>
             <AssistantPanel onClose={closeAssistant} />

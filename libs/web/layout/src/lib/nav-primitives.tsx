@@ -63,16 +63,16 @@ export function navRowClass(
 ) {
   const { depth = 0, extra } = options;
   return cn(
-    'group relative flex items-center gap-2.5 rounded-xl py-1.5',
+    'group gap-2.5 py-1.5 relative flex items-center rounded-xl',
     DEPTH_PADDING[depth],
     DEPTH_TEXT[depth],
     'transition-all duration-(--duration-fast) ease-standard',
     'outline-none focus-visible:ring-1 focus-visible:ring-ring',
-    'before:absolute before:top-1/2 before:left-1 before:h-4 before:w-1',
+    'before:left-1 before:h-4 before:w-1 before:absolute before:top-1/2',
     'before:-translate-y-1/2 before:rounded-full before:bg-primary',
     'before:transition-opacity before:duration-(--duration-fast)',
     isActive
-      ? 'font-medium bg-accent/80 text-foreground before:opacity-100 shadow-2xs'
+      ? 'font-medium shadow-2xs bg-accent/80 text-foreground before:opacity-100'
       : 'text-muted-foreground before:opacity-0 hover:bg-accent/60 hover:text-foreground',
     extra,
   );
@@ -90,7 +90,7 @@ export function navActionClass(
 ) {
   const { depth = 0, extra } = options;
   return cn(
-    'group flex w-full items-center gap-2.5 rounded-xl py-1.5 text-left',
+    'group gap-2.5 py-1.5 flex w-full items-center rounded-xl text-left',
     DEPTH_PADDING[depth],
     DEPTH_TEXT[depth],
     'text-muted-foreground transition-all duration-(--duration-fast) ease-standard',
@@ -111,7 +111,7 @@ export function navGroupHeaderClass(
 ) {
   const { depth = 0, extra } = options;
   return cn(
-    'flex w-full items-center gap-2 rounded-xl py-1.5 text-left',
+    'gap-2 py-1.5 flex w-full items-center rounded-xl text-left',
     DEPTH_PADDING[depth],
     DEPTH_TEXT[depth],
     'font-medium text-foreground',
@@ -195,11 +195,11 @@ export function Section({
       asChild
     >
       <section>
-        <div className="group/section flex items-center justify-between gap-1.5 px-2.5 py-1 select-none">
+        <div className="group/section gap-1.5 px-2.5 py-1 flex items-center justify-between select-none">
           <CollapsibleTrigger
             className={cn(
-              'group/trigger flex items-center gap-1 rounded-md',
-              'text-[11px] font-medium tracking-wide text-subtle uppercase',
+              'group/trigger gap-1 flex items-center rounded-md',
+              'font-medium tracking-wide text-[11px] text-subtle uppercase',
               'transition-colors duration-(--duration-fast) hover:text-muted-foreground',
               'outline-none focus-visible:ring-1 focus-visible:ring-ring',
             )}
@@ -208,7 +208,7 @@ export function Section({
             <ChevronDown
               className={cn(
                 'size-3 shrink-0 opacity-0 transition-opacity duration-(--duration-fast)',
-                'group-hover/section:opacity-100 group-focus-within/section:opacity-100',
+                'group-focus-within/section:opacity-100 group-hover/section:opacity-100',
                 'group-data-[state=closed]/trigger:-rotate-90',
               )}
               aria-hidden

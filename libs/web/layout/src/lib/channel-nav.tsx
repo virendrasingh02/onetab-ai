@@ -490,8 +490,11 @@ export function ChannelNav({
   return (
     <div className="min-h-0 flex h-full flex-col">
       {/* Padding lives on the content, not the root — see ScrollArea's docs. */}
-      <ScrollArea className="min-h-0 flex-1" contentClassName="px-3.5 pt-3 pb-6">
-        <div className="pb-4">
+      <ScrollArea
+        className="min-h-0 flex-1"
+        contentClassName="px-3.5 pt-3 pb-6"
+      >
+        <div className="pb-4 p-2">
           <nav aria-label="Primary navigation" className="space-y-0.5">
             {primaryLinks.map((entry) => (
               <NavRow
@@ -509,10 +512,6 @@ export function ChannelNav({
                 >
                   <MoreHorizontal className={navIconClass(0)} aria-hidden />
                   <span className="flex-1 truncate">More</span>
-                  <ChevronRight
-                    className="size-3.5 text-subtle transition-transform duration-(--duration-fast) group-data-[state=open]:rotate-90"
-                    aria-hidden
-                  />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -552,9 +551,9 @@ export function ChannelNav({
 
           <div className="mt-3 pt-2 border-t border-border">
             <Section
-              title="Favorites"
+              title="Starred"
               count={groups.favorites.length}
-              emptyLabel="Star a channel to pin it here."
+              emptyLabel="Drop a important channel here to keep it handy."
             >
               {groups.favorites.map((channel) => (
                 <ChannelRow key={channel.id} channel={channel} {...rowProps} />

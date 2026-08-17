@@ -59,7 +59,7 @@ export function WorkspaceMenu({
             />
 
             <span className="min-w-0 gap-1.5 flex flex-1 items-center">
-              <span className="font-semibold tracking-tight text-sm truncate text-foreground">
+              <span className="font-semibold tracking-tight text-base truncate text-foreground">
                 {current.name}
               </span>
               <ChevronDown
