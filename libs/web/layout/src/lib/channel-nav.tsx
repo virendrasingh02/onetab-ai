@@ -14,7 +14,15 @@ import {
 } from '@org/ui';
 import type { ChannelSummary } from '@org/types';
 import { cn } from '@org/utils';
+import { useAgents, useAgentMutations } from '@org/web-agents';
+import { useWorkflows, useWorkflowMutations } from '@org/web-automations';
 import { useChannelPreferences, useGroupedChannels } from '@org/web-channels';
+import { useIntegrations, useIntegrationMutations } from '@org/web-integrations';
+import {
+  useDocsWorkspace,
+  useProjectMutations,
+  useProjects,
+} from '@org/web-work-tools';
 import {
   Activity,
   Bell,
@@ -43,10 +51,10 @@ import {
   Video,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { SidebarFooterActions } from './create-menu.js';
 import { DirectMessagesSection } from './direct-messages-section.js';
-import { DocsTreeSection } from './docs-section.js';
+import { DocNavRow, DocsTreeSection } from './docs-section.js';
 import {
   navActionClass,
   navIconClass,
@@ -55,12 +63,16 @@ import {
   Section,
   type NavEntry,
 } from './nav-primitives.js';
-import { ProjectsTreeSection } from './projects-section.js';
+import { ProjectNavRow, ProjectsTreeSection } from './projects-section.js';
 import {
+  AgentNavRow,
   AgentsSection,
+  AppNavRow,
   AppsSection,
+  WorkflowNavRow,
   WorkflowsSection,
 } from './resource-sections.js';
+import { useSidebarFavorites } from './use-sidebar-favorites.js';
 
 /** Shown directly — the destinations people reach for constantly. */
 const MOST_USED_LINKS: readonly NavEntry[] = [
@@ -80,6 +92,30 @@ const SECONDARY_LINKS: readonly NavEntry[] = [
   { path: 'files', label: 'Files', icon: HardDrive },
   { path: 'settings', label: 'Settings', icon: Settings },
 ];
+
+const PROVIDER_ICON: Record<string, string> = {
+  GITHUB: 'Code',
+  JIRA: 'Code',
+  GDRIVE: 'HardDrive',
+  GOOGLE_DRIVE: 'HardDrive',
+  SLACK: 'FileText',
+  NOTION: 'FileText',
+  WEBHOOKS: 'Plug',
+};
+
+const TRIGGER_ICON: Record<string, string> = {
+  WEBHOOK: 'Plug',
+  CRON: 'Clock',
+  EVENT: 'Zap',
+};
+
+function titleCaseProvider(provider: string): string {
+  return provider
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
 
 function ChannelRow({
   channel,
@@ -221,7 +257,7 @@ function ChannelRow({
               className={cn(
                 'size-5 p-0',
                 isFavorite
-                  ? 'text-warning opacity-100'
+                  ? 'text-[#eab308] opacity-100'
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >
@@ -376,19 +412,6 @@ function ChannelRow({
   );
 }
 
-/*
- * A billing nudge used to live here: "2 days left to upgrade — this workspace
- * is out of free blocks", with a warning badge and a dismiss button that
- * remembered itself in localStorage.
- *
- * None of it was real. The countdown was a literal, the quota claim was a
- * literal, and there is no billing state anywhere in the app to derive either
- * from — so every workspace, on every plan, was told it had two days left
- * forever. A permanent false alarm trains people to ignore the one place the
- * sidebar has to raise an alarm. It comes back when there is a subscription to
- * read, and then it can say something true.
- */
-
 export interface ChannelNavProps {
   workspaceId: string;
   workspaceSlug: string;
@@ -410,9 +433,30 @@ export function ChannelNav({
   onBrowseChannels,
 }: ChannelNavProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const groups = useGroupedChannels(channels);
   const preferences = useChannelPreferences(workspaceId);
   const prompts = usePromptDialog();
+
+  // Queries and mutations for all sections
+  const projectsQuery = useProjects(workspaceId);
+  const projectMutations = useProjectMutations(workspaceId);
+  const docsWorkspace = useDocsWorkspace(workspaceId);
+  const agentsQuery = useAgents(workspaceId);
+  const agentMutations = useAgentMutations(workspaceId);
+  const integrationsQuery = useIntegrations(workspaceId);
+  const integrationMutations = useIntegrationMutations(workspaceId);
+  const workflowsQuery = useWorkflows(workspaceId);
+  const workflowMutations = useWorkflowMutations(workspaceId);
+
+  const {
+    toggleFavorite: toggleResourceFavorite,
+    favoriteProjectIds,
+    favoriteDocIds,
+    favoriteAgentIds,
+    favoriteAppIds,
+    favoriteWorkflowIds,
+  } = useSidebarFavorites(workspaceId);
 
   const toggleFavorite = useCallback(
     (channel: ChannelSummary) =>
@@ -447,13 +491,6 @@ export function ChannelNav({
     [inboxUnread],
   );
 
-  /*
-   * Ctrl/Cmd+O opens a new chat.
-   *
-   * Two fixes over the previous handler: it only listened for `ctrlKey`, so it
-   * never fired on macOS, and it had no editable-target guard, so pressing it
-   * while composing a message hijacked the keystroke and navigated away.
-   */
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'o')
@@ -475,6 +512,55 @@ export function ChannelNav({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [startNewChat]);
 
+  // Starred items across all sections
+  const starredProjects = useMemo(
+    () =>
+      (projectsQuery.data ?? []).filter((p) =>
+        favoriteProjectIds.includes(p.id),
+      ),
+    [projectsQuery.data, favoriteProjectIds],
+  );
+
+  const starredDocs = useMemo(
+    () =>
+      (docsWorkspace.docs ?? []).filter((d) =>
+        favoriteDocIds.includes(d.id),
+      ),
+    [docsWorkspace.docs, favoriteDocIds],
+  );
+
+  const starredAgents = useMemo(
+    () =>
+      (agentsQuery.data ?? []).filter((a) =>
+        favoriteAgentIds.includes(a.id),
+      ),
+    [agentsQuery.data, favoriteAgentIds],
+  );
+
+  const starredApps = useMemo(
+    () =>
+      (integrationsQuery.data ?? []).filter(
+        (i) => i.status === 'CONNECTED' && favoriteAppIds.includes(i.provider),
+      ),
+    [integrationsQuery.data, favoriteAppIds],
+  );
+
+  const starredWorkflows = useMemo(
+    () =>
+      (workflowsQuery.data ?? []).filter((w) =>
+        favoriteWorkflowIds.includes(w.id),
+      ),
+    [workflowsQuery.data, favoriteWorkflowIds],
+  );
+
+  const totalStarredCount =
+    groups.favorites.length +
+    starredProjects.length +
+    starredDocs.length +
+    starredAgents.length +
+    starredApps.length +
+    starredWorkflows.length;
+
   if (isLoading) {
     return (
       <div className="px-3 py-2">
@@ -492,7 +578,6 @@ export function ChannelNav({
 
   return (
     <div className="min-h-0 flex h-full flex-col">
-      {/* Padding lives on the content, not the root — see ScrollArea's docs. */}
       <ScrollArea
         className="min-h-0 flex-1"
         contentClassName="px-3.5 pt-3 pb-6"
@@ -555,12 +640,186 @@ export function ChannelNav({
           <div className="mt-3 pt-2 border-t border-border">
             <Section
               title="Starred"
-              count={groups.favorites.length}
-              emptyLabel="Drop a important channel here to keep it handy."
+              count={totalStarredCount}
+              emptyLabel="Drop an important item here to keep it handy."
             >
               {groups.favorites.map((channel) => (
                 <ChannelRow key={channel.id} channel={channel} {...rowProps} />
               ))}
+
+              {starredProjects.map((project) => {
+                const isSelected =
+                  location.pathname.includes('/tasks') &&
+                  location.search.includes(`project=${project.id}`);
+                return (
+                  <ProjectNavRow
+                    key={`starred-proj-${project.id}`}
+                    project={project}
+                    workspaceSlug={workspaceSlug}
+                    isSelected={isSelected}
+                    isFavorite={true}
+                    onToggleFavorite={() =>
+                      toggleResourceFavorite('project', project.id)
+                    }
+                    prompts={prompts}
+                    mutations={projectMutations}
+                    depth={1}
+                  />
+                );
+              })}
+
+              {starredDocs.map((doc) => {
+                const isSelected =
+                  location.pathname.includes('/docs') &&
+                  location.search.includes(`doc=${doc.id}`);
+                return (
+                  <DocNavRow
+                    key={`starred-doc-${doc.id}`}
+                    doc={doc}
+                    workspaceSlug={workspaceSlug}
+                    isSelected={isSelected}
+                    isFavorite={true}
+                    onToggleFavorite={() =>
+                      toggleResourceFavorite('doc', doc.id)
+                    }
+                    onRename={async () => {
+                      const title = await prompts.promptText({
+                        title: 'Rename document',
+                        label: 'Document title',
+                        defaultValue: doc.title,
+                        confirmLabel: 'Rename',
+                      });
+                      if (!title) return;
+                      docsWorkspace.updateDocTitle(doc.id, title);
+                    }}
+                    onDuplicate={async () => {
+                      const docId = await docsWorkspace.duplicateDoc(doc.id);
+                      if (docId)
+                        navigate(`/w/${workspaceSlug}/docs?doc=${docId}`);
+                    }}
+                    onMoveToCompany={(targetCompanyId) =>
+                      docsWorkspace.moveDocToCompany(doc.id, targetCompanyId)
+                    }
+                    onDelete={async () => {
+                      const confirmed = await prompts.confirmAction({
+                        title: `Delete “${doc.title}”?`,
+                        description: 'This cannot be undone.',
+                        confirmLabel: 'Delete document',
+                        destructive: true,
+                      });
+                      if (!confirmed) return;
+                      docsWorkspace.deleteDoc(doc.id);
+                    }}
+                    companies={docsWorkspace.companies}
+                    depth={1}
+                  />
+                );
+              })}
+
+              {starredAgents.map((agent) => {
+                const isSelected =
+                  location.pathname.endsWith('/agents') &&
+                  location.search.includes(`agent=${agent.id}`);
+                return (
+                  <AgentNavRow
+                    key={`starred-agent-${agent.id}`}
+                    agent={{
+                      id: agent.id,
+                      name: agent.name,
+                      icon: 'Bot',
+                      detail: agent.role,
+                    }}
+                    workspaceSlug={workspaceSlug}
+                    isSelected={isSelected}
+                    isFavorite={true}
+                    onToggleFavorite={() =>
+                      toggleResourceFavorite('agent', agent.id)
+                    }
+                    onDelete={async () => {
+                      const confirmed = await prompts.confirmAction({
+                        title: `Delete “${agent.name}”?`,
+                        description:
+                          'The AI agent will be removed from this workspace. This action cannot be undone.',
+                        confirmLabel: 'Delete agent',
+                        destructive: true,
+                      });
+                      if (!confirmed) return;
+                      agentMutations.remove.mutate(agent.id);
+                    }}
+                    depth={1}
+                  />
+                );
+              })}
+
+              {starredApps.map((app) => {
+                const isSelected =
+                  location.pathname.endsWith('/integrations') &&
+                  location.search.includes(`app=${app.provider}`);
+                return (
+                  <AppNavRow
+                    key={`starred-app-${app.provider}`}
+                    app={{
+                      id: app.provider,
+                      name: titleCaseProvider(app.provider),
+                      icon: PROVIDER_ICON[app.provider] ?? 'Plug',
+                      detail: 'Connected',
+                    }}
+                    workspaceSlug={workspaceSlug}
+                    isSelected={isSelected}
+                    isFavorite={true}
+                    onToggleFavorite={() =>
+                      toggleResourceFavorite('app', app.provider)
+                    }
+                    onDisconnect={async () => {
+                      const confirmed = await prompts.confirmAction({
+                        title: `Disconnect ${titleCaseProvider(app.provider)}?`,
+                        description:
+                          'This integration will be removed from your workspace and webhooks will be disabled.',
+                        confirmLabel: 'Disconnect',
+                        destructive: true,
+                      });
+                      if (!confirmed) return;
+                      integrationMutations.disconnect.mutate(app.provider);
+                    }}
+                    depth={1}
+                  />
+                );
+              })}
+
+              {starredWorkflows.map((workflow) => {
+                const isSelected =
+                  location.pathname.endsWith('/automations') &&
+                  location.search.includes(`workflow=${workflow.id}`);
+                return (
+                  <WorkflowNavRow
+                    key={`starred-wf-${workflow.id}`}
+                    workflow={{
+                      id: workflow.id,
+                      name: workflow.name,
+                      icon: TRIGGER_ICON[workflow.triggerType] ?? 'Zap',
+                      detail: workflow.triggerType,
+                    }}
+                    workspaceSlug={workspaceSlug}
+                    isSelected={isSelected}
+                    isFavorite={true}
+                    onToggleFavorite={() =>
+                      toggleResourceFavorite('workflow', workflow.id)
+                    }
+                    onDelete={async () => {
+                      const confirmed = await prompts.confirmAction({
+                        title: `Delete “${workflow.name}”?`,
+                        description:
+                          'This workflow automation will be permanently deleted for all members.',
+                        confirmLabel: 'Delete workflow',
+                        destructive: true,
+                      });
+                      if (!confirmed) return;
+                      workflowMutations.remove.mutate(workflow.id);
+                    }}
+                    depth={1}
+                  />
+                );
+              })}
             </Section>
 
             <Section
@@ -604,11 +863,11 @@ export function ChannelNav({
 
             <DocsTreeSection workspaceSlug={workspaceSlug} prompts={prompts} />
 
-            <AgentsSection workspaceSlug={workspaceSlug} />
+            <AgentsSection workspaceSlug={workspaceSlug} prompts={prompts} />
 
-            <AppsSection workspaceSlug={workspaceSlug} />
+            <AppsSection workspaceSlug={workspaceSlug} prompts={prompts} />
 
-            <WorkflowsSection workspaceSlug={workspaceSlug} />
+            <WorkflowsSection workspaceSlug={workspaceSlug} prompts={prompts} />
           </div>
         </div>
       </ScrollArea>

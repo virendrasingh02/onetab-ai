@@ -3,6 +3,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -16,17 +18,21 @@ import { useDocsWorkspace } from '@org/web-work-tools';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Building,
+  Check,
   ChevronDown,
   ChevronRight,
   Copy,
   FolderPlus,
+  MoreHorizontal,
   MoreVertical,
   MoveRight,
   Pencil,
   Plus,
+  Share2,
+  Star,
   Trash2,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   navActionClass,
@@ -35,16 +41,268 @@ import {
   navIconClass,
   navRowClass,
   Section,
+  type NavDepth,
 } from './nav-primitives.js';
+import { useSidebarFavorites } from './use-sidebar-favorites.js';
 
+export interface DocItemData {
+  id: string;
+  title: string;
+  icon?: string;
+  iconColor?: string;
+  companyId?: string;
+  parentId?: string | null;
+}
+
+export function DocNavRow({
+  doc,
+  workspaceSlug,
+  isSelected,
+  isFavorite,
+  onToggleFavorite,
+  onAddSubpage,
+  onRename,
+  onDuplicate,
+  onMoveToCompany,
+  onDelete,
+  companies = [],
+  depth = 1,
+  children,
+}: {
+  doc: DocItemData;
+  workspaceSlug: string;
+  isSelected: boolean;
+  isFavorite: boolean;
+  onToggleFavorite: (doc: DocItemData) => void;
+  onAddSubpage?: () => void;
+  onRename?: () => void;
+  onDuplicate?: () => void;
+  onMoveToCompany?: (companyId: string) => void;
+  onDelete?: () => void;
+  companies?: readonly { id: string; name: string }[];
+  depth?: NavDepth;
+  children?: React.ReactNode;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [shared, setShared] = useState(false);
+
+  const handleCopyLink = useCallback(
+    (e?: React.MouseEvent | Event) => {
+      e?.stopPropagation?.();
+      const url = `${window.location.origin}/w/${workspaceSlug}/docs?doc=${doc.id}`;
+      navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    },
+    [workspaceSlug, doc.id],
+  );
+
+  const handleShare = useCallback(
+    (e?: React.MouseEvent | Event) => {
+      e?.stopPropagation?.();
+      const url = `${window.location.origin}/w/${workspaceSlug}/docs?doc=${doc.id}`;
+      navigator.clipboard.writeText(url);
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+    },
+    [workspaceSlug, doc.id],
+  );
+
+  return (
+    <li className="group/row relative space-y-0.5">
+      <NavLink
+        to={`/w/${workspaceSlug}/docs?doc=${doc.id}`}
+        className={navRowClass(isSelected, {
+          depth,
+          extra: 'pr-14',
+        })}
+      >
+        <IconRenderer
+          icon={doc.icon}
+          iconColor={doc.iconColor}
+          fallbackEmoji="📝"
+          sizeClassName={navIconClass(depth)}
+        />
+        <span className="flex-1 truncate">{doc.title}</span>
+      </NavLink>
+
+      <div
+        className={cn(
+          'right-1 gap-0.5 absolute top-1/2 flex -translate-y-1/2 items-center transition-opacity',
+          isFavorite
+            ? 'opacity-100'
+            : 'opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 focus-within:opacity-100',
+        )}
+      >
+        <Hint label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFavorite(doc);
+            }}
+            aria-label={
+              isFavorite ? 'Remove from favorites' : 'Add to favorites'
+            }
+            aria-pressed={isFavorite}
+            className={cn(
+              'size-5 p-0',
+              isFavorite
+                ? 'text-[#eab308] opacity-100'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <Star className={cn('size-3.5', isFavorite && 'fill-current')} />
+          </Button>
+        </Hint>
+
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Options for ${doc.title}`}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              className="size-5 p-0 text-muted-foreground hover:text-foreground"
+            >
+              <MoreHorizontal className="size-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" side="bottom" className="w-64">
+            <DropdownMenuItem
+              onSelect={handleCopyLink}
+              onClick={handleCopyLink}
+              className="justify-between"
+            >
+              <div className="gap-2.5 flex items-center">
+                {copied ? (
+                  <Check className="size-4 text-emerald-500" />
+                ) : (
+                  <Copy className="size-4" />
+                )}
+                <span>{copied ? 'Link copied!' : 'Copy link'}</span>
+              </div>
+              <DropdownMenuShortcut>C</DropdownMenuShortcut>
+            </DropdownMenuItem>
+
+            {onAddSubpage ? (
+              <DropdownMenuItem
+                onSelect={onAddSubpage}
+                onClick={onAddSubpage}
+                className="gap-2.5"
+              >
+                <Plus className="size-4" />
+                <span>Add subpage</span>
+              </DropdownMenuItem>
+            ) : null}
+
+            {onRename ? (
+              <DropdownMenuItem
+                onSelect={onRename}
+                onClick={onRename}
+                className="gap-2.5"
+              >
+                <Pencil className="size-4" />
+                <span>Rename doc</span>
+              </DropdownMenuItem>
+            ) : null}
+
+            {onDuplicate ? (
+              <DropdownMenuItem
+                onSelect={onDuplicate}
+                onClick={onDuplicate}
+                className="gap-2.5"
+              >
+                <Copy className="size-4" />
+                <span>Duplicate doc</span>
+              </DropdownMenuItem>
+            ) : null}
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem
+              onSelect={() => onToggleFavorite(doc)}
+              onClick={() => onToggleFavorite(doc)}
+              className="justify-between"
+            >
+              <div className="gap-2.5 flex items-center">
+                <Star
+                  className={cn(
+                    'size-4',
+                    isFavorite && 'fill-current text-[#eab308]',
+                  )}
+                />
+                <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
+              </div>
+              <ChevronRight className="size-4 text-muted-foreground/70" />
+            </DropdownMenuItem>
+
+            {companies.length > 1 && onMoveToCompany ? (
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="gap-2.5">
+                  <MoveRight className="size-4" />
+                  <span>Move to folder</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="w-48">
+                  {companies
+                    .filter((c) => c.id !== doc.companyId)
+                    .map((c) => (
+                      <DropdownMenuItem
+                        key={c.id}
+                        onSelect={() => onMoveToCompany(c.id)}
+                        onClick={() => onMoveToCompany(c.id)}
+                        className="gap-2.5 text-xs"
+                      >
+                        <Building className="size-3.5" />
+                        <span>{c.name}</span>
+                      </DropdownMenuItem>
+                    ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            ) : null}
+
+            <DropdownMenuItem
+              onSelect={handleShare}
+              onClick={handleShare}
+              className="gap-2.5"
+            >
+              {shared ? (
+                <Check className="size-4 text-emerald-500" />
+              ) : (
+                <Share2 className="size-4" />
+              )}
+              <span>{shared ? 'Link copied!' : 'Sharing & Permissions'}</span>
+            </DropdownMenuItem>
+
+            {onDelete ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={onDelete}
+                  onClick={onDelete}
+                  className="gap-2.5"
+                >
+                  <Trash2 className="size-4" />
+                  <span>Delete doc</span>
+                </DropdownMenuItem>
+              </>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {children}
+    </li>
+  );
+}
 
 /**
  * The docs tree, over the same `useDocsWorkspace` projection the editor uses.
- *
- * Sharing that hook is the point: the sidebar and `/docs` read one cache, so a
- * page created here opens in the editor by the id the server assigned it. The
- * tree used to be a local-storage store with ids of its own, which meant every
- * row in it navigated to a document that did not exist.
  */
 export function DocsTreeSection({
   workspaceSlug,
@@ -57,6 +315,7 @@ export function DocsTreeSection({
   const navigate = useNavigate();
   const { workspaceId } = useCurrentWorkspace();
   const workspace = useDocsWorkspace(workspaceId);
+  const { isFavorite, toggleFavorite } = useSidebarFavorites(workspaceId);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const { companies, docs } = workspace;
@@ -87,11 +346,6 @@ export function DocsTreeSection({
   };
 
   const deleteCompany = async (id: string, name: string) => {
-    /*
-     * The old code called `alert()` when this was the last company. Now the
-     * action is simply not offered — the menu item is already conditional on
-     * there being more than one, so this is belt and braces.
-     */
     if (companies.length <= 1) return;
 
     const confirmed = await prompts.confirmAction({
@@ -105,7 +359,6 @@ export function DocsTreeSection({
     await workspace.deleteCompany(id);
   };
 
-  /** Creates the page server-side, then opens it — ids come from the API. */
   const addDoc = async (companyId: string, parentId?: string) => {
     const docId = await workspace.createDoc(
       companyId,
@@ -191,12 +444,9 @@ export function DocsTreeSection({
 
         return (
           <li key={company.id} className="mt-1 space-y-0.5">
-            {/*
-              Rebuilt on the shared row geometry. This header used to be a
-              one-off (`rounded-md px-2 py-1`, `text-[11px]`, `hover:bg-accent/60`)
-              that matched nothing else in the sidebar.
-            */}
-            <div className={navGroupHeaderClass({ extra: 'group/comp relative' })}>
+            <div
+              className={navGroupHeaderClass({ extra: 'group/comp relative' })}
+            >
               <button
                 type="button"
                 onClick={() => toggleCompany(company.id)}
@@ -256,7 +506,9 @@ export function DocsTreeSection({
                       Add doc
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onSelect={() => void renameCompany(company.id, company.name)}
+                      onSelect={() =>
+                        void renameCompany(company.id, company.name)
+                      }
                       className="gap-2 text-xs"
                     >
                       <Pencil className="size-3" />
@@ -265,7 +517,9 @@ export function DocsTreeSection({
                     {companies.length > 1 ? (
                       <DropdownMenuItem
                         variant="destructive"
-                        onSelect={() => void deleteCompany(company.id, company.name)}
+                        onSelect={() =>
+                          void deleteCompany(company.id, company.name)
+                        }
                         className="gap-2 text-xs"
                       >
                         <Trash2 className="size-3" />
@@ -278,9 +532,6 @@ export function DocsTreeSection({
             </div>
 
             {!isCollapsed ? (
-              /* Indentation comes from the rows' own `depth` now. The old
-                 `ml-2 border-l pl-1` guide rail added a second, competing
-                 indent system — and drew a rule that no other tree used. */
               <ul className="space-y-0.5">
                 {rootDocs.length === 0 ? (
                   <li>
@@ -290,7 +541,9 @@ export function DocsTreeSection({
                       className={navActionClass({ depth: 1 })}
                     >
                       <Plus className={navIconClass(1)} aria-hidden />
-                      <span className="flex-1 truncate">Add the first page</span>
+                      <span className="flex-1 truncate">
+                        Add the first page
+                      </span>
                     </button>
                   </li>
                 ) : (
@@ -298,96 +551,28 @@ export function DocsTreeSection({
                     const isSelected =
                       location.pathname.includes('/docs') &&
                       location.search.includes(`doc=${doc.id}`);
-                    const children = companyDocs.filter((d) => d.parentId === doc.id);
+                    const children = companyDocs.filter(
+                      (d) => d.parentId === doc.id,
+                    );
 
                     return (
-                      <li key={doc.id} className="group/doc relative space-y-0.5">
-                        <NavLink
-                          to={`/w/${workspaceSlug}/docs?doc=${doc.id}`}
-                          className={navRowClass(isSelected, {
-                            depth: 1,
-                            extra: 'pr-8',
-                          })}
-                        >
-                          <IconRenderer
-                            icon={doc.icon}
-                            iconColor={doc.iconColor}
-                            fallbackEmoji="📝"
-                            sizeClassName={navIconClass(1)}
-                          />
-                          <span className="flex-1 truncate">{doc.title}</span>
-                        </NavLink>
-
-                        <div className="absolute top-1/2 right-1 -translate-y-1/2 opacity-0 transition-opacity group-hover/doc:opacity-100 group-focus-within/doc:opacity-100">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                className="size-5 p-0"
-                                aria-label={`Options for ${doc.title}`}
-                              >
-                                <MoreVertical className="size-3" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-44">
-                              <DropdownMenuItem
-                                onSelect={() => void addDoc(company.id, doc.id)}
-                                className="gap-2 text-xs"
-                              >
-                                <Plus className="size-3" />
-                                Add subpage
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onSelect={() => void renameDoc(doc.id, doc.title)}
-                                className="gap-2 text-xs"
-                              >
-                                <Pencil className="size-3" />
-                                Rename doc
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onSelect={() => void duplicateDoc(doc.id)}
-                                className="gap-2 text-xs"
-                              >
-                                <Copy className="size-3" />
-                                Duplicate doc
-                              </DropdownMenuItem>
-                              {companies.length > 1 ? (
-                                <DropdownMenuSub>
-                                  <DropdownMenuSubTrigger className="gap-2 text-xs">
-                                    <MoveRight className="size-3" />
-                                    Move to folder
-                                  </DropdownMenuSubTrigger>
-                                  <DropdownMenuSubContent className="w-44">
-                                    {companies
-                                      .filter((c) => c.id !== doc.companyId)
-                                      .map((c) => (
-                                        <DropdownMenuItem
-                                          key={c.id}
-                                          onSelect={() =>
-                                            workspace.moveDocToCompany(doc.id, c.id)
-                                          }
-                                          className="gap-2 text-xs"
-                                        >
-                                          <Building className="size-3" />
-                                          {c.name}
-                                        </DropdownMenuItem>
-                                      ))}
-                                  </DropdownMenuSubContent>
-                                </DropdownMenuSub>
-                              ) : null}
-                              <DropdownMenuItem
-                                variant="destructive"
-                                onSelect={() => void deleteDoc(doc.id, doc.title)}
-                                className="gap-2 text-xs"
-                              >
-                                <Trash2 className="size-3" />
-                                Delete doc
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-
+                      <DocNavRow
+                        key={doc.id}
+                        doc={doc}
+                        workspaceSlug={workspaceSlug}
+                        isSelected={isSelected}
+                        isFavorite={isFavorite('doc', doc.id)}
+                        onToggleFavorite={() => toggleFavorite('doc', doc.id)}
+                        onAddSubpage={() => void addDoc(company.id, doc.id)}
+                        onRename={() => void renameDoc(doc.id, doc.title)}
+                        onDuplicate={() => void duplicateDoc(doc.id)}
+                        onMoveToCompany={(targetCompanyId) =>
+                          workspace.moveDocToCompany(doc.id, targetCompanyId)
+                        }
+                        onDelete={() => void deleteDoc(doc.id, doc.title)}
+                        companies={companies}
+                        depth={1}
+                      >
                         {children.length > 0 ? (
                           <ul className="space-y-0.5">
                             {children.map((child) => {
@@ -395,25 +580,38 @@ export function DocsTreeSection({
                                 location.pathname.includes('/docs') &&
                                 location.search.includes(`doc=${child.id}`);
                               return (
-                                <li key={child.id}>
-                                  <NavLink
-                                    to={`/w/${workspaceSlug}/docs?doc=${child.id}`}
-                                    className={navRowClass(childSelected, { depth: 2 })}
-                                  >
-                                    <IconRenderer
-                                      icon={child.icon}
-                                      iconColor={child.iconColor}
-                                      fallbackEmoji="📝"
-                                      sizeClassName={navIconClass(2)}
-                                    />
-                                    <span className="flex-1 truncate">{child.title}</span>
-                                  </NavLink>
-                                </li>
+                                <DocNavRow
+                                  key={child.id}
+                                  doc={child}
+                                  workspaceSlug={workspaceSlug}
+                                  isSelected={childSelected}
+                                  isFavorite={isFavorite('doc', child.id)}
+                                  onToggleFavorite={() =>
+                                    toggleFavorite('doc', child.id)
+                                  }
+                                  onRename={() =>
+                                    void renameDoc(child.id, child.title)
+                                  }
+                                  onDuplicate={() =>
+                                    void duplicateDoc(child.id)
+                                  }
+                                  onMoveToCompany={(targetCompanyId) =>
+                                    workspace.moveDocToCompany(
+                                      child.id,
+                                      targetCompanyId,
+                                    )
+                                  }
+                                  onDelete={() =>
+                                    void deleteDoc(child.id, child.title)
+                                  }
+                                  companies={companies}
+                                  depth={2}
+                                />
                               );
                             })}
                           </ul>
                         ) : null}
-                      </li>
+                      </DocNavRow>
                     );
                   })
                 )}
