@@ -10,6 +10,7 @@ import {
   ScrollArea,
   SkeletonList,
   usePromptDialog,
+  type PromptDialog,
 } from '@org/ui';
 import type { ChannelSummary } from '@org/types';
 import { cn } from '@org/utils';
@@ -91,7 +92,7 @@ function ChannelRow({
   workspaceSlug: string;
   onToggleFavorite: (channel: ChannelSummary) => void;
   onToggleMute: (channel: ChannelSummary) => void;
-  prompts: ReturnType<typeof usePromptDialog>;
+  prompts: PromptDialog;
 }) {
   const [copied, setCopied] = useState(false);
   const [emailCopied, setEmailCopied] = useState(false);
@@ -103,8 +104,8 @@ function ChannelRow({
   const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
 
   const handleCopyLink = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
+    (e?: React.MouseEvent | Event) => {
+      e?.stopPropagation?.();
       const url = `${window.location.origin}/w/${workspaceSlug}/c/${channel.slug}`;
       navigator.clipboard.writeText(url);
       setCopied(true);
@@ -114,8 +115,8 @@ function ChannelRow({
   );
 
   const handleEmailChannel = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
+    (e?: React.MouseEvent | Event) => {
+      e?.stopPropagation?.();
       const email = `${channel.slug}-${workspaceSlug}@onetab.ai`;
       navigator.clipboard.writeText(email);
       setEmailCopied(true);
@@ -124,42 +125,44 @@ function ChannelRow({
     [workspaceSlug, channel.slug],
   );
 
-  const handleMarkUnread = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleMarkUnread = useCallback((e?: React.MouseEvent | Event) => {
+    e?.stopPropagation?.();
     setUnreadState(true);
     setTimeout(() => setUnreadState(false), 2000);
   }, []);
 
   const handleRename = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      prompts.prompt({
+    async (e?: React.MouseEvent | Event) => {
+      e?.stopPropagation?.();
+      const name = await prompts.promptText({
         title: `Rename #${channel.name}`,
-        description: 'Enter a new name for this channel.',
+        label: 'Channel name',
         defaultValue: channel.name,
-        confirmText: 'Rename',
+        confirmLabel: 'Rename',
       });
+      if (!name) return;
     },
     [channel.name, prompts],
   );
 
   const handleDeleteChannel = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      prompts.confirm({
+    async (e?: React.MouseEvent | Event) => {
+      e?.stopPropagation?.();
+      const confirmed = await prompts.confirmAction({
         title: `Delete #${channel.name}?`,
         description:
           'Are you sure you want to delete this channel? All messages and attachments will be removed.',
-        confirmText: 'Delete Channel',
-        variant: 'destructive',
+        confirmLabel: 'Delete Channel',
+        destructive: true,
       });
+      if (!confirmed) return;
     },
     [channel.name, prompts],
   );
 
   const handleShare = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
+    (e?: React.MouseEvent | Event) => {
+      e?.stopPropagation?.();
       const url = `${window.location.origin}/w/${workspaceSlug}/c/${channel.slug}`;
       navigator.clipboard.writeText(url);
       setShared(true);

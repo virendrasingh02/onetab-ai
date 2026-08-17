@@ -39,7 +39,7 @@ export function WorkspaceMenu({
   const navigate = useNavigate();
 
   return (
-    <div className="gap-1 flex w-full items-center justify-between">
+    <div className="group/workspace-header gap-1 flex w-full items-center justify-between">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
@@ -192,7 +192,7 @@ export function WorkspaceMenu({
               size="icon-sm"
               onClick={onToggleSidebar}
               aria-label="Toggle sidebar"
-              className="size-7 p-0"
+              className="size-7 p-0 opacity-0 transition-opacity duration-(--duration-fast) group-hover/sidebar:opacity-100 group-hover/workspace-header:opacity-100 group-focus-within/sidebar:opacity-100 focus-visible:opacity-100"
             >
               <PanelLeft className="size-4 text-subtle hover:text-foreground" />
             </Button>

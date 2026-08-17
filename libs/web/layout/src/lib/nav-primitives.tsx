@@ -27,13 +27,13 @@ export type NavDepth = 0 | 1 | 2;
 
 const DEPTH_PADDING: Record<NavDepth, string> = {
   0: 'pl-2.5 pr-2',
-  1: 'pl-6 pr-2',
-  2: 'pl-9 pr-2',
+  1: 'pl-2.5 pr-2',
+  2: 'pl-6 pr-2',
 };
 
 const DEPTH_TEXT: Record<NavDepth, string> = {
   0: 'text-[13px]',
-  1: 'text-xs',
+  1: 'text-[13px]',
   2: 'text-xs',
 };
 
@@ -44,7 +44,7 @@ const DEPTH_TEXT: Record<NavDepth, string> = {
  */
 const DEPTH_ICON: Record<NavDepth, string> = {
   0: 'size-4',
-  1: 'size-3.5',
+  1: 'size-4',
   2: 'size-3.5',
 };
 
@@ -54,8 +54,7 @@ export function navIconClass(depth: NavDepth = 0, extra?: string) {
 }
 
 /**
- * One nav row. The active indicator is a 2.5px rounded pill element positioned
- * neatly inside the row so switching rows never reflows the list.
+ * One nav row.
  */
 export function navRowClass(
   isActive: boolean,
@@ -68,12 +67,9 @@ export function navRowClass(
     DEPTH_TEXT[depth],
     'transition-all duration-(--duration-fast) ease-standard',
     'outline-none focus-visible:ring-1 focus-visible:ring-ring',
-    'before:left-1 before:h-4 before:w-1 before:absolute before:top-1/2',
-    'before:-translate-y-1/2 before:rounded-full before:bg-primary',
-    'before:transition-opacity before:duration-(--duration-fast)',
     isActive
-      ? 'font-medium shadow-2xs bg-accent/80 text-foreground before:opacity-100'
-      : 'text-muted-foreground before:opacity-0 hover:bg-accent/60 hover:text-foreground',
+      ? 'font-medium shadow-2xs bg-accent/80 text-foreground'
+      : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
     extra,
   );
 }
@@ -150,7 +146,7 @@ export function NavRow({
       <span className="flex-1 truncate">{entry.label}</span>
       {entry.badge !== undefined && (
         <Badge
-          variant="secondary"
+          variant="neutral"
           className="px-1.5 py-0 h-4 font-medium ml-auto font-mono text-[10px]"
         >
           {entry.badge}
@@ -219,7 +215,7 @@ export function Section({
 
         <CollapsibleContent>
           {isEmpty ? (
-            <p className="px-2 py-1 text-[11px] text-subtle">{emptyLabel}</p>
+            <p className="px-2.5 py-1 text-[11px] text-subtle">{emptyLabel}</p>
           ) : null}
           {/*
             The hint sits *above* the list rather than replacing it. Sections

@@ -187,7 +187,7 @@ export function AppShell() {
           {sidebarOpen && !isMobile ? (
             <>
               <aside
-                className="flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-surface-muted text-sidebar-foreground"
+                className="group/sidebar flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-surface-muted text-sidebar-foreground"
                 style={{ width: `${leftWidth}px` }}
                 aria-label="Sidebar navigation"
               >
