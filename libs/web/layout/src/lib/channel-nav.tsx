@@ -32,8 +32,6 @@ import {
   ChevronRight,
   Clock,
   Copy,
-  FileText,
-  FolderKanban,
   HardDrive,
   Hash,
   Home,
@@ -45,7 +43,6 @@ import {
   Pencil,
   Pin,
   Plus,
-  Settings,
   Share2,
   Star,
   Trash2,
@@ -88,11 +85,8 @@ const MORE_DESTINATIONS: readonly NavEntry[] = [
   { path: 'meetings', label: 'Meetings', icon: Video },
   { path: 'pulse', label: 'Pulse', icon: Activity },
   { path: 'schedule', label: 'Schedule', icon: Clock },
-  { path: 'tasks', label: 'Projects', icon: FolderKanban },
-  { path: 'docs', label: 'Docs', icon: FileText },
   { path: 'directory', label: 'Team Directory', icon: Users },
   { path: 'files', label: 'Files', icon: HardDrive },
-  { path: 'settings', label: 'Settings', icon: Settings },
 ];
 
 const PROVIDER_ICON: Record<string, string> = {

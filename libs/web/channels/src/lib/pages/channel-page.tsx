@@ -11,23 +11,23 @@ import {
   EmptyState,
   ErrorState,
   Hint,
+  Input,
   LoadingState,
-  LocalTime,
   ScrollArea,
   SkeletonList,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
+  toPresenceStatus,
   UserAvatar,
 } from '@org/ui';
-import { cn, formatBytes, formatDate, formatRelative } from '@org/utils';
-import { ChannelChat, ChannelMentions, ChannelThreads } from '@org/web-chat';
+import { cn, formatBytes, formatDate } from '@org/utils';
+import { ChannelChat } from '@org/web-chat';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Archive,
   ArchiveRestore,
-  AtSign,
   Bell,
   BellOff,
   Check,
@@ -39,16 +39,15 @@ import {
   Lock,
   Mail,
   MessageSquare,
-  MessagesSquare,
   MoreHorizontal,
   Pencil,
   Pin,
+  Search,
   Share2,
   Star,
   Trash2,
-  Users,
 } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   useArchiveChannel,
@@ -73,6 +72,146 @@ function fileSrc(storageKey: string): string {
     : `/uploads/${storageKey}`;
 }
 
+function ChannelMembersDropdown({
+  channel,
+  members,
+}: {
+  channel: ChannelSummary;
+  members: ReturnType<typeof useChannelMembers>;
+}) {
+  const [memberSearch, setMemberSearch] = useState('');
+  const memberList = useMemo(() => members.data ?? [], [members.data]);
+  const maxVisibleAvatars = 4;
+  const visibleMembers = useMemo(
+    () => memberList.slice(0, maxVisibleAvatars),
+    [memberList],
+  );
+  const remainingCount = Math.max(
+    0,
+    (memberList.length || channel.memberCount) - visibleMembers.length,
+  );
+
+  const filteredMembers = useMemo(() => {
+    if (!memberSearch.trim()) return memberList;
+    const query = memberSearch.toLowerCase();
+    return memberList.filter(
+      (m) =>
+        m.user.displayName?.toLowerCase().includes(query) ||
+        m.user.name.toLowerCase().includes(query),
+    );
+  }, [memberList, memberSearch]);
+
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="group flex items-center rounded-full p-0.5 hover:bg-accent/60 transition-all outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          aria-label={`View ${channel.memberCount} members`}
+        >
+          <div className="flex items-center -space-x-2">
+            {visibleMembers.map((m) => (
+              <UserAvatar
+                key={m.id}
+                name={m.user.displayName ?? m.user.name}
+                src={m.user.avatarUrl}
+                seed={m.user.id}
+                size="sm"
+                className="size-7 ring-2 ring-background transition-transform group-hover:scale-105"
+              />
+            ))}
+            {remainingCount > 0 ? (
+              <span className="size-7 flex items-center justify-center rounded-full bg-surface-raised border border-border text-[11px] font-semibold text-foreground ring-2 ring-background">
+                +{remainingCount}
+              </span>
+            ) : null}
+          </div>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        side="bottom"
+        sideOffset={6}
+        className="w-80 p-0"
+      >
+        <div className="p-3 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-sm text-foreground">
+              Channel Members
+            </span>
+            <Badge variant="neutral">
+              {memberList.length || channel.memberCount}
+            </Badge>
+          </div>
+        </div>
+
+        {memberList.length > 4 ? (
+          <div className="p-2 border-b border-border">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+              <Input
+                value={memberSearch}
+                onChange={(e) => setMemberSearch(e.target.value)}
+                placeholder="Find members..."
+                className="h-8 pl-8 text-xs"
+              />
+            </div>
+          </div>
+        ) : null}
+
+        <ScrollArea className="max-h-72">
+          <div className="p-1.5 space-y-0.5">
+            {filteredMembers.length === 0 ? (
+              <p className="py-6 text-center text-xs text-muted-foreground">
+                No members found
+              </p>
+            ) : (
+              filteredMembers.map((m) => {
+                const name = m.user.displayName ?? m.user.name;
+                const presence = toPresenceStatus(m.user.presence);
+                return (
+                  <div
+                    key={m.id}
+                    className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-accent/60 transition-colors"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <UserAvatar
+                        name={name}
+                        src={m.user.avatarUrl}
+                        seed={m.user.id}
+                        presence={presence}
+                        size="sm"
+                        className="size-7"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold truncate text-foreground">
+                          {name}
+                        </p>
+                        <p className="text-[11px] truncate text-muted-foreground">
+                          @{m.user.name}
+                        </p>
+                      </div>
+                    </div>
+
+                    {m.role === 'ADMIN' ? (
+                      <Badge
+                        variant="neutral"
+                        className="text-[10px] px-1.5 py-0"
+                      >
+                        Admin
+                      </Badge>
+                    ) : null}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </ScrollArea>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function ChannelHeader({ channel }: { channel: ChannelSummary }) {
   const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
   const preferences = useChannelPreferences(workspaceId);
@@ -94,13 +233,6 @@ function ChannelHeader({ channel }: { channel: ChannelSummary }) {
     setTimeout(() => setCopied(false), 2000);
   }, [workspaceSlug, channel.slug]);
 
-  /*
-   * Identity and membership only.
-   *
-   * Everything scoped to the conversation — topic, pins, bookmarks, huddles,
-   * search — belongs to the chat header one row below, so the two stopped
-   * competing to show the same channel twice.
-   */
   return (
     <div className="border-b border-border bg-background">
       <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
@@ -277,24 +409,10 @@ function ChannelHeader({ channel }: { channel: ChannelSummary }) {
           </div>
         </div>
 
-        {/* Channel actions: member stack, membership, admin */}
+        {/* Channel actions: Member Avatar Stack Dropdown, Join Button, Archive */}
         <div className="flex items-center gap-2">
-          {/* Member Stack */}
-          <div className="flex items-center px-1 -space-x-1.5">
-            {members.data?.slice(0, 3).map((m) => (
-              <UserAvatar
-                key={m.id}
-                name={m.user.displayName ?? m.user.name}
-                src={m.user.avatarUrl}
-                seed={m.user.id}
-                size="sm"
-                className="size-6 ring-2 ring-background"
-              />
-            ))}
-            <span className="pl-2 text-xs tabular-nums text-muted-foreground">
-              {channel.memberCount}
-            </span>
-          </div>
+          {/* Member Avatar Stack with Dropdown */}
+          <ChannelMembersDropdown channel={channel} members={members} />
 
           {!channel.membership ? (
             <Button
@@ -336,11 +454,7 @@ function ChannelHeader({ channel }: { channel: ChannelSummary }) {
 }
 
 /**
- * Channel workspace: Chat / About / Members / Files / Media / Pins.
- *
- * Chat is the default tab and the reason the page exists; the rest is context
- * about the channel. The conversation keeps its own scroll container, so it is
- * mounted outside the shared overflow wrapper the other tabs share.
+ * Channel workspace: Chat / About / Files / Media / Pins.
  */
 export function ChannelPage() {
   const { channelSlug } = useParams<{ channelSlug: string }>();
@@ -348,7 +462,6 @@ export function ChannelPage() {
   const channelQuery = useChannel(workspaceId, channelSlug);
   const channel = channelQuery.data;
 
-  const members = useChannelMembers(workspaceId, channel?.id);
   const pins = useChannelPins(workspaceId, channel?.id);
   const files = useChannelFiles(workspaceId, channel?.id);
 
@@ -370,8 +483,6 @@ export function ChannelPage() {
     files.data?.filter((file) => !file.mimeType.startsWith('image/')) ?? [];
 
   return (
-    // `flex-1 min-h-0`, not `h-full`: the page is a flex item of the shell's
-    // scrolled content box, which has no definite height to take a % from.
     <div className="flex min-h-0 flex-1 flex-col">
       <ChannelHeader channel={channel} />
 
@@ -381,17 +492,7 @@ export function ChannelPage() {
             <TabsTrigger value="chat" className="gap-1.5">
               <MessageSquare className="size-4" /> Messages
             </TabsTrigger>
-            <TabsTrigger value="threads" className="gap-1.5">
-              <MessagesSquare className="size-4" /> Threads
-            </TabsTrigger>
-            <TabsTrigger value="mentions" className="gap-1.5">
-              <AtSign className="size-4" /> Mentions
-            </TabsTrigger>
             <TabsTrigger value="about">About</TabsTrigger>
-            <TabsTrigger value="members" className="gap-1.5">
-              <Users className="size-4" /> Members
-              <Badge variant="neutral">{channel.memberCount}</Badge>
-            </TabsTrigger>
             <TabsTrigger value="files" className="gap-1.5">
               <FileText className="size-4" /> Files
             </TabsTrigger>
@@ -404,12 +505,6 @@ export function ChannelPage() {
           </TabsList>
         </div>
 
-        {/*
-          Every panel is `flex min-h-0 flex-1 flex-col`. The chat panel needs it
-          so the timeline's scroller has a definite height to fill rather than
-          growing to the height of the whole conversation, and the rest need it
-          so their own ScrollArea does.
-        */}
         <TabsContent
           value="chat"
           className="flex min-h-0 flex-1 flex-col overflow-hidden"
@@ -421,29 +516,6 @@ export function ChannelPage() {
           />
         </TabsContent>
 
-        {/*
-          Threads and mentions are views over the same timeline the chat tab
-          renders, so they come from `@org/web-chat` rather than a query of
-          their own — including the fallback to sample data when no homeserver
-          is configured.
-        */}
-        <TabsContent value="threads" className="flex min-h-0 flex-1 flex-col">
-          <ScrollArea className="min-h-0 flex-1">
-            <ChannelThreads channelId={channel.id} channelName={channel.name} />
-          </ScrollArea>
-        </TabsContent>
-
-        <TabsContent value="mentions" className="flex min-h-0 flex-1 flex-col">
-          <ScrollArea className="min-h-0 flex-1">
-            <ChannelMentions channelId={channel.id} channelName={channel.name} />
-          </ScrollArea>
-        </TabsContent>
-
-        {/*
-          Each remaining tab carries its own scroll container. A shared wrapper
-          would keep its `flex-1` height while the chat tab is active — Radix
-          unmounts the inactive contents, leaving an empty box halving the page.
-        */}
         <TabsContent value="about" className="flex min-h-0 flex-1 flex-col">
           <ScrollArea className="min-h-0 flex-1" contentClassName="space-y-4 px-6 py-4">
             <dl className="gap-4 sm:grid-cols-2 grid">
@@ -478,47 +550,6 @@ export function ChannelPage() {
                 </dd>
               </div>
             </dl>
-          </ScrollArea>
-        </TabsContent>
-
-        <TabsContent value="members" className="flex min-h-0 flex-1 flex-col">
-          <ScrollArea className="min-h-0 flex-1" contentClassName="px-6 py-4">
-            {members.isLoading ? (
-              <SkeletonList rows={5} withAvatar />
-            ) : (
-              <ul className="divide-y">
-                {members.data?.map((member) => (
-                  <li
-                    key={member.id}
-                    className="gap-3 py-2.5 flex items-center"
-                  >
-                    <UserAvatar
-                      name={member.user.displayName ?? member.user.name}
-                      src={member.user.avatarUrl}
-                      seed={member.user.id}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">
-                        {member.user.displayName ?? member.user.name}
-                      </p>
-                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <span>Joined {formatRelative(member.joinedAt)}</span>
-                        <span aria-hidden>·</span>
-                        <LocalTime
-                          timezone={member.user.timezone}
-                          icon
-                          withHint
-                          hintName={member.user.displayName ?? member.user.name}
-                        />
-                      </p>
-                    </div>
-                    {member.role === 'ADMIN' ? (
-                      <Badge variant="primary">Admin</Badge>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
           </ScrollArea>
         </TabsContent>
 
@@ -600,16 +631,11 @@ export function ChannelPage() {
                       <a
                         href={pin.url}
                         target="_blank"
-                        rel="noreferrer noopener"
-                        className="text-xs break-all text-primary hover:underline"
+                        rel="noreferrer"
+                        className="text-xs text-primary underline truncate block mt-0.5"
                       >
                         {pin.url}
                       </a>
-                    ) : null}
-                    {pin.note ? (
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {pin.note}
-                      </p>
                     ) : null}
                   </li>
                 ))}
