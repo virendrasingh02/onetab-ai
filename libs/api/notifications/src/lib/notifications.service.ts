@@ -178,7 +178,7 @@ export class NotificationsService {
   // --- activity feed --------------------------------------------------------
 
   /**
-   * The workspace's recent activity — what the notification centre lists.
+   * The workspace's recent activity — what the Inbox lists.
    *
    * Muted channels are dropped here rather than in the client so a muted
    * channel cannot be inferred from what the API returned.

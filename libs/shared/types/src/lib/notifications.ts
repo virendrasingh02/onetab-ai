@@ -15,7 +15,7 @@ export interface NotificationPreference {
   quietHoursEnd: string | null;
 }
 
-/** A row in the notification centre. */
+/** A row in the Inbox's notification feed. */
 export interface ActivityFeedItem {
   id: string;
   kind: string;

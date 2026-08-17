@@ -42,7 +42,6 @@ export interface AppHeaderProps {
   rightPanelOpen: boolean;
   onToggleSidebar?: () => void;
   sidebarOpen?: boolean;
-  onOpenNotifications: () => void;
   unreadNotifications?: number;
   actions?: React.ReactNode;
 }
@@ -55,7 +54,6 @@ export function AppHeader({
   rightPanelOpen,
   onToggleSidebar,
   sidebarOpen = true,
-  onOpenNotifications,
   unreadNotifications = 0,
   actions,
 }: AppHeaderProps) {
@@ -179,26 +177,37 @@ export function AppHeader({
           </Button>
         </Hint>
 
+        {/*
+          A shortcut to the Inbox, not a panel of its own. The bell used to open
+          a slide-over listing the same activity feed the Inbox already renders,
+          so the workspace had two notification surfaces disagreeing about what
+          counted as read. One destination now; the badge stays because the rail
+          holding the Inbox row can be collapsed.
+        */}
         <Hint
           label={
             unreadNotifications > 0
-              ? `Notifications (${unreadNotifications} new)`
-              : 'Notifications'
+              ? `Inbox (${unreadNotifications} new)`
+              : 'Inbox'
           }
         >
           <Button
+            asChild
             variant="ghost"
             size="icon-sm"
-            onClick={onOpenNotifications}
-            aria-label={
-              unreadNotifications > 0
-                ? `Notifications, ${unreadNotifications} new`
-                : 'Notifications'
-            }
             className="relative"
           >
-            <Bell className="size-4" />
-            <NotificationBadge count={unreadNotifications} />
+            <Link
+              to={`/w/${workspaceSlug}/inbox`}
+              aria-label={
+                unreadNotifications > 0
+                  ? `Inbox, ${unreadNotifications} new`
+                  : 'Inbox'
+              }
+            >
+              <Bell className="size-4" />
+              <NotificationBadge count={unreadNotifications} />
+            </Link>
           </Button>
         </Hint>
 

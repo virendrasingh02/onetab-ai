@@ -29,7 +29,7 @@ import {
   TriangleAlert,
   UserPlus,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTasks } from './use-work-tools.js';
 
@@ -83,13 +83,61 @@ export function InboxView() {
 
   const [activeTab, setActiveTab] = useState('notifications');
 
-  const seenThreshold = useMemo(() => {
-    /*
-     * Rows newer than the marker are the ones the badge is counting, and the
-     * feed is newest-first — so the (unreadCount)th row is the boundary.
-     */
-    return feed.data?.[unreadCount]?.occurredAt ?? null;
-  }, [feed.data, unreadCount]);
+  /*
+   * The read marker as it stood when this page opened, frozen.
+   *
+   * This page is now the only place the activity feed is rendered — the header
+   * bell used to open a sheet over the same rows — so visiting it is what
+   * clears the badge. Deriving the boundary live from `unreadCount` would then
+   * be self-defeating: marking everything seen drops the count to zero, and the
+   * "New" pills would vanish from the very rows the visit was meant to show.
+   *
+   * `null` inside the snapshot means "no marker yet, treat everything as new";
+   * a `null` snapshot means the feed has not arrived.
+   */
+  const [snapshot, setSnapshot] = useState<{ seenAt: string | null } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (snapshot || !feed.data) return;
+    // The feed is newest-first, so the (unreadCount)th row is the boundary.
+    setSnapshot({ seenAt: feed.data[unreadCount]?.occurredAt ?? null });
+  }, [feed.data, snapshot, unreadCount]);
+
+  /*
+   * Reading the activity tab is what marks it read, including rows that poll in
+   * while the page is open. Those still land above the frozen boundary, so they
+   * arrive highlighted rather than silently.
+   */
+  useEffect(() => {
+    if (activeTab !== 'notifications' || !snapshot || unreadCount === 0) return;
+    markAllSeen();
+  }, [activeTab, snapshot, unreadCount, markAllSeen]);
+
+  const seenThreshold = snapshot?.seenAt ?? null;
+
+  /**
+   * How many rows are highlighted right now.
+   *
+   * Not `unreadCount`: that goes to zero the moment the tab is read, which
+   * would leave the header reading "0 new" over a list of "New" pills.
+   */
+  const newCount = useMemo(() => {
+    if (!feed.data?.length || !snapshot) return 0;
+    if (!seenThreshold) return feed.data.length;
+    const since = Date.parse(seenThreshold);
+    return feed.data.filter((item) => Date.parse(item.occurredAt) > since)
+      .length;
+  }, [feed.data, seenThreshold, snapshot]);
+
+  /** Clears both the badge and the highlighting on this page. */
+  const markAllRead = useCallback(() => {
+    markAllSeen();
+    setSnapshot({
+      seenAt: feed.data?.[0]?.occurredAt ?? new Date().toISOString(),
+    });
+  }, [feed.data, markAllSeen]);
 
   /**
    * Channels carrying messages the viewer has not read.
@@ -143,17 +191,20 @@ export function InboxView() {
     <Page>
       <PageHeader
         title="Inbox"
-        description="Workspace activity, unread channels and the work assigned to you."
+        description="Notifications, unread channels and the work assigned to you."
         icon={<Inbox />}
         accent="violet"
         actions={
           <div className="flex items-center gap-2">
-            <Badge variant="primary" className="gap-1.5 px-3 py-1 text-xs">
+            <Badge
+              variant={newCount > 0 ? 'primary' : 'neutral'}
+              className="gap-1.5 px-3 py-1 text-xs"
+            >
               <Bell className="size-3.5" />
-              <span>{unreadCount} new</span>
+              <span>{newCount > 0 ? `${newCount} new` : 'All caught up'}</span>
             </Badge>
-            {unreadCount > 0 ? (
-              <Button variant="outline" size="sm" onClick={markAllSeen}>
+            {newCount > 0 ? (
+              <Button variant="outline" size="sm" onClick={markAllRead}>
                 Mark all read
               </Button>
             ) : null}
@@ -165,8 +216,8 @@ export function InboxView() {
         <TabsList>
           <TabsTrigger value="notifications" className="gap-1.5">
             <Bell className="size-4" />
-            <span>Activity</span>
-            {unreadCount > 0 ? <Badge variant="count">{unreadCount}</Badge> : null}
+            <span>Notifications</span>
+            {newCount > 0 ? <Badge variant="count">{newCount}</Badge> : null}
           </TabsTrigger>
           <TabsTrigger value="unreads" className="gap-1.5">
             <MessageSquare className="size-4" />

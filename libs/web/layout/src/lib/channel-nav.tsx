@@ -31,7 +31,7 @@ import {
   Users,
   Video,
 } from 'lucide-react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { SidebarFooterActions } from './create-menu.js';
 import { DirectMessagesSection } from './direct-messages-section.js';
@@ -142,6 +142,8 @@ export interface ChannelNavProps {
   workspaceSlug: string;
   channels: ChannelSummary[] | undefined;
   isLoading: boolean;
+  /** Unread activity, shown on the Inbox row — the feed's only destination. */
+  inboxUnread?: number;
   onCreateChannel: () => void;
   onBrowseChannels: () => void;
 }
@@ -151,6 +153,7 @@ export function ChannelNav({
   workspaceSlug,
   channels,
   isLoading,
+  inboxUnread = 0,
   onCreateChannel,
   onBrowseChannels,
 }: ChannelNavProps) {
@@ -171,6 +174,16 @@ export function ChannelNav({
   const startNewChat = useCallback(
     () => navigate(`/w/${workspaceSlug}/home`),
     [navigate, workspaceSlug],
+  );
+
+  const primaryLinks = useMemo(
+    () =>
+      MOST_USED_LINKS.map((entry) =>
+        entry.path === 'inbox' && inboxUnread > 0
+          ? { ...entry, badge: inboxUnread > 99 ? '99+' : inboxUnread }
+          : entry,
+      ),
+    [inboxUnread],
   );
 
   /*
@@ -216,7 +229,7 @@ export function ChannelNav({
       <ScrollArea className="min-h-0 flex-1" contentClassName="px-2 pt-2">
         <div className="pb-4">
           <nav aria-label="Primary navigation" className="space-y-0.5">
-            {MOST_USED_LINKS.map((entry) => (
+            {primaryLinks.map((entry) => (
               <NavRow key={entry.label} entry={entry} workspaceSlug={workspaceSlug} />
             ))}
 

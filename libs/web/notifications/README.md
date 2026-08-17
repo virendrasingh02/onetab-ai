@@ -1,18 +1,25 @@
 # @org/notifications
 
-Notification centre (UI only, per Phase 2 scope).
+Activity feed data plus the small chrome that advertises it.
 
 ## Design
 
-Ships the surface and empty state so the header affordance is real; the feed arrives with the realtime service.
+The feed itself is rendered in one place only — the Inbox page's *Activity* tab
+(`@org/web-work-tools`). A slide-over `<NotificationCenter>` used to render the
+same rows from the header bell, which meant two surfaces, two empty states and
+two competing "mark as seen" rules over one query. The bell is now a link to the
+Inbox and this library keeps the hooks plus the badge.
 
 ## Surface
 
-- `<NotificationCenter>` — slide-over panel built on `Sheet`.
+- `<NotificationBadge>` — the count that overlays the header bell.
+- `<NotificationEnableBar>` — the browser-permission prompt.
+- `useNotificationFeed` / `useNotificationUnread` — feed and derived read state.
 
 ## Notes
 
-Accepts a `notifications` array so it can be driven by real data without a rewrite.
+Read state is client-side and per workspace; see `use-notifications.ts` for why
+the server has no per-user receipts.
 
 ## Commands
 

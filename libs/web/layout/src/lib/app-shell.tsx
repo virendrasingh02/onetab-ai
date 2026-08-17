@@ -16,7 +16,6 @@ import { cn } from '@org/utils';
 import { useChannels } from '@org/web-channels';
 import { useDesktopCommand } from '@org/web-desktop';
 import {
-  NotificationCenter,
   NotificationEnableBar,
   useNotificationFeed,
   useNotificationUnread,
@@ -24,7 +23,7 @@ import {
 import { WorkspaceSearchPanel } from '@org/web-search';
 import { useCurrentWorkspace, useWorkspaces } from '@org/web-workspace';
 import { Building2 } from 'lucide-react';
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AppHeader } from './app-header.js';
 import { AssistantPanel } from './assistant-panel.js';
@@ -61,11 +60,10 @@ export function AppShell() {
   const { slug, workspace, workspaceId, isLoading } = useCurrentWorkspace();
   const channelsQuery = useChannels(workspaceId);
 
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   /*
-   * The feed is fetched here as well as inside the centre so the bell can show
-   * a count before the sheet has ever been opened. Both calls share one query
-   * key, so this is a cache read rather than a second request.
+   * The feed is fetched here as well as on the Inbox page so the bell and the
+   * Inbox row can carry a count from anywhere in the app. Both calls share one
+   * query key, so this is a cache read rather than a second request.
    */
   const notificationFeed = useNotificationFeed(workspaceId);
   const unread = useNotificationUnread(workspaceId, notificationFeed.data);
@@ -160,6 +158,7 @@ export function AppShell() {
       workspaceSlug={slug}
       channels={channelsQuery.data}
       isLoading={channelsQuery.isLoading}
+      inboxUnread={unread.count}
       onCreateChannel={() => navigate(`/w/${slug}/channels/new`)}
       onBrowseChannels={() => navigate(`/w/${slug}/channels`)}
     />
@@ -225,7 +224,6 @@ export function AppShell() {
               rightPanelOpen={rightPanelOpen}
               onToggleSidebar={toggleSidebar}
               sidebarOpen={sidebarOpen}
-              onOpenNotifications={() => setNotificationsOpen(true)}
               unreadNotifications={unread.count}
             />
 
@@ -315,13 +313,6 @@ export function AppShell() {
             <AssistantPanel onClose={closeAssistant} />
           </SheetContent>
         </Sheet>
-
-        <NotificationCenter
-          open={notificationsOpen}
-          onOpenChange={setNotificationsOpen}
-          workspaceId={workspaceId}
-          workspaceSlug={slug}
-        />
 
         <CommandPalette
           open={palette.open}

@@ -625,7 +625,18 @@
   height: 10px;
 }
 
-.simplebar-scrollbar::before {
+/*
+ * The second selector is not redundant. With `autoHide` off, SimpleBar stamps
+ * `simplebar-visible` on both thumbs at init and never takes it off again —
+ * hiding is only ever reached from inside an `if (options.autoHide)`. That
+ * leaves the vendor's `.simplebar-scrollbar.simplebar-visible:before {opacity:
+ * .5}` permanently in play, and it outspecifies a bare `.simplebar-scrollbar`,
+ * so the bar sat visible at half strength forever and `:hover` merely darkened
+ * it. Matching the vendor selector here reclaims the rest state, and the
+ * presence rules below still outrank both.
+ */
+.simplebar-scrollbar::before,
+.simplebar-scrollbar.simplebar-visible::before {
   background-color: var(--border-strong);
   border-radius: 9999px;
   opacity: 0;
@@ -641,11 +652,11 @@
  * Presence is the pointer being inside the container — nothing more subtle.
  *
  * SimpleBar's own visibility classes are deliberately not used here.
- * `simplebar-mouse-entered` is removed again ~175ms after entering, and
- * `simplebar-visible` is dropped whenever the pointer sits over the content
- * rather than near the track, so both blink the bar out while it is still
- * wanted. `autoHide` is off (see `ScrollArea`), which leaves the question to
- * `:hover`: shown for as long as the cursor is inside, hidden when it leaves.
+ * `simplebar-mouse-entered` is removed again ~175ms after entering, so it
+ * blinks the bar out while it is still wanted, and `simplebar-visible` says
+ * nothing at all once `autoHide` is off (see above). That leaves the question
+ * to `:hover`: shown for as long as the cursor is inside, hidden when it
+ * leaves.
  *
  * `simplebar-scrolling` covers scrolling with no pointer over the region at all
  * (keyboard, or a wheel/trackpad flick that runs on past it), and

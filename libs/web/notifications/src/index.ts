@@ -1,9 +1,4 @@
-export {
-  NotificationBadge,
-  NotificationCenter,
-  type NotificationCenterProps,
-  type NotificationItem,
-} from './lib/notification-center.js';
+export { NotificationBadge } from './lib/notification-badge.js';
 
 export {
   NotificationEnableBar,
