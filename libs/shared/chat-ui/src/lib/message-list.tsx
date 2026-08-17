@@ -1,5 +1,5 @@
 import type { Message } from '@org/types';
-import { EmptyState, ErrorState, Spinner } from '@org/ui';
+import { EmptyState, ErrorState, ScrollArea, Spinner } from '@org/ui';
 import { cn } from '@org/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { MessageSquare } from 'lucide-react';
@@ -204,13 +204,20 @@ export function MessageList({
   }
 
   return (
-    <div
-      ref={scrollRef}
-      onScroll={handleScroll}
-      role="log"
-      aria-label="Messages"
-      aria-live="polite"
-      className={cn('scrollbar-subtle flex-1 overflow-y-auto', className)}
+    /*
+     * The virtualiser, the load-older backfill and the pin-to-bottom logic all
+     * read `scrollRef`, so it has to land on the element SimpleBar actually
+     * scrolls — `viewportRef`, not the root.
+     */
+    <ScrollArea
+      className={cn('min-h-0 flex-1', className)}
+      viewportRef={scrollRef}
+      viewportProps={{
+        onScroll: handleScroll,
+        role: 'log',
+        'aria-label': 'Messages',
+        'aria-live': 'polite',
+      }}
     >
       {isLoadingOlder ? (
         <div className="py-3 flex justify-center">
@@ -247,6 +254,6 @@ export function MessageList({
           );
         })}
       </div>
-    </div>
+    </ScrollArea>
   );
 }

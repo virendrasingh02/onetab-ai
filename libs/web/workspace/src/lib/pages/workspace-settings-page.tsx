@@ -22,6 +22,7 @@ import {
   FormMessage,
   Input,
   LoadingState,
+  LocalTime,
   Select,
   SelectContent,
   SelectItem,
@@ -29,10 +30,11 @@ import {
   SelectValue,
   Switch,
   Textarea,
+  TimezoneSelect,
   UserAvatar,
   WorkspaceAvatar,
 } from '@org/ui';
-import { initials } from '@org/utils';
+import { describeTimezone, getSystemTimezone, initials } from '@org/utils';
 import { WorkspaceRole, hasWorkspaceRole } from '@org/types';
 import {
   changePasswordSchema,
@@ -73,6 +75,9 @@ export function WorkspaceSettingsPage() {
 
   const user = useCurrentUser();
   const setUser = useAuthStore((state) => state.setUser);
+  /* The zone this device is in — offered as the default and used to point out
+     when the saved profile disagrees with where the user actually is. */
+  const systemTimezone = getSystemTimezone();
 
   const isImportExportRoute =
     location.pathname.endsWith('/import-export') ||
@@ -173,7 +178,9 @@ export function WorkspaceSettingsPage() {
       name: user?.name ?? '',
       displayName: user?.displayName ?? '',
       bio: user?.bio ?? '',
-      timezone: user?.timezone ?? 'UTC',
+      // Falling back to the device's zone rather than UTC: an unset timezone is
+      // "we never asked", and the browser already knows the likely answer.
+      timezone: user?.timezone ?? systemTimezone,
       avatarUrl: user?.avatarUrl ?? '',
     },
   });
@@ -597,6 +604,56 @@ export function WorkspaceSettingsPage() {
                       <FormMessage />
                     </FormItem>
                   )}
+                />
+
+                {/*
+                  The timezone was in the form's values and in the API contract
+                  all along, but had no control — so every account kept whatever
+                  it was created with, and the times other people saw against
+                  this member were whatever that happened to be.
+                */}
+                <FormField
+                  control={profileForm.control}
+                  name="timezone"
+                  render={({ field }) => {
+                    const zone = field.value || systemTimezone;
+                    return (
+                      <FormItem>
+                        <FormLabel className="text-xs font-medium">Timezone</FormLabel>
+                        <FormControl>
+                          <TimezoneSelect
+                            value={zone}
+                            onChange={(next) =>
+                              profileForm.setValue('timezone', next, {
+                                shouldDirty: true,
+                              })
+                            }
+                          />
+                        </FormControl>
+                        <FormDescription className="text-[11px] text-muted-foreground mt-1">
+                          <span className="inline-flex flex-wrap items-center gap-1.5">
+                            <span>Your local time is</span>
+                            <LocalTime
+                              timezone={zone}
+                              showOffset
+                              className="font-medium text-foreground"
+                            />
+                            <span>·</span>
+                            <span>
+                              {zone === systemTimezone
+                                ? 'matches this device'
+                                : `this device is set to ${describeTimezone(systemTimezone)}`}
+                            </span>
+                          </span>
+                          <span className="mt-1 block">
+                            Used for the clock in the header, for the local time
+                            teammates see beside your name, and for scheduling.
+                          </span>
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
 
                 <div className="pt-2">

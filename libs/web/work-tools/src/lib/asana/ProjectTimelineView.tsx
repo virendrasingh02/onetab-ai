@@ -1,4 +1,4 @@
-import { Button, UserAvatar } from '@org/ui';
+import { Button, ScrollArea, UserAvatar } from '@org/ui';
 import { cn } from '@org/utils';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -105,7 +105,7 @@ export function ProjectTimelineView({
       </div>
 
       {/* Timeline Grid */}
-      <div className="w-full overflow-x-auto rounded-xl border border-border/60 bg-card/40 shadow-xs">
+      <ScrollArea className="w-full rounded-xl border border-border/60 bg-card/40 shadow-xs">
         <div className="min-w-[900px]">
           {/* Calendar Header Row */}
           <div className="grid grid-cols-15 border-b border-border/50 bg-muted/30 text-xs font-medium py-2">
@@ -211,7 +211,7 @@ export function ProjectTimelineView({
             )}
           </div>
         </div>
-      </div>
+      </ScrollArea>
     </div>
   );
 }

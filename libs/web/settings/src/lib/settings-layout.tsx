@@ -1,3 +1,4 @@
+import { ScrollArea } from '@org/ui';
 import React, { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -137,7 +138,10 @@ export function SettingsLayout({
         </div>
 
         {/* Scrollable Nav Items */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-4 text-xs scrollbar-thin">
+        <ScrollArea
+          className="min-h-0 flex-1 text-xs"
+          contentClassName="space-y-4 p-2"
+        >
           {navGroups.map((group) => {
             const filteredItems = group.items.filter((item) =>
               item.label.toLowerCase().includes(searchQuery.toLowerCase())
@@ -185,12 +189,14 @@ export function SettingsLayout({
               </div>
             );
           })}
-        </div>
+        </ScrollArea>
       </aside>
 
       {/* Main Settings Content Area */}
-      <main className="flex-1 overflow-y-auto bg-muted/5 p-6 md:p-10 scrollbar-thin">
-        <div className="max-w-3xl mx-auto space-y-8">{children}</div>
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-muted/5">
+        <ScrollArea className="min-h-0 flex-1" contentClassName="p-6 md:p-10">
+          <div className="max-w-3xl mx-auto space-y-8">{children}</div>
+        </ScrollArea>
       </main>
     </div>
   );

@@ -1,24 +1,24 @@
 import { cn } from '@org/utils';
 import type { ComponentProps } from 'react';
+import { ScrollArea } from './scroll-area.js';
 
 /**
  * Table primitives.
  *
- * `Table` wraps itself in an `overflow-x-auto` container so a wide table
- * scrolls inside its own region instead of forcing the page sideways.
+ * `Table` wraps itself in a horizontal `ScrollArea` so a wide table scrolls
+ * inside its own region instead of forcing the page sideways — and so the bar
+ * it scrolls with is the same overlay bar as everywhere else, rather than a
+ * 15px always-on gutter eating a row of the table on Windows.
  */
 export function Table({ className, ...props }: ComponentProps<'table'>) {
   return (
-    <div
-      data-slot="table-container"
-      className="scrollbar-subtle relative w-full overflow-x-auto"
-    >
+    <ScrollArea data-slot="table-container" className="relative w-full">
       <table
         data-slot="table"
         className={cn('text-sm w-full caption-bottom', className)}
         {...props}
       />
-    </div>
+    </ScrollArea>
   );
 }
 

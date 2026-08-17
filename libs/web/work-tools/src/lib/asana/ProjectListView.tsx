@@ -6,6 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   Input,
+  ScrollArea,
   UserAvatar,
 } from '@org/ui';
 import { TaskStatus } from '@org/types';
@@ -126,7 +127,7 @@ export function ProjectListView({
 
             {/* Tasks Table Body */}
             {!isCollapsed && (
-              <div className="w-full overflow-x-auto">
+              <ScrollArea className="w-full">
                 <table className="w-full border-collapse text-left text-xs min-w-[720px]">
                   <thead>
                     <tr className="border-b border-border/30 text-muted-foreground/70 font-medium bg-muted/20">
@@ -390,7 +391,7 @@ export function ProjectListView({
                     )}
                   </tbody>
                 </table>
-              </div>
+              </ScrollArea>
             )}
           </div>
         );

@@ -18,13 +18,18 @@ export interface PublicUser {
   avatarUrl: string | null;
   presence: PresenceStatus;
   lastSeenAt: IsoDateString | null;
+  /*
+   * IANA zone, e.g. `Asia/Kolkata`. Public because "what time is it where they
+   * are" is a question colleagues ask constantly, and because a stored offset
+   * would be wrong twice a year — the zone id survives DST, an offset does not.
+   */
+  timezone: string;
 }
 
 /** The authenticated user's own profile — adds private fields. */
 export interface CurrentUser extends PublicUser {
   email: string;
   bio: string | null;
-  timezone: string;
   systemRole: SystemRole;
   emailVerifiedAt: IsoDateString | null;
   createdAt: IsoDateString;

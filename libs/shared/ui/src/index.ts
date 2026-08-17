@@ -143,9 +143,23 @@ export {
 } from './lib/components/use-prompt-dialog.js';
 
 export {
-  Label,
   ScrollArea,
-  ScrollBar,
+  type ScrollAreaProps,
+} from './lib/components/scroll-area.js';
+
+export {
+  LocalTime,
+  useMinuteTick,
+  type LocalTimeProps,
+} from './lib/components/local-time.js';
+
+export {
+  TimezoneSelect,
+  type TimezoneSelectProps,
+} from './lib/components/timezone-select.js';
+
+export {
+  Label,
   Separator,
   Switch,
   Tabs,

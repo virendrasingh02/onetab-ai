@@ -409,7 +409,7 @@ export function AsanaProjectManager() {
 
   if (viewMode === 'projects') {
     return (
-      <div className="flex h-full w-full flex-col bg-background text-foreground">
+      <div className="flex min-h-0 w-full flex-1 flex-col bg-background text-foreground">
         <ProjectGallery
           projects={projects}
           tasks={allTasks.data ?? []}
@@ -428,7 +428,7 @@ export function AsanaProjectManager() {
 
   if (!projectsQuery.isLoading && projects.length === 0) {
     return (
-      <div className="flex h-full w-full flex-col items-center justify-center bg-background">
+      <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center bg-background">
         <EmptyState
           icon={<FolderKanban />}
           title="No projects yet"
@@ -611,8 +611,14 @@ export function AsanaProjectManager() {
         </div>
       </header>
 
-      {/* Main View Area */}
-      <main className="flex-1 overflow-y-auto bg-background/50">
+      {/*
+        Main View Area — one of the few plain `overflow` scrollers left rather
+        than a `<ScrollArea>`, so it keeps the styled *native* bar. The board
+        view inside it is `h-full`, which needs this element to have a definite
+        height; SimpleBar's content wrapper is auto-height, so wrapping here
+        would collapse the board to its `min-h` floor.
+      */}
+      <main className="scrollbar-subtle flex-1 overflow-y-auto bg-background/50">
         {board.isError ? (
           <EmptyState
             icon={<TriangleAlert />}

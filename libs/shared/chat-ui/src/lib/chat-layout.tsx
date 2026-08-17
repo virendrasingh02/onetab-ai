@@ -1,4 +1,4 @@
-import { Hint, LoadingState } from '@org/ui';
+import { Hint, LoadingState, ScrollArea } from '@org/ui';
 import { cn } from '@org/utils';
 import { Hash, Lock, PanelRight, Users, X } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -51,7 +51,7 @@ export function ChatLayout({
                 </button>
               ) : null}
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto scrollbar-subtle">{sidePanel}</div>
+            <ScrollArea className="min-h-0 flex-1">{sidePanel}</ScrollArea>
           </aside>
         ) : null}
       </div>
@@ -162,9 +162,7 @@ export function ThreadPanel({
         </span>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto scrollbar-subtle bg-background">
-        {repliesSlot}
-      </div>
+      <ScrollArea className="min-h-0 flex-1 bg-background">{repliesSlot}</ScrollArea>
 
       <div className="shrink-0 sticky bottom-0 z-20 w-full bg-surface border-t border-border">
         {composerSlot}

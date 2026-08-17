@@ -1,5 +1,13 @@
 import type { Message, RoomMember } from '@org/types';
-import { Badge, Button, EmptyState, Hint, Input, UserAvatar } from '@org/ui';
+import {
+  Badge,
+  Button,
+  EmptyState,
+  Hint,
+  Input,
+  ScrollArea,
+  UserAvatar,
+} from '@org/ui';
 import { cn, formatListTimestamp, formatRelative } from '@org/utils';
 import {
   Bookmark,
@@ -478,7 +486,7 @@ export function ConversationSearch({
         />
       </div>
 
-      <div className="scrollbar-subtle min-h-0 flex-1 overflow-y-auto">
+      <ScrollArea className="min-h-0 flex-1">
         {query.trim().length === 0 ? (
           <p className="p-4 text-xs text-muted-foreground">
             Type to search the messages loaded in this conversation.
@@ -506,7 +514,7 @@ export function ConversationSearch({
             </ul>
           </>
         )}
-      </div>
+      </ScrollArea>
     </div>
   );
 }

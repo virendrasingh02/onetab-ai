@@ -24,6 +24,7 @@ interface UserRow {
   avatarUrl: string | null;
   presence: string;
   lastSeenAt: Date | null;
+  timezone: string;
 }
 
 export function toPublicUser(user: UserRow): PublicUser {
@@ -34,6 +35,7 @@ export function toPublicUser(user: UserRow): PublicUser {
     avatarUrl: user.avatarUrl,
     presence: user.presence as PublicUser['presence'],
     lastSeenAt: user.lastSeenAt?.toISOString() ?? null,
+    timezone: user.timezone,
   };
 }
 
@@ -201,4 +203,5 @@ export const PUBLIC_USER_SELECT = {
   avatarUrl: true,
   presence: true,
   lastSeenAt: true,
+  timezone: true,
 } as const;

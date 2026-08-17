@@ -5,6 +5,7 @@ import {
   EmptyState,
   ErrorBoundary,
   LoadingState,
+  ScrollArea,
   Sheet,
   SheetContent,
   SheetTitle,
@@ -228,12 +229,24 @@ export function AppShell() {
               unreadNotifications={unread.count}
             />
 
-            <main className="min-w-0 flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
-              <ErrorBoundary resetKeys={[location.pathname]}>
-                <Suspense fallback={<LoadingState fullPage />}>
-                  <Outlet />
-                </Suspense>
-              </ErrorBoundary>
+            {/*
+              The page scroller. `min-h-full` on the content keeps the column
+              full-height for pages that fill it (chat) without capping the ones
+              that outgrow it, so those pages size themselves with `flex-1
+              min-h-0` rather than `h-full` — a percentage height has nothing
+              definite to resolve against inside a scrolled content box.
+            */}
+            <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+              <ScrollArea
+                className="min-h-0 flex-1"
+                contentClassName="flex min-h-full flex-col p-3 sm:p-4 lg:p-6"
+              >
+                <ErrorBoundary resetKeys={[location.pathname]}>
+                  <Suspense fallback={<LoadingState fullPage />}>
+                    <Outlet />
+                  </Suspense>
+                </ErrorBoundary>
+              </ScrollArea>
             </main>
           </div>
 

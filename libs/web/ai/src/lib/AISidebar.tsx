@@ -1,6 +1,7 @@
 import {
   Button,
   Input,
+  ScrollArea,
   Select,
   SelectContent,
   SelectItem,
@@ -154,10 +155,10 @@ export function AISidebar({ isOpen, onClose }: AISidebarProps) {
           `aria-live="polite"` so replies are announced as they arrive without
           interrupting whatever the user is currently doing.
         */}
-        <div
-          className="scrollbar-subtle min-h-0 space-y-3 p-4 flex-1 overflow-y-auto"
-          aria-live="polite"
-          aria-busy={pending}
+        <ScrollArea
+          className="min-h-0 flex-1"
+          contentClassName="space-y-3 p-4"
+          viewportProps={{ 'aria-live': 'polite', 'aria-busy': pending }}
         >
           {messages.map((message) => (
             <div
@@ -183,7 +184,7 @@ export function AISidebar({ isOpen, onClose }: AISidebarProps) {
           ) : null}
 
           <div ref={streamEndRef} />
-        </div>
+        </ScrollArea>
 
         <form
           className="gap-2 p-3 flex items-center border-t"

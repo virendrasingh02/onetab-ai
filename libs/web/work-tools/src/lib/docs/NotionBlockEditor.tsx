@@ -9,6 +9,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  ScrollArea,
   Textarea,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -266,7 +267,7 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorP
                     <Plus className="size-3.5" />
                   </button>
                 </PopoverTrigger>
-                <PopoverContent align="start" className="w-72 p-2 max-h-80 overflow-y-auto">
+                <PopoverContent align="start" className="w-72 p-2">
                   <div className="px-2 py-1.5 mb-1 border-b border-border">
                     <Input
                       placeholder="Type / or search block..."
@@ -276,7 +277,12 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorP
                       autoFocus
                     />
                   </div>
-                  <div className="space-y-0.5">
+                  {/*
+                    Only the list scrolls: the search box scrolling away with it
+                    is what the old `overflow-y-auto` on the whole popover did,
+                    and it left you typing into a field you could no longer see.
+                  */}
+                  <ScrollArea className="max-h-72" contentClassName="space-y-0.5">
                     {filteredBlockTypes.map((item) => (
                       <button
                         key={item.type}
@@ -297,7 +303,7 @@ export function NotionBlockEditor({ blocks, onUpdateBlocks }: NotionBlockEditorP
                         </div>
                       </button>
                     ))}
-                  </div>
+                  </ScrollArea>
                 </PopoverContent>
               </Popover>
             </div>

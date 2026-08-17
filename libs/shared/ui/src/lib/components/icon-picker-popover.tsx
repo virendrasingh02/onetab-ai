@@ -102,6 +102,7 @@ import { cn } from '@org/utils';
 import { Button } from './button.js';
 import { Input } from './input.js';
 import { Popover, PopoverContent, PopoverTrigger } from './popover.js';
+import { ScrollArea } from './scroll-area.js';
 
 // Custom SVG icon for "123" like in reference image
 function Icon123(props: LucideProps) {
@@ -581,7 +582,10 @@ export function IconPickerPopover({
             {/* Scrollable Icon Grid */}
             <div className="space-y-1">
               <p className="text-[11px] font-semibold text-muted-foreground px-0.5">Icons</p>
-              <div className="max-h-56 overflow-y-auto pr-1 grid grid-cols-6 gap-1.5 scrollbar-thin scrollbar-thumb-border">
+              <ScrollArea
+                className="max-h-56"
+                contentClassName="grid grid-cols-6 gap-1.5 pr-1"
+              >
                 {filteredIcons.map((name) => {
                   const IconComp = ICON_REGISTRY[name];
                   const isSelected = icon === name;
@@ -605,7 +609,7 @@ export function IconPickerPopover({
                     </button>
                   );
                 })}
-              </div>
+              </ScrollArea>
             </div>
           </div>
         )}
@@ -623,7 +627,7 @@ export function IconPickerPopover({
               />
             </div>
 
-            <div className="max-h-56 overflow-y-auto space-y-3 pr-1">
+            <ScrollArea className="max-h-56" contentClassName="space-y-3 pr-1">
               {EMOJI_CATEGORIES.map((cat) => {
                 const filteredList = filterQuery.trim()
                   ? cat.emojis.filter((e) => e.includes(filterQuery.trim()))
@@ -652,7 +656,7 @@ export function IconPickerPopover({
                   </div>
                 );
               })}
-            </div>
+            </ScrollArea>
           </div>
         )}
 

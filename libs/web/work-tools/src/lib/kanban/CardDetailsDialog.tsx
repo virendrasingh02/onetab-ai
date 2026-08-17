@@ -143,7 +143,9 @@ function CardDetailsBody({
     board.members.find((member) => member.id === id)?.name ?? 'Unknown';
 
   return (
-    <div className="scrollbar-subtle max-h-[85vh] overflow-y-auto">
+    /* No scroller of its own: DialogContent scrolls its body already, and two
+       nested scrollers meant two scrollbars on one card. */
+    <div>
       <div className="px-6 pt-6 pb-4 border-b">
         {/*
           The dialog's accessible name has to be static text — an editable

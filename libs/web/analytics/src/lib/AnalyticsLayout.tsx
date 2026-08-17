@@ -1,4 +1,4 @@
-import { ScrollArea, ScrollBar, Tabs, TabsList, TabsTrigger } from '@org/ui';
+import { ScrollArea, Tabs, TabsList, TabsTrigger } from '@org/ui';
 import {
   BarChart3,
   Building2,
@@ -58,6 +58,8 @@ export function AnalyticsLayout() {
           value={active}
           onValueChange={(value) => navigate(value ? `${base}/${value}` : base)}
         >
+          {/* Both axes come from the one component now — the tab strip only
+              ever overflows sideways, and SimpleBar works that out itself. */}
           <ScrollArea className="w-full">
             <TabsList aria-label="Analytics views" className="w-max">
               {ANALYTICS_TABS.map((tab) => (
@@ -67,7 +69,6 @@ export function AnalyticsLayout() {
                 </TabsTrigger>
               ))}
             </TabsList>
-            <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </Tabs>
       </div>

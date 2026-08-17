@@ -210,7 +210,7 @@ export function MemberList({
     );
 
   return (
-    <ScrollArea className={cn('scrollbar-subtle h-full', className)}>
+    <ScrollArea className={cn('h-full', className)}>
       <div className="py-2">
         {renderGroup('Admins & moderators', admins)}
         {renderGroup('Members', others)}

@@ -11,6 +11,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
+  ScrollArea,
   Textarea,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -89,7 +90,10 @@ export function KanbanListColumn({
   onCardDrop,
 }: KanbanListColumnProps) {
   const sectionRef = useRef<HTMLElement>(null);
+  /** The `<ul>` — queried for card tiles when resolving a drop index. */
   const cardsRef = useRef<HTMLUListElement>(null);
+  /** The element that scrolls, for pinning a freshly added card into view. */
+  const cardsScrollRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
   const [composer, setComposer] = useState<'top' | 'bottom' | null>(null);
@@ -118,7 +122,8 @@ export function KanbanListColumn({
     // through; the newest card is scrolled into view at the bottom.
     if (composer === 'bottom') {
       requestAnimationFrame(() => {
-        const node = cardsRef.current;
+        // The scroller is the ScrollArea's viewport, not the list itself.
+        const node = cardsScrollRef.current;
         if (node) node.scrollTop = node.scrollHeight;
       });
     }
@@ -197,13 +202,13 @@ export function KanbanListColumn({
       onDragOver={handleDragOver}
       onDrop={handleDrop}
       className={cn(
-        'w-[82vw] sm:w-72 flex max-h-full shrink-0 flex-col rounded-xl border bg-surface-muted',
+        'sm:w-72 flex max-h-full w-[82vw] shrink-0 flex-col rounded-xl border bg-surface-muted',
         'transition-[box-shadow] duration-(--duration-fast)',
         placeholder !== undefined && 'ring-2 ring-primary/25',
       )}
     >
-      <header className="gap-1.5 px-3 py-2 flex items-center justify-between rounded-t-xl bg-surface/40 border-b border-border/40">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+      <header className="gap-1.5 px-3 py-2 flex items-center justify-between rounded-t-xl border-b border-border/40 bg-surface/40">
+        <div className="gap-2 min-w-0 flex flex-1 items-center">
           <StatusDot status={list.id} />
 
           <h2 className="min-w-0 py-0.5 text-xs font-semibold flex-1 truncate text-foreground">
@@ -215,7 +220,7 @@ export function KanbanListColumn({
           </span>
         </div>
 
-        <div className="flex items-center gap-0.5 shrink-0">
+        <div className="gap-0.5 flex shrink-0 items-center">
           <Button
             variant="ghost"
             size="icon-sm"
@@ -238,80 +243,84 @@ export function KanbanListColumn({
               </Button>
             </DropdownMenuTrigger>
 
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuLabel>List actions</DropdownMenuLabel>
-            <DropdownMenuItem onSelect={() => openComposer('top')}>
-              <Plus />
-              Add card
-            </DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuLabel>List actions</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={() => openComposer('top')}>
+                <Plus />
+                Add card
+              </DropdownMenuItem>
 
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <ArrowDownUp />
-                Sort by
-              </DropdownMenuSubTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuSubContent className="w-44">
-                  {SORT_OPTIONS.map((option) => (
-                    <DropdownMenuItem
-                      key={option.key}
-                      onSelect={() =>
-                        dispatch({
-                          type: 'list/sort',
-                          listId: list.id,
-                          by: option.key,
-                        })
-                      }
-                    >
-                      {option.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuSubContent>
-              </DropdownMenuPortal>
-            </DropdownMenuSub>
-
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <CornerUpRight />
-                Move all cards to
-              </DropdownMenuSubTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuSubContent className="w-44">
-                  {otherLists.length === 0 ? (
-                    <DropdownMenuItem disabled>No other lists</DropdownMenuItem>
-                  ) : (
-                    otherLists.map((target) => (
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <ArrowDownUp />
+                  Sort by
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent className="w-44">
+                    {SORT_OPTIONS.map((option) => (
                       <DropdownMenuItem
-                        key={target.id}
-                        disabled={list.cards.length === 0}
+                        key={option.key}
                         onSelect={() =>
                           dispatch({
-                            type: 'list/moveAll',
-                            fromListId: list.id,
-                            toListId: target.id,
+                            type: 'list/sort',
+                            listId: list.id,
+                            by: option.key,
                           })
                         }
                       >
-                        {target.title}
+                        {option.label}
                       </DropdownMenuItem>
-                    ))
-                  )}
-                </DropdownMenuSubContent>
-              </DropdownMenuPortal>
-            </DropdownMenuSub>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
 
-            <DropdownMenuSeparator />
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <CornerUpRight />
+                  Move all cards to
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent className="w-44">
+                    {otherLists.length === 0 ? (
+                      <DropdownMenuItem disabled>
+                        No other lists
+                      </DropdownMenuItem>
+                    ) : (
+                      otherLists.map((target) => (
+                        <DropdownMenuItem
+                          key={target.id}
+                          disabled={list.cards.length === 0}
+                          onSelect={() =>
+                            dispatch({
+                              type: 'list/moveAll',
+                              fromListId: list.id,
+                              toListId: target.id,
+                            })
+                          }
+                        >
+                          {target.title}
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
 
-            <DropdownMenuItem
-              variant="destructive"
-              disabled={list.cards.length === 0}
-              onSelect={() => dispatch({ type: 'list/clear', listId: list.id })}
-            >
-              <Eraser />
-              Delete all cards
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                variant="destructive"
+                disabled={list.cards.length === 0}
+                onSelect={() =>
+                  dispatch({ type: 'list/clear', listId: list.id })
+                }
+              >
+                <Eraser />
+                Delete all cards
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
@@ -326,66 +335,73 @@ export function KanbanListColumn({
         />
       ) : null}
 
-      <ul
-        ref={cardsRef}
-        className="scrollbar-subtle px-2 pb-1 space-y-2 min-h-6 flex-1 overflow-y-auto"
+      <ScrollArea
+        className="min-h-0 flex-1"
+        viewportRef={cardsScrollRef}
+        contentClassName="px-2 pb-1"
       >
-        {stationaryCount === 0 && placeholder === undefined ? (
-          <li className="px-2 py-6 text-xs text-center text-muted-foreground">
-            {hiddenCount > 0
-              ? `${hiddenCount} card${hiddenCount === 1 ? '' : 's'} hidden by filters`
-              : 'Drop a card here'}
-          </li>
-        ) : null}
+        <ul ref={cardsRef} className="min-h-6 space-y-2">
+          {stationaryCount === 0 && placeholder === undefined ? (
+            <li className="px-2 py-6 text-xs text-center text-muted-foreground">
+              {hiddenCount > 0
+                ? `${hiddenCount} card${hiddenCount === 1 ? '' : 's'} hidden by filters`
+                : 'Drop a card here'}
+            </li>
+          ) : null}
 
-        {visibleCards.map((card) => {
-          // The lifted card keeps its slot in the DOM — collapsing it instead
-          // of unmounting it is what keeps `dragend` firing — but it is skipped
-          // when counting, so the placeholder lands on the real insertion point.
-          const lifted = card.id === liftedCardId;
-          const placeholderHere =
-            placeholder !== undefined && !lifted && stationary === placeholder;
-          if (!lifted) stationary += 1;
+          {visibleCards.map((card) => {
+            // The lifted card keeps its slot in the DOM — collapsing it instead
+            // of unmounting it is what keeps `dragend` firing — but it is skipped
+            // when counting, so the placeholder lands on the real insertion point.
+            const lifted = card.id === liftedCardId;
+            const placeholderHere =
+              placeholder !== undefined &&
+              !lifted &&
+              stationary === placeholder;
+            if (!lifted) stationary += 1;
 
-          return (
-            <Fragment key={card.id}>
-              {placeholderHere ? renderPlaceholder(`ph-${card.id}`) : null}
-              <KanbanCardTile
-                card={card}
-                members={members}
-                lists={lists}
-                listId={list.id}
-                lifted={lifted}
-                onOpen={() => onOpenCard(card.id)}
-                onCopy={() => dispatch({ type: 'card/copy', cardId: card.id })}
-                onDelete={() =>
-                  dispatch({ type: 'card/remove', cardId: card.id })
-                }
-                onMoveToList={(toListId) =>
-                  dispatch({
-                    type: 'card/move',
-                    cardId: card.id,
-                    toListId,
-                    toIndex: Number.MAX_SAFE_INTEGER,
-                  })
-                }
-                onDragStart={(event) => onCardDragStart(event, card)}
-                onDragEnd={onCardDragEnd}
-              />
-            </Fragment>
-          );
-        })}
+            return (
+              <Fragment key={card.id}>
+                {placeholderHere ? renderPlaceholder(`ph-${card.id}`) : null}
+                <KanbanCardTile
+                  card={card}
+                  members={members}
+                  lists={lists}
+                  listId={list.id}
+                  lifted={lifted}
+                  onOpen={() => onOpenCard(card.id)}
+                  onCopy={() =>
+                    dispatch({ type: 'card/copy', cardId: card.id })
+                  }
+                  onDelete={() =>
+                    dispatch({ type: 'card/remove', cardId: card.id })
+                  }
+                  onMoveToList={(toListId) =>
+                    dispatch({
+                      type: 'card/move',
+                      cardId: card.id,
+                      toListId,
+                      toIndex: Number.MAX_SAFE_INTEGER,
+                    })
+                  }
+                  onDragStart={(event) => onCardDragStart(event, card)}
+                  onDragEnd={onCardDragEnd}
+                />
+              </Fragment>
+            );
+          })}
 
-        {placeholder !== undefined && placeholder >= stationary
-          ? renderPlaceholder('ph-end')
-          : null}
+          {placeholder !== undefined && placeholder >= stationary
+            ? renderPlaceholder('ph-end')
+            : null}
 
-        {hiddenCount > 0 && stationaryCount > 0 ? (
-          <li className="pt-1 pb-1 text-center text-[11px] text-muted-foreground">
-            {hiddenCount} hidden by filters
-          </li>
-        ) : null}
-      </ul>
+          {hiddenCount > 0 && stationaryCount > 0 ? (
+            <li className="pt-1 pb-1 text-center text-[11px] text-muted-foreground">
+              {hiddenCount} hidden by filters
+            </li>
+          ) : null}
+        </ul>
+      </ScrollArea>
 
       {composer === 'bottom' ? (
         <CardComposer
@@ -434,7 +450,7 @@ function StatusDot({ status }: { status: TaskStatus }) {
     <span
       aria-hidden
       className={cn(
-        'size-3.5 shrink-0 rounded-full flex items-center justify-center text-[9px] font-bold text-white',
+        'size-3.5 font-bold text-white flex shrink-0 items-center justify-center rounded-full text-[9px]',
         STATUS_DOT[status],
       )}
     >

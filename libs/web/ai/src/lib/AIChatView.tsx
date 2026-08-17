@@ -5,6 +5,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  ScrollArea,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -110,7 +111,7 @@ export function AIChatView() {
   const isLandingView = messages.length === 0;
 
   return (
-    <div className="flex h-full min-h-[calc(100vh-5rem)] w-full flex-col items-center justify-between text-foreground">
+    <div className="flex min-h-[calc(100vh-5rem)] w-full flex-1 flex-col items-center justify-between text-foreground">
       {/* Active Conversation Header (only when chat has messages) */}
       {!isLandingView ? (
         <div className="max-w-4xl px-4 py-2 mb-4 backdrop-blur-md flex w-full shrink-0 items-center justify-between rounded-xl border-b border-border bg-background/80">
@@ -223,7 +224,10 @@ export function AIChatView() {
           </div>
         ) : (
           /* Active Chat Thread View */
-          <div className="space-y-4 scrollbar-subtle pr-2 min-h-0 flex w-full flex-1 flex-col overflow-y-auto">
+          <ScrollArea
+            className="min-h-0 w-full flex-1"
+            contentClassName="flex w-full flex-col space-y-4 pr-2"
+          >
             {messages.map((message) => (
               <article
                 key={message.id}
@@ -288,7 +292,7 @@ export function AIChatView() {
             ) : null}
 
             <div ref={streamEndRef} />
-          </div>
+          </ScrollArea>
         )}
       </div>
 

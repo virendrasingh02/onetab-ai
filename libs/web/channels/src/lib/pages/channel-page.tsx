@@ -6,6 +6,8 @@ import {
   ErrorState,
   Hint,
   LoadingState,
+  LocalTime,
+  ScrollArea,
   SkeletonList,
   Tabs,
   TabsContent,
@@ -204,7 +206,9 @@ export function ChannelPage() {
     files.data?.filter((file) => !file.mimeType.startsWith('image/')) ?? [];
 
   return (
-    <div className="flex h-full flex-col">
+    // `flex-1 min-h-0`, not `h-full`: the page is a flex item of the shell's
+    // scrolled content box, which has no definite height to take a % from.
+    <div className="flex min-h-0 flex-1 flex-col">
       <ChannelHeader channel={channel} />
 
       <Tabs defaultValue="chat" className="min-h-0 flex flex-1 flex-col">
@@ -236,7 +240,16 @@ export function ChannelPage() {
           </TabsList>
         </div>
 
-        <TabsContent value="chat" className="min-h-0 overflow-hidden">
+        {/*
+          Every panel is `flex min-h-0 flex-1 flex-col`. The chat panel needs it
+          so the timeline's scroller has a definite height to fill rather than
+          growing to the height of the whole conversation, and the rest need it
+          so their own ScrollArea does.
+        */}
+        <TabsContent
+          value="chat"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
           <ChannelChat
             channelId={channel.id}
             title={channel.name}
@@ -250,12 +263,16 @@ export function ChannelPage() {
           their own — including the fallback to sample data when no homeserver
           is configured.
         */}
-        <TabsContent value="threads" className="min-h-0 overflow-y-auto">
-          <ChannelThreads channelId={channel.id} channelName={channel.name} />
+        <TabsContent value="threads" className="flex min-h-0 flex-1 flex-col">
+          <ScrollArea className="min-h-0 flex-1">
+            <ChannelThreads channelId={channel.id} channelName={channel.name} />
+          </ScrollArea>
         </TabsContent>
 
-        <TabsContent value="mentions" className="min-h-0 overflow-y-auto">
-          <ChannelMentions channelId={channel.id} channelName={channel.name} />
+        <TabsContent value="mentions" className="flex min-h-0 flex-1 flex-col">
+          <ScrollArea className="min-h-0 flex-1">
+            <ChannelMentions channelId={channel.id} channelName={channel.name} />
+          </ScrollArea>
         </TabsContent>
 
         {/*
@@ -263,10 +280,8 @@ export function ChannelPage() {
           would keep its `flex-1` height while the chat tab is active — Radix
           unmounts the inactive contents, leaving an empty box halving the page.
         */}
-        <TabsContent
-          value="about"
-          className="min-h-0 space-y-4 overflow-y-auto px-6 py-4"
-        >
+        <TabsContent value="about" className="flex min-h-0 flex-1 flex-col">
+          <ScrollArea className="min-h-0 flex-1" contentClassName="space-y-4 px-6 py-4">
             <dl className="gap-4 sm:grid-cols-2 grid">
               <div>
                 <dt className="text-xs font-medium text-muted-foreground uppercase">
@@ -299,12 +314,11 @@ export function ChannelPage() {
                 </dd>
               </div>
             </dl>
+          </ScrollArea>
         </TabsContent>
 
-        <TabsContent
-          value="members"
-          className="min-h-0 overflow-y-auto px-6 py-4"
-        >
+        <TabsContent value="members" className="flex min-h-0 flex-1 flex-col">
+          <ScrollArea className="min-h-0 flex-1" contentClassName="px-6 py-4">
             {members.isLoading ? (
               <SkeletonList rows={5} withAvatar />
             ) : (
@@ -323,8 +337,15 @@ export function ChannelPage() {
                       <p className="text-sm font-medium truncate">
                         {member.user.displayName ?? member.user.name}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        Joined {formatRelative(member.joinedAt)}
+                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span>Joined {formatRelative(member.joinedAt)}</span>
+                        <span aria-hidden>·</span>
+                        <LocalTime
+                          timezone={member.user.timezone}
+                          icon
+                          withHint
+                          hintName={member.user.displayName ?? member.user.name}
+                        />
                       </p>
                     </div>
                     {member.role === 'ADMIN' ? (
@@ -334,12 +355,11 @@ export function ChannelPage() {
                 ))}
               </ul>
             )}
+          </ScrollArea>
         </TabsContent>
 
-        <TabsContent
-          value="files"
-          className="min-h-0 overflow-y-auto px-6 py-4"
-        >
+        <TabsContent value="files" className="flex min-h-0 flex-1 flex-col">
+          <ScrollArea className="min-h-0 flex-1" contentClassName="px-6 py-4">
             {files.isLoading ? (
               <SkeletonList rows={4} />
             ) : documentFiles.length === 0 ? (
@@ -366,12 +386,11 @@ export function ChannelPage() {
                 ))}
               </ul>
             )}
+          </ScrollArea>
         </TabsContent>
 
-        <TabsContent
-          value="media"
-          className="min-h-0 overflow-y-auto px-6 py-4"
-        >
+        <TabsContent value="media" className="flex min-h-0 flex-1 flex-col">
+          <ScrollArea className="min-h-0 flex-1" contentClassName="px-6 py-4">
             {mediaFiles.length === 0 ? (
               <EmptyState
                 icon={<ImageIcon />}
@@ -395,12 +414,11 @@ export function ChannelPage() {
                 ))}
               </div>
             )}
+          </ScrollArea>
         </TabsContent>
 
-        <TabsContent
-          value="pins"
-          className="min-h-0 overflow-y-auto px-6 py-4"
-        >
+        <TabsContent value="pins" className="flex min-h-0 flex-1 flex-col">
+          <ScrollArea className="min-h-0 flex-1" contentClassName="px-6 py-4">
             {pins.isLoading ? (
               <SkeletonList rows={3} />
             ) : (pins.data?.length ?? 0) === 0 ? (
@@ -433,6 +451,7 @@ export function ChannelPage() {
                 ))}
               </ul>
             )}
+          </ScrollArea>
         </TabsContent>
       </Tabs>
     </div>

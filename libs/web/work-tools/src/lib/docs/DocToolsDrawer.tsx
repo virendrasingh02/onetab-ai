@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
   Input,
+  ScrollArea,
   Sheet,
   SheetContent,
   SheetDescription,
@@ -231,7 +232,7 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
 
             {/* Discussion & Comments */}
             <TabsContent value="comments" className="py-3 flex-1 flex flex-col justify-between">
-              <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+              <ScrollArea className="max-h-96" contentClassName="space-y-3 pr-1">
                 {doc.comments && doc.comments.length > 0 ? (
                   doc.comments.map((cm) => (
                     <div
@@ -258,7 +259,7 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
                 ) : (
                   <p className="text-xs text-subtle italic">No comments yet. Start a discussion!</p>
                 )}
-              </div>
+              </ScrollArea>
 
               <div className="pt-3 border-t border-border mt-3 space-y-2">
                 <Input

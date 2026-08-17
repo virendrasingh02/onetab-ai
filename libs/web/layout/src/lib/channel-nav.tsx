@@ -212,7 +212,8 @@ export function ChannelNav({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <ScrollArea className="scrollbar-subtle min-h-0 flex-1 px-2 pt-2">
+      {/* Padding lives on the content, not the root — see ScrollArea's docs. */}
+      <ScrollArea className="min-h-0 flex-1" contentClassName="px-2 pt-2">
         <div className="pb-4">
           <nav aria-label="Primary navigation" className="space-y-0.5">
             {MOST_USED_LINKS.map((entry) => (

@@ -10,6 +10,19 @@ export {
 } from './lib/format.js';
 
 export {
+  describeTimezone,
+  formatDateInZone,
+  formatTimeInZone,
+  formatZoneDifference,
+  formatZoneLabel,
+  formatZoneOffset,
+  getSystemTimezone,
+  isValidTimezone,
+  listTimezones,
+  zoneOffsetMinutes,
+} from './lib/time.js';
+
+export {
   capitalize,
   escapeRegExp,
   initials,

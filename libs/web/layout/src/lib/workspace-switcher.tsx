@@ -39,12 +39,12 @@ export function WorkspaceMenu({
   const navigate = useNavigate();
 
   return (
-    <div className="flex items-center justify-between gap-1 w-full">
+    <div className="gap-1 flex w-full items-center justify-between">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             className={cn(
-              'group/trigger flex flex-1 items-center gap-2 rounded-btn px-2 py-1.5 text-left',
+              'group/trigger gap-2 px-2 py-1.5 flex flex-1 items-center rounded-btn text-left',
               'transition-colors duration-(--duration-fast) ease-standard hover:bg-accent',
               'outline-none focus-visible:ring-1 focus-visible:ring-ring',
             )}
@@ -58,8 +58,8 @@ export function WorkspaceMenu({
               size="sm"
             />
 
-            <span className="flex min-w-0 flex-1 items-center gap-1.5">
-              <span className="truncate text-[13px] font-medium tracking-tight text-foreground">
+            <span className="min-w-0 gap-1.5 flex flex-1 items-center">
+              <span className="font-semibold tracking-tight text-sm truncate text-foreground">
                 {current.name}
               </span>
               <ChevronDown
@@ -70,8 +70,12 @@ export function WorkspaceMenu({
           </button>
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent align="start" sideOffset={6} className="w-64 p-1.5">
-          <DropdownMenuLabel className="px-2 py-1 text-[11px] font-medium tracking-wide text-subtle uppercase">
+        <DropdownMenuContent
+          align="start"
+          sideOffset={6}
+          className="w-64 p-1.5"
+        >
+          <DropdownMenuLabel className="px-2 py-1 font-medium tracking-wide text-[11px] text-subtle uppercase">
             Switch workspace
           </DropdownMenuLabel>
           <div className="space-y-0.5 my-1">
@@ -82,8 +86,8 @@ export function WorkspaceMenu({
                   key={workspace.id}
                   asChild
                   className={cn(
-                    'flex cursor-pointer items-center gap-2.5 text-xs',
-                    isSelected && 'bg-selected font-medium text-foreground',
+                    'gap-2.5 text-xs flex cursor-pointer items-center',
+                    isSelected && 'font-medium bg-selected text-foreground',
                   )}
                 >
                   <Link to={`/w/${workspace.slug}`}>
@@ -96,7 +100,7 @@ export function WorkspaceMenu({
                       size="xs"
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">
+                      <span className="font-medium block truncate">
                         {workspace.name}
                       </span>
                       <span className="block truncate text-[10px] text-subtle">
@@ -105,7 +109,7 @@ export function WorkspaceMenu({
                       </span>
                     </span>
                     {isSelected ? (
-                      <Check className="ml-auto size-4 shrink-0 text-primary" />
+                      <Check className="size-4 ml-auto shrink-0 text-primary" />
                     ) : null}
                   </Link>
                 </DropdownMenuItem>
@@ -117,10 +121,10 @@ export function WorkspaceMenu({
 
           <DropdownMenuItem
             asChild
-            className="flex cursor-pointer items-center gap-2 text-xs"
+            className="gap-2 text-xs flex cursor-pointer items-center"
           >
             <Link to={`/w/${current.slug}/analytics`}>
-              <span className="flex size-5 items-center justify-center rounded-md border border-border text-subtle">
+              <span className="size-5 flex items-center justify-center rounded-md border border-border text-subtle">
                 <BarChart3 className="size-3.5" />
               </span>
               <span className="font-medium">Company Analytics</span>
@@ -129,10 +133,10 @@ export function WorkspaceMenu({
 
           <DropdownMenuItem
             asChild
-            className="flex cursor-pointer items-center gap-2 text-xs"
+            className="gap-2 text-xs flex cursor-pointer items-center"
           >
             <Link to={`/w/${current.slug}/directory`}>
-              <span className="flex size-5 items-center justify-center rounded-md border border-border text-subtle">
+              <span className="size-5 flex items-center justify-center rounded-md border border-border text-subtle">
                 <Users className="size-3.5" />
               </span>
               <span className="font-medium">Team Directory</span>
@@ -141,10 +145,10 @@ export function WorkspaceMenu({
 
           <DropdownMenuItem
             asChild
-            className="flex cursor-pointer items-center gap-2 text-xs"
+            className="gap-2 text-xs flex cursor-pointer items-center"
           >
             <Link to={`/w/${current.slug}/invitations`}>
-              <span className="flex size-5 items-center justify-center rounded-md border border-border text-subtle">
+              <span className="size-5 flex items-center justify-center rounded-md border border-border text-subtle">
                 <UserPlus className="size-3.5" />
               </span>
               <span className="font-medium">Invite Teammates</span>
@@ -153,10 +157,10 @@ export function WorkspaceMenu({
 
           <DropdownMenuItem
             asChild
-            className="flex cursor-pointer items-center gap-2 text-xs"
+            className="gap-2 text-xs flex cursor-pointer items-center"
           >
             <Link to={`/w/${current.slug}/settings`}>
-              <span className="flex size-5 items-center justify-center rounded-md border border-border text-subtle">
+              <span className="size-5 flex items-center justify-center rounded-md border border-border text-subtle">
                 <Settings className="size-3.5" />
               </span>
               <span className="font-medium">Company Settings</span>
@@ -167,10 +171,10 @@ export function WorkspaceMenu({
 
           <DropdownMenuItem
             asChild
-            className="flex cursor-pointer items-center gap-2 text-xs"
+            className="gap-2 text-xs flex cursor-pointer items-center"
           >
             <Link to="/workspaces/new">
-              <span className="flex size-5 items-center justify-center rounded-md border border-dashed border-border text-subtle">
+              <span className="size-5 flex items-center justify-center rounded-md border border-dashed border-border text-subtle">
                 <Plus className="size-3.5" />
               </span>
               <span className="font-medium">Create New Workspace</span>
@@ -180,7 +184,7 @@ export function WorkspaceMenu({
       </DropdownMenu>
 
       {/* Navigation controls: toggle the rail, then browser-style back/forward. */}
-      <div className="flex items-center gap-0.5">
+      <div className="gap-0.5 flex items-center">
         {onToggleSidebar ? (
           <Hint label="Toggle sidebar">
             <Button

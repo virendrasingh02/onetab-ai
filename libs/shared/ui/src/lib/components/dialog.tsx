@@ -2,6 +2,7 @@ import { cn } from '@org/utils';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import type { ComponentProps } from 'react';
+import { ScrollArea } from './scroll-area.js';
 
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
@@ -46,7 +47,7 @@ export function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          'fixed top-1/2 left-1/2 z-50 max-h-[90dvh] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto sm:w-full',
+          'fixed top-1/2 left-1/2 z-50 flex max-h-[90dvh] w-[calc(100vw-2rem)] max-w-lg flex-col overflow-hidden sm:w-full',
           'bg-popover text-popover-foreground',
           '-translate-x-1/2 -translate-y-1/2',
           'rounded-dialog border border-border shadow-overlay',
@@ -57,7 +58,13 @@ export function DialogContent({
         )}
         {...props}
       >
-        {children}
+        {/*
+          A tall dialog scrolls inside itself, as before — but through the
+          shared ScrollArea, so its bar matches the rest of the app. The close
+          button sits outside it and therefore stays put while the body scrolls
+          instead of sliding off the top.
+        */}
+        <ScrollArea className="min-h-0 flex-1">{children}</ScrollArea>
         {hideCloseButton ? null : (
           <DialogPrimitive.Close
             className={cn(

@@ -180,7 +180,7 @@ export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
         </div>
       </div>
 
-      <ScrollArea className="scrollbar-subtle min-h-0 flex-1">
+      <ScrollArea className="min-h-0 flex-1">
         <div
           className="space-y-3 p-3"
           role="log"

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ScrollArea } from './scroll-area.js';
 import { Dialog, DialogContent, DialogTitle } from './dialog.js';
 
 export interface CommandPaletteProps {
@@ -195,7 +196,7 @@ export function CommandPalette({
           </kbd>
         </div>
 
-        <div className="max-h-[24rem] overflow-y-auto p-1.5 scrollbar-subtle">
+        <ScrollArea className="max-h-96" contentClassName="p-1.5">
           {/*
             Results first: once someone has typed, the thing they are looking
             for is far more likely to be a channel or a document than one of
@@ -254,7 +255,7 @@ export function CommandPalette({
               })}
             </div>
           )}
-        </div>
+        </ScrollArea>
 
         <div className="flex items-center justify-between border-t border-border bg-surface-muted px-4 py-2 text-[11px] text-subtle">
           <div className="flex items-center gap-3">

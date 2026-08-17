@@ -6,6 +6,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  ScrollArea,
   UserAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -368,7 +369,7 @@ export function UserProfileRightPanel({
       </div>
 
       {/* Profile Details Content Body */}
-      <div className="relative p-4 flex-1 overflow-y-auto scrollbar-subtle space-y-4">
+      <ScrollArea className="relative min-h-0 flex-1" contentClassName="space-y-4 p-4">
         {/* Avatar & Action */}
         <div className="-mt-12 flex items-end justify-between">
           <div className="relative">
@@ -465,7 +466,7 @@ export function UserProfileRightPanel({
             </div>
           </div>
         </div>
-      </div>
+      </ScrollArea>
     </div>
   );
 }

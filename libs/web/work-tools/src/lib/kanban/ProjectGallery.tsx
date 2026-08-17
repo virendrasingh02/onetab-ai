@@ -23,6 +23,7 @@ import {
   Input,
   Progress,
   ProjectGlyph,
+  ScrollArea,
   SkeletonList,
   Toolbar,
 } from '@org/ui';
@@ -242,7 +243,7 @@ export function ProjectGallery({
         </div>
       </Toolbar>
 
-      <div className="flex-1 overflow-y-auto pb-4">
+      <ScrollArea className="min-h-0 flex-1" contentClassName="pb-4">
         {isLoading ? (
           <SkeletonList rows={4} />
         ) : visibleProjects.length === 0 ? (
@@ -405,7 +406,7 @@ export function ProjectGallery({
             })}
           </div>
         )}
-      </div>
+      </ScrollArea>
     </div>
   );
 }

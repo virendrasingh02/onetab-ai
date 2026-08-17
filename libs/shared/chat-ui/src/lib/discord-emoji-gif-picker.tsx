@@ -1,4 +1,4 @@
-import { Button } from '@org/ui';
+import { Button, ScrollArea } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   Film,
@@ -490,7 +490,7 @@ export function DiscordEmojiGifPicker({
       </div>
 
       {/* Main Content Area */}
-      <div className="min-h-0 flex-1 overflow-y-auto p-3 scrollbar-subtle">
+      <ScrollArea className="min-h-0 flex-1" contentClassName="p-3">
         {tab === 'emoji' ? (
           <div className="space-y-4">
             {filteredCategories.map((cat) => (
@@ -575,7 +575,7 @@ export function DiscordEmojiGifPicker({
             </div>
           </div>
         )}
-      </div>
+      </ScrollArea>
 
       {/* Footer Info / Hovered Emoji Bar */}
       <div className="flex h-10 items-center justify-between border-t border-border bg-popover px-3 text-xs text-muted-foreground">

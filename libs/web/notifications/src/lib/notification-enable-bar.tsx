@@ -254,12 +254,12 @@ export function NotificationEnableBar({
     return (
       <div
         className={cn(
-          'relative flex items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-card to-emerald-500/5 px-4 py-2.5 text-xs text-emerald-700 dark:text-emerald-300 shadow-xs overflow-hidden transition-all duration-300',
+          'gap-3 border-emerald-500/30 from-emerald-500/10 to-emerald-500/5 px-4 py-2.5 text-xs text-emerald-700 dark:text-emerald-300 shadow-xs relative flex items-center justify-between overflow-hidden rounded-xl border bg-gradient-to-r via-card transition-all duration-300',
           className,
         )}
       >
-        <div className="flex items-center gap-2">
-          <div className="flex size-6 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+        <div className="gap-2 flex items-center">
+          <div className="size-6 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center rounded-full">
             <Check className="size-3.5" />
           </div>
           <span className="font-medium">
@@ -286,12 +286,12 @@ export function NotificationEnableBar({
     return (
       <div
         className={cn(
-          'relative flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-card to-amber-500/5 px-4 py-2.5 text-xs text-amber-800 dark:text-amber-200 shadow-xs overflow-hidden',
+          'gap-3 border-amber-500/30 from-amber-500/10 to-amber-500/5 px-4 py-2.5 text-xs text-amber-800 dark:text-amber-200 shadow-xs relative flex flex-wrap items-center justify-between overflow-hidden rounded-xl border bg-gradient-to-r via-card',
           className,
         )}
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <ShieldAlert className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+        <div className="gap-2 min-w-0 flex items-center">
+          <ShieldAlert className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
           <span className="truncate">
             Notifications are blocked in your browser settings. Unblock them in
             your site settings to receive alerts.
@@ -314,7 +314,7 @@ export function NotificationEnableBar({
   return (
     <div
       className={cn(
-        'relative flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-gradient-to-r from-primary/10 via-card to-accent/10 px-4 py-2.5 shadow-xs overflow-hidden transition-all duration-300',
+        'gap-3 px-2 py-1.5 shadow-xs relative flex flex-wrap items-center justify-between overflow-hidden rounded-xl border border-border/70 bg-gradient-to-r from-primary/10 via-card to-accent/10 transition-all duration-300',
         className,
       )}
       role="region"
@@ -332,7 +332,7 @@ export function NotificationEnableBar({
 
         <div className="min-w-0 flex-1">
           <div className="gap-2 flex items-center">
-            <h4 className="text-xs font-semibold tracking-tight text-foreground">
+            <h4 className="text-sm font-medium tracking-tight text-foreground">
               Enable Real-time Notifications
             </h4>
           </div>
@@ -351,7 +351,6 @@ export function NotificationEnableBar({
                 className="h-8 gap-1.5 text-xs bg-background/80 hover:bg-accent"
               >
                 <Settings2 className="size-3.5 text-muted-foreground" />
-                <span className="sm:inline hidden">Scope:</span>
                 <span className="font-medium">
                   {isMentionsOnly ? 'Mentions Only' : 'All Activity'}
                 </span>
@@ -362,7 +361,6 @@ export function NotificationEnableBar({
               <DropdownMenuLabel className="text-[11px] text-muted-foreground">
                 Notification Scope
               </DropdownMenuLabel>
-              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => update.mutate({ mentionsOnly: false })}
                 className="gap-2 text-xs"

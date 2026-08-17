@@ -6,6 +6,15 @@
  */
 @import url('https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
 
+/*
+ * SimpleBar's structural CSS, imported here so a consumer still only needs this
+ * one file. It ships an unthemed black thumb; the "SimpleBar skin" block at the
+ * bottom of this file repaints it with our tokens. That block must stay
+ * *unlayered* and *after* this import — unlayered rules beat `@layer base`, so
+ * putting the skin in a layer would lose to the vendor sheet.
+ */
+@import 'simplebar-react/dist/simplebar.min.css';
+
 /**
  * OneTab AI — design tokens.
  *
@@ -591,4 +600,84 @@
   &::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* ------------------------------------------------------- SimpleBar skin ----
+ *
+ * Everything that scrolls inside a `<ScrollArea>` (@org/ui) is a SimpleBar, so
+ * this is the one place the app's scrollbar is described. Native bars are still
+ * styled above for the handful of plain `overflow` elements and for the window
+ * itself.
+ *
+ * Behaviour: the thumb is invisible at rest, fades in while the pointer is
+ * anywhere over the container or while the region is scrolling, and darkens
+ * under the pointer or while dragged. No track, no gutter, no layout shift —
+ * identical in Chrome, Firefox, Safari and Edge.
+ */
+
+/* The tracks are 10px so the 2px-inset thumb reads as the 6px bar used by the
+ * native `::-webkit-scrollbar-thumb` rules above. */
+.simplebar-track.simplebar-vertical {
+  width: 10px;
+}
+
+.simplebar-track.simplebar-horizontal {
+  height: 10px;
+}
+
+.simplebar-scrollbar::before {
+  background-color: var(--border-strong);
+  border-radius: 9999px;
+  opacity: 0;
+  transition:
+    opacity var(--duration-base) ease-out,
+    background-color var(--duration-fast) ease-out;
+  /* The vendor sheet delays the fade-in by 0.5s, which reads as a dropped
+     frame when the bar is meant to answer the pointer. */
+  transition-delay: 0s;
+}
+
+/*
+ * Presence is the pointer being inside the container — nothing more subtle.
+ *
+ * SimpleBar's own visibility classes are deliberately not used here.
+ * `simplebar-mouse-entered` is removed again ~175ms after entering, and
+ * `simplebar-visible` is dropped whenever the pointer sits over the content
+ * rather than near the track, so both blink the bar out while it is still
+ * wanted. `autoHide` is off (see `ScrollArea`), which leaves the question to
+ * `:hover`: shown for as long as the cursor is inside, hidden when it leaves.
+ *
+ * `simplebar-scrolling` covers scrolling with no pointer over the region at all
+ * (keyboard, or a wheel/trackpad flick that runs on past it), and
+ * `simplebar-dragging` is unscoped so a thumb being dragged stays lit even once
+ * the pointer has been flung outside the container.
+ *
+ * A non-overflowing axis is `display: none` regardless of any of this, so a
+ * short list still shows no bar at all.
+ */
+[data-simplebar]:hover .simplebar-scrollbar::before,
+[data-simplebar].simplebar-scrolling .simplebar-scrollbar::before,
+[data-simplebar].simplebar-dragging .simplebar-scrollbar::before {
+  opacity: 1;
+}
+
+.simplebar-scrollbar.simplebar-hover::before,
+[data-simplebar].simplebar-dragging .simplebar-scrollbar::before {
+  background-color: var(--disabled);
+  opacity: 1;
+}
+
+/*
+ * SimpleBar clears floats with two `display: table` pseudo-elements on the
+ * content node. Nothing in this app floats, and inside a flex or grid content
+ * wrapper those pseudo-elements become real items that pick up `gap`.
+ */
+.simplebar-content::before,
+.simplebar-content::after {
+  display: none;
+}
+
+/* A dragged thumb should not leave the text under it selected. */
+[data-simplebar].simplebar-dragging {
+  user-select: none;
 }

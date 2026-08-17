@@ -7,6 +7,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  ScrollArea,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -331,7 +332,7 @@ export function ImportBoardDialog({
           </div>
         ) : (
           /* ------------------------------------------- step 2: the preview */
-          <div className="max-h-[60vh] space-y-3 overflow-y-auto py-1 pr-1">
+          <ScrollArea className="max-h-[60vh]" contentClassName="space-y-3 py-1 pr-1">
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2">
                 <Button
@@ -567,7 +568,7 @@ export function ImportBoardDialog({
                 </div>
               </>
             )}
-          </div>
+          </ScrollArea>
         )}
 
         <DialogFooter>

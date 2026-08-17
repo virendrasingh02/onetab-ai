@@ -18,6 +18,7 @@ import {
   FormLabel,
   FormMessage,
   Input,
+  ScrollArea,
   Textarea,
   WorkspaceAvatar,
 } from '@org/ui';
@@ -497,7 +498,10 @@ export function CreateWorkspacePage() {
                               <p className="text-xs text-muted-foreground font-medium">
                                 Invites to be sent ({invitedEmails.length}):
                               </p>
-                              <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto p-2 bg-background rounded-lg border border-border">
+                              <ScrollArea
+                                className="max-h-36 rounded-lg border border-border bg-background"
+                                contentClassName="flex flex-wrap gap-2 p-2"
+                              >
                                 {invitedEmails.map((email) => (
                                   <span
                                     key={email}
@@ -514,7 +518,7 @@ export function CreateWorkspacePage() {
                                     </button>
                                   </span>
                                 ))}
-                              </div>
+                              </ScrollArea>
                             </div>
                           )}
                         </div>

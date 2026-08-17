@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
   EmptyState,
   Input,
+  LocalTime,
   SkeletonList,
   UserAvatar,
 } from '@org/ui';
@@ -113,8 +114,20 @@ export function MembersPage() {
                       </span>
                     ) : null}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    Joined {formatRelative(member.joinedAt)}
+                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span>Joined {formatRelative(member.joinedAt)}</span>
+                    {/*
+                      Their local time, ticking, from their own profile zone —
+                      the thing you actually want to know before pinging someone
+                      in a workspace spread across timezones.
+                    */}
+                    <span aria-hidden>·</span>
+                    <LocalTime
+                      timezone={member.user.timezone}
+                      icon
+                      withHint
+                      hintName={member.user.displayName ?? member.user.name}
+                    />
                   </p>
                 </div>
 

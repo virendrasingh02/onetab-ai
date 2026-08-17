@@ -172,7 +172,7 @@ function ThemeToggle() {
 
 function AdminNav() {
   return (
-    <ScrollArea className="scrollbar-subtle flex-1">
+    <ScrollArea className="flex-1">
       <nav className="px-1 py-2">
         {NAV_GROUPS.map((group) => (
           <div
@@ -265,10 +265,15 @@ export function AdminShell() {
           <AdminNav />
         </aside>
 
-        <main className="min-w-0 flex-1 overflow-y-auto p-3 sm:p-6">
-          <Suspense fallback={<LoadingState fullPage />}>
-            <Outlet />
-          </Suspense>
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <ScrollArea
+            className="min-h-0 flex-1"
+            contentClassName="flex min-h-full flex-col p-3 sm:p-6"
+          >
+            <Suspense fallback={<LoadingState fullPage />}>
+              <Outlet />
+            </Suspense>
+          </ScrollArea>
         </main>
       </div>
     </div>

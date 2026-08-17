@@ -7,6 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Hint,
+  ScrollArea,
   UserAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -149,7 +150,7 @@ export function Composer({
               Close
             </button>
           </div>
-          <div className="max-h-56 overflow-y-auto p-1 scrollbar-subtle">
+          <ScrollArea className="max-h-56" contentClassName="p-1">
             {/* Special mentions: @here, @channel */}
             {filteredSpecialMentions.length > 0 ? (
               <>
@@ -203,7 +204,7 @@ export function Composer({
                 No members found matching &quot;@{mentionQuery}&quot;
               </p>
             ) : null}
-          </div>
+          </ScrollArea>
         </div>
       ) : null}
 

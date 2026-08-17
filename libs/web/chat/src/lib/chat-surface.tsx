@@ -474,7 +474,9 @@ export function ChatSurface({
       }
     >
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
-      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+      {/* No `overflow` here: the list owns its own scroller, and nesting one
+          inside another gave the timeline two scrollbars. */}
+      <div className="flex-1 min-h-0 flex flex-col">
         <MessageList
           messages={rootMessages}
           isLoading={isLoading}

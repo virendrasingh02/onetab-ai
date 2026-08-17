@@ -1,6 +1,5 @@
 import { cn } from '@org/utils';
 import * as LabelPrimitive from '@radix-ui/react-label';
-import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area';
 import * as SeparatorPrimitive from '@radix-ui/react-separator';
 import * as SwitchPrimitive from '@radix-ui/react-switch';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
@@ -49,48 +48,12 @@ export function Separator({
   );
 }
 
-/* --------------------------------------------------------- ScrollArea ---- */
-
-export function ScrollArea({
-  className,
-  children,
-  ...props
-}: ComponentProps<typeof ScrollAreaPrimitive.Root>) {
-  return (
-    <ScrollAreaPrimitive.Root
-      data-slot="scroll-area"
-      className={cn('relative overflow-hidden', className)}
-      {...props}
-    >
-      <ScrollAreaPrimitive.Viewport className="size-full rounded-[inherit] outline-none">
-        {children}
-      </ScrollAreaPrimitive.Viewport>
-      <ScrollBar />
-      <ScrollAreaPrimitive.Corner />
-    </ScrollAreaPrimitive.Root>
-  );
-}
-
-export function ScrollBar({
-  className,
-  orientation = 'vertical',
-  ...props
-}: ComponentProps<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>) {
-  return (
-    <ScrollAreaPrimitive.ScrollAreaScrollbar
-      orientation={orientation}
-      className={cn(
-        'flex touch-none p-px transition-colors select-none',
-        orientation === 'vertical' && 'h-full w-2 border-l border-l-transparent',
-        orientation === 'horizontal' && 'h-2 flex-col border-t border-t-transparent',
-        className,
-      )}
-      {...props}
-    >
-      <ScrollAreaPrimitive.ScrollAreaThumb className="bg-border relative flex-1 rounded-full" />
-    </ScrollAreaPrimitive.ScrollAreaScrollbar>
-  );
-}
+/*
+ * ScrollArea used to live here as a Radix wrapper. It is now SimpleBar-backed
+ * and lives in ./scroll-area.tsx — one scrollbar for every browser, and both
+ * axes handled by the same component, so the old `<ScrollBar orientation>`
+ * child is gone with it.
+ */
 
 /* ------------------------------------------------------------- Switch ---- */
 

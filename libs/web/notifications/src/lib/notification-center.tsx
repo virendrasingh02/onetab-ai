@@ -84,7 +84,7 @@ export function NotificationCenter({
           </SheetDescription>
         </SheetHeader>
 
-        <ScrollArea className="scrollbar-subtle px-6 pb-6 flex-1">
+        <ScrollArea className="flex-1" contentClassName="px-6 pb-6">
           {feed.isLoading ? (
             <SkeletonList rows={6} withAvatar />
           ) : feed.isError ? (

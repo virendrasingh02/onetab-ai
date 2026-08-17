@@ -9,10 +9,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Hint,
+  LocalTime,
   UserAvatar,
 } from '@org/ui';
 import { useLogout } from '@org/auth';
-import { cn } from '@org/utils';
+import { cn, describeTimezone } from '@org/utils';
 import { openExternal, useDesktop } from '@org/web-desktop';
 import { NotificationBadge } from '@org/notifications';
 import {
@@ -152,6 +153,20 @@ export function AppHeader({
       <div className="flex flex-1 items-center justify-end gap-1 sm:gap-1.5">
         {actions}
 
+        {/*
+          The clock reads the profile's timezone, not the browser's, so it
+          answers "what time is it where my team thinks I am" — the same zone
+          every teammate sees against your name. It updates on the minute, and
+          its tooltip carries the date, the zone and the offset.
+        */}
+        <LocalTime
+          timezone={user.timezone}
+          icon
+          withHint
+          hintName="Your local time"
+          className="hidden px-1.5 text-xs font-medium text-muted-foreground lg:inline-flex"
+        />
+
         <Hint label="Search">
           <Button
             variant="ghost"
@@ -237,6 +252,15 @@ export function AppHeader({
               <span className="text-[11px] block truncate text-subtle">
                 {user.email}
               </span>
+              {/* Where the clock in the header gets its zone from — shown here
+                  so a wrong-looking time has an obvious place to be fixed. */}
+              <Link
+                to={`/w/${workspaceSlug}/settings`}
+                className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+              >
+                <LocalTime timezone={user.timezone} icon showOffset />
+                <span className="truncate">· {describeTimezone(user.timezone)}</span>
+              </Link>
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="my-1" />
 
