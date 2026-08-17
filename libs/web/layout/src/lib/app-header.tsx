@@ -15,9 +15,7 @@ import {
 import { useLogout } from '@org/auth';
 import { cn, describeTimezone } from '@org/utils';
 import { openExternal, useDesktop } from '@org/web-desktop';
-import { NotificationBadge } from '@org/notifications';
 import {
-  Bell,
   ChevronLeft,
   ChevronRight,
   HelpCircle,
@@ -73,8 +71,8 @@ export function AppHeader({
      * inherits that panel's surface and only the hairline marks the split.
      * Painting `bg-background` here put a second tone inside the white panel.
      */
-    <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-2.5 sm:gap-3 sm:px-4">
-      <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
+    <header className="h-12 gap-2 px-2.5 sm:gap-3 sm:px-4 flex shrink-0 items-center border-b border-border">
+      <div className="min-w-0 gap-1.5 sm:gap-2 flex flex-1 items-center">
         {!sidebarOpen && onToggleSidebar ? (
           <Hint label="Expand sidebar">
             <Button
@@ -95,7 +93,7 @@ export function AppHeader({
           would otherwise push three extra buttons into the tightest header.
         */}
         {!sidebarOpen ? (
-          <div className="hidden items-center gap-0.5 sm:flex">
+          <div className="gap-0.5 sm:flex hidden items-center">
             <Hint label="Go back">
               <Button
                 variant="ghost"
@@ -134,8 +132,8 @@ export function AppHeader({
       <button
         onClick={onOpenSearch}
         className={cn(
-          'hidden h-7 w-full max-w-80 items-center gap-2 rounded-input px-2.5 sm:flex',
-          'border border-border bg-surface text-xs text-muted-foreground',
+          'h-7 max-w-80 gap-2 px-2.5 sm:flex hidden w-full items-center rounded-input',
+          'text-xs border border-border bg-surface text-muted-foreground',
           'transition-colors duration-(--duration-fast) ease-standard',
           'hover:bg-accent hover:text-foreground',
           'outline-none focus-visible:ring-1 focus-visible:ring-ring',
@@ -143,12 +141,12 @@ export function AppHeader({
       >
         <Search className="size-4 shrink-0" aria-hidden />
         <span className="truncate">Search…</span>
-        <kbd className="ml-auto shrink-0 rounded-sm border border-border px-1.5 py-0.5 font-mono text-[10px] text-subtle">
+        <kbd className="px-1.5 py-0.5 ml-auto shrink-0 rounded-sm border border-border font-mono text-[10px] text-subtle">
           {searchShortcut}
         </kbd>
       </button>
 
-      <div className="flex flex-1 items-center justify-end gap-1 sm:gap-1.5">
+      <div className="gap-1 sm:gap-1.5 flex flex-1 items-center justify-end">
         {actions}
 
         {/*
@@ -162,7 +160,7 @@ export function AppHeader({
           icon
           withHint
           hintName="Your local time"
-          className="hidden px-1.5 text-xs font-medium text-muted-foreground lg:inline-flex"
+          className="px-1.5 text-xs font-medium lg:inline-flex hidden text-muted-foreground"
         />
 
         <Hint label="Search">
@@ -171,43 +169,9 @@ export function AppHeader({
             size="icon-sm"
             onClick={onOpenSearch}
             aria-label="Search"
-            className="flex sm:hidden"
+            className="sm:hidden flex"
           >
             <Search className="size-4" />
-          </Button>
-        </Hint>
-
-        {/*
-          A shortcut to the Inbox, not a panel of its own. The bell used to open
-          a slide-over listing the same activity feed the Inbox already renders,
-          so the workspace had two notification surfaces disagreeing about what
-          counted as read. One destination now; the badge stays because the rail
-          holding the Inbox row can be collapsed.
-        */}
-        <Hint
-          label={
-            unreadNotifications > 0
-              ? `Inbox (${unreadNotifications} new)`
-              : 'Inbox'
-          }
-        >
-          <Button
-            asChild
-            variant="ghost"
-            size="icon-sm"
-            className="relative"
-          >
-            <Link
-              to={`/w/${workspaceSlug}/inbox`}
-              aria-label={
-                unreadNotifications > 0
-                  ? `Inbox, ${unreadNotifications} new`
-                  : 'Inbox'
-              }
-            >
-              <Bell className="size-4" />
-              <NotificationBadge count={unreadNotifications} />
-            </Link>
           </Button>
         </Hint>
 
@@ -215,15 +179,16 @@ export function AppHeader({
           <Button
             variant="ghost"
             size="sm"
-            className="gap-1 hidden sm:flex"
+            className="gap-1 sm:flex hidden"
             onClick={() => void openExternal('https://github.com/onetab-ai')}
           >
             <HelpCircle className="size-4" />
-            <span className="hidden md:inline">Help</span>
           </Button>
         </Hint>
 
-        <Hint label={rightPanelOpen ? 'Close AI Assistant' : 'Ask AI Assistant'}>
+        <Hint
+          label={rightPanelOpen ? 'Close AI Assistant' : 'Ask AI Assistant'}
+        >
           <Button
             variant={rightPanelOpen ? 'primary' : 'outline'}
             size="sm"
@@ -233,14 +198,14 @@ export function AppHeader({
             className="gap-1 px-2 text-xs font-medium sm:gap-1.5 sm:px-3"
           >
             <Sparkles className="size-3.5" />
-            <span className="hidden sm:inline">Ask AI</span>
+            <span className="sm:inline hidden">Ask AI</span>
           </Button>
         </Hint>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="rounded-full ml-1 outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="ml-1 rounded-full outline-none focus-visible:ring-1 focus-visible:ring-ring"
               aria-label="Account menu"
             >
               <UserAvatar
@@ -258,17 +223,19 @@ export function AppHeader({
               <span className="text-xs font-medium block truncate">
                 {user.displayName ?? user.name}
               </span>
-              <span className="text-[11px] block truncate text-subtle">
+              <span className="block truncate text-[11px] text-subtle">
                 {user.email}
               </span>
               {/* Where the clock in the header gets its zone from — shown here
                   so a wrong-looking time has an obvious place to be fixed. */}
               <Link
                 to={`/w/${workspaceSlug}/settings`}
-                className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+                className="mt-1 gap-1.5 flex items-center text-[11px] text-muted-foreground hover:text-foreground"
               >
                 <LocalTime timezone={user.timezone} icon showOffset />
-                <span className="truncate">· {describeTimezone(user.timezone)}</span>
+                <span className="truncate">
+                  · {describeTimezone(user.timezone)}
+                </span>
               </Link>
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="my-1" />
@@ -287,7 +254,7 @@ export function AppHeader({
             </DropdownMenuItem>
 
             <DropdownMenuSeparator className="my-1" />
-            <DropdownMenuLabel className="text-[11px] font-medium text-subtle">
+            <DropdownMenuLabel className="font-medium text-[11px] text-subtle">
               Appearance
             </DropdownMenuLabel>
             <DropdownMenuItem

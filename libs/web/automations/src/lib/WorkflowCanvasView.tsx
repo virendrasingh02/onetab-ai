@@ -23,7 +23,9 @@ import {
   Panel,
 } from '@org/ui';
 import { cn } from '@org/utils';
+import { useCurrentWorkspace } from '@org/web-workspace';
 import {
+  ArrowLeft,
   CheckCircle,
   Cpu,
   GitBranch,
@@ -37,37 +39,34 @@ import {
   Zap,
 } from 'lucide-react';
 import { useCallback, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 // Custom Node Components
 function TriggerNode({ data, selected }: NodeProps) {
   return (
     <Card
       className={cn(
-        'w-64 p-3 shadow-md bg-background border-2 transition-all',
-        selected ? 'border-primary ring-2 ring-primary/20' : 'border-accent-amber/30',
+        'p-3 min-w-52 border-2 bg-surface shadow-md rounded-xl transition-all duration-200',
+        selected ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-amber-500/40',
       )}
     >
+      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-amber-500" />
       <div className="flex items-center gap-2 mb-1.5">
-        <span className="p-1.5 rounded-md bg-accent-amber-soft text-accent-amber">
+        <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500 shrink-0">
           <Webhook className="size-4" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <Badge variant="warning" className="text-[9px] uppercase px-1.5 py-0">
+        </div>
+        <div>
+          <Badge variant="warning" className="text-[9px] px-1.5 py-0 mb-0.5">
             Trigger
           </Badge>
           <h4 className="text-xs font-semibold text-foreground truncate">
-            {String(data.label || 'Webhook Event')}
+            {String(data.label || 'Custom Trigger')}
           </h4>
         </div>
       </div>
       <p className="text-[11px] text-muted-foreground font-mono truncate">
-        {String(data.subtitle || 'POST /api/v1/webhook')}
+        {String(data.subtitle || 'Webhook / Cron event')}
       </p>
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="!bg-accent-amber !size-3 !border-2 !border-background"
-      />
     </Card>
   );
 }
@@ -76,36 +75,28 @@ function ConditionNode({ data, selected }: NodeProps) {
   return (
     <Card
       className={cn(
-        'w-64 p-3 shadow-md bg-background border-2 transition-all',
-        selected ? 'border-primary ring-2 ring-primary/20' : 'border-accent-blue/30',
+        'p-3 min-w-52 border-2 bg-surface shadow-md rounded-xl transition-all duration-200',
+        selected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-blue-500/40',
       )}
     >
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="!bg-accent-blue !size-3 !border-2 !border-background"
-      />
+      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-blue-500" />
+      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-blue-500" />
       <div className="flex items-center gap-2 mb-1.5">
-        <span className="p-1.5 rounded-md bg-accent-blue-soft text-accent-blue">
+        <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-500 shrink-0">
           <GitBranch className="size-4" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <Badge variant="neutral" className="text-[9px] uppercase px-1.5 py-0">
+        </div>
+        <div>
+          <Badge variant="primary" className="text-[9px] px-1.5 py-0 mb-0.5">
             Condition
           </Badge>
           <h4 className="text-xs font-semibold text-foreground truncate">
-            {String(data.label || 'Branch Check')}
+            {String(data.label || 'Filter Logic')}
           </h4>
         </div>
       </div>
       <p className="text-[11px] text-muted-foreground font-mono truncate">
-        {String(data.subtitle || 'if payload.type == "urgent"')}
+        {String(data.subtitle || 'Check payload payload.status == 200')}
       </p>
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="!bg-accent-blue !size-3 !border-2 !border-background"
-      />
     </Card>
   );
 }
@@ -114,36 +105,28 @@ function AiActionNode({ data, selected }: NodeProps) {
   return (
     <Card
       className={cn(
-        'w-64 p-3 shadow-md bg-background border-2 transition-all',
-        selected ? 'border-primary ring-2 ring-primary/20' : 'border-accent-violet/30',
+        'p-3 min-w-52 border-2 bg-surface shadow-md rounded-xl transition-all duration-200',
+        selected ? 'border-purple-500 ring-2 ring-purple-500/20' : 'border-purple-500/40',
       )}
     >
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="!bg-accent-violet !size-3 !border-2 !border-background"
-      />
+      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-purple-500" />
+      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-purple-500" />
       <div className="flex items-center gap-2 mb-1.5">
-        <span className="p-1.5 rounded-md bg-accent-violet-soft text-accent-violet">
+        <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-500 shrink-0">
           <Cpu className="size-4" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <Badge variant="primary" className="text-[9px] uppercase px-1.5 py-0">
-            AI Agent Step
+        </div>
+        <div>
+          <Badge variant="neutral" className="text-[9px] px-1.5 py-0 mb-0.5 bg-purple-500/15 text-purple-600">
+            AI Agent
           </Badge>
           <h4 className="text-xs font-semibold text-foreground truncate">
-            {String(data.label || 'Ollama AI Task')}
+            {String(data.label || 'Summarizer Agent')}
           </h4>
         </div>
       </div>
       <p className="text-[11px] text-muted-foreground font-mono truncate">
-        {String(data.subtitle || 'Summarize payload via Llama3')}
+        {String(data.subtitle || 'Generate summary with Llama 3')}
       </p>
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="!bg-accent-violet !size-3 !border-2 !border-background"
-      />
     </Card>
   );
 }
@@ -152,21 +135,17 @@ function ApiActionNode({ data, selected }: NodeProps) {
   return (
     <Card
       className={cn(
-        'w-64 p-3 shadow-md bg-background border-2 transition-all',
-        selected ? 'border-primary ring-2 ring-primary/20' : 'border-accent-green/30',
+        'p-3 min-w-52 border-2 bg-surface shadow-md rounded-xl transition-all duration-200',
+        selected ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-emerald-500/40',
       )}
     >
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="!bg-accent-green !size-3 !border-2 !border-background"
-      />
+      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-emerald-500" />
       <div className="flex items-center gap-2 mb-1.5">
-        <span className="p-1.5 rounded-md bg-accent-green-soft text-accent-green">
+        <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 shrink-0">
           <Globe className="size-4" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <Badge variant="neutral" className="text-[9px] uppercase px-1.5 py-0">
+        </div>
+        <div>
+          <Badge variant="neutral" className="text-[9px] px-1.5 py-0 mb-0.5 bg-emerald-500/15 text-emerald-600">
             API / Webhook
           </Badge>
           <h4 className="text-xs font-semibold text-foreground truncate">
@@ -197,6 +176,16 @@ export function WorkflowCanvasView() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+  const navigate = useNavigate();
+  const { slug } = useCurrentWorkspace();
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate(`/w/${slug}/automations?tab=all`);
+    }
+  };
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
@@ -229,6 +218,18 @@ export function WorkflowCanvasView() {
 
   return (
     <Page width="full">
+      <div className="mb-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          leadingIcon={<ArrowLeft className="size-4" />}
+          onClick={handleBack}
+          className="gap-1.5 text-xs text-muted-foreground hover:text-foreground h-8 px-2"
+        >
+          Back to Automations
+        </Button>
+      </div>
+
       <PageHeader
         title="Workflow Builder"
         description="Design interactive automation graphs with custom triggers, AI agents, conditions, and API nodes."
@@ -236,6 +237,13 @@ export function WorkflowCanvasView() {
         accent="amber"
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              leadingIcon={<ArrowLeft className="size-4" />}
+              onClick={handleBack}
+            >
+              Back
+            </Button>
             {isSaved ? (
               <Badge variant="primary" className="gap-1 px-3 py-1">
                 <CheckCircle className="size-3.5" />

@@ -1,5 +1,4 @@
 import {
-  Badge,
   Button,
   DropdownMenu,
   DropdownMenuContent,
@@ -216,9 +215,6 @@ export function DocsTreeSection({
                 )}
                 <span className="shrink-0">{company.icon || '🏠'}</span>
                 <span className="truncate">{company.name}</span>
-                <Badge variant="neutral" className="ml-1 h-3.5 px-1 py-0 text-[9px]">
-                  {companyDocs.length}
-                </Badge>
               </button>
 
               <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/comp:opacity-100 group-focus-within/comp:opacity-100">
@@ -257,7 +253,7 @@ export function DocsTreeSection({
                       className="gap-2 text-xs"
                     >
                       <Pencil className="size-3" />
-                      Rename company
+                      Rename folder
                     </DropdownMenuItem>
                     {companies.length > 1 ? (
                       <DropdownMenuItem
@@ -266,7 +262,7 @@ export function DocsTreeSection({
                         className="gap-2 text-xs"
                       >
                         <Trash2 className="size-3" />
-                        Delete company
+                        Delete folder
                       </DropdownMenuItem>
                     ) : null}
                   </DropdownMenuContent>
@@ -353,7 +349,7 @@ export function DocsTreeSection({
                                 <DropdownMenuSub>
                                   <DropdownMenuSubTrigger className="gap-2 text-xs">
                                     <MoveRight className="size-3" />
-                                    Move to company
+                                    Move to folder
                                   </DropdownMenuSubTrigger>
                                   <DropdownMenuSubContent className="w-44">
                                     {companies
@@ -419,6 +415,16 @@ export function DocsTreeSection({
           </li>
         );
       })}
+
+      <li>
+        <NavLink
+          to={`/w/${workspaceSlug}/docs?tab=all&newDoc=true`}
+          className={navActionClass({ depth: 1 })}
+        >
+          <Plus className={navIconClass(1)} aria-hidden />
+          <span className="flex-1 truncate">Add doc</span>
+        </NavLink>
+      </li>
     </Section>
   );
 }

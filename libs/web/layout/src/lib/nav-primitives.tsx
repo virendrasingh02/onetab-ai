@@ -242,9 +242,6 @@ export function Section({
               aria-hidden
             />
             <span>{title}</span>
-            {count === undefined ? null : (
-              <span className="text-subtle tabular-nums">{count}</span>
-            )}
           </CollapsibleTrigger>
           {action}
         </div>

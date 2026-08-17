@@ -7,9 +7,9 @@ const emptyStateVariants = cva(
   {
     variants: {
       size: {
-        sm: 'gap-2 px-4 py-8',
-        md: 'gap-3 px-6 py-12',
-        lg: 'gap-4 px-8 py-20',
+        sm: 'gap-1 px-4 py-8',
+        md: 'gap-2 px-6 py-12',
+        lg: 'gap-3 px-8 py-20',
       },
     },
     defaultVariants: { size: 'md' },
@@ -17,8 +17,7 @@ const emptyStateVariants = cva(
 );
 
 export interface EmptyStateProps
-  extends ComponentProps<'div'>,
-    VariantProps<typeof emptyStateVariants> {
+  extends ComponentProps<'div'>, VariantProps<typeof emptyStateVariants> {
   icon?: ReactNode;
   title: string;
   description?: string;
@@ -44,29 +43,27 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div
-      className={cn(
-        emptyStateVariants({ size }),
-        'rounded-card border border-border bg-card p-8',
-        className,
-      )}
+      className={cn(emptyStateVariants({ size }), 'p-8 bg-card', className)}
       {...props}
     >
       {icon ? (
         <div
           aria-hidden
-          className="mb-2 flex size-10 items-center justify-center rounded-btn border border-border bg-surface-raised text-muted-foreground [&_svg]:size-4"
+          className="mb-2 size-10 [&_svg]:size-4 flex items-center justify-center rounded-btn border border-border bg-surface-raised text-muted-foreground"
         >
           {icon}
         </div>
       ) : null}
-      <p className="text-xs font-semibold tracking-tight text-foreground">{title}</p>
+      <p className="text-sm font-semibold tracking-tight text-foreground">
+        {title}
+      </p>
       {description ? (
         <p className="max-w-xs text-xs leading-relaxed text-balance text-muted-foreground">
           {description}
         </p>
       ) : null}
       {action || secondaryAction ? (
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-3 gap-2 flex items-center">
           {action}
           {secondaryAction}
         </div>

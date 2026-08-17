@@ -159,7 +159,7 @@ export function AgentsSection({ workspaceSlug }: { workspaceSlug: string }) {
       items={items}
       basePath={`/w/${workspaceSlug}/agents`}
       queryKey="agent"
-      addPath={`/w/${workspaceSlug}/agents/builder`}
+      addPath={`/w/${workspaceSlug}/agents?tab=all`}
       addLabel="Add agent"
       fallbackEmoji="🤖"
       emptyLabel="No agents deployed yet."
@@ -212,7 +212,7 @@ export function WorkflowsSection({ workspaceSlug }: { workspaceSlug: string }) {
       items={items}
       basePath={`/w/${workspaceSlug}/automations`}
       queryKey="workflow"
-      addPath={`/w/${workspaceSlug}/automations/builder`}
+      addPath={`/w/${workspaceSlug}/automations?tab=all`}
       addLabel="Add workflow"
       fallbackEmoji="⚡"
       emptyLabel="No workflows yet."

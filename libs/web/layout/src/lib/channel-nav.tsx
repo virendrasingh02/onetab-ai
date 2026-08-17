@@ -14,8 +14,12 @@ import { cn } from '@org/utils';
 import { useChannelPreferences, useGroupedChannels } from '@org/web-channels';
 import {
   Activity,
+  Bell,
+  BellOff,
+  Check,
   ChevronRight,
   Clock,
+  Copy,
   FileText,
   FolderKanban,
   HardDrive,
@@ -31,7 +35,7 @@ import {
   Users,
   Video,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { SidebarFooterActions } from './create-menu.js';
 import { DirectMessagesSection } from './direct-messages-section.js';
@@ -75,13 +79,28 @@ function ChannelRow({
   channel,
   workspaceSlug,
   onToggleFavorite,
+  onToggleMute,
 }: {
   channel: ChannelSummary;
   workspaceSlug: string;
   onToggleFavorite: (channel: ChannelSummary) => void;
+  onToggleMute: (channel: ChannelSummary) => void;
 }) {
+  const [copied, setCopied] = useState(false);
   const isFavorite = channel.membership?.isFavorite ?? false;
+  const isMuted = channel.membership?.isMuted ?? false;
   const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
+
+  const handleCopyLink = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const url = `${window.location.origin}/w/${workspaceSlug}/c/${channel.slug}`;
+      navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    },
+    [workspaceSlug, channel.slug],
+  );
 
   return (
     <li className="group/row relative">
@@ -93,32 +112,107 @@ function ChannelRow({
                They were rendering at depth 0, so they sat a level out of step
                with every other section list. */
             depth: 1,
-            extra: cn('pr-8', channel.isArchived && 'opacity-65'),
+            extra: cn(
+              channel.membership ? 'pr-14' : 'pr-8',
+              channel.isArchived && 'opacity-65',
+              isMuted && 'text-muted-foreground',
+            ),
           })
         }
       >
         <Icon className={navIconClass(1)} aria-hidden />
         <span className="flex-1 truncate">{channel.name}</span>
+        {isMuted && (
+          <Hint label="Notifications muted">
+            <BellOff className="mr-1 size-3 shrink-0 text-muted-foreground/70" />
+          </Hint>
+        )}
       </NavLink>
 
       {channel.membership ? (
-        <Hint label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => onToggleFavorite(channel)}
-            aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-            aria-pressed={isFavorite}
-            className={cn(
-              'absolute top-1/2 right-1.5 size-5 -translate-y-1/2 p-0',
-              isFavorite
-                ? 'text-warning opacity-100'
-                : 'opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100',
-            )}
-          >
-            <Star className={cn('size-3.5', isFavorite && 'fill-current')} />
-          </Button>
-        </Hint>
+        <div
+          className={cn(
+            'absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-0.5 transition-opacity',
+            isFavorite
+              ? 'opacity-100'
+              : 'opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 group-focus-within/row:opacity-100',
+          )}
+        >
+          <Hint label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFavorite(channel);
+              }}
+              aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+              aria-pressed={isFavorite}
+              className={cn(
+                'size-5 p-0',
+                isFavorite
+                  ? 'text-warning opacity-100'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Star className={cn('size-3.5', isFavorite && 'fill-current')} />
+            </Button>
+          </Hint>
+
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Channel options"
+                onClick={(e) => e.stopPropagation()}
+                className="size-5 p-0 text-muted-foreground hover:text-foreground"
+              >
+                <MoreHorizontal className="size-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="bottom" className="w-48">
+              <DropdownMenuItem
+                onClick={() => onToggleFavorite(channel)}
+                className="gap-2 text-xs"
+              >
+                <Star className={cn('size-3.5', isFavorite && 'fill-current text-[#eab308]')} />
+                <span>{isFavorite ? 'Remove from favorites' : 'Add to favorites'}</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => onToggleMute(channel)}
+                className="gap-2 text-xs"
+              >
+                {isMuted ? (
+                  <>
+                    <Bell className="size-3.5" />
+                    <span>Unmute notifications</span>
+                  </>
+                ) : (
+                  <>
+                    <BellOff className="size-3.5 text-muted-foreground" />
+                    <span>Mute notifications</span>
+                  </>
+                )}
+              </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={handleCopyLink} className="gap-2 text-xs">
+                {copied ? (
+                  <>
+                    <Check className="size-3.5 text-emerald-500" />
+                    <span>Link copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="size-3.5 text-muted-foreground" />
+                    <span>Copy channel link</span>
+                  </>
+                )}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       ) : null}
     </li>
   );
@@ -167,6 +261,15 @@ export function ChannelNav({
       preferences.mutate({
         channelId: channel.id,
         input: { isFavorite: !channel.membership?.isFavorite },
+      }),
+    [preferences],
+  );
+
+  const toggleMute = useCallback(
+    (channel: ChannelSummary) =>
+      preferences.mutate({
+        channelId: channel.id,
+        input: { isMuted: !channel.membership?.isMuted },
       }),
     [preferences],
   );
@@ -221,7 +324,11 @@ export function ChannelNav({
     );
   }
 
-  const rowProps = { workspaceSlug, onToggleFavorite: toggleFavorite };
+  const rowProps = {
+    workspaceSlug,
+    onToggleFavorite: toggleFavorite,
+    onToggleMute: toggleMute,
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col">

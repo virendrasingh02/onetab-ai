@@ -71,14 +71,14 @@ const CREATE_ACTIONS: readonly CreateAction[] = [
     description: 'Build a custom autonomous agent',
     icon: Bot,
     tone: 'bg-accent-cyan/15 border-accent-cyan/30 text-accent-cyan',
-    path: 'agents/builder',
+    path: 'agents?tab=all',
   },
   {
     label: 'Workflow',
     description: 'Automate tasks with the visual builder',
     icon: Workflow,
     tone: 'bg-accent-rose/15 border-accent-rose/30 text-accent-rose',
-    path: 'automations/builder',
+    path: 'automations?tab=all',
   },
   {
     label: 'Doc & Note',

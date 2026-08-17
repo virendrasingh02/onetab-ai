@@ -2,6 +2,10 @@ import type { ChannelSummary } from '@org/types';
 import {
   Badge,
   Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   EmptyState,
   ErrorState,
   Hint,
@@ -22,16 +26,22 @@ import {
   Archive,
   ArchiveRestore,
   AtSign,
+  Bell,
+  BellOff,
+  Check,
+  Copy,
   FileText,
   Hash,
   Image as ImageIcon,
   Lock,
   MessageSquare,
   MessagesSquare,
+  MoreHorizontal,
   Pin,
   Star,
   Users,
 } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   useArchiveChannel,
@@ -57,14 +67,25 @@ function fileSrc(storageKey: string): string {
 }
 
 function ChannelHeader({ channel }: { channel: ChannelSummary }) {
-  const { workspaceId } = useCurrentWorkspace();
+  const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
   const preferences = useChannelPreferences(workspaceId);
   const archive = useArchiveChannel(workspaceId);
   const join = useJoinChannel(workspaceId);
   const members = useChannelMembers(workspaceId, channel.id);
 
+  const [copied, setCopied] = useState(false);
+
   const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
   const isFavorite = channel.membership?.isFavorite ?? false;
+  const isMuted = channel.membership?.isMuted ?? false;
+
+  const handleCopyLink = useCallback(() => {
+    const slug = workspaceSlug || 'default';
+    const url = `${window.location.origin}/w/${slug}/c/${channel.slug}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [workspaceSlug, channel.slug]);
 
   /*
    * Identity and membership only.
@@ -79,7 +100,7 @@ function ChannelHeader({ channel }: { channel: ChannelSummary }) {
         <div className="flex min-w-0 items-center gap-2">
           <div className="flex min-w-0 items-center gap-1.5">
             <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-            <h2 className="truncate text-sm font-medium tracking-tight text-foreground">
+            <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
               {channel.name}
             </h2>
             {channel.visibility === 'PRIVATE' ? (
@@ -88,29 +109,138 @@ function ChannelHeader({ channel }: { channel: ChannelSummary }) {
             {channel.isArchived ? (
               <Badge variant="warning">Archived</Badge>
             ) : null}
+            {isMuted ? (
+              <Badge variant="neutral" className="gap-1 text-muted-foreground">
+                <BellOff className="size-3" />
+                <span>Muted</span>
+              </Badge>
+            ) : null}
           </div>
 
-          <Hint
-            label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-          >
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-pressed={isFavorite}
-              aria-label={
-                isFavorite ? 'Remove from favorites' : 'Add to favorites'
-              }
-              onClick={() =>
-                preferences.mutate({
-                  channelId: channel.id,
-                  input: { isFavorite: !isFavorite },
-                })
-              }
-              className={isFavorite ? 'text-warning' : undefined}
+          <div className="flex items-center gap-0.5">
+            <Hint
+              label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             >
-              <Star className={cn('size-4', isFavorite && 'fill-current')} />
-            </Button>
-          </Hint>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-pressed={isFavorite}
+                aria-label={
+                  isFavorite ? 'Remove from favorites' : 'Add to favorites'
+                }
+                onClick={() =>
+                  preferences.mutate({
+                    channelId: channel.id,
+                    input: { isFavorite: !isFavorite },
+                  })
+                }
+                className={isFavorite ? 'text-warning' : undefined}
+              >
+                <Star className={cn('size-4', isFavorite && 'fill-current')} />
+              </Button>
+            </Hint>
+
+            {channel.membership ? (
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Channel options"
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <MoreHorizontal className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" side="bottom" className="w-52">
+                  <DropdownMenuItem
+                    onClick={() =>
+                      preferences.mutate({
+                        channelId: channel.id,
+                        input: { isFavorite: !isFavorite },
+                      })
+                    }
+                    className="gap-2.5 text-xs"
+                  >
+                    <Star
+                      className={cn(
+                        'size-4',
+                        isFavorite && 'fill-current text-[#eab308]',
+                      )}
+                    />
+                    <span>
+                      {isFavorite
+                        ? 'Remove from favorites'
+                        : 'Add to favorites'}
+                    </span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={() =>
+                      preferences.mutate({
+                        channelId: channel.id,
+                        input: { isMuted: !isMuted },
+                      })
+                    }
+                    className="gap-2.5 text-xs"
+                  >
+                    {isMuted ? (
+                      <>
+                        <Bell className="size-4" />
+                        <span>Unmute notifications</span>
+                      </>
+                    ) : (
+                      <>
+                        <BellOff className="size-4 text-muted-foreground" />
+                        <span>Mute notifications</span>
+                      </>
+                    )}
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={handleCopyLink}
+                    className="gap-2.5 text-xs"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="size-4 text-emerald-500" />
+                        <span>Link copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="size-4 text-muted-foreground" />
+                        <span>Copy channel link</span>
+                      </>
+                    )}
+                  </DropdownMenuItem>
+
+                  {channel.membership?.role === 'ADMIN' ? (
+                    <DropdownMenuItem
+                      onClick={() =>
+                        archive.mutate({
+                          channelId: channel.id,
+                          archived: !channel.isArchived,
+                        })
+                      }
+                      className="gap-2.5 text-xs text-destructive focus:text-destructive"
+                    >
+                      {channel.isArchived ? (
+                        <>
+                          <ArchiveRestore className="size-4" />
+                          <span>Unarchive channel</span>
+                        </>
+                      ) : (
+                        <>
+                          <Archive className="size-4" />
+                          <span>Archive channel</span>
+                        </>
+                      )}
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+          </div>
         </div>
 
         {/* Channel actions: member stack, membership, admin */}

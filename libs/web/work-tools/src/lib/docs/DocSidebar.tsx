@@ -1,5 +1,4 @@
 import {
-  Badge,
   Button,
   Dialog,
   DialogContent,
@@ -119,21 +118,21 @@ export function DocSidebar({
     <Panel
       className="md:w-76 w-full shrink-0 flex flex-col justify-between"
       title={
-        <span className="gap-2 flex items-center text-sm font-semibold">
+        <span className="flex items-center gap-2 text-sm font-semibold">
           <Folder className="size-4 text-accent-blue" aria-hidden />
-          <span>Company Docs Tree</span>
+          <span>Folders & Docs</span>
         </span>
       }
       actions={
         <div className="flex items-center gap-1">
-          {/* Add Company Action Button */}
+          {/* Add Folder Action Button */}
           {onAddCompany && (
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Add Company"
+              aria-label="Add Folder"
               onClick={() => onAddCompany()}
-              title="Add Company Folder"
+              title="Add Folder"
             >
               <FolderPlus className="size-3.5 text-accent-blue" />
             </Button>
@@ -328,9 +327,6 @@ export function DocSidebar({
                     )}
                     <span className="text-sm shrink-0">{company.icon || '🏠'}</span>
                     <span className="truncate">{company.name}</span>
-                    <Badge variant="neutral" className="ml-1 text-[10px] px-1.5 py-0 h-4">
-                      {companyDocs.length}
-                    </Badge>
                   </button>
 
                   {/* Company Options & Action Menu */}
@@ -339,7 +335,7 @@ export function DocSidebar({
                       type="button"
                       onClick={() => onCreateDoc(company.id)}
                       className="p-1 rounded text-subtle hover:text-foreground hover:bg-accent cursor-pointer"
-                      title="Add Doc in Company"
+                      title="Add Doc in Folder"
                     >
                       <Plus className="size-3.5 text-accent-blue" />
                     </button>
@@ -348,7 +344,7 @@ export function DocSidebar({
                         <button
                           type="button"
                           className="p-1 rounded text-subtle hover:text-foreground hover:bg-accent cursor-pointer"
-                          title="Company Options"
+                          title="Folder Options"
                         >
                           <MoreVertical className="size-3.5" />
                         </button>
@@ -367,7 +363,7 @@ export function DocSidebar({
                             className="text-xs gap-2"
                           >
                             <Pencil className="size-3 text-primary" />
-                            Rename Company
+                            Rename Folder
                           </DropdownMenuItem>
                         )}
                         {onDeleteCompany && companies.length > 1 && (
@@ -376,7 +372,7 @@ export function DocSidebar({
                             className="text-xs gap-2 text-destructive focus:text-destructive"
                           >
                             <Trash2 className="size-3" />
-                            Delete Company
+                            Delete Folder
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
@@ -578,7 +574,7 @@ function DocTreeNodeItem({
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger className="text-xs gap-2">
                     <MoveRight className="size-3 text-accent-blue" />
-                    Move to Company
+                    Move to Folder
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent className="w-44">
                     {companies

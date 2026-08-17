@@ -7,14 +7,19 @@ import {
   Badge,
   Button,
   Card,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   EmptyState,
   Page,
-  PageHeader,
-  SegmentedControl,
 } from '@org/ui';
+import { cn } from '@org/utils';
 import {
+  Activity,
   Check,
   Clock,
+  MoreHorizontal,
   Play,
   Plus,
   SlidersHorizontal,
@@ -22,8 +27,8 @@ import {
   Workflow,
   Zap,
 } from 'lucide-react';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 /**
  * Kept as an alias so existing importers of `WorkflowItem` keep working. The
@@ -104,12 +109,20 @@ const TRIGGER_ICON: Record<TriggerType, typeof Webhook> = {
   EVENT: Zap,
 };
 
-type WorkflowTab = 'mine' | 'prebuilt';
+type WorkflowTab = 'all' | 'prebuilt' | 'mine';
 
 export function WorkflowListView() {
   const [workflows, saveWorkflows] = useWorkflows();
-  const [tab, setTab] = useState<WorkflowTab>('mine');
+  const [searchParams] = useSearchParams();
+  const urlTab = searchParams.get('tab') as WorkflowTab | null;
+  const [tab, setTab] = useState<WorkflowTab>(urlTab ?? 'all');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (urlTab) {
+      setTab(urlTab);
+    }
+  }, [urlTab]);
 
   /* Relative to the `automations` route, so the `/w/:workspaceSlug` prefix does
      not have to be rebuilt here. */
@@ -120,7 +133,7 @@ export function WorkflowListView() {
    * template's id becomes the workflow's id, so a second click on a card that
    * says "Added" takes it back out again.
    */
-  const toggleTemplate = (template: WorkflowTemplate) =>
+  const toggleTemplate = (template: WorkflowTemplate) => {
     saveWorkflows(
       toggleRegistryItem(workflows, {
         id: template.id,
@@ -134,37 +147,134 @@ export function WorkflowListView() {
         lastRun: 'Never',
       }),
     );
+    setTab('all');
+  };
 
   return (
     <Page>
-      <PageHeader
-        title="Automations"
-        description="Automate workspace tasks, webhooks, agent steps and integrations."
-        icon={<Workflow />}
-        accent="amber"
-        actions={
-          <Button leadingIcon={<Plus />} onClick={openBuilder}>
-            Create workflow
-          </Button>
-        }
-      />
+      {/* Header section matching reference image design */}
+      <div className="mb-6 border-b border-border/60 pb-0">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+            Automations
+          </h1>
 
-      <SegmentedControl<WorkflowTab>
-        aria-label="Workflow list"
-        value={tab}
-        onChange={setTab}
-        className="mb-4 self-start"
-        options={[
-          { value: 'mine', label: `Your workflows (${workflows.length})` },
-          {
-            value: 'prebuilt',
-            label: `Pre-built (${workflowTemplates.length})`,
-            hint: 'Ready-made automations you can add and then edit.',
-          },
-        ]}
-      />
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={openBuilder}
+              className="h-9 cursor-pointer items-center gap-1.5 rounded-md border-0 bg-[#059669] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#047857] sm:text-sm"
+            >
+              <Plus className="size-4" />
+              <span>New</span>
+            </Button>
 
-      {tab === 'mine' ? (
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-9 text-muted-foreground hover:text-foreground"
+                  aria-label="More options"
+                >
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={openBuilder} className="gap-2 text-xs">
+                  <Plus className="size-3.5 text-muted-foreground" />
+                  <span>Create new workflow</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('logs')} className="gap-2 text-xs">
+                  <Activity className="size-3.5 text-muted-foreground" />
+                  <span>Execution logs</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTab('prebuilt')} className="gap-2 text-xs">
+                  <Workflow className="size-3.5 text-muted-foreground" />
+                  <span>Browse templates</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        {/* Underline tab strip */}
+        <div className="flex items-center gap-6 text-sm font-medium">
+          <button
+            type="button"
+            onClick={() => setTab('all')}
+            className={cn(
+              'relative pb-3 transition-colors',
+              tab === 'all'
+                ? 'border-b-2 border-primary font-semibold text-foreground'
+                : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            All
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setTab('prebuilt')}
+            className={cn(
+              'relative pb-3 transition-colors',
+              tab === 'prebuilt'
+                ? 'border-b-2 border-primary font-semibold text-foreground'
+                : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            Templates
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setTab('mine')}
+            className={cn(
+              'relative pb-3 transition-colors',
+              tab === 'mine'
+                ? 'border-b-2 border-primary font-semibold text-foreground'
+                : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            Managed by you
+          </button>
+        </div>
+      </div>
+
+      {tab === 'all' ? (
+        <div className="space-y-6">
+          {workflows.length > 0 ? (
+            <div>
+              <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Managed by you ({workflows.length})
+              </h2>
+              <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {workflows.map((workflow) => (
+                  <li key={workflow.id}>
+                    <SavedWorkflowCard workflow={workflow} onOpen={openBuilder} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          <div>
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Templates ({workflowTemplates.length})
+            </h2>
+            <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {workflowTemplates.map((template) => (
+                <li key={template.id}>
+                  <TemplateCard
+                    template={template}
+                    added={workflows.some((entry) => entry.id === template.id)}
+                    onToggle={() => toggleTemplate(template)}
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : tab === 'mine' ? (
         workflows.length === 0 ? (
           <EmptyState
             icon={<Workflow />}
@@ -182,7 +292,7 @@ export function WorkflowListView() {
             }
           />
         ) : (
-          <ul className="gap-4 md:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">
+          <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {workflows.map((workflow) => (
               <li key={workflow.id}>
                 <SavedWorkflowCard workflow={workflow} onOpen={openBuilder} />
@@ -191,7 +301,7 @@ export function WorkflowListView() {
           </ul>
         )
       ) : (
-        <ul className="gap-4 md:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">
+        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {workflowTemplates.map((template) => (
             <li key={template.id}>
               <TemplateCard

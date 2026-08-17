@@ -29,6 +29,7 @@ import '@xyflow/react/dist/style.css';
 import { useAgentMutations, useAgents } from './use-agents.js';
 import {
   AlertTriangle,
+  ArrowLeft,
   Bot,
   CheckCircle2,
   LayoutGrid,
@@ -36,6 +37,7 @@ import {
   Save,
 } from 'lucide-react';
 import { useCallback, useMemo, type DragEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   AgentInspector,
   AgentNodePalette,
@@ -65,9 +67,10 @@ function AgentBuilderCanvas() {
   const graph = useAgentGraph();
   const { screenToFlowPosition } = useReactFlow();
   const { resolvedTheme } = useTheme();
-  const { workspaceId } = useCurrentWorkspace();
+  const { workspaceId, slug } = useCurrentWorkspace();
   const agents = useAgents(workspaceId);
   const { create, update } = useAgentMutations(workspaceId);
+  const navigate = useNavigate();
 
   const {
     nodes,
@@ -104,6 +107,14 @@ function AgentBuilderCanvas() {
     }
     return { errors, warnings };
   }, [issues]);
+
+  const handleBack = useCallback(() => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate(`/w/${slug}/agents?tab=all`);
+    }
+  }, [navigate, slug]);
 
   const onDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -162,6 +173,17 @@ function AgentBuilderCanvas() {
 
   return (
     <Page width="full">
+      <div className="mb-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          leadingIcon={<ArrowLeft className="size-4" />}
+          onClick={handleBack}
+          className="gap-1.5 text-xs text-muted-foreground hover:text-foreground h-8 px-2"
+        >
+          Back to AI Agents
+        </Button>
+      </div>
       <PageHeader
         title="Agent builder"
         description="Wire a model, instructions, tools and guardrails into a runnable agent."
@@ -169,6 +191,13 @@ function AgentBuilderCanvas() {
         accent="violet"
         actions={
           <>
+            <Button
+              variant="outline"
+              leadingIcon={<ArrowLeft className="size-4" />}
+              onClick={handleBack}
+            >
+              Back
+            </Button>
             <ValidationBadge errorCount={errorCount} warningCount={warningCount} />
             <Button variant="outline" leadingIcon={<LayoutGrid />} onClick={tidy}>
               Tidy layout

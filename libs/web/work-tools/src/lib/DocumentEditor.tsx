@@ -1,16 +1,21 @@
 import {
   Badge,
   Button,
+  Card,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   EmptyState,
   Page,
-  PageHeader,
   Panel,
   SkeletonList,
   usePromptDialog,
 } from '@org/ui';
 import { useCurrentUser } from '@org/auth';
+import { cn } from '@org/utils';
 import { useCurrentWorkspace } from '@org/web-workspace';
-import { CheckCircle, FileText, Loader2, Plus, TriangleAlert } from 'lucide-react';
+import { CheckCircle, FileText, FolderPlus, Loader2, MoreHorizontal, Plus, TriangleAlert, Zap } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { DocHeader } from './docs/DocHeader.js';
@@ -30,6 +35,33 @@ import { useDocsWorkspace } from './docs/use-docs.js';
  */
 const SAVE_DEBOUNCE_MS = 800;
 
+interface DocTemplateItem {
+  id: 'prd' | 'meeting';
+  title: string;
+  category: string;
+  description: string;
+  icon: string;
+}
+
+const DOC_TEMPLATES: DocTemplateItem[] = [
+  {
+    id: 'prd',
+    title: 'Product Requirement Document (PRD)',
+    category: 'Product & Planning',
+    description: 'Structured PRD template with goals, user stories, requirements & success metrics.',
+    icon: '📋',
+  },
+  {
+    id: 'meeting',
+    title: 'Meeting Notes & Actions',
+    category: 'Team Collaboration',
+    description: 'Meeting recap template with agenda, discussion points, decisions & action items.',
+    icon: '📝',
+  },
+];
+
+type DocTab = 'all' | 'templates' | 'mine';
+
 export function DocumentEditor() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { workspaceId } = useCurrentWorkspace();
@@ -39,6 +71,15 @@ export function DocumentEditor() {
      unthemed, block the main thread, and Electron dropped `prompt()` entirely —
      in the desktop build the rename simply did nothing. */
   const prompts = usePromptDialog();
+
+  const urlTab = searchParams.get('tab') as DocTab | null;
+  const [tab, setTab] = useState<DocTab>(urlTab ?? 'all');
+
+  useEffect(() => {
+    if (urlTab) {
+      setTab(urlTab);
+    }
+  }, [urlTab]);
 
   const {
     companies,
@@ -70,8 +111,42 @@ export function DocumentEditor() {
   );
 
   const openDoc = useCallback(
-    (docId: string) => setSearchParams({ doc: docId }),
+    (docId: string) => setSearchParams({ doc: docId, tab: 'all' }),
     [setSearchParams],
+  );
+
+  const handleNewDoc = useCallback(() => {
+    void createDoc().then((id) => {
+      if (id) openDoc(id);
+      setTab('all');
+    });
+  }, [createDoc, openDoc]);
+
+  const handleNewFolder = useCallback(() => {
+    void prompts
+      .promptText({
+        title: 'New folder',
+        description: 'A folder groups related documents together.',
+        label: 'Folder name',
+        placeholder: 'Engineering Docs',
+        confirmLabel: 'Create folder',
+      })
+      .then((name) => {
+        if (name) {
+          void addCompany(name);
+          setTab('all');
+        }
+      });
+  }, [addCompany, prompts]);
+
+  const handleUseTemplate = useCallback(
+    (templateKey: 'prd' | 'meeting') => {
+      void createDoc(undefined, undefined, undefined, templateKey).then((id) => {
+        if (id) openDoc(id);
+        setTab('all');
+      });
+    },
+    [createDoc, openDoc],
   );
 
   /*
@@ -85,7 +160,8 @@ export function DocumentEditor() {
 
     handledNewDoc.current = true;
     void createDoc().then((id) => {
-      if (id) setSearchParams({ doc: id });
+      if (id) setSearchParams({ doc: id, tab: 'all' });
+      setTab('all');
     });
   }, [companies.length, createDoc, searchParams, setSearchParams, workspaceId]);
 
@@ -170,12 +246,13 @@ export function DocumentEditor() {
 
   return (
     <Page width="full">
-      <PageHeader
-        title="Docs & Knowledge Base"
-        description="Notion-style workspace documentation with teamspace tree navigation, multi-block editing, custom covers, and AI Copilot."
-        icon={<FileText className="text-accent-blue" />}
-        accent="blue"
-        actions={
+      {/* Header section matching reference image design */}
+      <div className="mb-6 border-b border-border/60 pb-0">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+            Docs
+          </h1>
+
           <div className="flex items-center gap-2">
             {isSaving ? (
               <Badge variant="neutral" className="gap-1 px-3 py-1">
@@ -202,14 +279,131 @@ export function DocumentEditor() {
               />
             )}
 
-            <Button onClick={flush} disabled={!currentDoc || !pendingBlocks}>
-              Save Changes
+            <Button
+              onClick={handleNewDoc}
+              className="h-9 cursor-pointer items-center gap-1.5 rounded-md border-0 bg-[#059669] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#047857] sm:text-sm"
+            >
+              <Plus className="size-4" />
+              <span>New</span>
             </Button>
-          </div>
-        }
-      />
 
-      {isError ? (
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-9 text-muted-foreground hover:text-foreground"
+                  aria-label="More options"
+                >
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleNewDoc} className="gap-2 text-xs">
+                  <Plus className="size-3.5 text-muted-foreground" />
+                  <span>Create new document</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleNewFolder} className="gap-2 text-xs">
+                  <FolderPlus className="size-3.5 text-muted-foreground" />
+                  <span>Create new folder</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={flush}
+                  disabled={!currentDoc || !pendingBlocks}
+                  className="gap-2 text-xs"
+                >
+                  <FileText className="size-3.5 text-muted-foreground" />
+                  <span>Save changes</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTab('templates')} className="gap-2 text-xs">
+                  <Zap className="size-3.5 text-muted-foreground" />
+                  <span>Browse templates</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        {/* Underline tab strip */}
+        <div className="flex items-center gap-6 text-sm font-medium">
+          <button
+            type="button"
+            onClick={() => setTab('all')}
+            className={cn(
+              'relative pb-3 transition-colors',
+              tab === 'all'
+                ? 'border-b-2 border-primary font-semibold text-foreground'
+                : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            All
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setTab('templates')}
+            className={cn(
+              'relative pb-3 transition-colors',
+              tab === 'templates'
+                ? 'border-b-2 border-primary font-semibold text-foreground'
+                : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            Templates
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setTab('mine')}
+            className={cn(
+              'relative pb-3 transition-colors',
+              tab === 'mine'
+                ? 'border-b-2 border-primary font-semibold text-foreground'
+                : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            Managed by you
+          </button>
+        </div>
+      </div>
+
+      {tab === 'templates' ? (
+        <div className="space-y-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Document Templates ({DOC_TEMPLATES.length})
+          </h2>
+          <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {DOC_TEMPLATES.map((tmpl) => (
+              <li key={tmpl.id}>
+                <Card className="h-full justify-between p-5 transition-colors duration-(--duration-fast) hover:border-border-strong">
+                  <div>
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <Badge variant="neutral">{tmpl.category}</Badge>
+                      <Badge variant="primary">Template</Badge>
+                    </div>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="text-lg">{tmpl.icon}</span>
+                      <h2 className="text-sm font-semibold text-foreground">{tmpl.title}</h2>
+                    </div>
+                    <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
+                      {tmpl.description}
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => handleUseTemplate(tmpl.id)}
+                    leadingIcon={<Zap className="size-3.5 text-amber-400" />}
+                  >
+                    Use template
+                  </Button>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : isError ? (
         <EmptyState
           icon={<TriangleAlert />}
           title="Could not load documents"
@@ -222,14 +416,14 @@ export function DocumentEditor() {
       ) : companies.length === 0 ? (
         <EmptyState
           icon={<FileText />}
-          title="No teamspaces yet"
-          description="A teamspace groups related documents. Create one to start writing."
+          title="No folders yet"
+          description="A folder groups related documents. Create one to start writing."
           action={
             <Button
               leadingIcon={<Plus />}
-              onClick={() => void addCompany('My Teamspace')}
+              onClick={() => void addCompany('My Folder')}
             >
-              Create teamspace
+              Create folder
             </Button>
           }
         />
@@ -244,11 +438,11 @@ export function DocumentEditor() {
             onAddCompany={() => {
               void prompts
                 .promptText({
-                  title: 'New teamspace',
-                  description: 'A teamspace groups related documents together.',
+                  title: 'New folder',
+                  description: 'A folder groups related documents together.',
                   label: 'Name',
-                  placeholder: 'Engineering',
-                  confirmLabel: 'Create',
+                  placeholder: 'Engineering Docs',
+                  confirmLabel: 'Create folder',
                 })
                 .then((name) => {
                   if (name) void addCompany(name);
@@ -257,7 +451,7 @@ export function DocumentEditor() {
             onRenameCompany={(companyId, currentName) => {
               void prompts
                 .promptText({
-                  title: 'Rename teamspace',
+                  title: 'Rename folder',
                   label: 'Name',
                   defaultValue: currentName,
                   confirmLabel: 'Rename',
@@ -270,10 +464,10 @@ export function DocumentEditor() {
               if (companies.length <= 1) return;
               void prompts
                 .confirmAction({
-                  title: 'Delete this teamspace?',
+                  title: 'Delete this folder?',
                   description:
                     'Every document inside it is deleted too. This cannot be undone.',
-                  confirmLabel: 'Delete teamspace',
+                  confirmLabel: 'Delete folder',
                   destructive: true,
                 })
                 .then((confirmed) => {
