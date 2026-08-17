@@ -409,7 +409,7 @@ export function DocsTreeSection({
             : 'No docs yet'
       }
       action={
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover/section:opacity-100 group-focus-within/section:opacity-100 focus-within:opacity-100">
           <Hint label="Add company">
             <Button
               variant="ghost"
@@ -455,23 +455,14 @@ export function DocsTreeSection({
               >
                 <span className="shrink-0">{company.icon || '🏠'}</span>
                 <span className="truncate">{company.name}</span>
-                {isCollapsed ? (
-                  <ChevronRight
-                    className={navIconClass(
-                      0,
-                      'text-subtle ml-1 opacity-0 transition-opacity duration-(--duration-fast) group-hover/comp-btn:opacity-100 group-focus-within/comp-btn:opacity-100',
-                    )}
-                    aria-hidden
-                  />
-                ) : (
-                  <ChevronDown
-                    className={navIconClass(
-                      0,
-                      'text-subtle ml-1 opacity-0 transition-opacity duration-(--duration-fast) group-hover/comp-btn:opacity-100 group-focus-within/comp-btn:opacity-100',
-                    )}
-                    aria-hidden
-                  />
-                )}
+                <ChevronDown
+                  className={cn(
+                    'size-3 shrink-0 text-subtle opacity-0 transition-all duration-150',
+                    'group-hover/comp:opacity-100 group-focus-within/comp:opacity-100',
+                    isCollapsed && '-rotate-90',
+                  )}
+                  aria-hidden
+                />
               </button>
 
               <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/comp:opacity-100 group-focus-within/comp:opacity-100">

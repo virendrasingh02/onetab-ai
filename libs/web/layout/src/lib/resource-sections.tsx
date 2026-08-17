@@ -50,6 +50,32 @@ export interface ResourceItemData {
   detail?: string;
 }
 
+export const APP_LOGOS: Record<string, string> = {
+  github: 'https://cdn.simpleicons.org/github',
+  gitlab: 'https://cdn.simpleicons.org/gitlab',
+  jira: 'https://cdn.simpleicons.org/jira',
+  linear: 'https://cdn.simpleicons.org/linear',
+  figma: 'https://cdn.simpleicons.org/figma',
+  gdrive: 'https://cdn.simpleicons.org/googledrive',
+  google_drive: 'https://cdn.simpleicons.org/googledrive',
+  gcal: 'https://cdn.simpleicons.org/googlecalendar',
+  google_calendar: 'https://cdn.simpleicons.org/googlecalendar',
+  outlook: 'https://cdn.simpleicons.org/microsoftoutlook',
+  microsoft_outlook: 'https://cdn.simpleicons.org/microsoftoutlook',
+  zendesk: 'https://cdn.simpleicons.org/zendesk',
+  intercom: 'https://cdn.simpleicons.org/intercom',
+  mixpanel: 'https://cdn.simpleicons.org/mixpanel',
+  datadog: 'https://cdn.simpleicons.org/datadog',
+  stripe: 'https://cdn.simpleicons.org/stripe',
+  quickbooks: 'https://cdn.simpleicons.org/quickbooks',
+  bamboohr: 'https://cdn.simpleicons.org/bamboohr',
+  hubspot: 'https://cdn.simpleicons.org/hubspot',
+  discord: 'https://cdn.simpleicons.org/discord',
+  slack: 'https://cdn.simpleicons.org/slack',
+  notion: 'https://cdn.simpleicons.org/notion',
+  webhooks: 'https://cdn.simpleicons.org/webhooks',
+};
+
 const PROVIDER_ICON: Record<string, string> = {
   GITHUB: 'Code',
   JIRA: 'Code',
@@ -72,6 +98,53 @@ function titleCaseProvider(provider: string): string {
     .split('_')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+export function AppLogo({
+  providerId,
+  name,
+  className,
+  sizeClassName,
+  fallbackIcon,
+}: {
+  providerId: string;
+  name?: string;
+  className?: string;
+  sizeClassName?: string;
+  fallbackIcon?: string;
+}) {
+  const [hasError, setHasError] = useState(false);
+  const normalizedKey = providerId.toLowerCase().replace(/[^a-z0-9_]/g, '');
+  const logoUrl =
+    APP_LOGOS[normalizedKey] ?? APP_LOGOS[providerId.toLowerCase()];
+
+  if (!logoUrl || hasError) {
+    return (
+      <IconRenderer
+        icon={fallbackIcon ?? PROVIDER_ICON[providerId.toUpperCase()] ?? 'Plug'}
+        fallbackEmoji="🧩"
+        sizeClassName={sizeClassName}
+      />
+    );
+  }
+
+  return (
+    <span
+      className={cn(
+        'relative flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-accent/40 p-0.5',
+        sizeClassName,
+        className,
+      )}
+    >
+      <img
+        src={logoUrl}
+        alt={name ?? providerId}
+        className="size-full object-contain dark:brightness-110"
+        loading="lazy"
+        onError={() => setHasError(true)}
+      />
+    </span>
+  );
 }
 
 export function AgentNavRow({
@@ -173,10 +246,14 @@ export function AgentNavRow({
           <DropdownMenuContent align="end" side="bottom" className="w-64">
             <DropdownMenuItem
               onSelect={() =>
-                navigate(`/w/${workspaceSlug}/agents?agent=${agent.id}&tab=studio`)
+                navigate(
+                  `/w/${workspaceSlug}/agents?agent=${agent.id}&tab=studio`,
+                )
               }
               onClick={() =>
-                navigate(`/w/${workspaceSlug}/agents?agent=${agent.id}&tab=studio`)
+                navigate(
+                  `/w/${workspaceSlug}/agents?agent=${agent.id}&tab=studio`,
+                )
               }
               className="gap-2.5"
             >
@@ -240,7 +317,9 @@ export function AgentNavRow({
               className="gap-2.5"
             >
               <Bell className="size-4" />
-              <span>{muted ? 'Unmute notifications' : 'Mute notifications'}</span>
+              <span>
+                {muted ? 'Unmute notifications' : 'Mute notifications'}
+              </span>
             </DropdownMenuItem>
 
             {onDelete ? (
@@ -312,10 +391,11 @@ export function AppNavRow({
         })}
         title={app.detail ? `${app.name} — ${app.detail}` : app.name}
       >
-        <IconRenderer
-          icon={app.icon}
-          fallbackEmoji="🧩"
+        <AppLogo
+          providerId={app.id}
+          name={app.name}
           sizeClassName={navIconClass(depth)}
+          fallbackIcon={app.icon}
         />
         <span className="flex-1 truncate">{app.name}</span>
       </NavLink>
@@ -599,7 +679,9 @@ export function WorkflowNavRow({
               ) : (
                 <Play className="size-4" />
               )}
-              <span>{triggered ? 'Workflow triggered!' : 'Run workflow now'}</span>
+              <span>
+                {triggered ? 'Workflow triggered!' : 'Run workflow now'}
+              </span>
             </DropdownMenuItem>
 
             <DropdownMenuItem
@@ -644,7 +726,11 @@ export function WorkflowNavRow({
               onClick={() => setIsPaused((prev) => !prev)}
               className="gap-2.5"
             >
-              {isPaused ? <Play className="size-4" /> : <Pause className="size-4" />}
+              {isPaused ? (
+                <Play className="size-4" />
+              ) : (
+                <Pause className="size-4" />
+              )}
               <span>{isPaused ? 'Resume automation' : 'Pause automation'}</span>
             </DropdownMenuItem>
 
@@ -724,7 +810,9 @@ export function AgentsSection({
     <Section
       title="AI Agents"
       count={items.length}
-      emptyLabel={agents.isLoading ? 'Loading agents…' : 'No agents deployed yet.'}
+      emptyLabel={
+        agents.isLoading ? 'Loading agents…' : 'No agents deployed yet.'
+      }
       action={
         <Hint label="Add agent">
           <Button
@@ -732,7 +820,7 @@ export function AgentsSection({
             variant="ghost"
             size="icon-sm"
             aria-label="Add agent"
-            className="size-5 p-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+            className="size-5 p-0 opacity-0 transition-opacity duration-150 group-hover/section:opacity-100 group-focus-within/section:opacity-100 focus-visible:opacity-100"
           >
             <NavLink to={`/w/${workspaceSlug}/agents?tab=all`}>
               <Plus className="size-3.5" />
@@ -813,7 +901,9 @@ export function AppsSection({
     <Section
       title="Apps"
       count={items.length}
-      emptyLabel={integrations.isLoading ? 'Loading apps…' : 'No apps connected yet.'}
+      emptyLabel={
+        integrations.isLoading ? 'Loading apps…' : 'No apps connected yet.'
+      }
       action={
         <Hint label="Add app">
           <Button
@@ -821,7 +911,7 @@ export function AppsSection({
             variant="ghost"
             size="icon-sm"
             aria-label="Add app"
-            className="size-5 p-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+            className="size-5 p-0 opacity-0 transition-opacity duration-150 group-hover/section:opacity-100 group-focus-within/section:opacity-100 focus-visible:opacity-100"
           >
             <NavLink to={`/w/${workspaceSlug}/integrations`}>
               <Plus className="size-3.5" />
@@ -900,7 +990,9 @@ export function WorkflowsSection({
     <Section
       title="Automations"
       count={items.length}
-      emptyLabel={workflows.isLoading ? 'Loading automations…' : 'No workflows yet.'}
+      emptyLabel={
+        workflows.isLoading ? 'Loading automations…' : 'No workflows yet.'
+      }
       action={
         <Hint label="Add workflow">
           <Button
@@ -908,7 +1000,7 @@ export function WorkflowsSection({
             variant="ghost"
             size="icon-sm"
             aria-label="Add workflow"
-            className="size-5 p-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+            className="size-5 p-0 opacity-0 transition-opacity duration-150 group-hover/section:opacity-100 group-focus-within/section:opacity-100 focus-visible:opacity-100"
           >
             <NavLink to={`/w/${workspaceSlug}/automations?tab=all`}>
               <Plus className="size-3.5" />

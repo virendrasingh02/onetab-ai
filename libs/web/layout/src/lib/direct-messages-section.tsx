@@ -51,7 +51,7 @@ export function DirectMessagesSection({ workspaceSlug }: { workspaceSlug: string
             variant="ghost"
             size="icon-sm"
             aria-label="New direct message"
-            className="size-5 p-0"
+            className="size-5 p-0 opacity-0 transition-opacity duration-150 group-hover/section:opacity-100 group-focus-within/section:opacity-100 focus-visible:opacity-100"
           >
             <NavLink to={`/w/${workspaceSlug}/dms`}>
               <Plus className="size-3.5" />

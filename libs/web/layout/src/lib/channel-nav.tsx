@@ -833,7 +833,7 @@ export function ChannelNav({
                     size="icon-sm"
                     onClick={onCreateChannel}
                     aria-label="Create a channel"
-                    className="size-5 p-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                    className="size-5 p-0 opacity-0 transition-opacity duration-150 group-hover/section:opacity-100 group-focus-within/section:opacity-100 focus-visible:opacity-100"
                   >
                     <Plus className="size-3.5" />
                   </Button>

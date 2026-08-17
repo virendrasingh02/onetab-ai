@@ -75,6 +75,32 @@ const CATEGORY_META: Record<
   Other: { icon: Webhook, accent: 'violet' },
 };
 
+const APP_LOGOS: Record<string, string> = {
+  github: 'https://cdn.simpleicons.org/github',
+  gitlab: 'https://cdn.simpleicons.org/gitlab',
+  jira: 'https://cdn.simpleicons.org/jira',
+  linear: 'https://cdn.simpleicons.org/linear',
+  figma: 'https://cdn.simpleicons.org/figma',
+  gdrive: 'https://cdn.simpleicons.org/googledrive',
+  google_drive: 'https://cdn.simpleicons.org/googledrive',
+  gcal: 'https://cdn.simpleicons.org/googlecalendar',
+  google_calendar: 'https://cdn.simpleicons.org/googlecalendar',
+  outlook: 'https://cdn.simpleicons.org/microsoftoutlook',
+  microsoft_outlook: 'https://cdn.simpleicons.org/microsoftoutlook',
+  zendesk: 'https://cdn.simpleicons.org/zendesk',
+  intercom: 'https://cdn.simpleicons.org/intercom',
+  mixpanel: 'https://cdn.simpleicons.org/mixpanel',
+  datadog: 'https://cdn.simpleicons.org/datadog',
+  stripe: 'https://cdn.simpleicons.org/stripe',
+  quickbooks: 'https://cdn.simpleicons.org/quickbooks',
+  bamboohr: 'https://cdn.simpleicons.org/bamboohr',
+  hubspot: 'https://cdn.simpleicons.org/hubspot',
+  discord: 'https://cdn.simpleicons.org/discord',
+  slack: 'https://cdn.simpleicons.org/slack',
+  notion: 'https://cdn.simpleicons.org/notion',
+  webhooks: 'https://cdn.simpleicons.org/webhooks',
+};
+
 const integrationsList: IntegrationCard[] = [
   {
     id: 'github',
@@ -386,6 +412,7 @@ export function IntegrationHubView() {
             const meta = CATEGORY_META[card.category] || CATEGORY_META['Other'];
             const Icon = meta.icon;
             const isConnected = connectedProviders.has(card.id.toUpperCase());
+            const logoUrl = APP_LOGOS[card.id.toLowerCase()];
 
             return (
               <li key={card.id}>
@@ -396,10 +423,19 @@ export function IntegrationHubView() {
                         <span
                           aria-hidden
                           className={cn(
-                            'size-10 flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-foreground shadow-xs',
+                            'size-10 flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-foreground shadow-xs p-2',
                           )}
                         >
-                          <Icon className="size-5 text-primary-text" />
+                          {logoUrl ? (
+                            <img
+                              src={logoUrl}
+                              alt={card.name}
+                              className="size-full object-contain dark:brightness-110"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <Icon className="size-5 text-primary-text" />
+                          )}
                         </span>
                         <div className="min-w-0">
                           <h2 className="text-sm font-extrabold truncate text-foreground">

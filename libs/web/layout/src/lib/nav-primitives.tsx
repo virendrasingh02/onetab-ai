@@ -203,9 +203,9 @@ export function Section({
             <span>{title}</span>
             <ChevronDown
               className={cn(
-                'size-3 shrink-0 opacity-0 transition-opacity duration-(--duration-fast)',
+                'size-3 shrink-0 text-subtle opacity-0 transition-all duration-150',
                 'group-focus-within/section:opacity-100 group-hover/section:opacity-100',
-                'group-data-[state=closed]/trigger:-rotate-90',
+                !open && '-rotate-90',
               )}
               aria-hidden
             />
