@@ -16,26 +16,45 @@ let accessToken: string | null = null;
 /** Called when refreshing fails — the app should route to /login. */
 let onSessionExpired: (() => void) | null = null;
 
+const TOKEN_KEY = 'onetab_auth_token';
+
 export function setAccessToken(token: string | null): void {
   accessToken = token;
   try {
     if (token) {
-      localStorage.setItem('onetab_auth_token', token);
+      localStorage.setItem(TOKEN_KEY, token);
     } else {
-      localStorage.removeItem('onetab_auth_token');
+      localStorage.removeItem(TOKEN_KEY);
     }
   } catch {
     // Storage can be blocked by policy; the in-memory copy still works.
   }
 }
 
-export function getAccessToken(): string | null {
-  if (accessToken) return accessToken;
+function readStoredToken(): string | null {
   try {
-    return localStorage.getItem('onetab_auth_token');
+    return localStorage.getItem(TOKEN_KEY);
   } catch {
     return null;
   }
+}
+
+export function getAccessToken(): string | null {
+  return accessToken ?? readStoredToken();
+}
+
+/*
+ * The refresh cookie is per-browser, not per-tab, and rotating it invalidates
+ * the previous value. So a second tab holding the token this tab just replaced
+ * would present a spent token, which the API reads as theft and answers by
+ * revoking every session for the user. Adopting a sibling's token keeps the
+ * tabs on one session instead of racing to rotate it.
+ */
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key !== TOKEN_KEY || event.storageArea !== localStorage) return;
+    accessToken = event.newValue;
+  });
 }
 
 export function setSessionExpiredHandler(handler: (() => void) | null): void {
@@ -161,22 +180,56 @@ interface RetriableRequest extends InternalAxiosRequestConfig {
  */
 let refreshInFlight: Promise<string> | null = null;
 
-async function refreshAccessToken(): Promise<string> {
-  refreshInFlight ??= axios
-    .post<AuthTokens>(
+/**
+ * Serialises the rotation across tabs, not just within this one.
+ *
+ * Web Locks is Chromium/Firefox/Safari 15.4+, which covers the browsers the app
+ * supports and the Electron shell; where it is missing the callback still runs,
+ * leaving the single-tab guarantee `refreshInFlight` already provides.
+ */
+async function withRefreshLock<T>(run: () => Promise<T>): Promise<T> {
+  if (!navigator.locks) return run();
+  return navigator.locks.request('onetab-auth-refresh', run);
+}
+
+async function refreshAccessToken(usedToken: string | null): Promise<string> {
+  refreshInFlight ??= withRefreshLock(async () => {
+    /*
+     * Whoever held the lock before us may have already rotated the cookie. Its
+     * token is the live one and ours is spent, so take theirs; rotating again
+     * would present a revoked token and take down every session for the user.
+     */
+    const current = readStoredToken();
+    if (current && current !== usedToken) {
+      accessToken = current;
+      return current;
+    }
+
+    const response = await axios.post<AuthTokens>(
       `${await resolveBaseURL()}/auth/refresh`,
       {},
       { withCredentials: true },
-    )
-    .then((response) => {
-      setAccessToken(response.data.accessToken);
-      return response.data.accessToken;
-    })
-    .finally(() => {
-      refreshInFlight = null;
-    });
+    );
+    setAccessToken(response.data.accessToken);
+    return response.data.accessToken;
+  }).finally(() => {
+    refreshInFlight = null;
+  });
 
   return refreshInFlight;
+}
+
+/**
+ * Whether a failed refresh actually means the session is over.
+ *
+ * Only the API can retire a session. A timeout, an offline browser or a 502
+ * from an API mid-restart says nothing about the refresh cookie, and treating
+ * those as expiry is what signed people out for a blip in the network.
+ */
+function isSessionRejection(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false;
+  const status = error.response?.status;
+  return status === 401 || status === 403;
 }
 
 http.interceptors.response.use(
@@ -190,13 +243,28 @@ http.interceptors.response.use(
 
     if (status === 401 && canRetry) {
       request._retried = true;
+
+      // The token this request actually carried, which may already be a
+      // generation behind if another tab refreshed while it was in flight.
+      const sent = request.headers.get?.('Authorization');
+      const usedToken =
+        typeof sent === 'string' ? sent.replace(/^Bearer /, '') : null;
+
       try {
-        const token = await refreshAccessToken();
+        const token = await refreshAccessToken(usedToken);
         request.headers.set('Authorization', `Bearer ${token}`);
         return http(request);
-      } catch {
-        setAccessToken(null);
-        onSessionExpired?.();
+      } catch (refreshError) {
+        /*
+         * Sign out only when the API refused the cookie. Anything else — no
+         * network, a timeout, an API restarting under the dev server — leaves
+         * the session untouched, so the caller sees the original failure and
+         * the next request tries again with the same cookie.
+         */
+        if (isSessionRejection(refreshError)) {
+          setAccessToken(null);
+          onSessionExpired?.();
+        }
       }
     }
 

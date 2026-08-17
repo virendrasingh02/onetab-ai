@@ -1,7 +1,9 @@
 import {
   ApiError,
   authApi,
+  getAccessToken,
   queryKeys,
+  setAccessToken,
   setSessionExpiredHandler,
 } from '@org/api-client';
 import type {
@@ -15,18 +17,35 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from './auth.store.js';
 
+/** A refusal from the API — the one answer that ends a session. */
+const isSessionRejection = (error: unknown): boolean =>
+  error instanceof ApiError && (error.status === 401 || error.status === 403);
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/*
+ * A cold load races the API: under `dev:all` the browser is usually up first,
+ * and the client also probes ports 3000-3009 to find it. Retrying an
+ * unreachable server is what keeps that race from reading as a logout.
+ */
+const BOOTSTRAP_BACKOFF_MS = [400, 1_200, 3_000];
+
 /**
  * Restores the session on a cold load.
  *
- * The refresh cookie is the only thing that decides this, not the cached token
- * or profile in localStorage: those survive a revoked session, a deleted
- * account and a server the browser can no longer reach. Exchanging the cookie
- * for a fresh token is what proves the session is still real.
+ * Only the API decides whether the session is still real: it is asked to trade
+ * the refresh cookie for a token, and a 401 there is what makes the cached
+ * profile in localStorage worthless. An API that cannot be *reached* has
+ * decided nothing, so it is retried and, failing that, the cached identity is
+ * restored — every request still carries a token the server validates, so the
+ * worst case is a shell that 401s into this same path rather than a user who
+ * was signed out by a dropped connection.
  */
 export function useSessionBootstrap(): void {
   const setSession = useAuthStore((state) => state.setSession);
   const setStatus = useAuthStore((state) => state.setStatus);
   const clear = useAuthStore((state) => state.clear);
+  const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -35,14 +54,39 @@ export function useSessionBootstrap(): void {
     async function restore() {
       setStatus('authenticating');
 
-      try {
-        const tokens = await authApi.refresh();
-        const user = await authApi.me();
-        if (!cancelled) setSession(user, tokens.accessToken);
-      } catch {
-        // No usable refresh cookie means no session, whatever localStorage
-        // still holds — a cached profile is not an authorisation.
-        if (!cancelled) clear();
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          const tokens = await authApi.refresh();
+          /*
+           * Before `me()`, not after: that call used to go out under the stale
+           * token from the last session, 401, and trigger a second rotation
+           * through the interceptor — two cookie rotations per page load, each
+           * one a chance to collide with another tab.
+           */
+          setAccessToken(tokens.accessToken);
+
+          const me = await authApi.me();
+          if (!cancelled) setSession(me, tokens.accessToken);
+          return;
+        } catch (error) {
+          if (cancelled) return;
+
+          if (isSessionRejection(error)) {
+            clear();
+            return;
+          }
+
+          const backoff = BOOTSTRAP_BACKOFF_MS[attempt];
+          if (backoff !== undefined) {
+            await wait(backoff);
+            continue;
+          }
+
+          // Unreachable, not refused. Keep whoever was signed in here.
+          if (user && getAccessToken()) setSession(user, getAccessToken() ?? '');
+          else clear();
+          return;
+        }
       }
     }
 
@@ -50,6 +94,9 @@ export function useSessionBootstrap(): void {
     return () => {
       cancelled = true;
     };
+    // `user` is the cached identity read once at store creation; re-running this
+    // when it changes would re-bootstrap on every profile edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setSession, setStatus, clear]);
 
   // A refresh failure mid-session must drop the user back to sign-in.

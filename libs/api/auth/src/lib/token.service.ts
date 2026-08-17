@@ -44,7 +44,9 @@ export class TokenService {
   }
 
   private get refreshTtl(): string {
-    return this.config.get<string>('JWT_REFRESH_TTL', '7d');
+    // Rotation on use slides this forward, so it bounds idle time rather than
+    // session length: an app opened inside the window never asks for a password.
+    return this.config.get<string>('JWT_REFRESH_TTL', '30d');
   }
 
   async issueSession(
