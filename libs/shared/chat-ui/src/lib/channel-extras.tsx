@@ -428,7 +428,7 @@ export function ThreadListPanel({
                     />
                   ))}
                 </span>
-                <span className="text-xs font-medium text-primary">
+                <span className="text-xs font-medium text-primary-text">
                   {thread.replyCount}{' '}
                   {thread.replyCount === 1 ? 'reply' : 'replies'}
                 </span>

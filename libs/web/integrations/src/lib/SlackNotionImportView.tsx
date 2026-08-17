@@ -195,7 +195,7 @@ export function SlackNotionImportView({ embedded = false }: { embedded?: boolean
 
       <div role="status" aria-live="polite">
         {statusMessage ? (
-          <p className="mt-6 gap-3 p-4 text-sm flex items-center rounded-xl border border-success/40 bg-success/10 text-success">
+          <p className="mt-6 gap-3 p-4 text-sm flex items-center rounded-xl border border-success/40 bg-success/10 text-success-text">
             <CheckCircle className="size-5 shrink-0" aria-hidden />
             {statusMessage}
           </p>

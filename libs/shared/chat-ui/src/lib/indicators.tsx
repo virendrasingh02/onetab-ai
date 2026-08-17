@@ -4,21 +4,26 @@ import { cn } from '@org/utils';
 import { Loader2, ShieldCheck, WifiOff } from 'lucide-react';
 import { UserProfileCard } from './user-profile-card.js';
 
+/**
+ * The per-author colour ramp, drawn from the design system's categorical
+ * accents rather than from raw Tailwind hexes.
+ *
+ * These are read as CSS variables because the values land in inline `style`
+ * gradients, not in class names. Going through the tokens means an author's
+ * colour is picked from the same ten hues a chart legend uses, and it re-tunes
+ * with the theme instead of staying at full saturation on the light canvas.
+ */
 const USER_COLORS = [
-  '#f43f5e', // Rose
-  '#ec4899', // Pink
-  '#d946ef', // Fuchsia
-  '#a855f7', // Purple
-  '#8b5cf6', // Violet
-  '#6366f1', // Indigo
-  '#3b82f6', // Blue
-  '#0ea5e9', // Sky
-  '#06b6d4', // Cyan
-  '#14b8a6', // Teal
-  '#10b981', // Emerald
-  '#22c55e', // Green
-  '#eab308', // Yellow
-  '#f97316', // Orange
+  'var(--accent-rose)',
+  'var(--accent-pink)',
+  'var(--accent-violet)',
+  'var(--accent-indigo)',
+  'var(--accent-blue)',
+  'var(--accent-cyan)',
+  'var(--accent-teal)',
+  'var(--accent-green)',
+  'var(--accent-amber)',
+  'var(--accent-orange)',
 ];
 
 export function getUserColor(userId: string): string {
@@ -126,7 +131,7 @@ export function ConnectionBanner({ status }: ConnectionBannerProps) {
         'gap-2 px-4 py-1.5 text-xs flex items-center justify-center',
         isError
           ? 'bg-destructive/10 text-destructive'
-          : 'bg-warning/15 text-warning-foreground',
+          : 'bg-warning/15 text-warning-text',
       )}
     >
       {isError ? (
@@ -164,7 +169,7 @@ export function MemberList({
   const renderGroup = (label: string, group: RoomMember[]) =>
     group.length === 0 ? null : (
       <section key={label}>
-        <p className="px-3 py-1.5 text-xs font-semibold text-[#949ba4] uppercase tracking-wider">
+        <p className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           {label} — {group.length}
         </p>
         <ul>
@@ -179,7 +184,7 @@ export function MemberList({
               >
                 <div
                   onClick={() => onSelect?.(member)}
-                  className="gap-2.5 px-3 py-1.5 flex w-full items-center text-left hover:bg-[#35373c]/50 rounded-md transition-colors cursor-pointer"
+                  className="gap-2.5 px-3 py-1.5 flex w-full items-center text-left hover:bg-accent/50 rounded-md transition-colors cursor-pointer"
                 >
                   <UserAvatar
                     name={member.displayName}
@@ -187,7 +192,7 @@ export function MemberList({
                     src={member.avatarUrl}
                     size="sm"
                   />
-                  <span className="min-w-0 text-sm font-semibold text-[#dbdee1] flex-1 truncate">
+                  <span className="min-w-0 text-sm font-semibold text-foreground flex-1 truncate">
                     {member.displayName}
                   </span>
                   {member.powerLevel >= 100 ? (

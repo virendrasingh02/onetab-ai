@@ -175,9 +175,9 @@ export function ThreadPanel({
 
 export function ChatSearchPlaceholder() {
   return (
-    <div className="p-4 text-sm text-[#949ba4]">
-      <p className="font-semibold text-white">Search in conversation</p>
-      <p className="mt-1 text-xs text-[#80848e]">
+    <div className="p-4 text-sm text-muted-foreground">
+      <p className="font-semibold text-foreground">Search in conversation</p>
+      <p className="mt-1 text-xs text-subtle">
         Full-text search across messages in Discord mode. Search results are filtered instantly.
       </p>
     </div>

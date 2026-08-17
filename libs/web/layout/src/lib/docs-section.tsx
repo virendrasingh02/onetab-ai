@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
   Hint,
   IconRenderer,
+  type PromptDialog,
 } from '@org/ui';
 import { useDocsWorkspace } from '@org/web-work-tools';
 import { useCurrentWorkspace } from '@org/web-workspace';
@@ -35,7 +36,7 @@ import {
   navRowClass,
   Section,
 } from './nav-primitives.js';
-import type { PromptDialog } from './use-prompt-dialog.js';
+
 
 /**
  * The docs tree, over the same `useDocsWorkspace` projection the editor uses.

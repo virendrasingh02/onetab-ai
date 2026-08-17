@@ -417,13 +417,13 @@ export function DiscordEmojiGifPicker({
     <div
       role="dialog"
       aria-label="Emoji and GIF picker"
-      className="absolute bottom-full left-0 z-50 mb-2.5 flex h-[420px] w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border border-[#3f4147] bg-[#2b2d31] text-[#dbdee1] shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+      className="absolute bottom-full left-0 z-50 mb-2.5 flex h-[420px] w-[380px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border border-border bg-surface text-foreground shadow-2xl animate-in fade-in zoom-in-95 duration-150"
     >
       {/* Top Header & Search Bar */}
-      <div className="flex flex-col border-b border-[#1f2023] bg-[#2b2d31] p-3 gap-2">
+      <div className="flex flex-col border-b border-border bg-surface p-3 gap-2">
         {/* Navigation Tabs */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 rounded-lg bg-[#1e1f22] p-1 text-xs font-semibold">
+          <div className="flex items-center gap-1 rounded-lg bg-surface-inset p-1 text-xs font-semibold">
             <button
               onClick={() => {
                 setTab('emoji');
@@ -432,8 +432,8 @@ export function DiscordEmojiGifPicker({
               className={cn(
                 'flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors',
                 tab === 'emoji'
-                  ? 'bg-[#5865f2] text-white shadow-sm'
-                  : 'text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]',
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground',
               )}
             >
               <Smile className="size-4" />
@@ -447,8 +447,8 @@ export function DiscordEmojiGifPicker({
               className={cn(
                 'flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors',
                 tab === 'gif'
-                  ? 'bg-[#5865f2] text-white shadow-sm'
-                  : 'text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]',
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground',
               )}
             >
               <Film className="size-4" />
@@ -461,7 +461,7 @@ export function DiscordEmojiGifPicker({
             size="icon-sm"
             aria-label="Close picker"
             onClick={onClose}
-            className="text-[#949ba4] hover:bg-[#35373c] hover:text-white"
+            className="text-muted-foreground hover:bg-accent hover:text-foreground"
           >
             <X className="size-4" />
           </Button>
@@ -469,19 +469,19 @@ export function DiscordEmojiGifPicker({
 
         {/* Search Field */}
         <div className="relative flex items-center">
-          <Search className="absolute left-3 size-4 text-[#949ba4]" />
+          <Search className="absolute left-3 size-4 text-muted-foreground" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={tab === 'emoji' ? 'Search emojis...' : 'Search GIFs...'}
-            className="w-full rounded-md border border-transparent bg-[#1e1f22] py-1.5 pl-9 pr-3 text-xs text-[#f2f3f5] outline-none transition-colors placeholder:text-[#80848e] focus:border-[#5865f2]"
+            className="w-full rounded-md border border-transparent bg-surface-inset py-1.5 pl-9 pr-3 text-xs text-foreground outline-none transition-colors placeholder:text-subtle focus:border-primary"
             autoFocus
           />
           {search ? (
             <button
               onClick={() => setSearch('')}
-              className="absolute right-2.5 text-xs text-[#949ba4] hover:text-white"
+              className="absolute right-2.5 text-xs text-muted-foreground hover:text-foreground"
             >
               Clear
             </button>
@@ -495,7 +495,7 @@ export function DiscordEmojiGifPicker({
           <div className="space-y-4">
             {filteredCategories.map((cat) => (
               <section key={cat.id} className="space-y-1.5">
-                <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#949ba4]">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                   <span>{cat.icon}</span>
                   <span>{cat.name}</span>
                 </div>
@@ -510,7 +510,7 @@ export function DiscordEmojiGifPicker({
                       onMouseEnter={() => setHoveredEmoji({ char: emoji.char, name: emoji.name })}
                       onMouseLeave={() => setHoveredEmoji(null)}
                       title={`:${emoji.name}:`}
-                      className="flex size-9 items-center justify-center rounded-lg text-2xl transition-transform hover:scale-125 hover:bg-[#35373c]"
+                      className="flex size-9 items-center justify-center rounded-lg text-2xl transition-transform hover:scale-125 hover:bg-accent"
                     >
                       {emoji.char}
                     </button>
@@ -538,8 +538,8 @@ export function DiscordEmojiGifPicker({
                   className={cn(
                     'flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors',
                     gifCategory === chip.id
-                      ? 'bg-[#5865f2] text-white'
-                      : 'bg-[#1e1f22] text-[#b5bac1] hover:bg-[#35373c] hover:text-white',
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-surface-inset text-muted-foreground hover:bg-accent hover:text-foreground',
                   )}
                 >
                   {chip.icon}
@@ -557,7 +557,7 @@ export function DiscordEmojiGifPicker({
                     onSelectGif(gif.url, gif.title);
                     onClose();
                   }}
-                  className="group relative aspect-video overflow-hidden rounded-lg border border-[#3f4147] bg-[#1e1f22] transition-transform hover:scale-[1.03] hover:border-[#5865f2]"
+                  className="group relative aspect-video overflow-hidden rounded-lg border border-border bg-surface-inset transition-transform hover:scale-[1.03] hover:border-primary"
                 >
                   <img
                     src={gif.previewUrl}
@@ -578,17 +578,17 @@ export function DiscordEmojiGifPicker({
       </div>
 
       {/* Footer Info / Hovered Emoji Bar */}
-      <div className="flex h-10 items-center justify-between border-t border-[#1f2023] bg-[#232428] px-3 text-xs text-[#949ba4]">
+      <div className="flex h-10 items-center justify-between border-t border-border bg-popover px-3 text-xs text-muted-foreground">
         {tab === 'emoji' && hoveredEmoji ? (
           <div className="flex items-center gap-2">
             <span className="text-xl">{hoveredEmoji.char}</span>
-            <span className="font-mono text-[11px] font-semibold text-white">
+            <span className="font-mono text-[11px] font-semibold text-foreground">
               :{hoveredEmoji.name}:
             </span>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5 text-[11px] text-[#80848e]">
-            <Zap className="size-3 text-[#5865f2]" />
+          <div className="flex items-center gap-1.5 text-[11px] text-subtle">
+            <Zap className="size-3 text-primary-text" />
             <span>Discord Emoji & GIF Engine</span>
           </div>
         )}

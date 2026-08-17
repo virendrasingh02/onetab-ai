@@ -137,14 +137,14 @@ export function Composer({
       {/* Mention Autocomplete Overlay Menu */}
       {showMentionMenu ? (
         <div className="absolute bottom-full left-3 z-50 mb-2 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl animate-in fade-in zoom-in-95 duration-150">
-          <div className="flex items-center justify-between border-b border-[#1f2023] px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-[#949ba4]">
-            <span className="flex items-center gap-1.5 text-[#5865f2]">
+          <div className="flex items-center justify-between border-b border-border px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            <span className="flex items-center gap-1.5 text-primary-text">
               <AtSign className="size-3.5" />
               <span>Mention Member</span>
             </span>
             <button
               onClick={() => setShowMentionMenu(false)}
-              className="text-[10px] hover:text-white"
+              className="text-[10px] hover:text-foreground"
             >
               Close
             </button>
@@ -153,21 +153,21 @@ export function Composer({
             {/* Special mentions: @here, @channel */}
             {filteredSpecialMentions.length > 0 ? (
               <>
-                <div className="px-2 py-1 text-[10px] font-bold text-[#80848e] uppercase">
+                <div className="px-2 py-1 text-[10px] font-bold text-subtle uppercase">
                   Group Mentions
                 </div>
                 {filteredSpecialMentions.map((item) => (
                   <button
                     key={item.id}
                     onClick={() => insertMention(item.displayName)}
-                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-[#35373c]"
+                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-accent"
                   >
-                    <div className="flex size-6 items-center justify-center rounded-full bg-[#5865f2]/20 font-bold text-[#5865f2]">
+                    <div className="flex size-6 items-center justify-center rounded-full bg-primary/20 font-bold text-primary-text">
                       @
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-[#5865f2]">@{item.displayName}</p>
-                      <p className="text-[10px] text-[#949ba4] truncate">{item.subtitle}</p>
+                      <p className="font-semibold text-primary-text">@{item.displayName}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{item.subtitle}</p>
                     </div>
                   </button>
                 ))}
@@ -177,14 +177,14 @@ export function Composer({
             {/* Room Members */}
             {filteredMembers.length > 0 ? (
               <>
-                <div className="mt-1.5 px-2 py-1 text-[10px] font-bold text-[#80848e] uppercase">
+                <div className="mt-1.5 px-2 py-1 text-[10px] font-bold text-subtle uppercase">
                   Members — {filteredMembers.length}
                 </div>
                 {filteredMembers.map((member) => (
                   <button
                     key={member.userId}
                     onClick={() => insertMention(member.displayName)}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-[#35373c]"
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-accent"
                   >
                     <UserAvatar
                       name={member.displayName}
@@ -192,14 +192,14 @@ export function Composer({
                       seed={member.userId}
                       size="xs"
                     />
-                    <span className="font-semibold text-[#dbdee1] truncate">
+                    <span className="font-semibold text-foreground truncate">
                       @{member.displayName}
                     </span>
                   </button>
                 ))}
               </>
             ) : filteredSpecialMentions.length === 0 ? (
-              <p className="p-3 text-center text-xs text-[#949ba4]">
+              <p className="p-3 text-center text-xs text-muted-foreground">
                 No members found matching &quot;@{mentionQuery}&quot;
               </p>
             ) : null}
@@ -250,7 +250,7 @@ export function Composer({
               <button
                 type="button"
                 onClick={() => document.getElementById(fileInputId)?.click()}
-                className="flex size-7 items-center justify-center rounded-full bg-[#4e5058] text-[#dbdee1] hover:bg-[#6d6f78] hover:text-white transition-colors"
+                className="flex size-7 items-center justify-center rounded-full bg-accent text-foreground hover:bg-selected hover:text-foreground transition-colors"
               >
                 <Plus className="size-4" />
               </button>
@@ -266,7 +266,7 @@ export function Composer({
               }}
             />
 
-            <span className="mx-1 h-4 w-px bg-[#4e5058]/50" />
+            <span className="mx-1 h-4 w-px bg-accent/50" />
 
             {/* Mention Trigger Button */}
             <Hint label="Mention Member (@)">
@@ -278,8 +278,8 @@ export function Composer({
                   setShowMentionMenu(true);
                 }}
                 className={cn(
-                  'flex size-7 items-center justify-center rounded-md text-[#b5bac1] hover:bg-[#404249] hover:text-white transition-colors',
-                  showMentionMenu && 'bg-[#5865f2] text-white',
+                  'flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors',
+                  showMentionMenu && 'bg-primary text-primary-foreground',
                 )}
               >
                 <AtSign className="size-4" />
@@ -297,8 +297,8 @@ export function Composer({
                   }))
                 }
                 className={cn(
-                  'flex size-7 items-center justify-center rounded-md text-[#b5bac1] hover:bg-[#404249] hover:text-white transition-colors',
-                  pickerState.open && pickerState.tab === 'emoji' && 'bg-[#5865f2] text-white',
+                  'flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors',
+                  pickerState.open && pickerState.tab === 'emoji' && 'bg-primary text-primary-foreground',
                 )}
               >
                 <Smile className="size-4" />
@@ -316,8 +316,8 @@ export function Composer({
                   }))
                 }
                 className={cn(
-                  'flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-bold text-[#b5bac1] hover:bg-[#404249] hover:text-white transition-colors',
-                  pickerState.open && pickerState.tab === 'gif' && 'bg-[#5865f2] text-white',
+                  'flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-bold text-muted-foreground hover:bg-accent hover:text-foreground transition-colors',
+                  pickerState.open && pickerState.tab === 'gif' && 'bg-primary text-primary-foreground',
                 )}
               >
                 <Film className="size-3.5" />
@@ -332,7 +332,7 @@ export function Composer({
                 onClick={() => {
                   lexicalRef.current?.insertText('/');
                 }}
-                className="flex size-7 items-center justify-center rounded-md text-[#b5bac1] hover:bg-[#404249] hover:text-white transition-colors"
+                className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
               >
                 <Slash className="size-3.5" />
               </button>
@@ -343,7 +343,7 @@ export function Composer({
                 <button
                   type="button"
                   onClick={onStartHuddle}
-                  className="flex size-7 items-center justify-center rounded-md text-[#b5bac1] hover:bg-[#404249] hover:text-white transition-colors"
+                  className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
                 >
                   <Video className="size-4" />
                 </button>
@@ -358,21 +358,21 @@ export function Composer({
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="flex size-7 items-center justify-center rounded-md text-[#b5bac1] hover:bg-[#404249] hover:text-white transition-colors"
+                    className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
                   >
                     <ChevronDown className="size-3.5" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52 bg-[#2b2d31] text-[#dbdee1] border-[#3f4147]">
-                  <DropdownMenuLabel className="text-xs text-[#949ba4]">Schedule message</DropdownMenuLabel>
-                  <DropdownMenuSeparator className="bg-[#3f4147]" />
+                <DropdownMenuContent align="end" className="w-52 bg-surface text-foreground border-border">
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">Schedule message</DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-border" />
                   {['In 30 minutes', 'Tomorrow at 9:00 AM', 'Monday at 9:00 AM'].map((when) => (
                     <DropdownMenuItem
                       key={when}
                       onSelect={() => {
                         void onSend(`[Scheduled for ${when}]`);
                       }}
-                      className="hover:bg-[#35373c] focus:bg-[#35373c]"
+                      className="hover:bg-accent focus:bg-accent"
                     >
                       <Clock className="mr-2 size-3.5" />
                       {when}
@@ -388,7 +388,7 @@ export function Composer({
                 // Submit is handled by Enter in Lexical
               }}
               disabled={disabled}
-              className="flex items-center gap-1.5 rounded-lg bg-[#5865f2] px-3 py-1 text-xs font-semibold text-white shadow-sm transition-transform hover:bg-[#4752c4] active:scale-95 disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground shadow-sm transition-transform hover:bg-primary-hover active:scale-95 disabled:opacity-50"
             >
               <span>Send</span>
               <Send className="size-3.5" />
@@ -397,10 +397,10 @@ export function Composer({
         </div>
       </div>
 
-      <div className="mt-1 px-1 flex items-center justify-between text-[11px] text-[#949ba4]">
+      <div className="mt-1 px-1 flex items-center justify-between text-[11px] text-muted-foreground">
         <span>
-          <strong className="font-semibold text-[#dbdee1]">Enter</strong> to send ·{' '}
-          <strong className="font-semibold text-[#dbdee1]">Shift+Enter</strong> for line break · Powered by Lexical
+          <strong className="font-semibold text-foreground">Enter</strong> to send ·{' '}
+          <strong className="font-semibold text-foreground">Shift+Enter</strong> for line break · Powered by Lexical
         </span>
       </div>
     </div>

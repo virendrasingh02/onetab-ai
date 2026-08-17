@@ -44,19 +44,19 @@ import { useCallback, useEffect } from 'react';
 const EDITOR_THEME = {
   paragraph: 'mb-1 last:mb-0 leading-normal',
   text: {
-    bold: 'font-bold text-white',
-    italic: 'italic text-slate-200',
-    strikethrough: 'line-through text-slate-400',
-    code: 'rounded bg-[#1e1f22] px-1.5 py-0.5 font-mono text-xs text-[#00a8fc]',
+    bold: 'font-bold text-foreground',
+    italic: 'italic text-foreground',
+    strikethrough: 'line-through text-muted-foreground',
+    code: 'rounded bg-surface-inset px-1.5 py-0.5 font-mono text-xs text-info-text',
   },
   list: {
-    ul: 'list-disc pl-5 my-1 text-[#dbdee1]',
-    ol: 'list-decimal pl-5 my-1 text-[#dbdee1]',
+    ul: 'list-disc pl-5 my-1 text-foreground',
+    ol: 'list-decimal pl-5 my-1 text-foreground',
     listitem: 'my-0.5',
     checklist: 'pl-2 my-1',
   },
-  quote: 'border-l-4 border-[#5865f2] pl-3 py-1 my-1 text-slate-300 italic bg-[#1e1f22]/50 rounded-r',
-  code: 'block rounded-lg bg-[#1e1f22] p-2.5 font-mono text-xs text-[#22c55e] border border-[#35373c] my-1',
+  quote: 'border-l-4 border-primary pl-3 py-1 my-1 text-muted-foreground italic bg-surface-inset/50 rounded-r',
+  code: 'block rounded-lg bg-surface-inset p-2.5 font-mono text-xs text-success-text border border-border my-1',
 };
 
 export interface LexicalComposerInputProps {
@@ -249,12 +249,12 @@ export function LexicalToolbar({ onMentionTrigger }: { onMentionTrigger?: (query
   }, [editor]);
 
   return (
-    <div className="flex items-center gap-0.5 border-b border-[#2b2d31] bg-[#2b2d31] px-2 py-1 text-[#949ba4] overflow-x-auto">
+    <div className="flex items-center gap-0.5 border-b border-border bg-surface px-2 py-1 text-muted-foreground overflow-x-auto">
       <button
         type="button"
         onClick={() => formatText('bold')}
         title="Bold (Ctrl+B)"
-        className="rounded p-1 hover:bg-[#35373c] hover:text-white transition-colors"
+        className="rounded p-1 hover:bg-accent hover:text-foreground transition-colors"
       >
         <Bold className="size-3.5" />
       </button>
@@ -262,7 +262,7 @@ export function LexicalToolbar({ onMentionTrigger }: { onMentionTrigger?: (query
         type="button"
         onClick={() => formatText('italic')}
         title="Italic (Ctrl+I)"
-        className="rounded p-1 hover:bg-[#35373c] hover:text-white transition-colors"
+        className="rounded p-1 hover:bg-accent hover:text-foreground transition-colors"
       >
         <Italic className="size-3.5" />
       </button>
@@ -270,7 +270,7 @@ export function LexicalToolbar({ onMentionTrigger }: { onMentionTrigger?: (query
         type="button"
         onClick={() => formatText('strikethrough')}
         title="Strikethrough"
-        className="rounded p-1 hover:bg-[#35373c] hover:text-white transition-colors"
+        className="rounded p-1 hover:bg-accent hover:text-foreground transition-colors"
       >
         <Strikethrough className="size-3.5" />
       </button>
@@ -278,18 +278,18 @@ export function LexicalToolbar({ onMentionTrigger }: { onMentionTrigger?: (query
         type="button"
         onClick={() => formatText('code')}
         title="Inline Code"
-        className="rounded p-1 hover:bg-[#35373c] hover:text-white transition-colors"
+        className="rounded p-1 hover:bg-accent hover:text-foreground transition-colors"
       >
         <Code className="size-3.5" />
       </button>
 
-      <span className="mx-1 h-3.5 w-px bg-[#3f4147]" />
+      <span className="mx-1 h-3.5 w-px bg-border" />
 
       <button
         type="button"
         onClick={insertBulletList}
         title="Bulleted List"
-        className="rounded p-1 hover:bg-[#35373c] hover:text-white transition-colors"
+        className="rounded p-1 hover:bg-accent hover:text-foreground transition-colors"
       >
         <List className="size-3.5" />
       </button>
@@ -297,7 +297,7 @@ export function LexicalToolbar({ onMentionTrigger }: { onMentionTrigger?: (query
         type="button"
         onClick={insertNumberedList}
         title="Numbered List"
-        className="rounded p-1 hover:bg-[#35373c] hover:text-white transition-colors"
+        className="rounded p-1 hover:bg-accent hover:text-foreground transition-colors"
       >
         <ListOrdered className="size-3.5" />
       </button>
@@ -305,18 +305,18 @@ export function LexicalToolbar({ onMentionTrigger }: { onMentionTrigger?: (query
         type="button"
         onClick={insertChecklist}
         title="Task Checklist"
-        className="rounded p-1 hover:bg-[#35373c] hover:text-white transition-colors"
+        className="rounded p-1 hover:bg-accent hover:text-foreground transition-colors"
       >
         <ListTodo className="size-3.5" />
       </button>
 
-      <span className="mx-1 h-3.5 w-px bg-[#3f4147]" />
+      <span className="mx-1 h-3.5 w-px bg-border" />
 
       <button
         type="button"
         onClick={insertQuote}
         title="Blockquote (>)"
-        className="rounded p-1 hover:bg-[#35373c] hover:text-white transition-colors"
+        className="rounded p-1 hover:bg-accent hover:text-foreground transition-colors"
       >
         <Quote className="size-3.5" />
       </button>
@@ -324,12 +324,12 @@ export function LexicalToolbar({ onMentionTrigger }: { onMentionTrigger?: (query
         type="button"
         onClick={insertCodeBlock}
         title="Code Block (```)"
-        className="rounded p-1 hover:bg-[#35373c] hover:text-white transition-colors"
+        className="rounded p-1 hover:bg-accent hover:text-foreground transition-colors"
       >
         <SquareCode className="size-3.5" />
       </button>
 
-      <span className="mx-1 h-3.5 w-px bg-[#3f4147]" />
+      <span className="mx-1 h-3.5 w-px bg-border" />
 
       <button
         type="button"
@@ -343,7 +343,7 @@ export function LexicalToolbar({ onMentionTrigger }: { onMentionTrigger?: (query
           onMentionTrigger?.('');
         }}
         title="Mention Member (@)"
-        className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-semibold text-[#5865f2] hover:bg-[#5865f2]/20 transition-colors"
+        className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-semibold text-primary-text hover:bg-primary/20 transition-colors"
       >
         <AtSign className="size-3.5" />
         <span>Mention</span>
@@ -385,11 +385,11 @@ export function LexicalComposerInput({
                 aria-label="Message composer input"
                 aria-placeholder={placeholder}
                 placeholder={
-                  <div className="pointer-events-none absolute top-2 left-3 text-sm text-[#80848e]">
+                  <div className="pointer-events-none absolute top-2 left-3 text-sm text-subtle">
                     {placeholder}
                   </div>
                 }
-                className="max-h-48 min-h-[44px] w-full resize-none text-sm font-normal text-[#dbdee1] outline-none placeholder:text-[#80848e]"
+                className="max-h-48 min-h-[44px] w-full resize-none text-sm font-normal text-foreground outline-none placeholder:text-subtle"
               />
             }
             ErrorBoundary={LexicalErrorBoundary}

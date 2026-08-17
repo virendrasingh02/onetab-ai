@@ -11,7 +11,9 @@ export {
   type UseResizableLayoutOptions,
 } from './lib/use-resizable-layout.js';
 export { ResizeHandle, type ResizeHandleProps } from './lib/resize-handle.js';
-export { usePromptDialog, type PromptDialog } from './lib/use-prompt-dialog.js';
+/* Re-exported for existing callers; the hook itself moved to `@org/ui` so the
+   docs editor in `@org/web-work-tools` can use it without a dependency cycle. */
+export { usePromptDialog, type PromptDialog } from '@org/ui';
 export {
   NavRow,
   Section,

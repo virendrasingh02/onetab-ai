@@ -20,7 +20,6 @@ import {
   ChevronLeft,
   ChevronRight,
   HelpCircle,
-  History,
   LogOut,
   Moon,
   PanelLeft,
@@ -122,17 +121,12 @@ export function AppHeader({
               </Button>
             </Hint>
 
-            <Hint label="Recent history">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={onOpenSearch}
-                aria-label="Recent history"
-                className="size-7 p-0 text-muted-foreground hover:text-foreground"
-              >
-                <History className="size-4" />
-              </Button>
-            </Hint>
+            {/*
+              A third button here opened the command palette under a "Recent
+              history" label and a clock icon. Nothing in the palette is a
+              history view, and the search affordance is already two slots to
+              the right, so it was one control claiming to be another.
+            */}
           </div>
         ) : null}
       </div>

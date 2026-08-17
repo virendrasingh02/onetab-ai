@@ -247,51 +247,51 @@ export function IntegrationHubView() {
 
       {/* Top Search Bar */}
       <div className="mb-4 relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#949ba4]" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <Input
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search by app name or category..."
-          className="pl-10 bg-[#1e1f22] border-[#3f4147] text-[#dbdee1] placeholder:text-[#80848e] focus-visible:ring-[#5865f2]"
+          className="pl-10 bg-surface-inset border-border text-foreground placeholder:text-subtle focus-visible:ring-primary"
         />
       </div>
 
       {/* Featured AI Banner Card */}
       {!bannerDismissed ? (
-        <div className="relative mb-6 overflow-hidden rounded-2xl border border-[#3f4147] bg-[#1e1f22] p-5 shadow-lg">
+        <div className="relative mb-6 overflow-hidden rounded-2xl border border-border bg-surface-inset p-5 shadow-lg">
           <button
             type="button"
             onClick={() => setBannerDismissed(true)}
-            className="absolute top-3 right-3 rounded-full p-1 text-[#949ba4] hover:bg-[#35373c] hover:text-white transition-colors"
+            className="absolute top-3 right-3 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
           >
             <X className="size-4" />
           </button>
 
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="space-y-2 max-w-xl">
-              <div className="flex items-center gap-2 text-xs font-bold text-[#5865f2] uppercase tracking-wider">
-                <Sparkles className="size-4 text-[#f59e0b]" />
+              <div className="flex items-center gap-2 text-xs font-bold text-primary-text uppercase tracking-wider">
+                <Sparkles className="size-4 text-warning-text" />
                 <span>AI-Powered Integrations</span>
               </div>
-              <h3 className="text-lg font-extrabold text-white tracking-tight">
+              <h3 className="text-lg font-extrabold text-foreground tracking-tight">
                 One-click access to AI tools in OneTab
               </h3>
-              <p className="text-xs text-[#949ba4] leading-relaxed">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 A new app messaging experience makes having conversations with AI-powered agents and assistants a snap. Install apps with an assistant or agent, and put them to work today.
               </p>
               <div className="pt-1">
-                <Button size="sm" className="bg-[#057a55] hover:bg-[#046c4e] text-white font-semibold rounded-lg px-4 py-1.5 shadow-sm">
+                <Button size="sm" className="bg-success hover:bg-success/90 text-success-foreground font-semibold rounded-lg px-4 py-1.5 shadow-sm">
                   Browse agents
                 </Button>
               </div>
             </div>
 
             {/* Thumbnail Badge Grid */}
-            <div className="flex items-center gap-2 rounded-2xl border border-[#3f4147] bg-[#2b2d31] p-3 shadow-inner">
+            <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface p-3 shadow-inner">
               {['🤖', '⚡', '📊', '💬', '📂'].map((icon, idx) => (
                 <div
                   key={idx}
-                  className="flex size-10 items-center justify-center rounded-xl bg-[#1e1f22] text-lg shadow-sm border border-[#3f4147]"
+                  className="flex size-10 items-center justify-center rounded-xl bg-surface-inset text-lg shadow-sm border border-border"
                 >
                   {icon}
                 </div>
@@ -307,43 +307,43 @@ export function IntegrationHubView() {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="flex items-center gap-2 rounded-xl border border-[#3f4147] bg-[#1e1f22] px-3.5 py-1.5 text-xs font-semibold text-[#dbdee1] transition-colors hover:bg-[#2b2d31] hover:text-white shadow-sm"
+              className="flex items-center gap-2 rounded-xl border border-border bg-surface-inset px-3.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface hover:text-foreground shadow-sm"
             >
               <span>
                 {selectedFilter === 'All' ? 'All app types' : selectedFilter}
               </span>
-              <ChevronDown className="size-3.5 text-[#949ba4]" />
+              <ChevronDown className="size-3.5 text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="start"
             side="bottom"
             sideOffset={4}
-            className="w-72 max-h-80 overflow-y-auto scrollbar-subtle border-[#3f4147] bg-[#1e1f22] p-1.5 text-[#dbdee1] shadow-2xl"
+            className="w-72 max-h-80 overflow-y-auto scrollbar-subtle border-border bg-surface-inset p-1.5 text-foreground shadow-2xl"
           >
             <DropdownMenuItem
               onSelect={() => setSelectedFilter('All')}
-              className="flex items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold hover:bg-[#35373c] cursor-pointer"
+              className="flex items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold hover:bg-accent cursor-pointer"
             >
               <span>All app types</span>
               {selectedFilter === 'All' ? (
-                <Check className="size-4 text-[#00a8fc]" />
+                <Check className="size-4 text-info-text" />
               ) : null}
             </DropdownMenuItem>
 
             <DropdownMenuItem
               onSelect={() => setSelectedFilter('Internal Apps')}
-              className="flex items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold hover:bg-[#35373c] cursor-pointer"
+              className="flex items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold hover:bg-accent cursor-pointer"
             >
               <span>Internal Apps</span>
               {selectedFilter === 'Internal Apps' ? (
-                <Check className="size-4 text-[#00a8fc]" />
+                <Check className="size-4 text-info-text" />
               ) : null}
             </DropdownMenuItem>
 
-            <DropdownMenuSeparator className="my-1.5 bg-[#3f4147]" />
+            <DropdownMenuSeparator className="my-1.5 bg-border" />
 
-            <DropdownMenuLabel className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#949ba4]">
+            <DropdownMenuLabel className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               Categories
             </DropdownMenuLabel>
 
@@ -363,18 +363,18 @@ export function IntegrationHubView() {
               <DropdownMenuItem
                 key={category}
                 onSelect={() => setSelectedFilter(category)}
-                className="flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium hover:bg-[#35373c] cursor-pointer"
+                className="flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium hover:bg-accent cursor-pointer"
               >
                 <span>{category}</span>
                 {selectedFilter === category ? (
-                  <Check className="size-4 text-[#00a8fc]" />
+                  <Check className="size-4 text-info-text" />
                 ) : null}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <p className="text-xs font-bold text-[#949ba4] tracking-wide">
+        <p className="text-xs font-bold text-muted-foreground tracking-wide">
           {filteredCards.length} {filteredCards.length === 1 ? 'app' : 'apps'} in workspace
         </p>
       </div>
@@ -389,36 +389,36 @@ export function IntegrationHubView() {
 
             return (
               <li key={card.id}>
-                <Card className="p-5 h-full flex flex-col justify-between border-[#3f4147] bg-[#1e1f22] transition-all hover:border-[#5865f2] hover:shadow-md">
+                <Card className="p-5 h-full flex flex-col justify-between border-border bg-surface-inset transition-all hover:border-primary hover:shadow-md">
                   <div>
                     <div className="mb-3 flex items-start justify-between gap-2">
                       <div className="flex items-center gap-3">
                         <span
                           aria-hidden
                           className={cn(
-                            'size-10 flex shrink-0 items-center justify-center rounded-xl border border-[#3f4147] bg-[#2b2d31] text-white shadow-xs',
+                            'size-10 flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-foreground shadow-xs',
                           )}
                         >
-                          <Icon className="size-5 text-[#5865f2]" />
+                          <Icon className="size-5 text-primary-text" />
                         </span>
                         <div className="min-w-0">
-                          <h2 className="text-sm font-extrabold truncate text-white">
+                          <h2 className="text-sm font-extrabold truncate text-foreground">
                             {card.name}
                           </h2>
-                          <p className="text-[11px] text-[#949ba4] truncate font-medium">
+                          <p className="text-[11px] text-muted-foreground truncate font-medium">
                             {card.category}
                           </p>
                         </div>
                       </div>
 
                       {card.isInternal ? (
-                        <Badge variant="neutral" className="bg-[#5865f2]/20 text-[#5865f2] border-[#5865f2]/40 text-[10px]">
+                        <Badge variant="neutral" className="bg-primary/20 text-primary-text border-primary/40 text-[10px]">
                           Internal
                         </Badge>
                       ) : null}
                     </div>
 
-                    <p className="mb-4 text-xs leading-relaxed text-[#b5bac1] line-clamp-3">
+                    <p className="mb-4 text-xs leading-relaxed text-muted-foreground line-clamp-3">
                       {card.description}
                     </p>
                   </div>
@@ -429,13 +429,13 @@ export function IntegrationHubView() {
                     className={cn(
                       'w-full font-semibold rounded-lg transition-colors',
                       isConnected
-                        ? 'border-[#3f4147] bg-[#2b2d31] text-white hover:bg-[#35373c]'
-                        : 'bg-[#5865f2] text-white hover:bg-[#4752c4]',
+                        ? 'border-border bg-surface text-foreground hover:bg-accent'
+                        : 'bg-primary text-primary-foreground hover:bg-primary-hover',
                     )}
                     onClick={() => toggleConnection(card)}
                     leadingIcon={
                       isConnected ? (
-                        <Check className="text-[#22c55e] size-4" />
+                        <Check className="text-success-text size-4" />
                       ) : (
                         <ExternalLink className="size-4" />
                       )
@@ -450,9 +450,9 @@ export function IntegrationHubView() {
           })}
         </ul>
       ) : (
-        <div className="py-12 text-center border border-dashed border-[#3f4147] rounded-2xl bg-[#1e1f22]">
-          <p className="text-sm font-bold text-white">No apps found</p>
-          <p className="text-xs text-[#949ba4] mt-1">
+        <div className="py-12 text-center border border-dashed border-border rounded-2xl bg-surface-inset">
+          <p className="text-sm font-bold text-foreground">No apps found</p>
+          <p className="text-xs text-muted-foreground mt-1">
             Try adjusting your search query or selecting a different app category.
           </p>
         </div>

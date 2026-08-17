@@ -138,6 +138,11 @@ export {
 export { Input, Textarea, type InputProps } from './lib/components/input.js';
 
 export {
+  usePromptDialog,
+  type PromptDialog,
+} from './lib/components/use-prompt-dialog.js';
+
+export {
   Label,
   ScrollArea,
   ScrollBar,

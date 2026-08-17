@@ -137,12 +137,30 @@ export function AsanaProjectManager() {
     projects[0];
 
   useEffect(() => {
-    if (searchParams.get('newProject') === 'true') setIsNewProjectOpen(true);
+    const openNewProject = searchParams.get('newProject') === 'true';
     // `?import=true` lets any entry point — the create menu, a link in an
     // onboarding email — land straight on the importer.
-    if (searchParams.get('import') === 'true') setIsImportOpen(true);
-    if (searchParams.get('view') === 'projects') setViewMode('projects');
-  }, [searchParams]);
+    const openImport = searchParams.get('import') === 'true';
+    const showProjects = searchParams.get('view') === 'projects';
+    if (!openNewProject && !openImport && !showProjects) return;
+
+    if (openNewProject) setIsNewProjectOpen(true);
+    if (openImport) setIsImportOpen(true);
+    if (showProjects) setViewMode('projects');
+
+    /*
+     * These three are one-shot commands, not state, so they have to be consumed.
+     * Left in the URL, closing the dialog and clicking the same sidebar link
+     * again produced a byte-identical location — `useSearchParams` memoises on
+     * `location.search`, so the object identity never changed, this effect never
+     * re-ran, and "New project" silently did nothing every time after the first.
+     */
+    const next = new URLSearchParams(searchParams);
+    next.delete('newProject');
+    next.delete('import');
+    next.delete('view');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const openProject = (projectId: string) => {
     setSelectedProjectId(projectId);
@@ -226,17 +244,27 @@ export function AsanaProjectManager() {
     const name = draft.name.trim();
     if (!name) return;
 
-    const created = await projectMutations.create.mutateAsync({
-      name,
-      slug: draft.slug.trim() || slugify(name),
-      description: draft.description.trim() || null,
-      color: draft.color,
-      icon: draft.icon,
-      iconColor: draft.iconColor,
-    });
+    try {
+      const created = await projectMutations.create.mutateAsync({
+        name,
+        slug: draft.slug.trim() || slugify(name),
+        description: draft.description.trim() || null,
+        color: draft.color,
+        icon: draft.icon,
+        iconColor: draft.iconColor,
+      });
 
-    setIsNewProjectOpen(false);
-    openProject(created.id);
+      setIsNewProjectOpen(false);
+      openProject(created.id);
+    } catch {
+      /*
+       * The dialog already renders this through `create.error`, and it stays
+       * open so the draft is not lost. Without the catch the rejection also
+       * escaped as an unhandled one, which puts Vite's error overlay over the
+       * whole app in dev — the failure looked like a crash rather than a
+       * rejected name.
+       */
+    }
   };
 
   const handleEditProject = (event: React.FormEvent) => {

@@ -11,18 +11,7 @@ import {
 import type { AIChatMessage } from '@org/types';
 import { cn } from '@org/utils';
 import { AI_MODELS, useAIChat, type AIModelValue } from '@org/web-ai';
-import {
-  ArrowUp,
-  ChevronDown,
-  Clock,
-  History,
-  Info,
-  Mic,
-  RotateCcw,
-  Sparkles,
-  User,
-  X,
-} from 'lucide-react';
+import { ArrowUp, ChevronDown, RotateCcw, Sparkles, User, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 interface ChatMessage {
@@ -175,11 +164,9 @@ export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
               <RotateCcw className="size-4" />
             </Button>
           </Hint>
-          <Hint label="Chat history">
-            <Button variant="ghost" size="icon-sm" aria-label="Chat history">
-              <History className="size-4" />
-            </Button>
-          </Hint>
+          {/* A "Chat history" button sat here with no handler. There is no
+              transcript store behind it yet, so it advertised a feature that
+              could not be reached — better absent than inert. */}
           <Hint label="Close assistant">
             <Button
               variant="ghost"
@@ -200,13 +187,10 @@ export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
           aria-live="polite"
           aria-label="Conversation"
         >
-          <div className="flex items-center gap-2 rounded-card border border-border bg-surface p-2.5 text-xs text-muted-foreground">
-            <Clock className="size-3.5 shrink-0 text-subtle" aria-hidden />
-            <span className="truncate">
-              Recent chat — Workspace research &amp; step parameters
-            </span>
-          </div>
-
+          {/* A hardcoded "Recent chat — Workspace research & step parameters"
+              card used to sit here, inside the live transcript and inside the
+              `log` region, so screen readers announced it as part of the
+              conversation. It was never wired to anything. */}
           {messages.map((message) => {
             const isUser = message.role === 'user';
             return (
@@ -319,27 +303,10 @@ export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* "About this assistant" and "Voice input" buttons lived here
+                without handlers. Voice capture is not implemented at all, so
+                the mic was a promise the composer could not keep. */}
             <div className="flex items-center gap-0.5">
-              <Hint label="About this assistant">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="About this assistant"
-                >
-                  <Info className="size-3.5" />
-                </Button>
-              </Hint>
-              <Hint label="Voice input">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Voice input"
-                >
-                  <Mic className="size-3.5" />
-                </Button>
-              </Hint>
               <Button
                 type="submit"
                 size="icon-sm"

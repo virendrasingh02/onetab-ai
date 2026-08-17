@@ -487,7 +487,7 @@ export function ChatSurface({
         />
       </div>
 
-      <div className="shrink-0 sticky bottom-0 z-20 w-full bg-[#313338] border-t border-[#2b2d31]/50">
+      <div className="shrink-0 sticky bottom-0 z-20 w-full bg-surface-raised border-t border-border/50">
         <TypingIndicator names={typingNames} />
         <Composer
           members={members}

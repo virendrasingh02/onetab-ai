@@ -5,15 +5,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  Hint,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   ArrowUp,
   Bot,
   ChevronDown,
-  Mic,
-  Plus,
   RotateCcw,
   Sparkles,
   TriangleAlert,
@@ -40,7 +37,6 @@ export function AIChatView() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [selectedModel, setSelectedModel] = useState<AIModelValue>('auto');
-  const [isVoiceActive, setIsVoiceActive] = useState(false);
 
   const chat = useAIChat();
   const isPending = chat.isPending;
@@ -51,8 +47,10 @@ export function AIChatView() {
   const modelLabel =
     AI_MODELS.find((option) => option.value === selectedModel)?.label ?? 'Auto';
 
+  /* `block: 'nearest'` keeps the scroll inside the transcript. Without it the
+     nearest scrollable ancestor — the shell's `main` — is dragged along too. */
   useEffect(() => {
-    streamEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    streamEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messages, isPending]);
 
   const handleSend = (textToSend?: string) => {
@@ -117,9 +115,12 @@ export function AIChatView() {
       {!isLandingView ? (
         <div className="max-w-4xl px-4 py-2 mb-4 backdrop-blur-md flex w-full shrink-0 items-center justify-between rounded-xl border-b border-border bg-background/80">
           <div className="gap-2 flex items-center">
-            <div className="w-7 h-7 font-bold text-xs flex items-center justify-center rounded-full bg-foreground text-background">
-              Logo
-            </div>
+            {/* This badge rendered the literal string "Logo" — a mockup artefact
+                that shipped. The assistant's mark is the same sparkle the shell
+                uses for it everywhere else. */}
+            <span className="size-7 flex items-center justify-center rounded-full bg-foreground text-background">
+              <Sparkles className="size-3.5" aria-hidden />
+            </span>
             <span className="text-sm font-semibold">AI Assistant</span>
             <span className="text-xs px-2 py-0.5 font-medium rounded-full border border-primary/20 bg-primary/10 text-primary">
               {selectedModel}
@@ -163,19 +164,10 @@ export function AIChatView() {
               />
 
               {/* Action Controls Row */}
-              <div className="pt-2 flex items-center justify-between">
-                <div className="gap-1.5 flex items-center">
-                  <Hint label="Add attachments or context">
-                    <button
-                      type="button"
-                      aria-label="Add attachment"
-                      className="p-1.5 rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                    >
-                      <Plus className="size-4" />
-                    </button>
-                  </Hint>
-                </div>
-
+              <div className="pt-2 flex items-center justify-end">
+                {/* An "Add attachment" button sat on the left with no handler:
+                    the chat endpoint takes messages only, so there was nothing
+                    for a picked file to travel on. */}
                 <div className="gap-2 flex items-center">
                   {/* Model Selector Dropdown */}
                   <DropdownMenu>
@@ -202,22 +194,13 @@ export function AIChatView() {
                     </DropdownMenuContent>
                   </DropdownMenu>
 
-                  {/* Mic Voice Input */}
-                  <Hint label={isVoiceActive ? 'Listening...' : 'Voice Input'}>
-                    <button
-                      type="button"
-                      onClick={() => setIsVoiceActive((prev) => !prev)}
-                      aria-label="Voice input"
-                      className={cn(
-                        'p-2 rounded-full transition-colors',
-                        isVoiceActive
-                          ? 'animate-pulse bg-destructive/20 text-destructive'
-                          : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                      )}
-                    >
-                      <Mic className="size-4" />
-                    </button>
-                  </Hint>
+                  {/*
+                    A microphone button used to sit here. Its only effect was to
+                    flip local state that pulsed the icon red and retitled the
+                    tooltip "Listening…" — no recogniser was ever started and no
+                    audio was ever captured. Telling someone you are recording
+                    them when you are not is worse than offering nothing.
+                  */}
 
                   {/* Send Button */}
                   <button

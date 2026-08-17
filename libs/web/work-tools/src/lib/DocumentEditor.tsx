@@ -1,4 +1,13 @@
-import { Badge, Button, EmptyState, Page, PageHeader, Panel, SkeletonList } from '@org/ui';
+import {
+  Badge,
+  Button,
+  EmptyState,
+  Page,
+  PageHeader,
+  Panel,
+  SkeletonList,
+  usePromptDialog,
+} from '@org/ui';
 import { useCurrentUser } from '@org/auth';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { CheckCircle, FileText, Loader2, Plus, TriangleAlert } from 'lucide-react';
@@ -26,6 +35,10 @@ export function DocumentEditor() {
   const { workspaceId } = useCurrentWorkspace();
   const currentUser = useCurrentUser();
   const docsWorkspace = useDocsWorkspace(workspaceId);
+  /* Teamspace create/rename/delete used `prompt()` and `confirm()`. Those are
+     unthemed, block the main thread, and Electron dropped `prompt()` entirely —
+     in the desktop build the rename simply did nothing. */
+  const prompts = usePromptDialog();
 
   const {
     companies,
@@ -229,23 +242,43 @@ export function DocumentEditor() {
             activeDocId={currentDoc?.id ?? ''}
             onSelectDoc={openDoc}
             onAddCompany={() => {
-              const name = prompt('Name this teamspace:')?.trim();
-              if (name) void addCompany(name);
+              void prompts
+                .promptText({
+                  title: 'New teamspace',
+                  description: 'A teamspace groups related documents together.',
+                  label: 'Name',
+                  placeholder: 'Engineering',
+                  confirmLabel: 'Create',
+                })
+                .then((name) => {
+                  if (name) void addCompany(name);
+                });
             }}
             onRenameCompany={(companyId, currentName) => {
-              const name = prompt('Rename teamspace:', currentName)?.trim();
-              if (name) renameCompany(companyId, name);
+              void prompts
+                .promptText({
+                  title: 'Rename teamspace',
+                  label: 'Name',
+                  defaultValue: currentName,
+                  confirmLabel: 'Rename',
+                })
+                .then((name) => {
+                  if (name) renameCompany(companyId, name);
+                });
             }}
             onDeleteCompany={(companyId) => {
               if (companies.length <= 1) return;
-              if (
-                !confirm(
-                  'Delete this teamspace and every document inside it? This cannot be undone.',
-                )
-              ) {
-                return;
-              }
-              void deleteCompany(companyId);
+              void prompts
+                .confirmAction({
+                  title: 'Delete this teamspace?',
+                  description:
+                    'Every document inside it is deleted too. This cannot be undone.',
+                  confirmLabel: 'Delete teamspace',
+                  destructive: true,
+                })
+                .then((confirmed) => {
+                  if (confirmed) void deleteCompany(companyId);
+                });
             }}
             onCreateDoc={(companyId, title, category, template, parentId) => {
               void createDoc(companyId, title, category, template, parentId).then(
@@ -315,6 +348,8 @@ export function DocumentEditor() {
           </Panel>
         </div>
       )}
+
+      {prompts.dialog}
     </Page>
   );
 }

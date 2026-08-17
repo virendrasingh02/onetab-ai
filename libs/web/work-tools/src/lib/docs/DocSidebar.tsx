@@ -17,6 +17,8 @@ import {
   IconRenderer,
   Input,
   Panel,
+  usePromptDialog,
+  type PromptDialog,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -69,6 +71,9 @@ export function DocSidebar({
   onDeleteDoc,
   onUpdateTitle,
 }: DocSidebarProps) {
+  /* One dialog for the whole tree — the rename and delete items in every node
+     menu route through it instead of `prompt()` / no confirmation at all. */
+  const prompts = usePromptDialog();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('All');
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
@@ -412,6 +417,7 @@ export function DocSidebar({
                           onDeleteDoc={onDeleteDoc}
                           onToggleFavorite={onToggleFavorite}
                           companies={companies}
+                          prompts={prompts}
                           level={0}
                         />
                       ))
@@ -423,6 +429,8 @@ export function DocSidebar({
           })}
         </div>
       </div>
+
+      {prompts.dialog}
     </Panel>
   );
 }
@@ -442,6 +450,7 @@ function DocTreeNodeItem({
   onDeleteDoc,
   onToggleFavorite,
   companies,
+  prompts,
   level = 0,
 }: {
   doc: DocItem;
@@ -458,6 +467,9 @@ function DocTreeNodeItem({
   onDeleteDoc: (id: string) => void;
   onToggleFavorite: (id: string) => void;
   companies: CompanyItem[];
+  /* Owned by `DocSidebar` and drilled down: one dialog for the whole tree
+     rather than one per node. */
+  prompts: PromptDialog;
   level?: number;
 }) {
   const childDocs = allDocs.filter((d) => d.parentId === doc.id);
@@ -530,10 +542,16 @@ function DocTreeNodeItem({
               {onUpdateTitle && (
                 <DropdownMenuItem
                   onClick={() => {
-                    const newTitle = prompt('Enter new document title:', doc.title);
-                    if (newTitle && newTitle.trim()) {
-                      onUpdateTitle(doc.id, newTitle.trim());
-                    }
+                    void prompts
+                      .promptText({
+                        title: 'Rename document',
+                        label: 'Title',
+                        defaultValue: doc.title,
+                        confirmLabel: 'Rename',
+                      })
+                      .then((title) => {
+                        if (title) onUpdateTitle(doc.id, title);
+                      });
                   }}
                   className="text-xs gap-2"
                 >
@@ -581,7 +599,25 @@ function DocTreeNodeItem({
 
               {allDocs.length > 1 && (
                 <DropdownMenuItem
-                  onClick={() => onDeleteDoc(doc.id)}
+                  /* Deleting used to fire straight off the menu item, taking any
+                     sub-pages with it and with no undo anywhere in the app. */
+                  onClick={() => {
+                    void prompts
+                      .confirmAction({
+                        title: `Delete “${doc.title}”?`,
+                        description:
+                          childDocs.length > 0
+                            ? `This also deletes ${childDocs.length} page${
+                                childDocs.length === 1 ? '' : 's'
+                              } inside it. This cannot be undone.`
+                            : 'This cannot be undone.',
+                        confirmLabel: 'Delete',
+                        destructive: true,
+                      })
+                      .then((confirmed) => {
+                        if (confirmed) onDeleteDoc(doc.id);
+                      });
+                  }}
                   className="text-xs gap-2 text-destructive focus:text-destructive"
                 >
                   <Trash2 className="size-3" />
@@ -627,6 +663,7 @@ function DocTreeNodeItem({
                   onDeleteDoc={onDeleteDoc}
                   onToggleFavorite={onToggleFavorite}
                   companies={companies}
+                  prompts={prompts}
                   level={level + 1}
                 />
               ))}

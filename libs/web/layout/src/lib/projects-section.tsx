@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
   Hint,
   ProjectGlyph,
+  type PromptDialog,
 } from '@org/ui';
 import { useProjectMutations, useProjects } from '@org/web-work-tools';
 import { useCurrentWorkspace } from '@org/web-workspace';
@@ -18,7 +19,7 @@ import {
   navRowClass,
   Section,
 } from './nav-primitives.js';
-import type { PromptDialog } from './use-prompt-dialog.js';
+
 
 export function ProjectsTreeSection({
   workspaceSlug,

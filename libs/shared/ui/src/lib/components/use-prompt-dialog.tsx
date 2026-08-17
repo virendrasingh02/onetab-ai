@@ -1,15 +1,15 @@
+import { useCallback, useId, useRef, useState, type ReactNode } from 'react';
+import { Button } from './button.js';
 import {
-  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  Input,
-  Label,
-} from '@org/ui';
-import { useCallback, useId, useRef, useState, type ReactNode } from 'react';
+} from './dialog.js';
+import { Input } from './input.js';
+import { Label } from './primitives.js';
 
 interface TextRequest {
   kind: 'text';
@@ -43,12 +43,16 @@ export interface PromptDialog {
 /**
  * Promise-based replacement for `window.prompt` / `window.confirm`.
  *
- * The sidebar drove every rename, delete and create through those native
- * dialogs. They cannot be themed, they block the main thread, they are
- * suppressed outright in some Electron and cross-origin contexts, and on mobile
- * Chrome they render as a browser-chrome bar that looks nothing like the app.
- * This keeps the same `await`-shaped call sites while rendering a real Radix
- * dialog with focus trapping and Escape handling.
+ * The sidebar and the docs editor drove every rename, delete and create through
+ * those native dialogs. They cannot be themed, they block the main thread, they
+ * are suppressed outright in some cross-origin contexts — and Electron removed
+ * `prompt()` altogether, so in the desktop build those call sites threw or
+ * silently returned nothing. This keeps the same `await`-shaped call sites while
+ * rendering a real Radix dialog with focus trapping and Escape handling.
+ *
+ * Lives in `@org/ui` rather than in a feature library so both the sidebar and
+ * the document editor can reach it — `@org/web-layout` already depends on
+ * `@org/web-work-tools`, so the reverse import would be a cycle.
  */
 export function usePromptDialog(): PromptDialog {
   const [request, setRequest] = useState<Request | null>(null);

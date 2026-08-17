@@ -193,7 +193,6 @@ export function AppShell() {
                     workspaces={workspaces}
                     current={workspace}
                     onToggleSidebar={closeSidebar}
-                    onOpenSearch={() => palette.setOpen(true)}
                   />
                 </div>
                 <div className="flex min-h-0 flex-1 flex-col">{channelNav}</div>

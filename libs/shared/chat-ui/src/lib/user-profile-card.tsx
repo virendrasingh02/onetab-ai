@@ -89,12 +89,12 @@ export function UserProfileCard({
           sideOffset={6}
           onMouseEnter={() => setPopoverOpen(true)}
           onMouseLeave={() => setPopoverOpen(false)}
-          className="w-80 overflow-hidden rounded-2xl border border-[#3f4147] bg-[#232428] p-0 text-[#dbdee1] shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+          className="w-80 overflow-hidden rounded-2xl border border-border bg-popover p-0 text-foreground shadow-2xl animate-in fade-in zoom-in-95 duration-150"
         >
           {/* Header Banner Gradient */}
           <div
             style={{
-              background: `linear-gradient(135deg, ${userColor} 0%, #1e1f22 100%)`,
+              background: `linear-gradient(135deg, ${userColor} 0%, var(--surface-inset) 100%)`,
             }}
             className="h-20 w-full relative"
           >
@@ -120,16 +120,16 @@ export function UserProfileCard({
                   src={avatarUrl}
                   seed={userId}
                   size="xl"
-                  className="size-20 rounded-full ring-4 ring-[#232428] shadow-lg"
+                  className="size-20 rounded-full ring-4 ring-popover shadow-lg"
                 />
                 <span
                   className={cn(
-                    'absolute bottom-1 right-1 size-4 rounded-full ring-2 ring-[#232428]',
+                    'absolute bottom-1 right-1 size-4 rounded-full ring-2 ring-popover',
                     status === 'online'
-                      ? 'bg-[#23a55a]'
+                      ? 'bg-success'
                       : status === 'unavailable'
-                        ? 'bg-[#f0b232]'
-                        : 'bg-[#80848e]',
+                        ? 'bg-warning'
+                        : 'bg-subtle',
                   )}
                 />
               </div>
@@ -137,7 +137,7 @@ export function UserProfileCard({
               <Button
                 size="sm"
                 onClick={handleClick}
-                className="bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-semibold rounded-lg px-3 py-1.5 shadow-sm"
+                className="bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-semibold rounded-lg px-3 py-1.5 shadow-sm"
               >
                 Right Bar Details
               </Button>
@@ -145,32 +145,32 @@ export function UserProfileCard({
 
             {/* Display Name & Handle */}
             <div className="space-y-0.5">
-              <h3 className="text-base font-extrabold text-white tracking-tight">
+              <h3 className="text-base font-extrabold text-foreground tracking-tight">
                 {name}
               </h3>
-              <p className="text-xs font-mono font-medium text-[#949ba4]">{handle}</p>
+              <p className="text-xs font-mono font-medium text-muted-foreground">{handle}</p>
             </div>
 
-            <hr className="my-3 border-[#35373c]" />
+            <hr className="my-3 border-border" />
 
             {/* Bio & Details */}
             <div className="space-y-2 text-xs">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#949ba4]">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   About Me
                 </p>
-                <p className="mt-0.5 text-[#dbdee1] leading-relaxed line-clamp-2">{bio}</p>
+                <p className="mt-0.5 text-foreground leading-relaxed line-clamp-2">{bio}</p>
               </div>
 
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#949ba4]">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   Roles
                 </p>
                 <div className="mt-1 flex flex-wrap gap-1">
-                  <Badge variant="neutral" className="bg-[#2b2d31] text-white border-[#3f4147]">
+                  <Badge variant="neutral" className="bg-surface text-foreground border-border">
                     {role}
                   </Badge>
-                  <Badge variant="neutral" className="bg-[#2b2d31] text-[#5865f2] border-[#5865f2]/40">
+                  <Badge variant="neutral" className="bg-surface text-primary-text border-primary/40">
                     Power {powerLevel}
                   </Badge>
                 </div>
@@ -186,9 +186,9 @@ export function UserProfileCard({
                   setPopoverOpen(false);
                   onSendDirectMessage?.(userId);
                 }}
-                className="flex-1 border-[#3f4147] bg-[#2b2d31] text-xs font-semibold text-white hover:bg-[#35373c]"
+                className="flex-1 border-border bg-surface text-xs font-semibold text-foreground hover:bg-accent"
               >
-                <MessageSquare className="mr-1.5 size-3.5 text-[#5865f2]" />
+                <MessageSquare className="mr-1.5 size-3.5 text-primary-text" />
                 Send Message
               </Button>
             </div>
@@ -198,15 +198,15 @@ export function UserProfileCard({
 
       {/* Fallback Full Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-md overflow-hidden rounded-3xl border border-[#3f4147] bg-[#1e1f22] p-0 text-[#dbdee1] shadow-2xl">
+        <DialogContent className="max-w-md overflow-hidden rounded-3xl border border-border bg-surface-inset p-0 text-foreground shadow-2xl">
           <div
             style={{
-              background: `linear-gradient(135deg, ${userColor} 0%, #111214 100%)`,
+              background: `linear-gradient(135deg, ${userColor} 0%, var(--surface-inset) 100%)`,
             }}
             className="h-28 w-full relative p-4 flex items-start justify-between"
           >
             <span className="rounded-full bg-black/40 px-3 py-1 text-xs font-bold text-white backdrop-blur-sm flex items-center gap-1.5">
-              <Sparkles className="size-3.5 text-[#f59e0b]" />
+              <Sparkles className="size-3.5 text-warning-text" />
               User Profile
             </span>
           </div>
@@ -219,16 +219,16 @@ export function UserProfileCard({
                   src={avatarUrl}
                   seed={userId}
                   size="xl"
-                  className="size-24 rounded-full ring-4 ring-[#1e1f22] shadow-2xl"
+                  className="size-24 rounded-full ring-4 ring-surface-inset shadow-2xl"
                 />
                 <span
                   className={cn(
-                    'absolute bottom-1 right-1 size-5 rounded-full ring-4 ring-[#1e1f22]',
+                    'absolute bottom-1 right-1 size-5 rounded-full ring-4 ring-surface-inset',
                     status === 'online'
-                      ? 'bg-[#23a55a]'
+                      ? 'bg-success'
                       : status === 'unavailable'
-                        ? 'bg-[#f0b232]'
-                        : 'bg-[#80848e]',
+                        ? 'bg-warning'
+                        : 'bg-subtle',
                   )}
                 />
               </div>
@@ -238,7 +238,7 @@ export function UserProfileCard({
                   setModalOpen(false);
                   onSendDirectMessage?.(userId);
                 }}
-                className="bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-bold rounded-xl px-4 py-2 shadow-md"
+                className="bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-bold rounded-xl px-4 py-2 shadow-md"
               >
                 <MessageSquare className="mr-1.5 size-4" />
                 Direct Message
@@ -247,43 +247,43 @@ export function UserProfileCard({
 
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-black text-white tracking-tight">
+                <h2 className="text-xl font-black text-foreground tracking-tight">
                   {name}
                 </h2>
                 {powerLevel >= 50 ? (
-                  <Badge variant="primary" className="bg-[#5865f2] text-white">
+                  <Badge variant="primary" className="bg-primary text-primary-foreground">
                     {powerLevel >= 100 ? 'Admin' : 'Moderator'}
                   </Badge>
                 ) : null}
               </div>
-              <p className="text-xs font-mono text-[#949ba4]">{handle}</p>
+              <p className="text-xs font-mono text-muted-foreground">{handle}</p>
             </div>
 
-            <hr className="my-4 border-[#2b2d31]" />
+            <hr className="my-4 border-border" />
 
             <div className="space-y-4 text-xs">
-              <div className="rounded-xl border border-[#2b2d31] bg-[#2b2d31]/50 p-3.5 space-y-2">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#949ba4]">
+              <div className="rounded-xl border border-border bg-surface/50 p-3.5 space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   Bio & Overview
                 </p>
-                <p className="text-[#dbdee1] leading-relaxed">{bio}</p>
+                <p className="text-foreground leading-relaxed">{bio}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-2.5">
-                <div className="rounded-xl border border-[#2b2d31] bg-[#2b2d31]/50 p-3">
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#949ba4]">
-                    <Shield className="size-3.5 text-[#5865f2]" />
+                <div className="rounded-xl border border-border bg-surface/50 p-3">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <Shield className="size-3.5 text-primary-text" />
                     <span>Role & Access</span>
                   </div>
-                  <p className="mt-1 text-xs font-semibold text-white">{role}</p>
+                  <p className="mt-1 text-xs font-semibold text-foreground">{role}</p>
                 </div>
 
-                <div className="rounded-xl border border-[#2b2d31] bg-[#2b2d31]/50 p-3">
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#949ba4]">
-                    <Zap className="size-3.5 text-[#f59e0b]" />
+                <div className="rounded-xl border border-border bg-surface/50 p-3">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <Zap className="size-3.5 text-warning-text" />
                     <span>Power Level</span>
                   </div>
-                  <p className="mt-1 text-xs font-semibold text-white">{powerLevel} / 100</p>
+                  <p className="mt-1 text-xs font-semibold text-foreground">{powerLevel} / 100</p>
                 </div>
 
                 {/*
@@ -292,23 +292,23 @@ export function UserProfileCard({
                   stands in for.
                 */}
                 {email ? (
-                  <div className="rounded-xl border border-[#2b2d31] bg-[#2b2d31]/50 p-3">
-                    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#949ba4]">
-                      <Mail className="size-3.5 text-[#3ba55d]" />
+                  <div className="rounded-xl border border-border bg-surface/50 p-3">
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      <Mail className="size-3.5 text-success-text" />
                       <span>Email</span>
                     </div>
-                    <p className="mt-1 text-xs font-semibold break-all text-white">
+                    <p className="mt-1 text-xs font-semibold break-all text-foreground">
                       {email}
                     </p>
                   </div>
                 ) : null}
 
-                <div className="rounded-xl border border-[#2b2d31] bg-[#2b2d31]/50 p-3">
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#949ba4]">
-                    <Calendar className="size-3.5 text-[#949ba4]" />
+                <div className="rounded-xl border border-border bg-surface/50 p-3">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <Calendar className="size-3.5 text-muted-foreground" />
                     <span>Member since</span>
                   </div>
-                  <p className="mt-1 text-xs font-semibold text-white">
+                  <p className="mt-1 text-xs font-semibold text-foreground">
                     {joinedAt
                       ? new Date(joinedAt).toLocaleDateString()
                       : 'Workspace Member'}
@@ -353,16 +353,16 @@ export function UserProfileRightPanel({
   const handle = `@${userId.replace(/^@/, '').split(':')[0]}`;
 
   return (
-    <div className="flex flex-col h-full bg-[#2b2d31] text-[#dbdee1]">
+    <div className="flex flex-col h-full bg-surface text-foreground">
       {/* Cover Header Banner */}
       <div
         style={{
-          background: `linear-gradient(135deg, ${userColor} 0%, #1e1f22 100%)`,
+          background: `linear-gradient(135deg, ${userColor} 0%, var(--surface-inset) 100%)`,
         }}
         className="h-28 w-full relative p-4 flex items-start justify-between"
       >
         <span className="rounded-full bg-black/40 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur-xs flex items-center gap-1">
-          <Sparkles className="size-3 text-[#f59e0b]" />
+          <Sparkles className="size-3 text-warning-text" />
           User Profile
         </span>
       </div>
@@ -377,16 +377,16 @@ export function UserProfileRightPanel({
               src={avatarUrl}
               seed={userId}
               size="xl"
-              className="size-20 rounded-full ring-4 ring-[#2b2d31] shadow-2xl"
+              className="size-20 rounded-full ring-4 ring-surface shadow-2xl"
             />
             <span
               className={cn(
-                'absolute bottom-0.5 right-0.5 size-4 rounded-full ring-2 ring-[#2b2d31]',
+                'absolute bottom-0.5 right-0.5 size-4 rounded-full ring-2 ring-surface',
                 status === 'online'
-                  ? 'bg-[#23a55a]'
+                  ? 'bg-success'
                   : status === 'unavailable'
-                    ? 'bg-[#f0b232]'
-                    : 'bg-[#80848e]',
+                    ? 'bg-warning'
+                    : 'bg-subtle',
               )}
             />
           </div>
@@ -394,7 +394,7 @@ export function UserProfileRightPanel({
           <Button
             size="sm"
             onClick={() => onSendDirectMessage?.(userId)}
-            className="bg-[#5865f2] hover:bg-[#4752c4] text-white text-xs font-bold rounded-xl px-3.5 py-1.5 shadow-md"
+            className="bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-bold rounded-xl px-3.5 py-1.5 shadow-md"
           >
             <MessageSquare className="mr-1.5 size-3.5" />
             Direct Message
@@ -404,62 +404,62 @@ export function UserProfileRightPanel({
         {/* Name & Handle */}
         <div className="space-y-0.5">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-extrabold text-white tracking-tight">
+            <h2 className="text-lg font-extrabold text-foreground tracking-tight">
               {name}
             </h2>
             {powerLevel >= 50 ? (
-              <Badge variant="primary" className="bg-[#5865f2] text-white text-[10px]">
+              <Badge variant="primary" className="bg-primary text-primary-foreground text-[10px]">
                 {powerLevel >= 100 ? 'Admin' : 'Moderator'}
               </Badge>
             ) : null}
           </div>
-          <p className="text-xs font-mono text-[#949ba4]">{handle}</p>
+          <p className="text-xs font-mono text-muted-foreground">{handle}</p>
         </div>
 
-        <hr className="border-[#35373c]" />
+        <hr className="border-border" />
 
         {/* Bio & Details */}
         <div className="space-y-3 text-xs">
-          <div className="rounded-xl border border-[#35373c] bg-[#1e1f22]/50 p-3 space-y-1.5">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-[#949ba4]">
+          <div className="rounded-xl border border-border bg-surface-inset/50 p-3 space-y-1.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               About Me
             </p>
-            <p className="text-[#dbdee1] leading-relaxed">{bio}</p>
+            <p className="text-foreground leading-relaxed">{bio}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-xl border border-[#35373c] bg-[#1e1f22]/50 p-2.5">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#949ba4]">
-                <Shield className="size-3 text-[#5865f2]" />
+            <div className="rounded-xl border border-border bg-surface-inset/50 p-2.5">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                <Shield className="size-3 text-primary-text" />
                 <span>Role</span>
               </div>
-              <p className="mt-0.5 text-xs font-semibold text-white">{role}</p>
+              <p className="mt-0.5 text-xs font-semibold text-foreground">{role}</p>
             </div>
 
-            <div className="rounded-xl border border-[#35373c] bg-[#1e1f22]/50 p-2.5">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#949ba4]">
-                <Zap className="size-3 text-[#f59e0b]" />
+            <div className="rounded-xl border border-border bg-surface-inset/50 p-2.5">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                <Zap className="size-3 text-warning-text" />
                 <span>Power</span>
               </div>
-              <p className="mt-0.5 text-xs font-semibold text-white">{powerLevel} / 100</p>
+              <p className="mt-0.5 text-xs font-semibold text-foreground">{powerLevel} / 100</p>
             </div>
 
             {email ? (
-              <div className="col-span-2 rounded-xl border border-[#35373c] bg-[#1e1f22]/50 p-2.5">
-                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#949ba4]">
-                  <Mail className="size-3 text-[#22c55e]" />
+              <div className="col-span-2 rounded-xl border border-border bg-surface-inset/50 p-2.5">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <Mail className="size-3 text-success-text" />
                   <span>Email</span>
                 </div>
-                <p className="mt-0.5 text-xs font-semibold text-white">{email}</p>
+                <p className="mt-0.5 text-xs font-semibold text-foreground">{email}</p>
               </div>
             ) : null}
 
-            <div className="col-span-2 rounded-xl border border-[#35373c] bg-[#1e1f22]/50 p-2.5">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#949ba4]">
-                <Calendar className="size-3 text-[#3b82f6]" />
+            <div className="col-span-2 rounded-xl border border-border bg-surface-inset/50 p-2.5">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                <Calendar className="size-3 text-accent-blue" />
                 <span>Member Joined</span>
               </div>
-              <p className="mt-0.5 text-xs font-semibold text-white">
+              <p className="mt-0.5 text-xs font-semibold text-foreground">
                 {joinedAt ? new Date(joinedAt).toLocaleDateString() : 'Workspace Member'}
               </p>
             </div>

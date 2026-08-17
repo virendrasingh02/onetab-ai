@@ -17,7 +17,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  History,
   PanelLeft,
   Plus,
   Settings,
@@ -30,14 +29,12 @@ export interface WorkspaceMenuProps {
   workspaces: WorkspaceSummary[];
   current: WorkspaceSummary;
   onToggleSidebar?: () => void;
-  onOpenSearch?: () => void;
 }
 
 export function WorkspaceMenu({
   workspaces,
   current,
   onToggleSidebar,
-  onOpenSearch,
 }: WorkspaceMenuProps) {
   const navigate = useNavigate();
 
@@ -182,7 +179,7 @@ export function WorkspaceMenu({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Navigation action controls inside workspace header: Toggle Sidebar, Back, Forward, History */}
+      {/* Navigation controls: toggle the rail, then browser-style back/forward. */}
       <div className="flex items-center gap-0.5">
         {onToggleSidebar ? (
           <Hint label="Toggle sidebar">
@@ -222,19 +219,12 @@ export function WorkspaceMenu({
           </Button>
         </Hint>
 
-        {onOpenSearch ? (
-          <Hint label="Recent history">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={onOpenSearch}
-              aria-label="Recent history"
-              className="size-7 p-0"
-            >
-              <History className="size-4 text-subtle hover:text-foreground" />
-            </Button>
-          </Hint>
-        ) : null}
+        {/*
+          A "Recent history" button sat here too, opening the command palette.
+          It duplicated the header's search field under a label that promised
+          something else, and it was the fourth icon crammed beside the
+          workspace name in a 240px rail.
+        */}
       </div>
     </div>
   );

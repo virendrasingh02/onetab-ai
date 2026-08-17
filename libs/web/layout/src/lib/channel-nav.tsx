@@ -7,13 +7,13 @@ import {
   Hint,
   ScrollArea,
   SkeletonList,
+  usePromptDialog,
 } from '@org/ui';
 import type { ChannelSummary } from '@org/types';
 import { cn } from '@org/utils';
 import { useChannelPreferences, useGroupedChannels } from '@org/web-channels';
 import {
   Activity,
-  ArrowRight,
   ChevronRight,
   Clock,
   FileText,
@@ -25,15 +25,13 @@ import {
   Lock,
   MessagesSquare,
   MoreHorizontal,
-  Package,
   Plus,
   Settings,
   Star,
   Users,
   Video,
-  X,
 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { SidebarFooterActions } from './create-menu.js';
 import { DirectMessagesSection } from './direct-messages-section.js';
@@ -52,7 +50,7 @@ import {
   AppsSection,
   WorkflowsSection,
 } from './resource-sections.js';
-import { usePromptDialog } from './use-prompt-dialog.js';
+
 
 /** Shown directly — the destinations people reach for constantly. */
 const MOST_USED_LINKS: readonly NavEntry[] = [
@@ -72,8 +70,6 @@ const SECONDARY_LINKS: readonly NavEntry[] = [
   { path: 'files', label: 'Files', icon: HardDrive },
   { path: 'settings', label: 'Settings', icon: Settings },
 ];
-
-const UPGRADE_DISMISSED_KEY = 'onetab_sidebar_upgrade_dismissed_v1';
 
 function ChannelRow({
   channel,
@@ -128,69 +124,18 @@ function ChannelRow({
   );
 }
 
-/** Dismissible trial nudge. It used to be permanent, costing ~110px of the
- *  sidebar on every screen with no way to get rid of it. */
-function UpgradeCard({ workspaceSlug }: { workspaceSlug: string }) {
-  const [dismissed, setDismissed] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      return window.localStorage.getItem(UPGRADE_DISMISSED_KEY) === '1';
-    } catch {
-      return false;
-    }
-  });
-
-  if (dismissed) return null;
-
-  const dismiss = () => {
-    setDismissed(true);
-    try {
-      window.localStorage.setItem(UPGRADE_DISMISSED_KEY, '1');
-    } catch {
-      /* Preference only. */
-    }
-  };
-
-  return (
-    <div className="relative space-y-2 rounded-card border border-border/80 bg-accent/40 p-3 text-left">
-      <Hint label="Dismiss">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={dismiss}
-          aria-label="Dismiss upgrade notice"
-          className="absolute top-1.5 right-1.5 size-5 p-0"
-        >
-          <X className="size-3" />
-        </Button>
-      </Hint>
-
-      <div className="flex items-center gap-2.5 pr-6">
-        <span className="relative shrink-0 text-warning" aria-hidden>
-          <Package className="size-5" />
-          <span className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full bg-warning text-[9px] leading-none font-bold text-warning-foreground">
-            !
-          </span>
-        </span>
-        <span className="text-xs font-semibold tracking-tight text-foreground">
-          2 days left to upgrade
-        </span>
-      </div>
-
-      <p className="text-[11px] leading-snug text-muted-foreground">
-        This workspace is out of free blocks for you and your team.
-      </p>
-
-      <NavLink
-        to={`/w/${workspaceSlug}/members`}
-        className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground transition-colors hover:text-primary"
-      >
-        <span>Manage members</span>
-        <ArrowRight className="size-3.5" aria-hidden />
-      </NavLink>
-    </div>
-  );
-}
+/*
+ * A billing nudge used to live here: "2 days left to upgrade — this workspace
+ * is out of free blocks", with a warning badge and a dismiss button that
+ * remembered itself in localStorage.
+ *
+ * None of it was real. The countdown was a literal, the quota claim was a
+ * literal, and there is no billing state anywhere in the app to derive either
+ * from — so every workspace, on every plan, was told it had two days left
+ * forever. A permanent false alarm trains people to ignore the one place the
+ * sidebar has to raise an alarm. It comes back when there is a subscription to
+ * read, and then it can say something true.
+ */
 
 export interface ChannelNavProps {
   workspaceId: string;
@@ -371,8 +316,7 @@ export function ChannelNav({
         </div>
       </ScrollArea>
 
-      <div className="shrink-0 space-y-3 border-t border-border/60 bg-transparent p-3">
-        <UpgradeCard workspaceSlug={workspaceSlug} />
+      <div className="shrink-0 border-t border-border/60 bg-transparent p-3">
         <SidebarFooterActions
           workspaceSlug={workspaceSlug}
           onCreateChannel={onCreateChannel}
