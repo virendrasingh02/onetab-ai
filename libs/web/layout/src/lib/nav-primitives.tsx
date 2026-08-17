@@ -3,9 +3,10 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  Hint,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { ChevronDown, type LucideIcon } from 'lucide-react';
+import { ChevronDown, PinOff, type LucideIcon } from 'lucide-react';
 import { useCallback, useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 
@@ -126,10 +127,12 @@ export function NavRow({
   entry,
   workspaceSlug,
   depth = 0,
+  onTogglePin,
 }: {
   entry: NavEntry;
   workspaceSlug: string;
   depth?: NavDepth;
+  onTogglePin?: () => void;
 }) {
   const Icon = entry.icon;
   const to = entry.path
@@ -137,22 +140,48 @@ export function NavRow({
     : `/w/${workspaceSlug}`;
 
   return (
-    <NavLink
-      to={to}
-      end={entry.end}
-      className={({ isActive }) => navRowClass(isActive, { depth })}
-    >
-      <Icon className={navIconClass(depth)} aria-hidden />
-      <span className="flex-1 truncate">{entry.label}</span>
-      {entry.badge !== undefined && (
-        <Badge
-          variant="neutral"
-          className="px-1.5 py-0 h-4 font-medium ml-auto font-mono text-[10px]"
-        >
-          {entry.badge}
-        </Badge>
-      )}
-    </NavLink>
+    <div className="group/nav-row relative flex items-center">
+      <NavLink
+        to={to}
+        end={entry.end}
+        className={({ isActive }) =>
+          navRowClass(isActive, {
+            depth,
+            extra: onTogglePin ? 'pr-7 flex-1' : 'flex-1',
+          })
+        }
+      >
+        <Icon className={navIconClass(depth)} aria-hidden />
+        <span className="flex-1 truncate">{entry.label}</span>
+        {entry.badge !== undefined && (
+          <Badge
+            variant="neutral"
+            className="px-1.5 py-0 h-4 font-medium ml-auto font-mono text-[10px]"
+          >
+            {entry.badge}
+          </Badge>
+        )}
+      </NavLink>
+
+      {onTogglePin && entry.path !== '' ? (
+        <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 transition-opacity group-hover/nav-row:opacity-100 group-focus-within/nav-row:opacity-100">
+          <Hint label="Unpin from sidebar">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onTogglePin();
+              }}
+              aria-label={`Unpin ${entry.label} from sidebar`}
+              className="size-5 flex items-center justify-center rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-accent/60 transition-colors"
+            >
+              <PinOff className="size-3" />
+            </button>
+          </Hint>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

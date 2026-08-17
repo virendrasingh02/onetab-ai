@@ -3,17 +3,24 @@ import { persist } from 'zustand/middleware';
 
 export type FavoriteType = 'project' | 'doc' | 'agent' | 'app' | 'workflow';
 
+export const DEFAULT_PINNED_NAV_PATHS: string[] = [];
+
 interface SidebarFavoritesState {
   favoritesByWorkspace: Record<string, Record<FavoriteType, string[]>>;
+  pinnedNavByWorkspace: Record<string, string[]>;
   isFavorite: (workspaceId: string, type: FavoriteType, id: string) => boolean;
   toggleFavorite: (workspaceId: string, type: FavoriteType, id: string) => void;
   getFavorites: (workspaceId: string, type: FavoriteType) => string[];
+  isNavPinned: (workspaceId: string, path: string) => boolean;
+  toggleNavPinned: (workspaceId: string, path: string) => void;
+  getPinnedNavPaths: (workspaceId: string) => string[];
 }
 
 export const useSidebarFavoritesStore = create<SidebarFavoritesState>()(
   persist(
     (set, get) => ({
       favoritesByWorkspace: {},
+      pinnedNavByWorkspace: {},
       isFavorite: (workspaceId: string, type: FavoriteType, id: string) => {
         if (!workspaceId) return false;
         const workspaceFavs = get().favoritesByWorkspace[workspaceId];
@@ -50,6 +57,36 @@ export const useSidebarFavoritesStore = create<SidebarFavoritesState>()(
         if (!workspaceId) return [];
         return get().favoritesByWorkspace[workspaceId]?.[type] ?? [];
       },
+      isNavPinned: (workspaceId: string, path: string) => {
+        if (!workspaceId) return DEFAULT_PINNED_NAV_PATHS.includes(path);
+        const pinned =
+          get().pinnedNavByWorkspace[workspaceId] ?? DEFAULT_PINNED_NAV_PATHS;
+        return pinned.includes(path);
+      },
+      toggleNavPinned: (workspaceId: string, path: string) => {
+        if (!workspaceId) return;
+        set((state) => {
+          const currentPinned =
+            state.pinnedNavByWorkspace[workspaceId] ?? DEFAULT_PINNED_NAV_PATHS;
+          const exists = currentPinned.includes(path);
+          const nextPinned = exists
+            ? currentPinned.filter((p) => p !== path)
+            : [...currentPinned, path];
+
+          return {
+            pinnedNavByWorkspace: {
+              ...state.pinnedNavByWorkspace,
+              [workspaceId]: nextPinned,
+            },
+          };
+        });
+      },
+      getPinnedNavPaths: (workspaceId: string) => {
+        if (!workspaceId) return DEFAULT_PINNED_NAV_PATHS;
+        return (
+          get().pinnedNavByWorkspace[workspaceId] ?? DEFAULT_PINNED_NAV_PATHS
+        );
+      },
     }),
     {
       name: 'onetab-sidebar-favorites',
@@ -60,8 +97,13 @@ export const useSidebarFavoritesStore = create<SidebarFavoritesState>()(
 export function useSidebarFavorites(workspaceId: string | undefined) {
   const isFavorite = useSidebarFavoritesStore((s) => s.isFavorite);
   const toggleFavorite = useSidebarFavoritesStore((s) => s.toggleFavorite);
+  const isNavPinned = useSidebarFavoritesStore((s) => s.isNavPinned);
+  const toggleNavPinned = useSidebarFavoritesStore((s) => s.toggleNavPinned);
   const favoritesByWorkspace = useSidebarFavoritesStore(
     (s) => s.favoritesByWorkspace,
+  );
+  const pinnedNavByWorkspace = useSidebarFavoritesStore(
+    (s) => s.pinnedNavByWorkspace,
   );
 
   const activeWorkspaceId = workspaceId ?? '';
@@ -73,6 +115,9 @@ export function useSidebarFavorites(workspaceId: string | undefined) {
     workflow: [],
   };
 
+  const pinnedNavPaths =
+    pinnedNavByWorkspace[activeWorkspaceId] ?? DEFAULT_PINNED_NAV_PATHS;
+
   return {
     isFavorite: (type: FavoriteType, id: string) =>
       isFavorite(activeWorkspaceId, type, id),
@@ -83,5 +128,9 @@ export function useSidebarFavorites(workspaceId: string | undefined) {
     favoriteAgentIds: workspaceFavs.agent ?? [],
     favoriteAppIds: workspaceFavs.app ?? [],
     favoriteWorkflowIds: workspaceFavs.workflow ?? [],
+    isNavPinned: (path: string) => isNavPinned(activeWorkspaceId, path),
+    toggleNavPinned: (path: string) =>
+      toggleNavPinned(activeWorkspaceId, path),
+    pinnedNavPaths,
   };
 }

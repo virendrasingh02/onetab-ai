@@ -3,6 +3,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
@@ -42,6 +43,7 @@ import {
   MessagesSquare,
   MoreHorizontal,
   Pencil,
+  Pin,
   Plus,
   Settings,
   Share2,
@@ -74,16 +76,16 @@ import {
 } from './resource-sections.js';
 import { useSidebarFavorites } from './use-sidebar-favorites.js';
 
-/** Shown directly — the destinations people reach for constantly. */
-const MOST_USED_LINKS: readonly NavEntry[] = [
+/** Fixed core destinations: Home, Inbox, Threads (permanent and never removable). */
+const CORE_LINKS: readonly NavEntry[] = [
   { path: '', label: 'Home', icon: Home, end: true },
   { path: 'inbox', label: 'Inbox', icon: Inbox },
   { path: 'threads', label: 'Threads', icon: MessagesSquare },
-  { path: 'meetings', label: 'Meetings', icon: Video },
 ];
 
-/** Everything else, behind the "More" menu. */
-const SECONDARY_LINKS: readonly NavEntry[] = [
+/** Secondary destinations that can be pinned to the primary sidebar or accessed via More. */
+const MORE_DESTINATIONS: readonly NavEntry[] = [
+  { path: 'meetings', label: 'Meetings', icon: Video },
   { path: 'pulse', label: 'Pulse', icon: Activity },
   { path: 'schedule', label: 'Schedule', icon: Clock },
   { path: 'tasks', label: 'Projects', icon: FolderKanban },
@@ -456,6 +458,9 @@ export function ChannelNav({
     favoriteAgentIds,
     favoriteAppIds,
     favoriteWorkflowIds,
+    isNavPinned,
+    toggleNavPinned,
+    pinnedNavPaths,
   } = useSidebarFavorites(workspaceId);
 
   const toggleFavorite = useCallback(
@@ -481,14 +486,20 @@ export function ChannelNav({
     [navigate, workspaceSlug],
   );
 
-  const primaryLinks = useMemo(
+  const coreLinks = useMemo(
     () =>
-      MOST_USED_LINKS.map((entry) =>
+      CORE_LINKS.map((entry) =>
         entry.path === 'inbox' && inboxUnread > 0
           ? { ...entry, badge: inboxUnread > 99 ? '99+' : inboxUnread }
           : entry,
       ),
     [inboxUnread],
+  );
+
+  const pinnedSecondaryLinks = useMemo(
+    () =>
+      MORE_DESTINATIONS.filter((entry) => pinnedNavPaths.includes(entry.path)),
+    [pinnedNavPaths],
   );
 
   useEffect(() => {
@@ -584,11 +595,20 @@ export function ChannelNav({
       >
         <div className="pb-4 p-2">
           <nav aria-label="Primary navigation" className="space-y-0.5">
-            {primaryLinks.map((entry) => (
+            {coreLinks.map((entry) => (
               <NavRow
                 key={entry.label}
                 entry={entry}
                 workspaceSlug={workspaceSlug}
+              />
+            ))}
+
+            {pinnedSecondaryLinks.map((entry) => (
+              <NavRow
+                key={entry.label}
+                entry={entry}
+                workspaceSlug={workspaceSlug}
+                onTogglePin={() => toggleNavPinned(entry.path)}
               />
             ))}
 
@@ -606,33 +626,68 @@ export function ChannelNav({
                 align="start"
                 side="bottom"
                 sideOffset={4}
-                className="w-52"
+                className="w-56 p-1.5"
               >
-                {SECONDARY_LINKS.map((entry) => {
-                  const Icon = entry.icon;
-                  return (
-                    <DropdownMenuItem
-                      key={entry.label}
-                      asChild
-                      className="gap-2.5 text-xs"
-                    >
-                      <NavLink
-                        to={
-                          entry.path
-                            ? `/w/${workspaceSlug}/${entry.path}`
-                            : `/w/${workspaceSlug}`
-                        }
-                        end={entry.end}
+                <DropdownMenuLabel className="px-2.5 py-1 font-medium tracking-wide text-[11px] text-subtle uppercase">
+                  More destinations
+                </DropdownMenuLabel>
+                <div className="space-y-0.5 my-1">
+                  {MORE_DESTINATIONS.map((entry) => {
+                    const Icon = entry.icon;
+                    const isPinned = isNavPinned(entry.path);
+                    return (
+                      <div
+                        key={entry.label}
+                        className="group/more-row flex items-center justify-between rounded-xl px-2.5 py-1.5 text-[13px] font-medium text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors"
                       >
-                        <Icon
-                          className="size-4 shrink-0 text-muted-foreground"
-                          aria-hidden
-                        />
-                        <span className="flex-1 truncate">{entry.label}</span>
-                      </NavLink>
-                    </DropdownMenuItem>
-                  );
-                })}
+                        <NavLink
+                          to={`/w/${workspaceSlug}/${entry.path}`}
+                          end={entry.end}
+                          className="flex items-center gap-2.5 flex-1 min-w-0"
+                        >
+                          <Icon
+                            className="size-4 shrink-0 text-muted-foreground"
+                            aria-hidden
+                          />
+                          <span className="truncate">{entry.label}</span>
+                        </NavLink>
+
+                        <Hint
+                          label={
+                            isPinned ? 'Unpin from sidebar' : 'Pin to sidebar'
+                          }
+                        >
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleNavPinned(entry.path);
+                            }}
+                            aria-label={
+                              isPinned
+                                ? `Unpin ${entry.label}`
+                                : `Pin ${entry.label}`
+                            }
+                            className={cn(
+                              'size-6 flex items-center justify-center rounded-md transition-all',
+                              isPinned
+                                ? 'text-foreground opacity-100 bg-accent/80'
+                                : 'text-muted-foreground opacity-0 group-hover/more-row:opacity-100 group-focus-within/more-row:opacity-100 hover:text-foreground hover:bg-accent',
+                            )}
+                          >
+                            <Pin
+                              className={cn(
+                                'size-3.5',
+                                isPinned && 'fill-current rotate-45 text-foreground',
+                              )}
+                            />
+                          </button>
+                        </Hint>
+                      </div>
+                    );
+                  })}
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           </nav>
