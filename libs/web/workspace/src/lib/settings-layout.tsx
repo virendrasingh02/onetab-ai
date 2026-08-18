@@ -9,6 +9,7 @@ import {
   Bot,
   Building2,
   Calendar,
+  CreditCard,
   FileCode,
   FolderArchive,
   Kanban,
@@ -29,6 +30,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 export interface NavGroup {
+  section: 'account' | 'workspace';
   title: string;
   items: {
     id: string;
@@ -51,20 +53,34 @@ export function SettingsLayout({
   const { workspaceSlug } = useParams<{ workspaceSlug?: string }>();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSection, setSelectedSection] = useState<'all' | 'workspace' | 'account'>('all');
 
   const backUrl = workspaceSlug ? `/w/${workspaceSlug}` : '/';
 
   const navGroups: NavGroup[] = [
     {
-      title: 'Account & Personal',
+      section: 'account',
+      title: 'Account Settings',
       items: [
-        { id: 'preferences', label: 'Preferences', icon: Sliders },
+        { id: 'preferences', label: 'Preferences & Theme', icon: Sliders },
         { id: 'profile', label: 'Profile & Details', icon: User },
         { id: 'notifications', label: 'Notifications & Alerts', icon: Bell },
         { id: 'security', label: 'Account Security', icon: ShieldCheck },
       ],
     },
     {
+      section: 'workspace',
+      title: 'Workspace Settings',
+      items: [
+        { id: 'general', label: 'General Settings', icon: Building2 },
+        { id: 'members', label: 'Members & Directory', icon: Users },
+        { id: 'invitations', label: 'Workspace Invitations', icon: UserPlus },
+        { id: 'analytics', label: 'Company Analytics & Usage', icon: BarChart3 },
+        { id: 'billing', label: 'Plans & Billing', icon: CreditCard, badge: 'PRO' },
+      ],
+    },
+    {
+      section: 'workspace',
       title: 'AI & Automation',
       items: [
         {
@@ -78,7 +94,8 @@ export function SettingsLayout({
       ],
     },
     {
-      title: 'Work Tools & Collaboration',
+      section: 'workspace',
+      title: 'Work Tools & Features',
       items: [
         { id: 'channels', label: 'Channels & DMs', icon: MessageSquare },
         { id: 'kanban-tasks', label: 'Tasks & Kanban', icon: Kanban },
@@ -89,6 +106,7 @@ export function SettingsLayout({
       ],
     },
     {
+      section: 'workspace',
       title: 'Integrations & Migration',
       items: [
         { id: 'integrations', label: 'Integration Hub', icon: Plug },
@@ -96,38 +114,24 @@ export function SettingsLayout({
       ],
     },
     {
-      title: 'Workspace Administration',
+      section: 'workspace',
+      title: 'Security & Danger Zone',
       items: [
-        { id: 'general', label: 'General Settings', icon: Building2 },
-        {
-          id: 'members',
-          label: 'Members & Directory',
-          icon: Users,
-          href: workspaceSlug ? `/w/${workspaceSlug}/members` : undefined,
-        },
-        {
-          id: 'invitations',
-          label: 'Workspace Invitations',
-          icon: UserPlus,
-          href: workspaceSlug ? `/w/${workspaceSlug}/invitations` : undefined,
-        },
-        {
-          id: 'analytics',
-          label: 'Analytics & Usage',
-          icon: BarChart3,
-          href: workspaceSlug ? `/w/${workspaceSlug}/analytics` : undefined,
-        },
         { id: 'danger', label: 'Danger Zone', icon: AlertTriangle },
       ],
     },
   ];
+
+  const visibleGroups = navGroups.filter(
+    (g) => selectedSection === 'all' || g.section === selectedSection,
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex h-screen w-screen bg-background text-foreground overflow-hidden font-sans antialiased">
       {/* Left Dedicated Settings Sidebar */}
       <aside className="w-72 shrink-0 border-r border-border bg-surface flex flex-col h-full select-none">
         {/* Top Header Link & Search */}
-        <div className="p-3.5 border-b border-border space-y-3">
+        <div className="p-3.5 border-b border-border space-y-2.5">
           <Link
             to={backUrl}
             className="inline-flex items-center gap-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all px-2.5 py-1.5 rounded-xl hover:bg-accent/60 w-full group"
@@ -142,14 +146,51 @@ export function SettingsLayout({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               leadingIcon={<Search className="size-4" />}
-              className="h-8.5 text-xs bg-surface-inset border-border placeholder:text-muted-foreground"
+              className="h-8 text-xs bg-surface-inset border-border placeholder:text-muted-foreground"
             />
+          </div>
+
+          {/* Section Filter Pills */}
+          <div className="grid grid-cols-3 gap-1 bg-surface-inset p-0.5 rounded-lg border border-border/60">
+            <button
+              type="button"
+              onClick={() => setSelectedSection('all')}
+              className={`py-1 text-[11px] font-semibold rounded-md transition-all text-center ${
+                selectedSection === 'all'
+                  ? 'bg-surface text-foreground shadow-2xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedSection('workspace')}
+              className={`py-1 text-[11px] font-semibold rounded-md transition-all text-center truncate px-1 ${
+                selectedSection === 'workspace'
+                  ? 'bg-surface text-foreground shadow-2xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Workspace
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedSection('account')}
+              className={`py-1 text-[11px] font-semibold rounded-md transition-all text-center truncate px-1 ${
+                selectedSection === 'account'
+                  ? 'bg-surface text-foreground shadow-2xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Account
+            </button>
           </div>
         </div>
 
         {/* Scrollable Nav Items */}
         <ScrollArea className="min-h-0 flex-1" contentClassName="p-3 space-y-4">
-          {navGroups.map((group) => {
+          {visibleGroups.map((group) => {
             const filteredItems = group.items.filter((item) =>
               item.label.toLowerCase().includes(searchQuery.toLowerCase()),
             );
@@ -158,7 +199,7 @@ export function SettingsLayout({
 
             return (
               <div key={group.title} className="space-y-1">
-                <div className="px-2.5 py-1 text-[11px] font-semibold text-subtle uppercase tracking-wider">
+                <div className="px-2.5 py-1 text-[10.5px] font-bold text-muted-foreground uppercase tracking-wider">
                   {group.title}
                 </div>
                 {filteredItems.map((item) => {
@@ -177,9 +218,9 @@ export function SettingsLayout({
                         }
                       }}
                       className={cn(
-                        'w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all text-left',
+                        'w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-medium transition-all text-left',
                         isActive
-                          ? 'bg-accent/80 text-foreground font-semibold shadow-2xs'
+                          ? 'bg-accent text-foreground font-semibold shadow-2xs'
                           : 'text-muted-foreground hover:text-foreground hover:bg-accent/50',
                       )}
                     >

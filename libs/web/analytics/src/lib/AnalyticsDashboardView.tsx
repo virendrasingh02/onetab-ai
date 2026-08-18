@@ -13,13 +13,11 @@ import { useState } from 'react';
 import {
   BarChart,
   Breakdown,
-  DataTable,
   MetricCard,
   Panel,
   QueryState,
   RangePicker,
   RefreshButton,
-  StatusPill,
   ViewHeader,
   ViewShell,
   formatBytes,
@@ -132,28 +130,6 @@ export function AnalyticsDashboardView() {
                 />
               </Panel>
             </div>
-
-            <Panel
-              title="Platform health"
-              subtitle={`Checked ${new Date(
-                data.health.checkedAt,
-              ).toLocaleTimeString()}`}
-              actions={<StatusPill status={data.health.status} />}
-            >
-              <DataTable
-                columns={['Service', 'Status', 'Latency', 'Detail']}
-                rows={data.health.services.map((service) => [
-                  <span className="font-medium text-foreground">
-                    {service.name}
-                  </span>,
-                  <StatusPill status={service.status} />,
-                  service.latencyMs === null ? '—' : `${service.latencyMs}ms`,
-                  <span className="text-muted-foreground">
-                    {service.detail}
-                  </span>,
-                ])}
-              />
-            </Panel>
           </>
         ) : null}
       </QueryState>

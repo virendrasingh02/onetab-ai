@@ -54,6 +54,9 @@
     },
     {
       "path": "../desktop/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/analytics-ui/tsconfig.lib.json"
     }
   ]
 }

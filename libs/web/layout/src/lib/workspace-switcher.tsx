@@ -12,7 +12,6 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  BarChart3,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -20,8 +19,6 @@ import {
   PanelLeft,
   Plus,
   Settings,
-  UserPlus,
-  Users,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -123,51 +120,13 @@ export function WorkspaceMenu({
             asChild
             className="gap-2 text-xs flex cursor-pointer items-center"
           >
-            <Link to={`/w/${current.slug}/analytics`}>
-              <span className="size-5 flex items-center justify-center rounded-md border border-border text-subtle">
-                <BarChart3 className="size-3.5" />
-              </span>
-              <span className="font-medium">Company Analytics</span>
-            </Link>
-          </DropdownMenuItem>
-
-          <DropdownMenuItem
-            asChild
-            className="gap-2 text-xs flex cursor-pointer items-center"
-          >
-            <Link to={`/w/${current.slug}/directory`}>
-              <span className="size-5 flex items-center justify-center rounded-md border border-border text-subtle">
-                <Users className="size-3.5" />
-              </span>
-              <span className="font-medium">Team Directory</span>
-            </Link>
-          </DropdownMenuItem>
-
-          <DropdownMenuItem
-            asChild
-            className="gap-2 text-xs flex cursor-pointer items-center"
-          >
-            <Link to={`/w/${current.slug}/invitations`}>
-              <span className="size-5 flex items-center justify-center rounded-md border border-border text-subtle">
-                <UserPlus className="size-3.5" />
-              </span>
-              <span className="font-medium">Invite Teammates</span>
-            </Link>
-          </DropdownMenuItem>
-
-          <DropdownMenuItem
-            asChild
-            className="gap-2 text-xs flex cursor-pointer items-center"
-          >
             <Link to={`/w/${current.slug}/settings`}>
               <span className="size-5 flex items-center justify-center rounded-md border border-border text-subtle">
                 <Settings className="size-3.5" />
               </span>
-              <span className="font-medium">Company Settings</span>
+              <span className="font-medium">Workspace Settings</span>
             </Link>
           </DropdownMenuItem>
-
-          <DropdownMenuSeparator className="my-1" />
 
           <DropdownMenuItem
             asChild
@@ -192,7 +151,7 @@ export function WorkspaceMenu({
               size="icon-sm"
               onClick={onToggleSidebar}
               aria-label="Toggle sidebar"
-              className="size-7 p-0 opacity-0 transition-opacity duration-(--duration-fast) group-hover/sidebar:opacity-100 group-hover/workspace-header:opacity-100 group-focus-within/sidebar:opacity-100 focus-visible:opacity-100"
+              className="size-7 p-0 opacity-0 transition-opacity duration-(--duration-fast) group-focus-within/sidebar:opacity-100 group-hover/sidebar:opacity-100 group-hover/workspace-header:opacity-100 focus-visible:opacity-100"
             >
               <PanelLeft className="size-4 text-subtle hover:text-foreground" />
             </Button>

@@ -189,6 +189,21 @@ export function useDeleteWorkspace() {
   });
 }
 
+export function useTransferOwnership(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId: string) =>
+      workspaceApi.transferOwnership(workspaceId as string, userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.members.all(workspaceId ?? ''),
+      });
+    },
+  });
+}
+
 export function useSlugSuggestion(name: string) {
   return useQuery({
     queryKey: ['workspaces', 'slug-suggestion', name],
@@ -198,3 +213,4 @@ export function useSlugSuggestion(name: string) {
     staleTime: 5_000,
   });
 }
+

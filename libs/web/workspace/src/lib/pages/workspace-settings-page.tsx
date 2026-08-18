@@ -64,6 +64,10 @@ import {
   useUpdateWorkspace,
 } from '../use-workspaces.js';
 import { SettingsLayout } from '../settings-layout.js';
+import { WorkspaceMembersSettings } from '../components/workspace-members-settings.js';
+import { WorkspaceBillingSettings } from '../components/workspace-billing-settings.js';
+import { WorkspaceCompanyAnalytics } from '../components/workspace-company-analytics.js';
+import { UpgradePlanBanner } from '../components/upgrade-plan-banner.js';
 
 export function WorkspaceSettingsPage() {
   const { workspace, workspaceId, isLoading } = useCurrentWorkspace();
@@ -82,10 +86,24 @@ export function WorkspaceSettingsPage() {
   const isImportExportRoute =
     location.pathname.endsWith('/import-export') ||
     location.pathname.endsWith('/integrations/import');
+  const isMembersRoute = location.pathname.endsWith('/members');
+  const isInvitationsRoute = location.pathname.endsWith('/invitations');
+  const isAnalyticsRoute = location.pathname.includes('/analytics');
+  const isBillingRoute =
+    location.pathname.endsWith('/billing') ||
+    location.pathname.endsWith('/plans');
 
   const currentTab = isImportExportRoute
     ? 'import-export'
-    : searchParams.get('tab') || searchParams.get('section') || 'preferences';
+    : isMembersRoute
+      ? 'members'
+      : isInvitationsRoute
+        ? 'invitations'
+        : isAnalyticsRoute
+          ? 'analytics'
+          : isBillingRoute
+            ? 'billing'
+            : searchParams.get('tab') || searchParams.get('section') || 'preferences';
 
   const handleTabChange = (val: string) => {
     setSearchParams(
@@ -1354,8 +1372,41 @@ export function WorkspaceSettingsPage() {
       )}
 
       {/* ---------------- SECTION 8: WORKSPACE ADMIN ---------------- */}
+      {(currentTab === 'members' || currentTab === 'invitations') && (
+        <WorkspaceMembersSettings
+          workspaceId={workspaceId}
+          workspaceSlug={workspace?.slug}
+          workspaceName={workspace?.name}
+          workspaceRole={workspace?.role}
+          onNavigateToTab={handleTabChange}
+        />
+      )}
+
+      {(currentTab === 'billing' || currentTab === 'plans') && (
+        <WorkspaceBillingSettings
+          totalMembers={1}
+          workspaceName={workspace?.name}
+          isOwner={isOwner}
+        />
+      )}
+
+      {currentTab === 'analytics' && (
+        <WorkspaceCompanyAnalytics
+          workspaceId={workspaceId}
+          workspaceName={workspace?.name}
+          onNavigateToTab={handleTabChange}
+        />
+      )}
+
       {currentTab === 'general' && (
         <div className="space-y-8">
+          <UpgradePlanBanner
+            variant="compact"
+            totalMembers={1}
+            maxSeats={5}
+            currentPlan="starter"
+            onUpgradeClick={() => handleTabChange('billing')}
+          />
           <div>
             <h1 className="text-xl font-bold tracking-tight text-foreground">General Settings</h1>
             <p className="text-xs text-muted-foreground mt-1">

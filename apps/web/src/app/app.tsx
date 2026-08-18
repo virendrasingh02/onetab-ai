@@ -122,27 +122,7 @@ const WorkflowExecutionLogsView = lazy(() =>
 const IntegrationHubView = lazy(() =>
   import('@org/web-integrations').then((m) => ({ default: m.IntegrationHubView })),
 );
-const AnalyticsLayout = lazy(() =>
-  import('@org/web-analytics').then((m) => ({ default: m.AnalyticsLayout })),
-);
-const AnalyticsDashboardView = lazy(() =>
-  import('@org/web-analytics').then((m) => ({ default: m.AnalyticsDashboardView })),
-);
-const ReportsView = lazy(() =>
-  import('@org/web-analytics').then((m) => ({ default: m.ReportsView })),
-);
-const UserAnalyticsView = lazy(() =>
-  import('@org/web-analytics').then((m) => ({ default: m.UserAnalyticsView })),
-);
-const AIUsageView = lazy(() =>
-  import('@org/web-analytics').then((m) => ({ default: m.AIUsageView })),
-);
-const WorkspaceAnalyticsView = lazy(() =>
-  import('@org/web-analytics').then((m) => ({ default: m.WorkspaceAnalyticsView })),
-);
-const StorageAnalyticsView = lazy(() =>
-  import('@org/web-analytics').then((m) => ({ default: m.StorageAnalyticsView })),
-);
+
 
 function NotFoundPage() {
   return (
@@ -227,18 +207,20 @@ export function App() {
               Analytics is one destination with tabs: `AnalyticsLayout` renders
               the tab bar and the routed screen below it.
             */}
-            <Route path="analytics" element={<AnalyticsLayout />}>
-              <Route index element={<AnalyticsDashboardView />} />
-              <Route path="reports" element={<ReportsView />} />
-              <Route path="users" element={<UserAnalyticsView />} />
-              <Route path="ai-usage" element={<AIUsageView />} />
-              <Route path="workspace" element={<WorkspaceAnalyticsView />} />
-              <Route path="storage" element={<StorageAnalyticsView />} />
-            </Route>
+            <Route path="analytics/*" element={<WorkspaceSettingsPage />} />
+            <Route path="analytics" element={<WorkspaceSettingsPage />} />
             <Route path="profile" element={<ProfilePage />} />
+            <Route path="members" element={<WorkspaceSettingsPage />} />
+            <Route path="invitations" element={<WorkspaceSettingsPage />} />
+            <Route path="billing" element={<WorkspaceSettingsPage />} />
+            <Route path="plans" element={<WorkspaceSettingsPage />} />
             <Route path="settings" element={<WorkspaceSettingsPage />} />
             <Route
               path="settings/workspace"
+              element={<WorkspaceSettingsPage />}
+            />
+            <Route
+              path="settings/analytics"
               element={<WorkspaceSettingsPage />}
             />
             <Route path="*" element={<NotFoundPage />} />

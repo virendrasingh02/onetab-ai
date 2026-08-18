@@ -44,9 +44,6 @@
       "path": "../../libs/shared/api-client/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/web/analytics/tsconfig.lib.json"
-    },
-    {
       "path": "../../libs/web/integrations/tsconfig.lib.json"
     },
     {

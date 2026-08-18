@@ -28,6 +28,7 @@
     "react-router-dom": "^6.30.3",
     "zod": "^4.4.3",
     "zustand": "^5.0.14",
-    "@org/icons": "*"
+    "@org/icons": "*",
+    "@org/analytics-ui": "*"
   }
 }
