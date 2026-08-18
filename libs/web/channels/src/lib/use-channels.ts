@@ -1,5 +1,5 @@
 import { channelApi, queryKeys } from '@org/api-client';
-import type { ChannelSummary } from '@org/types';
+import type { ChannelBookmark, ChannelSummary } from '@org/types';
 import type {
   AddChannelMembersInput,
   ChannelPreferencesInput,
@@ -8,7 +8,7 @@ import type {
   UpdateChannelInput,
 } from '@org/validation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export function useChannels(
   workspaceId: string | undefined,
@@ -302,3 +302,88 @@ export function usePinMutations(workspaceId: string | undefined) {
 
   return { create, remove };
 }
+
+/**
+ * Manages pinned links and resources for a specific channel with localStorage persistence.
+ */
+export function useChannelBookmarks(
+  workspaceId: string | undefined,
+  channelId: string | undefined,
+) {
+  const storageKey = useMemo(
+    () => `onetab_channel_bm_${workspaceId || 'default'}_${channelId || 'default'}`,
+    [workspaceId, channelId],
+  );
+
+  const [bookmarks, setBookmarks] = useState<ChannelBookmark[]>(() => {
+    if (typeof window === 'undefined' || !channelId) return [];
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !channelId) return;
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setBookmarks(parsed);
+          return;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    setBookmarks([]);
+  }, [storageKey, channelId]);
+
+  const addBookmark = useCallback(
+    (bookmark: Omit<ChannelBookmark, 'id'>) => {
+      setBookmarks((prev) => {
+        const newEntry: ChannelBookmark = {
+          ...bookmark,
+          id: `bm-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        };
+        const updated = [...prev, newEntry];
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(updated));
+        } catch {
+          // ignore
+        }
+        return updated;
+      });
+    },
+    [storageKey],
+  );
+
+  const removeBookmark = useCallback(
+    (id: string) => {
+      setBookmarks((prev) => {
+        const updated = prev.filter((b) => b.id !== id);
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(updated));
+        } catch {
+          // ignore
+        }
+        return updated;
+      });
+    },
+    [storageKey],
+  );
+
+  return {
+    bookmarks,
+    addBookmark,
+    removeBookmark,
+  };
+}
+

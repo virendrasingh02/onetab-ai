@@ -45,6 +45,11 @@ export {
 } from './lib/lexical-composer.js';
 
 export {
+  AddBookmarkDialog,
+  type AddBookmarkDialogProps,
+} from './lib/add-bookmark-dialog.js';
+
+export {
   BookmarksBar,
   ConversationSearch,
   HuddleBar,

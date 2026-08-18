@@ -1,6 +1,7 @@
 export {
   useArchiveChannel,
   useChannel,
+  useChannelBookmarks,
   useChannelFiles,
   useChannelMemberMutations,
   useChannelMembers,

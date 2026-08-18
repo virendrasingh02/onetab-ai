@@ -114,6 +114,13 @@ export interface ChannelMember {
   user: PublicUser;
 }
 
+export interface ChannelBookmark {
+  id: string;
+  label: string;
+  href: string;
+  emoji?: string;
+}
+
 export interface ChannelPin {
   id: string;
   channelId: string;

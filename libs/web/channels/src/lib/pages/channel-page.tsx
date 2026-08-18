@@ -23,6 +23,7 @@ import {
   UserAvatar,
 } from '@org/ui';
 import { cn, formatBytes, formatDate } from '@org/utils';
+import { AddBookmarkDialog, BookmarksBar } from '@org/chat-ui';
 import { ChannelChat } from '@org/web-chat';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
@@ -30,9 +31,12 @@ import {
   ArchiveRestore,
   Bell,
   BellOff,
+  Bookmark,
+  BookmarkPlus,
   Check,
   ChevronRight,
   Copy,
+  ExternalLink,
   FileText,
   Hash,
   Image as ImageIcon,
@@ -42,6 +46,7 @@ import {
   MoreHorizontal,
   Pencil,
   Pin,
+  Plus,
   Search,
   Share2,
   Star,
@@ -52,6 +57,7 @@ import { useParams } from 'react-router-dom';
 import {
   useArchiveChannel,
   useChannel,
+  useChannelBookmarks,
   useChannelFiles,
   useChannelMembers,
   useChannelPins,
@@ -212,7 +218,13 @@ function ChannelMembersDropdown({
   );
 }
 
-function ChannelHeader({ channel }: { channel: ChannelSummary }) {
+function ChannelHeader({
+  channel,
+  onAddBookmark,
+}: {
+  channel: ChannelSummary;
+  onAddBookmark?: () => void;
+}) {
   const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
   const preferences = useChannelPreferences(workspaceId);
   const archive = useArchiveChannel(workspaceId);
@@ -279,6 +291,20 @@ function ChannelHeader({ channel }: { channel: ChannelSummary }) {
               </Button>
             </Hint>
 
+            {onAddBookmark ? (
+              <Hint label="Add bookmark">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Add bookmark"
+                  onClick={onAddBookmark}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <BookmarkPlus className="size-4" />
+                </Button>
+              </Hint>
+            ) : null}
+
             {channel.membership ? (
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
@@ -316,6 +342,16 @@ function ChannelHeader({ channel }: { channel: ChannelSummary }) {
                     </div>
                     <DropdownMenuShortcut>C</DropdownMenuShortcut>
                   </DropdownMenuItem>
+
+                  {onAddBookmark ? (
+                    <DropdownMenuItem onClick={onAddBookmark} className="justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <Bookmark className="size-4" />
+                        <span>Add bookmark</span>
+                      </div>
+                      <DropdownMenuShortcut>B</DropdownMenuShortcut>
+                    </DropdownMenuItem>
+                  ) : null}
 
                   <DropdownMenuSeparator />
 
@@ -454,7 +490,7 @@ function ChannelHeader({ channel }: { channel: ChannelSummary }) {
 }
 
 /**
- * Channel workspace: Chat / About / Files / Media / Pins.
+ * Channel workspace: Chat / About / Bookmarks / Files / Media / Pins.
  */
 export function ChannelPage() {
   const { channelSlug } = useParams<{ channelSlug: string }>();
@@ -464,6 +500,11 @@ export function ChannelPage() {
 
   const pins = useChannelPins(workspaceId, channel?.id);
   const files = useChannelFiles(workspaceId, channel?.id);
+  const { bookmarks, addBookmark, removeBookmark } = useChannelBookmarks(
+    workspaceId,
+    channel?.id,
+  );
+  const [addBookmarkOpen, setAddBookmarkOpen] = useState(false);
 
   if (channelQuery.isLoading) return <LoadingState fullPage />;
   if (channelQuery.isError || !channel) {
@@ -484,7 +525,23 @@ export function ChannelPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <ChannelHeader channel={channel} />
+      <ChannelHeader
+        channel={channel}
+        onAddBookmark={() => setAddBookmarkOpen(true)}
+      />
+
+      <BookmarksBar
+        bookmarks={bookmarks}
+        onAdd={() => setAddBookmarkOpen(true)}
+        onRemove={removeBookmark}
+      />
+
+      <AddBookmarkDialog
+        open={addBookmarkOpen}
+        onOpenChange={setAddBookmarkOpen}
+        onAdd={addBookmark}
+        channelName={channel.name}
+      />
 
       <Tabs defaultValue="chat" className="min-h-0 flex flex-1 flex-col">
         <div className="border-b border-border bg-background px-3 sm:px-6 pt-2 overflow-x-auto scrollbar-none">
@@ -493,6 +550,14 @@ export function ChannelPage() {
               <MessageSquare className="size-4" /> Messages
             </TabsTrigger>
             <TabsTrigger value="about">About</TabsTrigger>
+            <TabsTrigger value="bookmarks" className="gap-1.5">
+              <Bookmark className="size-4" /> Bookmarks
+              {bookmarks.length > 0 ? (
+                <Badge variant="neutral" className="ml-0.5 px-1 py-0 text-[10px]">
+                  {bookmarks.length}
+                </Badge>
+              ) : null}
+            </TabsTrigger>
             <TabsTrigger value="files" className="gap-1.5">
               <FileText className="size-4" /> Files
             </TabsTrigger>
@@ -550,6 +615,94 @@ export function ChannelPage() {
                 </dd>
               </div>
             </dl>
+          </ScrollArea>
+        </TabsContent>
+
+        <TabsContent value="bookmarks" className="flex min-h-0 flex-1 flex-col">
+          <ScrollArea className="min-h-0 flex-1" contentClassName="px-6 py-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">
+                  Channel Bookmarks
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Pinned links and resources for #{channel.name}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => setAddBookmarkOpen(true)}
+                className="gap-1.5"
+              >
+                <Plus className="size-3.5" />
+                <span>Add bookmark</span>
+              </Button>
+            </div>
+
+            {bookmarks.length === 0 ? (
+              <EmptyState
+                icon={<Bookmark />}
+                title="No bookmarks yet"
+                description="Pin important links, spreadsheets, and docs to this channel."
+                action={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAddBookmarkOpen(true)}
+                  >
+                    Add first bookmark
+                  </Button>
+                }
+              />
+            ) : (
+              <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                {bookmarks.map((bm) => (
+                  <div
+                    key={bm.id}
+                    className="group relative flex items-start justify-between rounded-card border border-border bg-surface p-3 transition-all hover:border-border-strong hover:bg-surface-raised shadow-xs"
+                  >
+                    <a
+                      href={bm.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="min-w-0 flex-1 flex items-start gap-2.5 outline-none"
+                    >
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-surface-raised text-base">
+                        {bm.emoji || '🔗'}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                          {bm.label}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground mt-0.5">
+                          {bm.href}
+                        </p>
+                      </div>
+                    </a>
+
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <a
+                        href={bm.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1 text-muted-foreground hover:text-foreground rounded"
+                        aria-label="Open link"
+                      >
+                        <ExternalLink className="size-3.5" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => removeBookmark(bm.id)}
+                        className="p-1 text-muted-foreground hover:text-destructive rounded"
+                        aria-label="Remove bookmark"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </ScrollArea>
         </TabsContent>
 
@@ -647,3 +800,4 @@ export function ChannelPage() {
     </div>
   );
 }
+

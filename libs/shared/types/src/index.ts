@@ -16,6 +16,7 @@ export {
 
 export type {
   Channel,
+  ChannelBookmark,
   ChannelMember,
   ChannelPin,
   ChannelSummary,

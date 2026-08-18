@@ -62,6 +62,8 @@ export interface ChatSurfaceProps {
   savedIds?: string[];
   firstUnreadId?: string | null;
 
+  onAddBookmark?: () => void;
+  onRemoveBookmark?: (id: string) => void;
   onSend: (body: string, threadRootId?: string) => void | Promise<void>;
   onEdit?: (eventId: string, body: string) => void | Promise<void>;
   onDelete?: (eventId: string) => void | Promise<void>;
@@ -97,6 +99,8 @@ export function ChatSurface({
   pinnedIds = [],
   savedIds = [],
   firstUnreadId,
+  onAddBookmark,
+  onRemoveBookmark,
   onSend,
   onEdit,
   onDelete,
@@ -384,7 +388,11 @@ export function ChatSurface({
             }
           />
 
-          <BookmarksBar bookmarks={bookmarks} onAdd={() => undefined} />
+          <BookmarksBar
+            bookmarks={bookmarks}
+            onAdd={onAddBookmark}
+            onRemove={onRemoveBookmark}
+          />
 
           <HuddleBar
             participants={huddleRoster}

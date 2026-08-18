@@ -23,6 +23,7 @@ import {
   Plus,
   Search,
   Video,
+  X,
 } from 'lucide-react';
 import { useMemo, type ReactNode } from 'react';
 
@@ -39,6 +40,7 @@ export interface ChannelBookmark {
 export interface BookmarksBarProps {
   bookmarks: ChannelBookmark[];
   onAdd?: () => void;
+  onRemove?: (id: string) => void;
   className?: string;
 }
 
@@ -52,6 +54,7 @@ export interface BookmarksBarProps {
 export function BookmarksBar({
   bookmarks,
   onAdd,
+  onRemove,
   className,
 }: BookmarksBarProps) {
   if (bookmarks.length === 0 && !onAdd) return null;
@@ -59,34 +62,64 @@ export function BookmarksBar({
   return (
     <div
       className={cn(
-        'scrollbar-none h-9 gap-1 px-3 sm:px-4 flex shrink-0 items-center overflow-x-auto border-b border-border',
+        'scrollbar-none min-h-9 py-1 gap-1.5 px-3 sm:px-4 flex shrink-0 items-center overflow-x-auto border-b border-border bg-surface-muted/50',
         className,
       )}
     >
       {bookmarks.map((bookmark) => (
-        <a
+        <div
           key={bookmark.id}
-          href={bookmark.href}
           className={cn(
-            'gap-1.5 px-2 py-1 text-xs flex shrink-0 items-center rounded-md text-muted-foreground transition-colors',
-            'hover:bg-muted hover:text-foreground',
+            'group relative flex shrink-0 items-center rounded-md border border-border/70 bg-surface px-2 py-1 text-xs text-muted-foreground shadow-xs transition-all duration-fast',
+            'hover:border-border hover:bg-surface-raised hover:text-foreground',
           )}
         >
-          {bookmark.emoji ? <span aria-hidden>{bookmark.emoji}</span> : null}
-          <span className="max-w-40 truncate">{bookmark.label}</span>
-        </a>
+          <a
+            href={bookmark.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 outline-none"
+          >
+            {bookmark.emoji ? (
+              <span aria-hidden className="text-xs">
+                {bookmark.emoji}
+              </span>
+            ) : (
+              <Bookmark className="size-3 text-muted-foreground" />
+            )}
+            <span className="max-w-44 truncate font-medium">
+              {bookmark.label}
+            </span>
+          </a>
+
+          {onRemove ? (
+            <button
+              type="button"
+              aria-label={`Remove bookmark ${bookmark.label}`}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onRemove(bookmark.id);
+              }}
+              className="ml-1 opacity-0 transition-opacity group-hover:opacity-100 text-muted-foreground hover:text-destructive focus:opacity-100"
+            >
+              <X className="size-3" />
+            </button>
+          ) : null}
+        </div>
       ))}
 
       {onAdd ? (
         <Hint label="Add a bookmark">
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="sm"
             aria-label="Add a bookmark"
             onClick={onAdd}
-            className="shrink-0"
+            className="h-7 gap-1 px-2 text-xs font-normal text-muted-foreground hover:text-foreground"
           >
-            <Plus />
+            <Plus className="size-3.5" />
+            <span className="text-[11px]">Add bookmark</span>
           </Button>
         </Hint>
       ) : null}
