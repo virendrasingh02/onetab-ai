@@ -6,63 +6,123 @@ export const TooltipProvider = TooltipPrimitive.Provider;
 export const Tooltip = TooltipPrimitive.Root;
 export const TooltipTrigger = TooltipPrimitive.Trigger;
 
+export interface TooltipContentProps
+  extends ComponentProps<typeof TooltipPrimitive.Content> {
+  /** Optional arrow pointer. Disabled by default for modern floating pill style. */
+  showArrow?: boolean;
+}
+
 export function TooltipContent({
   className,
   sideOffset = 6,
   collisionPadding = 8,
+  showArrow = false,
   children,
   ...props
-}: ComponentProps<typeof TooltipPrimitive.Content>) {
+}: TooltipContentProps) {
   return (
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Content
         data-slot="tooltip-content"
         sideOffset={sideOffset}
-        // Without it the bubble hugs the viewport edge once collision detection
-        // kicks in, so a tooltip on the header's last icon read as clipped.
         collisionPadding={collisionPadding}
         className={cn(
-          'bg-foreground text-background w-fit rounded-md px-2 py-1 text-xs font-medium shadow-md',
-          /*
-           * `w-fit` alone lets a long label — a full timestamp, a channel name —
-           * run out as one unbroken line. The cap is what gives `text-balance`
-           * something to balance.
-           */
-          'max-w-64 text-balance',
-          /*
-           * The design scale puts tooltips above every other layer (modal 50,
-           * toast 60) because they are triggered *from* those layers. The old
-           * `z-50` tied them with dialogs and sheets, so a tooltip inside one
-           * won or lost on portal insertion order alone.
-           */
-          'z-(--z-tooltip)',
-          // Radix reports the corner nearest the trigger, so the zoom grows out
-          // of the control rather than out of the bubble's own centre.
-          'origin-(--radix-tooltip-content-transform-origin)',
-          /*
-           * Unconditional on enter: Content only mounts while open, and gating
-           * on `delayed-open` skipped the animation entirely for keyboard focus
-           * and for the `skipDelayDuration` hop between adjacent icon buttons,
-           * both of which open `instant`.
-           */
-          'animate-in fade-in-0 zoom-in-95',
-          'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
+          'z-(--z-tooltip) origin-(--radix-tooltip-content-transform-origin)',
+          'w-fit max-w-72 rounded-lg border border-border/80 bg-popover px-2.5 py-1 text-xs font-normal text-popover-foreground shadow-md',
+          'animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
           className,
         )}
         {...props}
       >
         {children}
-        {/*
-         * A rotated square, not Radix's own triangle: the box needs `bg-` for
-         * the diamond, and `fill-` only ever coloured the polygon inside it. So
-         * with `fill-*` alone this rendered as a triangle turned 45° — a
-         * lopsided sliver beside the bubble. The half that overlaps the bubble
-         * is invisible because the fill matches, leaving ~5px of rounded point
-         * inside the 6px `sideOffset` gap.
-         */}
-        <TooltipPrimitive.Arrow className="bg-foreground fill-foreground size-2.5 translate-y-[calc(-50%-2px)] rotate-45 rounded-[2px]" />
+        {showArrow && (
+          <TooltipPrimitive.Arrow className="fill-popover stroke-border stroke-1 size-2.5" />
+        )}
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
+  );
+}
+
+export interface KbdProps extends ComponentProps<'kbd'> {
+  children: ReactNode;
+}
+
+/**
+ * Keyboard key badge styled for tooltips, menus, and inline hints.
+ */
+export function Kbd({ className, children, ...props }: KbdProps) {
+  return (
+    <kbd
+      className={cn(
+        'inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-[4px] border border-border bg-surface-raised px-1.5 text-[10px] font-medium leading-none text-subtle select-none shadow-[0_1px_0_0_rgba(0,0,0,0.04)] dark:text-muted-foreground',
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </kbd>
+  );
+}
+
+/**
+ * Parses shortcut strings into formatted key badges and connector words
+ * e.g., "G then U", "Ctrl+K", "G T", "⌘K".
+ */
+export function renderShortcut(shortcut: ReactNode): ReactNode {
+  if (typeof shortcut !== 'string') {
+    return shortcut;
+  }
+
+  const trimmed = shortcut.trim();
+  if (!trimmed) return null;
+
+  // Handle + separated shortcuts without spaces (e.g. "Ctrl+Shift+N" or "Ctrl+K")
+  if (trimmed.includes('+') && !trimmed.includes(' ')) {
+    const parts = trimmed.split('+');
+    return (
+      <span className="inline-flex items-center gap-1">
+        {parts.map((part, i) => (
+          <span key={i} className="inline-flex items-center gap-1">
+            {i > 0 && (
+              <span className="text-[10px] text-muted-foreground/70 font-normal">
+                +
+              </span>
+            )}
+            <Kbd>{part.trim()}</Kbd>
+          </span>
+        ))}
+      </span>
+    );
+  }
+
+  const tokens = trimmed.split(/\s+/);
+  if (tokens.length === 1) {
+    return <Kbd>{trimmed}</Kbd>;
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {tokens.map((token, i) => {
+        const lower = token.toLowerCase();
+        if (
+          lower === 'then' ||
+          lower === 'or' ||
+          lower === 'to' ||
+          token === '+' ||
+          token === '/'
+        ) {
+          return (
+            <span
+              key={i}
+              className="text-[11px] font-normal text-muted-foreground"
+            >
+              {token}
+            </span>
+          );
+        }
+        return <Kbd key={i}>{token}</Kbd>;
+      })}
+    </span>
   );
 }
 
@@ -70,13 +130,14 @@ export interface HintProps
   extends Omit<ComponentProps<typeof TooltipPrimitive.Content>, 'content'> {
   label: ReactNode;
   children: ReactNode;
-  /** Keyboard shortcut rendered alongside the label. */
-  shortcut?: string;
+  /** Keyboard shortcut rendered alongside the label (e.g. "G then U", "Ctrl+K"). */
+  shortcut?: ReactNode;
   delayDuration?: number;
+  showArrow?: boolean;
 }
 
 /**
- * One-liner tooltip for icon buttons — the dominant case in the app chrome.
+ * One-liner tooltip for buttons, icon buttons, and navigation elements.
  * Wrap the tree in a single <TooltipProvider> at the app root.
  */
 export function Hint({
@@ -85,23 +146,17 @@ export function Hint({
   shortcut,
   side = 'top',
   delayDuration = 300,
+  showArrow = false,
   ...props
 }: HintProps) {
   return (
     <Tooltip delayDuration={delayDuration}>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent side={side} {...props}>
-        {/*
-         * The flex row is only for the shortcut pairing. Applying it to every
-         * label made a stacked label — `LocalTime`'s date over its zone — a
-         * single centred flex item, which fought the bubble's own wrapping.
-         */}
+      <TooltipContent side={side} showArrow={showArrow} {...props}>
         {shortcut ? (
-          <span className="flex items-center gap-2">
-            {label}
-            <kbd className="bg-background/20 rounded px-1 py-px font-mono text-[10px]">
-              {shortcut}
-            </kbd>
+          <span className="inline-flex items-center gap-2">
+            <span>{label}</span>
+            {renderShortcut(shortcut)}
           </span>
         ) : (
           label
@@ -110,3 +165,4 @@ export function Hint({
     </Tooltip>
   );
 }
+

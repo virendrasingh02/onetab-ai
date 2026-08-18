@@ -1,30 +1,32 @@
-import { ScrollArea } from '@org/ui';
-import React, { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Badge, Button, Input, ScrollArea } from '@org/ui';
+import { cn } from '@org/utils';
 import {
+  Activity,
+  AlertTriangle,
   ArrowLeft,
-  Building2,
-  Sliders,
-  User,
+  BarChart3,
   Bell,
-  ShieldCheck,
-  Sparkles,
-  Kanban,
+  Bot,
+  Building2,
+  Calendar,
   FileCode,
   FolderArchive,
-  Calendar,
-  Activity,
-  Plug,
-  Users,
-  UploadCloud,
-  AlertTriangle,
-  Search,
-  Bot,
-  Workflow,
-  BarChart3,
+  Kanban,
   MessageSquare,
+  Plug,
+  Search,
+  ShieldCheck,
+  Sliders,
+  Sparkles,
+  UploadCloud,
+  User,
   UserPlus,
+  Users,
+  Workflow,
+  X,
 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 export interface NavGroup {
   title: string;
@@ -65,7 +67,12 @@ export function SettingsLayout({
     {
       title: 'AI & Automation',
       items: [
-        { id: 'ai-persona', label: 'AI Models & Persona', icon: Sparkles, badge: 'AI' },
+        {
+          id: 'ai-persona',
+          label: 'AI Models & Persona',
+          icon: Sparkles,
+          badge: 'AI',
+        },
         { id: 'agent-marketplace', label: 'Agent Marketplace', icon: Bot },
         { id: 'automations', label: 'Workflow Automations', icon: Workflow },
       ],
@@ -92,54 +99,66 @@ export function SettingsLayout({
       title: 'Workspace Administration',
       items: [
         { id: 'general', label: 'General Settings', icon: Building2 },
-        { id: 'members', label: 'Members & Directory', icon: Users, href: workspaceSlug ? `/w/${workspaceSlug}/members` : undefined },
-        { id: 'invitations', label: 'Workspace Invitations', icon: UserPlus, href: workspaceSlug ? `/w/${workspaceSlug}/invitations` : undefined },
-        { id: 'analytics', label: 'Analytics & Usage', icon: BarChart3, href: workspaceSlug ? `/w/${workspaceSlug}/analytics` : undefined },
+        {
+          id: 'members',
+          label: 'Members & Directory',
+          icon: Users,
+          href: workspaceSlug ? `/w/${workspaceSlug}/members` : undefined,
+        },
+        {
+          id: 'invitations',
+          label: 'Workspace Invitations',
+          icon: UserPlus,
+          href: workspaceSlug ? `/w/${workspaceSlug}/invitations` : undefined,
+        },
+        {
+          id: 'analytics',
+          label: 'Analytics & Usage',
+          icon: BarChart3,
+          href: workspaceSlug ? `/w/${workspaceSlug}/analytics` : undefined,
+        },
         { id: 'danger', label: 'Danger Zone', icon: AlertTriangle },
       ],
     },
   ];
 
   return (
-    <div className="fixed inset-0 z-40 flex h-screen w-screen bg-background text-foreground overflow-hidden font-sans antialiased">
-      {/* Linear Left Sidebar - Product Feature Tailored */}
-      <aside className="w-64 shrink-0 border-r border-border/60 bg-muted/20 flex flex-col h-full select-none">
+    <div className="fixed inset-0 z-50 flex h-screen w-screen bg-background text-foreground overflow-hidden font-sans antialiased">
+      {/* Left Dedicated Settings Sidebar */}
+      <aside className="w-72 shrink-0 border-r border-border bg-surface flex flex-col h-full select-none">
         {/* Top Header Link & Search */}
-        <div className="p-3 border-b border-border/40 space-y-2">
+        <div className="p-3.5 border-b border-border space-y-3">
           <Link
             to={backUrl}
-            className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-md hover:bg-muted/50 w-full"
+            className="inline-flex items-center gap-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all px-2.5 py-1.5 rounded-xl hover:bg-accent/60 w-full group"
           >
-            <ArrowLeft className="size-3.5" />
-            <span>Back to app</span>
+            <ArrowLeft className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:-translate-x-0.5 group-hover:text-foreground" />
+            <span>Back to workspace</span>
           </Link>
           <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-            <input
+            <Input
               type="text"
               placeholder="Search settings..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-muted/40 border border-border/50 rounded-lg text-xs pl-8 pr-3 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 transition-all"
+              leadingIcon={<Search className="size-4" />}
+              className="h-8.5 text-xs bg-surface-inset border-border placeholder:text-muted-foreground"
             />
           </div>
         </div>
 
         {/* Scrollable Nav Items */}
-        <ScrollArea
-          className="min-h-0 flex-1 text-xs"
-          contentClassName="space-y-4 p-2"
-        >
+        <ScrollArea className="min-h-0 flex-1" contentClassName="p-3 space-y-4">
           {navGroups.map((group) => {
             const filteredItems = group.items.filter((item) =>
-              item.label.toLowerCase().includes(searchQuery.toLowerCase())
+              item.label.toLowerCase().includes(searchQuery.toLowerCase()),
             );
 
             if (searchQuery && filteredItems.length === 0) return null;
 
             return (
               <div key={group.title} className="space-y-1">
-                <div className="px-2.5 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                <div className="px-2.5 py-1 text-[11px] font-semibold text-subtle uppercase tracking-wider">
                   {group.title}
                 </div>
                 {filteredItems.map((item) => {
@@ -149,6 +168,7 @@ export function SettingsLayout({
                   return (
                     <button
                       key={item.id}
+                      type="button"
                       onClick={() => {
                         if (item.href) {
                           navigate(item.href);
@@ -156,20 +176,24 @@ export function SettingsLayout({
                           onTabChange(item.id);
                         }
                       }}
-                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                      className={cn(
+                        'w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all text-left',
                         isActive
                           ? 'bg-accent/80 text-foreground font-semibold shadow-2xs'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                      }`}
+                          : 'text-muted-foreground hover:text-foreground hover:bg-accent/50',
+                      )}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <Icon className="size-3.5 shrink-0" />
+                        <Icon className="size-4 shrink-0 text-muted-foreground" />
                         <span className="truncate">{item.label}</span>
                       </div>
                       {item.badge ? (
-                        <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-semibold">
+                        <Badge
+                          variant="neutral"
+                          className="text-[10px] px-1.5 py-0 font-semibold"
+                        >
                           {item.badge}
-                        </span>
+                        </Badge>
                       ) : null}
                     </button>
                   );
@@ -180,8 +204,30 @@ export function SettingsLayout({
         </ScrollArea>
       </aside>
 
-      {/* Main Full Page Settings Content Area */}
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-muted/5">
+      {/* Main Full-Page Settings Content Area */}
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-surface-inset/30">
+        {/* Subtle Top Utility Bar */}
+        <div className="h-12 border-b border-border/60 bg-surface/50 backdrop-blur-md px-6 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Settings</span>
+            <span>/</span>
+            <span className="font-semibold text-foreground capitalize">
+              {activeTab.replace('-', ' ')}
+            </span>
+          </div>
+          <Link to={backUrl}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Close settings"
+              className="size-7 rounded-lg text-muted-foreground hover:text-foreground"
+            >
+              <X className="size-4" />
+            </Button>
+          </Link>
+        </div>
+
+        {/* Scrollable Content */}
         <ScrollArea className="min-h-0 flex-1" contentClassName="p-6 md:p-12">
           <div className="max-w-4xl mx-auto space-y-8">{children}</div>
         </ScrollArea>

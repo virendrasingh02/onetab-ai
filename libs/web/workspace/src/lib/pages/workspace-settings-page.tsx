@@ -262,8 +262,8 @@ export function WorkspaceSettingsPage() {
             <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
               General
             </h3>
-            <div className="bg-card rounded-xl border border-border/70 shadow-2xs divide-y divide-border/40 overflow-hidden">
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Default home view</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -271,7 +271,7 @@ export function WorkspaceSettingsPage() {
                   </p>
                 </div>
                 <Select value={homeView} onValueChange={setHomeView}>
-                  <SelectTrigger className="w-52 h-8 text-xs bg-muted/30 border-border/60">
+                  <SelectTrigger className="w-52 h-8 text-xs bg-surface border-border">
                     <SelectValue placeholder="Select view" />
                   </SelectTrigger>
                   <SelectContent>
@@ -283,7 +283,7 @@ export function WorkspaceSettingsPage() {
                 </Select>
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Display names</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -291,7 +291,7 @@ export function WorkspaceSettingsPage() {
                   </p>
                 </div>
                 <Select value={displayNamePref} onValueChange={setDisplayNamePref}>
-                  <SelectTrigger className="w-36 h-8 text-xs bg-muted/30 border-border/60">
+                  <SelectTrigger className="w-36 h-8 text-xs bg-surface border-border">
                     <SelectValue placeholder="Username" />
                   </SelectTrigger>
                   <SelectContent>
@@ -302,7 +302,7 @@ export function WorkspaceSettingsPage() {
                 </Select>
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">First day of the week</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -310,7 +310,7 @@ export function WorkspaceSettingsPage() {
                   </p>
                 </div>
                 <Select value={firstDay} onValueChange={setFirstDay}>
-                  <SelectTrigger className="w-36 h-8 text-xs bg-muted/30 border-border/60">
+                  <SelectTrigger className="w-36 h-8 text-xs bg-surface border-border">
                     <SelectValue placeholder="Monday" />
                   </SelectTrigger>
                   <SelectContent>
@@ -321,7 +321,7 @@ export function WorkspaceSettingsPage() {
                 </Select>
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Convert text emoticons into emojis</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -331,7 +331,7 @@ export function WorkspaceSettingsPage() {
                 <Switch checked={convertEmojis} onCheckedChange={setConvertEmojis} />
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Send comments on...</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -339,7 +339,7 @@ export function WorkspaceSettingsPage() {
                   </p>
                 </div>
                 <Select value={sendShortcut} onValueChange={setSendShortcut}>
-                  <SelectTrigger className="w-36 h-8 text-xs bg-muted/30 border-border/60">
+                  <SelectTrigger className="w-36 h-8 text-xs bg-surface border-border">
                     <SelectValue placeholder="Ctrl+Enter" />
                   </SelectTrigger>
                   <SelectContent>
@@ -357,8 +357,8 @@ export function WorkspaceSettingsPage() {
             <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
               Interface and theme
             </h3>
-            <div className="bg-card rounded-xl border border-border/70 shadow-2xs divide-y divide-border/40 overflow-hidden">
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">App sidebar</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -370,7 +370,7 @@ export function WorkspaceSettingsPage() {
                 </Button>
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Font size</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -378,7 +378,7 @@ export function WorkspaceSettingsPage() {
                   </p>
                 </div>
                 <Select value={fontSize} onValueChange={setFontSize}>
-                  <SelectTrigger className="w-32 h-8 text-xs bg-muted/30 border-border/60">
+                  <SelectTrigger className="w-32 h-8 text-xs bg-surface border-border">
                     <SelectValue placeholder="Default" />
                   </SelectTrigger>
                   <SelectContent>
@@ -389,7 +389,7 @@ export function WorkspaceSettingsPage() {
                 </Select>
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Use pointer cursors</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -399,7 +399,7 @@ export function WorkspaceSettingsPage() {
                 <Switch checked={pointerCursors} onCheckedChange={setPointerCursors} />
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Underline links</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -409,7 +409,7 @@ export function WorkspaceSettingsPage() {
                 <Switch checked={underlineLinks} onCheckedChange={setUnderlineLinks} />
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Interface theme</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -469,7 +469,7 @@ export function WorkspaceSettingsPage() {
             </p>
           </div>
 
-          <div className="bg-card rounded-xl border border-border/70 shadow-2xs p-6 space-y-6">
+          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6 space-y-6">
             <div className="flex items-center gap-5 pb-6 border-b border-border/40">
               <UserAvatar
                 name={user.displayName ?? user.name}
@@ -687,8 +687,8 @@ export function WorkspaceSettingsPage() {
             <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
               Delivery Channels
             </h3>
-            <div className="bg-card rounded-xl border border-border/70 shadow-2xs divide-y divide-border/40 overflow-hidden">
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Mentions and thread replies</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">Get notified when tagged or when a thread you follow has updates</p>
@@ -696,7 +696,7 @@ export function WorkspaceSettingsPage() {
                 <Switch checked={notifyMentions} onCheckedChange={setNotifyMentions} />
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Workspace invitations & requests</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">Receive alerts when new members request to join the workspace</p>
@@ -704,7 +704,7 @@ export function WorkspaceSettingsPage() {
                 <Switch checked={notifyInvites} onCheckedChange={setNotifyInvites} />
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">AI Agent task completion alerts</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">Receive high-priority alerts when background AI tasks finish</p>
@@ -712,7 +712,7 @@ export function WorkspaceSettingsPage() {
                 <Switch checked={notifyAgentAlerts} onCheckedChange={setNotifyAgentAlerts} />
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Desktop push notifications</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">Send native operating system notifications</p>
@@ -720,13 +720,13 @@ export function WorkspaceSettingsPage() {
                 <Switch checked={notifyDesktopPush} onCheckedChange={setNotifyDesktopPush} />
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Channel activity scope</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">Filter volume of activity notifications</p>
                 </div>
                 <Select value={notifyChannelScope} onValueChange={setNotifyChannelScope}>
-                  <SelectTrigger className="w-36 h-8 text-xs bg-muted/30 border-border/60">
+                  <SelectTrigger className="w-36 h-8 text-xs bg-surface border-border">
                     <SelectValue placeholder="All activity" />
                   </SelectTrigger>
                   <SelectContent>
@@ -737,7 +737,7 @@ export function WorkspaceSettingsPage() {
                 </Select>
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Weekly email digest</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">Receive a summary of key weekly accomplishments and updates</p>
@@ -763,8 +763,8 @@ export function WorkspaceSettingsPage() {
             <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
               Model & Reasoning
             </h3>
-            <div className="bg-card rounded-xl border border-border/70 shadow-2xs divide-y divide-border/40 overflow-hidden">
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Primary AI Model</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -772,7 +772,7 @@ export function WorkspaceSettingsPage() {
                   </p>
                 </div>
                 <Select value={defaultModel} onValueChange={setDefaultModel}>
-                  <SelectTrigger className="w-56 h-8 text-xs bg-muted/30 border-border/60">
+                  <SelectTrigger className="w-56 h-8 text-xs bg-surface border-border">
                     <SelectValue placeholder="Select model" />
                   </SelectTrigger>
                   <SelectContent>
@@ -784,13 +784,13 @@ export function WorkspaceSettingsPage() {
                 </Select>
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Creativity / Temperature</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">Control LLM randomness and precision</p>
                 </div>
                 <Select value={tempSetting} onValueChange={setTempSetting}>
-                  <SelectTrigger className="w-40 h-8 text-xs bg-muted/30 border-border/60">
+                  <SelectTrigger className="w-40 h-8 text-xs bg-surface border-border">
                     <SelectValue placeholder="Balanced" />
                   </SelectTrigger>
                   <SelectContent>
@@ -801,13 +801,13 @@ export function WorkspaceSettingsPage() {
                 </Select>
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Context Window Size</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">Maximum token length retained during conversations</p>
                 </div>
                 <Select value={contextWindow} onValueChange={setContextWindow}>
-                  <SelectTrigger className="w-40 h-8 text-xs bg-muted/30 border-border/60">
+                  <SelectTrigger className="w-40 h-8 text-xs bg-surface border-border">
                     <SelectValue placeholder="128k Tokens" />
                   </SelectTrigger>
                   <SelectContent>
@@ -824,8 +824,8 @@ export function WorkspaceSettingsPage() {
             <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
               Autonomous Agent Permissions
             </h3>
-            <div className="bg-card rounded-xl border border-border/70 shadow-2xs divide-y divide-border/40 overflow-hidden">
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Auto-approve Agent Code Execution</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">Allow agents to run shell and code commands automatically</p>
@@ -833,7 +833,7 @@ export function WorkspaceSettingsPage() {
                 <Switch checked={agentAutoApprove} onCheckedChange={setAgentAutoApprove} />
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Web Search & Browsing Access</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">Enable subagents to fetch live web content and documentation</p>
@@ -841,7 +841,7 @@ export function WorkspaceSettingsPage() {
                 <Switch checked={allowWebSearch} onCheckedChange={setAllowWebSearch} />
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Workspace File Modification</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">Permit AI agents to edit codebase files directly</p>
@@ -849,13 +849,13 @@ export function WorkspaceSettingsPage() {
                 <Switch checked={allowFileSystem} onCheckedChange={setAllowFileSystem} />
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Max Agent Loop Turn Limit</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">Maximum iteration steps per single task prompt</p>
                 </div>
                 <Select value={maxTurns} onValueChange={setMaxTurns}>
-                  <SelectTrigger className="w-32 h-8 text-xs bg-muted/30 border-border/60">
+                  <SelectTrigger className="w-32 h-8 text-xs bg-surface border-border">
                     <SelectValue placeholder="25 turns" />
                   </SelectTrigger>
                   <SelectContent>
@@ -872,7 +872,7 @@ export function WorkspaceSettingsPage() {
             <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
               Workspace System Persona
             </h3>
-            <div className="bg-card rounded-xl border border-border/70 shadow-2xs p-4 space-y-3">
+            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-4 space-y-3">
               <Textarea
                 value={systemPrompt}
                 onChange={(e) => setSystemPrompt(e.target.value)}
@@ -897,13 +897,13 @@ export function WorkspaceSettingsPage() {
             </p>
           </div>
 
-          <div className="bg-card rounded-xl border border-border/70 shadow-2xs divide-y divide-border/40 overflow-hidden">
+          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
             {[
               { id: 'code-reviewer', name: 'Code Reviewer Agent', desc: 'Analyzes pull requests and identifies lint or security defects', active: true },
               { id: 'support-bot', name: 'Customer Support Bot', desc: 'Answers member questions using documentation context', active: true },
               { id: 'doc-summarizer', name: 'Doc Summarizer Agent', desc: 'Generates daily summaries of channel messages and notes', active: false },
             ].map((agent) => (
-              <div key={agent.id} className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+              <div key={agent.id} className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">{agent.name}</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">{agent.desc}</p>
@@ -918,7 +918,7 @@ export function WorkspaceSettingsPage() {
             ))}
           </div>
 
-          <div className="bg-card rounded-xl border border-border/70 shadow-2xs p-6 space-y-4">
+          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6 space-y-4">
             <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide">Custom API Keys</h3>
             <div className="space-y-3">
               <div>
@@ -943,8 +943,8 @@ export function WorkspaceSettingsPage() {
             </p>
           </div>
 
-          <div className="bg-card rounded-xl border border-border/70 shadow-2xs divide-y divide-border/40 overflow-hidden">
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">GitHub PR Event Webhook</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Trigger automation workflows on incoming GitHub pull requests</p>
@@ -952,7 +952,7 @@ export function WorkspaceSettingsPage() {
               <Switch checked={githubPRWebhook} onCheckedChange={setGithubPRWebhook} />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Channel Message Keywords Trigger</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Fire workflows when specific key phrases appear in channels</p>
@@ -960,13 +960,13 @@ export function WorkspaceSettingsPage() {
               <Switch checked={channelTrigger} onCheckedChange={setChannelTrigger} />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Max Concurrent Workflow Runs</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Limit parallel execution capacity</p>
               </div>
               <Select value={maxConcurrentRuns} onValueChange={setMaxConcurrentRuns}>
-                <SelectTrigger className="w-36 h-8 text-xs bg-muted/30 border-border/60">
+                <SelectTrigger className="w-36 h-8 text-xs bg-surface border-border">
                   <SelectValue placeholder="5 runs" />
                 </SelectTrigger>
                 <SelectContent>
@@ -977,7 +977,7 @@ export function WorkspaceSettingsPage() {
               </Select>
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Auto-retry failed workflow steps</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Retry failed HTTP steps up to 3 times automatically</p>
@@ -998,14 +998,14 @@ export function WorkspaceSettingsPage() {
             </p>
           </div>
 
-          <div className="bg-card rounded-xl border border-border/70 shadow-2xs divide-y divide-border/40 overflow-hidden">
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Default Join Channel</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Channel automatically joined by new workspace members</p>
               </div>
               <Select value={defaultChannel} onValueChange={setDefaultChannel}>
-                <SelectTrigger className="w-36 h-8 text-xs bg-muted/30 border-border/60">
+                <SelectTrigger className="w-36 h-8 text-xs bg-surface border-border">
                   <SelectValue placeholder="#general" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1016,7 +1016,7 @@ export function WorkspaceSettingsPage() {
               </Select>
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Allow Public Channel Creation</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Regular members can create public channels</p>
@@ -1024,7 +1024,7 @@ export function WorkspaceSettingsPage() {
               <Switch checked={allowPublicCreation} onCheckedChange={setAllowPublicCreation} />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Allow Private Channel Creation</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Regular members can create private invite-only channels</p>
@@ -1032,13 +1032,13 @@ export function WorkspaceSettingsPage() {
               <Switch checked={allowPrivateCreation} onCheckedChange={setAllowPrivateCreation} />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Auto-archive Inactive Channels</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Archive channels after a period of zero activity</p>
               </div>
               <Select value={archiveInactiveDays} onValueChange={setArchiveInactiveDays}>
-                <SelectTrigger className="w-32 h-8 text-xs bg-muted/30 border-border/60">
+                <SelectTrigger className="w-32 h-8 text-xs bg-surface border-border">
                   <SelectValue placeholder="90 days" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1049,7 +1049,7 @@ export function WorkspaceSettingsPage() {
               </Select>
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Direct Message End-to-End Encryption</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Encrypt DM content between 1-on-1 team members</p>
@@ -1057,7 +1057,7 @@ export function WorkspaceSettingsPage() {
               <Switch checked={encryptedDM} onCheckedChange={setEncryptedDM} />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Direct Message Read Receipts</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Show when messages have been seen by recipient</p>
@@ -1077,14 +1077,14 @@ export function WorkspaceSettingsPage() {
             </p>
           </div>
 
-          <div className="bg-card rounded-xl border border-border/70 shadow-2xs divide-y divide-border/40 overflow-hidden">
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Default Task Layout</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Select default view when opening project tasks</p>
               </div>
               <Select value={kanbanDefaultView} onValueChange={setKanbanDefaultView}>
-                <SelectTrigger className="w-36 h-8 text-xs bg-muted/30 border-border/60">
+                <SelectTrigger className="w-36 h-8 text-xs bg-surface border-border">
                   <SelectValue placeholder="Board" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1094,7 +1094,7 @@ export function WorkspaceSettingsPage() {
               </Select>
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Show Task Age Indicator</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Display time elapsed since task creation on cards</p>
@@ -1102,7 +1102,7 @@ export function WorkspaceSettingsPage() {
               <Switch checked={showTaskAge} onCheckedChange={setShowTaskAge} />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Enable WIP Limits per Column</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Restrict maximum active tasks per board status column</p>
@@ -1110,13 +1110,13 @@ export function WorkspaceSettingsPage() {
               <Switch checked={enableWipLimits} onCheckedChange={setEnableWipLimits} />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Auto-archive Completed Tasks</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Move completed tasks to archive after set duration</p>
               </div>
               <Select value={autoArchiveCompleted} onValueChange={setAutoArchiveCompleted}>
-                <SelectTrigger className="w-32 h-8 text-xs bg-muted/30 border-border/60">
+                <SelectTrigger className="w-32 h-8 text-xs bg-surface border-border">
                   <SelectValue placeholder="30 days" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1139,8 +1139,8 @@ export function WorkspaceSettingsPage() {
             </p>
           </div>
 
-          <div className="bg-card rounded-xl border border-border/70 shadow-2xs divide-y divide-border/40 overflow-hidden">
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Auto-save Drafts</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Automatically save document edits as you type</p>
@@ -1148,7 +1148,7 @@ export function WorkspaceSettingsPage() {
               <Switch checked={docAutoSave} onCheckedChange={setDocAutoSave} />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Grammar & Spellcheck Assistance</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Highlight spelling defects and grammar suggestions in editor</p>
@@ -1156,13 +1156,13 @@ export function WorkspaceSettingsPage() {
               <Switch checked={grammarAssistance} onCheckedChange={setGrammarAssistance} />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Code Syntax Highlighting Theme</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Theme used for code snippets inside document blocks</p>
               </div>
               <Select value={codeSyntaxTheme} onValueChange={setCodeSyntaxTheme}>
-                <SelectTrigger className="w-40 h-8 text-xs bg-muted/30 border-border/60">
+                <SelectTrigger className="w-40 h-8 text-xs bg-surface border-border">
                   <SelectValue placeholder="Github Dark" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1186,7 +1186,7 @@ export function WorkspaceSettingsPage() {
             </p>
           </div>
 
-          <div className="bg-card rounded-xl border border-border/70 shadow-2xs p-6 space-y-4">
+          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6 space-y-4">
             <div className="flex items-center justify-between text-xs">
               <span className="font-medium text-foreground">Workspace Storage Used</span>
               <span className="text-muted-foreground font-mono">12.4 GB / 50.0 GB</span>
@@ -1196,8 +1196,8 @@ export function WorkspaceSettingsPage() {
             </div>
           </div>
 
-          <div className="bg-card rounded-xl border border-border/70 shadow-2xs divide-y divide-border/40 overflow-hidden">
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">High Quality Video & Media Previews</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Generate high-res video thumbnails and audio waveform previews</p>
@@ -1205,13 +1205,13 @@ export function WorkspaceSettingsPage() {
               <Switch checked={highQualityVideo} onCheckedChange={setHighQualityVideo} />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">File Retention Policy</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Duration to keep deleted files in workspace trash</p>
               </div>
               <Select value={fileRetention} onValueChange={setFileRetention}>
-                <SelectTrigger className="w-32 h-8 text-xs bg-muted/30 border-border/60">
+                <SelectTrigger className="w-32 h-8 text-xs bg-surface border-border">
                   <SelectValue placeholder="Forever" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1234,8 +1234,8 @@ export function WorkspaceSettingsPage() {
             </p>
           </div>
 
-          <div className="bg-card rounded-xl border border-border/70 shadow-2xs divide-y divide-border/40 overflow-hidden">
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Google Calendar Sync</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Synchronize schedule events with your Google Calendar</p>
@@ -1243,13 +1243,13 @@ export function WorkspaceSettingsPage() {
               <Switch checked={googleCalendarSync} onCheckedChange={setGoogleCalendarSync} />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Default Meeting Room Provider</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Provider used when generating instant meeting links</p>
               </div>
               <Select value={meetingProvider} onValueChange={setMeetingProvider}>
-                <SelectTrigger className="w-44 h-8 text-xs bg-muted/30 border-border/60">
+                <SelectTrigger className="w-44 h-8 text-xs bg-surface border-border">
                   <SelectValue placeholder="Onetab Meet" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1260,7 +1260,7 @@ export function WorkspaceSettingsPage() {
               </Select>
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Auto-record Team Meetings</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Automatically save video transcript and recording to workspace docs</p>
@@ -1280,8 +1280,8 @@ export function WorkspaceSettingsPage() {
             </p>
           </div>
 
-          <div className="bg-card rounded-xl border border-border/70 shadow-2xs divide-y divide-border/40 overflow-hidden">
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Track Member Online Status</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Show active presence indicators across channel list</p>
@@ -1289,7 +1289,7 @@ export function WorkspaceSettingsPage() {
               <Switch checked={trackOnlineStatus} onCheckedChange={setTrackOnlineStatus} />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
               <div>
                 <h4 className="text-xs font-medium text-foreground">Include GitHub Commit Events in Pulse</h4>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Display code commit events inside workspace pulse feed</p>
@@ -1310,14 +1310,14 @@ export function WorkspaceSettingsPage() {
             </p>
           </div>
 
-          <div className="bg-card rounded-xl border border-border/70 shadow-2xs divide-y divide-border/40 overflow-hidden">
+          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
             {[
               { id: 'slack', name: 'Slack Integration', desc: 'Sync channel messages and notifications', connected: true },
               { id: 'notion', name: 'Notion Workspace', desc: 'Import and sync Notion documents', connected: true },
               { id: 'github', name: 'GitHub OAuth', desc: 'Pull request reviews and commit triggers', connected: true },
               { id: 'google', name: 'Google Workspace', desc: 'Calendar sync and Drive attachment previews', connected: false },
             ].map((item) => (
-              <div key={item.id} className="p-4 flex items-center justify-between gap-4 hover:bg-muted/10 transition-colors">
+              <div key={item.id} className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">{item.name}</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">{item.desc}</p>
@@ -1347,7 +1347,7 @@ export function WorkspaceSettingsPage() {
             </p>
           </div>
 
-          <div className="bg-card rounded-xl border border-border/70 shadow-2xs p-6">
+          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6">
             <SlackNotionImportView embedded />
           </div>
         </div>
@@ -1363,7 +1363,7 @@ export function WorkspaceSettingsPage() {
             </p>
           </div>
 
-          <div className="bg-card rounded-xl border border-border/70 shadow-2xs p-6 space-y-6">
+          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6 space-y-6">
             <div className="flex items-center gap-5 pb-6 border-b border-border/40">
               <WorkspaceAvatar
                 name={workspaceForm.watch('name') || workspace.name}
@@ -1546,7 +1546,7 @@ export function WorkspaceSettingsPage() {
             </p>
           </div>
 
-          <div className="bg-card rounded-xl border border-border/70 shadow-2xs p-6 space-y-6">
+          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6 space-y-6">
             <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide">
               Change Password
             </h3>

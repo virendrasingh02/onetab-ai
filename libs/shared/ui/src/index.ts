@@ -109,11 +109,15 @@ export {
 
 export {
   Hint,
+  Kbd,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
+  renderShortcut,
   type HintProps,
+  type KbdProps,
+  type TooltipContentProps,
 } from './lib/components/tooltip.js';
 
 export {
