@@ -45,6 +45,7 @@
       "serve": {
         "executor": "nx:run-commands",
         "cache": false,
+        "continuous": true,
         "dependsOn": ["build"],
         "options": {
           "command": "node apps/desktop/scripts/run-electron.mjs",
