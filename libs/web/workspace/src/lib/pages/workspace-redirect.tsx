@@ -13,8 +13,10 @@ export function WorkspaceRedirect() {
   const workspaces = useWorkspaces();
   const navigate = useNavigate();
 
+  // Same label the shell uses on the other side of the redirect, so the two
+  // loads read as one wait rather than two spinners in a row.
   if (workspaces.isLoading) {
-    return <LoadingState fullPage label="Loading your workspaces…" />;
+    return <LoadingState fullPage label="Loading your workspace…" />;
   }
 
   // "We could not load your workspaces" and "you have none yet" look identical

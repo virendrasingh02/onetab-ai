@@ -117,7 +117,15 @@ export function AppShell() {
     if (slug) navigate(`/w/${slug}/settings`);
   });
 
-  if (!user) return <LoadingState fullPage />;
+  /*
+   * One loader for the whole boot path. The user, the workspace list and the
+   * current workspace all land at different moments, and gating them
+   * separately flashed a second spinner between them — so they share a single
+   * screen with a single label until the shell has everything it needs.
+   */
+  if (!user || isLoading || workspacesQuery.isLoading) {
+    return <LoadingState fullPage label="Loading your workspace…" />;
+  }
 
   // Signed in but with no workspace yet — send them to onboarding.
   if (workspacesQuery.isSuccess && workspacesQuery.data.length === 0) {
@@ -136,10 +144,6 @@ export function AppShell() {
         />
       </div>
     );
-  }
-
-  if (isLoading || workspacesQuery.isLoading) {
-    return <LoadingState fullPage label="Loading your workspace…" />;
   }
 
   if (!workspace || !slug || !workspaceId) {

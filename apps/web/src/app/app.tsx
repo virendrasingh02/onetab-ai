@@ -147,7 +147,7 @@ export function App() {
   useSessionBootstrap();
 
   return (
-    <Suspense fallback={<LoadingState fullPage />}>
+    <Suspense fallback={<LoadingState fullPage label="Loading your workspace…" />}>
       <Routes>
         {/* --- public ---------------------------------------------------- */}
         <Route element={<PublicOnlyRoute />}>

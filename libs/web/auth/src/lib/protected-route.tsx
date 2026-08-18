@@ -14,7 +14,7 @@ export function ProtectedRoute() {
   const location = useLocation();
 
   if (status === 'idle' || status === 'authenticating') {
-    return <LoadingState fullPage label="Restoring your session…" />;
+    return <LoadingState fullPage label="Loading your workspace…" />;
   }
 
   if (status !== 'authenticated') {
