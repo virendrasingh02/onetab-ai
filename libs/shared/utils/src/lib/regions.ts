@@ -135,8 +135,10 @@ export function getWorkingHoursStatus(
   workStartHour = 9,
   workEndHour = 18,
 ): WorkingHoursInfo {
-  let hour = 12;
-  let formattedTime = '12:00';
+  /* No seed values: both the `try` and the `catch` below assign, so a noon
+     placeholder here is dead and only hides which branch produced the hour. */
+  let hour: number;
+  let formattedTime: string;
 
   try {
     const parts = new Intl.DateTimeFormat('en-US', {

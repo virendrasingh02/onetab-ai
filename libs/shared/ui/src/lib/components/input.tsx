@@ -1,5 +1,5 @@
 import { cn } from '@org/utils';
-import type { ComponentProps, ReactNode } from 'react';
+import type { ComponentProps, ReactNode, Ref } from 'react';
 import TextareaAutosize, { type TextareaAutosizeProps } from 'react-textarea-autosize';
 
 export interface InputProps extends ComponentProps<'input'> {
@@ -62,17 +62,35 @@ export function Input({
   );
 }
 
-export type TextareaProps = TextareaAutosizeProps & { invalid?: boolean };
+export type TextareaProps = TextareaAutosizeProps & {
+  invalid?: boolean;
+  /*
+   * `TextareaAutosizeProps` drops `ref` — the underlying component is a
+   * `forwardRef`, so its prop type never carried one. Under the React 19 ref
+   * contract a caller's `ref` is just a prop that gets spread through, so the
+   * type is all that was missing.
+   */
+  ref?: Ref<HTMLTextAreaElement>;
+};
 
 export function Textarea({
   className,
   invalid,
+  rows,
+  minRows,
   ...props
 }: TextareaProps) {
   return (
     <TextareaAutosize
       data-slot="textarea"
       aria-invalid={invalid || undefined}
+      /*
+       * Autosize writes the measured height as `!important` inline style, which
+       * outranks the `rows` attribute the browser would otherwise size from —
+       * so every `rows={n}` call site collapsed to one line. `rows` always
+       * meant "start this tall", which is exactly `minRows`.
+       */
+      minRows={minRows ?? rows ?? 2}
       className={cn(
         'flex min-h-16 w-full rounded-input border border-input bg-surface px-3 py-2 text-xs text-foreground',
         'resize-none placeholder:text-subtle',
@@ -86,4 +104,3 @@ export function Textarea({
     />
   );
 }
-

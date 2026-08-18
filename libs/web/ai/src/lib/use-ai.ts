@@ -1,55 +1,19 @@
 import { aiApi, promptTemplateApi, queryKeys } from '@org/api-client';
-import type { AIChatMessage, AIProvider } from '@org/types';
+import type { AIChatMessage } from '@org/types';
 import type {
   CreatePromptTemplateInput,
   UpdatePromptTemplateInput,
 } from '@org/validation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentWorkspace } from '@org/web-workspace';
+import { resolveModel, type AIModelValue } from './ai-models.js';
 
-/**
- * Models offered in the picker.
- *
- * "Auto" sends no provider or model at all, which lets the API pick its own
- * default rather than hard-coding one the deployment may not have configured.
- */
-export const AI_MODELS = [
-  { value: 'auto', label: 'Auto (Recommended)' },
-  { value: 'openai', label: 'OpenAI GPT-4o', provider: 'openai', model: 'gpt-4o' },
-  {
-    value: 'anthropic',
-    label: 'Claude Sonnet 4.5',
-    provider: 'anthropic',
-    model: 'claude-sonnet-4-5',
-  },
-  {
-    value: 'gemini',
-    label: 'Google Gemini 1.5 Pro',
-    provider: 'gemini',
-    model: 'gemini-1.5-pro',
-  },
-  {
-    value: 'ollama',
-    label: 'Ollama Llama 3 (Local)',
-    provider: 'ollama',
-    model: 'llama3',
-  },
-] as const satisfies ReadonlyArray<{
-  value: string;
-  label: string;
-  provider?: AIProvider;
-  model?: string;
-}>;
-
-export type AIModelValue = (typeof AI_MODELS)[number]['value'];
-
-export function resolveModel(value: AIModelValue) {
-  const entry = AI_MODELS.find((option) => option.value === value);
-  return {
-    provider: entry && 'provider' in entry ? entry.provider : undefined,
-    model: entry && 'model' in entry ? entry.model : undefined,
-  };
-}
+export {
+  AI_MODELS,
+  modelLabelFor,
+  resolveModel,
+  type AIModelValue,
+} from './ai-models.js';
 
 export function useAIWorkspaceId(): string | undefined {
   return useCurrentWorkspace().workspaceId;

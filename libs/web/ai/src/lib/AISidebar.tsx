@@ -1,40 +1,21 @@
 import {
-  Button,
-  Input,
   ScrollArea,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
 } from '@org/ui';
-import type { AIChatMessage } from '@org/types';
-import { cn } from '@org/utils';
-import { Send, Sparkles } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { AI_MODELS, useAIChat, type AIModelValue } from './use-ai.js';
+import { Sparkles } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { AIComposer } from './ai-composer.js';
+import { AIErrorRow, AIMessage, AIThinkingRow } from './ai-message.js';
+import { useAIConversation } from './use-ai-conversation.js';
 
 export interface AISidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  text: string;
-}
-
-const WELCOME: Message = {
-  id: 'welcome',
-  role: 'assistant',
-  text: 'Hello! I am your OneTab AI Copilot. How can I help you with your workspace today?',
-};
 
 /**
  * The workspace-wide AI copilot, opened from the shell's floating trigger.
@@ -42,72 +23,20 @@ const WELCOME: Message = {
  * Built on `Sheet` (Radix Dialog) rather than a bare fixed-position div, so it
  * traps focus, closes on Escape, restores focus to the trigger and is exposed
  * to assistive technology as a dialog.
+ *
+ * Everything inside the sheet — conversation state, bubbles, composer — is the
+ * same set the home view and the docked panel use, so this surface cannot
+ * drift away from them again.
  */
 export function AISidebar({ isOpen, onClose }: AISidebarProps) {
-  const [input, setInput] = useState('');
-  const [model, setModel] = useState<AIModelValue>('auto');
-  const [messages, setMessages] = useState<Message[]>([WELCOME]);
-
-  const chat = useAIChat();
-  const pending = chat.isPending;
+  const chat = useAIConversation({ greeting: true });
 
   const streamEndRef = useRef<HTMLDivElement>(null);
 
   // Keep the newest message in view as the conversation grows.
   useEffect(() => {
     streamEndRef.current?.scrollIntoView({ block: 'end' });
-  }, [messages]);
-
-  const handleSend = () => {
-    const prompt = input.trim();
-    if (!prompt || pending) return;
-
-    const userMessage: Message = {
-      id: `u-${Date.now()}`,
-      role: 'user',
-      text: prompt,
-    };
-
-    /*
-     * The greeting is local scaffolding, not something the model said, so it
-     * is left out of the transcript that goes up.
-     */
-    const transcript: AIChatMessage[] = [...messages, userMessage]
-      .filter((message) => message.id !== WELCOME.id)
-      .map((message) => ({ role: message.role, content: message.text }));
-
-    setInput('');
-    setMessages((prev) => [...prev, userMessage]);
-
-    chat.mutate(
-      { messages: transcript, model },
-      {
-        onSuccess: (response) => {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `a-${Date.now()}`,
-              role: 'assistant',
-              text: response.message.content,
-            },
-          ]);
-        },
-        onError: (error) => {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `e-${Date.now()}`,
-              role: 'assistant',
-              text:
-                error instanceof Error
-                  ? `Sorry — ${error.message}`
-                  : 'Sorry, I could not reach the model.',
-            },
-          ]);
-        },
-      },
-    );
-  };
+  }, [chat.messages, chat.isThinking]);
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -115,7 +44,7 @@ export function AISidebar({ isOpen, onClose }: AISidebarProps) {
         <SheetHeader className="gap-3 px-4 py-3 flex-row items-center border-b">
           <span
             aria-hidden
-            className="size-8 flex shrink-0 items-center justify-center rounded-lg bg-accent-violet-soft text-accent-violet"
+            className="size-8 shrink-0 flex items-center justify-center rounded-lg bg-primary text-primary-foreground"
           >
             <Sparkles className="size-4" />
           </span>
@@ -127,30 +56,6 @@ export function AISidebar({ isOpen, onClose }: AISidebarProps) {
           </div>
         </SheetHeader>
 
-        <div className="gap-2 px-4 py-2.5 flex items-center border-b">
-          <label
-            htmlFor="ai-provider"
-            className="text-xs shrink-0 text-muted-foreground"
-          >
-            Model
-          </label>
-          <Select
-            value={model}
-            onValueChange={(value) => setModel(value as AIModelValue)}
-          >
-            <SelectTrigger id="ai-provider" size="sm" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {AI_MODELS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
         {/*
           `aria-live="polite"` so replies are announced as they arrive without
           interrupting whatever the user is currently doing.
@@ -158,57 +63,47 @@ export function AISidebar({ isOpen, onClose }: AISidebarProps) {
         <ScrollArea
           className="min-h-0 flex-1"
           contentClassName="space-y-3 p-4"
-          viewportProps={{ 'aria-live': 'polite', 'aria-busy': pending }}
+          viewportProps={{ 'aria-live': 'polite', 'aria-busy': chat.isThinking }}
         >
-          {messages.map((message) => (
-            <div
+          {chat.messages.map((message) => (
+            <AIMessage
               key={message.id}
-              className={cn(
-                'px-3 py-2 text-xs leading-relaxed w-fit max-w-[85%] rounded-lg',
-                message.role === 'user'
-                  ? 'ml-auto bg-primary text-primary-foreground'
-                  : 'bg-muted text-foreground',
-              )}
-            >
-              <span className="sr-only">
-                {message.role === 'user' ? 'You said: ' : 'Copilot replied: '}
-              </span>
-              {message.text}
-            </div>
+              message={message}
+              assistantLabel="Copilot"
+              density="compact"
+            />
           ))}
 
-          {pending ? (
-            <p className="text-xs text-muted-foreground">
-              Copilot is thinking…
-            </p>
+          {chat.isThinking ? <AIThinkingRow density="compact" /> : null}
+
+          {chat.isError ? (
+            <AIErrorRow
+              error={chat.error}
+              onRetry={chat.retry}
+              density="compact"
+            />
           ) : null}
 
           <div ref={streamEndRef} />
         </ScrollArea>
 
-        <form
-          className="gap-2 p-3 flex items-center border-t"
-          onSubmit={(event) => {
-            event.preventDefault();
-            handleSend();
-          }}
-        >
-          <Input
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            placeholder="Ask AI anything…"
-            aria-label="Message the AI copilot"
-            className="h-9 text-xs"
+        {/*
+          The model picker moved out of the header strip and into the composer,
+          where every other AI surface keeps it — next to the `@` that can also
+          change it mid-sentence.
+        */}
+        <div className="p-3 shrink-0 border-t border-border">
+          <AIComposer
+            value={chat.input}
+            onValueChange={chat.setInput}
+            onSubmit={chat.send}
+            model={chat.model}
+            onModelChange={chat.setModel}
+            isBusy={chat.isThinking}
+            variant="docked"
+            placeholder="Ask AI anything — @ model, / command…"
           />
-          <Button
-            type="submit"
-            size="icon-sm"
-            disabled={!input.trim() || pending}
-            aria-label="Send message"
-          >
-            <Send />
-          </Button>
-        </form>
+        </div>
       </SheetContent>
     </Sheet>
   );
