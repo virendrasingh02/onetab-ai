@@ -79,7 +79,7 @@ export function AIImageGeneratorView() {
         ) : null}
 
         {imageUrl ? (
-          <figure className="group mt-6 max-w-xl relative overflow-hidden rounded-xl border bg-background">
+          <figure className="group mt-6 max-w-xl relative overflow-hidden rounded-card border border-border bg-background">
             <img
               src={imageUrl}
               alt={`Generated asset for the prompt: ${generatedFrom}`}

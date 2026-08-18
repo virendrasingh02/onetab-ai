@@ -10,9 +10,16 @@ export const DropdownMenuPortal = DropdownMenuPrimitive.Portal;
 export const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 export const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
 
+/*
+ * Menus are built from the same tokens as everything else on the page:
+ * `rounded-popup` for the surface, `rounded-btn` for the rows, `shadow-overlay`
+ * for the lift. They used to carry a hand-picked `rounded-2xl` / `shadow-2xl`
+ * of their own, so a menu opened from an 8px-cornered button dropped a 16px
+ * pill under it and read as a different design system.
+ */
 const menuSurface = [
-  'z-50 min-w-[13rem] overflow-hidden bg-popover text-popover-foreground',
-  'rounded-2xl border border-border/80 p-1.5 shadow-2xl backdrop-blur-sm',
+  'z-50 min-w-44 overflow-hidden bg-popover text-popover-foreground',
+  'rounded-popup border border-border p-1 shadow-overlay',
   'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
   'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
   'duration-(--duration-fast) ease-standard',
@@ -20,13 +27,25 @@ const menuSurface = [
   'data-[side=left]:slide-in-from-right-1.5 data-[side=right]:slide-in-from-left-1.5',
 ];
 
+/*
+ * One row is 28px — the same box a `size="sm"` Button occupies, and the same
+ * `text-xs` the command palette, composer and every toolbar already use. The
+ * previous 13px/`py-2` row was a size that appears nowhere else in the app.
+ */
 const menuItem = [
-  'group relative flex cursor-pointer select-none items-center gap-2.5 rounded-xl px-2.5 py-2 text-[13px] font-medium outline-none',
-  'transition-colors duration-100 ease-standard',
+  'group relative flex cursor-pointer select-none items-center gap-2 rounded-btn px-2 py-1.5 text-xs font-medium outline-none',
+  'transition-colors duration-(--duration-fast) ease-standard',
   'focus:bg-accent focus:text-accent-foreground',
   'data-[disabled]:pointer-events-none data-[disabled]:opacity-40',
+  // Leading icons stay 16px: that is what call sites pass explicitly almost
+  // everywhere, so a smaller default would only mismatch its own neighbours.
   "[&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground focus:[&_svg]:text-accent-foreground",
 ];
+
+/** Left gutter reserved for a check/dot indicator, and the indicator itself. */
+const menuIndicatorInset = 'pl-7';
+const menuIndicator =
+  'absolute left-2 flex size-3.5 items-center justify-center';
 
 export function DropdownMenuContent({
   className,
@@ -70,8 +89,8 @@ export function DropdownMenuItem({
       data-variant={variant}
       className={cn(
         menuItem,
-        inset && 'pl-8',
-        description && 'items-start pt-2 pb-2.5',
+        inset && menuIndicatorInset,
+        description && 'items-start py-1.5',
         variant === 'destructive' &&
           'text-destructive focus:bg-destructive/10 focus:text-destructive [&_svg]:text-destructive focus:[&_svg]:text-destructive',
         className,
@@ -82,10 +101,10 @@ export function DropdownMenuItem({
         <>
           {icon}
           <div className="flex flex-col min-w-0 flex-1">
-            <div className="flex items-center justify-between font-medium leading-snug text-[13px]">
+            <div className="flex items-center justify-between font-medium leading-snug text-xs">
               {restChildren}
             </div>
-            <p className="text-[11.5px] text-muted-foreground/80 font-normal leading-normal mt-0.5 whitespace-normal pr-1">
+            <p className="text-[11px] text-muted-foreground font-normal leading-normal mt-0.5 whitespace-normal pr-1">
               {description}
             </p>
           </div>
@@ -105,13 +124,13 @@ export function DropdownMenuCheckboxItem({
 }: ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem>) {
   return (
     <DropdownMenuPrimitive.CheckboxItem
-      className={cn(menuItem, 'pl-8', className)}
+      className={cn(menuItem, menuIndicatorInset, className)}
       checked={checked}
       {...props}
     >
-      <span className="absolute left-2.5 flex size-4 items-center justify-center">
+      <span className={menuIndicator}>
         <DropdownMenuPrimitive.ItemIndicator>
-          <Check className="size-4 text-foreground" />
+          <Check className="size-3.5 text-foreground" />
         </DropdownMenuPrimitive.ItemIndicator>
       </span>
       {children}
@@ -126,12 +145,12 @@ export function DropdownMenuRadioItem({
 }: ComponentProps<typeof DropdownMenuPrimitive.RadioItem>) {
   return (
     <DropdownMenuPrimitive.RadioItem
-      className={cn(menuItem, 'pl-8', className)}
+      className={cn(menuItem, menuIndicatorInset, className)}
       {...props}
     >
-      <span className="absolute left-2.5 flex size-4 items-center justify-center">
+      <span className={menuIndicator}>
         <DropdownMenuPrimitive.ItemIndicator>
-          <Circle className="size-2 fill-current text-foreground" />
+          <Circle className="size-1.5 fill-current text-foreground" />
         </DropdownMenuPrimitive.ItemIndicator>
       </span>
       {children}
@@ -147,8 +166,8 @@ export function DropdownMenuLabel({
   return (
     <DropdownMenuPrimitive.Label
       className={cn(
-        'text-muted-foreground/70 px-2.5 py-1.5 text-[11px] font-semibold tracking-wider uppercase',
-        inset && 'pl-8',
+        'text-subtle px-2 py-1 text-[10px] font-semibold tracking-wider uppercase',
+        inset && menuIndicatorInset,
         className,
       )}
       {...props}
@@ -162,7 +181,7 @@ export function DropdownMenuSeparator({
 }: ComponentProps<typeof DropdownMenuPrimitive.Separator>) {
   return (
     <DropdownMenuPrimitive.Separator
-      className={cn('bg-border/60 -mx-1.5 my-1.5 h-px', className)}
+      className={cn('bg-border -mx-1 my-1 h-px', className)}
       {...props}
     />
   );
@@ -175,7 +194,7 @@ export function DropdownMenuShortcut({
   return (
     <span
       className={cn(
-        'text-muted-foreground/60 ml-auto pl-3 text-[11px] font-normal tracking-wide',
+        'text-subtle ml-auto pl-3 font-mono text-[10px] font-normal tracking-wide',
         className,
       )}
       {...props}
@@ -196,13 +215,13 @@ export function DropdownMenuSubTrigger({
       className={cn(
         menuItem,
         'data-[state=open]:bg-accent',
-        inset && 'pl-8',
+        inset && menuIndicatorInset,
         className,
       )}
       {...props}
     >
       {children}
-      <ChevronRight className="ml-auto size-4 text-muted-foreground/70 shrink-0" />
+      <ChevronRight className="ml-auto size-3.5 text-subtle shrink-0" />
     </DropdownMenuPrimitive.SubTrigger>
   );
 }

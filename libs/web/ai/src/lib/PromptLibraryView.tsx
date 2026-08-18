@@ -208,7 +208,7 @@ export function PromptLibraryView() {
                   <h2 className="mt-2 mb-2 text-sm font-semibold text-foreground">
                     {prompt.title}
                   </h2>
-                  <p className="p-2.5 text-xs line-clamp-3 rounded-lg border bg-surface-inset font-mono text-muted-foreground">
+                  <p className="p-2.5 text-xs line-clamp-3 rounded-card border border-border bg-surface-inset font-mono text-muted-foreground">
                     {prompt.promptText}
                   </p>
                 </div>

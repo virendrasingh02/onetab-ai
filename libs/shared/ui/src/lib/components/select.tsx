@@ -21,21 +21,28 @@ export function SelectTrigger({
   return (
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
+      /*
+       * A select is a field, so it is built to the same spec as `Input`:
+       * same height, radius, fill and focus ring. It used to be a step taller
+       * with `text-sm` and a 3px ring, which made every form row that paired a
+       * text field with a select sit crooked.
+       */
       className={cn(
-        'gap-2 flex w-fit items-center justify-between rounded-md border border-input bg-background',
-        'text-sm shadow-xs whitespace-nowrap transition-[color,box-shadow] duration-150',
-        'focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none',
-        'disabled:cursor-not-allowed disabled:opacity-50',
-        'data-[placeholder]:text-muted-foreground',
-        "[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-        size === 'sm' ? 'h-8 px-2.5 text-xs' : 'h-9 px-3',
+        'gap-2 flex w-fit items-center justify-between rounded-input border border-input bg-surface',
+        'text-xs text-foreground whitespace-nowrap',
+        'transition-[color,border-color,box-shadow] duration-(--duration-fast) ease-standard',
+        'focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 focus-visible:outline-none',
+        'disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-disabled disabled:opacity-100',
+        'data-[placeholder]:text-subtle',
+        "[&_svg:not([class*='size-'])]:size-3.5 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+        size === 'sm' ? 'h-7 px-2.5' : 'h-8 px-3',
         className,
       )}
       {...props}
     >
       {children}
       <SelectPrimitive.Icon asChild>
-        <ChevronDown className="size-4 text-muted-foreground" />
+        <ChevronDown className="size-3.5 text-subtle" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );
@@ -52,12 +59,14 @@ export function SelectContent({
       <SelectPrimitive.Content
         data-slot="select-content"
         position={position}
+        /* Same surface recipe as `DropdownMenuContent` — a listbox and a menu
+           are the same object to the eye, so they share radius and lift. */
         className={cn(
           'relative z-50 max-h-(--radix-select-content-available-height) bg-popover text-popover-foreground',
-          'min-w-36 overflow-hidden rounded-2xl border border-border/80 p-1.5 shadow-2xl backdrop-blur-sm',
+          'min-w-36 overflow-hidden rounded-popup border border-border p-1 shadow-overlay',
           'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
           'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
-          'duration-150',
+          'duration-(--duration-fast) ease-standard',
           position === 'popper' &&
             'data-[side=bottom]:translate-y-1.5 data-[side=top]:-translate-y-1.5',
           className,
@@ -67,7 +76,7 @@ export function SelectContent({
         <SelectScrollUpButton />
         <SelectPrimitive.Viewport
           className={cn(
-            'p-0.5 space-y-0.5',
+            'space-y-0.5',
             position === 'popper' &&
               'scroll-my-1 h-(--radix-select-trigger-height) w-full min-w-(--radix-select-trigger-width)',
           )}
@@ -88,7 +97,7 @@ export function SelectLabel({
     <SelectPrimitive.Label
       data-slot="select-label"
       className={cn(
-        'px-2.5 py-1.5 text-[11px] font-semibold tracking-wider uppercase text-muted-foreground/70',
+        'px-2 py-1 text-[10px] font-semibold tracking-wider uppercase text-subtle',
         className,
       )}
       {...props}
@@ -105,8 +114,9 @@ export function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        'gap-2.5 py-2 pr-8 pl-2.5 relative flex w-full cursor-pointer items-center rounded-xl',
-        'text-[13px] font-medium outline-none select-none transition-colors duration-100',
+        'gap-2 py-1.5 pr-7 pl-2 relative flex w-full cursor-pointer items-center rounded-btn',
+        'text-xs font-medium outline-none select-none',
+        'transition-colors duration-(--duration-fast) ease-standard',
         'focus:bg-accent focus:text-accent-foreground',
         'data-[disabled]:pointer-events-none data-[disabled]:opacity-40',
         "[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:text-muted-foreground focus:[&_svg]:text-accent-foreground",
@@ -115,9 +125,9 @@ export function SelectItem({
       {...props}
     >
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
-      <span className="right-2.5 size-4 absolute flex items-center justify-center">
+      <span className="right-2 size-3.5 absolute flex items-center justify-center">
         <SelectPrimitive.ItemIndicator>
-          <Check className="size-4 text-foreground" />
+          <Check className="size-3.5 text-foreground" />
         </SelectPrimitive.ItemIndicator>
       </span>
     </SelectPrimitive.Item>
@@ -131,7 +141,7 @@ export function SelectSeparator({
   return (
     <SelectPrimitive.Separator
       data-slot="select-separator"
-      className={cn('-mx-1 my-1 h-px bg-border', className)}
+      className={cn('-mx-1 my-1 h-px bg-border shrink-0', className)}
       {...props}
     />
   );
@@ -144,7 +154,7 @@ function SelectScrollUpButton({
   return (
     <SelectPrimitive.ScrollUpButton
       className={cn(
-        'py-1 flex cursor-default items-center justify-center',
+        'py-1 flex cursor-default items-center justify-center text-subtle [&_svg]:size-3.5',
         className,
       )}
       {...props}
@@ -161,7 +171,7 @@ function SelectScrollDownButton({
   return (
     <SelectPrimitive.ScrollDownButton
       className={cn(
-        'py-1 flex cursor-default items-center justify-center',
+        'py-1 flex cursor-default items-center justify-center text-subtle [&_svg]:size-3.5',
         className,
       )}
       {...props}

@@ -296,14 +296,14 @@ export function AIComposer({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="gap-1 px-2 font-medium text-[11px]"
+                    className="gap-1 px-2 font-medium"
                     aria-label={`Model: ${modelLabel}`}
                   >
                     <span className="max-w-40 truncate">{modelLabel}</span>
                     <ChevronDown className="size-3" aria-hidden />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-52">
+                <DropdownMenuContent align="start" className="w-48">
                   <DropdownMenuRadioGroup
                     value={model}
                     onValueChange={(next) => onModelChange(next as AIModelValue)}
@@ -312,7 +312,6 @@ export function AIComposer({
                       <DropdownMenuRadioItem
                         key={option.value}
                         value={option.value}
-                        className="text-xs"
                       >
                         {option.label}
                       </DropdownMenuRadioItem>
@@ -345,11 +344,14 @@ export function AIComposer({
         side="top"
         align="start"
         sideOffset={8}
-        className="w-(--radix-popover-trigger-width) rounded-popup p-0"
+        className="w-(--radix-popover-trigger-width) p-0"
         onOpenAutoFocus={(event) => event.preventDefault()}
         onCloseAutoFocus={(event) => event.preventDefault()}
       >
-        <p className="px-3 py-1.5 font-medium tracking-wide text-[10px] border-b border-border text-subtle uppercase">
+        {/* Header, rows and footer are built to the shared menu spec — the
+            same `DropdownMenuLabel` metrics and the same 28px `rounded-btn`
+            row a model picker or a context menu draws. */}
+        <p className="px-2 py-1 font-semibold tracking-wider text-[10px] border-b border-border text-subtle uppercase">
           {trigger?.kind === 'mention' ? 'Models' : 'Commands'}
         </p>
 
@@ -361,22 +363,22 @@ export function AIComposer({
               onMouseEnter={() => setHighlight(index)}
               onClick={() => choose(option)}
               className={cn(
-                'w-full gap-2 px-2 py-1.5 text-xs flex items-center rounded-btn text-left',
+                'w-full gap-2 px-2 py-1.5 text-xs font-medium flex items-center rounded-btn text-left',
                 'transition-colors duration-(--duration-fast) ease-standard',
                 index === active
-                  ? 'bg-accent text-foreground'
+                  ? 'bg-accent text-accent-foreground'
                   : 'text-muted-foreground',
               )}
             >
-              <span className="font-mono shrink-0 font-medium text-primary">
+              <span className="font-mono shrink-0 text-primary">
                 {option.token}
               </span>
-              <span className="truncate">{option.label}</span>
+              <span className="truncate font-normal">{option.label}</span>
             </button>
           ))}
         </ScrollArea>
 
-        <p className="px-3 py-1.5 text-[10px] border-t border-border text-subtle">
+        <p className="px-2 py-1 text-[10px] border-t border-border text-subtle">
           ↑↓ to browse · Enter to insert · Esc to dismiss
         </p>
       </PopoverContent>

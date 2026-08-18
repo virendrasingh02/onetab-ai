@@ -450,7 +450,7 @@ export function IconPickerPopover({
 
       <PopoverContent
         align={align}
-        className="w-[340px] p-0 border border-border/80 bg-popover/95 backdrop-blur-xl text-popover-foreground shadow-2xl rounded-xl overflow-hidden text-xs"
+        className="w-[340px] p-0 overflow-hidden text-xs"
       >
         {/* Navigation Tabs Bar & Remove Button */}
         <div className="flex items-center justify-between border-b border-border px-3 py-2 bg-surface-inset/60">

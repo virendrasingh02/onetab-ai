@@ -51,7 +51,8 @@ export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
        mobile — so the panel never paints a second tone over it. */
     <div className={cn('flex h-full min-h-0 flex-col', className)}>
       <div className="h-12 px-3 flex shrink-0 items-center justify-between border-b border-border">
-        <span className="gap-1.5 font-medium text-[13px] flex items-center text-foreground">
+        {/* Same title treatment as the sheet the panel becomes on mobile. */}
+        <span className="gap-1.5 font-semibold text-sm flex items-center text-foreground">
           <Sparkles className="size-4 text-primary" aria-hidden />
           <span>AI Assistant</span>
         </span>

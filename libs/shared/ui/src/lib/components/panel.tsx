@@ -31,7 +31,9 @@ export function Panel({
     <section
       data-slot="panel"
       className={cn(
-        'shadow-xs flex flex-col rounded-xl border bg-surface text-card-foreground',
+        // `rounded-card` like `Card`: a panel and a card are the same box at
+        // different scales, and they sat a corner-step apart.
+        'shadow-xs flex flex-col rounded-card border border-border bg-surface text-card-foreground',
         className,
       )}
       {...props}

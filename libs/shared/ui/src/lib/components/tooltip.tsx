@@ -28,7 +28,7 @@ export function TooltipContent({
         collisionPadding={collisionPadding}
         className={cn(
           'z-(--z-tooltip) origin-(--radix-tooltip-content-transform-origin)',
-          'w-fit max-w-72 rounded-lg border border-border/80 bg-popover px-2.5 py-1 text-xs font-normal text-popover-foreground shadow-md',
+          'w-fit max-w-72 rounded-popup border border-border bg-popover px-2 py-1 text-[11px] font-normal text-popover-foreground shadow-elevated',
           'animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
           className,
         )}
