@@ -29,6 +29,7 @@
     "zod": "^4.4.3",
     "zustand": "^5.0.14",
     "@org/icons": "*",
+    "@org/notifications": "*",
     "@org/analytics-ui": "*"
   }
 }

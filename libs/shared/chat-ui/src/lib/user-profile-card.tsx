@@ -3,13 +3,21 @@ import {
   Button,
   Dialog,
   DialogContent,
+  LocalTime,
   Popover,
   PopoverContent,
   PopoverTrigger,
   ScrollArea,
   UserAvatar,
 } from '@org/ui';
-import { cn } from '@org/utils';
+import {
+  cn,
+  describeTimezone,
+  formatZoneDifference,
+  getRegionForTimezone,
+  getSystemTimezone,
+  getWorkingHoursStatus,
+} from '@org/utils';
 import {
   Calendar,
   Mail,
@@ -30,7 +38,11 @@ export interface UserProfileCardProps {
   email?: string;
   joinedAt?: string | number;
   bio?: string;
+  timezone?: string;
   status?: 'online' | 'unavailable' | 'offline';
+  statusEmoji?: string | null;
+  statusText?: string | null;
+  statusExpiresAt?: string | null;
   children: ReactNode;
   onSendDirectMessage?: (userId: string) => void;
   onOpenSidePanel?: (user: {
@@ -51,7 +63,11 @@ export function UserProfileCard({
   email,
   joinedAt,
   bio = 'Software Engineer & Team Collaborator on OneTab AI.',
+  timezone,
   status = 'online',
+  statusEmoji,
+  statusText,
+  statusExpiresAt,
   children,
   onSendDirectMessage,
   onOpenSidePanel,
@@ -146,11 +162,26 @@ export function UserProfileCard({
 
             {/* Display Name & Handle */}
             <div className="space-y-0.5">
-              <h3 className="text-base font-extrabold text-foreground tracking-tight">
-                {name}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-extrabold text-foreground tracking-tight">
+                  {name}
+                </h3>
+                {statusEmoji && (
+                  <span className="text-sm select-none" title={statusText || undefined}>
+                    {statusEmoji}
+                  </span>
+                )}
+              </div>
               <p className="text-xs font-mono font-medium text-muted-foreground">{handle}</p>
             </div>
+
+            {/* Custom status banner */}
+            {(statusText || statusEmoji) && (
+              <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1.5 text-xs text-foreground">
+                <span className="text-base shrink-0">{statusEmoji || '💬'}</span>
+                <span className="truncate font-medium">{statusText || 'Status set'}</span>
+              </div>
+            )}
 
             <hr className="my-3 border-border" />
 
@@ -175,6 +206,44 @@ export function UserProfileCard({
                     Power {powerLevel}
                   </Badge>
                 </div>
+              </div>
+
+              {/* Timezone & Region section */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Local Time & Region
+                </p>
+                {(() => {
+                  const userTimezone = timezone || 'UTC';
+                  const reg = getRegionForTimezone(userTimezone);
+                  const viewerZone = getSystemTimezone();
+                  const diff = formatZoneDifference(userTimezone, viewerZone);
+                  const workStatus = getWorkingHoursStatus(userTimezone);
+
+                  return (
+                    <div className="mt-1 p-2 rounded-lg border border-border bg-surface flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-base leading-none">{reg.flag}</span>
+                        <div className="min-w-0">
+                          <div className="font-medium text-foreground truncate">
+                            {describeTimezone(userTimezone)}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {diff === 'same time as you' ? 'Same time as you' : diff}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <LocalTime timezone={userTimezone} className="font-mono font-bold text-foreground text-xs" />
+                        <div className="text-[10px] flex items-center gap-1 justify-end text-muted-foreground">
+                          <span>{workStatus.icon}</span>
+                          <span>{workStatus.status === 'working' ? 'Working' : 'Off-hours'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 

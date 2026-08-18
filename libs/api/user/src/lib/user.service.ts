@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PUBLIC_USER_SELECT, toPublicUser } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import type { CurrentUser, PublicUser } from '@org/types';
-import type { UpdateProfileInput } from '@org/validation';
+import type { UpdateProfileInput, UpdateStatusInput } from '@org/validation';
 
 @Injectable()
 export class UserService {
@@ -30,8 +30,20 @@ export class UserService {
         ...(input.bio !== undefined ? { bio: input.bio } : {}),
         ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
         ...(input.avatarUrl !== undefined ? { avatarUrl: input.avatarUrl } : {}),
+        ...(input.statusText !== undefined ? { statusText: input.statusText } : {}),
+        ...(input.statusEmoji !== undefined ? { statusEmoji: input.statusEmoji } : {}),
+        ...(input.statusExpiresAt !== undefined
+          ? {
+              statusExpiresAt: input.statusExpiresAt
+                ? new Date(input.statusExpiresAt)
+                : null,
+            }
+          : {}),
       },
     });
+
+    const isExpired =
+      user.statusExpiresAt && user.statusExpiresAt < new Date();
 
     return {
       id: user.id,
@@ -43,6 +55,63 @@ export class UserService {
       timezone: user.timezone,
       systemRole: user.systemRole as CurrentUser['systemRole'],
       presence: user.presence as CurrentUser['presence'],
+      statusText: isExpired ? null : user.statusText ?? null,
+      statusEmoji: isExpired ? null : user.statusEmoji ?? null,
+      statusExpiresAt: isExpired
+        ? null
+        : (user.statusExpiresAt?.toISOString() ?? null),
+      emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null,
+      lastSeenAt: user.lastSeenAt?.toISOString() ?? null,
+      createdAt: user.createdAt.toISOString(),
+    };
+  }
+
+  async updateStatus(
+    userId: string,
+    input: UpdateStatusInput,
+  ): Promise<CurrentUser> {
+    const data: {
+      statusText?: string | null;
+      statusEmoji?: string | null;
+      statusExpiresAt?: Date | null;
+      presence?: CurrentUser['presence'];
+      lastSeenAt?: Date;
+    } = {
+      statusText: input.statusText ?? null,
+      statusEmoji: input.statusEmoji ?? null,
+      statusExpiresAt: input.statusExpiresAt
+        ? new Date(input.statusExpiresAt)
+        : null,
+      lastSeenAt: new Date(),
+    };
+
+    if (input.presence) {
+      data.presence = input.presence as CurrentUser['presence'];
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data,
+    });
+
+    const isExpired =
+      user.statusExpiresAt && user.statusExpiresAt < new Date();
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+      bio: user.bio,
+      timezone: user.timezone,
+      systemRole: user.systemRole as CurrentUser['systemRole'],
+      presence: user.presence as CurrentUser['presence'],
+      statusText: isExpired ? null : user.statusText ?? null,
+      statusEmoji: isExpired ? null : user.statusEmoji ?? null,
+      statusExpiresAt: isExpired
+        ? null
+        : (user.statusExpiresAt?.toISOString() ?? null),
       emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null,
       lastSeenAt: user.lastSeenAt?.toISOString() ?? null,
       createdAt: user.createdAt.toISOString(),

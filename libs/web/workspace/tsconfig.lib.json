@@ -56,6 +56,9 @@
       "path": "../desktop/tsconfig.lib.json"
     },
     {
+      "path": "../notifications/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/analytics-ui/tsconfig.lib.json"
     }
   ]

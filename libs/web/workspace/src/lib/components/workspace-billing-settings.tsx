@@ -42,7 +42,7 @@ export interface WorkspaceBillingSettingsProps {
 export function WorkspaceBillingSettings({
   totalMembers = 1,
   workspaceName = 'Workspace',
-  isOwner = true,
+  isOwner: _isOwner = true,
 }: WorkspaceBillingSettingsProps) {
   const [isAnnual, setIsAnnual] = useState(true);
   const [currentPlan, setCurrentPlan] = useState<'starter' | 'pro' | 'enterprise'>('starter');

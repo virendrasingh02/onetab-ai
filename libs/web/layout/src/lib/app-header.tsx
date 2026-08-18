@@ -11,6 +11,8 @@ import {
   Hint,
   LocalTime,
   UserAvatar,
+  useFocusStore,
+  useWorldClockStore,
 } from '@org/ui';
 import { useLogout } from '@org/auth';
 import { cn, describeTimezone } from '@org/utils';
@@ -18,14 +20,17 @@ import { openExternal, useDesktop } from '@org/web-desktop';
 import {
   ChevronLeft,
   ChevronRight,
+  Globe,
   HelpCircle,
   LogOut,
   Moon,
   PanelLeft,
   Search,
   Settings,
+  Smile,
   Sparkles,
   Sun,
+  Target,
   User as UserIcon,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -64,6 +69,18 @@ export function AppHeader({
     ? appInfo.platform === 'darwin'
     : /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
   const searchShortcut = isApple ? '⌘K' : 'Ctrl K';
+
+  const isFocusActive = useFocusStore((s) => s.isActive);
+  const remainingSeconds = useFocusStore((s) => s.remainingSeconds);
+  const openFocusModal = useFocusStore((s) => s.openFocusModal);
+  const openStatusModal = useFocusStore((s) => s.openStatusModal);
+  const openWorldClock = useWorldClockStore((s) => s.openWorldClock);
+
+  const formatFocusTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
 
   return (
     /*
@@ -117,13 +134,6 @@ export function AppHeader({
                 <ChevronRight className="size-4" />
               </Button>
             </Hint>
-
-            {/*
-              A third button here opened the command palette under a "Recent
-              history" label and a clock icon. Nothing in the palette is a
-              history view, and the search affordance is already two slots to
-              the right, so it was one control claiming to be another.
-            */}
           </div>
         ) : null}
       </div>
@@ -149,19 +159,65 @@ export function AppHeader({
       <div className="gap-1 sm:gap-1.5 flex flex-1 items-center justify-end">
         {actions}
 
+        {/* Status Pill (Slack style) */}
+        {user.statusText || user.statusEmoji ? (
+          <Hint
+            label={
+              user.statusText
+                ? `${user.statusEmoji ?? ''} ${user.statusText}`
+                : 'Update status'
+            }
+          >
+            <button
+              type="button"
+              onClick={openStatusModal}
+              className="h-7 max-w-44 gap-1.5 px-2.5 md:flex hidden items-center rounded-full text-xs font-medium border border-primary/30 bg-primary/10 text-foreground hover:bg-primary/20 transition-colors"
+            >
+              <span className="text-sm">{user.statusEmoji || '💬'}</span>
+              <span className="truncate">{user.statusText || 'Status set'}</span>
+            </button>
+          </Hint>
+        ) : null}
+
+        {/* Focus Mode Trigger */}
+        <Hint
+          label={
+            isFocusActive
+              ? `Focus Mode: ${formatFocusTime(remainingSeconds)} remaining`
+              : 'Start Focus Mode'
+          }
+        >
+          <Button
+            variant={isFocusActive ? 'primary' : 'ghost'}
+            size="sm"
+            onClick={openFocusModal}
+            className={cn(
+              'gap-1.5 px-2 text-xs font-medium sm:gap-1.5 sm:px-2.5 h-7',
+              isFocusActive && 'bg-primary text-primary-foreground font-semibold shadow-xs',
+            )}
+          >
+            <Target className="size-3.5" />
+            <span className="sm:inline hidden">
+              {isFocusActive ? formatFocusTime(remainingSeconds) : 'Focus'}
+            </span>
+          </Button>
+        </Hint>
+
         {/*
           The clock reads the profile's timezone, not the browser's, so it
           answers "what time is it where my team thinks I am" — the same zone
           every teammate sees against your name. It updates on the minute, and
           its tooltip carries the date, the zone and the offset.
         */}
-        <LocalTime
-          timezone={user.timezone}
-          icon
-          withHint
-          hintName="Your local time"
-          className="px-1.5 text-xs font-medium lg:inline-flex hidden text-muted-foreground"
-        />
+        <Hint label="Click to open Team Time Zones & World Clock">
+          <LocalTime
+            timezone={user.timezone}
+            icon
+            interactive
+            onClick={openWorldClock}
+            className="px-1.5 text-xs font-medium lg:inline-flex hidden text-muted-foreground hover:text-foreground"
+          />
+        </Hint>
 
         <Hint label="Search">
           <Button
@@ -214,6 +270,8 @@ export function AppHeader({
                 seed={user.id}
                 size="sm"
                 presence="online"
+                statusEmoji={user.statusEmoji}
+                statusText={user.statusText}
               />
             </button>
           </DropdownMenuTrigger>
@@ -238,6 +296,48 @@ export function AppHeader({
                 </span>
               </Link>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator className="my-1" />
+
+            {/* Slack-style Status Menu item */}
+            <DropdownMenuItem
+              onClick={openStatusModal}
+              className="text-xs gap-2 cursor-pointer"
+            >
+              <Smile className="size-3.5 text-primary shrink-0" />
+              <div className="flex-1 truncate">
+                {user.statusText ? (
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span>{user.statusEmoji || '💬'}</span>
+                    <span className="truncate">{user.statusText}</span>
+                  </div>
+                ) : (
+                  'Set a status'
+                )}
+              </div>
+            </DropdownMenuItem>
+
+            {/* Focus Mode Shortcut */}
+            <DropdownMenuItem
+              onClick={openFocusModal}
+              className="text-xs gap-2 cursor-pointer"
+            >
+              <Target className="size-3.5 text-primary shrink-0" />
+              <span>
+                {isFocusActive
+                  ? `Focusing (${formatFocusTime(remainingSeconds)})`
+                  : 'Focus Mode'}
+              </span>
+            </DropdownMenuItem>
+
+            {/* Team Time Zones & World Clock */}
+            <DropdownMenuItem
+              onClick={openWorldClock}
+              className="text-xs gap-2 cursor-pointer"
+            >
+              <Globe className="size-3.5 text-primary shrink-0" />
+              <span>Team Time Zones & Clock</span>
+            </DropdownMenuItem>
+
             <DropdownMenuSeparator className="my-1" />
 
             <DropdownMenuItem asChild className="text-xs">

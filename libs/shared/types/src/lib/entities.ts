@@ -17,6 +17,9 @@ export interface PublicUser {
   displayName: string | null;
   avatarUrl: string | null;
   presence: PresenceStatus;
+  statusText?: string | null;
+  statusEmoji?: string | null;
+  statusExpiresAt?: IsoDateString | null;
   lastSeenAt: IsoDateString | null;
   /*
    * IANA zone, e.g. `Asia/Kolkata`. Public because "what time is it where they

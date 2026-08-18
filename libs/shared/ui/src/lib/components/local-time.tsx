@@ -54,6 +54,8 @@ export interface LocalTimeProps extends Omit<ComponentProps<'time'>, 'children'>
   withHint?: boolean;
   /** Label for the hint, when this clock is someone else's. */
   hintName?: string;
+  /** When true, allows clicking to open the Team World Clock modal. */
+  interactive?: boolean;
 }
 
 /**
@@ -68,7 +70,9 @@ export function LocalTime({
   showOffset = false,
   withHint = false,
   hintName,
+  interactive = false,
   className,
+  onClick,
   ...props
 }: LocalTimeProps) {
   const now = useMinuteTick();
@@ -79,7 +83,12 @@ export function LocalTime({
   const element = (
     <time
       dateTime={now.toISOString()}
-      className={cn('inline-flex items-center gap-1.5 tabular-nums', className)}
+      onClick={onClick}
+      className={cn(
+        'inline-flex items-center gap-1.5 tabular-nums',
+        interactive && 'cursor-pointer hover:text-foreground transition-colors',
+        className,
+      )}
       {...props}
     >
       {icon ? <Clock className="size-3.5 shrink-0 opacity-70" aria-hidden /> : null}

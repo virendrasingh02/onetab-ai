@@ -19,4 +19,5 @@ export { UpgradePlanBanner } from './lib/components/upgrade-plan-banner.js';
 export { WorkspaceMembersSettings } from './lib/components/workspace-members-settings.js';
 export { WorkspaceBillingSettings } from './lib/components/workspace-billing-settings.js';
 export { WorkspaceCompanyAnalytics } from './lib/components/workspace-company-analytics.js';
+export { SettingsLayout } from './lib/settings-layout.js';
 

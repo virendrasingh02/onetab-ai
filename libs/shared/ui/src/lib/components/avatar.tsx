@@ -110,10 +110,12 @@ export interface UserAvatarProps extends AvatarProps {
   /** Stable tint seed. Defaults to `name`; pass a user id where available. */
   seed?: string;
   presence?: PresenceStatus;
+  statusEmoji?: string | null;
+  statusText?: string | null;
 }
 
 /**
- * Avatar with a deterministic colour fallback and optional presence dot.
+ * Avatar with a deterministic colour fallback and optional presence dot and status emoji.
  * The tint is derived from `seed`, so a user keeps the same colour everywhere.
  */
 export function UserAvatar({
@@ -121,6 +123,8 @@ export function UserAvatar({
   src,
   seed,
   presence,
+  statusEmoji,
+  statusText,
   size,
   shape,
   className,
@@ -143,6 +147,16 @@ export function UserAvatar({
             PRESENCE_STYLES[presence],
           )}
         />
+      ) : null}
+      {statusEmoji && !presence ? (
+        <span
+          role="status"
+          aria-label={statusText ? `${name}: ${statusText}` : `${name} status ${statusEmoji}`}
+          title={statusText ? `${statusEmoji} ${statusText}` : undefined}
+          className="absolute -right-1 -bottom-1 text-[11px] leading-none select-none drop-shadow-xs"
+        >
+          {statusEmoji}
+        </span>
       ) : null}
     </span>
   );

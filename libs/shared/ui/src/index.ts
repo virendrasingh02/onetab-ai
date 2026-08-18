@@ -288,4 +288,47 @@ export {
   type IconRendererProps,
 } from './lib/components/icon-picker-popover.js';
 
+export {
+  focusAudio,
+  FOCUS_SOUND_OPTIONS,
+  type FocusSoundType,
+  type SoundOption,
+} from './lib/components/focus-audio.js';
+
+export {
+  useFocusStore,
+  type FocusState,
+} from './lib/components/focus-mode-store.js';
+
+export {
+  StatusModal,
+  SLACK_STATUS_PRESETS,
+  CLEAR_AFTER_OPTIONS,
+  POPULAR_EMOJIS,
+  type StatusModalProps,
+  type StatusPreset,
+  type ClearOption,
+} from './lib/components/status-modal.js';
+
+export {
+  FocusModeWidget,
+  FOCUS_DURATION_OPTIONS,
+  type FocusModeWidgetProps,
+  type FocusDurationOption,
+} from './lib/components/focus-mode-widget.js';
+
+export {
+  RegionSelect,
+  type RegionSelectProps,
+} from './lib/components/region-select.js';
+
+export {
+  TeamWorldClockModal,
+  useWorldClockStore,
+  type TeamWorldClockModalProps,
+  type TeamMemberData,
+} from './lib/components/team-world-clock-modal.js';
+
+
+
 

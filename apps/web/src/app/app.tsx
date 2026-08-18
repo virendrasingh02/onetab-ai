@@ -165,6 +165,45 @@ export function App() {
           {/* Bare "/" resolves to the user's first workspace. */}
           <Route path="/" element={<WorkspaceRedirect />} />
 
+          {/* --- Separate Standalone Settings Routes --- */}
+          <Route
+            path="/w/:workspaceSlug/settings"
+            element={<WorkspaceSettingsPage />}
+          />
+          <Route
+            path="/w/:workspaceSlug/settings/*"
+            element={<WorkspaceSettingsPage />}
+          />
+          <Route
+            path="/w/:workspaceSlug/import-export"
+            element={<WorkspaceSettingsPage />}
+          />
+          <Route
+            path="/w/:workspaceSlug/integrations/import"
+            element={<WorkspaceSettingsPage />}
+          />
+          <Route
+            path="/w/:workspaceSlug/profile"
+            element={<ProfilePage />}
+          />
+          <Route
+            path="/w/:workspaceSlug/billing"
+            element={<WorkspaceSettingsPage />}
+          />
+          <Route
+            path="/w/:workspaceSlug/plans"
+            element={<WorkspaceSettingsPage />}
+          />
+          <Route
+            path="/w/:workspaceSlug/analytics/*"
+            element={<WorkspaceSettingsPage />}
+          />
+          <Route
+            path="/w/:workspaceSlug/analytics"
+            element={<WorkspaceSettingsPage />}
+          />
+
+          {/* --- Main Workspace Shell with Navigation & Tools --- */}
           <Route path="/w/:workspaceSlug" element={<AppShell />}>
             <Route index element={<AIChatView />} />
             <Route path="home" element={<AIChatView />} />
@@ -201,28 +240,6 @@ export function App() {
             <Route path="automations/builder" element={<WorkflowCanvasView />} />
             <Route path="automations/logs" element={<WorkflowExecutionLogsView />} />
             <Route path="integrations" element={<IntegrationHubView />} />
-            <Route path="import-export" element={<WorkspaceSettingsPage />} />
-            <Route path="integrations/import" element={<WorkspaceSettingsPage />} />
-            {/*
-              Analytics is one destination with tabs: `AnalyticsLayout` renders
-              the tab bar and the routed screen below it.
-            */}
-            <Route path="analytics/*" element={<WorkspaceSettingsPage />} />
-            <Route path="analytics" element={<WorkspaceSettingsPage />} />
-            <Route path="profile" element={<ProfilePage />} />
-            <Route path="members" element={<WorkspaceSettingsPage />} />
-            <Route path="invitations" element={<WorkspaceSettingsPage />} />
-            <Route path="billing" element={<WorkspaceSettingsPage />} />
-            <Route path="plans" element={<WorkspaceSettingsPage />} />
-            <Route path="settings" element={<WorkspaceSettingsPage />} />
-            <Route
-              path="settings/workspace"
-              element={<WorkspaceSettingsPage />}
-            />
-            <Route
-              path="settings/analytics"
-              element={<WorkspaceSettingsPage />}
-            />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>

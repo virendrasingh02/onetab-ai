@@ -6,6 +6,16 @@ export const updateProfileSchema = z.object({
   bio: z.string().trim().max(280).nullable().optional(),
   timezone: z.string().min(1).max(64).optional(),
   avatarUrl: z.string().url('Enter a valid URL').nullable().optional(),
+  statusText: z.string().trim().max(100).nullable().optional(),
+  statusEmoji: z.string().trim().max(32).nullable().optional(),
+  statusExpiresAt: z.string().datetime().nullable().optional(),
+});
+
+export const updateStatusSchema = z.object({
+  statusText: z.string().trim().max(100).nullable().optional(),
+  statusEmoji: z.string().trim().max(32).nullable().optional(),
+  statusExpiresAt: z.string().datetime().nullable().optional(),
+  presence: z.enum(['ONLINE', 'AWAY', 'BUSY', 'OFFLINE']).optional(),
 });
 
 /** Upload constraints, enforced client-side and re-checked by the API. */
@@ -38,4 +48,5 @@ export const uploadRequestSchema = z.object({
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type UpdateStatusInput = z.infer<typeof updateStatusSchema>;
 export type UploadRequestInput = z.infer<typeof uploadRequestSchema>;

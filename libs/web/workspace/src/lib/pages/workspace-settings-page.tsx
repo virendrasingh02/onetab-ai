@@ -4,6 +4,7 @@ import { formErrorMessage, useAuthStore, useCurrentUser } from '@org/auth';
 import { useTheme } from '@org/design-system';
 import { WorkspaceIconPicker } from '@org/icons';
 import {
+  Badge,
   Button,
   Dialog,
   DialogClose,
@@ -23,6 +24,7 @@ import {
   Input,
   LoadingState,
   LocalTime,
+  RegionSelect,
   Select,
   SelectContent,
   SelectItem,
@@ -33,8 +35,22 @@ import {
   TimezoneSelect,
   UserAvatar,
   WorkspaceAvatar,
+  useFocusStore,
+  useWorldClockStore,
+  FOCUS_SOUND_OPTIONS,
+  FOCUS_DURATION_OPTIONS,
+  focusAudio,
+  type FocusSoundType,
 } from '@org/ui';
-import { describeTimezone, getSystemTimezone, initials } from '@org/utils';
+import {
+  cn,
+  describeTimezone,
+  getRegionForTimezone,
+  getSystemTimezone,
+  getWorkingHoursStatus,
+  initials,
+  type RegionInfo,
+} from '@org/utils';
 import { WorkspaceRole, hasWorkspaceRole } from '@org/types';
 import {
   changePasswordSchema,
@@ -46,17 +62,27 @@ import {
 } from '@org/validation';
 import { useMutation } from '@tanstack/react-query';
 import {
+  Bell,
   Moon,
   Sun,
   Monitor,
   CheckCircle2,
   Upload,
   Trash2,
+  Smile,
+  Target,
+  Clock,
+  Globe,
+  Volume2,
+  VolumeX,
+  Play,
+  Pause,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { DesktopSettingsCard } from '@org/web-desktop';
+import { DesktopSettingsCard, notify } from '@org/web-desktop';
+import { useNotificationPermissionBar } from '@org/notifications';
 import { SlackNotionImportView } from '@org/web-integrations';
 import {
   useCurrentWorkspace,
@@ -145,6 +171,9 @@ export function WorkspaceSettingsPage() {
   const [notifyAgentAlerts, setNotifyAgentAlerts] = useState(true);
   const [notifyDesktopPush, setNotifyDesktopPush] = useState(true);
   const [notifyChannelScope, setNotifyChannelScope] = useState('all');
+  const [testNotifSending, setTestNotifSending] = useState(false);
+  const [testNotifSent, setTestNotifSent] = useState(false);
+  const notifBarState = useNotificationPermissionBar();
 
   // Work Tools Feature States
   const [defaultChannel, setDefaultChannel] = useState('general');
@@ -183,6 +212,18 @@ export function WorkspaceSettingsPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [passwordChanged, setPasswordChanged] = useState(false);
+  const openStatusModal = useFocusStore((s) => s.openStatusModal);
+  const openFocusModal = useFocusStore((s) => s.openFocusModal);
+  const openWorldClock = useWorldClockStore((s) => s.openWorldClock);
+  const focusStore = useFocusStore();
+  const [testSoundPlaying, setTestSoundPlaying] = useState<FocusSoundType | null>(null);
+
+  // Timezone & Regional Preferences States
+  const [timeFormatPref, setTimeFormatPref] = useState<'12h' | '24h'>('12h');
+  const [dateFormatPref, setDateFormatPref] = useState<'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD'>('MM/DD/YYYY');
+  const [workStartHour, setWorkStartHour] = useState('09:00');
+  const [workEndHour, setWorkEndHour] = useState('18:00');
+  const [workdays, setWorkdays] = useState('mon-fri');
 
   // Profile Update Form & Mutation
   const updateProfile = useMutation({
@@ -488,23 +529,80 @@ export function WorkspaceSettingsPage() {
           </div>
 
           <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6 space-y-6">
-            <div className="flex items-center gap-5 pb-6 border-b border-border/40">
-              <UserAvatar
-                name={user.displayName ?? user.name}
-                src={profileForm.watch('avatarUrl') || user.avatarUrl}
-                seed={user.id}
-                size="xl"
-              />
-              <div className="space-y-1">
-                <h3 className="text-sm font-semibold text-foreground">
-                  {user.displayName ?? user.name}
-                </h3>
-                <p className="text-xs text-muted-foreground">{user.email}</p>
-                <span className="inline-block text-[10px] bg-primary/10 text-primary px-2.5 py-0.5 rounded-full font-semibold">
-                  {workspace.role}
-                </span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border/40">
+              <div className="flex items-center gap-5">
+                <UserAvatar
+                  name={user.displayName ?? user.name}
+                  src={profileForm.watch('avatarUrl') || user.avatarUrl}
+                  seed={user.id}
+                  size="xl"
+                  statusEmoji={user.statusEmoji}
+                  statusText={user.statusText}
+                />
+                <div className="space-y-1">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {user.displayName ?? user.name}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">{user.email}</p>
+                  <span className="inline-block text-[10px] bg-primary/10 text-primary px-2.5 py-0.5 rounded-full font-semibold">
+                    {workspace.role}
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Status & Focus Mode controls */}
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={openStatusModal}
+                  className="text-xs gap-1.5"
+                >
+                  <Smile className="size-3.5 text-primary" />
+                  {user.statusText ? 'Edit Status' : 'Set Status'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={openFocusModal}
+                  className="text-xs gap-1.5"
+                >
+                  <Target className="size-3.5" />
+                  Focus Mode
+                </Button>
               </div>
             </div>
+
+            {/* Active Status Highlight if set */}
+            {(user.statusText || user.statusEmoji) && (
+              <div className="flex items-center justify-between p-3 rounded-xl border border-primary/25 bg-primary/5 text-xs text-foreground">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-lg">{user.statusEmoji || '💬'}</span>
+                  <div className="min-w-0">
+                    <span className="font-semibold block truncate">
+                      {user.statusText}
+                    </span>
+                    {user.statusExpiresAt && (
+                      <span className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <Clock className="size-3" />
+                        Clears {new Date(user.statusExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={openStatusModal}
+                  className="h-7 text-xs text-primary"
+                >
+                  Change
+                </Button>
+              </div>
+            )}
 
             <Form {...profileForm}>
               <form onSubmit={onProfileSubmit} className="space-y-4 max-w-xl" noValidate>
@@ -627,52 +725,115 @@ export function WorkspaceSettingsPage() {
                 {/*
                   The timezone was in the form's values and in the API contract
                   all along, but had no control — so every account kept whatever
-                  it was created with, and the times other people saw against
-                  this member were whatever that happened to be.
-                */}
-                <FormField
-                  control={profileForm.control}
-                  name="timezone"
-                  render={({ field }) => {
-                    const zone = field.value || systemTimezone;
-                    return (
-                      <FormItem>
-                        <FormLabel className="text-xs font-medium">Timezone</FormLabel>
-                        <FormControl>
-                          <TimezoneSelect
-                            value={zone}
-                            onChange={(next) =>
-                              profileForm.setValue('timezone', next, {
+                {/* Timezone & Region Settings */}
+                <div className="space-y-4 pt-2 border-t border-border/50">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Region / Country Picker */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-foreground">
+                        Region & Country
+                      </label>
+                      {(() => {
+                        const currentTz = profileForm.watch('timezone') || systemTimezone;
+                        const currentRegion = getRegionForTimezone(currentTz);
+
+                        return (
+                          <RegionSelect
+                            value={currentRegion.code}
+                            onChange={(region: RegionInfo) => {
+                              profileForm.setValue('timezone', region.defaultTimezone, {
                                 shouldDirty: true,
-                              })
-                            }
+                              });
+                            }}
                           />
-                        </FormControl>
-                        <FormDescription className="text-[11px] text-muted-foreground mt-1">
-                          <span className="inline-flex flex-wrap items-center gap-1.5">
-                            <span>Your local time is</span>
+                        );
+                      })()}
+                      <p className="text-[11px] text-muted-foreground">
+                        Sets country flag and regional formatting defaults.
+                      </p>
+                    </div>
+
+                    {/* Timezone Picker */}
+                    <FormField
+                      control={profileForm.control}
+                      name="timezone"
+                      render={({ field }) => {
+                        const zone = field.value || systemTimezone;
+                        return (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium">Timezone</FormLabel>
+                            <FormControl>
+                              <TimezoneSelect
+                                value={zone}
+                                onChange={(next) =>
+                                  profileForm.setValue('timezone', next, {
+                                    shouldDirty: true,
+                                  })
+                                }
+                              />
+                            </FormControl>
+                            <FormDescription className="text-[11px] text-muted-foreground">
+                              Used for team time synchronization and scheduling.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
+                    />
+                  </div>
+
+                  {/* Live Time & Working Hours Preview Card */}
+                  {(() => {
+                    const currentTz = profileForm.watch('timezone') || systemTimezone;
+                    const region = getRegionForTimezone(currentTz);
+                    const workStatus = getWorkingHoursStatus(currentTz);
+
+                    return (
+                      <div className="p-3.5 rounded-xl border border-border bg-surface flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-2xl leading-none">{region.flag}</span>
+                          <div>
+                            <div className="font-semibold text-foreground flex items-center gap-2">
+                              <span>{region.name}</span>
+                              <span className="text-[10px] text-muted-foreground font-normal">
+                                ({describeTimezone(currentTz)})
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground mt-0.5">
+                              {currentTz === systemTimezone
+                                ? '✓ Matches this device'
+                                : `Device timezone: ${describeTimezone(systemTimezone)}`}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 self-end sm:self-auto">
+                          <span
+                            className={cn(
+                              'text-[11px] font-medium px-2 py-0.5 rounded-full flex items-center gap-1',
+                              workStatus.status === 'working'
+                                ? 'bg-success/15 text-success'
+                                : workStatus.status === 'sleeping'
+                                  ? 'bg-muted text-muted-foreground'
+                                  : 'bg-warning/15 text-warning',
+                            )}
+                          >
+                            <span>{workStatus.icon}</span>
+                            <span>{workStatus.label}</span>
+                          </span>
+
+                          <div className="text-right">
                             <LocalTime
-                              timezone={zone}
+                              timezone={currentTz}
                               showOffset
-                              className="font-medium text-foreground"
+                              className="font-mono font-bold text-foreground text-sm"
                             />
-                            <span>·</span>
-                            <span>
-                              {zone === systemTimezone
-                                ? 'matches this device'
-                                : `this device is set to ${describeTimezone(systemTimezone)}`}
-                            </span>
-                          </span>
-                          <span className="mt-1 block">
-                            Used for the clock in the header, for the local time
-                            teammates see beside your name, and for scheduling.
-                          </span>
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
+                          </div>
+                        </div>
+                      </div>
                     );
-                  }}
-                />
+                  })()}
+                </div>
 
                 <div className="pt-2">
                   <Button
@@ -691,19 +852,680 @@ export function WorkspaceSettingsPage() {
         </div>
       )}
 
+      {/* ---------------- SECTION 2.5: TIME ZONE & REGION ---------------- */}
+      {currentTab === 'timezone-region' && user && (
+        <div className="space-y-8">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">Time Zone & Region</h1>
+            <p className="text-xs text-muted-foreground mt-1">
+              Configure your geographical location, timezone offset, regional formatting, and working hours.
+            </p>
+          </div>
+
+          {/* Subsection: Region & Timezone */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
+              Regional & Timezone Settings
+            </h3>
+            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6 space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                {/* Region Selector */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-foreground block">
+                    Region & Country
+                  </label>
+                  {(() => {
+                    const currentTz = profileForm.watch('timezone') || systemTimezone;
+                    const currentRegion = getRegionForTimezone(currentTz);
+
+                    return (
+                      <RegionSelect
+                        value={currentRegion.code}
+                        onChange={(region: RegionInfo) => {
+                          profileForm.setValue('timezone', region.defaultTimezone, {
+                            shouldDirty: true,
+                          });
+                        }}
+                      />
+                    );
+                  })()}
+                  <p className="text-[11px] text-muted-foreground">
+                    Determines country flag and regional default settings.
+                  </p>
+                </div>
+
+                {/* Timezone Selector */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-foreground block">
+                    Timezone (IANA)
+                  </label>
+                  {(() => {
+                    const zone = profileForm.watch('timezone') || systemTimezone;
+                    return (
+                      <TimezoneSelect
+                        value={zone}
+                        onChange={(next) =>
+                          profileForm.setValue('timezone', next, {
+                            shouldDirty: true,
+                          })
+                        }
+                      />
+                    );
+                  })()}
+                  <p className="text-[11px] text-muted-foreground">
+                    Used for schedule coordination and header clock.
+                  </p>
+                </div>
+              </div>
+
+              {/* Live Preview Card */}
+              {(() => {
+                const currentTz = profileForm.watch('timezone') || systemTimezone;
+                const region = getRegionForTimezone(currentTz);
+                const workStatus = getWorkingHoursStatus(currentTz);
+
+                return (
+                  <div className="p-4 rounded-xl border border-border bg-surface flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl leading-none">{region.flag}</span>
+                      <div>
+                        <div className="font-semibold text-foreground flex items-center gap-2">
+                          <span className="text-sm">{region.name}</span>
+                          <span className="text-[11px] text-muted-foreground font-mono">
+                            {describeTimezone(currentTz)}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                          {currentTz === systemTimezone
+                            ? '✓ Synchronized with this computer'
+                            : `Device timezone: ${describeTimezone(systemTimezone)}`}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 self-end sm:self-auto">
+                      <span
+                        className={cn(
+                          'text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5',
+                          workStatus.status === 'working'
+                            ? 'bg-success/15 text-success'
+                            : workStatus.status === 'sleeping'
+                              ? 'bg-muted text-muted-foreground'
+                              : 'bg-warning/15 text-warning',
+                        )}
+                      >
+                        <span>{workStatus.icon}</span>
+                        <span>{workStatus.label}</span>
+                      </span>
+
+                      <div className="text-right">
+                        <LocalTime
+                          timezone={currentTz}
+                          showOffset
+                          className="font-mono font-bold text-foreground text-base"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div className="flex items-center justify-between pt-2 border-t border-border/40">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    profileForm.setValue('timezone', systemTimezone, {
+                      shouldDirty: true,
+                    })
+                  }
+                  className="text-xs"
+                >
+                  Reset to device timezone ({describeTimezone(systemTimezone)})
+                </Button>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  loading={updateProfile.isPending}
+                  disabled={!profileForm.formState.isDirty}
+                  onClick={profileForm.handleSubmit((data) => updateProfile.mutate(data))}
+                  className="text-xs"
+                >
+                  Save timezone changes
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Subsection: Date & Time Formatting */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
+              Date & Time Formats
+            </h3>
+            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+                <div>
+                  <h4 className="text-xs font-medium text-foreground">Time display format</h4>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Choose 12-hour AM/PM or 24-hour military clock
+                  </p>
+                </div>
+                <Select value={timeFormatPref} onValueChange={(v: '12h' | '24h') => setTimeFormatPref(v)}>
+                  <SelectTrigger className="w-36 h-8 text-xs bg-surface border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="12h" className="text-xs">12-hour (2:30 PM)</SelectItem>
+                    <SelectItem value="24h" className="text-xs">24-hour (14:30)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+                <div>
+                  <h4 className="text-xs font-medium text-foreground">Date display format</h4>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Preferred order for calendar dates
+                  </p>
+                </div>
+                <Select value={dateFormatPref} onValueChange={(v: 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD') => setDateFormatPref(v)}>
+                  <SelectTrigger className="w-44 h-8 text-xs bg-surface border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MM/DD/YYYY" className="text-xs">MM/DD/YYYY (US)</SelectItem>
+                    <SelectItem value="DD/MM/YYYY" className="text-xs">DD/MM/YYYY (UK/EU/IN)</SelectItem>
+                    <SelectItem value="YYYY-MM-DD" className="text-xs">YYYY-MM-DD (ISO)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Subsection: Working Hours */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
+              Working Hours & Schedule
+            </h3>
+            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+                <div>
+                  <h4 className="text-xs font-medium text-foreground">Daily working hours</h4>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Lets teammates know when you are actively at your desk
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <Select value={workStartHour} onValueChange={setWorkStartHour}>
+                    <SelectTrigger className="w-24 h-8 text-xs bg-surface border-border">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="08:00" className="text-xs">08:00 AM</SelectItem>
+                      <SelectItem value="09:00" className="text-xs">09:00 AM</SelectItem>
+                      <SelectItem value="10:00" className="text-xs">10:00 AM</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-muted-foreground">to</span>
+                  <Select value={workEndHour} onValueChange={setWorkEndHour}>
+                    <SelectTrigger className="w-24 h-8 text-xs bg-surface border-border">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="17:00" className="text-xs">05:00 PM</SelectItem>
+                      <SelectItem value="18:00" className="text-xs">06:00 PM</SelectItem>
+                      <SelectItem value="19:00" className="text-xs">07:00 PM</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+                <div>
+                  <h4 className="text-xs font-medium text-foreground">Working days</h4>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Active days of the week
+                  </p>
+                </div>
+                <Select value={workdays} onValueChange={setWorkdays}>
+                  <SelectTrigger className="w-40 h-8 text-xs bg-surface border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mon-fri" className="text-xs">Monday – Friday</SelectItem>
+                    <SelectItem value="mon-sat" className="text-xs">Monday – Saturday</SelectItem>
+                    <SelectItem value="sun-thu" className="text-xs">Sunday – Thursday</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Subsection: Team World Clock Shortcut */}
+          <div className="p-5 rounded-2xl border border-primary/25 bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                <Globe className="size-5" />
+              </div>
+              <div>
+                <h4 className="text-xs font-semibold text-foreground">Team World Clock & Meeting Planner</h4>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  See where all teammates are located, their live local times, and schedule overlapping meetings.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              onClick={openWorldClock}
+              className="text-xs gap-1.5 shrink-0"
+            >
+              <Globe className="size-3.5" />
+              Open World Clock
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ---------------- SECTION 2.6: STATUS & FOCUS MODE ---------------- */}
+      {currentTab === 'focus-status' && user && (
+        <div className="space-y-8">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">Status & Focus Mode</h1>
+            <p className="text-xs text-muted-foreground mt-1">
+              Manage Slack-style custom status updates, Pomodoro & Deep Work focus timers, and ambient zen audio.
+            </p>
+          </div>
+
+          {/* Subsection: Slack Status */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
+              Slack-Style Status
+            </h3>
+            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-surface">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">{user.statusEmoji || '💬'}</span>
+                  <div>
+                    <h4 className="text-xs font-semibold text-foreground">
+                      {user.statusText || 'No active status'}
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {user.statusExpiresAt
+                        ? `Clears automatically at ${new Date(user.statusExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                        : 'Visible to all teammates across channels and direct messages'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={openStatusModal}
+                    className="text-xs gap-1.5"
+                  >
+                    <Smile className="size-3.5 text-primary" />
+                    {user.statusText ? 'Edit Status' : 'Set Status'}
+                  </Button>
+                  {user.statusText && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        userApi.clearStatus().then((updated) => {
+                          setUser(updated);
+                        });
+                      }}
+                      className="text-xs text-muted-foreground hover:text-destructive"
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Status Presets */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-foreground block">
+                  Quick 1-Click Status Presets
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {[
+                    { emoji: '💬', text: 'In a meeting' },
+                    { emoji: '🚗', text: 'Commuting' },
+                    { emoji: '🤒', text: 'Out sick' },
+                    { emoji: '🌴', text: 'Vacationing' },
+                    { emoji: '🍱', text: 'Out for lunch' },
+                    { emoji: '🏠', text: 'Working remotely' },
+                    { emoji: '🎯', text: 'Deep focus' },
+                    { emoji: '☕', text: 'Taking a break' },
+                  ].map((preset) => (
+                    <button
+                      key={preset.text}
+                      type="button"
+                      onClick={() => {
+                        userApi.updateStatus({
+                          statusText: preset.text,
+                          statusEmoji: preset.emoji,
+                          statusExpiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+                        }).then((updated) => {
+                          setUser(updated);
+                        });
+                      }}
+                      className="flex items-center gap-2 p-2.5 rounded-xl border border-border bg-surface hover:border-primary/40 hover:bg-accent/50 text-xs text-foreground text-left transition-all"
+                    >
+                      <span className="text-base leading-none">{preset.emoji}</span>
+                      <span className="truncate font-medium">{preset.text}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Subsection: Focus Mode & Pomodoro */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
+              Focus Mode & Ambient Zen Audio
+            </h3>
+            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6 space-y-6">
+              {/* Active Session Bar or Launch Trigger */}
+              {focusStore.isActive ? (
+                <div className="p-4 rounded-xl border border-primary/40 bg-primary/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="size-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-mono font-bold text-sm">
+                      {Math.floor(focusStore.remainingSeconds / 60)}m
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-foreground flex items-center gap-2">
+                        <span>Active Focus Session</span>
+                        <span className="text-[10px] bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-bold">
+                          {focusStore.isPaused ? 'PAUSED' : 'IN PROGRESS'}
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {focusStore.taskObjective || 'Deep work session'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {focusStore.isPaused ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={focusStore.resumeFocus}
+                        className="text-xs gap-1.5"
+                      >
+                        <Play className="size-3.5" />
+                        Resume
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={focusStore.pauseFocus}
+                        className="text-xs gap-1.5"
+                      >
+                        <Pause className="size-3.5" />
+                        Pause
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => focusStore.stopFocus()}
+                      className="text-xs"
+                    >
+                      Stop Session
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-semibold text-foreground">Launch a Focus Session</h4>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Blocks distractions, generates ambient focus audio, and updates your Slack status.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      onClick={openFocusModal}
+                      className="text-xs gap-1.5"
+                    >
+                      <Target className="size-3.5" />
+                      Start Focus Session
+                    </Button>
+                  </div>
+
+                  {/* Preset Buttons */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {FOCUS_DURATION_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.minutes}
+                        type="button"
+                        onClick={() => {
+                          focusStore.startFocus({
+                            durationMinutes: opt.minutes,
+                            taskObjective: opt.label,
+                          });
+                        }}
+                        className="p-3.5 rounded-xl border border-border bg-surface hover:border-primary/50 hover:bg-accent/40 text-left transition-all space-y-1"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-lg">{opt.icon}</span>
+                          <span className="font-mono text-xs font-bold text-primary">{opt.minutes}m</span>
+                        </div>
+                        <div className="text-xs font-semibold text-foreground">{opt.label}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Ambient Audio Synthesizer */}
+              <div className="space-y-3 pt-4 border-t border-border/40">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                      <Volume2 className="size-3.5 text-primary" />
+                      Ambient Audio Soundscape
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Native Web Audio synthesized noise and alpha wave beat generators.
+                    </p>
+                  </div>
+                  {testSoundPlaying && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        focusAudio.stop();
+                        setTestSoundPlaying(null);
+                      }}
+                      className="h-7 text-xs text-destructive gap-1"
+                    >
+                      <VolumeX className="size-3" />
+                      Stop Audio
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                  {FOCUS_SOUND_OPTIONS.filter((s) => s.id !== 'none').map((sound) => {
+                    const isTesting = testSoundPlaying === sound.id;
+                    const isSelected = focusStore.soundType === sound.id;
+
+                    return (
+                      <div
+                        key={sound.id}
+                        className={cn(
+                          'p-3 rounded-xl border flex items-center justify-between gap-2 text-xs transition-all',
+                          isSelected
+                            ? 'border-primary/50 bg-primary/5'
+                            : 'border-border bg-surface hover:bg-accent/30',
+                        )}
+                      >
+                        <div
+                          className="flex items-center gap-2 cursor-pointer truncate flex-1"
+                          onClick={() => focusStore.setSound(sound.id)}
+                        >
+                          <span className="text-base">{sound.icon}</span>
+                          <span className="font-medium text-foreground truncate">{sound.name}</span>
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => {
+                            if (isTesting) {
+                              focusAudio.stop();
+                              setTestSoundPlaying(null);
+                            } else {
+                              focusAudio.play(sound.id, focusStore.soundVolume);
+                              setTestSoundPlaying(sound.id);
+                            }
+                          }}
+                          className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
+                        >
+                          {isTesting ? <Pause className="size-3.5 text-primary" /> : <Play className="size-3.5" />}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ---------------- SECTION 3: NOTIFICATIONS ---------------- */}
       {currentTab === 'notifications' && (
         <div className="space-y-8">
           <div>
             <h1 className="text-xl font-bold tracking-tight text-foreground">Notifications & Alerts</h1>
             <p className="text-xs text-muted-foreground mt-1">
-              Configure alert triggers, notification delivery channels, and email digests.
+              Configure alert triggers, notification delivery channels, bottom prompt status, and desktop notifications.
             </p>
+          </div>
+
+          {/* Browser & Desktop Notification Status Card */}
+          <div className="bg-surface-inset rounded-2xl border border-border p-5 space-y-4 shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className={cn(
+                  'size-10 rounded-xl flex items-center justify-center shrink-0 shadow-inner',
+                  notifBarState.permission === 'granted'
+                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                    : notifBarState.permission === 'denied'
+                      ? 'bg-destructive/15 text-destructive border border-destructive/30'
+                      : 'bg-primary/15 text-primary border border-primary/30'
+                )}>
+                  <Bell className="size-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-foreground">Desktop & Browser Notifications</h3>
+                    <Badge
+                      variant={
+                        notifBarState.permission === 'granted'
+                          ? 'success'
+                          : notifBarState.permission === 'denied'
+                            ? 'destructive'
+                            : 'neutral'
+                      }
+                      className="text-[10px] uppercase font-bold"
+                    >
+                      {notifBarState.permission === 'granted'
+                        ? 'Active & Allowed'
+                        : notifBarState.permission === 'denied'
+                          ? 'Blocked in Browser'
+                          : 'Permission Required'}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {notifBarState.permission === 'granted'
+                      ? 'Desktop notifications are active. You will receive real-time push alerts for mentions and key workspace events.'
+                      : notifBarState.permission === 'denied'
+                        ? 'Notifications are blocked in your browser site permissions. Click your browser address bar lock icon to unblock.'
+                        : 'Enable notifications to receive background notifications and activity updates even when the tab is hidden.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                {notifBarState.permission === 'default' && (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    className="h-8 text-xs gap-1.5 shadow-sm"
+                    onClick={() => void notifBarState.requestPermission()}
+                  >
+                    <Bell className="size-3.5" />
+                    <span>Request Permission</span>
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs gap-1.5 bg-surface border-border"
+                  disabled={testNotifSending}
+                  onClick={async () => {
+                    setTestNotifSending(true);
+                    await notify({
+                      title: 'OneTab AI Test Notification',
+                      body: 'Your real-time notifications are working seamlessly!',
+                    });
+                    setTestNotifSending(false);
+                    setTestNotifSent(true);
+                    setTimeout(() => setTestNotifSent(false), 3000);
+                  }}
+                >
+                  {testNotifSent ? (
+                    <>
+                      <CheckCircle2 className="size-3.5 text-emerald-500" />
+                      <span>Sent!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Bell className="size-3.5 text-muted-foreground" />
+                      <span>Send Test Alert</span>
+                    </>
+                  )}
+                </Button>
+                {(notifBarState.isDismissed || notifBarState.isSnoozed) && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => notifBarState.resetBarState()}
+                  >
+                    <span>Reset Bottom Bar Prompt</span>
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="space-y-3">
             <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
-              Delivery Channels
+              Delivery Channels & Triggers
             </h3>
             <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
               <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">

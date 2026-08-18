@@ -262,10 +262,16 @@ export function toCurrentUser(user: {
   timezone: string;
   systemRole: string;
   presence: string;
+  statusText?: string | null;
+  statusEmoji?: string | null;
+  statusExpiresAt?: Date | null;
   emailVerifiedAt: Date | null;
   lastSeenAt: Date | null;
   createdAt: Date;
 }): CurrentUser {
+  const isExpired =
+    user.statusExpiresAt && new Date(user.statusExpiresAt) < new Date();
+
   return {
     id: user.id,
     email: user.email,
@@ -276,6 +282,11 @@ export function toCurrentUser(user: {
     timezone: user.timezone,
     systemRole: user.systemRole as CurrentUser['systemRole'],
     presence: user.presence as CurrentUser['presence'],
+    statusText: isExpired ? null : user.statusText ?? null,
+    statusEmoji: isExpired ? null : user.statusEmoji ?? null,
+    statusExpiresAt: isExpired
+      ? null
+      : (user.statusExpiresAt?.toISOString() ?? null),
     emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null,
     lastSeenAt: user.lastSeenAt?.toISOString() ?? null,
     createdAt: user.createdAt.toISOString(),

@@ -23,17 +23,28 @@ interface UserRow {
   displayName: string | null;
   avatarUrl: string | null;
   presence: string;
+  statusText?: string | null;
+  statusEmoji?: string | null;
+  statusExpiresAt?: Date | null;
   lastSeenAt: Date | null;
   timezone: string;
 }
 
 export function toPublicUser(user: UserRow): PublicUser {
+  const isExpired =
+    user.statusExpiresAt && new Date(user.statusExpiresAt) < new Date();
+
   return {
     id: user.id,
     name: user.name,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl,
     presence: user.presence as PublicUser['presence'],
+    statusText: isExpired ? null : user.statusText ?? null,
+    statusEmoji: isExpired ? null : user.statusEmoji ?? null,
+    statusExpiresAt: isExpired
+      ? null
+      : (user.statusExpiresAt?.toISOString() ?? null),
     lastSeenAt: user.lastSeenAt?.toISOString() ?? null,
     timezone: user.timezone,
   };
@@ -202,6 +213,9 @@ export const PUBLIC_USER_SELECT = {
   displayName: true,
   avatarUrl: true,
   presence: true,
+  statusText: true,
+  statusEmoji: true,
+  statusExpiresAt: true,
   lastSeenAt: true,
   timezone: true,
 } as const;

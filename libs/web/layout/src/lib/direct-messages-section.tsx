@@ -107,7 +107,17 @@ export function DirectMessagesSection({ workspaceSlug }: { workspaceSlug: string
                 </span>
               </span>
 
-              <span className="flex-1 truncate">{name}</span>
+              <span className="flex-1 truncate flex items-center gap-1.5">
+                <span className="truncate">{name}</span>
+                {member.user.statusEmoji ? (
+                  <span
+                    className="text-[11px] select-none shrink-0"
+                    title={member.user.statusText ? `${member.user.statusEmoji} ${member.user.statusText}` : undefined}
+                  >
+                    {member.user.statusEmoji}
+                  </span>
+                ) : null}
+              </span>
 
               {member.role === 'OWNER' ? (
                 <Badge variant="neutral" className="ml-auto h-3.5 px-1 py-0 text-[9px]">

@@ -107,6 +107,7 @@ import type {
   UpdateProfileInput,
   UpdateProjectInput,
   UpdatePromptTemplateInput,
+  UpdateStatusInput,
   UpdateTaskInput,
   UpdateWhiteboardInput,
   UpdateWorkspaceInput,
@@ -379,6 +380,18 @@ export const invitationApi = {
 export const userApi = {
   updateProfile: (input: UpdateProfileInput) =>
     request<CurrentUser>(http.patch('/users/me', input)),
+
+  updateStatus: (input: UpdateStatusInput) =>
+    request<CurrentUser>(http.patch('/users/me/status', input)),
+
+  clearStatus: () =>
+    request<CurrentUser>(
+      http.patch('/users/me/status', {
+        statusText: null,
+        statusEmoji: null,
+        statusExpiresAt: null,
+      }),
+    ),
 
   setPresence: (presence: CurrentUser['presence']) =>
     request<{ presence: string }>(

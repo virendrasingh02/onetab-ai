@@ -1,20 +1,24 @@
-import { useCurrentUser } from '@org/auth';
+import { useAuthStore, useCurrentUser } from '@org/auth';
 import {
   Button,
   CommandPalette,
   EmptyState,
   ErrorBoundary,
+  FocusModeWidget,
   LoadingState,
   ScrollArea,
   Sheet,
   SheetContent,
   SheetTitle,
+  StatusModal,
+  TeamWorldClockModal,
   TooltipProvider,
   useCommandPalette,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useChannels } from '@org/web-channels';
 import { useDesktopCommand } from '@org/web-desktop';
+import { useMembers } from '@org/web-members';
 import {
   NotificationEnableBar,
   useNotificationFeed,
@@ -34,6 +38,7 @@ import { WorkspaceMenu } from './workspace-switcher.js';
 
 export function AppShell() {
   const user = useCurrentUser();
+  const setUser = useAuthStore((s) => s.setUser);
   const navigate = useNavigate();
   const location = useLocation();
   const palette = useCommandPalette();
@@ -59,6 +64,7 @@ export function AppShell() {
   const workspacesQuery = useWorkspaces();
   const { slug, workspace, workspaceId, isLoading } = useCurrentWorkspace();
   const channelsQuery = useChannels(workspaceId);
+  const membersQuery = useMembers(workspaceId);
 
   /*
    * The feed is fetched here as well as on the Inbox page so the bell and the
@@ -332,6 +338,13 @@ export function AppShell() {
               onNavigate={() => palette.setOpen(false)}
             />
           )}
+        />
+
+        <FocusModeWidget currentUser={user} onUserUpdated={setUser} />
+        <StatusModal currentUser={user} onUserUpdated={setUser} />
+        <TeamWorldClockModal
+          currentUser={user}
+          members={membersQuery.data ?? []}
         />
       </div>
     </TooltipProvider>

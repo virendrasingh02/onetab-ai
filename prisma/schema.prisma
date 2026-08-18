@@ -21,6 +21,9 @@ model User {
   timezone                String                   @default("UTC")
   systemRole              SystemRole               @default(USER)
   presence                PresenceStatus           @default(OFFLINE)
+  statusText              String?
+  statusEmoji             String?
+  statusExpiresAt         DateTime?
   emailVerifiedAt         DateTime?
   lastSeenAt              DateTime?
   createdAt               DateTime                 @default(now())

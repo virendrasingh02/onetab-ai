@@ -9,7 +9,12 @@ import {
 } from '@nestjs/common';
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import { CurrentUser, WorkspaceId, zodBody } from '@org/api-common';
-import { updateProfileSchema, type UpdateProfileInput } from '@org/validation';
+import {
+  updateProfileSchema,
+  updateStatusSchema,
+  type UpdateProfileInput,
+  type UpdateStatusInput,
+} from '@org/validation';
 import { UserService } from './user.service.js';
 
 @Controller({ path: 'users', version: '1' })
@@ -22,6 +27,14 @@ export class UserController {
     @Body(zodBody(updateProfileSchema)) body: UpdateProfileInput,
   ) {
     return this.users.updateProfile(userId, body);
+  }
+
+  @Patch('me/status')
+  updateStatus(
+    @CurrentUser('id') userId: string,
+    @Body(zodBody(updateStatusSchema)) body: UpdateStatusInput,
+  ) {
+    return this.users.updateStatus(userId, body);
   }
 
   @Patch('me/presence')

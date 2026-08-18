@@ -29,3 +29,12 @@ export {
   slugify,
   truncate,
 } from './lib/string.js';
+
+export {
+  WORLD_REGIONS,
+  getRegionForTimezone,
+  getWorkingHoursStatus,
+  type RegionInfo,
+  type WorkingHoursInfo,
+  type WorkingHoursStatus,
+} from './lib/regions.js';
