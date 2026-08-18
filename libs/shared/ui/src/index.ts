@@ -139,7 +139,7 @@ export {
   type ErrorBoundaryProps,
 } from './lib/components/error-boundary.js';
 
-export { Input, Textarea, type InputProps } from './lib/components/input.js';
+export { Input, Textarea, type InputProps, type TextareaProps } from './lib/components/input.js';
 
 export {
   usePromptDialog,

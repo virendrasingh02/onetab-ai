@@ -18,6 +18,7 @@ import {
   User,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import TextareaAutosize from 'react-textarea-autosize';
 import { AI_MODELS, useAIChat, type AIModelValue } from './use-ai.js';
 
 interface ChatMessage {
@@ -153,14 +154,15 @@ export function AIChatView() {
             {/* Main AI Input Card */}
             <div className="max-w-2xl rounded-2xl p-4 w-full border border-border bg-surface-raised text-foreground shadow-elevated transition-all duration-200 focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/40">
               {/* Textarea Input */}
-              <textarea
+              <TextareaAutosize
                 ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Do anything with AI..."
-                rows={2}
-                aria-label="Ask anything and @mention the AI model if you want to use a specific one"
+                placeholder="Ask anything, @ to mention, / for commands…"
+                minRows={2}
+                maxRows={10}
+                aria-label="Ask anything and @ to mention, / for commands…"
                 className="text-base leading-relaxed min-h-[56px] w-full resize-none border-none bg-transparent text-foreground outline-none placeholder:text-subtle"
               />
 
@@ -300,12 +302,13 @@ export function AIChatView() {
       {!isLandingView ? (
         <div className="max-w-2xl px-4 pb-4 pt-2 w-full shrink-0">
           <div className="rounded-2xl p-3 gap-2 flex w-full items-center border border-border bg-surface-raised text-foreground shadow-elevated">
-            <textarea
+            <TextareaAutosize
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask a follow-up question..."
-              rows={1}
+              minRows={1}
+              maxRows={8}
               aria-label="Ask a follow-up question"
               className="text-sm w-full resize-none border-none bg-transparent text-foreground outline-none placeholder:text-subtle"
             />

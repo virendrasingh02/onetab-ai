@@ -13,6 +13,7 @@ import { cn } from '@org/utils';
 import { AI_MODELS, useAIChat, type AIModelValue } from '@org/web-ai';
 import { ArrowUp, ChevronDown, RotateCcw, Sparkles, User, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import TextareaAutosize from 'react-textarea-autosize';
 
 interface ChatMessage {
   id: string;
@@ -78,14 +79,6 @@ export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
     endRef.current?.scrollIntoView({ block: 'nearest' });
   }, [messages, isThinking]);
 
-  /* Grow the composer with its content, up to a ceiling, instead of a fixed
-     two rows that hid anything longer. */
-  const autoSize = (el: HTMLTextAreaElement | null) => {
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
-  };
-
   const send = () => {
     const query = prompt.trim();
     if (!query || isThinking) return;
@@ -108,7 +101,6 @@ export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
 
     setMessages((prev) => [...prev, userMessage]);
     setPrompt('');
-    requestAnimationFrame(() => autoSize(composerRef.current));
 
     chat.mutate(
       { messages: transcript, model },
@@ -244,12 +236,11 @@ export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
             'focus-within:border-ring/60',
           )}
         >
-          <textarea
+          <TextareaAutosize
             ref={composerRef}
             value={prompt}
             onChange={(event) => {
               setPrompt(event.target.value);
-              autoSize(event.target);
             }}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
@@ -258,7 +249,8 @@ export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
               }
             }}
             placeholder="Ask AI anything…"
-            rows={2}
+            minRows={2}
+            maxRows={8}
             aria-label="Ask AI anything"
             className={cn(
               'w-full resize-none border-none bg-transparent text-xs outline-none',

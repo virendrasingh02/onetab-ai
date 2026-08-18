@@ -1,5 +1,6 @@
 import { cn } from '@org/utils';
 import type { ComponentProps, ReactNode } from 'react';
+import TextareaAutosize, { type TextareaAutosizeProps } from 'react-textarea-autosize';
 
 export interface InputProps extends ComponentProps<'input'> {
   /** Decoration rendered inside the field, before the text. */
@@ -61,18 +62,20 @@ export function Input({
   );
 }
 
+export type TextareaProps = TextareaAutosizeProps & { invalid?: boolean };
+
 export function Textarea({
   className,
   invalid,
   ...props
-}: ComponentProps<'textarea'> & { invalid?: boolean }) {
+}: TextareaProps) {
   return (
-    <textarea
+    <TextareaAutosize
       data-slot="textarea"
       aria-invalid={invalid || undefined}
       className={cn(
         'flex min-h-16 w-full rounded-input border border-input bg-surface px-3 py-2 text-xs text-foreground',
-        'field-sizing-content resize-none placeholder:text-subtle',
+        'resize-none placeholder:text-subtle',
         'transition-[color,background-color,border-color,box-shadow] duration-(--duration-fast) outline-none',
         'focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25',
         'disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-disabled disabled:opacity-100',
@@ -83,3 +86,4 @@ export function Textarea({
     />
   );
 }
+
