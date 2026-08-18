@@ -78,8 +78,16 @@ export class AuthService {
     input: LoginInput,
     context: SessionContext = {},
   ): Promise<{ user: CurrentUser; session: IssuedSession }> {
-    const user = await this.prisma.user.findUnique({
-      where: { email: input.email },
+    const identifier = input.email.trim();
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: { equals: identifier, mode: 'insensitive' } },
+          { email: { startsWith: `${identifier}@`, mode: 'insensitive' } },
+          { name: { equals: identifier, mode: 'insensitive' } },
+          { displayName: { equals: identifier, mode: 'insensitive' } },
+        ],
+      },
     });
 
     // Always run a hash comparison, even when the account is unknown, so the
@@ -171,8 +179,16 @@ export class AuthService {
   async forgotPassword(
     input: ForgotPasswordInput,
   ): Promise<{ devToken?: string }> {
-    const user = await this.prisma.user.findUnique({
-      where: { email: input.email },
+    const identifier = input.email.trim();
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: { equals: identifier, mode: 'insensitive' } },
+          { email: { startsWith: `${identifier}@`, mode: 'insensitive' } },
+          { name: { equals: identifier, mode: 'insensitive' } },
+          { displayName: { equals: identifier, mode: 'insensitive' } },
+        ],
+      },
       select: { id: true },
     });
 
