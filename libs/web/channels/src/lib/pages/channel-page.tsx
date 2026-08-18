@@ -20,6 +20,7 @@ import {
   TabsList,
   TabsTrigger,
   toPresenceStatus,
+  toast,
   UserAvatar,
 } from '@org/ui';
 import { cn, formatBytes, formatDate } from '@org/utils';
@@ -242,6 +243,9 @@ function ChannelHeader({
     const url = `${window.location.origin}/w/${slug}/c/${channel.slug}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
+    toast.success('Link copied', {
+      description: 'Channel link copied to clipboard.',
+    });
     setTimeout(() => setCopied(false), 2000);
   }, [workspaceSlug, channel.slug]);
 
@@ -279,12 +283,23 @@ function ChannelHeader({
                 aria-label={
                   isFavorite ? 'Remove from favorites' : 'Add to favorites'
                 }
-                onClick={() =>
-                  preferences.mutate({
-                    channelId: channel.id,
-                    input: { isFavorite: !isFavorite },
-                  })
-                }
+                onClick={() => {
+                  preferences.mutate(
+                    {
+                      channelId: channel.id,
+                      input: { isFavorite: !isFavorite },
+                    },
+                    {
+                      onSuccess: () => {
+                        toast.success(
+                          !isFavorite
+                            ? 'Added to favorites'
+                            : 'Removed from favorites',
+                        );
+                      },
+                    },
+                  );
+                }}
                 className={isFavorite ? 'text-warning' : undefined}
               >
                 <Star className={cn('size-4', isFavorite && 'fill-current')} />

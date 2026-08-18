@@ -1,10 +1,10 @@
 import { ApiError } from '@org/api-client';
 import { store } from '@org/common';
 import { ThemeProvider } from '@org/design-system';
-import { ErrorBoundary, TooltipProvider } from '@org/ui';
+import { ErrorBoundary, Toaster, TooltipProvider, toast } from '@org/ui';
 import { MatrixProvider } from '@org/web-chat';
 import { DesktopChrome, DesktopProvider } from '@org/web-desktop';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { Provider } from 'react-redux';
 
@@ -18,6 +18,27 @@ export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
+        mutationCache: new MutationCache({
+          onSuccess: (_data, _variables, _context, mutation) => {
+            const meta = mutation.options.meta as
+              | { successMessage?: string; disableToast?: boolean }
+              | undefined;
+            if (meta?.successMessage && !meta.disableToast) {
+              toast.success(meta.successMessage);
+            }
+          },
+          onError: (error, _variables, _context, mutation) => {
+            const meta = mutation.options.meta as
+              | { errorMessage?: string; disableToast?: boolean }
+              | undefined;
+            if (meta?.disableToast) return;
+            const message =
+              meta?.errorMessage ||
+              (error instanceof ApiError ? error.message : (error as Error)?.message) ||
+              'Action failed. Please try again.';
+            toast.error('Action failed', { description: message });
+          },
+        }),
         defaultOptions: {
           queries: {
             staleTime: 30_000,
@@ -51,6 +72,7 @@ export function Providers({ children }: { children: ReactNode }) {
               <MatrixProvider>
                 <TooltipProvider delayDuration={300}>
                   <DesktopChrome>{children}</DesktopChrome>
+                  <Toaster />
                 </TooltipProvider>
               </MatrixProvider>
             </DesktopProvider>

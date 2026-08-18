@@ -11,13 +11,12 @@
  */
 
 import { useTheme } from '@org/design-system';
-import { Badge, Button, Page, PageHeader } from '@org/ui';
+import { Badge, Button, Hint, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Background,
   BackgroundVariant,
-  Controls,
   MiniMap,
   Panel as FlowPanel,
   ReactFlow,
@@ -33,10 +32,18 @@ import {
   Bot,
   CheckCircle2,
   LayoutGrid,
+  Map as MapIcon,
+  Maximize2,
+  PanelLeft,
+  PanelLeftClose,
+  PanelRight,
+  PanelRightClose,
   RotateCcw,
   Save,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
-import { useCallback, useMemo, type DragEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AgentInspector,
@@ -46,8 +53,10 @@ import {
   accentFor,
   isAgentNodeKind,
   nodeTypes,
+  specFor,
   useAgentGraph,
   type AgentFlowNode,
+  type AgentNodeKind,
 } from './agent-graph/index.js';
 
 export function AgentBuilderView() {
@@ -65,12 +74,16 @@ const DROP_OFFSET = { x: 120, y: 40 };
 
 function AgentBuilderCanvas() {
   const graph = useAgentGraph();
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, zoomIn, zoomOut, fitView } = useReactFlow();
   const { resolvedTheme } = useTheme();
   const { workspaceId, slug } = useCurrentWorkspace();
   const agents = useAgents(workspaceId);
   const { create, update } = useAgentMutations(workspaceId);
   const navigate = useNavigate();
+
+  const [showPalette, setShowPalette] = useState(true);
+  const [showInspector, setShowInspector] = useState(true);
+  const [showMiniMap, setShowMiniMap] = useState(true);
 
   const {
     nodes,
@@ -116,6 +129,31 @@ function AgentBuilderCanvas() {
     }
   }, [navigate, slug]);
 
+  const handleAddNode = useCallback(
+    (kind: AgentNodeKind, position?: { x: number; y: number }) => {
+      const spec = specFor(kind);
+      addNode(kind, position);
+      toast.success(`Added ${spec.label}`, {
+        description: 'Node placed onto canvas.',
+      });
+    },
+    [addNode],
+  );
+
+  const handleTidy = useCallback(() => {
+    tidy();
+    toast.info('Layout tidied', {
+      description: 'Nodes automatically aligned across the canvas.',
+    });
+  }, [tidy]);
+
+  const handleReset = useCallback(() => {
+    reset();
+    toast.info('Graph reset', {
+      description: 'Canvas restored to default agent template.',
+    });
+  }, [reset]);
+
   const onDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
@@ -128,9 +166,9 @@ function AgentBuilderCanvas() {
       if (!isAgentNodeKind(kind)) return;
 
       const point = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-      addNode(kind, { x: point.x - DROP_OFFSET.x, y: point.y - DROP_OFFSET.y });
+      handleAddNode(kind, { x: point.x - DROP_OFFSET.x, y: point.y - DROP_OFFSET.y });
     },
-    [addNode, screenToFlowPosition],
+    [handleAddNode, screenToFlowPosition],
   );
 
   /* React Flow owns canvas selection; mirror it so the inspector, which is
@@ -142,16 +180,19 @@ function AgentBuilderCanvas() {
     [setSelectedId],
   );
 
+  const blocked = errorCount > 0;
+
   /**
    * Persist the graph, then publish the agent itself.
-   *
-   * The graph store keeps the canvas; the agent row is what the rest of the app
-   * reads, so a save that only touched the store would leave the sidebar and
-   * the directory showing the old name and role. An agent already carrying this
-   * name is updated rather than duplicated — saving twice is an edit, not a
-   * second agent.
    */
   const handleSave = useCallback(() => {
+    if (blocked) {
+      toast.error('Cannot save agent', {
+        description: `Please resolve the ${errorCount} error${errorCount > 1 ? 's' : ''} in the Issues tab first.`,
+      });
+      return;
+    }
+
     save();
 
     const core = nodes.find((node) => node.data.kind === 'agent');
@@ -159,54 +200,146 @@ function AgentBuilderCanvas() {
 
     const existing = agents.data?.find((agent) => agent.name === summary.name);
     if (existing) {
-      update.mutate({
-        agentId: existing.id,
-        input: { name: summary.name, role: summary.role },
-      });
+      update.mutate(
+        {
+          agentId: existing.id,
+          input: { name: summary.name, role: summary.role },
+        },
+        {
+          onSuccess: () => {
+            toast.success('Agent saved', {
+              description: `"${summary.name}" has been updated.`,
+            });
+          },
+          onError: () => {
+            toast.error('Failed to save agent');
+          },
+        },
+      );
       return;
     }
 
-    create.mutate({ name: summary.name, role: summary.role });
-  }, [agents.data, create, nodes, save, summary.name, summary.role, update, workspaceId]);
+    create.mutate(
+      { name: summary.name, role: summary.role },
+      {
+        onSuccess: () => {
+          toast.success('Agent published', {
+            description: `"${summary.name}" is now available in your workspace.`,
+          });
+        },
+        onError: () => {
+          toast.error('Failed to publish agent');
+        },
+      },
+    );
+  }, [agents.data, blocked, create, errorCount, nodes, save, summary.name, summary.role, update, workspaceId]);
 
-  const blocked = errorCount > 0;
+  // Keyboard shortcut for Ctrl+S / Cmd+S
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleSave]);
 
   return (
-    <Page width="full">
-      <div className="mb-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          leadingIcon={<ArrowLeft className="size-4" />}
-          onClick={handleBack}
-          className="gap-1.5 text-xs text-muted-foreground hover:text-foreground h-8 px-2"
-        >
-          Back to AI Agents
-        </Button>
-      </div>
-      <PageHeader
-        title="Agent builder"
-        description="Wire a model, instructions, tools and guardrails into a runnable agent."
-        icon={<Bot />}
-        accent="violet"
-        actions={
-          <>
-            <Button
-              variant="outline"
-              leadingIcon={<ArrowLeft className="size-4" />}
-              onClick={handleBack}
-            >
-              Back
-            </Button>
+    <div className="h-[calc(100vh-3.5rem)] min-h-160 flex flex-col bg-background overflow-hidden select-none">
+      {/* Channel-style Header */}
+      <div className="border-b border-border bg-background shrink-0">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <Hint label="Back to AI Agents">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={handleBack}
+                aria-label="Back to AI Agents"
+                className="text-muted-foreground hover:text-foreground shrink-0"
+              >
+                <ArrowLeft className="size-4" />
+              </Button>
+            </Hint>
+
+            <div className="h-4 w-px bg-border shrink-0" />
+
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-accent-violet-soft text-accent-violet shadow-2xs">
+                <Bot className="size-4" aria-hidden />
+              </div>
+              <div className="flex min-w-0 items-center gap-1.5">
+                <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+                  {summary.name || 'Agent builder'}
+                </h2>
+                <Badge variant="neutral" className="px-1.5 py-0 text-[10px] font-medium shrink-0">
+                  Builder
+                </Badge>
+              </div>
+            </div>
+
+            <span className="hidden xl:inline-block text-xs text-muted-foreground truncate max-w-md ml-1 pl-2.5 border-l border-border/80">
+              Wire a model, instructions, tools and guardrails into a runnable agent.
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Panel Toggles */}
+            <Hint label={showPalette ? 'Hide node palette' : 'Show node palette'}>
+              <Button
+                variant={showPalette ? 'subtle' : 'outline'}
+                size="icon-sm"
+                onClick={() => setShowPalette(!showPalette)}
+                aria-label="Toggle node palette"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {showPalette ? <PanelLeftClose className="size-3.5" /> : <PanelLeft className="size-3.5" />}
+              </Button>
+            </Hint>
+
+            <Hint label={showInspector ? 'Hide inspector' : 'Show inspector'}>
+              <Button
+                variant={showInspector ? 'subtle' : 'outline'}
+                size="icon-sm"
+                onClick={() => setShowInspector(!showInspector)}
+                aria-label="Toggle inspector"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                {showInspector ? <PanelRightClose className="size-3.5" /> : <PanelRight className="size-3.5" />}
+              </Button>
+            </Hint>
+
+            <div className="h-4 w-px bg-border shrink-0 mx-0.5" />
+
             <ValidationBadge errorCount={errorCount} warningCount={warningCount} />
-            <Button variant="outline" leadingIcon={<LayoutGrid />} onClick={tidy}>
-              Tidy layout
-            </Button>
-            <Button variant="ghost" leadingIcon={<RotateCcw />} onClick={reset}>
-              Reset
-            </Button>
+
+            <Hint label="Auto arrange node layout">
+              <Button
+                variant="outline"
+                size="sm"
+                leadingIcon={<LayoutGrid className="size-3.5" />}
+                onClick={handleTidy}
+              >
+                Tidy layout
+              </Button>
+            </Hint>
+
+            <Hint label="Reset graph">
+              <Button
+                variant="ghost"
+                size="sm"
+                leadingIcon={<RotateCcw className="size-3.5" />}
+                onClick={handleReset}
+              >
+                Reset
+              </Button>
+            </Hint>
+
             <Button
-              leadingIcon={<Save />}
+              size="sm"
+              leadingIcon={<Save className="size-3.5" />}
               onClick={handleSave}
               disabled={blocked}
               title={
@@ -217,30 +350,27 @@ function AgentBuilderCanvas() {
             >
               {dirty ? 'Save agent' : 'Saved'}
             </Button>
-          </>
-        }
-      />
+          </div>
+        </div>
+      </div>
 
-      {/* A fixed canvas height, as `WorkflowCanvasView` uses: the shell owns the
-          scrolling `<main>`, so sizing off `100vh` here overflows it by however
-          tall the chrome happens to be. */}
-      <div className="gap-3 lg:flex-row lg:h-160 flex flex-col">
-        <AgentNodePalette
-          onAdd={addNode}
-          placedKinds={placedKinds}
-          className="lg:w-60 lg:h-full h-64 shrink-0"
-        />
+      {/* Main 3-Column Workspace */}
+      <div className="flex flex-1 min-h-0 relative overflow-hidden">
+        {/* Left Palette */}
+        {showPalette ? (
+          <AgentNodePalette
+            onAdd={handleAddNode}
+            placedKinds={placedKinds}
+            className="w-72 h-full border-r border-t-0 border-b-0 border-l-0 rounded-none bg-surface shrink-0 z-10"
+          />
+        ) : null}
 
-        {/* An explicit height below `lg`: stacked in a column with no height of
-            its own, `flex-1` would resolve against nothing and React Flow would
-            render into a zero-height box. */}
-        <div className="min-w-0 lg:h-full h-130 flex-1 rounded-xl border bg-background overflow-hidden relative">
+        {/* Canvas Center */}
+        <div className="flex-1 min-w-0 h-full relative bg-background overflow-hidden">
           <div
             className="size-full"
             onDrop={onDrop}
             onDragOver={onDragOver}
-            /* React Flow renders its own canvas here; the wrapper only exists
-               to catch drops from the palette. */
           >
             <NodeIssueProvider value={issueMap}>
               <ReactFlow<AgentFlowNode>
@@ -261,23 +391,74 @@ function AgentBuilderCanvas() {
               >
                 <Background
                   variant={BackgroundVariant.Dots}
-                  gap={18}
-                  size={1}
-                  className="opacity-60"
+                  gap={20}
+                  size={1.2}
+                  className="opacity-50"
                 />
-                <Controls
-                  className="bg-surface! border-border! shadow-md!"
-                  showInteractive={false}
-                />
-                <MiniMap
-                  pannable
-                  zoomable
-                  className="bg-surface! border-border!"
-                  nodeColor={(node) =>
-                    accentFor((node as AgentFlowNode).data.kind).hex
-                  }
-                />
-                <FlowPanel position="top-left">
+
+                {/* Floating Bottom-Left Canvas Controls */}
+                <FlowPanel position="bottom-left" className="m-3">
+                  <div className="flex items-center gap-1 p-1 rounded-lg border border-border bg-surface/90 shadow-md backdrop-blur text-muted-foreground">
+                    <Hint label="Zoom in">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => zoomIn()}
+                        aria-label="Zoom in"
+                        className="size-7"
+                      >
+                        <ZoomIn className="size-3.5" />
+                      </Button>
+                    </Hint>
+                    <Hint label="Zoom out">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => zoomOut()}
+                        aria-label="Zoom out"
+                        className="size-7"
+                      >
+                        <ZoomOut className="size-3.5" />
+                      </Button>
+                    </Hint>
+                    <Hint label="Fit canvas to view">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => fitView({ padding: 0.2, duration: 400 })}
+                        aria-label="Fit canvas to view"
+                        className="size-7"
+                      >
+                        <Maximize2 className="size-3.5" />
+                      </Button>
+                    </Hint>
+                    <div className="h-3.5 w-px bg-border my-auto mx-0.5" />
+                    <Hint label={showMiniMap ? 'Hide minimap' : 'Show minimap'}>
+                      <Button
+                        variant={showMiniMap ? 'subtle' : 'ghost'}
+                        size="icon-sm"
+                        onClick={() => setShowMiniMap(!showMiniMap)}
+                        aria-label="Toggle minimap"
+                        className="size-7"
+                      >
+                        <MapIcon className="size-3.5" />
+                      </Button>
+                    </Hint>
+                  </div>
+                </FlowPanel>
+
+                {showMiniMap ? (
+                  <MiniMap
+                    pannable
+                    zoomable
+                    className="bg-surface! border-border! shadow-md! rounded-lg overflow-hidden m-3"
+                    nodeColor={(node) =>
+                      accentFor((node as AgentFlowNode).data.kind).hex
+                    }
+                  />
+                ) : null}
+
+                <FlowPanel position="top-left" className="m-3">
                   <EdgeLegend />
                 </FlowPanel>
               </ReactFlow>
@@ -285,20 +466,24 @@ function AgentBuilderCanvas() {
           </div>
         </div>
 
-        <AgentInspector
-          nodes={nodes}
-          edges={edges}
-          selected={selected}
-          issues={issues}
-          summary={summary}
-          onFieldChange={updateField}
-          onSelect={focusNode}
-          onDuplicate={duplicateNode}
-          onDelete={removeNode}
-          className="lg:w-80 lg:h-full h-96 shrink-0"
-        />
+        {/* Right Inspector */}
+        {showInspector ? (
+          <AgentInspector
+            nodes={nodes}
+            edges={edges}
+            selected={selected}
+            issues={issues}
+            summary={summary}
+            onFieldChange={updateField}
+            onSelect={focusNode}
+            onDuplicate={duplicateNode}
+            onDelete={removeNode}
+            className="w-80 lg:w-88 h-full border-l border-t-0 border-b-0 border-r-0 rounded-none bg-surface shrink-0 z-10"
+          />
+        ) : null}
       </div>
 
+      {/* Docked Bottom Status Bar */}
       <StatusBar
         nodeCount={nodes.length}
         edgeCount={edges.length}
@@ -307,7 +492,7 @@ function AgentBuilderCanvas() {
         dirty={dirty}
         savedAt={savedAt}
       />
-    </Page>
+    </div>
   );
 }
 
@@ -322,23 +507,23 @@ function ValidationBadge({
 }) {
   if (errorCount > 0) {
     return (
-      <Badge variant="destructive" className="px-2 py-1">
-        <AlertTriangle aria-hidden />
+      <Badge variant="destructive" className="gap-1 px-2 py-0.5 text-xs font-normal">
+        <AlertTriangle className="size-3.5" aria-hidden />
         {errorCount} {errorCount === 1 ? 'error' : 'errors'}
       </Badge>
     );
   }
   if (warningCount > 0) {
     return (
-      <Badge variant="warning" className="px-2 py-1">
-        <AlertTriangle aria-hidden />
+      <Badge variant="warning" className="gap-1 px-2 py-0.5 text-xs font-normal">
+        <AlertTriangle className="size-3.5" aria-hidden />
         {warningCount} {warningCount === 1 ? 'warning' : 'warnings'}
       </Badge>
     );
   }
   return (
-    <Badge variant="success" className="px-2 py-1">
-      <CheckCircle2 aria-hidden />
+    <Badge variant="success" className="gap-1 px-2 py-0.5 text-xs font-normal">
+      <CheckCircle2 className="size-3.5" aria-hidden />
       Valid
     </Badge>
   );
@@ -350,7 +535,7 @@ function ValidationBadge({
  */
 function EdgeLegend() {
   return (
-    <div className="gap-3 px-2.5 py-1.5 flex items-center rounded-lg border bg-surface/90 text-[10px] backdrop-blur text-muted-foreground">
+    <div className="gap-3 px-2.5 py-1.5 flex items-center rounded-lg border border-border bg-surface/90 text-[10px] backdrop-blur text-muted-foreground shadow-xs">
       <span className="gap-1.5 flex items-center">
         <span aria-hidden className="w-5 h-px bg-foreground/60" />
         Runtime path
@@ -382,32 +567,49 @@ function StatusBar({
   savedAt: Date | null;
 }) {
   return (
-    <div className="mt-3 gap-x-4 gap-y-1 px-3 py-2 flex flex-wrap items-center rounded-lg border bg-surface text-[11px] text-muted-foreground">
-      <span className="font-mono">
-        {nodeCount} nodes · {edgeCount} connections
-      </span>
-      <span className="font-mono">
-        {errorCount} errors · {warningCount} warnings
-      </span>
-      <span
-        className={cn(
-          'gap-1.5 flex items-center ml-auto',
-          dirty ? 'text-warning' : 'text-muted-foreground',
-        )}
-      >
-        <span
-          aria-hidden
-          className={cn(
-            'size-1.5 rounded-full',
-            dirty ? 'bg-warning' : 'bg-accent-green',
+    <div className="px-4 py-1.5 border-t border-border bg-surface text-xs text-muted-foreground flex flex-wrap items-center justify-between gap-3 shrink-0">
+      <div className="flex items-center gap-3">
+        <span className="font-mono text-foreground font-medium flex items-center gap-1.5">
+          <span className="size-1.5 rounded-full bg-primary" />
+          {nodeCount} {nodeCount === 1 ? 'node' : 'nodes'} · {edgeCount} {edgeCount === 1 ? 'connection' : 'connections'}
+        </span>
+        <span className="h-3 w-px bg-border" />
+        <span className="font-mono text-[11px]">
+          {errorCount === 0 && warningCount === 0 ? (
+            <span className="text-accent-green">✓ Graph valid</span>
+          ) : (
+            <span className={errorCount > 0 ? 'text-destructive' : 'text-warning'}>
+              {errorCount} {errorCount === 1 ? 'error' : 'errors'} · {warningCount} {warningCount === 1 ? 'warning' : 'warnings'}
+            </span>
           )}
-        />
-        {dirty
-          ? 'Unsaved changes'
-          : savedAt
-            ? `Saved at ${savedAt.toLocaleTimeString()}`
-            : 'No changes yet'}
-      </span>
+        </span>
+      </div>
+
+      <div className="flex items-center gap-4 text-[11px]">
+        <span className="hidden sm:inline text-muted-foreground/70">
+          <kbd className="px-1 py-0.5 rounded bg-surface-raised border border-border text-[10px] font-mono">Del</kbd> delete · <kbd className="px-1 py-0.5 rounded bg-surface-raised border border-border text-[10px] font-mono">Space+Drag</kbd> pan · <kbd className="px-1 py-0.5 rounded bg-surface-raised border border-border text-[10px] font-mono">Ctrl+S</kbd> save
+        </span>
+
+        <span
+          className={cn(
+            'gap-1.5 flex items-center font-medium',
+            dirty ? 'text-warning' : 'text-muted-foreground',
+          )}
+        >
+          <span
+            aria-hidden
+            className={cn(
+              'size-1.5 rounded-full',
+              dirty ? 'bg-warning animate-pulse' : 'bg-accent-green',
+            )}
+          />
+          {dirty
+            ? 'Unsaved changes'
+            : savedAt
+              ? `Saved at ${savedAt.toLocaleTimeString()}`
+              : 'All changes saved'}
+        </span>
+      </div>
     </div>
   );
 }

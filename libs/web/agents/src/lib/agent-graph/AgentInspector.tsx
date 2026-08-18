@@ -25,6 +25,7 @@ import {
   TabsList,
   TabsTrigger,
   Textarea,
+  toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import type { Edge } from '@xyflow/react';
@@ -168,19 +169,80 @@ function NodeTab({
 
   if (!selected) {
     return (
-      <div className="px-5 py-10 flex flex-col items-center text-center">
-        <span
-          aria-hidden
-          className="mb-3 size-10 flex items-center justify-center rounded-xl bg-muted text-muted-foreground"
-        >
-          <MousePointerClick className="size-5" />
-        </span>
-        <p className="text-xs font-medium text-foreground">No node selected</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Pick a node on the canvas to edit what it does, or drag one in from the
-          library.
-        </p>
-      </div>
+      <ScrollArea className="h-full">
+        <div className="p-4 space-y-4">
+          <div className="p-4 flex flex-col items-center text-center rounded-xl bg-surface-raised/50 border border-border/60">
+            <span
+              aria-hidden
+              className="mb-2.5 size-9 flex items-center justify-center rounded-lg bg-primary/10 text-primary"
+            >
+              <MousePointerClick className="size-4" />
+            </span>
+            <p className="text-xs font-semibold text-foreground">No node selected</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+              Click any node on the canvas to inspect and configure its properties, or select one below.
+            </p>
+          </div>
+
+          {nodes.length > 0 ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between px-1">
+                <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Graph Nodes ({nodes.length})
+                </h4>
+              </div>
+
+              <div className="space-y-1">
+                {nodes.map((node) => {
+                  const spec = specFor(node.data.kind);
+                  const accent = accentFor(node.data.kind);
+                  const Icon = spec.icon;
+                  const isCore = node.data.kind === 'agent';
+                  const title = isCore
+                    ? String(node.data.config['name'] || 'Agent core')
+                    : spec.label;
+
+                  return (
+                    <button
+                      key={node.id}
+                      type="button"
+                      onClick={() => onSelect(node.id)}
+                      className="w-full gap-2.5 p-2 flex items-center rounded-lg text-left transition-colors hover:bg-surface-raised border border-transparent hover:border-border/60 group"
+                    >
+                      <span
+                        aria-hidden
+                        className={cn(
+                          'size-6 flex shrink-0 items-center justify-center rounded-md text-xs',
+                          accent.chip,
+                        )}
+                      >
+                        <Icon className="size-3" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                          {title}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground truncate">
+                          {CATEGORY_LABEL[spec.category]}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="p-3 rounded-lg border border-border/60 bg-surface-inset/40 space-y-1 text-[10px] text-muted-foreground">
+            <span className="font-semibold text-foreground block">
+              Canvas Shortcuts
+            </span>
+            <p>• <span className="font-mono text-foreground">Del / Backspace</span> : Delete selected node</p>
+            <p>• <span className="font-mono text-foreground">Space + Drag</span> : Pan canvas</p>
+            <p>• <span className="font-mono text-foreground">Scroll</span> : Zoom in / out</p>
+          </div>
+        </div>
+      </ScrollArea>
     );
   }
 
@@ -295,7 +357,12 @@ function NodeTab({
           className="flex-1"
           disabled={Boolean(spec.singleton)}
           leadingIcon={<Copy />}
-          onClick={() => onDuplicate(selected.id)}
+          onClick={() => {
+            onDuplicate(selected.id);
+            toast.success(`Duplicated ${spec.label}`, {
+              description: 'New copy placed onto canvas.',
+            });
+          }}
         >
           Duplicate
         </Button>
@@ -305,8 +372,12 @@ function NodeTab({
           className="flex-1"
           leadingIcon={<Trash2 />}
           onClick={() => {
+            const label = spec.label;
             onDelete(selected.id);
             onSelect(null);
+            toast.info(`Deleted ${label}`, {
+              description: 'Node removed from canvas.',
+            });
           }}
         >
           Delete

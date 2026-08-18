@@ -18,9 +18,9 @@ import {
   Badge,
   Button,
   Card,
-  Page,
-  PageHeader,
+  Hint,
   Panel,
+  toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useCurrentWorkspace } from '@org/web-workspace';
@@ -205,63 +205,90 @@ export function WorkflowCanvasView() {
       data: { label, subtitle },
     };
     setNodes((nds) => [...nds, newNode]);
+    toast.success(`Added ${label}`, {
+      description: 'Node placed onto canvas.',
+    });
   };
 
   const deleteSelectedNode = () => {
     if (!selectedNode) return;
+    const label = (selectedNode.data as { label?: string })?.label || 'Node';
     setNodes((nds) => nds.filter((n) => n.id !== selectedNode.id));
     setEdges((eds) =>
       eds.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id),
     );
     setSelectedNode(null);
+    toast.info(`Deleted ${label}`, {
+      description: 'Node removed from workflow canvas.',
+    });
   };
 
   return (
-    <Page width="full">
-      <div className="mb-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          leadingIcon={<ArrowLeft className="size-4" />}
-          onClick={handleBack}
-          className="gap-1.5 text-xs text-muted-foreground hover:text-foreground h-8 px-2"
-        >
-          Back to Automations
-        </Button>
-      </div>
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Channel-style Header */}
+      <div className="border-b border-border bg-background">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <Hint label="Back to Automations">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={handleBack}
+                aria-label="Back to Automations"
+                className="text-muted-foreground hover:text-foreground shrink-0"
+              >
+                <ArrowLeft className="size-4" />
+              </Button>
+            </Hint>
 
-      <PageHeader
-        title="Workflow Builder"
-        description="Design interactive automation graphs with custom triggers, AI agents, conditions, and API nodes."
-        icon={<Workflow />}
-        accent="amber"
-        actions={
+            <div className="h-4 w-px bg-border shrink-0" />
+
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-accent-amber-soft text-accent-amber">
+                <Workflow className="size-4" aria-hidden />
+              </div>
+              <div className="flex min-w-0 items-center gap-1.5">
+                <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+                  Workflow Builder
+                </h2>
+                <Badge variant="neutral" className="px-1.5 py-0 text-[10px] font-medium shrink-0">
+                  Automations
+                </Badge>
+              </div>
+            </div>
+
+            <span className="hidden lg:inline-block text-xs text-muted-foreground truncate max-w-md ml-1 pl-2.5 border-l border-border/80">
+              Design interactive automation graphs with custom triggers, AI agents, conditions, and API nodes.
+            </span>
+          </div>
+
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              leadingIcon={<ArrowLeft className="size-4" />}
-              onClick={handleBack}
-            >
-              Back
-            </Button>
             {isSaved ? (
-              <Badge variant="primary" className="gap-1 px-3 py-1">
+              <Badge variant="success" className="gap-1 px-2 py-0.5 text-xs font-normal">
                 <CheckCircle className="size-3.5" />
-                Workflow Saved
+                Saved
               </Badge>
             ) : null}
+
             <Button
-              leadingIcon={<Save />}
+              size="sm"
+              leadingIcon={<Save className="size-3.5" />}
               onClick={() => {
                 setIsSaved(true);
+                toast.success('Workflow saved', {
+                  description: 'Workflow graph logic saved successfully.',
+                });
                 setTimeout(() => setIsSaved(false), 3000);
               }}
             >
-              Save Graph
+              {isSaved ? 'Saved' : 'Save Graph'}
             </Button>
           </div>
-        }
-      />
+        </div>
+      </div>
+
+      {/* Canvas workspace */}
+      <div className="flex flex-1 flex-col min-h-0 p-3 sm:p-4 gap-3">
 
       {/* Top Controls & Node Addition Toolbar */}
       <Card className="p-3 bg-surface border-border mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -447,6 +474,7 @@ export function WorkflowCanvasView() {
           ) : null}
         </Panel>
       </div>
-    </Page>
+      </div>
+    </div>
   );
 }
