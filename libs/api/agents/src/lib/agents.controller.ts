@@ -53,6 +53,7 @@ export class AgentsController {
       name: string;
       role?: string;
       description?: string;
+      avatarUrl?: string | null;
       systemPrompt?: string;
       provider?: string;
       model?: string;
@@ -72,6 +73,7 @@ export class AgentsController {
       name?: string;
       role?: string;
       description?: string;
+      avatarUrl?: string | null;
       systemPrompt?: string;
       provider?: string;
       model?: string;

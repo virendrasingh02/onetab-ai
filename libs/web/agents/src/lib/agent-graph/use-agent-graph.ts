@@ -73,7 +73,6 @@ export interface AgentSummary {
 
 /* ------------------------------------------------------------ storage ---- */
 
-const STORAGE_KEY = 'onetab_agent_graph_v1';
 const STORAGE_EVENT = 'onetab_agent_graph_updated';
 
 /* Handle ids. The spine and the capability wiring use different sockets so a
@@ -110,10 +109,27 @@ const COLUMN = 280;
 const CAPABILITY_ROW_Y = 0;
 const SPINE_ROW_Y = 320;
 
-function seedGraph(): AgentGraph {
+export interface UseAgentGraphOptions {
+  agentId?: string | null;
+  initialConfig?: {
+    name?: string;
+    role?: string;
+    model?: string;
+    systemPrompt?: string;
+  };
+}
+
+function seedGraph(initialConfig?: UseAgentGraphOptions['initialConfig']): AgentGraph {
+  const agentName = initialConfig?.name || 'New AI Agent';
+  const agentRole = initialConfig?.role || 'Assistant';
+  const agentModel = initialConfig?.model || 'gpt-4o';
+  const agentPrompt =
+    initialConfig?.systemPrompt ||
+    'You are an autonomous AI agent designed to assist users in this workspace.';
+
   const nodes: AgentFlowNode[] = [
-    makeNode('model', { x: 0, y: CAPABILITY_ROW_Y }, {}, 'seed-model'),
-    makeNode('prompt', { x: COLUMN, y: CAPABILITY_ROW_Y }, {}, 'seed-prompt'),
+    makeNode('model', { x: 0, y: CAPABILITY_ROW_Y }, { model: agentModel }, 'seed-model'),
+    makeNode('prompt', { x: COLUMN, y: CAPABILITY_ROW_Y }, { systemPrompt: agentPrompt }, 'seed-prompt'),
     makeNode('memory', { x: COLUMN * 2, y: CAPABILITY_ROW_Y }, {}, 'seed-memory'),
     makeNode(
       'knowledge',
@@ -129,7 +145,7 @@ function seedGraph(): AgentGraph {
     ),
     makeNode('trigger', { x: 0, y: SPINE_ROW_Y }, {}, 'seed-trigger'),
     makeNode('guardrail', { x: COLUMN, y: SPINE_ROW_Y }, {}, 'seed-guardrail'),
-    makeNode('agent', { x: COLUMN * 2, y: SPINE_ROW_Y }, {}, 'seed-agent'),
+    makeNode('agent', { x: COLUMN * 2, y: SPINE_ROW_Y }, { name: agentName, role: agentRole }, 'seed-agent'),
     makeNode('output', { x: COLUMN * 3, y: SPINE_ROW_Y }, {}, 'seed-output'),
   ];
 
@@ -173,11 +189,15 @@ function capEdge(source: string, target: string): Edge {
   };
 }
 
-function readGraph(): AgentGraph {
-  if (typeof window === 'undefined') return seedGraph();
+function readGraph(
+  storageKey: string,
+  initialConfig?: UseAgentGraphOptions['initialConfig'],
+): AgentGraph {
+  const seed = seedGraph(initialConfig);
+  if (typeof window === 'undefined') return seed;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return seedGraph();
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) return seed;
     const parsed: unknown = JSON.parse(raw);
     if (
       !parsed ||
@@ -185,13 +205,11 @@ function readGraph(): AgentGraph {
       !Array.isArray((parsed as AgentGraph).nodes) ||
       !Array.isArray((parsed as AgentGraph).edges)
     ) {
-      return seedGraph();
+      return seed;
     }
-    /* An empty canvas is a state a user can reach deliberately, so unlike a
-       malformed payload it is kept rather than replaced with the seed. */
     return parsed as AgentGraph;
   } catch {
-    return seedGraph();
+    return seed;
   }
 }
 
@@ -467,13 +485,19 @@ export function tidyLayout(nodes: AgentFlowNode[]): AgentFlowNode[] {
 
 /* --------------------------------------------------------------- hook ---- */
 
-export function useAgentGraph() {
+export function useAgentGraph(options?: UseAgentGraphOptions) {
+  const storageKey = options?.agentId
+    ? `onetab_agent_graph_${options.agentId}`
+    : `onetab_agent_graph_new`;
+
   /*
    * Read storage once. `useRef(readGraph())` would have re-parsed the saved
    * graph on every render — and this screen re-renders on every keystroke.
    */
   const initial = useRef<AgentGraph | null>(null);
-  if (initial.current === null) initial.current = readGraph();
+  if (initial.current === null) {
+    initial.current = readGraph(storageKey, options?.initialConfig);
+  }
 
   const [nodes, setNodes, onNodesChange] = useNodesState<AgentFlowNode>(
     initial.current.nodes,
@@ -676,24 +700,24 @@ export function useAgentGraph() {
   const tidy = useCallback(() => setNodes(tidyLayout), [setNodes]);
 
   const reset = useCallback(() => {
-    const fresh = seedGraph();
+    const fresh = seedGraph(options?.initialConfig);
     const coreId = fresh.nodes.find((node) => node.data.kind === 'agent')?.id ?? null;
     setNodes(fresh.nodes.map((node) => ({ ...node, selected: node.id === coreId })));
     setEdges(fresh.edges);
     setSelectedId(coreId);
-  }, [setNodes, setEdges]);
+  }, [options?.initialConfig, setNodes, setEdges]);
 
   const save = useCallback(() => {
     if (typeof window === 'undefined') return;
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes, edges }));
+      window.localStorage.setItem(storageKey, JSON.stringify({ nodes, edges }));
       window.dispatchEvent(new Event(STORAGE_EVENT));
       savedSignature.current = signature;
       setSavedAt(new Date());
     } catch {
       /* Quota or private mode — the draft stays dirty, which is the honest state. */
     }
-  }, [nodes, edges, signature]);
+  }, [nodes, edges, signature, storageKey]);
 
   return {
     nodes,

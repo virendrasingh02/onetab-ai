@@ -1,3 +1,4 @@
+import { toast } from '@org/ui';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -42,6 +43,13 @@ export const useSidebarFavoritesStore = create<SidebarFavoritesState>()(
             ? currentList.filter((item) => item !== id)
             : [...currentList, id];
 
+          const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
+          if (exists) {
+            toast.info(`Removed ${typeLabel} from favorites`);
+          } else {
+            toast.success(`Added ${typeLabel} to favorites`);
+          }
+
           return {
             favoritesByWorkspace: {
               ...state.favoritesByWorkspace,
@@ -72,6 +80,12 @@ export const useSidebarFavoritesStore = create<SidebarFavoritesState>()(
           const nextPinned = exists
             ? currentPinned.filter((p) => p !== path)
             : [...currentPinned, path];
+
+          if (exists) {
+            toast.info('Item unpinned from sidebar');
+          } else {
+            toast.success('Item pinned to sidebar');
+          }
 
           return {
             pinnedNavByWorkspace: {

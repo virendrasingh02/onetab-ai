@@ -870,6 +870,7 @@ export const agentsApi = {
       name: string;
       role?: string;
       description?: string;
+      avatarUrl?: string | null;
       systemPrompt?: string;
       provider?: string;
       model?: string;
@@ -885,6 +886,7 @@ export const agentsApi = {
       name?: string;
       role?: string;
       description?: string;
+      avatarUrl?: string | null;
       systemPrompt?: string;
       provider?: string;
       model?: string;

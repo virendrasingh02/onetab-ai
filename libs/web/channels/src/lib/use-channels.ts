@@ -1,5 +1,6 @@
 import { channelApi, queryKeys } from '@org/api-client';
 import type { ChannelBookmark, ChannelSummary } from '@org/types';
+import { toast } from '@org/ui';
 import type {
   AddChannelMembersInput,
   ChannelPreferencesInput,
@@ -167,6 +168,25 @@ export function useChannelPreferences(workspaceId: string | undefined) {
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData<ChannelSummary[]>(key);
 
+      const targetChannel = previous?.find((c) => c.id === channelId);
+      const channelName = targetChannel ? `#${targetChannel.name}` : 'Channel';
+
+      if (input.isFavorite !== undefined) {
+        if (input.isFavorite) {
+          toast.success(`Added ${channelName} to favorites`);
+        } else {
+          toast.info(`Removed ${channelName} from favorites`);
+        }
+      }
+
+      if (input.isMuted !== undefined) {
+        if (input.isMuted) {
+          toast.info(`Muted ${channelName}`);
+        } else {
+          toast.success(`Unmuted ${channelName}`);
+        }
+      }
+
       queryClient.setQueryData<ChannelSummary[]>(key, (current) =>
         current?.map((channel) =>
           channel.id === channelId && channel.membership
@@ -206,7 +226,8 @@ export function useArchiveChannel(workspaceId: string | undefined) {
       archived
         ? channelApi.archive(workspaceId as string, channelId)
         : channelApi.unarchive(workspaceId as string, channelId),
-    onSuccess: () => {
+    onSuccess: (_data, { archived }) => {
+      toast.success(archived ? 'Channel archived' : 'Channel unarchived');
       queryClient.invalidateQueries({
         queryKey: queryKeys.channels.all(workspaceId ?? ''),
       });
@@ -221,6 +242,7 @@ export function useMakeChannelPrivate(workspaceId: string | undefined) {
     mutationFn: (channelId: string) =>
       channelApi.makePrivate(workspaceId as string, channelId),
     onSuccess: () => {
+      toast.success('Channel visibility set to private');
       queryClient.invalidateQueries({
         queryKey: queryKeys.channels.all(workspaceId ?? ''),
       });
@@ -235,6 +257,7 @@ export function useJoinChannel(workspaceId: string | undefined) {
     mutationFn: (channelId: string) =>
       channelApi.join(workspaceId as string, channelId),
     onSuccess: () => {
+      toast.success('Joined channel');
       queryClient.invalidateQueries({
         queryKey: queryKeys.channels.all(workspaceId ?? ''),
       });
@@ -291,13 +314,19 @@ export function usePinMutations(workspaceId: string | undefined) {
       channelId: string;
       input: CreatePinInput;
     }) => channelApi.createPin(workspaceId as string, channelId, input),
-    onSuccess: (_data, { channelId }) => invalidate(channelId),
+    onSuccess: (_data, { channelId }) => {
+      toast.success('Message pinned to channel');
+      invalidate(channelId);
+    },
   });
 
   const remove = useMutation({
     mutationFn: ({ channelId, pinId }: { channelId: string; pinId: string }) =>
       channelApi.removePin(workspaceId as string, channelId, pinId),
-    onSuccess: (_data, { channelId }) => invalidate(channelId),
+    onSuccess: (_data, { channelId }) => {
+      toast.info('Message unpinned');
+      invalidate(channelId);
+    },
   });
 
   return { create, remove };
@@ -359,6 +388,7 @@ export function useChannelBookmarks(
         } catch {
           // ignore
         }
+        toast.success(`Bookmark "${bookmark.label}" saved`);
         return updated;
       });
     },
@@ -368,12 +398,14 @@ export function useChannelBookmarks(
   const removeBookmark = useCallback(
     (id: string) => {
       setBookmarks((prev) => {
+        const target = prev.find((b) => b.id === id);
         const updated = prev.filter((b) => b.id !== id);
         try {
           localStorage.setItem(storageKey, JSON.stringify(updated));
         } catch {
           // ignore
         }
+        toast.info(target ? `Bookmark "${target.label}" removed` : 'Bookmark removed');
         return updated;
       });
     },

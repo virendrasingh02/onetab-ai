@@ -28,7 +28,21 @@ export class AgentsService {
     });
   }
 
-  async createAgent(workspaceId: string, creatorId: string, data: { name: string; role?: string; description?: string; systemPrompt?: string; provider?: string; model?: string; tools?: string[]; isMarketplace?: boolean }) {
+  async createAgent(
+    workspaceId: string,
+    creatorId: string,
+    data: {
+      name: string;
+      role?: string;
+      description?: string;
+      avatarUrl?: string | null;
+      systemPrompt?: string;
+      provider?: string;
+      model?: string;
+      tools?: string[];
+      isMarketplace?: boolean;
+    },
+  ) {
     return this.prisma.aIAgent.create({
       data: {
         workspaceId,
@@ -36,6 +50,7 @@ export class AgentsService {
         name: data.name,
         role: data.role ?? 'Assistant',
         description: data.description,
+        avatarUrl: data.avatarUrl,
         systemPrompt: data.systemPrompt ?? 'You are an autonomous AI employee.',
         provider: data.provider ?? 'ollama',
         model: data.model ?? 'llama3',
@@ -54,6 +69,7 @@ export class AgentsService {
       name?: string;
       role?: string;
       description?: string;
+      avatarUrl?: string | null;
       systemPrompt?: string;
       provider?: string;
       model?: string;
@@ -70,6 +86,7 @@ export class AgentsService {
         ...(data.description !== undefined
           ? { description: data.description }
           : {}),
+        ...(data.avatarUrl !== undefined ? { avatarUrl: data.avatarUrl } : {}),
         ...(data.systemPrompt !== undefined
           ? { systemPrompt: data.systemPrompt }
           : {}),

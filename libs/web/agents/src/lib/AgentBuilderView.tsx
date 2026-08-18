@@ -11,7 +11,19 @@
  */
 
 import { useTheme } from '@org/design-system';
-import { Badge, Button, Hint, toast } from '@org/ui';
+import {
+  Badge,
+  Button,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Hint,
+  toast,
+} from '@org/ui';
 import { cn } from '@org/utils';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
@@ -40,11 +52,12 @@ import {
   PanelRightClose,
   RotateCcw,
   Save,
+  Trash2,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AgentInspector,
   AgentNodePalette,
@@ -60,10 +73,12 @@ import {
 } from './agent-graph/index.js';
 
 export function AgentBuilderView() {
-  /* `screenToFlowPosition` — used to place a dropped node under the cursor —
-     only exists inside the provider, so the screen body is a child. */
+  const [searchParams] = useSearchParams();
+  const editAgentId = searchParams.get('agentId');
+  const editAgentName = searchParams.get('name');
+
   return (
-    <ReactFlowProvider>
+    <ReactFlowProvider key={editAgentId || editAgentName || 'new_agent_builder'}>
       <AgentBuilderCanvas />
     </ReactFlowProvider>
   );
@@ -73,13 +88,57 @@ export function AgentBuilderView() {
 const DROP_OFFSET = { x: 120, y: 40 };
 
 function AgentBuilderCanvas() {
-  const graph = useAgentGraph();
-  const { screenToFlowPosition, zoomIn, zoomOut, fitView } = useReactFlow();
-  const { resolvedTheme } = useTheme();
   const { workspaceId, slug } = useCurrentWorkspace();
   const agents = useAgents(workspaceId);
-  const { create, update } = useAgentMutations(workspaceId);
+  const { create, update, remove } = useAgentMutations(workspaceId);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const editAgentId = searchParams.get('agentId');
+  const editAgentName = searchParams.get('name');
+  const editAgentRole = searchParams.get('role');
+  const editAgentModel = searchParams.get('model');
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
+  const targetAgent = useMemo(() => {
+    if (!agents.data) return null;
+    return agents.data.find(
+      (a) =>
+        (editAgentId && a.id === editAgentId) ||
+        (editAgentName && a.name.toLowerCase() === editAgentName.toLowerCase()),
+    );
+  }, [agents.data, editAgentId, editAgentName]);
+
+  const initialConfig = useMemo(() => {
+    if (targetAgent) {
+      return {
+        name: targetAgent.name,
+        role: targetAgent.role,
+        model: targetAgent.model,
+        systemPrompt: targetAgent.systemPrompt,
+      };
+    }
+    if (editAgentName) {
+      return {
+        name: editAgentName,
+        role: editAgentRole || 'Assistant',
+        model: editAgentModel || 'gpt-4o',
+      };
+    }
+    return {
+      name: 'New AI Agent',
+      role: 'Assistant',
+      model: 'gpt-4o',
+    };
+  }, [targetAgent, editAgentName, editAgentRole, editAgentModel]);
+
+  const graph = useAgentGraph({
+    agentId: editAgentId,
+    initialConfig,
+  });
+
+  const { screenToFlowPosition, zoomIn, zoomOut, fitView } = useReactFlow();
+  const { resolvedTheme } = useTheme();
 
   const [showPalette, setShowPalette] = useState(true);
   const [showInspector, setShowInspector] = useState(true);
@@ -132,10 +191,16 @@ function AgentBuilderCanvas() {
   const handleAddNode = useCallback(
     (kind: AgentNodeKind, position?: { x: number; y: number }) => {
       const spec = specFor(kind);
-      addNode(kind, position);
-      toast.success(`Added ${spec.label}`, {
-        description: 'Node placed onto canvas.',
-      });
+      const created = addNode(kind, position);
+      if (created) {
+        toast.success(`Added ${spec.label}`, {
+          description: 'Node placed onto canvas.',
+        });
+      } else {
+        toast.info(`${spec.label} is already placed`, {
+          description: 'This is a singleton node and can only appear once.',
+        });
+      }
     },
     [addNode],
   );
@@ -198,7 +263,12 @@ function AgentBuilderCanvas() {
     const core = nodes.find((node) => node.data.kind === 'agent');
     if (!core || !workspaceId) return;
 
-    const existing = agents.data?.find((agent) => agent.name === summary.name);
+    const existing =
+      targetAgent ||
+      (editAgentId
+        ? agents.data?.find((agent) => agent.id === editAgentId)
+        : null);
+
     if (existing) {
       update.mutate(
         {
@@ -208,7 +278,7 @@ function AgentBuilderCanvas() {
         {
           onSuccess: () => {
             toast.success('Agent saved', {
-              description: `"${summary.name}" has been updated.`,
+              description: `"${summary.name}" changes were saved.`,
             });
           },
           onError: () => {
@@ -232,7 +302,24 @@ function AgentBuilderCanvas() {
         },
       },
     );
-  }, [agents.data, blocked, create, errorCount, nodes, save, summary.name, summary.role, update, workspaceId]);
+  }, [agents.data, blocked, create, editAgentId, errorCount, nodes, save, summary.name, summary.role, targetAgent, update, workspaceId]);
+
+  const handleDeleteAgent = useCallback(() => {
+    if (!targetAgent) return;
+    const name = targetAgent.name;
+    remove.mutate(targetAgent.id, {
+      onSuccess: () => {
+        toast.info('Agent deleted', {
+          description: `"${name}" was deleted from this workspace.`,
+        });
+        setIsDeleteOpen(false);
+        navigate(`/w/${slug}/agents?tab=all`);
+      },
+      onError: () => {
+        toast.error('Failed to delete agent');
+      },
+    });
+  }, [navigate, remove, slug, targetAgent]);
 
   // Keyboard shortcut for Ctrl+S / Cmd+S
   useEffect(() => {
@@ -245,6 +332,8 @@ function AgentBuilderCanvas() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleSave]);
+
+  const displayName = summary.name || targetAgent?.name || 'Agent builder';
 
   return (
     <div className="h-[calc(100vh-3.5rem)] min-h-160 flex flex-col bg-background overflow-hidden select-none">
@@ -272,10 +361,10 @@ function AgentBuilderCanvas() {
               </div>
               <div className="flex min-w-0 items-center gap-1.5">
                 <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
-                  {summary.name || 'Agent builder'}
+                  {displayName}
                 </h2>
-                <Badge variant="neutral" className="px-1.5 py-0 text-[10px] font-medium shrink-0">
-                  Builder
+                <Badge variant={targetAgent ? 'primary' : 'neutral'} className="px-1.5 py-0 text-[10px] font-medium shrink-0">
+                  {targetAgent ? 'Editing' : 'Builder'}
                 </Badge>
               </div>
             </div>
@@ -336,6 +425,20 @@ function AgentBuilderCanvas() {
                 Reset
               </Button>
             </Hint>
+
+            {targetAgent ? (
+              <Hint label={`Delete ${targetAgent.name}`}>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setIsDeleteOpen(true)}
+                  aria-label="Delete agent"
+                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </Hint>
+            ) : null}
 
             <Button
               size="sm"
@@ -492,6 +595,35 @@ function AgentBuilderCanvas() {
         dirty={dirty}
         savedAt={savedAt}
       />
+
+      {/* Delete Agent Confirmation Dialog */}
+      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="size-5" />
+              Delete Agent
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <strong className="text-foreground">{targetAgent?.name}</strong>? This will permanently remove its capabilities and configurations from this workspace.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAgent}
+              loading={remove.isPending}
+              leadingIcon={<Trash2 className="size-4" />}
+            >
+              Delete Agent
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
