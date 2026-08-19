@@ -3,16 +3,17 @@ import { formatCount } from '@org/utils';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { Hash, Lock, Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { CreateChannelDialog } from '../components/create-channel-dialog.js';
 import { useChannels, useJoinChannel } from '../use-channels.js';
 
 export function BrowseChannelsPage() {
   const { slug, workspaceId } = useCurrentWorkspace();
   const [query, setQuery] = useState('');
   const [showArchived, setShowArchived] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const channels = useChannels(workspaceId, showArchived);
   const join = useJoinChannel(workspaceId);
-  const navigate = useNavigate();
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -35,10 +36,7 @@ export function BrowseChannelsPage() {
             {filtered.length === 1 ? '' : 's'} in this workspace
           </p>
         </div>
-        <Button
-          onClick={() => navigate(`/w/${slug}/channels/new`)}
-          leadingIcon={<Plus />}
-        >
+        <Button onClick={() => setCreateOpen(true)} leadingIcon={<Plus />}>
           Create channel
         </Button>
       </div>
@@ -112,6 +110,8 @@ export function BrowseChannelsPage() {
           })}
         </ul>
       )}
+
+      <CreateChannelDialog open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   );
 }

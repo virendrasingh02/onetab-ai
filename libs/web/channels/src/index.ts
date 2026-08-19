@@ -17,6 +17,11 @@ export {
   type GroupedChannels,
 } from './lib/use-channels.js';
 
+export {
+  CreateChannelDialog,
+  type CreateChannelDialogProps,
+} from './lib/components/create-channel-dialog.js';
+
 export { ChannelPage } from './lib/pages/channel-page.js';
 export { CreateChannelPage } from './lib/pages/create-channel-page.js';
 export { BrowseChannelsPage } from './lib/pages/browse-channels-page.js';

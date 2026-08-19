@@ -16,7 +16,7 @@ import {
   useCommandPalette,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { useChannels } from '@org/web-channels';
+import { CreateChannelDialog, useChannels } from '@org/web-channels';
 import { useDesktopCommand } from '@org/web-desktop';
 import { useMembers } from '@org/web-members';
 import {
@@ -27,7 +27,7 @@ import {
 import { WorkspaceSearchPanel } from '@org/web-search';
 import { useCurrentWorkspace, useWorkspaces } from '@org/web-workspace';
 import { Building2 } from 'lucide-react';
-import { Suspense, useCallback, useEffect } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AppHeader } from './app-header.js';
 import { AssistantPanel } from './assistant-panel.js';
@@ -42,6 +42,9 @@ export function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const palette = useCommandPalette();
+  /* Creating a channel is a dialog, so the sidebar's "+" no longer navigates
+     away from whatever the user was reading. */
+  const [createChannelOpen, setCreateChannelOpen] = useState(false);
 
   const {
     leftWidth,
@@ -110,9 +113,7 @@ export function AppShell() {
   useDesktopCommand('open-shortcuts', () => palette.setOpen(true));
   useDesktopCommand('open-ai-assistant', () => setRightPanelOpen(true));
   useDesktopCommand('toggle-sidebar', toggleSidebar);
-  useDesktopCommand('new-channel', () => {
-    if (slug) navigate(`/w/${slug}/channels/new`);
-  });
+  useDesktopCommand('new-channel', () => setCreateChannelOpen(true));
   useDesktopCommand('open-settings', () => {
     if (slug) navigate(`/w/${slug}/settings`);
   });
@@ -172,7 +173,7 @@ export function AppShell() {
       channels={channelsQuery.data}
       isLoading={channelsQuery.isLoading}
       inboxUnread={unread.count}
-      onCreateChannel={() => navigate(`/w/${slug}/channels/new`)}
+      onCreateChannel={() => setCreateChannelOpen(true)}
       onBrowseChannels={() => navigate(`/w/${slug}/channels`)}
     />
   );
@@ -342,6 +343,11 @@ export function AppShell() {
               onNavigate={() => palette.setOpen(false)}
             />
           )}
+        />
+
+        <CreateChannelDialog
+          open={createChannelOpen}
+          onOpenChange={setCreateChannelOpen}
         />
 
         <FocusModeWidget currentUser={user} onUserUpdated={setUser} />
