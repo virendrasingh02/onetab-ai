@@ -33,6 +33,7 @@ import {
   type Ref,
 } from 'react';
 import { KanbanCardTile } from './KanbanCardTile.js';
+import { StatusIcon } from './kanban-icons.js';
 import type { BoardAction } from './server-board.js';
 import type { BoardMember, KanbanCard, KanbanList, SortKey } from './types.js';
 
@@ -209,7 +210,7 @@ export function KanbanListColumn({
     >
       <header className="gap-1.5 px-3 py-2 flex items-center justify-between rounded-t-xl border-b border-border/40 bg-surface/40">
         <div className="gap-2 min-w-0 flex flex-1 items-center">
-          <StatusDot status={list.id} />
+          <StatusIcon status={list.id} />
 
           <h2 className="min-w-0 py-0.5 text-xs font-semibold flex-1 truncate text-foreground">
             {list.title}
@@ -384,6 +385,13 @@ export function KanbanListColumn({
                       toIndex: Number.MAX_SAFE_INTEGER,
                     })
                   }
+                  onAssigneeChange={(memberId) =>
+                    dispatch({
+                      type: 'card/update',
+                      cardId: card.id,
+                      patch: { memberIds: memberId ? [memberId] : [] },
+                    })
+                  }
                   onDragStart={(event) => onCardDragStart(event, card)}
                   onDragEnd={onCardDragEnd}
                 />
@@ -426,36 +434,6 @@ export function KanbanListColumn({
         </div>
       ) : null}
     </section>
-  );
-}
-
-/* ----------------------------------------------------------- status dot --- */
-
-/**
- * Linear's column glyph. Keyed off the status itself rather than sniffed out of
- * the column's title, which is what it had to do while list names were free
- * text.
- */
-const STATUS_DOT: Record<TaskStatus, string> = {
-  BACKLOG: 'border-2 border-dashed border-accent-amber/30',
-  TODO: 'border-2 border-muted-foreground/60',
-  IN_PROGRESS: 'border-2 border-accent-amber/30 bg-accent-amber-soft',
-  IN_REVIEW: 'border-2 border-primary/60',
-  DONE: 'bg-accent-blue',
-  CANCELLED: 'border-2 border-destructive/40 bg-destructive/10',
-};
-
-function StatusDot({ status }: { status: TaskStatus }) {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        'size-3.5 font-bold text-white flex shrink-0 items-center justify-center rounded-full text-[9px]',
-        STATUS_DOT[status],
-      )}
-    >
-      {status === TaskStatus.DONE ? '✓' : null}
-    </span>
   );
 }
 

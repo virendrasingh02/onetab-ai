@@ -24,6 +24,26 @@ export {
   type KanbanList,
   type Priority,
 } from './lib/KanbanBoard.js';
+export { KanbanStatusPicker } from './lib/kanban/KanbanStatusPicker.js';
+export { KanbanPriorityPicker } from './lib/kanban/KanbanPriorityPicker.js';
+export { KanbanLeadPicker } from './lib/kanban/KanbanLeadPicker.js';
+export { KanbanLabelPicker } from './lib/kanban/KanbanLabelPicker.js';
+export {
+  useKanbanCustomStore,
+  type CustomStatusItem,
+  type CustomPriorityItem,
+  type CustomLabelItem,
+  type CustomTeamItem,
+  type CustomSlackChannelItem,
+  type CustomCardProperties,
+} from './lib/kanban/kanban-custom-store.js';
+export {
+  StatusIcon,
+  PriorityIcon,
+  ActivityPulseBadge,
+  CubeProjectIcon,
+  UnassignedLeadIcon,
+} from './lib/kanban/kanban-icons.js';
 export { ProjectGallery } from './lib/kanban/ProjectGallery.js';
 export {
   buildBoard,

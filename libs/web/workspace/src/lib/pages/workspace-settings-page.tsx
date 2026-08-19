@@ -93,6 +93,7 @@ import { SettingsLayout } from '../settings-layout.js';
 import { WorkspaceMembersSettings } from '../components/workspace-members-settings.js';
 import { WorkspaceBillingSettings } from '../components/workspace-billing-settings.js';
 import { WorkspaceCompanyAnalytics } from '../components/workspace-company-analytics.js';
+import { WorkspaceKanbanSettings } from '../components/workspace-kanban-settings.js';
 import { UpgradePlanBanner } from '../components/upgrade-plan-banner.js';
 
 export function WorkspaceSettingsPage() {
@@ -1908,67 +1909,7 @@ export function WorkspaceSettingsPage() {
         </div>
       )}
 
-      {currentTab === 'kanban-tasks' && (
-        <div className="space-y-8">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Tasks & Kanban</h1>
-            <p className="text-xs text-muted-foreground mt-1">
-              Board columns, task priority tags, and automated archiving rules.
-            </p>
-          </div>
-
-          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">Default Task Layout</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Select default view when opening project tasks</p>
-              </div>
-              <Select value={kanbanDefaultView} onValueChange={setKanbanDefaultView}>
-                <SelectTrigger className="w-36 h-8 text-xs bg-surface border-border">
-                  <SelectValue placeholder="Board" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="board" className="text-xs">Kanban Board</SelectItem>
-                  <SelectItem value="list" className="text-xs">Task List</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">Show Task Age Indicator</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Display time elapsed since task creation on cards</p>
-              </div>
-              <Switch checked={showTaskAge} onCheckedChange={setShowTaskAge} />
-            </div>
-
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">Enable WIP Limits per Column</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Restrict maximum active tasks per board status column</p>
-              </div>
-              <Switch checked={enableWipLimits} onCheckedChange={setEnableWipLimits} />
-            </div>
-
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">Auto-archive Completed Tasks</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Move completed tasks to archive after set duration</p>
-              </div>
-              <Select value={autoArchiveCompleted} onValueChange={setAutoArchiveCompleted}>
-                <SelectTrigger className="w-32 h-8 text-xs bg-surface border-border">
-                  <SelectValue placeholder="30 days" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="30" className="text-xs">30 days</SelectItem>
-                  <SelectItem value="7" className="text-xs">7 days</SelectItem>
-                  <SelectItem value="never" className="text-xs">Never</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-      )}
+      {currentTab === 'kanban-tasks' && <WorkspaceKanbanSettings />}
 
       {currentTab === 'documents' && (
         <div className="space-y-8">

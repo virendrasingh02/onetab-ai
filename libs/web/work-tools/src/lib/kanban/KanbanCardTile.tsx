@@ -1,5 +1,5 @@
+import { TaskStatus } from '@org/types';
 import {
-  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -9,27 +9,33 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-  UserAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  Clock,
+  CalendarPlus,
+  CalendarX2,
   Copy,
   CornerUpRight,
-  MessageSquare,
   MoreHorizontal,
   Pencil,
   Trash2,
 } from 'lucide-react';
 import type { DragEvent } from 'react';
-import { describeDue, DUE_TONE_CLASSES, PRIORITY_META } from './card-meta.js';
+import { parseDay } from './card-meta.js';
+import { useKanbanCustomStore } from './kanban-custom-store.js';
+import {
+  ActivityPulseBadge,
+  CubeProjectIcon,
+} from './kanban-icons.js';
+import { KanbanLeadPicker } from './KanbanLeadPicker.js';
+import { KanbanStatusPicker } from './KanbanStatusPicker.js';
 import type { BoardMember, KanbanCard, KanbanList } from './types.js';
 
 export interface KanbanCardTileProps {
   card: KanbanCard;
   members: BoardMember[];
   lists: Array<Pick<KanbanList, 'id' | 'title'>>;
-  listId: string;
+  listId: TaskStatus | string;
   /**
    * True once this card has been picked up. The tile collapses out of the
    * layout so the drop placeholder can take its place, exactly one card tall.
@@ -38,9 +44,33 @@ export interface KanbanCardTileProps {
   onOpen: () => void;
   onCopy: () => void;
   onDelete: () => void;
-  onMoveToList: (toListId: KanbanList['id']) => void;
+  onMoveToList: (toListId: TaskStatus) => void;
+  onAssigneeChange?: (memberId: string | null) => void;
   onDragStart: (event: DragEvent<HTMLLIElement>) => void;
   onDragEnd: () => void;
+}
+
+function formatCardDate(dateStr?: string): string | null {
+  if (!dateStr) return null;
+  const date = parseDay(dateStr);
+  const day = date.getDate();
+  const suffix =
+    day === 1 || day === 21 || day === 31
+      ? 'st'
+      : day === 2 || day === 22
+      ? 'nd'
+      : day === 3 || day === 23
+      ? 'rd'
+      : 'th';
+  const month = date.toLocaleDateString('en-US', { month: 'short' });
+  const year = date.getFullYear();
+  return `${month} ${day}${suffix}, ${year}`;
+}
+
+function formatMonthYear(dateStr?: string): string | null {
+  if (!dateStr) return null;
+  const date = parseDay(dateStr);
+  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
 export function KanbanCardTile({
@@ -53,15 +83,19 @@ export function KanbanCardTile({
   onCopy,
   onDelete,
   onMoveToList,
+  onAssigneeChange,
   onDragStart,
   onDragEnd,
 }: KanbanCardTileProps) {
-  const assignees = card.memberIds
-    .map((id) => members.find((member) => member.id === id))
-    .filter((member): member is BoardMember => Boolean(member));
+  const customStore = useKanbanCustomStore();
+  const cardCustomProps = customStore.getCardProperties(card.id);
+  const storeLabels = customStore.labels;
 
-  const due = describeDue(card);
-  const priority = PRIORITY_META[card.priority];
+  const formattedDate = formatCardDate(card.dueDate);
+  const currentStatus = (listId as TaskStatus) || TaskStatus.TODO;
+  const currentLeadId = cardCustomProps.leadId ?? card.memberIds[0];
+  const currentLabels = cardCustomProps.labels ?? [];
+  const currentStartDate = cardCustomProps.startDate;
 
   return (
     <li
@@ -70,139 +104,154 @@ export function KanbanCardTile({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       className={cn(
-        'group/card p-2.5 relative cursor-grab list-none rounded-lg border bg-surface',
-        'shadow-xs transition-[border-color,box-shadow,opacity] duration-(--duration-fast)',
-        'hover:border-border-strong hover:shadow-elevated',
+        'group/card p-3 relative cursor-grab list-none rounded-xl border border-border/60 bg-card text-card-foreground',
+        'shadow-xs transition-all duration-(--duration-fast)',
+        'hover:border-border-strong hover:shadow-md hover:bg-surface-raised',
         'has-[:focus-visible]:border-ring has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/30',
         lifted && 'hidden',
       )}
     >
-      <button
-        type="button"
-        onClick={onOpen}
-        className={cn(
-          'text-xs font-semibold leading-snug text-left text-foreground outline-none hover:text-primary transition-colors',
-          'after:inset-0 after:absolute after:rounded-lg',
-        )}
-      >
-        {card.title}
-      </button>
-
-      {card.milestone ? (
-        <div className="mt-1 truncate text-[11px] font-medium text-muted-foreground/80">
-          {card.milestone}
-        </div>
-      ) : null}
-
-      {/* Date badge, comment count, priority signal, and assignee avatar */}
-      <div className="mt-2.5 flex items-center justify-between pt-1 text-[11px]">
-        <div className="flex items-center gap-1.5">
-          {due ? (
-            <span
-              title={due.hint}
-              className={cn(
-                'gap-1 px-1.5 py-0.5 rounded border font-medium flex items-center text-[10px]',
-                DUE_TONE_CLASSES[due.tone],
-              )}
-            >
-              <Clock className="size-3 shrink-0" aria-hidden />
-              <span>{due.label}</span>
-            </span>
-          ) : null}
-
-          {card.commentCount > 0 ? (
-            <span
-              title={`${card.commentCount} comment${card.commentCount === 1 ? '' : 's'}`}
-              className="gap-1 flex items-center text-[10px] text-muted-foreground"
-            >
-              <MessageSquare className="size-3 shrink-0" aria-hidden />
-              <span className="tabular-nums">{card.commentCount}</span>
-            </span>
-          ) : null}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span
-            className="flex items-center gap-1 text-[10px] text-muted-foreground"
-            title={`${priority.label} priority`}
+      {/* Top Row: [Orange Cube] [Title]  ... [Pulse] [StatusIcon] [More] [Avatar] */}
+      <div className="flex items-start justify-between gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <CubeProjectIcon className="size-4 shrink-0" />
+          <button
+            type="button"
+            onClick={onOpen}
+            className="text-xs font-semibold leading-snug text-left text-foreground truncate hover:text-primary transition-colors cursor-pointer outline-none"
           >
-            <span className={cn('size-1.5 rounded-full', priority.dot)} />
-          </span>
+            {card.title}
+          </button>
+        </div>
 
-          {assignees.length > 0 ? (
-            <div className="flex items-center -space-x-1">
-              {assignees.map((member) => (
-                <UserAvatar
-                  key={member.id}
-                  name={member.name}
-                  seed={member.id}
-                  src={member.avatarUrl}
-                  size="xs"
-                  className="size-5 text-[9px] font-bold ring-1 ring-surface"
-                />
-              ))}
-            </div>
-          ) : null}
+        <div className="flex items-center gap-1 shrink-0">
+          {/* Activity pulse badge */}
+          <ActivityPulseBadge />
+
+          {/* Status picker trigger */}
+          <KanbanStatusPicker
+            status={currentStatus}
+            onStatusChange={onMoveToList}
+            align="end"
+          />
+
+          {/* 3-dots more menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center justify-center size-6 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                aria-label={`Actions for “${card.title}”`}
+              >
+                <MoreHorizontal className="size-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onSelect={onOpen}>
+                <Pencil />
+                Open card
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={onCopy}>
+                <Copy />
+                Copy card
+              </DropdownMenuItem>
+
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <CornerUpRight />
+                  Move to
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent className="w-44">
+                    {lists.map((list) => (
+                      <DropdownMenuItem
+                        key={list.id}
+                        disabled={list.id === listId}
+                        onSelect={() => onMoveToList(list.id as TaskStatus)}
+                      >
+                        {list.title}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
+
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+                <Trash2 />
+                Delete card
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Assignee lead picker */}
+          <KanbanLeadPicker
+            currentMemberId={currentLeadId}
+            members={members}
+            onSelectMember={(memberId) => {
+              customStore.setCardProperties(card.id, { leadId: memberId || undefined });
+              onAssigneeChange?.(memberId);
+            }}
+            align="end"
+          />
         </div>
       </div>
 
-      {/*
-        Sits above the stretched title overlay, and is the keyboard-reachable
-        route to every move that drag-and-drop offers with a pointer.
-      */}
-      <div className="right-1.5 top-1.5 absolute z-10">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className={cn(
-                'size-6 backdrop-blur-sm bg-surface/80 opacity-0',
-                'group-hover/card:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100',
-              )}
-              aria-label={`Actions for “${card.title}”`}
-            >
-              <MoreHorizontal className="size-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
+      {/* Row 2: Dates (Start -> Target, or Single Target Date) */}
+      {(currentStartDate || formattedDate) && (
+        <div className="mt-2.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+          {currentStartDate ? (
+            <div className="flex items-center gap-1 text-[11px] font-medium text-foreground/80">
+              <CalendarPlus className="size-3.5 text-muted-foreground shrink-0" />
+              <span>{formatMonthYear(currentStartDate) || 'Start'}</span>
+              <span className="text-muted-foreground text-[10px]">→</span>
+              <CalendarX2 className="size-3.5 text-rose-500 shrink-0" />
+              <span className="text-rose-500 font-medium">
+                {formattedDate || 'Target'}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-foreground/80">
+              <CalendarX2 className="size-3.5 text-rose-500 shrink-0" />
+              <span>{formattedDate}</span>
+            </div>
+          )}
+        </div>
+      )}
 
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onSelect={onOpen}>
-              <Pencil />
-              Open card
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={onCopy}>
-              <Copy />
-              Copy card
-            </DropdownMenuItem>
+      {/* Labels row if any */}
+      {currentLabels.length > 0 && (
+        <div className="mt-2 flex items-center gap-1 flex-wrap">
+          {currentLabels.map((lbl) => {
+            const meta = storeLabels.find((l) => l.name === lbl);
+            return (
+              <span
+                key={lbl}
+                className="inline-flex items-center gap-1 px-1.5 py-0.2 text-[10px] font-medium rounded-md border"
+                style={{
+                  backgroundColor: meta ? `${meta.color}15` : '#8b5cf615',
+                  borderColor: meta ? `${meta.color}35` : '#8b5cf635',
+                  color: meta?.color || '#8b5cf6',
+                }}
+              >
+                <span
+                  className="size-1 rounded-full"
+                  style={{ backgroundColor: meta?.color || '#8b5cf6' }}
+                />
+                <span>{lbl}</span>
+              </span>
+            );
+          })}
+        </div>
+      )}
 
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <CornerUpRight />
-                Move to
-              </DropdownMenuSubTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuSubContent className="w-44">
-                  {lists.map((list) => (
-                    <DropdownMenuItem
-                      key={list.id}
-                      disabled={list.id === listId}
-                      onSelect={() => onMoveToList(list.id)}
-                    >
-                      {list.title}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuSubContent>
-              </DropdownMenuPortal>
-            </DropdownMenuSub>
-
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onSelect={onDelete}>
-              <Trash2 />
-              Delete card
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      {/* Row 3: Ticket ID & Issues count */}
+      <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground/75 font-medium">
+        <span>{card.commentCount} issues</span>
+        <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-muted/70 text-muted-foreground font-semibold">
+          {cardCustomProps.ticketId}
+        </span>
       </div>
     </li>
   );
