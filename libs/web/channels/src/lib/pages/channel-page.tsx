@@ -224,9 +224,17 @@ function ChannelMembersDropdown({
 function ChannelHeader({
   channel,
   onAddBookmark,
+  chatActionsRef,
 }: {
   channel: ChannelSummary;
   onAddBookmark?: () => void;
+  /**
+   * Receives the element the conversation portals its actions into — huddle,
+   * threads, pins, saved, search, members. This header is the channel's only
+   * one, so those controls belong in this row rather than in a second bar
+   * below the tabs.
+   */
+  chatActionsRef?: (element: HTMLDivElement | null) => void;
 }) {
   const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
   const preferences = useChannelPreferences(workspaceId);
@@ -460,10 +468,25 @@ function ChannelHeader({
               </DropdownMenu>
             ) : null}
           </div>
+
+          {/* The topic used to sit under the conversation's own title. With one
+              header left, it shows here — where there is room for it. */}
+          {channel.topic ? (
+            <p className="hidden min-w-0 max-w-[48ch] truncate border-l border-border pl-2 text-xs text-muted-foreground lg:block">
+              {channel.topic}
+            </p>
+          ) : null}
         </div>
 
-        {/* Channel actions: Member Avatar Stack Dropdown, Join Button, Archive */}
+        {/* Channel actions: Conversation Tools, Member Avatar Stack Dropdown, Join Button, Archive */}
         <div className="flex items-center gap-2">
+          {/* Conversation tools portal in from the chat surface; empty on the
+              non-chat tabs, where it collapses instead of leaving a gap. */}
+          <div
+            ref={chatActionsRef}
+            className="flex items-center gap-0.5 empty:hidden"
+          />
+
           {/* Member Avatar Stack with Dropdown */}
           <ChannelMembersDropdown channel={channel} members={members} />
 
@@ -522,6 +545,11 @@ export function ChannelPage() {
     channel?.id,
   );
   const [addBookmarkOpen, setAddBookmarkOpen] = useState(false);
+  // Callback ref, not `useRef`: the conversation only portals into this element
+  // once it exists, and a render has to be triggered when it does.
+  const [chatActionsSlot, setChatActionsSlot] = useState<HTMLDivElement | null>(
+    null,
+  );
 
   if (channelQuery.isLoading) return <LoadingState fullPage />;
   if (channelQuery.isError || !channel) {
@@ -545,6 +573,7 @@ export function ChannelPage() {
       <ChannelHeader
         channel={channel}
         onAddBookmark={() => setAddBookmarkOpen(true)}
+        chatActionsRef={setChatActionsSlot}
       />
 
       <BookmarksBar
@@ -598,6 +627,7 @@ export function ChannelPage() {
             channelId={channel.id}
             title={channel.name}
             subtitle={channel.topic ?? undefined}
+            headerActionsSlot={chatActionsSlot}
           />
         </TabsContent>
 

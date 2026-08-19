@@ -14,6 +14,8 @@ export interface ChatPanelProps {
   roomId: string | null;
   title: string;
   subtitle?: string;
+  /** Host-rendered element to portal the header actions into. See `ChatSurface`. */
+  headerActionsSlot?: HTMLElement | null;
 }
 
 /**
@@ -22,7 +24,12 @@ export interface ChatPanelProps {
  * It owns no layout of its own: everything visible comes from `ChatSurface`,
  * and this component's whole job is to bind that surface to a live room.
  */
-export function ChatPanel({ roomId, title, subtitle }: ChatPanelProps) {
+export function ChatPanel({
+  roomId,
+  title,
+  subtitle,
+  headerActionsSlot,
+}: ChatPanelProps) {
   const { client, status, enabled, error } = useMatrix();
   const room = useRoom(roomId ?? undefined);
   const actions = useRoomActions(roomId ?? undefined);
@@ -81,6 +88,7 @@ export function ChatPanel({ roomId, title, subtitle }: ChatPanelProps) {
     <ChatSurface
       title={title}
       subtitle={subtitle}
+      headerActionsSlot={headerActionsSlot}
       isEncrypted={client.getRoom(roomId)?.isEncrypted ?? false}
       banner={<ConnectionBanner status={status} />}
       myUserId={client.getSession()?.userId}

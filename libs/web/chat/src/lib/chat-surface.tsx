@@ -22,11 +22,14 @@ import { Badge, Button, Hint } from '@org/ui';
 import {
   Bookmark,
   Headphones,
+  Lock,
   MessagesSquare,
   Pin,
   Search,
+  Users,
 } from 'lucide-react';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { deriveThreads, groupReplies } from './derive-threads.js';
 
 type SidePanel =
@@ -55,6 +58,17 @@ export interface ChatSurfaceProps {
   error?: string | null;
   onLoadOlder?: () => void;
   presenceOf?: (userId: string) => PresenceState;
+
+  /**
+   * Where the conversation's action buttons should live.
+   *
+   * A page that already renders its own channel header (the channel page does)
+   * passes the element it reserved for them: the surface then drops its own
+   * header and portals the actions up there, so the channel is titled once
+   * instead of twice. Left unset — direct messages, for one — the surface keeps
+   * rendering the header itself.
+   */
+  headerActionsSlot?: HTMLElement | null;
 
   bookmarks?: ChannelBookmark[];
   huddleParticipants?: RoomMember[];
@@ -94,6 +108,7 @@ export function ChatSurface({
   error,
   onLoadOlder,
   presenceOf,
+  headerActionsSlot,
   bookmarks = [],
   huddleParticipants = [],
   pinnedIds = [],
@@ -308,85 +323,118 @@ export function ChatSurface({
   const toggle = (next: SidePanel) =>
     setPanel((current) => (current === next ? 'none' : next));
 
+  const headerActions = (
+    <>
+      {huddleParticipants.length === 0 && !huddleJoined ? (
+        <Hint label="Start a huddle">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Start a huddle"
+            onClick={() => setHuddleJoined(true)}
+          >
+            <Headphones />
+          </Button>
+        </Hint>
+      ) : null}
+
+      <Hint label="Threads">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Threads"
+          aria-pressed={panel === 'threads'}
+          onClick={() => toggle('threads')}
+        >
+          <MessagesSquare />
+        </Button>
+      </Hint>
+
+      <Hint label="Pinned messages">
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label="Pinned messages"
+          aria-pressed={panel === 'pinned'}
+          onClick={() => toggle('pinned')}
+          leadingIcon={<Pin />}
+        >
+          {pinnedMessages.length > 0 ? (
+            <Badge variant="neutral">{pinnedMessages.length}</Badge>
+          ) : null}
+        </Button>
+      </Hint>
+
+      <Hint label="Saved for later">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Saved for later"
+          aria-pressed={panel === 'saved'}
+          onClick={() => toggle('saved')}
+        >
+          <Bookmark />
+        </Button>
+      </Hint>
+
+      <Hint label="Search in conversation">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Search in conversation"
+          aria-pressed={panel === 'search'}
+          onClick={() => toggle('search')}
+        >
+          <Search />
+        </Button>
+      </Hint>
+    </>
+  );
+
   return (
     <ChatLayout
       banner={banner}
       header={
         <>
-          <ChatHeader
-            title={title}
-            subtitle={subtitle}
-            isEncrypted={isEncrypted}
-            memberCount={members.length}
-            onToggleMembers={() => toggle('members')}
-            actions={
-              <>
-                {huddleParticipants.length === 0 && !huddleJoined ? (
-                  <Hint label="Start a huddle">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Start a huddle"
-                      onClick={() => setHuddleJoined(true)}
-                    >
-                      <Headphones />
-                    </Button>
+          {headerActionsSlot ? (
+            createPortal(
+              <div className="flex items-center gap-0.5 text-muted-foreground">
+                {isEncrypted ? (
+                  <Hint label="End-to-end encrypted">
+                    <Lock
+                      className="size-3.5 shrink-0"
+                      aria-label="End-to-end encrypted"
+                    />
                   </Hint>
                 ) : null}
 
-                <Hint label="Threads">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Threads"
-                    aria-pressed={panel === 'threads'}
-                    onClick={() => toggle('threads')}
-                  >
-                    <MessagesSquare />
-                  </Button>
-                </Hint>
+                {headerActions}
 
-                <Hint label="Pinned messages">
+                <Hint label="Channel Members">
                   <Button
                     variant="ghost"
                     size="sm"
-                    aria-label="Pinned messages"
-                    aria-pressed={panel === 'pinned'}
-                    onClick={() => toggle('pinned')}
-                    leadingIcon={<Pin />}
+                    aria-label="Channel Members"
+                    aria-pressed={panel === 'members'}
+                    onClick={() => toggle('members')}
+                    leadingIcon={<Users />}
                   >
-                    {pinnedMessages.length > 0 ? (
-                      <Badge variant="neutral">{pinnedMessages.length}</Badge>
-                    ) : null}
+                    {members.length}
                   </Button>
                 </Hint>
-
-                <Hint label="Saved for later">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Saved for later"
-                    aria-pressed={panel === 'saved'}
-                    onClick={() => toggle('saved')}
-                  >
-                    <Bookmark />
-                  </Button>
-                </Hint>
-
-                <Hint label="Search in conversation">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Search in conversation"
-                    aria-pressed={panel === 'search'}
-                    onClick={() => toggle('search')}
-                  >
-                    <Search />
-                  </Button>
-                </Hint>
-              </>
-            }
-          />
+              </div>,
+              headerActionsSlot,
+            )
+          ) : (
+            <ChatHeader
+              title={title}
+              subtitle={subtitle}
+              isEncrypted={isEncrypted}
+              memberCount={members.length}
+              onToggleMembers={() => toggle('members')}
+              actions={headerActions}
+            />
+          )}
 
           <BookmarksBar
             bookmarks={bookmarks}

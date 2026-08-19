@@ -7,6 +7,12 @@ export interface ChannelChatProps {
   channelId: string;
   title: string;
   subtitle?: string;
+  /**
+   * Element in the host page's channel header to render the conversation's
+   * actions into. Passing it also drops the surface's own header, so the
+   * channel is titled once rather than twice.
+   */
+  headerActionsSlot?: HTMLElement | null;
 }
 
 /**
@@ -21,7 +27,12 @@ export interface ChannelChatProps {
  * misconfigured deployment looked like a working one with other people's
  * messages in it.
  */
-export function ChannelChat({ channelId, title, subtitle }: ChannelChatProps) {
+export function ChannelChat({
+  channelId,
+  title,
+  subtitle,
+  headerActionsSlot,
+}: ChannelChatProps) {
   const { enabled } = useMatrix();
   const { roomId, isLoading, error } = useChannelRoom(channelId);
 
@@ -43,5 +54,12 @@ export function ChannelChat({ channelId, title, subtitle }: ChannelChatProps) {
     return <LoadingState label="Opening conversation…" />;
   }
 
-  return <ChatPanel roomId={roomId} title={title} subtitle={subtitle} />;
+  return (
+    <ChatPanel
+      roomId={roomId}
+      title={title}
+      subtitle={subtitle}
+      headerActionsSlot={headerActionsSlot}
+    />
+  );
 }
