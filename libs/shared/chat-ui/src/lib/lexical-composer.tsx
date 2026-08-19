@@ -1,383 +1,1262 @@
-import { CodeHighlightNode, CodeNode } from '@lexical/code';
+import { $createCodeNode, $isCodeNode, CodeHighlightNode, CodeNode } from '@lexical/code';
+import { HashtagNode } from '@lexical/hashtag';
 import {
+  $isLinkNode,
+  AutoLinkNode,
+  autoLinkEmailMatcher,
+  autoLinkUrlMatcher,
+  LinkNode,
+  TOGGLE_LINK_COMMAND,
+} from '@lexical/link';
+import {
+  $isListNode,
   INSERT_CHECK_LIST_COMMAND,
   INSERT_ORDERED_LIST_COMMAND,
   INSERT_UNORDERED_LIST_COMMAND,
   ListItemNode,
   ListNode,
+  REMOVE_LIST_COMMAND,
 } from '@lexical/list';
+import {
+  $convertFromMarkdownString,
+  $convertToMarkdownString,
+} from '@lexical/markdown';
+import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin';
+import { AutoLinkPlugin } from '@lexical/react/LexicalAutoLinkPlugin';
+import { CheckListPlugin } from '@lexical/react/LexicalCheckListPlugin';
+import { ClickableLinkPlugin } from '@lexical/react/LexicalClickableLinkPlugin';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
-import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
+import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
+import { HashtagPlugin } from '@lexical/react/LexicalHashtagPlugin';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
+import {
+  HorizontalRuleNode,
+  INSERT_HORIZONTAL_RULE_COMMAND,
+} from '@lexical/react/LexicalHorizontalRuleNode';
+import { HorizontalRulePlugin } from '@lexical/react/LexicalHorizontalRulePlugin';
+import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { ListPlugin } from '@lexical/react/LexicalListPlugin';
+import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
-import { HeadingNode, QuoteNode } from '@lexical/rich-text';
+import { TabIndentationPlugin } from '@lexical/react/LexicalTabIndentationPlugin';
+import {
+  LexicalTypeaheadMenuPlugin,
+  MenuOption,
+  useBasicTypeaheadTriggerMatch,
+} from '@lexical/react/LexicalTypeaheadMenuPlugin';
+import {
+  $createHeadingNode,
+  $createQuoteNode,
+  $isHeadingNode,
+  $isQuoteNode,
+  HeadingNode,
+  type HeadingTagType,
+  QuoteNode,
+} from '@lexical/rich-text';
+import { $setBlocksType } from '@lexical/selection';
+import { mergeRegister } from '@lexical/utils';
 import {
   $createParagraphNode,
   $createTextNode,
   $getRoot,
   $getSelection,
+  $insertNodes,
   $isElementNode,
   $isRangeSelection,
   $isTextNode,
+  CAN_REDO_COMMAND,
+  CAN_UNDO_COMMAND,
+  COMMAND_PRIORITY_CRITICAL,
   COMMAND_PRIORITY_HIGH,
   FORMAT_TEXT_COMMAND,
   KEY_ENTER_COMMAND,
+  REDO_COMMAND,
+  SELECTION_CHANGE_COMMAND,
+  UNDO_COMMAND,
 } from 'lexical';
 import {
   AtSign,
   Bold,
+  Check,
   Code,
+  Heading1,
+  Heading2,
+  Heading3,
   Italic,
+  Link2,
+  Link2Off,
   List,
   ListOrdered,
   ListTodo,
+  Minus,
   Quote,
+  Redo2,
+  Slash,
+  Smile,
   SquareCode,
   Strikethrough,
+  Undo2,
 } from 'lucide-react';
-import { useCallback, useEffect } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { createPortal } from 'react-dom';
+import { EMOJI_CATEGORIES } from './discord-emoji-gif-picker.js';
+import { CHAT_TRANSFORMERS } from './lexical-markdown.js';
+import {
+  $createCommandNode,
+  $createMentionNode,
+  CommandNode,
+  MentionNode,
+} from './lexical-nodes.js';
+import type { SlashCommand } from './slash-commands.js';
 
+/**
+ * Classes the editor hangs on the DOM it renders.
+ *
+ * These deliberately mirror how a *sent* message is rendered, so the composer
+ * is a preview of the message rather than a differently-styled text box.
+ */
 const EDITOR_THEME = {
   paragraph: 'mb-1 last:mb-0 leading-normal',
   text: {
     bold: 'font-bold text-foreground',
-    italic: 'italic text-foreground',
+    italic: 'italic',
     strikethrough: 'line-through text-muted-foreground',
+    underline: 'underline underline-offset-2',
+    underlineStrikethrough: 'underline line-through underline-offset-2',
+    highlight: 'rounded bg-warning/25 px-0.5 text-foreground',
     code: 'rounded bg-surface-inset px-1.5 py-0.5 font-mono text-xs text-info-text',
+  },
+  heading: {
+    h1: 'mt-1 mb-1 text-lg font-bold leading-tight text-foreground',
+    h2: 'mt-1 mb-1 text-base font-bold leading-tight text-foreground',
+    h3: 'mt-1 mb-1 text-sm font-bold leading-tight text-foreground',
+    h4: 'mt-1 mb-1 text-sm font-semibold text-foreground',
+    h5: 'mt-1 mb-1 text-xs font-semibold text-foreground',
+    h6: 'mt-1 mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground',
   },
   list: {
     ul: 'list-disc pl-5 my-1 text-foreground',
     ol: 'list-decimal pl-5 my-1 text-foreground',
     listitem: 'my-0.5',
-    checklist: 'pl-2 my-1',
+    listitemChecked:
+      'relative my-0.5 list-none pl-6 line-through text-muted-foreground',
+    listitemUnchecked: 'relative my-0.5 list-none pl-6',
+    checklist: 'pl-2 my-1 list-none',
+    nested: { listitem: 'list-none' },
   },
-  quote: 'border-l-4 border-primary pl-3 py-1 my-1 text-muted-foreground italic bg-surface-inset/50 rounded-r',
-  code: 'block rounded-lg bg-surface-inset p-2.5 font-mono text-xs text-success-text border border-border my-1',
+  quote:
+    'border-l-4 border-primary pl-3 py-1 my-1 text-muted-foreground italic bg-surface-inset/50 rounded-r',
+  code: 'block rounded-lg bg-surface-inset p-2.5 font-mono text-xs text-success-text border border-border my-1 whitespace-pre-wrap',
+  hr: 'my-2 h-px border-0 bg-border',
+  link: 'text-primary-text underline underline-offset-2 cursor-pointer',
+  hashtag: 'rounded bg-info/15 px-1 font-semibold text-info-text',
+  mention:
+    'rounded border border-primary/40 bg-primary/20 px-1 font-semibold text-primary-text',
+  command:
+    'rounded border border-info/40 bg-info/15 px-1 font-semibold text-info-text',
 };
+
+/** Every node type the composer can hold. Anything missing here throws at runtime. */
+const EDITOR_NODES = [
+  HeadingNode,
+  QuoteNode,
+  ListNode,
+  ListItemNode,
+  CodeNode,
+  CodeHighlightNode,
+  LinkNode,
+  AutoLinkNode,
+  HashtagNode,
+  HorizontalRuleNode,
+  MentionNode,
+  CommandNode,
+];
+
+const AUTO_LINK_MATCHERS = [autoLinkUrlMatcher, autoLinkEmailMatcher];
+
+/** Someone (or something) a `@` mention can point at. */
+export interface MentionCandidate {
+  id: string;
+  /** Display name, without the leading `@`. */
+  name: string;
+  subtitle?: string;
+  avatarUrl?: string;
+  /** Group mentions (`@here`, `@channel`) are listed above people. */
+  kind?: 'user' | 'group';
+}
 
 export interface LexicalComposerInputProps {
   placeholder?: string;
   onSend: (text: string) => void | Promise<void>;
   onTyping?: (isTyping: boolean) => void;
   disabled?: boolean;
+  autoFocus?: boolean;
+  showToolbar?: boolean;
+  /** Candidates for the in-editor `@` menu. With none, the menu stays closed. */
+  members?: MentionCandidate[];
+  /** Commands for the in-editor `/` menu, offered at the start of a message. */
+  slashCommands?: SlashCommand[];
   onRegisterRef?: (ref: LexicalEditorRef) => void;
+  /** Fired alongside the built-in menu, for hosts that render their own. */
   onMentionTrigger?: (query: string) => void;
   onMentionClose?: () => void;
+  /** Extra controls appended to the toolbar's right-hand side. */
+  toolbarSlot?: ReactNode;
 }
 
+/** Imperative handle the host composer drives the editor with. */
 export interface LexicalEditorRef {
   insertText: (text: string) => void;
-  replaceMentionQuery: (name: string) => void;
+  insertMention: (candidate: MentionCandidate) => void;
+  /** Replaces a half-typed `@query` with a finished mention chip. */
+  replaceMentionQuery: (name: string, id?: string) => void;
+  /** Replaces the whole document with the given markdown. */
+  setMarkdown: (markdown: string) => void;
+  getMarkdown: () => string;
+  isEmpty: () => boolean;
+  /** Sends the current content, exactly as pressing Enter would. */
+  send: () => void;
+  focus: () => void;
   clear: () => void;
 }
 
-function EnterKeyPlugin({
+/* -------------------------------------------------------------------------- */
+/* Editor API                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Enter-to-send plus the imperative handle, in one plugin.
+ *
+ * They share `send`, which is the point: the Send button and the Enter key
+ * have to serialise the document the same way, and the serialisation — not the
+ * plain text — is what the rest of the platform receives. `$convertToMarkdownString`
+ * turns the rich document back into the markdown the message renderer reads,
+ * so a bulleted list typed in the composer arrives as a bulleted list.
+ */
+function EditorApiPlugin({
   onSend,
   onTyping,
+  onRegisterRef,
 }: {
   onSend: (text: string) => void | Promise<void>;
   onTyping?: (isTyping: boolean) => void;
+  onRegisterRef?: (ref: LexicalEditorRef) => void;
 }) {
   const [editor] = useLexicalComposerContext();
+
+  const readMarkdown = useCallback(() => {
+    let markdown = '';
+    editor.getEditorState().read(() => {
+      markdown = $convertToMarkdownString(CHAT_TRANSFORMERS, undefined, true);
+    });
+    return markdown;
+  }, [editor]);
+
+  const reset = useCallback(() => {
+    editor.update(() => {
+      const root = $getRoot();
+      root.clear();
+      root.append($createParagraphNode());
+    });
+  }, [editor]);
+
+  const send = useCallback(() => {
+    const body = readMarkdown().trim();
+    if (!body) return false;
+
+    reset();
+    onTyping?.(false);
+    void onSend(body);
+    return true;
+  }, [readMarkdown, reset, onSend, onTyping]);
+
+  const insertNodesAtCaret = useCallback(
+    (build: () => ReturnType<typeof $createTextNode>[]) => {
+      editor.update(() => {
+        const nodes = build();
+        const selection = $getSelection();
+
+        if ($isRangeSelection(selection)) {
+          $insertNodes(nodes);
+          return;
+        }
+
+        // No caret — the user clicked a picker without focusing the editor
+        // first. Append rather than dropping the insertion on the floor.
+        const root = $getRoot();
+        const last = root.getLastChild();
+        const target = $isElementNode(last) ? last : $createParagraphNode();
+        if (target !== last) root.append(target);
+        for (const node of nodes) target.append(node);
+        target.selectEnd();
+      });
+    },
+    [editor],
+  );
 
   useEffect(() => {
     return editor.registerCommand(
       KEY_ENTER_COMMAND,
       (event: KeyboardEvent | null) => {
-        if (event && !event.shiftKey) {
-          event.preventDefault();
-
-          let textToSend = '';
-          editor.getEditorState().read(() => {
-            textToSend = $getRoot().getTextContent().trim();
-          });
-
-          if (textToSend) {
-            editor.update(() => {
-              $getRoot().clear();
-              $getRoot().append($createParagraphNode());
-            });
-            onTyping?.(false);
-            void onSend(textToSend);
-          }
-          return true;
-        }
-        return false;
+        // Shift+Enter is the line break. Everything else sends — the typeahead
+        // menus claim Enter at CRITICAL priority while they are open, so this
+        // only ever runs when no menu is showing.
+        if (!event || event.shiftKey) return false;
+        event.preventDefault();
+        return send();
       },
       COMMAND_PRIORITY_HIGH,
     );
-  }, [editor, onSend, onTyping]);
-
-  return null;
-}
-
-function EditorRefPlugin({ onRegisterRef }: { onRegisterRef?: (ref: LexicalEditorRef) => void }) {
-  const [editor] = useLexicalComposerContext();
+  }, [editor, send]);
 
   useEffect(() => {
     if (!onRegisterRef) return;
 
     onRegisterRef({
-      insertText: (text: string) => {
+      insertText: (text) =>
+        insertNodesAtCaret(() => [$createTextNode(text)]),
+
+      insertMention: (candidate) =>
+        insertNodesAtCaret(() => [
+          $createMentionNode(candidate.name, candidate.id),
+          $createTextNode(' '),
+        ]),
+
+      replaceMentionQuery: (name, id) => {
         editor.update(() => {
           const selection = $getSelection();
-          if ($isRangeSelection(selection)) {
-            selection.insertText(text);
-          } else {
-            const root = $getRoot();
-            const lastChild = root.getLastChild();
-            if (lastChild && $isElementNode(lastChild)) {
-              lastChild.append($createTextNode(text));
-            } else {
-              const p = $createParagraphNode();
-              p.append($createTextNode(text));
-              root.append(p);
+          if (!$isRangeSelection(selection)) return;
+
+          // Walk back over the half-typed `@query` so the chip replaces it
+          // instead of landing next to it.
+          const anchor = selection.anchor;
+          const node = anchor.getNode();
+          if ($isTextNode(node)) {
+            const typed = node.getTextContent().slice(0, anchor.offset);
+            const at = typed.lastIndexOf('@');
+            if (at !== -1) {
+              selection.setTextNodeRange(node, at, node, anchor.offset);
             }
           }
+
+          $insertNodes([$createMentionNode(name, id), $createTextNode(' ')]);
         });
       },
-      replaceMentionQuery: (name: string) => {
+
+      setMarkdown: (markdown) => {
         editor.update(() => {
-          const selection = $getSelection();
-          if ($isRangeSelection(selection)) {
-            const anchor = selection.anchor;
-            const node = anchor.getNode();
-            if ($isTextNode(node)) {
-              const text = node.getTextContent();
-              const lastAt = text.lastIndexOf('@');
-              if (lastAt !== -1) {
-                const updatedText = text.slice(0, lastAt) + `@${name} `;
-                node.setTextContent(updatedText);
-                return;
-              }
-            }
-          }
-          const root = $getRoot();
-          const lastChild = root.getLastChild();
-          if (lastChild && $isElementNode(lastChild)) {
-            lastChild.append($createTextNode(`@${name} `));
-          } else {
-            const p = $createParagraphNode();
-            p.append($createTextNode(`@${name} `));
-            root.append(p);
-          }
+          $convertFromMarkdownString(markdown, CHAT_TRANSFORMERS, undefined, true);
         });
       },
-      clear: () => {
-        editor.update(() => {
-          $getRoot().clear();
-          $getRoot().append($createParagraphNode());
-        });
-      },
+
+      getMarkdown: readMarkdown,
+      isEmpty: () => readMarkdown().trim().length === 0,
+      send: () => void send(),
+      focus: () => editor.focus(),
+      clear: reset,
     });
-  }, [editor, onRegisterRef]);
+  }, [editor, onRegisterRef, insertNodesAtCaret, readMarkdown, reset, send]);
 
   return null;
 }
 
-/**
- * Live Mention Detector Plugin: triggers autocomplete popover when typing `@`
- */
-function MentionDetectPlugin({
-  onMentionTrigger,
-  onMentionClose,
-}: {
-  onMentionTrigger?: (query: string) => void;
-  onMentionClose?: () => void;
-}) {
+/** Mirrors the host's `disabled` flag into the editor's own editable state. */
+function EditablePlugin({ disabled }: { disabled: boolean }) {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
-    return editor.registerUpdateListener(({ editorState }) => {
-      editorState.read(() => {
-        const text = $getRoot().getTextContent();
-        const match = /(?:^|\s)@([a-zA-Z0-9_-]*)$/.exec(text);
-        if (match) {
-          onMentionTrigger?.(match[1] || '');
-        } else if (!text.includes('@')) {
-          onMentionClose?.();
-        }
-      });
-    });
-  }, [editor, onMentionTrigger, onMentionClose]);
+    editor.setEditable(!disabled);
+  }, [editor, disabled]);
 
   return null;
 }
 
-export function LexicalToolbar({ onMentionTrigger }: { onMentionTrigger?: (query: string) => void }) {
-  const [editor] = useLexicalComposerContext();
+/* -------------------------------------------------------------------------- */
+/* Typeahead menus                                                             */
+/* -------------------------------------------------------------------------- */
 
-  const formatText = useCallback(
-    (format: 'bold' | 'italic' | 'strikethrough' | 'code') => {
-      editor.dispatchCommand(FORMAT_TEXT_COMMAND, format);
-    },
-    [editor],
-  );
+const MENU_CLASS =
+  'w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl';
 
-  const insertBulletList = useCallback(() => {
-    editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
-  }, [editor]);
-
-  const insertNumberedList = useCallback(() => {
-    editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
-  }, [editor]);
-
-  const insertChecklist = useCallback(() => {
-    editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, undefined);
-  }, [editor]);
-
-  const insertQuote = useCallback(() => {
-    editor.update(() => {
-      const selection = $getSelection();
-      if ($isRangeSelection(selection)) {
-        selection.insertText('> ');
-      }
-    });
-  }, [editor]);
-
-  const insertCodeBlock = useCallback(() => {
-    editor.update(() => {
-      const selection = $getSelection();
-      if ($isRangeSelection(selection)) {
-        selection.insertText('```\n\n```');
-      }
-    });
-  }, [editor]);
-
+/**
+ * Shell every typeahead menu renders into.
+ *
+ * It anchors *upwards*: the composer sits at the bottom of the viewport, where
+ * Lexical's own downward placement would push the list off-screen.
+ */
+function MenuShell({
+  label,
+  icon,
+  hint,
+  children,
+}: {
+  label: string;
+  icon: ReactNode;
+  hint?: string;
+  children: ReactNode;
+}) {
   return (
-    <div className="flex items-center gap-0.5 border-b border-border bg-surface px-2 py-1 text-muted-foreground overflow-x-auto">
-      <button
-        type="button"
-        onClick={() => formatText('bold')}
-        title="Bold (Ctrl+B)"
-        className="rounded p-1 hover:bg-accent hover:text-foreground transition-colors"
-      >
-        <Bold className="size-3.5" />
-      </button>
-      <button
-        type="button"
-        onClick={() => formatText('italic')}
-        title="Italic (Ctrl+I)"
-        className="rounded p-1 hover:bg-accent hover:text-foreground transition-colors"
-      >
-        <Italic className="size-3.5" />
-      </button>
-      <button
-        type="button"
-        onClick={() => formatText('strikethrough')}
-        title="Strikethrough"
-        className="rounded p-1 hover:bg-accent hover:text-foreground transition-colors"
-      >
-        <Strikethrough className="size-3.5" />
-      </button>
-      <button
-        type="button"
-        onClick={() => formatText('code')}
-        title="Inline Code"
-        className="rounded p-1 hover:bg-accent hover:text-foreground transition-colors"
-      >
-        <Code className="size-3.5" />
-      </button>
-
-      <span className="mx-1 h-3.5 w-px bg-border" />
-
-      <button
-        type="button"
-        onClick={insertBulletList}
-        title="Bulleted List"
-        className="rounded p-1 hover:bg-accent hover:text-foreground transition-colors"
-      >
-        <List className="size-3.5" />
-      </button>
-      <button
-        type="button"
-        onClick={insertNumberedList}
-        title="Numbered List"
-        className="rounded p-1 hover:bg-accent hover:text-foreground transition-colors"
-      >
-        <ListOrdered className="size-3.5" />
-      </button>
-      <button
-        type="button"
-        onClick={insertChecklist}
-        title="Task Checklist"
-        className="rounded p-1 hover:bg-accent hover:text-foreground transition-colors"
-      >
-        <ListTodo className="size-3.5" />
-      </button>
-
-      <span className="mx-1 h-3.5 w-px bg-border" />
-
-      <button
-        type="button"
-        onClick={insertQuote}
-        title="Blockquote (>)"
-        className="rounded p-1 hover:bg-accent hover:text-foreground transition-colors"
-      >
-        <Quote className="size-3.5" />
-      </button>
-      <button
-        type="button"
-        onClick={insertCodeBlock}
-        title="Code Block (```)"
-        className="rounded p-1 hover:bg-accent hover:text-foreground transition-colors"
-      >
-        <SquareCode className="size-3.5" />
-      </button>
-
-      <span className="mx-1 h-3.5 w-px bg-border" />
-
-      <button
-        type="button"
-        onClick={() => {
-          editor.update(() => {
-            const selection = $getSelection();
-            if ($isRangeSelection(selection)) {
-              selection.insertText('@');
-            }
-          });
-          onMentionTrigger?.('');
-        }}
-        title="Mention Member (@)"
-        className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-semibold text-primary-text hover:bg-primary/20 transition-colors"
-      >
-        <AtSign className="size-3.5" />
-        <span>Mention</span>
-      </button>
+    <div className={`absolute bottom-full left-0 z-120 mb-2 ${MENU_CLASS}`}>
+      <div className="flex items-center justify-between border-b border-border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider">
+        <span className="flex items-center gap-1.5 text-primary-text">
+          {icon}
+          <span>{label}</span>
+        </span>
+        {hint ? <span className="text-subtle">{hint}</span> : null}
+      </div>
+      <ul className="max-h-64 overflow-y-auto p-1">{children}</ul>
     </div>
   );
 }
 
+function MenuItem({
+  option,
+  isSelected,
+  onSelect,
+  onHighlight,
+  children,
+}: {
+  option: MenuOption;
+  isSelected: boolean;
+  onSelect: () => void;
+  onHighlight: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <li role="option" aria-selected={isSelected} ref={option.setRefElement.bind(option)}>
+      <button
+        type="button"
+        tabIndex={-1}
+        onMouseEnter={onHighlight}
+        onMouseDown={(event) => {
+          // Keep the editor's selection alive: losing it would strand the
+          // query text the option is supposed to replace.
+          event.preventDefault();
+        }}
+        onClick={onSelect}
+        className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors ${
+          isSelected ? 'bg-accent text-foreground' : 'hover:bg-accent/60'
+        }`}
+      >
+        {children}
+      </button>
+    </li>
+  );
+}
+
+class MentionMenuOption extends MenuOption {
+  constructor(readonly candidate: MentionCandidate) {
+    super(`mention-${candidate.id}`);
+  }
+}
+
+function MentionsPlugin({
+  candidates,
+  onOpenChange,
+  onQuery,
+}: {
+  candidates: MentionCandidate[];
+  onOpenChange: (open: boolean) => void;
+  onQuery?: (query: string) => void;
+}) {
+  const [editor] = useLexicalComposerContext();
+  const [query, setQuery] = useState<string | null>(null);
+
+  // Names contain spaces, so the trigger has to keep matching past one.
+  const triggerFn = useBasicTypeaheadTriggerMatch('@', {
+    minLength: 0,
+    maxLength: 32,
+    allowWhitespace: true,
+  });
+
+  const options = useMemo(() => {
+    const needle = (query ?? '').toLowerCase().trim();
+    return candidates
+      .filter(
+        (candidate) =>
+          !needle ||
+          candidate.name.toLowerCase().includes(needle) ||
+          candidate.subtitle?.toLowerCase().includes(needle),
+      )
+      .slice(0, 12)
+      .map((candidate) => new MentionMenuOption(candidate));
+  }, [candidates, query]);
+
+  const onSelectOption = useCallback(
+    (
+      option: MentionMenuOption,
+      nodeToReplace: ReturnType<typeof $createTextNode> | null,
+      closeMenu: () => void,
+    ) => {
+      editor.update(() => {
+        const mention = $createMentionNode(
+          option.candidate.name,
+          option.candidate.id,
+        );
+        if (nodeToReplace) {
+          nodeToReplace.replace(mention);
+        } else {
+          $insertNodes([mention]);
+        }
+        const spacer = $createTextNode(' ');
+        mention.insertAfter(spacer);
+        spacer.select();
+        closeMenu();
+      });
+    },
+    [editor],
+  );
+
+  return (
+    <LexicalTypeaheadMenuPlugin<MentionMenuOption>
+      options={options}
+      triggerFn={triggerFn}
+      commandPriority={COMMAND_PRIORITY_CRITICAL}
+      onQueryChange={(matching) => {
+        setQuery(matching);
+        if (matching !== null) onQuery?.(matching);
+      }}
+      onOpen={() => onOpenChange(true)}
+      onClose={() => onOpenChange(false)}
+      onSelectOption={onSelectOption}
+      menuRenderFn={(anchorRef, { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex }) => {
+        if (!anchorRef.current || options.length === 0) return null;
+
+        const groups = options.filter((o) => o.candidate.kind === 'group');
+        const people = options.filter((o) => o.candidate.kind !== 'group');
+
+        const renderOption = (option: MentionMenuOption) => {
+          const index = options.indexOf(option);
+          return (
+            <MenuItem
+              key={option.key}
+              option={option}
+              isSelected={selectedIndex === index}
+              onHighlight={() => setHighlightedIndex(index)}
+              onSelect={() => selectOptionAndCleanUp(option)}
+            >
+              {option.candidate.kind === 'group' ? (
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/20 font-bold text-primary-text">
+                  @
+                </span>
+              ) : (
+                <span
+                  className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-inset text-[10px] font-bold text-foreground"
+                  aria-hidden
+                >
+                  {option.candidate.avatarUrl ? (
+                    <img
+                      src={option.candidate.avatarUrl}
+                      alt=""
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    option.candidate.name.slice(0, 2).toUpperCase()
+                  )}
+                </span>
+              )}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-semibold text-foreground">
+                  @{option.candidate.name}
+                </span>
+                {option.candidate.subtitle ? (
+                  <span className="block truncate text-[10px] text-muted-foreground">
+                    {option.candidate.subtitle}
+                  </span>
+                ) : null}
+              </span>
+            </MenuItem>
+          );
+        };
+
+        return createPortal(
+          <MenuShell
+            label="Mention"
+            hint="↑↓ to browse · ↵ to insert"
+            icon={<AtSign className="size-3.5" />}
+          >
+            {groups.length > 0 ? (
+              <li className="px-2 py-1 text-[10px] font-bold uppercase text-subtle">
+                Group mentions
+              </li>
+            ) : null}
+            {groups.map(renderOption)}
+            {people.length > 0 ? (
+              <li className="mt-1 px-2 py-1 text-[10px] font-bold uppercase text-subtle">
+                People — {people.length}
+              </li>
+            ) : null}
+            {people.map(renderOption)}
+          </MenuShell>,
+          anchorRef.current,
+        );
+      }}
+    />
+  );
+}
+
+class CommandMenuOption extends MenuOption {
+  constructor(readonly command: SlashCommand) {
+    super(`command-${command.name}`);
+  }
+}
+
+function SlashCommandsPlugin({
+  commands,
+  onOpenChange,
+}: {
+  commands: SlashCommand[];
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [editor] = useLexicalComposerContext();
+  const [query, setQuery] = useState<string | null>(null);
+
+  const basicTrigger = useBasicTypeaheadTriggerMatch('/', {
+    minLength: 0,
+    maxLength: 24,
+  });
+
+  // A command is only a command at the start of the message; anywhere else a
+  // slash is just a slash (dates, paths, and/or).
+  const triggerFn = useCallback(
+    (text: string, editorInstance: Parameters<typeof basicTrigger>[1]) => {
+      const match = basicTrigger(text, editorInstance);
+      return match && match.leadOffset === 0 ? match : null;
+    },
+    [basicTrigger],
+  );
+
+  const options = useMemo(() => {
+    const needle = (query ?? '').toLowerCase().trim();
+    return commands
+      .filter(
+        (command) =>
+          !needle ||
+          command.name.slice(1).toLowerCase().startsWith(needle) ||
+          command.description.toLowerCase().includes(needle),
+      )
+      .slice(0, 12)
+      .map((command) => new CommandMenuOption(command));
+  }, [commands, query]);
+
+  const onSelectOption = useCallback(
+    (
+      option: CommandMenuOption,
+      nodeToReplace: ReturnType<typeof $createTextNode> | null,
+      closeMenu: () => void,
+    ) => {
+      editor.update(() => {
+        const chip = $createCommandNode(option.command.name);
+        if (nodeToReplace) {
+          nodeToReplace.replace(chip);
+        } else {
+          $insertNodes([chip]);
+        }
+        const spacer = $createTextNode(' ');
+        chip.insertAfter(spacer);
+        spacer.select();
+        closeMenu();
+      });
+    },
+    [editor],
+  );
+
+  return (
+    <LexicalTypeaheadMenuPlugin<CommandMenuOption>
+      options={options}
+      triggerFn={triggerFn}
+      commandPriority={COMMAND_PRIORITY_CRITICAL}
+      onQueryChange={setQuery}
+      onOpen={() => onOpenChange(true)}
+      onClose={() => onOpenChange(false)}
+      onSelectOption={onSelectOption}
+      menuRenderFn={(anchorRef, { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex }) => {
+        if (!anchorRef.current || options.length === 0) return null;
+
+        return createPortal(
+          <MenuShell
+            label="Commands"
+            hint="↵ to pick"
+            icon={<Slash className="size-3.5" />}
+          >
+            {options.map((option, index) => (
+              <MenuItem
+                key={option.key}
+                option={option}
+                isSelected={selectedIndex === index}
+                onHighlight={() => setHighlightedIndex(index)}
+                onSelect={() => selectOptionAndCleanUp(option)}
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold text-info-text">
+                    {option.command.name}
+                    {option.command.args ? (
+                      <span className="ml-1 font-normal text-muted-foreground">
+                        {option.command.args}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="block truncate text-[10px] text-muted-foreground">
+                    {option.command.description}
+                  </span>
+                </span>
+              </MenuItem>
+            ))}
+          </MenuShell>,
+          anchorRef.current,
+        );
+      }}
+    />
+  );
+}
+
+/** Flat, de-duplicated emoji index for the `:shortcode:` menu. */
+const EMOJI_INDEX = [
+  ...new Map(
+    EMOJI_CATEGORIES.flatMap((category) => category.emojis).map((emoji) => [
+      emoji.name,
+      emoji,
+    ]),
+  ).values(),
+];
+
+class EmojiMenuOption extends MenuOption {
+  constructor(
+    readonly char: string,
+    readonly name: string,
+  ) {
+    super(`emoji-${name}`);
+  }
+}
+
+function EmojiPickerPlugin({
+  onOpenChange,
+}: {
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [editor] = useLexicalComposerContext();
+  const [query, setQuery] = useState<string | null>(null);
+
+  // Two characters before suggesting: `:)` and clock times should not open a
+  // menu on every keystroke.
+  const triggerFn = useBasicTypeaheadTriggerMatch(':', {
+    minLength: 2,
+    maxLength: 24,
+  });
+
+  const options = useMemo(() => {
+    const needle = (query ?? '').toLowerCase().trim();
+    if (!needle) return [];
+    return EMOJI_INDEX.filter(
+      (emoji) =>
+        emoji.name.includes(needle) ||
+        emoji.keywords.some((keyword) => keyword.includes(needle)),
+    )
+      .slice(0, 10)
+      .map((emoji) => new EmojiMenuOption(emoji.char, emoji.name));
+  }, [query]);
+
+  const onSelectOption = useCallback(
+    (
+      option: EmojiMenuOption,
+      nodeToReplace: ReturnType<typeof $createTextNode> | null,
+      closeMenu: () => void,
+    ) => {
+      editor.update(() => {
+        const emoji = $createTextNode(option.char);
+        if (nodeToReplace) {
+          nodeToReplace.replace(emoji);
+        } else {
+          $insertNodes([emoji]);
+        }
+        emoji.selectEnd();
+        closeMenu();
+      });
+    },
+    [editor],
+  );
+
+  return (
+    <LexicalTypeaheadMenuPlugin<EmojiMenuOption>
+      options={options}
+      triggerFn={triggerFn}
+      commandPriority={COMMAND_PRIORITY_CRITICAL}
+      onQueryChange={setQuery}
+      onOpen={() => onOpenChange(true)}
+      onClose={() => onOpenChange(false)}
+      onSelectOption={onSelectOption}
+      menuRenderFn={(anchorRef, { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex }) => {
+        if (!anchorRef.current || options.length === 0) return null;
+
+        return createPortal(
+          <MenuShell label="Emoji" icon={<Smile className="size-3.5" />}>
+            {options.map((option, index) => (
+              <MenuItem
+                key={option.key}
+                option={option}
+                isSelected={selectedIndex === index}
+                onHighlight={() => setHighlightedIndex(index)}
+                onSelect={() => selectOptionAndCleanUp(option)}
+              >
+                <span className="text-base leading-none" aria-hidden>
+                  {option.char}
+                </span>
+                <span className="truncate text-muted-foreground">
+                  :{option.name}:
+                </span>
+              </MenuItem>
+            ))}
+          </MenuShell>,
+          anchorRef.current,
+        );
+      }}
+    />
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Toolbar                                                                     */
+/* -------------------------------------------------------------------------- */
+
+type BlockType =
+  | 'paragraph'
+  | 'h1'
+  | 'h2'
+  | 'h3'
+  | 'quote'
+  | 'code'
+  | 'ul'
+  | 'ol'
+  | 'check';
+
+const TOOL_BUTTON =
+  'flex size-7 shrink-0 items-center justify-center rounded transition-colors';
+
+function ToolButton({
+  label,
+  isActive = false,
+  disabled = false,
+  onClick,
+  children,
+}: {
+  label: string;
+  isActive?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      aria-pressed={isActive}
+      disabled={disabled}
+      // Formatting must not steal the caret, or there is nothing to format.
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onClick}
+      className={`${TOOL_BUTTON} ${
+        isActive
+          ? 'bg-primary/20 text-primary-text'
+          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+      } disabled:pointer-events-none disabled:opacity-40`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Divider() {
+  return <span className="mx-1 h-3.5 w-px shrink-0 bg-border" />;
+}
+
+/**
+ * The formatting bar.
+ *
+ * Every control reflects the caret: the bold button is lit inside bold text,
+ * the list button inside a list. That feedback is what makes the markdown
+ * shortcuts discoverable — type `- ` and watch the bullet button light up.
+ *
+ * Underline is deliberately absent. The composer serialises to markdown, which
+ * has no underline, so offering it would quietly drop the formatting on send.
+ */
+export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
+  const [editor] = useLexicalComposerContext();
+  const [formats, setFormats] = useState({
+    bold: false,
+    italic: false,
+    strikethrough: false,
+    code: false,
+    highlight: false,
+  });
+  const [blockType, setBlockType] = useState<BlockType>('paragraph');
+  const [isLink, setIsLink] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const [linkDraft, setLinkDraft] = useState<string | null>(null);
+  const linkInputRef = useRef<HTMLInputElement>(null);
+
+  const syncToolbar = useCallback(() => {
+    const selection = $getSelection();
+    if (!$isRangeSelection(selection)) return;
+
+    setFormats({
+      bold: selection.hasFormat('bold'),
+      italic: selection.hasFormat('italic'),
+      strikethrough: selection.hasFormat('strikethrough'),
+      code: selection.hasFormat('code'),
+      highlight: selection.hasFormat('highlight'),
+    });
+
+    const anchorNode = selection.anchor.getNode();
+    const parent = anchorNode.getParent();
+    setIsLink($isLinkNode(parent) || $isLinkNode(anchorNode));
+
+    const element = anchorNode.getTopLevelElement() ?? anchorNode;
+    if ($isListNode(element)) {
+      const listType = element.getListType();
+      setBlockType(
+        listType === 'number' ? 'ol' : listType === 'check' ? 'check' : 'ul',
+      );
+    } else if ($isHeadingNode(element)) {
+      const tag = element.getTag();
+      setBlockType(tag === 'h1' || tag === 'h2' || tag === 'h3' ? tag : 'paragraph');
+    } else if ($isQuoteNode(element)) {
+      setBlockType('quote');
+    } else if ($isCodeNode(element)) {
+      setBlockType('code');
+    } else {
+      setBlockType('paragraph');
+    }
+  }, []);
+
+  useEffect(() => {
+    return mergeRegister(
+      editor.registerUpdateListener(({ editorState }) => {
+        editorState.read(syncToolbar);
+      }),
+      editor.registerCommand(
+        SELECTION_CHANGE_COMMAND,
+        () => {
+          syncToolbar();
+          return false;
+        },
+        COMMAND_PRIORITY_CRITICAL,
+      ),
+      editor.registerCommand(
+        CAN_UNDO_COMMAND,
+        (payload) => {
+          setCanUndo(payload);
+          return false;
+        },
+        COMMAND_PRIORITY_CRITICAL,
+      ),
+      editor.registerCommand(
+        CAN_REDO_COMMAND,
+        (payload) => {
+          setCanRedo(payload);
+          return false;
+        },
+        COMMAND_PRIORITY_CRITICAL,
+      ),
+    );
+  }, [editor, syncToolbar]);
+
+  useEffect(() => {
+    if (linkDraft !== null) linkInputRef.current?.focus();
+  }, [linkDraft]);
+
+  const setBlock = useCallback(
+    (next: BlockType) => {
+      // Clicking the active block type returns to plain text, so every button
+      // is a toggle rather than a one-way trip.
+      const target = next === blockType ? 'paragraph' : next;
+
+      if (target === 'ul' || target === 'ol' || target === 'check') {
+        editor.dispatchCommand(
+          target === 'ul'
+            ? INSERT_UNORDERED_LIST_COMMAND
+            : target === 'ol'
+              ? INSERT_ORDERED_LIST_COMMAND
+              : INSERT_CHECK_LIST_COMMAND,
+          undefined,
+        );
+        return;
+      }
+
+      if (blockType === 'ul' || blockType === 'ol' || blockType === 'check') {
+        editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
+        if (target === 'paragraph') return;
+      }
+
+      editor.update(() => {
+        const selection = $getSelection();
+        if (!$isRangeSelection(selection)) return;
+
+        $setBlocksType(selection, () =>
+          target === 'quote'
+            ? $createQuoteNode()
+            : target === 'code'
+              ? $createCodeNode()
+              : target === 'paragraph'
+                ? $createParagraphNode()
+                : $createHeadingNode(target as HeadingTagType),
+        );
+      });
+    },
+    [editor, blockType],
+  );
+
+  const applyLink = useCallback(() => {
+    const url = (linkDraft ?? '').trim();
+    editor.dispatchCommand(
+      TOGGLE_LINK_COMMAND,
+      url ? (/^[a-z][\w+.-]*:/i.test(url) ? url : `https://${url}`) : null,
+    );
+    setLinkDraft(null);
+    editor.focus();
+  }, [editor, linkDraft]);
+
+  return (
+    <div className="border-b border-border bg-surface">
+      <div className="flex items-center gap-0.5 overflow-x-auto px-2 py-1 scrollbar-none">
+        <ToolButton
+          label="Bold (Ctrl+B)"
+          isActive={formats.bold}
+          onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}
+        >
+          <Bold className="size-3.5" />
+        </ToolButton>
+        <ToolButton
+          label="Italic (Ctrl+I)"
+          isActive={formats.italic}
+          onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}
+        >
+          <Italic className="size-3.5" />
+        </ToolButton>
+        <ToolButton
+          label="Strikethrough (~~text~~)"
+          isActive={formats.strikethrough}
+          onClick={() =>
+            editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough')
+          }
+        >
+          <Strikethrough className="size-3.5" />
+        </ToolButton>
+        <ToolButton
+          label="Inline code (`code`)"
+          isActive={formats.code}
+          onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code')}
+        >
+          <Code className="size-3.5" />
+        </ToolButton>
+        <ToolButton
+          label={isLink ? 'Remove link' : 'Add link ([text](url))'}
+          isActive={isLink}
+          onClick={() => {
+            if (isLink) {
+              editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
+              return;
+            }
+            setLinkDraft((current) => (current === null ? '' : null));
+          }}
+        >
+          {isLink ? <Link2Off className="size-3.5" /> : <Link2 className="size-3.5" />}
+        </ToolButton>
+
+        <Divider />
+
+        <ToolButton
+          label="Heading 1 (# )"
+          isActive={blockType === 'h1'}
+          onClick={() => setBlock('h1')}
+        >
+          <Heading1 className="size-3.5" />
+        </ToolButton>
+        <ToolButton
+          label="Heading 2 (## )"
+          isActive={blockType === 'h2'}
+          onClick={() => setBlock('h2')}
+        >
+          <Heading2 className="size-3.5" />
+        </ToolButton>
+        <ToolButton
+          label="Heading 3 (### )"
+          isActive={blockType === 'h3'}
+          onClick={() => setBlock('h3')}
+        >
+          <Heading3 className="size-3.5" />
+        </ToolButton>
+
+        <Divider />
+
+        <ToolButton
+          label="Bulleted list (- )"
+          isActive={blockType === 'ul'}
+          onClick={() => setBlock('ul')}
+        >
+          <List className="size-3.5" />
+        </ToolButton>
+        <ToolButton
+          label="Numbered list (1. )"
+          isActive={blockType === 'ol'}
+          onClick={() => setBlock('ol')}
+        >
+          <ListOrdered className="size-3.5" />
+        </ToolButton>
+        <ToolButton
+          label="Task list (- [ ] )"
+          isActive={blockType === 'check'}
+          onClick={() => setBlock('check')}
+        >
+          <ListTodo className="size-3.5" />
+        </ToolButton>
+
+        <Divider />
+
+        <ToolButton
+          label="Blockquote (> )"
+          isActive={blockType === 'quote'}
+          onClick={() => setBlock('quote')}
+        >
+          <Quote className="size-3.5" />
+        </ToolButton>
+        <ToolButton
+          label="Code block (```)"
+          isActive={blockType === 'code'}
+          onClick={() => setBlock('code')}
+        >
+          <SquareCode className="size-3.5" />
+        </ToolButton>
+        <ToolButton
+          label="Divider (---)"
+          onClick={() =>
+            editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)
+          }
+        >
+          <Minus className="size-3.5" />
+        </ToolButton>
+
+        <Divider />
+
+        <ToolButton
+          label="Undo (Ctrl+Z)"
+          disabled={!canUndo}
+          onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
+        >
+          <Undo2 className="size-3.5" />
+        </ToolButton>
+        <ToolButton
+          label="Redo (Ctrl+Shift+Z)"
+          disabled={!canRedo}
+          onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
+        >
+          <Redo2 className="size-3.5" />
+        </ToolButton>
+
+        {toolbarSlot ? (
+          <>
+            <Divider />
+            {toolbarSlot}
+          </>
+        ) : null}
+      </div>
+
+      {linkDraft !== null ? (
+        <div className="flex items-center gap-1.5 border-t border-border bg-surface-raised px-2 py-1.5">
+          <Link2 className="size-3.5 shrink-0 text-muted-foreground" />
+          <input
+            ref={linkInputRef}
+            value={linkDraft}
+            onChange={(event) => setLinkDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                applyLink();
+              } else if (event.key === 'Escape') {
+                event.preventDefault();
+                setLinkDraft(null);
+                editor.focus();
+              }
+            }}
+            placeholder="Paste or type a link, then press Enter"
+            aria-label="Link URL"
+            className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-subtle"
+          />
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={applyLink}
+            className={`${TOOL_BUTTON} text-primary-text hover:bg-accent`}
+            aria-label="Apply link"
+          >
+            <Check className="size-3.5" />
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Editor                                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The message editor.
+ *
+ * What the user types is a real rich-text document — headings, lists, task
+ * lists, quotes, code blocks, links, dividers, mention and command chips — and
+ * what gets sent is the markdown that document serialises to. Both directions
+ * run through the same transformer list, so nothing typed is lost on send and
+ * nothing sent renders differently than it looked here.
+ */
 export function LexicalComposerInput({
-  placeholder = 'Message channel...',
+  placeholder = 'Message channel…',
   onSend,
   onTyping,
+  disabled = false,
+  autoFocus = false,
+  showToolbar = true,
+  members = [],
+  slashCommands = [],
   onRegisterRef,
   onMentionTrigger,
   onMentionClose,
+  toolbarSlot,
 }: LexicalComposerInputProps) {
-  const initialConfig = {
-    namespace: 'DiscordLexicalChat',
-    theme: EDITOR_THEME,
-    onError: (error: Error) => console.error('Lexical Error:', error),
-    nodes: [
-      HeadingNode,
-      QuoteNode,
-      ListNode,
-      ListItemNode,
-      CodeNode,
-      CodeHighlightNode,
-    ],
-  };
+  const initialConfig = useMemo(
+    () => ({
+      namespace: 'OneTabChatComposer',
+      theme: EDITOR_THEME,
+      onError: (error: Error) => console.error('Lexical error:', error),
+      nodes: EDITOR_NODES,
+    }),
+    [],
+  );
+
+  const handleMentionOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) onMentionClose?.();
+    },
+    [onMentionClose],
+  );
 
   return (
     <LexicalComposer initialConfig={initialConfig}>
       <div className="relative flex flex-1 flex-col">
-        <LexicalToolbar onMentionTrigger={onMentionTrigger} />
+        {showToolbar ? <LexicalToolbar toolbarSlot={toolbarSlot} /> : null}
+
         <div className="relative flex-1 px-3 py-2">
           <RichTextPlugin
             contentEditable={
@@ -389,22 +1268,50 @@ export function LexicalComposerInput({
                     {placeholder}
                   </div>
                 }
-                className="max-h-48 min-h-[44px] w-full resize-none text-sm font-normal text-foreground outline-none placeholder:text-subtle"
+                className="max-h-64 min-h-11 w-full resize-none overflow-y-auto text-sm font-normal text-foreground outline-none"
               />
             }
             ErrorBoundary={LexicalErrorBoundary}
           />
         </div>
+
         <HistoryPlugin />
         <ListPlugin />
+        <CheckListPlugin />
+        <LinkPlugin />
+        <ClickableLinkPlugin newTab />
+        <AutoLinkPlugin matchers={AUTO_LINK_MATCHERS} />
+        <HashtagPlugin />
+        <HorizontalRulePlugin />
+        <TabIndentationPlugin />
+        <MarkdownShortcutPlugin transformers={CHAT_TRANSFORMERS} />
+        {autoFocus ? <AutoFocusPlugin /> : null}
+
         <OnChangePlugin
-          onChange={() => {
-            onTyping?.(true);
-          }}
+          ignoreSelectionChange
+          onChange={() => onTyping?.(true)}
         />
-        <EnterKeyPlugin onSend={onSend} onTyping={onTyping} />
-        <EditorRefPlugin onRegisterRef={onRegisterRef} />
-        <MentionDetectPlugin onMentionTrigger={onMentionTrigger} onMentionClose={onMentionClose} />
+        <EditablePlugin disabled={disabled} />
+        <EditorApiPlugin
+          onSend={onSend}
+          onTyping={onTyping}
+          onRegisterRef={onRegisterRef}
+        />
+
+        {members.length > 0 ? (
+          <MentionsPlugin
+            candidates={members}
+            onOpenChange={handleMentionOpenChange}
+            onQuery={onMentionTrigger}
+          />
+        ) : null}
+        {slashCommands.length > 0 ? (
+          <SlashCommandsPlugin
+            commands={slashCommands}
+            onOpenChange={() => undefined}
+          />
+        ) : null}
+        <EmojiPickerPlugin onOpenChange={() => undefined} />
       </div>
     </LexicalComposer>
   );

@@ -7,8 +7,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Hint,
-  ScrollArea,
-  UserAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -22,48 +20,34 @@ import {
   Smile,
   Video,
 } from 'lucide-react';
-import { useId, useRef, useState, type ReactNode } from 'react';
-import {
-  DiscordEmojiGifPicker,
-} from './discord-emoji-gif-picker.js';
+import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { DiscordEmojiGifPicker } from './discord-emoji-gif-picker.js';
 import {
   LexicalComposerInput,
   type LexicalEditorRef,
+  type MentionCandidate,
 } from './lexical-composer.js';
+import { DEFAULT_SLASH_COMMANDS, type SlashCommand } from './slash-commands.js';
 
-export interface SlashCommand {
-  name: string;
-  args?: string;
-  description: string;
-}
+export { DEFAULT_SLASH_COMMANDS, type SlashCommand };
 
-export const DEFAULT_SLASH_COMMANDS: SlashCommand[] = [
-  { name: '/here', description: 'Notify everyone active in this channel' },
-  { name: '/channel', description: 'Notify everyone in this channel' },
-  { name: '/huddle', description: 'Start a huddle in this channel' },
+/**
+ * Mentions that address a group rather than a person. They lead the `@` menu
+ * because they are the ones people reach for by name rather than by face.
+ */
+const GROUP_MENTIONS: MentionCandidate[] = [
   {
-    name: '/remind',
-    args: '[who] [what] [when]',
-    description: 'Set a reminder for yourself or someone else',
+    id: 'here',
+    name: 'here',
+    kind: 'group',
+    subtitle: 'Notify active members in this channel',
   },
   {
-    name: '/topic',
-    args: '[text]',
-    description: "Set the channel's topic",
+    id: 'channel',
+    name: 'channel',
+    kind: 'group',
+    subtitle: 'Notify every member of this channel',
   },
-  {
-    name: '/invite',
-    args: '@person',
-    description: 'Add someone to this channel',
-  },
-  {
-    name: '/dm',
-    args: '@person [message]',
-    description: 'Open a direct message',
-  },
-  { name: '/poll', args: '[question]', description: 'Start a quick poll' },
-  { name: '/away', description: 'Toggle your away status' },
-  { name: '/shrug', args: '[message]', description: 'Append ¯\\_(ツ)_/¯' },
 ];
 
 export interface ComposerProps {
@@ -75,6 +59,7 @@ export interface ComposerProps {
   disabled?: boolean;
   contextSlot?: ReactNode;
   enterToSend?: boolean;
+  /** Off in the thread panel, where the reply box stays out of the way. */
   showFormatting?: boolean;
   slashCommands?: SlashCommand[];
   onSchedule?: (body: string, when: string) => void;
@@ -82,6 +67,14 @@ export interface ComposerProps {
   onRecordClip?: () => void;
 }
 
+/**
+ * The message box: a Lexical rich-text editor plus the surrounding controls.
+ *
+ * The editor owns everything that depends on the caret — formatting, the `@`,
+ * `/` and `:` menus, markdown shortcuts — because those need to know where the
+ * cursor is. This component owns what sits around it: attachments, the emoji
+ * and GIF pickers, scheduling, and send.
+ */
 export function Composer({
   onSend,
   onTyping,
@@ -90,6 +83,8 @@ export function Composer({
   placeholder = 'Message channel…',
   disabled = false,
   contextSlot,
+  showFormatting = true,
+  slashCommands = DEFAULT_SLASH_COMMANDS,
   onSchedule,
   onStartHuddle,
 }: ComposerProps) {
@@ -98,160 +93,67 @@ export function Composer({
     tab: 'emoji' | 'gif';
   }>({ open: false, tab: 'emoji' });
 
-  const [showMentionMenu, setShowMentionMenu] = useState(false);
-  const [mentionQuery, setMentionQuery] = useState('');
   const lexicalRef = useRef<LexicalEditorRef | null>(null);
   const fileInputId = useId();
 
-  const handleSelectEmoji = (emoji: string) => {
-    lexicalRef.current?.insertText(emoji);
-  };
+  const mentionCandidates = useMemo<MentionCandidate[]>(
+    () => [
+      ...GROUP_MENTIONS,
+      ...members.map((member) => ({
+        id: member.userId,
+        name: member.displayName,
+        avatarUrl: member.avatarUrl,
+        kind: 'user' as const,
+      })),
+    ],
+    [members],
+  );
 
   const handleSelectGif = (gifUrl: string, title?: string) => {
-    const markdownGif = `![${title || 'GIF'}](${gifUrl})`;
-    void onSend(markdownGif);
+    void onSend(`![${title || 'GIF'}](${gifUrl})`);
+    setPickerState({ open: false, tab: 'emoji' });
   };
-
-  const insertMention = (name: string) => {
-    lexicalRef.current?.replaceMentionQuery(name);
-    setShowMentionMenu(false);
-    setMentionQuery('');
-  };
-
-  const specialMentions = [
-    { id: 'here', displayName: 'here', subtitle: 'Notify active members in channel' },
-    { id: 'channel', displayName: 'channel', subtitle: 'Notify all members in channel' },
-  ];
-
-  const filteredSpecialMentions = specialMentions.filter((item) =>
-    item.displayName.toLowerCase().includes(mentionQuery.toLowerCase()),
-  );
-
-  const filteredMembers = members.filter((member) =>
-    member.displayName.toLowerCase().includes(mentionQuery.toLowerCase()),
-  );
 
   return (
-    <div className="relative shrink-0 sticky bottom-0 z-20 p-3 bg-background border-t border-border">
+    <div className="sticky bottom-0 z-20 shrink-0 border-t border-border bg-background p-3">
       {contextSlot}
 
-      {/* Mention Autocomplete Overlay Menu */}
-      {showMentionMenu ? (
-        <div className="absolute bottom-full left-3 z-50 mb-2 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl animate-in fade-in zoom-in-95 duration-150">
-          <div className="flex items-center justify-between border-b border-border px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            <span className="flex items-center gap-1.5 text-primary-text">
-              <AtSign className="size-3.5" />
-              <span>Mention Member</span>
-            </span>
-            <button
-              onClick={() => setShowMentionMenu(false)}
-              className="text-[10px] hover:text-foreground"
-            >
-              Close
-            </button>
-          </div>
-          <ScrollArea className="max-h-56" contentClassName="p-1">
-            {/* Special mentions: @here, @channel */}
-            {filteredSpecialMentions.length > 0 ? (
-              <>
-                <div className="px-2 py-1 text-[10px] font-bold text-subtle uppercase">
-                  Group Mentions
-                </div>
-                {filteredSpecialMentions.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => insertMention(item.displayName)}
-                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-accent"
-                  >
-                    <div className="flex size-6 items-center justify-center rounded-full bg-primary/20 font-bold text-primary-text">
-                      @
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-primary-text">@{item.displayName}</p>
-                      <p className="text-[10px] text-muted-foreground truncate">{item.subtitle}</p>
-                    </div>
-                  </button>
-                ))}
-              </>
-            ) : null}
-
-            {/* Room Members */}
-            {filteredMembers.length > 0 ? (
-              <>
-                <div className="mt-1.5 px-2 py-1 text-[10px] font-bold text-subtle uppercase">
-                  Members — {filteredMembers.length}
-                </div>
-                {filteredMembers.map((member) => (
-                  <button
-                    key={member.userId}
-                    onClick={() => insertMention(member.displayName)}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-accent"
-                  >
-                    <UserAvatar
-                      name={member.displayName}
-                      src={member.avatarUrl}
-                      seed={member.userId}
-                      size="xs"
-                    />
-                    <span className="font-semibold text-foreground truncate">
-                      @{member.displayName}
-                    </span>
-                  </button>
-                ))}
-              </>
-            ) : filteredSpecialMentions.length === 0 ? (
-              <p className="p-3 text-center text-xs text-muted-foreground">
-                No members found matching &quot;@{mentionQuery}&quot;
-              </p>
-            ) : null}
-          </ScrollArea>
-        </div>
-      ) : null}
-
-      {/* Discord Emoji & GIF Picker Overlay */}
       {pickerState.open ? (
         <DiscordEmojiGifPicker
           defaultTab={pickerState.tab}
-          onSelectEmoji={handleSelectEmoji}
+          onSelectEmoji={(emoji) => lexicalRef.current?.insertText(emoji)}
           onSelectGif={handleSelectGif}
           onClose={() => setPickerState({ open: false, tab: 'emoji' })}
         />
       ) : null}
 
-      {/* Main Container Box */}
       <div
         className={cn(
           'relative flex flex-col rounded-xl border border-border bg-surface transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary',
           disabled && 'opacity-60 pointer-events-none',
         )}
       >
-        {/* Lexical Input Area */}
         <LexicalComposerInput
           placeholder={placeholder}
           onSend={onSend}
           onTyping={onTyping}
           disabled={disabled}
-          onMentionTrigger={(q) => {
-            setMentionQuery(q);
-            setShowMentionMenu(true);
-          }}
-          onMentionClose={() => {
-            setShowMentionMenu(false);
-          }}
+          showToolbar={showFormatting}
+          members={mentionCandidates}
+          slashCommands={slashCommands}
           onRegisterRef={(ref) => {
             lexicalRef.current = ref;
           }}
         />
 
-        {/* Action Bar (Bottom Tools) */}
+        {/* Action bar */}
         <div className="flex items-center justify-between border-t border-border bg-surface-raised px-2.5 py-1.5 rounded-b-xl">
           <div className="flex items-center gap-1">
-            {/* Attachment Button */}
             <Hint label="Attach file or media">
               <button
                 type="button"
                 onClick={() => document.getElementById(fileInputId)?.click()}
-                className="flex size-7 items-center justify-center rounded-full bg-accent text-foreground hover:bg-selected hover:text-foreground transition-colors"
+                className="flex size-7 items-center justify-center rounded-full bg-accent text-foreground hover:bg-selected transition-colors"
               >
                 <Plus className="size-4" />
               </button>
@@ -269,56 +171,55 @@ export function Composer({
 
             <span className="mx-1 h-4 w-px bg-accent/50" />
 
-            {/* Mention Trigger Button */}
-            <Hint label="Mention Member (@)">
+            {/* Typing the trigger is what opens the menu, so these buttons do
+                exactly that rather than duplicating the menu themselves. */}
+            <Hint label="Mention someone (@)">
               <button
                 type="button"
                 onClick={() => {
+                  lexicalRef.current?.focus();
                   lexicalRef.current?.insertText('@');
-                  setMentionQuery('');
-                  setShowMentionMenu(true);
                 }}
-                className={cn(
-                  'flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors',
-                  showMentionMenu && 'bg-primary text-primary-foreground',
-                )}
+                className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
               >
                 <AtSign className="size-4" />
               </button>
             </Hint>
 
-            {/* Emoji Picker Button */}
-            <Hint label="Insert Emoji">
+            <Hint label="Insert emoji">
               <button
                 type="button"
                 onClick={() =>
-                  setPickerState((curr) => ({
-                    open: !curr.open || curr.tab !== 'emoji',
+                  setPickerState((current) => ({
+                    open: !current.open || current.tab !== 'emoji',
                     tab: 'emoji',
                   }))
                 }
                 className={cn(
                   'flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors',
-                  pickerState.open && pickerState.tab === 'emoji' && 'bg-primary text-primary-foreground',
+                  pickerState.open &&
+                    pickerState.tab === 'emoji' &&
+                    'bg-primary text-primary-foreground',
                 )}
               >
                 <Smile className="size-4" />
               </button>
             </Hint>
 
-            {/* GIF Picker Button */}
-            <Hint label="Open GIF Picker">
+            <Hint label="Open GIF picker">
               <button
                 type="button"
                 onClick={() =>
-                  setPickerState((curr) => ({
-                    open: !curr.open || curr.tab !== 'gif',
+                  setPickerState((current) => ({
+                    open: !current.open || current.tab !== 'gif',
                     tab: 'gif',
                   }))
                 }
                 className={cn(
                   'flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-bold text-muted-foreground hover:bg-accent hover:text-foreground transition-colors',
-                  pickerState.open && pickerState.tab === 'gif' && 'bg-primary text-primary-foreground',
+                  pickerState.open &&
+                    pickerState.tab === 'gif' &&
+                    'bg-primary text-primary-foreground',
                 )}
               >
                 <Film className="size-3.5" />
@@ -326,11 +227,11 @@ export function Composer({
               </button>
             </Hint>
 
-            {/* Command Trigger Button */}
-            <Hint label="Slash commands">
+            <Hint label="Slash commands (/)">
               <button
                 type="button"
                 onClick={() => {
+                  lexicalRef.current?.focus();
                   lexicalRef.current?.insertText('/');
                 }}
                 className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
@@ -340,7 +241,7 @@ export function Composer({
             </Hint>
 
             {onStartHuddle ? (
-              <Hint label="Start Voice Huddle">
+              <Hint label="Start voice huddle">
                 <button
                   type="button"
                   onClick={onStartHuddle}
@@ -352,42 +253,50 @@ export function Composer({
             ) : null}
           </div>
 
-          {/* Right Action: Send & Schedule */}
           <div className="flex items-center gap-1">
             {onSchedule ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
+                    aria-label="Schedule message"
                     className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
                   >
                     <ChevronDown className="size-3.5" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52 bg-surface text-foreground border-border">
-                  <DropdownMenuLabel className="text-xs text-muted-foreground">Schedule message</DropdownMenuLabel>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-52 bg-surface text-foreground border-border"
+                >
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">
+                    Schedule message
+                  </DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-border" />
-                  {['In 30 minutes', 'Tomorrow at 9:00 AM', 'Monday at 9:00 AM'].map((when) => (
-                    <DropdownMenuItem
-                      key={when}
-                      onSelect={() => {
-                        void onSend(`[Scheduled for ${when}]`);
-                      }}
-                      className="hover:bg-accent focus:bg-accent"
-                    >
-                      <Clock className="mr-2 size-3.5" />
-                      {when}
-                    </DropdownMenuItem>
-                  ))}
+                  {['In 30 minutes', 'Tomorrow at 9:00 AM', 'Monday at 9:00 AM'].map(
+                    (when) => (
+                      <DropdownMenuItem
+                        key={when}
+                        onSelect={() => {
+                          const body = lexicalRef.current?.getMarkdown().trim();
+                          if (!body) return;
+                          onSchedule(body, when);
+                          lexicalRef.current?.clear();
+                        }}
+                        className="hover:bg-accent focus:bg-accent"
+                      >
+                        <Clock className="mr-2 size-3.5" />
+                        {when}
+                      </DropdownMenuItem>
+                    ),
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : null}
 
             <button
               type="button"
-              onClick={() => {
-                // Submit is handled by Enter in Lexical
-              }}
+              onClick={() => lexicalRef.current?.send()}
               disabled={disabled}
               className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground shadow-sm transition-transform hover:bg-primary-hover active:scale-95 disabled:opacity-50"
             >
@@ -401,7 +310,11 @@ export function Composer({
       <div className="mt-1 px-1 flex items-center justify-between text-[11px] text-muted-foreground">
         <span>
           <strong className="font-semibold text-foreground">Enter</strong> to send ·{' '}
-          <strong className="font-semibold text-foreground">Shift+Enter</strong> for line break · Powered by Lexical
+          <strong className="font-semibold text-foreground">Shift+Enter</strong> for
+          a line break · <strong className="font-semibold text-foreground">@</strong>{' '}
+          people, <strong className="font-semibold text-foreground">/</strong>{' '}
+          commands, <strong className="font-semibold text-foreground">:</strong>{' '}
+          emoji · markdown as you type
         </span>
       </div>
     </div>

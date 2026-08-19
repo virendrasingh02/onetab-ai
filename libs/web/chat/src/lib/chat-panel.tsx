@@ -2,7 +2,7 @@ import { ConnectionBanner } from '@org/chat-ui';
 import { Button, EmptyState, LoadingState } from '@org/ui';
 import { MessageSquareOff } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
-import { ChatSurface } from './chat-surface.js';
+import { ChatSurface, type ChatSurfaceWelcome } from './chat-surface.js';
 import { useMatrix } from './matrix-provider.js';
 import { usePresence, useRoom, useRoomActions } from './use-chat.js';
 
@@ -18,6 +18,8 @@ export interface ChatPanelProps {
   headerActionsSlot?: HTMLElement | null;
   /** Off for direct messages, which have a fixed roster of two. */
   showMembers?: boolean;
+  /** Channel metadata for the welcome block. See `ChatSurface`. */
+  welcome?: ChatSurfaceWelcome;
 }
 
 /**
@@ -32,6 +34,7 @@ export function ChatPanel({
   subtitle,
   headerActionsSlot,
   showMembers = true,
+  welcome,
 }: ChatPanelProps) {
   const { client, status, enabled, error } = useMatrix();
   const room = useRoom(roomId ?? undefined);
@@ -93,6 +96,7 @@ export function ChatPanel({
       subtitle={subtitle}
       headerActionsSlot={headerActionsSlot}
       showMembers={showMembers}
+      welcome={welcome}
       isEncrypted={client.getRoom(roomId)?.isEncrypted ?? false}
       banner={<ConnectionBanner status={status} />}
       myUserId={client.getSession()?.userId}

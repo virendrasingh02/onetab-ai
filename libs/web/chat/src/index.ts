@@ -7,7 +7,11 @@ export {
   type CrossRoomThread,
 } from './lib/use-all-threads.js';
 export { ChatPanel, type ChatPanelProps } from './lib/chat-panel.js';
-export { ChatSurface, type ChatSurfaceProps } from './lib/chat-surface.js';
+export {
+  ChatSurface,
+  type ChatSurfaceProps,
+  type ChatSurfaceWelcome,
+} from './lib/chat-surface.js';
 export { ChannelChat, type ChannelChatProps } from './lib/channel-chat.js';
 export {
   ChannelMentions,

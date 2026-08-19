@@ -19,7 +19,6 @@ import {
   AlertTriangle,
   Bookmark,
   Calendar as CalendarIcon,
-  CheckSquare,
   ChevronDown,
   Copy,
   Forward,
@@ -31,10 +30,10 @@ import {
   PinOff,
   Reply,
   Smile,
-  Square,
   Trash2,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
+import { MarkdownMessage } from './markdown-message.js';
 import { UserProfileCard } from './user-profile-card.js';
 
 const QUICK_REACTIONS = ['👍', '❤️', '🔥'];
@@ -66,6 +65,11 @@ export interface ChatBubbleProps {
   threadParticipants?: RoomMember[];
   lastReplyAt?: number;
   isHighlighted?: boolean;
+  /**
+   * Display names that render as mention chips. Without them only single-word
+   * `@handles` are recognised, which cuts a name like "Ana Ruiz" in half.
+   */
+  mentionNames?: string[];
 }
 
 export function formatShortTimestamp(timestamp: number): string {
@@ -91,76 +95,6 @@ export function formatFullTimestamp(timestamp: number): string {
   });
 }
 
-function FormattedMessageBody({ text }: { text: string }) {
-  const lines = text.split('\n');
-
-  return (
-    <div className="space-y-1 text-sm leading-relaxed text-foreground break-words">
-      {lines.map((line, lineIdx) => {
-        const trimmed = line.trim();
-
-        if (/^\[([ xX])\]\s+(.*)/.test(trimmed)) {
-          const m = /^\[([ xX])\]\s+(.*)/.exec(trimmed)!;
-          const isChecked = m[1].toLowerCase() === 'x';
-          return (
-            <div key={lineIdx} className="flex items-center gap-2 text-xs py-0.5">
-              {isChecked ? (
-                <CheckSquare className="size-4 text-success-text shrink-0" />
-              ) : (
-                <Square className="size-4 text-muted-foreground shrink-0" />
-              )}
-              <span className={cn(isChecked && 'line-through text-muted-foreground')}>
-                {m[2]}
-              </span>
-            </div>
-          );
-        }
-
-        if (trimmed.startsWith('> ')) {
-          return (
-            <blockquote
-              key={lineIdx}
-              className="my-1 rounded-r border-l-4 border-primary bg-surface-inset/60 py-1 pl-3 text-xs italic text-foreground"
-            >
-              {trimmed.slice(2)}
-            </blockquote>
-          );
-        }
-
-        if (/^[-•]\s+(.*)/.test(trimmed)) {
-          const content = trimmed.replace(/^[-•]\s+/, '');
-          return (
-            <div key={lineIdx} className="flex items-start gap-2 pl-2 text-xs">
-              <span className="text-primary-text">•</span>
-              <span>{content}</span>
-            </div>
-          );
-        }
-
-        const parts = line.split(/(?=@\w+)|(?<=\b)/);
-
-        return (
-          <p key={lineIdx} className="whitespace-pre-wrap">
-            {parts.map((part, partIdx) => {
-              if (/^@(\w+)/.test(part)) {
-                return (
-                  <span
-                    key={partIdx}
-                    className="inline-flex items-center rounded border border-primary/40 bg-primary/20 px-1.5 py-0.5 font-semibold text-primary-text transition-colors hover:bg-primary/30 cursor-pointer"
-                  >
-                    {part}
-                  </span>
-                );
-              }
-              return part;
-            })}
-          </p>
-        );
-      })}
-    </div>
-  );
-}
-
 export function ChatBubble({
   message,
   isOwn,
@@ -182,6 +116,7 @@ export function ChatBubble({
   threadParticipants,
   lastReplyAt,
   isHighlighted = false,
+  mentionNames,
 }: ChatBubbleProps) {
   if (message.isRedacted) {
     return (
@@ -302,7 +237,10 @@ export function ChatBubble({
                 />
               </div>
             ) : message.body ? (
-              <FormattedMessageBody text={message.body} />
+              <MarkdownMessage
+                text={message.body}
+                mentionNames={mentionNames}
+              />
             ) : null}
             {attachmentSlot}
           </>

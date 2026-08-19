@@ -4,6 +4,7 @@ import {
   ChatBubble,
   ChatHeader,
   ChatLayout,
+  ChannelWelcome,
   Composer,
   ConversationSearch,
   HuddleBar,
@@ -31,6 +32,23 @@ import {
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { deriveThreads, groupReplies } from './derive-threads.js';
+
+/**
+ * Everything the welcome block at the top of the timeline needs that the
+ * conversation itself does not already know.
+ *
+ * Passing it is what turns the block on: a direct message has no beginning
+ * worth introducing, so it simply leaves this out.
+ */
+export interface ChatSurfaceWelcome {
+  createdAt?: Date | string | number;
+  createdByName?: string;
+  description?: string | null;
+  isPrivate?: boolean;
+  onAddPeople?: () => void;
+  onEditDescription?: () => void;
+  onOpenCopilot?: () => void;
+}
 
 type SidePanel =
   | 'none'
@@ -79,6 +97,9 @@ export interface ChatSurfaceProps {
    */
   showMembers?: boolean;
 
+  /** Set to introduce the channel above the first message. See {@link ChatSurfaceWelcome}. */
+  welcome?: ChatSurfaceWelcome;
+
   bookmarks?: ChannelBookmark[];
   huddleParticipants?: RoomMember[];
   pinnedIds?: string[];
@@ -119,6 +140,7 @@ export function ChatSurface({
   presenceOf,
   headerActionsSlot,
   showMembers = true,
+  welcome,
   bookmarks = [],
   huddleParticipants = [],
   pinnedIds = [],
@@ -162,6 +184,18 @@ export function ChatSurface({
   );
 
   const repliesByRoot = useMemo(() => groupReplies(messages), [messages]);
+
+  // Display names carry spaces, so the message renderer needs the roster to
+  // know where a `@mention` ends.
+  const mentionNames = useMemo(
+    () => [
+      'here',
+      'channel',
+      'everyone',
+      ...members.map((member) => member.displayName),
+    ],
+    [members],
+  );
 
   const rootMessages = useMemo(
     () => messages.filter((message) => !message.threadRootId),
@@ -247,6 +281,7 @@ export function ChatSurface({
           isOwn={message.senderId === myUserId}
           isGrouped={grouped}
           isHighlighted={message.id === highlightId}
+          mentionNames={mentionNames}
           isPinned={pinnedIds.includes(message.id)}
           isSaved={savedIds.includes(message.id)}
           threadReplyCount={replies.length}
@@ -305,6 +340,7 @@ export function ChatSurface({
       memberById,
       myUserId,
       highlightId,
+      mentionNames,
       pinnedIds,
       savedIds,
       onReact,
@@ -554,6 +590,23 @@ export function ChatSurface({
           unreadBeforeId={firstUnreadId}
           onLoadOlder={onLoadOlder}
           renderMessage={renderMessage}
+          introSlot={
+            welcome ? (
+              <ChannelWelcome
+                channelName={title}
+                isPrivate={welcome.isPrivate ?? isEncrypted}
+                createdAt={welcome.createdAt}
+                createdByName={welcome.createdByName}
+                description={welcome.description ?? subtitle}
+                members={members}
+                onAddPeople={welcome.onAddPeople}
+                onEditDescription={welcome.onEditDescription}
+                onOpenCopilot={welcome.onOpenCopilot}
+                onAddBookmark={onAddBookmark}
+                onStartHuddle={() => setHuddleJoined(true)}
+              />
+            ) : null
+          }
         />
       </div>
 

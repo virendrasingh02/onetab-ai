@@ -21,12 +21,22 @@ export {
   type UserProfileCardProps,
 } from './lib/user-profile-card.js';
 
+export { Composer, type ComposerProps } from './lib/composer.js';
+
 export {
-  Composer,
   DEFAULT_SLASH_COMMANDS,
-  type ComposerProps,
   type SlashCommand,
-} from './lib/composer.js';
+} from './lib/slash-commands.js';
+
+export {
+  ChannelWelcome,
+  type ChannelWelcomeProps,
+} from './lib/channel-welcome.js';
+
+export {
+  MarkdownMessage,
+  type MarkdownMessageProps,
+} from './lib/markdown-message.js';
 
 export {
   DiscordEmojiGifPicker,
@@ -42,7 +52,20 @@ export {
   LexicalToolbar,
   type LexicalComposerInputProps,
   type LexicalEditorRef,
+  type MentionCandidate,
 } from './lib/lexical-composer.js';
+
+export { CHAT_TRANSFORMERS } from './lib/lexical-markdown.js';
+
+export {
+  $createCommandNode,
+  $createMentionNode,
+  $getChipTarget,
+  $isCommandNode,
+  $isMentionNode,
+  CommandNode,
+  MentionNode,
+} from './lib/lexical-nodes.js';
 
 export {
   AddBookmarkDialog,

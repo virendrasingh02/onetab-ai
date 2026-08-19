@@ -82,6 +82,14 @@ export interface MessageListProps {
   renderMessage: (message: Message, grouped: boolean) => ReactNode;
   /** Draws the "new messages" line above this message. */
   unreadBeforeId?: string | null;
+  /**
+   * Rendered at the very top of the timeline — the channel's welcome block.
+   *
+   * It only appears once every older message has been loaded, so it marks the
+   * real beginning of the conversation rather than the top of the current
+   * page. In an empty conversation it stands in for the empty state.
+   */
+  introSlot?: ReactNode;
   className?: string;
 }
 
@@ -107,6 +115,7 @@ export function MessageList({
   onLoadOlder,
   renderMessage,
   unreadBeforeId,
+  introSlot,
   className,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -193,7 +202,11 @@ export function MessageList({
   }
 
   if (!isLoading && messages.length === 0) {
-    return (
+    return introSlot ? (
+      <ScrollArea className={cn('min-h-0 flex-1', className)}>
+        {introSlot}
+      </ScrollArea>
+    ) : (
       <EmptyState
         size="lg"
         icon={<MessageSquare />}
@@ -224,6 +237,9 @@ export function MessageList({
           <Spinner label="Loading earlier messages" />
         </div>
       ) : null}
+
+      {/* Only once the history is exhausted is this actually the beginning. */}
+      {introSlot && !hasMore && !isLoadingOlder ? introSlot : null}
 
       <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
         {virtualizer.getVirtualItems().map((virtualRow) => {

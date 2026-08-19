@@ -58,6 +58,10 @@ import { useCallback, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ChannelAICopilot } from './ChannelAICopilot.js';
 import {
+  AddPeopleDialog,
+  EditChannelDetailsDialog,
+} from '../components/channel-setup-dialogs.js';
+import {
   useArchiveChannel,
   useChannel,
   useChannelBookmarks,
@@ -544,7 +548,13 @@ export function ChannelPage() {
     workspaceId,
     channel?.id,
   );
+  const members = useChannelMembers(workspaceId, channel?.id);
   const [addBookmarkOpen, setAddBookmarkOpen] = useState(false);
+  const [addPeopleOpen, setAddPeopleOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  // Controlled so the welcome block's "Ask the AI copilot" card can switch to
+  // that tab; the tabs are otherwise driven by the user.
+  const [activeTab, setActiveTab] = useState('chat');
   // Callback ref, not `useRef`: the conversation only portals into this element
   // once it exists, and a render has to be triggered when it does.
   const [chatActionsSlot, setChatActionsSlot] = useState<HTMLDivElement | null>(
@@ -562,6 +572,15 @@ export function ChannelPage() {
       />
     );
   }
+
+  // The creator is named in the welcome block when they are still a member;
+  // otherwise the block simply says the channel was created.
+  const creator = (members.data ?? []).find(
+    (member) => member.user.id === channel.createdById,
+  );
+  const creatorName = creator
+    ? (creator.user.displayName ?? creator.user.name)
+    : undefined;
 
   const mediaFiles =
     files.data?.filter((file) => file.mimeType.startsWith('image/')) ?? [];
@@ -589,7 +608,26 @@ export function ChannelPage() {
         channelName={channel.name}
       />
 
-      <Tabs defaultValue="chat" className="min-h-0 flex flex-1 flex-col">
+      <AddPeopleDialog
+        open={addPeopleOpen}
+        onOpenChange={setAddPeopleOpen}
+        workspaceId={workspaceId}
+        channel={channel}
+        existingMemberIds={(members.data ?? []).map((member) => member.user.id)}
+      />
+
+      <EditChannelDetailsDialog
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        workspaceId={workspaceId}
+        channel={channel}
+      />
+
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="min-h-0 flex flex-1 flex-col"
+      >
         <div className="border-b border-border bg-background px-3 sm:px-6 pt-2 overflow-x-auto scrollbar-none">
           <TabsList>
             <TabsTrigger value="chat" className="gap-1.5">
@@ -628,6 +666,15 @@ export function ChannelPage() {
             title={channel.name}
             subtitle={channel.topic ?? undefined}
             headerActionsSlot={chatActionsSlot}
+            welcome={{
+              createdAt: channel.createdAt,
+              createdByName: creatorName,
+              description: channel.description ?? channel.topic,
+              isPrivate: channel.visibility === 'PRIVATE',
+              onAddPeople: () => setAddPeopleOpen(true),
+              onEditDescription: () => setDetailsOpen(true),
+              onOpenCopilot: () => setActiveTab('copilot'),
+            }}
           />
         </TabsContent>
 

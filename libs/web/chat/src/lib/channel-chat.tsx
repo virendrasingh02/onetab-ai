@@ -1,5 +1,6 @@
 import { ErrorState, LoadingState } from '@org/ui';
 import { ChatPanel } from './chat-panel.js';
+import type { ChatSurfaceWelcome } from './chat-surface.js';
 import { useMatrix } from './matrix-provider.js';
 import { useChannelRoom } from './use-channel-room.js';
 
@@ -13,6 +14,11 @@ export interface ChannelChatProps {
    * channel is titled once rather than twice.
    */
   headerActionsSlot?: HTMLElement | null;
+  /**
+   * Channel metadata and setup actions for the block that introduces the
+   * channel at the top of its timeline. Omitting it leaves the block out.
+   */
+  welcome?: ChatSurfaceWelcome;
 }
 
 /**
@@ -32,6 +38,7 @@ export function ChannelChat({
   title,
   subtitle,
   headerActionsSlot,
+  welcome,
 }: ChannelChatProps) {
   const { enabled } = useMatrix();
   const { roomId, isLoading, error } = useChannelRoom(channelId);
@@ -60,6 +67,7 @@ export function ChannelChat({
       title={title}
       subtitle={subtitle}
       headerActionsSlot={headerActionsSlot}
+      welcome={welcome}
     />
   );
 }
