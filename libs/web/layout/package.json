@@ -24,6 +24,7 @@
     "@org/hooks": "*",
     "@org/notifications": "*",
     "@org/web-ai": "*",
+    "@org/web-chat": "*",
     "@org/web-desktop": "0.0.1",
     "@org/web-members": "*",
     "@org/web-search": "*",

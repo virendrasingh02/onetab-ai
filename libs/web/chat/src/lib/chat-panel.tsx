@@ -16,6 +16,8 @@ export interface ChatPanelProps {
   subtitle?: string;
   /** Host-rendered element to portal the header actions into. See `ChatSurface`. */
   headerActionsSlot?: HTMLElement | null;
+  /** Off for direct messages, which have a fixed roster of two. */
+  showMembers?: boolean;
 }
 
 /**
@@ -29,6 +31,7 @@ export function ChatPanel({
   title,
   subtitle,
   headerActionsSlot,
+  showMembers = true,
 }: ChatPanelProps) {
   const { client, status, enabled, error } = useMatrix();
   const room = useRoom(roomId ?? undefined);
@@ -89,6 +92,7 @@ export function ChatPanel({
       title={title}
       subtitle={subtitle}
       headerActionsSlot={headerActionsSlot}
+      showMembers={showMembers}
       isEncrypted={client.getRoom(roomId)?.isEncrypted ?? false}
       banner={<ConnectionBanner status={status} />}
       myUserId={client.getSession()?.userId}

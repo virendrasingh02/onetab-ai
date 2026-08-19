@@ -31,6 +31,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
+    "db:seed:users": "tsx scripts/seed-test-users.ts",
     "infra:start": "docker compose -f docker/docker-compose.yml -f docker/docker-compose.override.yml up -d",
     "infra:stop": "docker compose -f docker/docker-compose.yml -f docker/docker-compose.override.yml down",
     "infra:restart": "npm run infra:stop && npm run infra:start",

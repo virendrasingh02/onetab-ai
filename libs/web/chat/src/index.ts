@@ -21,4 +21,9 @@ export {
   type ChannelMention,
 } from './lib/derive-threads.js';
 export { DirectMessagesView } from './lib/DirectMessagesView.js';
+export {
+  useDirectMessagePreferences,
+  useDirectMessagePreferencesStore,
+  type DirectMessagePreferences,
+} from './lib/use-dm-preferences.js';
 export { ThreadsView } from './lib/ThreadsView.js';

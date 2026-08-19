@@ -70,6 +70,15 @@ export interface ChatSurfaceProps {
    */
   headerActionsSlot?: HTMLElement | null;
 
+  /**
+   * Whether the roster control belongs in this conversation.
+   *
+   * A direct message has exactly two people in it and no way to invite a third,
+   * so the member count and its panel are noise there — the header would offer
+   * to open a list of the person you are already looking at.
+   */
+  showMembers?: boolean;
+
   bookmarks?: ChannelBookmark[];
   huddleParticipants?: RoomMember[];
   pinnedIds?: string[];
@@ -109,6 +118,7 @@ export function ChatSurface({
   onLoadOlder,
   presenceOf,
   headerActionsSlot,
+  showMembers = true,
   bookmarks = [],
   huddleParticipants = [],
   pinnedIds = [],
@@ -410,18 +420,20 @@ export function ChatSurface({
 
                 {headerActions}
 
-                <Hint label="Channel Members">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label="Channel Members"
-                    aria-pressed={panel === 'members'}
-                    onClick={() => toggle('members')}
-                    leadingIcon={<Users />}
-                  >
-                    {members.length}
-                  </Button>
-                </Hint>
+                {showMembers ? (
+                  <Hint label="Channel Members">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label="Channel Members"
+                      aria-pressed={panel === 'members'}
+                      onClick={() => toggle('members')}
+                      leadingIcon={<Users />}
+                    >
+                      {members.length}
+                    </Button>
+                  </Hint>
+                ) : null}
               </div>,
               headerActionsSlot,
             )
@@ -430,8 +442,8 @@ export function ChatSurface({
               title={title}
               subtitle={subtitle}
               isEncrypted={isEncrypted}
-              memberCount={members.length}
-              onToggleMembers={() => toggle('members')}
+              memberCount={showMembers ? members.length : undefined}
+              onToggleMembers={showMembers ? () => toggle('members') : undefined}
               actions={headerActions}
             />
           )}

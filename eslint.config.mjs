@@ -171,6 +171,15 @@ export default tseslint.config(
     },
   },
 
+  // --- Maintenance scripts --------------------------------------------------
+  {
+    files: ['scripts/**/*.{ts,mts,mjs}'],
+    rules: {
+      // Their output *is* the interface: they are run by hand from a terminal.
+      'no-console': 'off',
+    },
+  },
+
   // --- Config files ---------------------------------------------------------
   {
     files: ['**/*.config.{js,cjs,mjs,ts,mts}', '**/*.d.ts'],
