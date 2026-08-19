@@ -67,7 +67,6 @@ export function UserProfileCard({
   status = 'online',
   statusEmoji,
   statusText,
-  statusExpiresAt,
   children,
   onSendDirectMessage,
   onOpenSidePanel,

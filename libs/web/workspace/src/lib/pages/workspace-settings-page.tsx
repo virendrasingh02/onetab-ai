@@ -484,7 +484,7 @@ export function WorkspaceSettingsPage() {
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    <Sun className="size-3.5 text-amber-500" />
+                    <Sun className="size-3.5 text-accent-amber" />
                     <span>Light</span>
                   </button>
                   <button
@@ -495,7 +495,7 @@ export function WorkspaceSettingsPage() {
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    <Moon className="size-3.5 text-indigo-400" />
+                    <Moon className="size-3.5 text-accent-indigo" />
                     <span>Dark</span>
                   </button>
                   <button
@@ -1432,7 +1432,7 @@ export function WorkspaceSettingsPage() {
                 <div className={cn(
                   'size-10 rounded-xl flex items-center justify-center shrink-0 shadow-inner',
                   notifBarState.permission === 'granted'
-                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                    ? 'bg-success/15 text-success-text border border-success/30'
                     : notifBarState.permission === 'denied'
                       ? 'bg-destructive/15 text-destructive border border-destructive/30'
                       : 'bg-primary/15 text-primary border border-primary/30'
@@ -1499,7 +1499,7 @@ export function WorkspaceSettingsPage() {
                 >
                   {testNotifSent ? (
                     <>
-                      <CheckCircle2 className="size-3.5 text-emerald-500" />
+                      <CheckCircle2 className="size-3.5 text-success-text" />
                       <span>Sent!</span>
                     </>
                   ) : (
@@ -2163,7 +2163,7 @@ export function WorkspaceSettingsPage() {
                   <p className="text-[11px] text-muted-foreground mt-0.5">{item.desc}</p>
                 </div>
                 {item.connected ? (
-                  <span className="inline-flex items-center gap-1 text-[11px] text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded font-medium">
+                  <span className="inline-flex items-center gap-1 text-[11px] text-success-text bg-success/10 px-2 py-0.5 rounded font-medium">
                     <CheckCircle2 className="size-3" />
                     Connected
                   </span>
@@ -2425,7 +2425,7 @@ export function WorkspaceSettingsPage() {
             </h3>
 
             {passwordChanged ? (
-              <div className="p-3 text-xs rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <div className="p-3 text-xs rounded-lg border border-success/20 bg-success/10 text-success-text">
                 Password updated successfully. Other active sessions have been signed out.
               </div>
             ) : null}

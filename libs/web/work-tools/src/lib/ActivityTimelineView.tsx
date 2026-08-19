@@ -5,10 +5,10 @@ import {
   Button,
   Card,
   EmptyState,
-  Input,
   Page,
   PageHeader,
   Panel,
+  SearchInput,
   SkeletonList,
   UserAvatar,
 } from '@org/ui';
@@ -22,7 +22,6 @@ import {
   Hash,
   MessageSquare,
   RefreshCw,
-  Search,
   TriangleAlert,
   UserMinus,
   UserPlus,
@@ -205,16 +204,13 @@ export function ActivityTimelineView() {
             ))}
           </div>
 
-          <div className="relative min-w-48 max-w-72">
-            <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-subtle" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search feed…"
-              aria-label="Search activity feed"
-              className="pl-8 text-xs h-8"
-            />
-          </div>
+          <SearchInput
+            value={searchQuery}
+            onValueChange={setSearchQuery}
+            placeholder="Search feed…"
+            label="Search activity feed"
+            wrapperClassName="min-w-48 max-w-72"
+          />
         </div>
 
         {/* Timeline Feed */}

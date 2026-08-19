@@ -515,6 +515,20 @@
   }
 
   /*
+   * `SearchInput` renders `type="search"` for the mobile keyboard and the
+   * screen-reader announcement, then draws its own clear button so the control
+   * is themed and properly labelled. WebKit adds a second, unlabelled clear
+   * glyph of its own next to ours, so it is turned off here.
+   */
+  input[type='search']::-webkit-search-decoration,
+  input[type='search']::-webkit-search-cancel-button,
+  input[type='search']::-webkit-search-results-button,
+  input[type='search']::-webkit-search-results-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  /*
    * The UA's default selection is a saturated system blue that has nothing to
    * do with the palette — very obvious on a light canvas. A low-alpha wash of
    * the brand mint keeps the text itself readable rather than knocking it out.

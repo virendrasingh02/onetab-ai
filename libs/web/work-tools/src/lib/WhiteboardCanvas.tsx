@@ -13,6 +13,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  usePromptDialog,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useCurrentWorkspace } from '@org/web-workspace';
@@ -161,6 +162,19 @@ function BoardCanvas({
   workspaceId: string | undefined;
 }) {
   const { update, remove } = useWhiteboardMutations(workspaceId);
+  const prompts = usePromptDialog();
+
+  /* A board and everything drawn on it go together, so confirm first. */
+  const confirmDelete = async (name: string, id: string) => {
+    const confirmed = await prompts.confirmAction({
+      title: `Delete “${name}”?`,
+      description:
+        'The board and everything on it are deleted for everyone. This cannot be undone.',
+      confirmLabel: 'Delete board',
+      destructive: true,
+    });
+    if (confirmed) remove.mutate(id);
+  };
   const [canvas, setCanvas] = useState<CanvasData>(() =>
     decodeCanvas(board.canvasData),
   );
@@ -229,7 +243,7 @@ function BoardCanvas({
             size="sm"
             leadingIcon={<Trash2 />}
             disabled={remove.isPending}
-            onClick={() => remove.mutate(board.id)}
+            onClick={() => confirmDelete(board.name, board.id)}
           >
             Delete board
           </Button>
@@ -322,6 +336,8 @@ function BoardCanvas({
           </div>
         ))}
       </div>
+
+      {prompts.dialog}
     </>
   );
 }

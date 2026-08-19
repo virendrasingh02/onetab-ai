@@ -17,6 +17,7 @@ import {
   Page,
   PageHeader,
   Textarea,
+  usePromptDialog,
 } from '@org/ui';
 import { BookOpen, Check, Copy, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -28,6 +29,7 @@ import {
 export function PromptLibraryView() {
   const query = usePromptTemplates();
   const { create, remove } = usePromptTemplateMutations();
+  const promptDialog = usePromptDialog();
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -46,6 +48,18 @@ export function PromptLibraryView() {
     setCopiedId(id);
     clearTimeout(resetTimer.current);
     resetTimer.current = setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  /* Removing a template takes it away from the whole workspace, so ask first. */
+  const confirmDelete = async (title: string, id: string) => {
+    const confirmed = await promptDialog.confirmAction({
+      title: `Delete “${title}”?`,
+      description:
+        'This template is removed for everyone in the workspace. This cannot be undone.',
+      confirmLabel: 'Delete template',
+      destructive: true,
+    });
+    if (confirmed) remove.mutate(id);
   };
 
   const submit = async () => {
@@ -198,7 +212,7 @@ export function PromptLibraryView() {
                         size="icon-sm"
                         aria-label={`Delete ${prompt.title}`}
                         disabled={remove.isPending}
-                        onClick={() => remove.mutate(prompt.id)}
+                        onClick={() => confirmDelete(prompt.title, prompt.id)}
                         className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
                       >
                         <Trash2 className="size-3.5 text-destructive" />
@@ -233,6 +247,8 @@ export function PromptLibraryView() {
           ))}
         </ul>
       )}
+
+      {promptDialog.dialog}
     </Page>
   );
 }

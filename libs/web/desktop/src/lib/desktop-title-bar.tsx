@@ -78,7 +78,10 @@ export function DesktopTitleBar({ title }: { title?: string }) {
             <Button
               variant="ghost"
               size="icon-sm"
-              className="size-7 rounded-sm hover:bg-[#E5484D] hover:text-[#FAFAFA]"
+              /* Native window chrome turns the close control red on hover; the
+                 destructive token is that red, and unlike the literal it keeps
+                 its paired foreground legible in both themes. */
+              className="size-7 rounded-sm hover:bg-destructive hover:text-destructive-foreground"
               onClick={close}
               aria-label="Close window"
             >

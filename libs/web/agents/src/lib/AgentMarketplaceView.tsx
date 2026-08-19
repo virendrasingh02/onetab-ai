@@ -1,5 +1,7 @@
+import type { Accent } from '@org/design-system';
 import type { AIAgentDetail } from '@org/types';
 import {
+  accentClasses,
   Badge,
   Button,
   Card,
@@ -21,6 +23,9 @@ import {
   Input,
   Label,
   Page,
+  PageHeader,
+  PageSection,
+  SearchInput,
   Select,
   SelectContent,
   SelectItem,
@@ -28,6 +33,9 @@ import {
   SelectValue,
   SkeletonList,
   Switch,
+  Tabs,
+  TabsList,
+  TabsTrigger,
   Textarea,
   toast,
 } from '@org/ui';
@@ -55,7 +63,6 @@ import {
   Trash2,
   Upload,
   Wrench,
-  X,
   Zap,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -73,17 +80,29 @@ interface AgentTemplate {
   tools: string[];
 }
 
-const PRESET_ICONS = [
-  { id: 'icon:bot', label: 'Bot', icon: Bot, color: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20' },
-  { id: 'icon:brain', label: 'Brain', icon: Brain, color: 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20' },
-  { id: 'icon:code', label: 'Code', icon: Code2, color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' },
-  { id: 'icon:spark', label: 'Spark', icon: Sparkles, color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
-  { id: 'icon:shield', label: 'Shield', icon: Shield, color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' },
-  { id: 'icon:search', label: 'Search', icon: Search, color: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20' },
-  { id: 'icon:chat', label: 'Chat', icon: MessageSquare, color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20' },
-  { id: 'icon:rocket', label: 'Rocket', icon: Rocket, color: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' },
-  { id: 'icon:globe', label: 'Globe', icon: Globe, color: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20' },
-  { id: 'icon:layers', label: 'Layers', icon: Layers, color: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20' },
+/*
+ * The picker's swatches. `accent` names a design-system token rather than a
+ * raw Tailwind hue: these used to be hand-written `bg-x-500/10 text-x-600
+ * dark:text-x-400` triples, which is the same idea the `accentClasses` map
+ * already expresses — and the tokens carry the dark-mode lift with them, so
+ * the pairing cannot drift out of contrast on one theme.
+ */
+const PRESET_ICONS: {
+  id: string;
+  label: string;
+  icon: typeof Bot;
+  accent: Accent;
+}[] = [
+  { id: 'icon:bot', label: 'Bot', icon: Bot, accent: 'violet' },
+  { id: 'icon:brain', label: 'Brain', icon: Brain, accent: 'pink' },
+  { id: 'icon:code', label: 'Code', icon: Code2, accent: 'blue' },
+  { id: 'icon:spark', label: 'Spark', icon: Sparkles, accent: 'amber' },
+  { id: 'icon:shield', label: 'Shield', icon: Shield, accent: 'green' },
+  { id: 'icon:search', label: 'Search', icon: Search, accent: 'cyan' },
+  { id: 'icon:chat', label: 'Chat', icon: MessageSquare, accent: 'indigo' },
+  { id: 'icon:rocket', label: 'Rocket', icon: Rocket, accent: 'rose' },
+  { id: 'icon:globe', label: 'Globe', icon: Globe, accent: 'teal' },
+  { id: 'icon:layers', label: 'Layers', icon: Layers, accent: 'orange' },
 ];
 
 const AGENT_TEMPLATES: AgentTemplate[] = [
@@ -260,7 +279,7 @@ export function AgentMarketplaceView() {
         isMarketplace: false,
       },
       {
-        onSuccess: (newAgent) => {
+        onSuccess: () => {
           toast.success('Agent created', {
             description: `"${finalName}" is now ready.`,
           });
@@ -382,136 +401,102 @@ export function AgentMarketplaceView() {
 
   return (
     <Page>
-      {/* Header section matching Channels design */}
-      <div className="mb-6 border-b border-border/60 pb-0">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-accent-violet-soft text-accent-violet shadow-2xs">
-              <Bot className="size-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-                  AI Agents
-                </h1>
-                <Badge variant="neutral" className="text-xs font-normal">
-                  {installed.length} deployed
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Manage, build, and deploy autonomous intelligent agents across your workspace.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
+      <PageHeader
+        title="AI Agents"
+        description="Manage, build, and deploy autonomous intelligent agents across your workspace."
+        icon={<Bot />}
+        accent="violet"
+        eyebrow={
+          <Badge variant="neutral" className="font-normal">
+            {installed.length} deployed
+          </Badge>
+        }
+        actions={
+          <>
             <Button
               onClick={() => setIsCreateOpen(true)}
-              className="h-9 cursor-pointer items-center gap-1.5 rounded-md border-0 bg-[#059669] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#047857] sm:text-sm"
+              size="lg"
+              leadingIcon={<Plus />}
             >
-              <Plus className="size-4" />
-              <span>New Agent</span>
+              New Agent
             </Button>
 
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  size="icon-sm"
+                  size="icon"
                   className="size-9 text-muted-foreground hover:text-foreground"
-                  aria-label="More options"
+                  aria-label="More agent options"
                 >
                   <MoreHorizontal className="size-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => setIsCreateOpen(true)} className="gap-2 text-xs">
+                <DropdownMenuItem
+                  onSelect={() => setIsCreateOpen(true)}
+                  className="gap-2"
+                >
                   <Plus className="size-3.5 text-muted-foreground" />
                   <span>Create with wizard</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => openBuilder()} className="gap-2 text-xs">
+                <DropdownMenuItem
+                  onSelect={() => openBuilder()}
+                  className="gap-2"
+                >
                   <Wrench className="size-3.5 text-muted-foreground" />
                   <span>Open visual builder</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('logs')} className="gap-2 text-xs">
+                <DropdownMenuItem
+                  onSelect={() => navigate('logs')}
+                  className="gap-2"
+                >
                   <Activity className="size-3.5 text-muted-foreground" />
                   <span>Activity logs</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => handleTabChange('templates')}
-                  className="gap-2 text-xs"
+                  onSelect={() => handleTabChange('templates')}
+                  className="gap-2"
                 >
                   <Sparkles className="size-3.5 text-muted-foreground" />
                   <span>Browse templates</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-        </div>
-
-        {/* Tab strip & Search */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-          <div className="flex items-center gap-6 text-sm font-medium">
-            <button
-              type="button"
-              onClick={() => handleTabChange('all')}
-              className={cn(
-                'relative pb-3 transition-colors',
-                tab === 'all'
-                  ? 'border-b-2 border-primary font-semibold text-foreground'
-                  : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
-              )}
+          </>
+        }
+        toolbar={
+          <div className="gap-3 flex flex-wrap items-end justify-between">
+            <Tabs
+              value={tab}
+              onValueChange={(next) => handleTabChange(next as AgentTab)}
+              className="min-w-0 flex-1"
             >
-              All Agents ({installed.length + AGENT_TEMPLATES.length})
-            </button>
+              <TabsList variant="underline" aria-label="Filter agents">
+                <TabsTrigger variant="underline" value="all">
+                  All Agents ({installed.length + AGENT_TEMPLATES.length})
+                </TabsTrigger>
+                <TabsTrigger variant="underline" value="mine">
+                  Managed by you ({installed.length})
+                </TabsTrigger>
+                <TabsTrigger variant="underline" value="templates">
+                  Templates ({AGENT_TEMPLATES.length})
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
 
-            <button
-              type="button"
-              onClick={() => handleTabChange('mine')}
-              className={cn(
-                'relative pb-3 transition-colors',
-                tab === 'mine'
-                  ? 'border-b-2 border-primary font-semibold text-foreground'
-                  : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
-              )}
-            >
-              Managed by you ({installed.length})
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleTabChange('templates')}
-              className={cn(
-                'relative pb-3 transition-colors',
-                tab === 'templates'
-                  ? 'border-b-2 border-primary font-semibold text-foreground'
-                  : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
-              )}
-            >
-              Templates ({AGENT_TEMPLATES.length})
-            </button>
-          </div>
-
-          <div className="relative mb-2 w-full sm:w-64">
-            <Input
+            <SearchInput
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Filter agents by name, role..."
-              leadingIcon={<Search className="size-3.5 text-muted-foreground" />}
-              className="h-8 text-xs pr-7"
+              onValueChange={setSearchQuery}
+              placeholder="Filter agents by name, role…"
+              label="Filter agents"
+              className="mb-2"
+              /* Full width on a phone, a fixed field once the tabs fit beside it. */
+              wrapperClassName="w-full sm:w-64"
             />
-            {searchQuery ? (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
-              >
-                <X className="size-3" />
-              </button>
-            ) : null}
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {agents.isLoading ? (
         <SkeletonList rows={3} />
@@ -522,19 +507,17 @@ export function AgentMarketplaceView() {
           onRetry={() => agents.refetch()}
         />
       ) : tab === 'all' ? (
-        <div className="space-y-8">
+        <>
           {filteredInstalled.length > 0 ? (
-            <div>
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Workspace Agents ({filteredInstalled.length})
-                </h2>
-              </div>
+            <PageSection
+              title={`Workspace Agents (${filteredInstalled.length})`}
+            >
               <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {filteredInstalled.map((agent) => (
                   <li key={agent.id}>
                     <ManagedAgentCard
                       agent={agent}
+                      onChat={() => navigate(`chat?id=${agent.id}`)}
                       onEditBuilder={() => openBuilder(agent.id, agent.name)}
                       onQuickEdit={() => openQuickEdit(agent)}
                       onDuplicate={() => handleDuplicate(agent)}
@@ -545,7 +528,7 @@ export function AgentMarketplaceView() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </PageSection>
           ) : installed.length === 0 ? (
             <EmptyState
               icon={<Bot />}
@@ -560,12 +543,9 @@ export function AgentMarketplaceView() {
           ) : null}
 
           {filteredTemplates.length > 0 ? (
-            <div>
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Templates catalogue ({filteredTemplates.length})
-                </h2>
-              </div>
+            <PageSection
+              title={`Templates catalogue (${filteredTemplates.length})`}
+            >
               <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {filteredTemplates.map((template) => (
                   <li key={template.id}>
@@ -577,9 +557,9 @@ export function AgentMarketplaceView() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </PageSection>
           ) : null}
-        </div>
+        </>
       ) : tab === 'mine' ? (
         filteredInstalled.length === 0 ? (
           <EmptyState
@@ -602,6 +582,7 @@ export function AgentMarketplaceView() {
               <li key={agent.id}>
                 <ManagedAgentCard
                   agent={agent}
+                  onChat={() => navigate(`chat?id=${agent.id}`)}
                   onEditBuilder={() => openBuilder(agent.id, agent.name)}
                   onQuickEdit={() => openQuickEdit(agent)}
                   onDuplicate={() => handleDuplicate(agent)}
@@ -639,7 +620,7 @@ export function AgentMarketplaceView() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="size-4 text-emerald-500" />
+              <Sparkles className="size-4 text-success-text" />
               Create New AI Agent
             </DialogTitle>
             <DialogDescription>
@@ -956,7 +937,8 @@ export function AgentAvatar({
     <div
       className={cn(
         'flex shrink-0 items-center justify-center rounded-lg border shadow-2xs transition-transform',
-        preset.color,
+        accentClasses[preset.accent].soft,
+        accentClasses[preset.accent].border,
         sizeClasses[size],
         className,
       )}
@@ -1045,14 +1027,17 @@ function AgentAvatarPicker({
                 onClick={() => onChange(preset.id)}
                 className={cn(
                   'flex size-8 items-center justify-center rounded-lg border transition-all',
-                  preset.color,
+                  accentClasses[preset.accent].soft,
+                  accentClasses[preset.accent].border,
                   isSelected
                     ? 'ring-2 ring-primary ring-offset-1 border-primary shadow-xs scale-105'
                     : 'opacity-70 hover:opacity-100 hover:scale-105',
                 )}
+                aria-label={`${preset.label} icon`}
+                aria-pressed={isSelected}
                 title={preset.label}
               >
-                <Icon className="size-4" />
+                <Icon className="size-4" aria-hidden />
               </button>
             );
           })}
@@ -1066,6 +1051,7 @@ function AgentAvatarPicker({
 
 interface ManagedAgentCardProps {
   agent: AIAgentDetail;
+  onChat: () => void;
   onEditBuilder: () => void;
   onQuickEdit: () => void;
   onDuplicate: () => void;
@@ -1076,6 +1062,7 @@ interface ManagedAgentCardProps {
 
 function ManagedAgentCard({
   agent,
+  onChat,
   onEditBuilder,
   onQuickEdit,
   onDuplicate,
@@ -1110,14 +1097,14 @@ function ManagedAgentCard({
                 className={cn(
                   'flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors',
                   agent.isActive
-                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                    ? 'border border-success/20 bg-success/10 text-success-text'
                     : 'bg-muted text-muted-foreground border border-border',
                 )}
               >
                 <span
                   className={cn(
                     'size-1.5 rounded-full',
-                    agent.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground',
+                    agent.isActive ? 'bg-success animate-pulse' : 'bg-muted-foreground',
                   )}
                 />
                 {agent.isActive ? 'Active' : 'Paused'}
@@ -1136,6 +1123,10 @@ function ManagedAgentCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={onChat} className="gap-2 text-xs font-semibold text-primary">
+                  <MessageSquare className="size-3.5" />
+                  <span>Chat with Agent</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={onEditBuilder} className="gap-2 text-xs">
                   <Wrench className="size-3.5 text-muted-foreground" />
                   <span>Open in Builder</span>
@@ -1191,29 +1182,38 @@ function ManagedAgentCard({
       {/* Card Actions Footer */}
       <div className="flex items-center gap-2 pt-2 border-t border-border/60">
         <Button
+          variant="primary"
+          size="sm"
+          className="flex-1 text-xs"
+          onClick={onChat}
+          leadingIcon={<MessageSquare className="size-3.5" />}
+        >
+          Chat
+        </Button>
+        <Button
           variant="outline"
           size="sm"
           className="flex-1 text-xs"
           onClick={onEditBuilder}
           leadingIcon={<Pencil className="size-3.5" />}
         >
-          Edit in Builder
+          Builder
         </Button>
         <Button
           variant="secondary"
           size="sm"
-          className="flex-1 text-xs"
+          className="size-8 p-0"
           onClick={onLogs}
-          leadingIcon={<Activity className="size-3.5" />}
+          title="Activity Logs"
         >
-          Activity
+          <Activity className="size-3.5" />
         </Button>
         <Hint label="Delete agent">
           <Button
             variant="ghost"
             size="icon-sm"
             onClick={onDelete}
-            className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            className="size-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             aria-label={`Delete ${agent.name}`}
           >
             <Trash2 className="size-3.5" />
@@ -1279,7 +1279,7 @@ function AgentTemplateCard({
         className="w-full text-xs"
         onClick={onUse}
         loading={isCreating}
-        leadingIcon={<Zap className="size-3.5 text-amber-400" />}
+        leadingIcon={<Zap className="size-3.5 text-accent-amber" />}
       >
         Use Template
       </Button>

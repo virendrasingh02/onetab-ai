@@ -4,11 +4,11 @@ import {
   Button,
   EmptyState,
   ErrorState,
-  Input,
   LoadingState,
   Page,
   PageHeader,
   Panel,
+  SearchInput,
   toPresenceStatus,
   UserAvatar,
 } from '@org/ui';
@@ -93,12 +93,11 @@ export function DirectMessagesView() {
         <div className={cn(mobileView === 'detail' && 'hidden lg:block')}>
           <Panel flush title="People">
             <div className="p-3 border-b border-border">
-              <Input
+              <SearchInput
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onValueChange={setQuery}
                 placeholder="Search people"
-                aria-label="Search direct messages"
-                leadingIcon={<Search />}
+                label="Search direct messages"
               />
             </div>
 

@@ -13,8 +13,12 @@ import {
   DropdownMenuTrigger,
   EmptyState,
   Page,
+  PageHeader,
+  PageSection,
+  Tabs,
+  TabsList,
+  TabsTrigger,
 } from '@org/ui';
-import { cn } from '@org/utils';
 import {
   Activity,
   Check,
@@ -152,101 +156,75 @@ export function WorkflowListView() {
 
   return (
     <Page>
-      {/* Header section matching reference image design */}
-      <div className="mb-6 border-b border-border/60 pb-0">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-            Automations
-          </h1>
-
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={openBuilder}
-              className="h-9 cursor-pointer items-center gap-1.5 rounded-md border-0 bg-[#059669] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#047857] sm:text-sm"
-            >
-              <Plus className="size-4" />
-              <span>New</span>
+      <PageHeader
+        title="Automations"
+        description="Workflows that run on a trigger — on a schedule, a webhook, or an event in your workspace."
+        icon={<Zap />}
+        accent="amber"
+        actions={
+          <>
+            <Button onClick={openBuilder} size="lg" leadingIcon={<Plus />}>
+              New
             </Button>
 
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  size="icon-sm"
+                  size="icon"
                   className="size-9 text-muted-foreground hover:text-foreground"
-                  aria-label="More options"
+                  aria-label="More automation options"
                 >
                   <MoreHorizontal className="size-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={openBuilder} className="gap-2 text-xs">
+                <DropdownMenuItem onSelect={openBuilder} className="gap-2">
                   <Plus className="size-3.5 text-muted-foreground" />
                   <span>Create new workflow</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('logs')} className="gap-2 text-xs">
+                <DropdownMenuItem
+                  onSelect={() => navigate('logs')}
+                  className="gap-2"
+                >
                   <Activity className="size-3.5 text-muted-foreground" />
                   <span>Execution logs</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTab('prebuilt')} className="gap-2 text-xs">
+                <DropdownMenuItem
+                  onSelect={() => setTab('prebuilt')}
+                  className="gap-2"
+                >
                   <Workflow className="size-3.5 text-muted-foreground" />
                   <span>Browse templates</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-        </div>
-
-        {/* Underline tab strip */}
-        <div className="flex items-center gap-6 text-sm font-medium">
-          <button
-            type="button"
-            onClick={() => setTab('all')}
-            className={cn(
-              'relative pb-3 transition-colors',
-              tab === 'all'
-                ? 'border-b-2 border-primary font-semibold text-foreground'
-                : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
-            )}
+          </>
+        }
+        toolbar={
+          <Tabs
+            value={tab}
+            onValueChange={(next) => setTab(next as WorkflowTab)}
           >
-            All
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setTab('prebuilt')}
-            className={cn(
-              'relative pb-3 transition-colors',
-              tab === 'prebuilt'
-                ? 'border-b-2 border-primary font-semibold text-foreground'
-                : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
-            )}
-          >
-            Templates
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setTab('mine')}
-            className={cn(
-              'relative pb-3 transition-colors',
-              tab === 'mine'
-                ? 'border-b-2 border-primary font-semibold text-foreground'
-                : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
-            )}
-          >
-            Managed by you
-          </button>
-        </div>
-      </div>
+            <TabsList variant="underline" aria-label="Filter automations">
+              <TabsTrigger variant="underline" value="all">
+                All
+              </TabsTrigger>
+              <TabsTrigger variant="underline" value="prebuilt">
+                Templates
+              </TabsTrigger>
+              <TabsTrigger variant="underline" value="mine">
+                Managed by you
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        }
+      />
 
       {tab === 'all' ? (
-        <div className="space-y-6">
+        <>
           {workflows.length > 0 ? (
-            <div>
-              <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Managed by you ({workflows.length})
-              </h2>
+            <PageSection title={`Managed by you (${workflows.length})`}>
               <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {workflows.map((workflow) => (
                   <li key={workflow.id}>
@@ -254,13 +232,10 @@ export function WorkflowListView() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </PageSection>
           ) : null}
 
-          <div>
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Templates ({workflowTemplates.length})
-            </h2>
+          <PageSection title={`Templates (${workflowTemplates.length})`}>
             <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {workflowTemplates.map((template) => (
                 <li key={template.id}>
@@ -272,8 +247,8 @@ export function WorkflowListView() {
                 </li>
               ))}
             </ul>
-          </div>
-        </div>
+          </PageSection>
+        </>
       ) : tab === 'mine' ? (
         workflows.length === 0 ? (
           <EmptyState

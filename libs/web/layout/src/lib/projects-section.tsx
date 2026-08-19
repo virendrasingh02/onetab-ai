@@ -6,7 +6,6 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
-  DropdownMenuTrigger,
   Hint,
   ProjectGlyph,
   type PromptDialog,
@@ -19,7 +18,6 @@ import {
   ChevronRight,
   Copy,
   FolderKanban,
-  MoreHorizontal,
   Pencil,
   Plus,
   Settings,
@@ -27,13 +25,17 @@ import {
   Star,
   Trash2,
 } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
+  FavoriteToggle,
   navActionClass,
   navIconClass,
   navRowClass,
+  NavRowActions,
+  NavRowMenuTrigger,
   Section,
+  useCopyLink,
   type NavDepth,
 } from './nav-primitives.js';
 import { useSidebarFavorites } from './use-sidebar-favorites.js';
@@ -58,34 +60,13 @@ export function ProjectNavRow({
   depth?: NavDepth;
 }) {
   const navigate = useNavigate();
-  const [copied, setCopied] = useState(false);
-  const [shared, setShared] = useState(false);
-
-  const handleCopyLink = useCallback(
-    (e?: React.MouseEvent | Event) => {
-      e?.stopPropagation?.();
-      const url = `${window.location.origin}/w/${workspaceSlug}/tasks?project=${project.id}`;
-      navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    },
-    [workspaceSlug, project.id],
-  );
-
-  const handleShare = useCallback(
-    (e?: React.MouseEvent | Event) => {
-      e?.stopPropagation?.();
-      const url = `${window.location.origin}/w/${workspaceSlug}/tasks?project=${project.id}`;
-      navigator.clipboard.writeText(url);
-      setShared(true);
-      setTimeout(() => setShared(false), 2000);
-    },
-    [workspaceSlug, project.id],
-  );
+  const projectUrl = `${window.location.origin}/w/${workspaceSlug}/tasks?project=${project.id}`;
+  const { copied, copy: handleCopyLink } = useCopyLink(projectUrl);
+  /* "Share" copies the same link; it only differs in the confirmation it shows. */
+  const { copied: shared, copy: handleShare } = useCopyLink(projectUrl);
 
   const handleRename = useCallback(
-    async (e?: React.MouseEvent | Event) => {
-      e?.stopPropagation?.();
+    async () => {
       const name = await prompts.promptText({
         title: 'Rename project',
         label: 'Project name',
@@ -99,8 +80,7 @@ export function ProjectNavRow({
   );
 
   const handleDelete = useCallback(
-    async (e?: React.MouseEvent | Event) => {
-      e?.stopPropagation?.();
+    async () => {
       const confirmed = await prompts.confirmAction({
         title: `Delete “${project.name}”?`,
         description:
@@ -133,58 +113,17 @@ export function ProjectNavRow({
         <span className="flex-1 truncate">{project.name}</span>
       </NavLink>
 
-      <div
-        className={cn(
-          'right-1 gap-0.5 absolute top-1/2 flex -translate-y-1/2 items-center transition-opacity',
-          isFavorite
-            ? 'opacity-100'
-            : 'opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 focus-within:opacity-100',
-        )}
-      >
-        <Hint label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleFavorite(project);
-            }}
-            aria-label={
-              isFavorite ? 'Remove from favorites' : 'Add to favorites'
-            }
-            aria-pressed={isFavorite}
-            className={cn(
-              'size-5 p-0',
-              isFavorite
-                ? 'text-[#eab308] opacity-100'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Star className={cn('size-3.5', isFavorite && 'fill-current')} />
-          </Button>
-        </Hint>
+      <NavRowActions isPinned={isFavorite}>
+        <FavoriteToggle
+          isFavorite={isFavorite}
+          onToggle={() => onToggleFavorite(project)}
+        />
 
         <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`Options for ${project.name}`}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              className="size-5 p-0 text-muted-foreground hover:text-foreground"
-            >
-              <MoreHorizontal className="size-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
+          <NavRowMenuTrigger label={`Options for ${project.name}`} />
           <DropdownMenuContent align="end" side="bottom" className="w-64">
             <DropdownMenuItem
               onSelect={() =>
-                navigate(`/w/${workspaceSlug}/tasks?project=${project.id}`)
-              }
-              onClick={() =>
                 navigate(`/w/${workspaceSlug}/tasks?project=${project.id}`)
               }
               className="gap-2.5"
@@ -195,7 +134,6 @@ export function ProjectNavRow({
 
             <DropdownMenuItem
               onSelect={handleRename}
-              onClick={handleRename}
               className="gap-2.5"
             >
               <Pencil className="size-4" />
@@ -204,12 +142,11 @@ export function ProjectNavRow({
 
             <DropdownMenuItem
               onSelect={handleCopyLink}
-              onClick={handleCopyLink}
               className="justify-between"
             >
               <div className="gap-2.5 flex items-center">
                 {copied ? (
-                  <Check className="size-4 text-emerald-500" />
+                  <Check className="size-4 text-success-text" />
                 ) : (
                   <Copy className="size-4" />
                 )}
@@ -222,14 +159,13 @@ export function ProjectNavRow({
 
             <DropdownMenuItem
               onSelect={() => onToggleFavorite(project)}
-              onClick={() => onToggleFavorite(project)}
               className="justify-between"
             >
               <div className="gap-2.5 flex items-center">
                 <Star
                   className={cn(
                     'size-4',
-                    isFavorite && 'fill-current text-[#eab308]',
+                    isFavorite && 'fill-current text-accent-amber',
                   )}
                 />
                 <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
@@ -243,9 +179,6 @@ export function ProjectNavRow({
               onSelect={() =>
                 navigate(`/w/${workspaceSlug}/tasks?project=${project.id}`)
               }
-              onClick={() =>
-                navigate(`/w/${workspaceSlug}/tasks?project=${project.id}`)
-              }
               className="gap-2.5"
             >
               <Settings className="size-4" />
@@ -254,11 +187,10 @@ export function ProjectNavRow({
 
             <DropdownMenuItem
               onSelect={handleShare}
-              onClick={handleShare}
               className="gap-2.5"
             >
               {shared ? (
-                <Check className="size-4 text-emerald-500" />
+                <Check className="size-4 text-success-text" />
               ) : (
                 <Share2 className="size-4" />
               )}
@@ -269,7 +201,6 @@ export function ProjectNavRow({
 
             <DropdownMenuItem
               onSelect={handleDelete}
-              onClick={handleDelete}
               variant="destructive"
               className="gap-2.5"
             >
@@ -278,7 +209,7 @@ export function ProjectNavRow({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
+      </NavRowActions>
     </li>
   );
 }

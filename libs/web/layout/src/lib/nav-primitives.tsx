@@ -1,13 +1,27 @@
 import {
   Badge,
+  Button,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
+  DropdownMenuTrigger,
   Hint,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { ChevronDown, PinOff, type LucideIcon } from 'lucide-react';
-import { useCallback, useState, type ReactNode } from 'react';
+import {
+  ChevronDown,
+  MoreHorizontal,
+  PinOff,
+  Star,
+  type LucideIcon,
+} from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { NavLink } from 'react-router-dom';
 
 export interface NavEntry {
@@ -261,4 +275,132 @@ export function Section({
       </section>
     </Collapsible>
   );
+}
+
+/* ------------------------------------------------- Sidebar row actions ---- */
+
+/**
+ * The hover/focus action cluster pinned to the right edge of a sidebar row.
+ *
+ * Every resource row — channels, docs, projects, agents, apps, workflows —
+ * had its own byte-identical copy of this positioning block. Rows using it
+ * must reserve the space with `extra: 'pr-14'` on `navRowClass`, or the label
+ * runs under the buttons.
+ *
+ * `isPinned` keeps the cluster visible when the row is favourited: the star is
+ * state, not just an affordance, so it has to survive the pointer leaving.
+ */
+export function NavRowActions({
+  isPinned = false,
+  className,
+  children,
+}: {
+  isPinned?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        'right-1 gap-0.5 absolute top-1/2 flex -translate-y-1/2 items-center transition-opacity',
+        isPinned
+          ? 'opacity-100'
+          : 'opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 focus-within:opacity-100',
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * The favourite star shared by every sidebar row.
+ *
+ * Uses the `accent-amber` token rather than the raw `#eab308` the six copies
+ * of this button each hard-coded — that literal is a mid-tone that dims into
+ * the dark canvas, while the token lightens for dark mode.
+ */
+export function FavoriteToggle({
+  isFavorite,
+  onToggle,
+}: {
+  isFavorite: boolean;
+  onToggle: () => void;
+}) {
+  const label = isFavorite ? 'Remove from favorites' : 'Add to favorites';
+
+  return (
+    <Hint label={label}>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onToggle();
+        }}
+        aria-label={label}
+        aria-pressed={isFavorite}
+        className={cn(
+          'size-5 p-0',
+          isFavorite
+            ? 'text-accent-amber opacity-100'
+            : 'text-muted-foreground hover:text-foreground',
+        )}
+      >
+        <Star className={cn('size-3.5', isFavorite && 'fill-current')} />
+      </Button>
+    </Hint>
+  );
+}
+
+/**
+ * The `…` trigger that opens a row's context menu. Must be rendered inside a
+ * `DropdownMenu`; it supplies the `DropdownMenuTrigger` itself.
+ *
+ * The click handler stops the event before it reaches the enclosing `NavLink`,
+ * which would otherwise navigate out from under the menu as it opens.
+ */
+export function NavRowMenuTrigger({ label }: { label: string }) {
+  return (
+    <DropdownMenuTrigger asChild>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={label}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+        className="size-5 p-0 text-muted-foreground hover:text-foreground"
+      >
+        <MoreHorizontal className="size-3.5" />
+      </Button>
+    </DropdownMenuTrigger>
+  );
+}
+
+/**
+ * "Copy link" with a transient confirmation.
+ *
+ * Each row previously inlined this with a bare `setTimeout`, so navigating
+ * away inside the 2s window left the timer to fire `setCopied` against an
+ * unmounted row — a React warning per copy. The timer is tracked and cleared
+ * here instead, and re-copying restarts it rather than stacking timers.
+ */
+export function useCopyLink(url: string) {
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  const copy = useCallback(() => {
+    void navigator.clipboard.writeText(url);
+    setCopied(true);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCopied(false), 2000);
+  }, [url]);
+
+  return { copied, copy };
 }

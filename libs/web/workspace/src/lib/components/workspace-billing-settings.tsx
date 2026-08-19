@@ -91,16 +91,16 @@ export function WorkspaceBillingSettings({
     <div className="space-y-8">
       {/* Top Banner / Feedback Alert */}
       {upgradeSuccessMessage ? (
-        <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-700 dark:text-emerald-300">
+        <div className="flex items-center justify-between rounded-xl border border-success/30 bg-success/10 p-4 text-success-text">
           <div className="flex items-center gap-3">
-            <CheckCircle2 className="size-5 shrink-0 text-emerald-500" />
+            <CheckCircle2 className="size-5 shrink-0 text-success-text" />
             <p className="text-sm font-medium">{upgradeSuccessMessage}</p>
           </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setUpgradeSuccessMessage(null)}
-            className="text-xs text-emerald-700 hover:text-emerald-800 dark:text-emerald-300"
+            className="text-xs text-success-text hover:text-success-text"
           >
             Dismiss
           </Button>
@@ -199,7 +199,7 @@ export function WorkspaceBillingSettings({
               <div
                 className={`h-full rounded-full ${
                   totalMembers >= 4 && currentPlan === 'starter'
-                    ? 'bg-amber-500'
+                    ? 'bg-warning'
                     : 'bg-primary'
                 }`}
                 style={{
@@ -231,7 +231,7 @@ export function WorkspaceBillingSettings({
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-muted/60">
               <div
-                className="h-full bg-indigo-500 rounded-full"
+                className="h-full bg-accent-indigo rounded-full"
                 style={{ width: `${currentPlan === 'starter' ? 24 : 10}%` }}
               />
             </div>
@@ -255,7 +255,7 @@ export function WorkspaceBillingSettings({
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-muted/60">
               <div
-                className="h-full bg-emerald-500 rounded-full"
+                className="h-full bg-success rounded-full"
                 style={{ width: `${currentPlan === 'starter' ? 24 : 3}%` }}
               />
             </div>

@@ -10,14 +10,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   EmptyState,
-  Input,
   LocalTime,
+  SearchInput,
   SkeletonList,
   UserAvatar,
 } from '@org/ui';
 import { formatRelative } from '@org/utils';
 import { useCurrentWorkspace } from '@org/web-workspace';
-import { MoreHorizontal, Search, UserPlus, Users } from 'lucide-react';
+import { MoreHorizontal, UserPlus, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMemberMutations, useMembers } from '../use-members.js';
@@ -71,13 +71,11 @@ export function MembersPage() {
         ) : null}
       </div>
 
-      <Input
+      <SearchInput
         value={query}
-        onChange={(event) => setQuery(event.target.value)}
+        onValueChange={setQuery}
         placeholder="Search members"
-        leadingIcon={<Search />}
-        aria-label="Search members"
-        className="mb-4"
+        wrapperClassName="mb-4"
       />
 
       {members.isLoading ? (

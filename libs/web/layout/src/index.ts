@@ -15,13 +15,17 @@ export { ResizeHandle, type ResizeHandleProps } from './lib/resize-handle.js';
    docs editor in `@org/web-work-tools` can use it without a dependency cycle. */
 export { usePromptDialog, type PromptDialog } from '@org/ui';
 export {
+  FavoriteToggle,
   NavRow,
+  NavRowActions,
+  NavRowMenuTrigger,
   Section,
   navActionClass,
   navGroupHeaderClass,
   navGroupTriggerClass,
   navIconClass,
   navRowClass,
+  useCopyLink,
   type NavDepth,
   type NavEntry,
 } from './lib/nav-primitives.js';

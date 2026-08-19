@@ -281,10 +281,10 @@ export function DocumentEditor() {
 
             <Button
               onClick={handleNewDoc}
-              className="h-9 cursor-pointer items-center gap-1.5 rounded-md border-0 bg-[#059669] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#047857] sm:text-sm"
+              size="lg"
+              leadingIcon={<Plus />}
             >
-              <Plus className="size-4" />
-              <span>New</span>
+              New
             </Button>
 
             <DropdownMenu modal={false}>
@@ -394,7 +394,7 @@ export function DocumentEditor() {
                     size="sm"
                     className="w-full"
                     onClick={() => handleUseTemplate(tmpl.id)}
-                    leadingIcon={<Zap className="size-3.5 text-amber-400" />}
+                    leadingIcon={<Zap className="size-3.5 text-accent-amber" />}
                   >
                     Use template
                   </Button>

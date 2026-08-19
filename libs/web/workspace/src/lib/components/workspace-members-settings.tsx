@@ -26,8 +26,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   EmptyState,
-  Input,
   LocalTime,
+  SearchInput,
   Select,
   SelectContent,
   SelectItem,
@@ -49,7 +49,6 @@ import {
   Mail,
   MoreHorizontal,
   Plus,
-  Search,
   Shield,
   Trash2,
   UserMinus,
@@ -259,7 +258,7 @@ export function WorkspaceMembersSettings({
             >
               {copiedLink ? (
                 <>
-                  <Check className="size-3.5 mr-1 text-emerald-500" />
+                  <Check className="size-3.5 mr-1 text-success-text" />
                   <span>Link Copied!</span>
                 </>
               ) : (
@@ -306,7 +305,7 @@ export function WorkspaceMembersSettings({
 
         <div className="rounded-xl border border-border bg-surface p-3.5 space-y-1">
           <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="size-2 rounded-full bg-success animate-pulse" />
             Active Online
           </span>
           <p className="text-xl font-bold text-foreground">{activeCount}</p>
@@ -314,7 +313,7 @@ export function WorkspaceMembersSettings({
 
         <div className="rounded-xl border border-border bg-surface p-3.5 space-y-1">
           <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
-            <Shield className="size-3.5 text-indigo-500" />
+            <Shield className="size-3.5 text-accent-indigo" />
             Admins & Owners
           </span>
           <p className="text-xl font-bold text-foreground">{adminCount}</p>
@@ -322,7 +321,7 @@ export function WorkspaceMembersSettings({
 
         <div className="rounded-xl border border-border bg-surface p-3.5 space-y-1">
           <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1.5">
-            <Mail className="size-3.5 text-amber-500" />
+            <Mail className="size-3.5 text-accent-amber" />
             Pending Invites
           </span>
           <p className="text-xl font-bold text-foreground">
@@ -383,8 +382,8 @@ export function WorkspaceMembersSettings({
 
       {/* Feedback Toast Banner */}
       {inviteSuccessMessage ? (
-        <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-700 dark:text-emerald-300">
-          <CheckCircle2 className="size-4 shrink-0 text-emerald-500" />
+        <div className="flex items-center gap-2 rounded-xl border border-success/30 bg-success/10 p-3 text-xs text-success-text">
+          <CheckCircle2 className="size-4 shrink-0 text-success-text" />
           <span>{inviteSuccessMessage}</span>
         </div>
       ) : null}
@@ -392,15 +391,13 @@ export function WorkspaceMembersSettings({
       {/* Tab: Members Directory */}
       {activeSubTab === 'members' && (
         <div className="space-y-4">
-          <div className="relative">
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search members by name or username..."
-              leadingIcon={<Search className="size-4" />}
-              className="h-9 text-xs bg-surface border-border"
-            />
-          </div>
+          <SearchInput
+            value={searchQuery}
+            onValueChange={setSearchQuery}
+            placeholder="Search members by name or username…"
+            label="Search members"
+            className="h-9 bg-surface"
+          />
 
           {membersQuery.isLoading ? (
             <SkeletonList rows={5} withAvatar />
@@ -477,7 +474,7 @@ export function WorkspaceMembersSettings({
                       >
                         {isMemberOwner ? (
                           <span className="flex items-center gap-1">
-                            <Crown className="size-3 text-amber-500" />
+                            <Crown className="size-3 text-accent-amber" />
                             Owner
                           </span>
                         ) : (
@@ -533,9 +530,9 @@ export function WorkspaceMembersSettings({
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   onClick={() => setMemberToTransfer(member)}
-                                  className="text-amber-600 dark:text-amber-400"
+                                  className="text-accent-amber"
                                 >
-                                  <Crown className="size-3.5 mr-2 text-amber-500" />
+                                  <Crown className="size-3.5 mr-2 text-accent-amber" />
                                   <span>Transfer Ownership</span>
                                 </DropdownMenuItem>
                               </>
@@ -803,7 +800,7 @@ export function WorkspaceMembersSettings({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-amber-500">
+            <DialogTitle className="flex items-center gap-2 text-accent-amber">
               <Crown className="size-5" />
               Transfer Workspace Ownership
             </DialogTitle>

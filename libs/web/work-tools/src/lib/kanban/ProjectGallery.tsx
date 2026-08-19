@@ -20,10 +20,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   EmptyState,
-  Input,
   Progress,
   ProjectGlyph,
   ScrollArea,
+  SearchInput,
   SkeletonList,
   Toolbar,
 } from '@org/ui';
@@ -39,7 +39,6 @@ import {
   Kanban,
   LayoutGrid,
   Plus,
-  Search,
   Trash2,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -128,16 +127,13 @@ export function ProjectGallery({
   return (
     <div className="px-4 sm:px-6 py-4 sm:py-6 flex h-full flex-col overflow-hidden">
       <Toolbar className="mb-4 shrink-0 justify-between">
-        <div className="relative w-48 sm:w-72">
-          <Search className="pointer-events-none absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search projects..."
-            aria-label="Search projects"
-            className="h-8 bg-muted/40 pl-8 text-xs"
-          />
-        </div>
+        <SearchInput
+          value={search}
+          onValueChange={setSearch}
+          placeholder="Search projects…"
+          className="bg-muted/40"
+          wrapperClassName="w-48 sm:w-72"
+        />
 
         <div className="flex items-center gap-2">
           <DropdownMenu>

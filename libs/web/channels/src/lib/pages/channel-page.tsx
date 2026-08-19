@@ -50,11 +50,13 @@ import {
   Plus,
   Search,
   Share2,
+  Sparkles,
   Star,
   Trash2,
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { ChannelAICopilot } from './ChannelAICopilot.js';
 import {
   useArchiveChannel,
   useChannel,
@@ -349,7 +351,7 @@ function ChannelHeader({
                   <DropdownMenuItem onClick={handleCopyLink} className="justify-between">
                     <div className="flex items-center gap-2.5">
                       {copied ? (
-                        <Check className="size-4 text-emerald-500" />
+                        <Check className="size-4 text-success-text" />
                       ) : (
                         <Copy className="size-4" />
                       )}
@@ -383,7 +385,7 @@ function ChannelHeader({
                       <Star
                         className={cn(
                           'size-4',
-                          isFavorite && 'fill-current text-[#eab308]',
+                          isFavorite && 'fill-current text-accent-amber',
                         )}
                       />
                       <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
@@ -564,6 +566,9 @@ export function ChannelPage() {
             <TabsTrigger value="chat" className="gap-1.5">
               <MessageSquare className="size-4" /> Messages
             </TabsTrigger>
+            <TabsTrigger value="copilot" className="gap-1.5 text-accent-violet">
+              <Sparkles className="size-4" /> AI Copilot
+            </TabsTrigger>
             <TabsTrigger value="about">About</TabsTrigger>
             <TabsTrigger value="bookmarks" className="gap-1.5">
               <Bookmark className="size-4" /> Bookmarks
@@ -594,6 +599,13 @@ export function ChannelPage() {
             title={channel.name}
             subtitle={channel.topic ?? undefined}
           />
+        </TabsContent>
+
+        <TabsContent
+          value="copilot"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
+          <ChannelAICopilot channel={channel} workspaceId={workspaceId} />
         </TabsContent>
 
         <TabsContent value="about" className="flex min-h-0 flex-1 flex-col">

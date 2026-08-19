@@ -87,16 +87,31 @@ export function Switch({
 
 export const Tabs = TabsPrimitive.Root;
 
+/**
+ * Two shapes, because the app genuinely uses two.
+ *
+ * `pill` is the filled tray — for switching a view *within* a panel or card.
+ * `underline` is the page-level strip that sits under a `PageHeader` and reads
+ * as primary navigation for the screen. Several screens hand-rolled the
+ * underline look out of raw `<button>`s, which gave them no `tablist` role and
+ * no arrow-key movement between tabs; routing it through Radix restores both.
+ */
+export type TabsVariant = 'pill' | 'underline';
+
 export function TabsList({
   className,
+  variant = 'pill',
   ...props
-}: ComponentProps<typeof TabsPrimitive.List>) {
+}: ComponentProps<typeof TabsPrimitive.List> & { variant?: TabsVariant }) {
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
+      data-variant={variant}
       className={cn(
-        'text-muted-foreground inline-flex h-9 w-fit max-w-full overflow-x-auto scrollbar-none flex-nowrap items-center justify-start sm:justify-center rounded-lg p-1',
-        'bg-muted',
+        'text-muted-foreground max-w-full overflow-x-auto scrollbar-none flex-nowrap',
+        variant === 'pill'
+          ? 'inline-flex h-9 w-fit items-center justify-start sm:justify-center rounded-lg bg-muted p-1'
+          : 'flex w-full items-center gap-6 border-b border-border/60',
         className,
       )}
       {...props}
@@ -106,17 +121,28 @@ export function TabsList({
 
 export function TabsTrigger({
   className,
+  variant = 'pill',
   ...props
-}: ComponentProps<typeof TabsPrimitive.Trigger>) {
+}: ComponentProps<typeof TabsPrimitive.Trigger> & { variant?: TabsVariant }) {
   return (
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        'inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1 text-sm font-medium whitespace-nowrap',
-        'transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none',
+        'inline-flex items-center justify-center gap-1.5 font-medium whitespace-nowrap',
+        'transition-[color,box-shadow] focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none',
         'disabled:pointer-events-none disabled:opacity-50',
-        'data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs',
         "[&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4",
+        variant === 'pill'
+          ? [
+              'flex-1 rounded-md px-3 py-1 text-sm',
+              'data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs',
+            ]
+          : [
+              // The inactive border keeps the row from shifting 2px on select.
+              'shrink-0 border-b-2 border-transparent pb-3 text-sm rounded-t-sm',
+              'hover:text-foreground',
+              'data-[state=active]:border-primary data-[state=active]:font-semibold data-[state=active]:text-foreground',
+            ],
         className,
       )}
       {...props}

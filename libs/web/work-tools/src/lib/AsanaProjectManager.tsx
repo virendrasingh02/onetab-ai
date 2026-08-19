@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea,
+  usePromptDialog,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useCurrentUser } from '@org/auth';
@@ -116,6 +117,7 @@ export function AsanaProjectManager() {
   const membersQuery = useMembers(workspaceId);
   const projectsQuery = useProjects(workspaceId);
   const projectMutations = useProjectMutations(workspaceId);
+  const prompts = usePromptDialog();
 
   /** Every task in the workspace, for the gallery's completion bars. */
   const allTasks = useTasks(workspaceId);
@@ -285,7 +287,22 @@ export function AsanaProjectManager() {
     setIsEditProjectOpen(false);
   };
 
-  const handleDeleteProject = (projectId: string) => {
+  /*
+   * Deleting a project takes its whole board with it, so the action asks
+   * first — both entry points (the project list row and the board's own
+   * toolbar) went straight to the mutation.
+   */
+  const handleDeleteProject = async (projectId: string) => {
+    const project = projects.find((entry) => entry.id === projectId);
+    const confirmed = await prompts.confirmAction({
+      title: `Delete “${project?.name ?? 'this project'}”?`,
+      description:
+        'The project and every task on its board are deleted for everyone. This cannot be undone.',
+      confirmLabel: 'Delete project',
+      destructive: true,
+    });
+    if (!confirmed) return;
+
     projectMutations.remove.mutate(projectId, {
       onSuccess: () => {
         if (activeProject?.id !== projectId) return;
@@ -404,6 +421,8 @@ export function AsanaProjectManager() {
           onClose={() => setImportProgress(null)}
         />
       ) : null}
+
+      {prompts.dialog}
     </>
   );
 

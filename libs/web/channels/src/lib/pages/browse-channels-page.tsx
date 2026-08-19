@@ -1,4 +1,4 @@
-import { Badge, Button, EmptyState, Input, SkeletonList } from '@org/ui';
+import { Badge, Button, EmptyState, SearchInput, SkeletonList } from '@org/ui';
 import { formatCount } from '@org/utils';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { Hash, Lock, Plus, Search } from 'lucide-react';
@@ -44,12 +44,10 @@ export function BrowseChannelsPage() {
       </div>
 
       <div className="mb-4 gap-3 flex items-center">
-        <Input
+        <SearchInput
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onValueChange={setQuery}
           placeholder="Search channels"
-          leadingIcon={<Search />}
-          aria-label="Search channels"
         />
         <Button
           variant={showArchived ? 'secondary' : 'outline'}

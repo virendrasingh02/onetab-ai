@@ -142,6 +142,11 @@ export {
 export { Input, Textarea, type InputProps, type TextareaProps } from './lib/components/input.js';
 
 export {
+  SearchInput,
+  type SearchInputProps,
+} from './lib/components/search-input.js';
+
+export {
   usePromptDialog,
   type PromptDialog,
 } from './lib/components/use-prompt-dialog.js';
@@ -170,6 +175,7 @@ export {
   TabsContent,
   TabsList,
   TabsTrigger,
+  type TabsVariant,
 } from './lib/components/primitives.js';
 
 export { Checkbox } from './lib/components/checkbox.js';

@@ -104,6 +104,9 @@ const AIImageGeneratorView = lazy(() =>
 const AgentMarketplaceView = lazy(() =>
   import('@org/web-agents').then((m) => ({ default: m.AgentMarketplaceView })),
 );
+const AgentChatView = lazy(() =>
+  import('@org/web-agents').then((m) => ({ default: m.AgentChatView })),
+);
 const AgentBuilderView = lazy(() =>
   import('@org/web-agents').then((m) => ({ default: m.AgentBuilderView })),
 );
@@ -234,6 +237,8 @@ export function App() {
             <Route path="ai/images" element={<AIImageGeneratorView />} />
             <Route path="whiteboards" element={<WhiteboardCanvas />} />
             <Route path="agents" element={<AgentMarketplaceView />} />
+            <Route path="agents/chat" element={<AgentChatView />} />
+            <Route path="agents/:agentId/chat" element={<AgentChatView />} />
             <Route path="agents/builder" element={<AgentBuilderView />} />
             <Route path="agents/logs" element={<AgentMonitoringView />} />
             <Route path="automations" element={<WorkflowListView />} />

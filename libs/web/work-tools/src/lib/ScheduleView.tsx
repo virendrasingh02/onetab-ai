@@ -7,6 +7,7 @@ import {
   PageHeader,
   Panel,
   SkeletonList,
+  usePromptDialog,
   UserAvatar,
 } from '@org/ui';
 import { formatDateTime, formatRelative } from '@org/utils';
@@ -41,6 +42,19 @@ export function ScheduleView() {
     isoOffsetDays(HORIZON_DAYS),
   );
   const { remove } = useCalendarMutations(workspaceId);
+  const prompts = usePromptDialog();
+
+  /* Removing an event clears it for every attendee, so confirm first. */
+  const confirmDelete = async (title: string, id: string) => {
+    const confirmed = await prompts.confirmAction({
+      title: `Delete “${title}”?`,
+      description:
+        'The event is removed from the schedule for everyone. This cannot be undone.',
+      confirmLabel: 'Delete event',
+      destructive: true,
+    });
+    if (confirmed) remove.mutate(id);
+  };
 
   const groups = new Map<string, CalendarEvent[]>();
   for (const event of events.data ?? []) {
@@ -149,7 +163,7 @@ export function ScheduleView() {
                           size="icon-sm"
                           aria-label={`Delete ${event.title}`}
                           disabled={remove.isPending}
-                          onClick={() => remove.mutate(event.id)}
+                          onClick={() => confirmDelete(event.title, event.id)}
                         >
                           <Trash2 className="size-4 text-subtle hover:text-destructive" />
                         </Button>
@@ -162,6 +176,8 @@ export function ScheduleView() {
           </div>
         )}
       </Panel>
+
+      {prompts.dialog}
     </Page>
   );
 }

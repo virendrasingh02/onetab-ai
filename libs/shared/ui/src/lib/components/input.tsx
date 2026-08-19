@@ -7,6 +7,15 @@ export interface InputProps extends ComponentProps<'input'> {
   leadingIcon?: ReactNode;
   trailingSlot?: ReactNode;
   invalid?: boolean;
+  /**
+   * Classes for the positioning wrapper that a decorated field renders.
+   *
+   * Width has to land on the wrapper, not the field: the field is `w-full`
+   * inside it, so a `w-64` passed through `className` is overridden by the
+   * wrapper's own `w-full` and the control silently stays full-bleed. Ignored
+   * when the field has no decoration and so renders no wrapper.
+   */
+  wrapperClassName?: string;
 }
 
 export function Input({
@@ -15,6 +24,7 @@ export function Input({
   leadingIcon,
   trailingSlot,
   invalid,
+  wrapperClassName,
   ...props
 }: InputProps) {
   const field = (
@@ -43,7 +53,7 @@ export function Input({
   if (!leadingIcon && !trailingSlot) return field;
 
   return (
-    <div className="relative w-full">
+    <div className={cn('relative w-full', wrapperClassName)}>
       {leadingIcon ? (
         <span
           aria-hidden

@@ -5,7 +5,6 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
-  DropdownMenuTrigger,
   Hint,
   IconRenderer,
   type PromptDialog,
@@ -21,7 +20,6 @@ import {
   Check,
   ChevronRight,
   Copy,
-  MoreHorizontal,
   Pause,
   Pencil,
   Play,
@@ -31,14 +29,19 @@ import {
   Shield,
   Star,
   Trash2,
+  Wrench,
 } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
+  FavoriteToggle,
   navActionClass,
   navIconClass,
   navRowClass,
+  NavRowActions,
+  NavRowMenuTrigger,
   Section,
+  useCopyLink,
   type NavDepth,
 } from './nav-primitives.js';
 import { useSidebarFavorites } from './use-sidebar-favorites.js';
@@ -165,24 +168,15 @@ export function AgentNavRow({
   depth?: NavDepth;
 }) {
   const navigate = useNavigate();
-  const [copied, setCopied] = useState(false);
   const [muted, setMuted] = useState(false);
-
-  const handleCopyLink = useCallback(
-    (e?: React.MouseEvent | Event) => {
-      e?.stopPropagation?.();
-      const url = `${window.location.origin}/w/${workspaceSlug}/agents?agent=${agent.id}`;
-      navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    },
-    [workspaceSlug, agent.id],
+  const { copied, copy } = useCopyLink(
+    `${window.location.origin}/w/${workspaceSlug}/agents/chat?id=${agent.id}`,
   );
 
   return (
     <li className="group/row relative">
       <NavLink
-        to={`/w/${workspaceSlug}/agents?agent=${agent.id}`}
+        to={`/w/${workspaceSlug}/agents/chat?id=${agent.id}`}
         className={navRowClass(isSelected, {
           depth,
           extra: 'pr-14',
@@ -197,78 +191,38 @@ export function AgentNavRow({
         <span className="flex-1 truncate">{agent.name}</span>
       </NavLink>
 
-      <div
-        className={cn(
-          'right-1 gap-0.5 absolute top-1/2 flex -translate-y-1/2 items-center transition-opacity',
-          isFavorite
-            ? 'opacity-100'
-            : 'opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 focus-within:opacity-100',
-        )}
-      >
-        <Hint label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleFavorite();
-            }}
-            aria-label={
-              isFavorite ? 'Remove from favorites' : 'Add to favorites'
-            }
-            aria-pressed={isFavorite}
-            className={cn(
-              'size-5 p-0',
-              isFavorite
-                ? 'text-[#eab308] opacity-100'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Star className={cn('size-3.5', isFavorite && 'fill-current')} />
-          </Button>
-        </Hint>
+      <NavRowActions isPinned={isFavorite}>
+        <FavoriteToggle isFavorite={isFavorite} onToggle={onToggleFavorite} />
 
         <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`Options for ${agent.name}`}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              className="size-5 p-0 text-muted-foreground hover:text-foreground"
-            >
-              <MoreHorizontal className="size-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
+          <NavRowMenuTrigger label={`Options for ${agent.name}`} />
           <DropdownMenuContent align="end" side="bottom" className="w-64">
             <DropdownMenuItem
               onSelect={() =>
-                navigate(
-                  `/w/${workspaceSlug}/agents?agent=${agent.id}&tab=studio`,
-                )
-              }
-              onClick={() =>
-                navigate(
-                  `/w/${workspaceSlug}/agents?agent=${agent.id}&tab=studio`,
-                )
+                navigate(`/w/${workspaceSlug}/agents/chat?id=${agent.id}`)
               }
               className="gap-2.5"
             >
               <Bot className="size-4" />
-              <span>Open Studio</span>
+              <span>Chat with Agent</span>
             </DropdownMenuItem>
 
             <DropdownMenuItem
-              onSelect={handleCopyLink}
-              onClick={handleCopyLink}
-              className="justify-between"
+              onSelect={() =>
+                navigate(
+                  `/w/${workspaceSlug}/agents/builder?agentId=${agent.id}`,
+                )
+              }
+              className="gap-2.5"
             >
+              <Wrench className="size-4" />
+              <span>Open in Builder</span>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem onSelect={copy} className="justify-between">
               <div className="gap-2.5 flex items-center">
                 {copied ? (
-                  <Check className="size-4 text-emerald-500" />
+                  <Check className="size-4 text-success-text" />
                 ) : (
                   <Copy className="size-4" />
                 )}
@@ -281,14 +235,13 @@ export function AgentNavRow({
 
             <DropdownMenuItem
               onSelect={onToggleFavorite}
-              onClick={onToggleFavorite}
               className="justify-between"
             >
               <div className="gap-2.5 flex items-center">
                 <Star
                   className={cn(
                     'size-4',
-                    isFavorite && 'fill-current text-[#eab308]',
+                    isFavorite && 'fill-current text-accent-amber',
                   )}
                 />
                 <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
@@ -302,9 +255,6 @@ export function AgentNavRow({
               onSelect={() =>
                 navigate(`/w/${workspaceSlug}/agents?agent=${agent.id}`)
               }
-              onClick={() =>
-                navigate(`/w/${workspaceSlug}/agents?agent=${agent.id}`)
-              }
               className="gap-2.5"
             >
               <Settings className="size-4" />
@@ -313,7 +263,6 @@ export function AgentNavRow({
 
             <DropdownMenuItem
               onSelect={() => setMuted((prev) => !prev)}
-              onClick={() => setMuted((prev) => !prev)}
               className="gap-2.5"
             >
               <Bell className="size-4" />
@@ -328,7 +277,6 @@ export function AgentNavRow({
                 <DropdownMenuItem
                   variant="destructive"
                   onSelect={onDelete}
-                  onClick={onDelete}
                   className="gap-2.5"
                 >
                   <Trash2 className="size-4" />
@@ -338,7 +286,7 @@ export function AgentNavRow({
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
+      </NavRowActions>
     </li>
   );
 }
@@ -361,24 +309,18 @@ export function AppNavRow({
   depth?: NavDepth;
 }) {
   const navigate = useNavigate();
-  const [copied, setCopied] = useState(false);
   const [synced, setSynced] = useState(false);
-
-  const handleCopyLink = useCallback(
-    (e?: React.MouseEvent | Event) => {
-      e?.stopPropagation?.();
-      const url = `${window.location.origin}/w/${workspaceSlug}/integrations?app=${app.id}`;
-      navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    },
-    [workspaceSlug, app.id],
+  const syncTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const { copied, copy } = useCopyLink(
+    `${window.location.origin}/w/${workspaceSlug}/integrations?app=${app.id}`,
   );
 
-  const handleSync = useCallback((e?: React.MouseEvent | Event) => {
-    e?.stopPropagation?.();
+  useEffect(() => () => clearTimeout(syncTimer.current), []);
+
+  const handleSync = useCallback(() => {
     setSynced(true);
-    setTimeout(() => setSynced(false), 2000);
+    clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(() => setSynced(false), 2000);
   }, []);
 
   return (
@@ -400,58 +342,14 @@ export function AppNavRow({
         <span className="flex-1 truncate">{app.name}</span>
       </NavLink>
 
-      <div
-        className={cn(
-          'right-1 gap-0.5 absolute top-1/2 flex -translate-y-1/2 items-center transition-opacity',
-          isFavorite
-            ? 'opacity-100'
-            : 'opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 focus-within:opacity-100',
-        )}
-      >
-        <Hint label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleFavorite();
-            }}
-            aria-label={
-              isFavorite ? 'Remove from favorites' : 'Add to favorites'
-            }
-            aria-pressed={isFavorite}
-            className={cn(
-              'size-5 p-0',
-              isFavorite
-                ? 'text-[#eab308] opacity-100'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Star className={cn('size-3.5', isFavorite && 'fill-current')} />
-          </Button>
-        </Hint>
+      <NavRowActions isPinned={isFavorite}>
+        <FavoriteToggle isFavorite={isFavorite} onToggle={onToggleFavorite} />
 
         <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`Options for ${app.name}`}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              className="size-5 p-0 text-muted-foreground hover:text-foreground"
-            >
-              <MoreHorizontal className="size-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
+          <NavRowMenuTrigger label={`Options for ${app.name}`} />
           <DropdownMenuContent align="end" side="bottom" className="w-64">
             <DropdownMenuItem
               onSelect={() =>
-                navigate(`/w/${workspaceSlug}/integrations?app=${app.id}`)
-              }
-              onClick={() =>
                 navigate(`/w/${workspaceSlug}/integrations?app=${app.id}`)
               }
               className="gap-2.5"
@@ -460,14 +358,10 @@ export function AppNavRow({
               <span>Manage integration</span>
             </DropdownMenuItem>
 
-            <DropdownMenuItem
-              onSelect={handleCopyLink}
-              onClick={handleCopyLink}
-              className="justify-between"
-            >
+            <DropdownMenuItem onSelect={copy} className="justify-between">
               <div className="gap-2.5 flex items-center">
                 {copied ? (
-                  <Check className="size-4 text-emerald-500" />
+                  <Check className="size-4 text-success-text" />
                 ) : (
                   <Copy className="size-4" />
                 )}
@@ -476,13 +370,9 @@ export function AppNavRow({
               <DropdownMenuShortcut>C</DropdownMenuShortcut>
             </DropdownMenuItem>
 
-            <DropdownMenuItem
-              onSelect={handleSync}
-              onClick={handleSync}
-              className="gap-2.5"
-            >
+            <DropdownMenuItem onSelect={handleSync} className="gap-2.5">
               {synced ? (
-                <Check className="size-4 text-emerald-500" />
+                <Check className="size-4 text-success-text" />
               ) : (
                 <RefreshCw className="size-4" />
               )}
@@ -493,14 +383,13 @@ export function AppNavRow({
 
             <DropdownMenuItem
               onSelect={onToggleFavorite}
-              onClick={onToggleFavorite}
               className="justify-between"
             >
               <div className="gap-2.5 flex items-center">
                 <Star
                   className={cn(
                     'size-4',
-                    isFavorite && 'fill-current text-[#eab308]',
+                    isFavorite && 'fill-current text-accent-amber',
                   )}
                 />
                 <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
@@ -512,9 +401,6 @@ export function AppNavRow({
 
             <DropdownMenuItem
               onSelect={() =>
-                navigate(`/w/${workspaceSlug}/integrations?app=${app.id}`)
-              }
-              onClick={() =>
                 navigate(`/w/${workspaceSlug}/integrations?app=${app.id}`)
               }
               className="gap-2.5"
@@ -529,7 +415,6 @@ export function AppNavRow({
                 <DropdownMenuItem
                   variant="destructive"
                   onSelect={onDisconnect}
-                  onClick={onDisconnect}
                   className="gap-2.5"
                 >
                   <Trash2 className="size-4" />
@@ -539,7 +424,7 @@ export function AppNavRow({
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
+      </NavRowActions>
     </li>
   );
 }
@@ -562,25 +447,19 @@ export function WorkflowNavRow({
   depth?: NavDepth;
 }) {
   const navigate = useNavigate();
-  const [copied, setCopied] = useState(false);
   const [triggered, setTriggered] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-
-  const handleCopyLink = useCallback(
-    (e?: React.MouseEvent | Event) => {
-      e?.stopPropagation?.();
-      const url = `${window.location.origin}/w/${workspaceSlug}/automations?workflow=${workflow.id}`;
-      navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    },
-    [workspaceSlug, workflow.id],
+  const runTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const { copied, copy } = useCopyLink(
+    `${window.location.origin}/w/${workspaceSlug}/automations?workflow=${workflow.id}`,
   );
 
-  const handleRunWorkflow = useCallback((e?: React.MouseEvent | Event) => {
-    e?.stopPropagation?.();
+  useEffect(() => () => clearTimeout(runTimer.current), []);
+
+  const handleRunWorkflow = useCallback(() => {
     setTriggered(true);
-    setTimeout(() => setTriggered(false), 2000);
+    clearTimeout(runTimer.current);
+    runTimer.current = setTimeout(() => setTriggered(false), 2000);
   }, []);
 
   return (
@@ -605,60 +484,14 @@ export function WorkflowNavRow({
         <span className="flex-1 truncate">{workflow.name}</span>
       </NavLink>
 
-      <div
-        className={cn(
-          'right-1 gap-0.5 absolute top-1/2 flex -translate-y-1/2 items-center transition-opacity',
-          isFavorite
-            ? 'opacity-100'
-            : 'opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 focus-within:opacity-100',
-        )}
-      >
-        <Hint label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleFavorite();
-            }}
-            aria-label={
-              isFavorite ? 'Remove from favorites' : 'Add to favorites'
-            }
-            aria-pressed={isFavorite}
-            className={cn(
-              'size-5 p-0',
-              isFavorite
-                ? 'text-[#eab308] opacity-100'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Star className={cn('size-3.5', isFavorite && 'fill-current')} />
-          </Button>
-        </Hint>
+      <NavRowActions isPinned={isFavorite}>
+        <FavoriteToggle isFavorite={isFavorite} onToggle={onToggleFavorite} />
 
         <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`Options for ${workflow.name}`}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              className="size-5 p-0 text-muted-foreground hover:text-foreground"
-            >
-              <MoreHorizontal className="size-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
+          <NavRowMenuTrigger label={`Options for ${workflow.name}`} />
           <DropdownMenuContent align="end" side="bottom" className="w-64">
             <DropdownMenuItem
               onSelect={() =>
-                navigate(
-                  `/w/${workspaceSlug}/automations?workflow=${workflow.id}`,
-                )
-              }
-              onClick={() =>
                 navigate(
                   `/w/${workspaceSlug}/automations?workflow=${workflow.id}`,
                 )
@@ -669,13 +502,9 @@ export function WorkflowNavRow({
               <span>Edit workflow</span>
             </DropdownMenuItem>
 
-            <DropdownMenuItem
-              onSelect={handleRunWorkflow}
-              onClick={handleRunWorkflow}
-              className="gap-2.5"
-            >
+            <DropdownMenuItem onSelect={handleRunWorkflow} className="gap-2.5">
               {triggered ? (
-                <Check className="size-4 text-emerald-500" />
+                <Check className="size-4 text-success-text" />
               ) : (
                 <Play className="size-4" />
               )}
@@ -684,14 +513,10 @@ export function WorkflowNavRow({
               </span>
             </DropdownMenuItem>
 
-            <DropdownMenuItem
-              onSelect={handleCopyLink}
-              onClick={handleCopyLink}
-              className="justify-between"
-            >
+            <DropdownMenuItem onSelect={copy} className="justify-between">
               <div className="gap-2.5 flex items-center">
                 {copied ? (
-                  <Check className="size-4 text-emerald-500" />
+                  <Check className="size-4 text-success-text" />
                 ) : (
                   <Copy className="size-4" />
                 )}
@@ -704,14 +529,13 @@ export function WorkflowNavRow({
 
             <DropdownMenuItem
               onSelect={onToggleFavorite}
-              onClick={onToggleFavorite}
               className="justify-between"
             >
               <div className="gap-2.5 flex items-center">
                 <Star
                   className={cn(
                     'size-4',
-                    isFavorite && 'fill-current text-[#eab308]',
+                    isFavorite && 'fill-current text-accent-amber',
                   )}
                 />
                 <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
@@ -723,7 +547,6 @@ export function WorkflowNavRow({
 
             <DropdownMenuItem
               onSelect={() => setIsPaused((prev) => !prev)}
-              onClick={() => setIsPaused((prev) => !prev)}
               className="gap-2.5"
             >
               {isPaused ? (
@@ -740,11 +563,6 @@ export function WorkflowNavRow({
                   `/w/${workspaceSlug}/automations?workflow=${workflow.id}`,
                 )
               }
-              onClick={() =>
-                navigate(
-                  `/w/${workspaceSlug}/automations?workflow=${workflow.id}`,
-                )
-              }
               className="gap-2.5"
             >
               <Settings className="size-4" />
@@ -757,7 +575,6 @@ export function WorkflowNavRow({
                 <DropdownMenuItem
                   variant="destructive"
                   onSelect={onDelete}
-                  onClick={onDelete}
                   className="gap-2.5"
                 >
                   <Trash2 className="size-4" />
@@ -767,7 +584,7 @@ export function WorkflowNavRow({
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
+      </NavRowActions>
     </li>
   );
 }

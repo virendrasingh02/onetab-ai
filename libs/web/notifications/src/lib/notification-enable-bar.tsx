@@ -254,12 +254,12 @@ export function NotificationEnableBar({
     return (
       <div
         className={cn(
-          'gap-3 border-emerald-500/30 from-emerald-500/10 to-emerald-500/5 px-4 py-2.5 text-xs text-emerald-700 dark:text-emerald-300 shadow-xs relative flex items-center justify-between overflow-hidden rounded-xl border bg-gradient-to-r via-card transition-all duration-300',
+          'gap-3 border-success/30 from-success/10 to-success/5 px-4 py-2.5 text-xs text-success-text shadow-xs relative flex items-center justify-between overflow-hidden rounded-xl border bg-gradient-to-r via-card transition-all duration-300',
           className,
         )}
       >
         <div className="gap-2 flex items-center">
-          <div className="size-6 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center rounded-full">
+          <div className="size-6 bg-success/20 text-success-text flex items-center justify-center rounded-full">
             <Check className="size-3.5" />
           </div>
           <span className="font-medium">
@@ -269,7 +269,7 @@ export function NotificationEnableBar({
         <Button
           variant="outline"
           size="sm"
-          className="h-7 px-2 text-xs border-emerald-500/30 hover:bg-emerald-500/20"
+          className="h-7 px-2 text-xs border-success/30 hover:bg-success/20"
           onClick={() => setGrantedToast(false)}
         >
           Got it
@@ -286,12 +286,12 @@ export function NotificationEnableBar({
     return (
       <div
         className={cn(
-          'gap-3 border-amber-500/30 from-amber-500/10 to-amber-500/5 px-4 py-2.5 text-xs text-amber-800 dark:text-amber-200 shadow-xs relative flex flex-wrap items-center justify-between overflow-hidden rounded-xl border bg-gradient-to-r via-card',
+          'gap-3 border-warning/30 from-warning/10 to-warning/5 px-4 py-2.5 text-xs text-warning-text shadow-xs relative flex flex-wrap items-center justify-between overflow-hidden rounded-xl border bg-gradient-to-r via-card',
           className,
         )}
       >
         <div className="gap-2 min-w-0 flex items-center">
-          <ShieldAlert className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <ShieldAlert className="size-4 text-warning-text shrink-0" />
           <span className="truncate">
             Notifications are blocked in your browser settings. Unblock them in
             your site settings to receive alerts.
@@ -300,7 +300,7 @@ export function NotificationEnableBar({
         <Button
           variant="outline"
           size="sm"
-          className="h-7 px-2 text-xs border-amber-500/30 hover:bg-amber-500/20"
+          className="h-7 px-2 text-xs border-warning/30 hover:bg-warning/20"
           onClick={dismissPermanently}
         >
           Dismiss
@@ -380,7 +380,7 @@ export function NotificationEnableBar({
                 onClick={() => update.mutate({ mentionsOnly: true })}
                 className="gap-2 text-xs"
               >
-                <BellRing className="size-3.5 text-amber-500" />
+                <BellRing className="size-3.5 text-warning-text" />
                 <div className="flex flex-col">
                   <span>Mentions Only</span>
                   <span className="text-[10px] text-muted-foreground">

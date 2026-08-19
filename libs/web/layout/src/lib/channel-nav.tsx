@@ -49,17 +49,21 @@ import {
   Users,
   Video,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { SidebarFooterActions } from './create-menu.js';
 import { DirectMessagesSection } from './direct-messages-section.js';
 import { DocNavRow, DocsTreeSection } from './docs-section.js';
 import {
+  FavoriteToggle,
   navActionClass,
   navIconClass,
   navRowClass,
   NavRow,
+  NavRowActions,
+  NavRowMenuTrigger,
   Section,
+  useCopyLink,
   type NavEntry,
 } from './nav-primitives.js';
 import { ProjectNavRow, ProjectsTreeSection } from './projects-section.js';
@@ -126,46 +130,31 @@ function ChannelRow({
   onToggleMute: (channel: ChannelSummary) => void;
   prompts: PromptDialog;
 }) {
-  const [copied, setCopied] = useState(false);
-  const [emailCopied, setEmailCopied] = useState(false);
   const [unreadState, setUnreadState] = useState(false);
-  const [shared, setShared] = useState(false);
+  const unreadTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const isFavorite = channel.membership?.isFavorite ?? false;
   const isMuted = channel.membership?.isMuted ?? false;
   const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
 
-  const handleCopyLink = useCallback(
-    (e?: React.MouseEvent | Event) => {
-      e?.stopPropagation?.();
-      const url = `${window.location.origin}/w/${workspaceSlug}/c/${channel.slug}`;
-      navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    },
-    [workspaceSlug, channel.slug],
+  const channelUrl = `${window.location.origin}/w/${workspaceSlug}/c/${channel.slug}`;
+  const { copied, copy: handleCopyLink } = useCopyLink(channelUrl);
+  /* "Share" copies the same link; it only differs in the confirmation it shows. */
+  const { copied: shared, copy: handleShare } = useCopyLink(channelUrl);
+  const { copied: emailCopied, copy: handleEmailChannel } = useCopyLink(
+    `${channel.slug}-${workspaceSlug}@onetab.ai`,
   );
 
-  const handleEmailChannel = useCallback(
-    (e?: React.MouseEvent | Event) => {
-      e?.stopPropagation?.();
-      const email = `${channel.slug}-${workspaceSlug}@onetab.ai`;
-      navigator.clipboard.writeText(email);
-      setEmailCopied(true);
-      setTimeout(() => setEmailCopied(false), 2000);
-    },
-    [workspaceSlug, channel.slug],
-  );
+  useEffect(() => () => clearTimeout(unreadTimer.current), []);
 
-  const handleMarkUnread = useCallback((e?: React.MouseEvent | Event) => {
-    e?.stopPropagation?.();
+  const handleMarkUnread = useCallback(() => {
     setUnreadState(true);
-    setTimeout(() => setUnreadState(false), 2000);
+    clearTimeout(unreadTimer.current);
+    unreadTimer.current = setTimeout(() => setUnreadState(false), 2000);
   }, []);
 
   const handleRename = useCallback(
-    async (e?: React.MouseEvent | Event) => {
-      e?.stopPropagation?.();
+    async () => {
       const name = await prompts.promptText({
         title: `Rename #${channel.name}`,
         label: 'Channel name',
@@ -178,8 +167,7 @@ function ChannelRow({
   );
 
   const handleDeleteChannel = useCallback(
-    async (e?: React.MouseEvent | Event) => {
-      e?.stopPropagation?.();
+    async () => {
       const confirmed = await prompts.confirmAction({
         title: `Delete #${channel.name}?`,
         description:
@@ -190,17 +178,6 @@ function ChannelRow({
       if (!confirmed) return;
     },
     [channel.name, prompts],
-  );
-
-  const handleShare = useCallback(
-    (e?: React.MouseEvent | Event) => {
-      e?.stopPropagation?.();
-      const url = `${window.location.origin}/w/${workspaceSlug}/c/${channel.slug}`;
-      navigator.clipboard.writeText(url);
-      setShared(true);
-      setTimeout(() => setShared(false), 2000);
-    },
-    [workspaceSlug, channel.slug],
   );
 
   return (
@@ -228,63 +205,22 @@ function ChannelRow({
       </NavLink>
 
       {channel.membership ? (
-        <div
-          className={cn(
-            'right-1 gap-0.5 absolute top-1/2 flex -translate-y-1/2 items-center transition-opacity',
-            isFavorite
-              ? 'opacity-100'
-              : 'opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 focus-within:opacity-100',
-          )}
-        >
-          <Hint
-            label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-          >
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleFavorite(channel);
-              }}
-              aria-label={
-                isFavorite ? 'Remove from favorites' : 'Add to favorites'
-              }
-              aria-pressed={isFavorite}
-              className={cn(
-                'size-5 p-0',
-                isFavorite
-                  ? 'text-[#eab308] opacity-100'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <Star className={cn('size-3.5', isFavorite && 'fill-current')} />
-            </Button>
-          </Hint>
+        <NavRowActions isPinned={isFavorite}>
+          <FavoriteToggle
+            isFavorite={isFavorite}
+            onToggle={() => onToggleFavorite(channel)}
+          />
 
           <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Channel options"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                className="size-5 p-0 text-muted-foreground hover:text-foreground"
-              >
-                <MoreHorizontal className="size-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
+            <NavRowMenuTrigger label={`Options for ${channel.name}`} />
             <DropdownMenuContent align="end" side="bottom" className="w-64">
               <DropdownMenuItem
                 onSelect={handleMarkUnread}
-                onClick={handleMarkUnread}
                 className="justify-between"
               >
                 <div className="gap-2.5 flex items-center">
                   {unreadState ? (
-                    <Check className="size-4 text-emerald-500" />
+                    <Check className="size-4 text-success-text" />
                   ) : (
                     <Mail className="size-4" />
                   )}
@@ -297,7 +233,6 @@ function ChannelRow({
 
               <DropdownMenuItem
                 onSelect={handleRename}
-                onClick={handleRename}
                 className="gap-2.5"
               >
                 <Pencil className="size-4" />
@@ -306,12 +241,11 @@ function ChannelRow({
 
               <DropdownMenuItem
                 onSelect={handleCopyLink}
-                onClick={handleCopyLink}
                 className="justify-between"
               >
                 <div className="gap-2.5 flex items-center">
                   {copied ? (
-                    <Check className="size-4 text-emerald-500" />
+                    <Check className="size-4 text-success-text" />
                   ) : (
                     <Copy className="size-4" />
                   )}
@@ -324,14 +258,13 @@ function ChannelRow({
 
               <DropdownMenuItem
                 onSelect={() => onToggleFavorite(channel)}
-                onClick={() => onToggleFavorite(channel)}
                 className="justify-between"
               >
                 <div className="gap-2.5 flex items-center">
                   <Star
                     className={cn(
                       'size-4',
-                      isFavorite && 'fill-current text-[#eab308]',
+                      isFavorite && 'fill-current text-accent-amber',
                     )}
                   />
                   <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
@@ -343,11 +276,10 @@ function ChannelRow({
 
               <DropdownMenuItem
                 onSelect={handleEmailChannel}
-                onClick={handleEmailChannel}
                 className="gap-2.5"
               >
                 {emailCopied ? (
-                  <Check className="size-4 text-emerald-500" />
+                  <Check className="size-4 text-success-text" />
                 ) : (
                   <Mail className="size-4" />
                 )}
@@ -358,7 +290,6 @@ function ChannelRow({
 
               <DropdownMenuItem
                 onSelect={() => onToggleMute(channel)}
-                onClick={() => onToggleMute(channel)}
                 className="gap-2.5"
               >
                 <Bell className="size-4" />
@@ -367,7 +298,6 @@ function ChannelRow({
 
               <DropdownMenuItem
                 onSelect={() => onToggleMute(channel)}
-                onClick={() => onToggleMute(channel)}
                 description="Follow this Channel in the future to show it in your sidebar again."
               >
                 <BellOff className="size-4" />
@@ -378,11 +308,10 @@ function ChannelRow({
 
               <DropdownMenuItem
                 onSelect={handleShare}
-                onClick={handleShare}
                 className="gap-2.5"
               >
                 {shared ? (
-                  <Check className="size-4 text-emerald-500" />
+                  <Check className="size-4 text-success-text" />
                 ) : (
                   <Share2 className="size-4" />
                 )}
@@ -393,7 +322,6 @@ function ChannelRow({
 
               <DropdownMenuItem
                 onSelect={handleDeleteChannel}
-                onClick={handleDeleteChannel}
                 variant="destructive"
                 className="gap-2.5"
               >
@@ -402,7 +330,7 @@ function ChannelRow({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
+        </NavRowActions>
       ) : null}
     </li>
   );

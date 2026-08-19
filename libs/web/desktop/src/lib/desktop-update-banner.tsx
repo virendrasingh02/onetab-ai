@@ -49,7 +49,7 @@ export function DesktopUpdateBanner() {
   if (updateStatus.state === 'error') {
     return (
       <div className="flex min-h-8 shrink-0 flex-wrap items-center gap-2 border-b border-border bg-surface px-4 py-1 text-[11px] text-muted-foreground">
-        <AlertTriangle className="size-3.5 shrink-0 text-[#FFB224]" aria-hidden />
+        <AlertTriangle className="size-3.5 shrink-0 text-warning-text" aria-hidden />
         <span className="flex-1 truncate" title={updateStatus.message}>
           Could not check for updates — {updateStatus.message}
         </span>

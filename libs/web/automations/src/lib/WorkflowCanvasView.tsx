@@ -47,12 +47,12 @@ function TriggerNode({ data, selected }: NodeProps) {
     <Card
       className={cn(
         'p-3 min-w-52 border-2 bg-surface shadow-md rounded-xl transition-all duration-200',
-        selected ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-amber-500/40',
+        selected ? 'border-accent-amber ring-2 ring-accent-amber/20' : 'border-accent-amber/40',
       )}
     >
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-amber-500" />
+      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-accent-amber" />
       <div className="flex items-center gap-2 mb-1.5">
-        <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500 shrink-0">
+        <div className="p-1.5 rounded-lg bg-accent-amber/10 text-accent-amber shrink-0">
           <Webhook className="size-4" />
         </div>
         <div>
@@ -76,13 +76,13 @@ function ConditionNode({ data, selected }: NodeProps) {
     <Card
       className={cn(
         'p-3 min-w-52 border-2 bg-surface shadow-md rounded-xl transition-all duration-200',
-        selected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-blue-500/40',
+        selected ? 'border-accent-blue ring-2 ring-accent-blue/20' : 'border-accent-blue/40',
       )}
     >
-      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-blue-500" />
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-blue-500" />
+      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-accent-blue" />
+      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-accent-blue" />
       <div className="flex items-center gap-2 mb-1.5">
-        <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-500 shrink-0">
+        <div className="p-1.5 rounded-lg bg-accent-blue/10 text-accent-blue shrink-0">
           <GitBranch className="size-4" />
         </div>
         <div>
@@ -106,17 +106,17 @@ function AiActionNode({ data, selected }: NodeProps) {
     <Card
       className={cn(
         'p-3 min-w-52 border-2 bg-surface shadow-md rounded-xl transition-all duration-200',
-        selected ? 'border-purple-500 ring-2 ring-purple-500/20' : 'border-purple-500/40',
+        selected ? 'border-accent-violet ring-2 ring-accent-violet/20' : 'border-accent-violet/40',
       )}
     >
-      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-purple-500" />
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-purple-500" />
+      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-accent-violet" />
+      <Handle type="source" position={Position.Bottom} className="w-3 h-3 bg-accent-violet" />
       <div className="flex items-center gap-2 mb-1.5">
-        <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-500 shrink-0">
+        <div className="p-1.5 rounded-lg bg-accent-violet/10 text-accent-violet shrink-0">
           <Cpu className="size-4" />
         </div>
         <div>
-          <Badge variant="neutral" className="text-[9px] px-1.5 py-0 mb-0.5 bg-purple-500/15 text-purple-600">
+          <Badge variant="neutral" className="text-[9px] px-1.5 py-0 mb-0.5 bg-accent-violet/15 text-accent-violet">
             AI Agent
           </Badge>
           <h4 className="text-xs font-semibold text-foreground truncate">
@@ -136,16 +136,16 @@ function ApiActionNode({ data, selected }: NodeProps) {
     <Card
       className={cn(
         'p-3 min-w-52 border-2 bg-surface shadow-md rounded-xl transition-all duration-200',
-        selected ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-emerald-500/40',
+        selected ? 'border-accent-green ring-2 ring-accent-green/20' : 'border-accent-green/40',
       )}
     >
-      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-emerald-500" />
+      <Handle type="target" position={Position.Top} className="w-3 h-3 bg-accent-green" />
       <div className="flex items-center gap-2 mb-1.5">
-        <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 shrink-0">
+        <div className="p-1.5 rounded-lg bg-accent-green/10 text-accent-green shrink-0">
           <Globe className="size-4" />
         </div>
         <div>
-          <Badge variant="neutral" className="text-[9px] px-1.5 py-0 mb-0.5 bg-emerald-500/15 text-emerald-600">
+          <Badge variant="neutral" className="text-[9px] px-1.5 py-0 mb-0.5 bg-accent-green/15 text-accent-green">
             API / Webhook
           </Badge>
           <h4 className="text-xs font-semibold text-foreground truncate">

@@ -23,7 +23,6 @@ import {
   ChevronRight,
   Copy,
   FolderPlus,
-  MoreHorizontal,
   MoreVertical,
   MoveRight,
   Pencil,
@@ -32,15 +31,19 @@ import {
   Star,
   Trash2,
 } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
+  FavoriteToggle,
   navActionClass,
   navGroupHeaderClass,
   navGroupTriggerClass,
   navIconClass,
   navRowClass,
+  NavRowActions,
+  NavRowMenuTrigger,
   Section,
+  useCopyLink,
   type NavDepth,
 } from './nav-primitives.js';
 import { useSidebarFavorites } from './use-sidebar-favorites.js';
@@ -83,30 +86,10 @@ export function DocNavRow({
   depth?: NavDepth;
   children?: React.ReactNode;
 }) {
-  const [copied, setCopied] = useState(false);
-  const [shared, setShared] = useState(false);
-
-  const handleCopyLink = useCallback(
-    (e?: React.MouseEvent | Event) => {
-      e?.stopPropagation?.();
-      const url = `${window.location.origin}/w/${workspaceSlug}/docs?doc=${doc.id}`;
-      navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    },
-    [workspaceSlug, doc.id],
-  );
-
-  const handleShare = useCallback(
-    (e?: React.MouseEvent | Event) => {
-      e?.stopPropagation?.();
-      const url = `${window.location.origin}/w/${workspaceSlug}/docs?doc=${doc.id}`;
-      navigator.clipboard.writeText(url);
-      setShared(true);
-      setTimeout(() => setShared(false), 2000);
-    },
-    [workspaceSlug, doc.id],
-  );
+  const docUrl = `${window.location.origin}/w/${workspaceSlug}/docs?doc=${doc.id}`;
+  const { copied, copy: handleCopyLink } = useCopyLink(docUrl);
+  /* "Share" copies the same link; it only differs in the confirmation it shows. */
+  const { copied: shared, copy: handleShare } = useCopyLink(docUrl);
 
   return (
     <li className="group/row relative space-y-0.5">
@@ -126,61 +109,22 @@ export function DocNavRow({
         <span className="flex-1 truncate">{doc.title}</span>
       </NavLink>
 
-      <div
-        className={cn(
-          'right-1 gap-0.5 absolute top-1/2 flex -translate-y-1/2 items-center transition-opacity',
-          isFavorite
-            ? 'opacity-100'
-            : 'opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 focus-within:opacity-100',
-        )}
-      >
-        <Hint label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleFavorite(doc);
-            }}
-            aria-label={
-              isFavorite ? 'Remove from favorites' : 'Add to favorites'
-            }
-            aria-pressed={isFavorite}
-            className={cn(
-              'size-5 p-0',
-              isFavorite
-                ? 'text-[#eab308] opacity-100'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Star className={cn('size-3.5', isFavorite && 'fill-current')} />
-          </Button>
-        </Hint>
+      <NavRowActions isPinned={isFavorite}>
+        <FavoriteToggle
+          isFavorite={isFavorite}
+          onToggle={() => onToggleFavorite(doc)}
+        />
 
         <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={`Options for ${doc.title}`}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              className="size-5 p-0 text-muted-foreground hover:text-foreground"
-            >
-              <MoreHorizontal className="size-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
+          <NavRowMenuTrigger label={`Options for ${doc.title}`} />
           <DropdownMenuContent align="end" side="bottom" className="w-64">
             <DropdownMenuItem
               onSelect={handleCopyLink}
-              onClick={handleCopyLink}
               className="justify-between"
             >
               <div className="gap-2.5 flex items-center">
                 {copied ? (
-                  <Check className="size-4 text-emerald-500" />
+                  <Check className="size-4 text-success-text" />
                 ) : (
                   <Copy className="size-4" />
                 )}
@@ -192,7 +136,6 @@ export function DocNavRow({
             {onAddSubpage ? (
               <DropdownMenuItem
                 onSelect={onAddSubpage}
-                onClick={onAddSubpage}
                 className="gap-2.5"
               >
                 <Plus className="size-4" />
@@ -203,7 +146,6 @@ export function DocNavRow({
             {onRename ? (
               <DropdownMenuItem
                 onSelect={onRename}
-                onClick={onRename}
                 className="gap-2.5"
               >
                 <Pencil className="size-4" />
@@ -214,7 +156,6 @@ export function DocNavRow({
             {onDuplicate ? (
               <DropdownMenuItem
                 onSelect={onDuplicate}
-                onClick={onDuplicate}
                 className="gap-2.5"
               >
                 <Copy className="size-4" />
@@ -226,14 +167,13 @@ export function DocNavRow({
 
             <DropdownMenuItem
               onSelect={() => onToggleFavorite(doc)}
-              onClick={() => onToggleFavorite(doc)}
               className="justify-between"
             >
               <div className="gap-2.5 flex items-center">
                 <Star
                   className={cn(
                     'size-4',
-                    isFavorite && 'fill-current text-[#eab308]',
+                    isFavorite && 'fill-current text-accent-amber',
                   )}
                 />
                 <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
@@ -254,7 +194,6 @@ export function DocNavRow({
                       <DropdownMenuItem
                         key={c.id}
                         onSelect={() => onMoveToCompany(c.id)}
-                        onClick={() => onMoveToCompany(c.id)}
                         className="gap-2.5 text-xs"
                       >
                         <Building className="size-3.5" />
@@ -267,11 +206,10 @@ export function DocNavRow({
 
             <DropdownMenuItem
               onSelect={handleShare}
-              onClick={handleShare}
               className="gap-2.5"
             >
               {shared ? (
-                <Check className="size-4 text-emerald-500" />
+                <Check className="size-4 text-success-text" />
               ) : (
                 <Share2 className="size-4" />
               )}
@@ -284,7 +222,6 @@ export function DocNavRow({
                 <DropdownMenuItem
                   variant="destructive"
                   onSelect={onDelete}
-                  onClick={onDelete}
                   className="gap-2.5"
                 >
                   <Trash2 className="size-4" />
@@ -294,7 +231,7 @@ export function DocNavRow({
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
+      </NavRowActions>
 
       {children}
     </li>

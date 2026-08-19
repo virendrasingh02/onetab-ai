@@ -14,8 +14,14 @@ import {
   DropdownMenuTrigger,
   EmptyState,
   Hint,
+  Page,
+  PageHeader,
+  SearchInput,
+  SegmentedControl,
   SkeletonList,
   UserAvatar,
+  usePromptDialog,
+  type SegmentedOption,
 } from '@org/ui';
 import { cn, formatBytes, formatRelative } from '@org/utils';
 import { FileDropzone, useUploadMutations, useUploads } from '@org/web-upload';
@@ -27,11 +33,11 @@ import {
   FileArchive,
   FileJson,
   FileText,
+  FolderOpen,
   HardDrive,
   Image as ImageIcon,
   MoreVertical,
   Plus,
-  Search,
   SlidersHorizontal,
   Table2,
   Trash2,
@@ -98,6 +104,12 @@ function FileTypeBadge({ mimeType }: { mimeType: string }) {
 }
 
 type OwnerTab = 'all' | 'created' | 'shared';
+
+const OWNER_TABS: readonly SegmentedOption<OwnerTab>[] = [
+  { value: 'all', label: 'All' },
+  { value: 'created', label: 'Uploaded by you' },
+  { value: 'shared', label: 'From teammates' },
+];
 type SortKey = 'recent' | 'name' | 'size';
 
 export function FileManagerView() {
@@ -111,6 +123,23 @@ export function FileManagerView() {
   const [selectedKind, setSelectedKind] = useState<FileKind | 'all'>('all');
   const [sortBy, setSortBy] = useState<SortKey>('recent');
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const prompts = usePromptDialog();
+
+  /*
+   * Deleting a file is immediate and irreversible for everyone in the
+   * workspace — the row's menu used to fire the mutation straight from the
+   * click, so a mis-click destroyed a teammate's upload with no way back.
+   */
+  const confirmDelete = async (filename: string, id: string) => {
+    const confirmed = await prompts.confirmAction({
+      title: `Delete “${filename}”?`,
+      description:
+        'The file is removed for everyone in this workspace. This cannot be undone.',
+      confirmLabel: 'Delete file',
+      destructive: true,
+    });
+    if (confirmed) remove.mutate(id);
+  };
 
   const visibleFiles = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -143,63 +172,36 @@ export function FileManagerView() {
   };
 
   return (
-    <div className="max-w-6xl space-y-4 mx-auto p-4 sm:p-6 font-sans text-foreground">
-      {/* 1. Header Row */}
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-xl font-bold tracking-tight text-foreground">
-          All files
-        </h1>
-        <Button
-          onClick={() => setIsUploadOpen(true)}
-          size="sm"
-          className="gap-1.5 px-3 text-xs font-medium"
-        >
-          <Plus className="size-4" />
-          <span>Upload</span>
-        </Button>
-      </div>
+    <Page className="space-y-4">
+      <PageHeader
+        title="All files"
+        description="Everything uploaded to this workspace, by you and by your teammates."
+        icon={<FolderOpen />}
+        accent="cyan"
+        className="mb-0"
+        actions={
+          <Button onClick={() => setIsUploadOpen(true)} leadingIcon={<Plus />}>
+            Upload
+          </Button>
+        }
+      />
 
-      {/* 2. Full Width Search Input Bar */}
-      <div className="relative w-full">
-        <Search
-          className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none"
-          aria-hidden="true"
-        />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search files"
-          aria-label="Search files"
-          className="w-full pl-9 pr-4 py-2 bg-surface/80 border border-border rounded-input text-xs sm:text-sm text-foreground placeholder:text-subtle focus:outline-none focus:ring-1 focus:ring-ring focus:border-ring transition-colors"
-        />
-      </div>
+      <SearchInput
+        value={searchQuery}
+        onValueChange={setSearchQuery}
+        placeholder="Search files"
+        label="Search files"
+        className="h-9"
+      />
 
-      {/* 3. Segmented Filter Pills & Control Dropdowns */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-          {(
-            [
-              ['all', 'All'],
-              ['created', 'Uploaded by you'],
-              ['shared', 'From teammates'],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              onClick={() => setActiveTab(value)}
-              aria-pressed={activeTab === value}
-              className={cn(
-                'px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors select-none',
-                activeTab === value
-                  ? 'bg-accent-cyan-soft text-accent-cyan border border-accent-cyan/30 font-semibold'
-                  : 'border border-border text-muted-foreground hover:bg-accent hover:text-foreground',
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          aria-label="Filter files by who uploaded them"
+          value={activeTab}
+          onChange={setActiveTab}
+          options={OWNER_TABS}
+          className="max-w-full self-start overflow-x-auto no-scrollbar"
+        />
 
         <div className="flex items-center gap-2 self-end sm:self-auto">
           {/* File Types Dropdown */}
@@ -334,7 +336,7 @@ export function FileManagerView() {
               }
               isDeleting={remove.isPending && remove.variables === file.id}
               onDownload={() => download.mutate(file)}
-              onDelete={() => remove.mutate(file.id)}
+              onDelete={() => confirmDelete(file.filename, file.id)}
             />
           ))
         )}
@@ -354,7 +356,9 @@ export function FileManagerView() {
           />
         </DialogContent>
       </Dialog>
-    </div>
+
+      {prompts.dialog}
+    </Page>
   );
 }
 

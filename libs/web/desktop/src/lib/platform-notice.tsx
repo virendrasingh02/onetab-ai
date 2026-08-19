@@ -47,7 +47,7 @@ export function PlatformNotice({
         className,
       )}
     >
-      <Info className="size-4 shrink-0 text-[#FFB224]" aria-hidden />
+      <Info className="size-4 shrink-0 text-warning-text" aria-hidden />
       <span className="min-w-0 flex-1">{message}</span>
 
       {browserUrl ? (

@@ -81,7 +81,7 @@ export function UpgradePlanBanner({
         className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-border bg-surface-inset/60 p-3.5 text-xs ${className}`}
       >
         <div className="flex items-center gap-2.5">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-warning/10 text-warning-text">
             <Sparkles className="size-4" />
           </div>
           <div>
@@ -167,7 +167,7 @@ export function UpgradePlanBanner({
             <div className="h-2 w-full overflow-hidden rounded-full bg-muted/60">
               <div
                 className={`h-full transition-all duration-500 rounded-full ${
-                  isNearLimit ? 'bg-amber-500' : 'bg-primary'
+                  isNearLimit ? 'bg-warning' : 'bg-primary'
                 }`}
                 style={{ width: `${percentUsed}%` }}
               />

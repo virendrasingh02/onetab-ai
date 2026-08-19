@@ -9,9 +9,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  Input,
   Page,
   PageHeader,
+  SearchInput,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -24,7 +24,6 @@ import {
   Headphones,
   Layout,
   Palette,
-  Search,
   Share2,
   Sparkles,
   Users,
@@ -272,15 +271,14 @@ export function IntegrationHubView() {
       />
 
       {/* Top Search Bar */}
-      <div className="mb-4 relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-        <Input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by app name or category..."
-          className="pl-10 bg-surface-inset border-border text-foreground placeholder:text-subtle focus-visible:ring-primary"
-        />
-      </div>
+      <SearchInput
+        value={searchQuery}
+        onValueChange={setSearchQuery}
+        placeholder="Search by app name or category…"
+        label="Search integrations"
+        className="bg-surface-inset"
+        wrapperClassName="mb-4"
+      />
 
       {/* Featured AI Banner Card */}
       {!bannerDismissed ? (

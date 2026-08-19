@@ -140,6 +140,14 @@ export interface PageSectionProps extends Omit<
   title?: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
+  /**
+   * `eyebrow` is the small uppercase label the app uses to divide a screen
+   * into bands ("Managed by you", "Templates"). It is the default because it
+   * is what every screen had already hand-rolled. `plain` is the heavier
+   * sentence-case heading, for a section that reads as its own subject rather
+   * than a divider.
+   */
+  variant?: 'eyebrow' | 'plain';
 }
 
 /** A titled band within a page. Its heading is an `<h2>`, below the page `<h1>`. */
@@ -147,6 +155,7 @@ export function PageSection({
   title,
   description,
   actions,
+  variant = 'eyebrow',
   className,
   children,
   ...props
@@ -161,7 +170,15 @@ export function PageSection({
         <div className="mb-3 gap-2 flex flex-wrap items-end justify-between">
           <div>
             {title ? (
-              <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+              <h2
+                className={cn(
+                  variant === 'eyebrow'
+                    ? 'text-xs font-semibold tracking-wider text-muted-foreground uppercase'
+                    : 'text-sm font-semibold text-foreground',
+                )}
+              >
+                {title}
+              </h2>
             ) : null}
             {description ? (
               <p className="mt-0.5 text-xs text-muted-foreground">

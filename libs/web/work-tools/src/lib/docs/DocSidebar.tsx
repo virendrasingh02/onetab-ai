@@ -14,8 +14,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   IconRenderer,
-  Input,
   Panel,
+  SearchInput,
   usePromptDialog,
   type PromptDialog,
 } from '@org/ui';
@@ -32,7 +32,6 @@ import {
   MoveRight,
   Pencil,
   Plus,
-  Search,
   Star,
   Trash2,
 } from 'lucide-react';
@@ -221,13 +220,12 @@ export function DocSidebar({
     >
       <div className="space-y-3">
         {/* Search Input */}
-        <div className="relative">
-          <Search className="size-3.5 absolute left-2.5 top-2.5 text-subtle" />
-          <Input
-            placeholder="Search docs or companies..."
+        <div>
+          <SearchInput
+            placeholder="Search docs or companies…"
+            label="Search docs"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 text-xs h-8"
+            onValueChange={setSearchQuery}
           />
         </div>
 
