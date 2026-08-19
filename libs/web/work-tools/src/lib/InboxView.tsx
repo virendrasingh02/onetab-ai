@@ -6,8 +6,6 @@ import {
   Button,
   Card,
   EmptyState,
-  Page,
-  PageHeader,
   ProjectGlyph,
   SkeletonList,
   Tabs,
@@ -17,8 +15,6 @@ import {
   UserAvatar,
 } from '@org/ui';
 import { cn, formatDate, formatRelative } from '@org/utils';
-import { useChannels } from '@org/web-channels';
-import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Bell,
   CheckSquare,
@@ -31,7 +27,11 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useTasks } from './use-work-tools.js';
+import {
+  useCurrentWorkspace,
+  useTasks,
+  useWorkspaceChannels,
+} from './use-work-tools.js';
 
 const KIND_ICON = {
   MESSAGE: MessageSquare,
@@ -78,7 +78,7 @@ export function InboxView() {
     workspaceId,
     feed.data,
   );
-  const channels = useChannels(workspaceId);
+  const channels = useWorkspaceChannels(workspaceId);
   const tasks = useTasks(workspaceId);
 
   const [activeTab, setActiveTab] = useState('notifications');
@@ -188,54 +188,81 @@ export function InboxView() {
   }, [tasks.data, user]);
 
   return (
-    <Page>
-      <PageHeader
-        title="Inbox"
-        description="Notifications, unread channels and the work assigned to you."
-        icon={<Inbox />}
-        accent="violet"
-        actions={
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Channel-style Header */}
+      <div className="border-b border-border bg-background">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Inbox className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+                Inbox
+              </h2>
+              <Badge
+                variant={newCount > 0 ? 'primary' : 'neutral'}
+                className="text-[11px] px-1.5 py-0 h-4.5"
+              >
+                {newCount > 0 ? `${newCount} new` : 'Caught up'}
+              </Badge>
+            </div>
+
+            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
+
+            <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
+              Notifications, unreads and assigned tasks
+            </p>
+          </div>
+
           <div className="flex items-center gap-2">
-            <Badge
-              variant={newCount > 0 ? 'primary' : 'neutral'}
-              className="gap-1.5 px-3 py-1 text-xs"
-            >
-              <Bell className="size-3.5" />
-              <span>{newCount > 0 ? `${newCount} new` : 'All caught up'}</span>
-            </Badge>
             {newCount > 0 ? (
-              <Button variant="outline" size="sm" onClick={markAllRead}>
+              <Button variant="outline" size="sm" onClick={markAllRead} className="h-7 text-xs">
                 Mark all read
               </Button>
             ) : null}
           </div>
-        }
-      />
+        </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-        <TabsList>
-          <TabsTrigger value="notifications" className="gap-1.5">
-            <Bell className="size-4" />
-            <span>Notifications</span>
-            {newCount > 0 ? <Badge variant="count">{newCount}</Badge> : null}
-          </TabsTrigger>
-          <TabsTrigger value="unreads" className="gap-1.5">
-            <MessageSquare className="size-4" />
-            <span>Unread channels</span>
-            {unreadChannels.length > 0 ? (
-              <Badge variant="neutral">{unreadChannels.length}</Badge>
-            ) : null}
-          </TabsTrigger>
-          <TabsTrigger value="tasks" className="gap-1.5">
-            <CheckSquare className="size-4" />
-            <span>Assigned to you</span>
-            {myTasks.length > 0 ? (
-              <Badge variant="neutral">{myTasks.length}</Badge>
-            ) : null}
-          </TabsTrigger>
-        </TabsList>
+        {/* Tab Navigation directly below header */}
+        <div className="px-3 sm:px-6 border-t border-border/40 bg-surface-muted/30">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="h-9 bg-transparent border-b-0 p-0 gap-4">
+              <TabsTrigger
+                value="notifications"
+                className="h-8 gap-1.5 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+              >
+                <Bell className="size-3.5" />
+                <span>Notifications</span>
+                {newCount > 0 ? <Badge variant="count" className="text-[10px] px-1 py-0 h-3.5">{newCount}</Badge> : null}
+              </TabsTrigger>
+              <TabsTrigger
+                value="unreads"
+                className="h-8 gap-1.5 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+              >
+                <MessageSquare className="size-3.5" />
+                <span>Unread channels</span>
+                {unreadChannels.length > 0 ? (
+                  <Badge variant="neutral" className="text-[10px] px-1 py-0 h-3.5">{unreadChannels.length}</Badge>
+                ) : null}
+              </TabsTrigger>
+              <TabsTrigger
+                value="tasks"
+                className="h-8 gap-1.5 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+              >
+                <CheckSquare className="size-3.5" />
+                <span>Assigned to you</span>
+                {myTasks.length > 0 ? (
+                  <Badge variant="neutral" className="text-[10px] px-1 py-0 h-3.5">{myTasks.length}</Badge>
+                ) : null}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      </div>
 
-        <TabsContent value="notifications" className="mt-4 space-y-3">
+      <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-6">
+        <div className="mx-auto max-w-5xl">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsContent value="notifications" className="space-y-3 mt-0">
           {feed.isLoading ? (
             <SkeletonList rows={5} withAvatar />
           ) : feed.isError ? (
@@ -438,6 +465,8 @@ export function InboxView() {
           )}
         </TabsContent>
       </Tabs>
-    </Page>
+    </div>
+  </div>
+</div>
   );
 }

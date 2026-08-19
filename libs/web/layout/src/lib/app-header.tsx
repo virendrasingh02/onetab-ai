@@ -1,5 +1,5 @@
 import { useTheme } from '@org/design-system';
-import type { CurrentUser } from '@org/types';
+import type { CurrentUser, WorkspaceSummary } from '@org/types';
 import {
   Button,
   DropdownMenu,
@@ -34,12 +34,15 @@ import {
   User as UserIcon,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { WorkspaceMenu } from './workspace-switcher.js';
 
 export interface AppHeaderProps {
   user: CurrentUser;
   workspaceSlug: string;
   title: string;
   subtitle?: string;
+  workspaces?: WorkspaceSummary[];
+  currentWorkspace?: WorkspaceSummary;
   onOpenSearch: () => void;
   onToggleRightPanel: () => void;
   rightPanelOpen: boolean;
@@ -52,6 +55,8 @@ export interface AppHeaderProps {
 export function AppHeader({
   user,
   workspaceSlug,
+  workspaces,
+  currentWorkspace,
   onOpenSearch,
   onToggleRightPanel,
   rightPanelOpen,
@@ -83,80 +88,83 @@ export function AppHeader({
   };
 
   return (
-    /*
-     * No fill of its own: the header is the top of the editor panel, so it
-     * inherits that panel's surface and only the hairline marks the split.
-     * Painting `bg-background` here put a second tone inside the white panel.
-     */
-    <header className="h-12 gap-2 px-2.5 sm:gap-3 sm:px-4 flex shrink-0 items-center border-b border-border">
+    <header className="h-11 gap-2 px-2.5 sm:gap-3 sm:px-4 flex shrink-0 items-center select-none">
+      {/* Left Section: Workspace Switcher and then Sidebar Toggle */}
       <div className="min-w-0 gap-1.5 sm:gap-2 flex flex-1 items-center">
-        {!sidebarOpen && onToggleSidebar ? (
-          <Hint label="Expand sidebar">
+        {currentWorkspace && workspaces ? (
+          <div className="max-w-44 sm:max-w-56 min-w-0 flex items-center">
+            <WorkspaceMenu
+              workspaces={workspaces}
+              current={currentWorkspace}
+            />
+          </div>
+        ) : null}
+
+        {onToggleSidebar ? (
+          <Hint label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}>
             <Button
               variant="ghost"
               size="icon-sm"
               onClick={onToggleSidebar}
-              aria-label="Expand sidebar"
+              aria-label="Toggle sidebar"
               aria-expanded={sidebarOpen}
+              className="size-7 p-0 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
             >
               <PanelLeft className="size-4" />
             </Button>
           </Hint>
         ) : null}
-
-        {/*
-          Only shown while the rail is collapsed, and only from `sm` up: on a
-          phone `sidebarOpen` is the drawer's state, so its resting `false`
-          would otherwise push three extra buttons into the tightest header.
-        */}
-        {!sidebarOpen ? (
-          <div className="gap-0.5 sm:flex hidden items-center">
-            <Hint label="Go back">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => navigate(-1)}
-                aria-label="Go back"
-                className="size-7 p-0 text-muted-foreground hover:text-foreground"
-              >
-                <ChevronLeft className="size-4" />
-              </Button>
-            </Hint>
-
-            <Hint label="Go forward">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => navigate(1)}
-                aria-label="Go forward"
-                className="size-7 p-0 text-muted-foreground hover:text-foreground"
-              >
-                <ChevronRight className="size-4" />
-              </Button>
-            </Hint>
-          </div>
-        ) : null}
       </div>
 
-      {/* Centred Search Input */}
-      <button
-        onClick={onOpenSearch}
-        className={cn(
-          'h-7 max-w-80 gap-2 px-2.5 sm:flex hidden w-full items-center rounded-input',
-          'text-xs border border-border bg-surface text-muted-foreground',
-          'transition-colors duration-(--duration-fast) ease-standard',
-          'hover:bg-accent hover:text-foreground',
-          'outline-none focus-visible:ring-1 focus-visible:ring-ring',
-        )}
-      >
-        <Search className="size-4 shrink-0" aria-hidden />
-        <span className="truncate">Search…</span>
-        <kbd className="px-1.5 py-0.5 ml-auto shrink-0 rounded-sm border border-border font-mono text-[10px] text-subtle">
-          {searchShortcut}
-        </kbd>
-      </button>
+      {/* Center Section: Both < > Arrows and Search Bar Centered Together */}
+      <div className="flex items-center justify-center gap-1.5 sm:gap-2 shrink-0">
+        <div className="gap-0.5 sm:flex hidden items-center">
+          <Hint label="Go back">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => navigate(-1)}
+              aria-label="Go back"
+              className="size-7 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+          </Hint>
 
-      <div className="gap-1 sm:gap-1.5 flex flex-1 items-center justify-end">
+          <Hint label="Go forward">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => navigate(1)}
+              aria-label="Go forward"
+              className="size-7 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </Hint>
+        </div>
+
+        <button
+          type="button"
+          onClick={onOpenSearch}
+          className={cn(
+            'h-7.5 w-52 sm:w-64 md:w-80 gap-2 px-2.5 sm:flex hidden items-center rounded-lg',
+            'text-xs border border-border/80 bg-white dark:bg-card text-muted-foreground shadow-2xs',
+            'transition-colors duration-(--duration-fast) ease-standard cursor-pointer',
+            'hover:bg-accent/40 hover:text-foreground hover:border-border-strong',
+            'outline-none focus-visible:ring-1 focus-visible:ring-ring',
+          )}
+        >
+          <Search className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+          <span className="truncate">Search…</span>
+          <kbd className="px-1.5 py-0.5 ml-auto shrink-0 rounded border border-border/60 font-mono text-[10px] text-subtle bg-muted/60">
+            {searchShortcut}
+          </kbd>
+        </button>
+      </div>
+
+      {/* Right Section: Actions, Utilities, Ask AI Button and Profile Avatar */}
+      <div className="gap-1 sm:gap-1.5 flex flex-1 shrink-0 items-center justify-end">
         {actions}
 
         {/* Status Pill (Slack style) */}
@@ -171,7 +179,7 @@ export function AppHeader({
             <button
               type="button"
               onClick={openStatusModal}
-              className="h-7 max-w-44 gap-1.5 px-2.5 md:flex hidden items-center rounded-full text-xs font-medium border border-primary/30 bg-primary/10 text-foreground hover:bg-primary/20 transition-colors"
+              className="h-7 max-w-40 gap-1.5 px-2 md:flex hidden items-center rounded-full text-xs font-medium border border-primary/30 bg-primary/10 text-foreground hover:bg-primary/20 transition-colors cursor-pointer"
             >
               <span className="text-sm">{user.statusEmoji || '💬'}</span>
               <span className="truncate">{user.statusText || 'Status set'}</span>
@@ -192,8 +200,9 @@ export function AppHeader({
             size="sm"
             onClick={openFocusModal}
             className={cn(
-              'gap-1.5 px-2 text-xs font-medium sm:gap-1.5 sm:px-2.5 h-7',
-              isFocusActive && 'bg-primary text-primary-foreground font-semibold shadow-xs',
+              'gap-1.5 px-2 text-xs font-medium sm:gap-1.5 sm:px-2.5 h-7 cursor-pointer',
+              isFocusActive &&
+                'bg-primary text-primary-foreground font-semibold shadow-xs',
             )}
           >
             <Target className="size-3.5" />
@@ -203,45 +212,43 @@ export function AppHeader({
           </Button>
         </Hint>
 
-        {/*
-          The clock reads the profile's timezone, not the browser's, so it
-          answers "what time is it where my team thinks I am" — the same zone
-          every teammate sees against your name. It updates on the minute, and
-          its tooltip carries the date, the zone and the offset.
-        */}
+        {/* World Clock */}
         <Hint label="Click to open Team Time Zones & World Clock">
           <LocalTime
             timezone={user.timezone}
             icon
             interactive
             onClick={openWorldClock}
-            className="px-1.5 text-xs font-medium lg:inline-flex hidden text-muted-foreground hover:text-foreground"
+            className="px-1.5 text-xs font-medium lg:inline-flex hidden text-muted-foreground hover:text-foreground cursor-pointer"
           />
         </Hint>
 
+        {/* Mobile Search Button */}
         <Hint label="Search">
           <Button
             variant="ghost"
             size="icon-sm"
             onClick={onOpenSearch}
             aria-label="Search"
-            className="sm:hidden flex"
+            className="sm:hidden flex size-7 p-0 text-muted-foreground hover:text-foreground"
           >
             <Search className="size-4" />
           </Button>
         </Hint>
 
+        {/* Help & Resources */}
         <Hint label="Help & Resources">
           <Button
             variant="ghost"
             size="sm"
-            className="gap-1 sm:flex hidden"
+            className="gap-1 sm:flex hidden cursor-pointer"
             onClick={() => void openExternal('https://github.com/onetab-ai')}
           >
             <HelpCircle className="size-4" />
           </Button>
         </Hint>
 
+        {/* Ask AI Assistant Button placed near the Profile Icon */}
         <Hint
           label={rightPanelOpen ? 'Close AI Assistant' : 'Ask AI Assistant'}
         >
@@ -251,17 +258,19 @@ export function AppHeader({
             onClick={onToggleRightPanel}
             aria-pressed={rightPanelOpen}
             aria-label={rightPanelOpen ? 'Close AI assistant' : 'Ask AI'}
-            className="gap-1 px-2 text-xs font-medium sm:gap-1.5 sm:px-3"
+            className="gap-1 px-2 text-xs font-medium sm:gap-1.5 sm:px-3 h-7 cursor-pointer"
           >
             <Sparkles className="size-3.5" />
             <span className="sm:inline hidden">Ask AI</span>
           </Button>
         </Hint>
 
+        {/* Profile Avatar Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="ml-1 rounded-full outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              type="button"
+              className="ml-1 rounded-full outline-none focus-visible:ring-1 focus-visible:ring-ring transition-transform hover:scale-105 cursor-pointer"
               aria-label="Account menu"
             >
               <UserAvatar
@@ -284,8 +293,6 @@ export function AppHeader({
               <span className="block truncate text-[11px] text-subtle">
                 {user.email}
               </span>
-              {/* Where the clock in the header gets its zone from — shown here
-                  so a wrong-looking time has an obvious place to be fixed. */}
               <Link
                 to={`/w/${workspaceSlug}/settings`}
                 className="mt-1 gap-1.5 flex items-center text-[11px] text-muted-foreground hover:text-foreground"
@@ -298,7 +305,6 @@ export function AppHeader({
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="my-1" />
 
-            {/* Slack-style Status Menu item */}
             <DropdownMenuItem
               onClick={openStatusModal}
               className="text-xs gap-2 cursor-pointer"
@@ -316,7 +322,6 @@ export function AppHeader({
               </div>
             </DropdownMenuItem>
 
-            {/* Focus Mode Shortcut */}
             <DropdownMenuItem
               onClick={openFocusModal}
               className="text-xs gap-2 cursor-pointer"
@@ -329,7 +334,6 @@ export function AppHeader({
               </span>
             </DropdownMenuItem>
 
-            {/* Team Time Zones & World Clock */}
             <DropdownMenuItem
               onClick={openWorldClock}
               className="text-xs gap-2 cursor-pointer"
@@ -340,13 +344,13 @@ export function AppHeader({
 
             <DropdownMenuSeparator className="my-1" />
 
-            <DropdownMenuItem asChild className="text-xs">
+            <DropdownMenuItem asChild className="text-xs cursor-pointer">
               <Link to={`/w/${workspaceSlug}/profile`}>
                 <UserIcon className="size-3.5" />
                 Profile
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild className="text-xs">
+            <DropdownMenuItem asChild className="text-xs cursor-pointer">
               <Link to={`/w/${workspaceSlug}/settings`}>
                 <Settings className="size-3.5" />
                 Settings
@@ -359,7 +363,7 @@ export function AppHeader({
             </DropdownMenuLabel>
             <DropdownMenuItem
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="text-xs"
+              className="text-xs cursor-pointer"
             >
               {theme === 'dark' ? (
                 <Sun className="size-3.5" />
@@ -373,7 +377,7 @@ export function AppHeader({
             <DropdownMenuItem
               variant="destructive"
               onClick={() => logout.mutate()}
-              className="text-xs"
+              className="text-xs cursor-pointer"
             >
               <LogOut className="size-3.5" />
               Sign out

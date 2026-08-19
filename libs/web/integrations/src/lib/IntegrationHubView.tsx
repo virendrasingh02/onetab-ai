@@ -9,8 +9,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  Page,
-  PageHeader,
   SearchInput,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -252,33 +250,42 @@ export function IntegrationHubView() {
   });
 
   return (
-    <Page>
-      <PageHeader
-        title="Apps"
-        description="Discover, install, and manage connected apps, dev tools, and workflows."
-        icon={<Share2 />}
-        accent="blue"
-        actions={
-          <div className="flex items-center gap-2">
-            <Badge variant="neutral">
-              {connectedProviders.size} of {integrationsList.length} connected
-            </Badge>
-            <Button variant="outline" size="sm" leadingIcon={<ExternalLink />}>
-              Open in Marketplace
-            </Button>
-          </div>
-        }
-      />
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Channel-style Header */}
+      <div className="border-b border-border bg-background">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Share2 className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+                App Directory
+              </h2>
+              <Badge variant="neutral" className="text-[11px] px-1.5 py-0 h-4.5">
+                {connectedProviders.size} of {integrationsList.length} connected
+              </Badge>
+            </div>
 
-      {/* Top Search Bar */}
-      <SearchInput
-        value={searchQuery}
-        onValueChange={setSearchQuery}
-        placeholder="Search by app name or category…"
-        label="Search integrations"
-        className="bg-surface-inset"
-        wrapperClassName="mb-4"
-      />
+            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
+
+            <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
+              Discover, install, and manage connected apps and integrations
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <SearchInput
+              value={searchQuery}
+              onValueChange={setSearchQuery}
+              placeholder="Search apps…"
+              className="h-7 text-xs"
+              wrapperClassName="w-36 sm:w-56"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="mx-auto max-w-7xl">
 
       {/* Featured AI Banner Card */}
       {!bannerDismissed ? (
@@ -491,6 +498,8 @@ export function IntegrationHubView() {
           </p>
         </div>
       )}
-    </Page>
+        </div>
+      </div>
+    </div>
   );
 }

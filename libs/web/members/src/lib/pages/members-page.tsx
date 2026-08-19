@@ -53,30 +53,52 @@ export function MembersPage() {
   }, [members.data, query]);
 
   return (
-    <div className="max-w-3xl p-6 mx-auto">
-      <div className="mb-5 gap-3 flex flex-wrap items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Members</h2>
-          <p className="text-sm text-muted-foreground">
-            {members.data?.length ?? 0} people in {workspace?.name}
-          </p>
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Channel-style Header */}
+      <div className="border-b border-border bg-background">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Users className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+                Members
+              </h2>
+              <Badge variant="neutral" className="text-[11px] px-1.5 py-0 h-4.5">
+                {members.data?.length ?? 0} people
+              </Badge>
+            </div>
+
+            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
+
+            <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
+              Everyone in {workspace?.name ?? 'this workspace'}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <SearchInput
+              value={query}
+              onValueChange={setQuery}
+              placeholder="Search members…"
+              className="h-7 text-xs"
+              wrapperClassName="w-36 sm:w-48"
+            />
+            {canManage ? (
+              <Button
+                onClick={() => navigate(`/w/${slug}/invitations`)}
+                size="sm"
+                className="h-7 text-xs gap-1"
+                leadingIcon={<UserPlus className="size-3.5" />}
+              >
+                Invite people
+              </Button>
+            ) : null}
+          </div>
         </div>
-        {canManage ? (
-          <Button
-            onClick={() => navigate(`/w/${slug}/invitations`)}
-            leadingIcon={<UserPlus />}
-          >
-            Invite people
-          </Button>
-        ) : null}
       </div>
 
-      <SearchInput
-        value={query}
-        onValueChange={setQuery}
-        placeholder="Search members"
-        wrapperClassName="mb-4"
-      />
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="mx-auto max-w-4xl">
 
       {members.isLoading ? (
         <SkeletonList rows={6} withAvatar />
@@ -180,6 +202,8 @@ export function MembersPage() {
           })}
         </ul>
       )}
+        </div>
+      </div>
     </div>
   );
 }

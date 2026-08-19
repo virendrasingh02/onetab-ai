@@ -3,18 +3,19 @@ import {
   Badge,
   Button,
   EmptyState,
-  Page,
-  PageHeader,
   Panel,
   SkeletonList,
   usePromptDialog,
   UserAvatar,
 } from '@org/ui';
 import { formatDateTime, formatRelative } from '@org/utils';
-import { useCurrentWorkspace } from '@org/web-workspace';
 import { CalendarClock, Clock, MapPin, Plus, Trash2, TriangleAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useCalendarEvents, useCalendarMutations } from './use-work-tools.js';
+import {
+  useCalendarEvents,
+  useCalendarMutations,
+  useCurrentWorkspace,
+} from './use-work-tools.js';
 
 /** How far ahead the schedule looks. Beyond this it is a calendar, not a queue. */
 const HORIZON_DAYS = 30;
@@ -63,18 +64,38 @@ export function ScheduleView() {
   }
 
   return (
-    <Page>
-      <PageHeader
-        title="Schedule"
-        description={`Everything on this workspace's calendar over the next ${HORIZON_DAYS} days.`}
-        icon={<CalendarClock />}
-        accent="blue"
-        actions={
-          <Button asChild leadingIcon={<Plus />}>
-            <Link to={`/w/${slug}/meetings`}>New event</Link>
-          </Button>
-        }
-      />
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Channel-style Header */}
+      <div className="border-b border-border bg-background">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <CalendarClock className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+                Schedule
+              </h2>
+              <Badge variant="neutral" className="text-[11px] px-1.5 py-0 h-4.5">
+                {events.data?.length ?? 0} events
+              </Badge>
+            </div>
+
+            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
+
+            <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
+              Everything scheduled across the next {HORIZON_DAYS} days
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button asChild size="sm" className="h-7 text-xs gap-1" leadingIcon={<Plus className="size-3.5" />}>
+              <Link to={`/w/${slug}/meetings`}>New event</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="mx-auto max-w-5xl">
 
       <Panel>
         {events.isLoading ? (
@@ -178,6 +199,8 @@ export function ScheduleView() {
       </Panel>
 
       {prompts.dialog}
-    </Page>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -17,19 +17,10 @@
       "path": "../../shared/icons/tsconfig.lib.json"
     },
     {
-      "path": "../workspace/tsconfig.lib.json"
-    },
-    {
       "path": "../upload/tsconfig.lib.json"
     },
     {
-      "path": "../members/tsconfig.lib.json"
-    },
-    {
       "path": "../integrations/tsconfig.lib.json"
-    },
-    {
-      "path": "../channels/tsconfig.lib.json"
     },
     {
       "path": "../../shared/validation/tsconfig.lib.json"

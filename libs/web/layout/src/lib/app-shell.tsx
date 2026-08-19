@@ -180,10 +180,26 @@ export function AppShell() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="gap-1.5 p-1.5 flex h-full flex-col overflow-hidden bg-background font-sans text-foreground">
+      <div className="flex h-full flex-col overflow-hidden bg-background font-sans text-foreground">
+        {/* Top Header Bar spanning full width */}
+        <AppHeader
+          user={user}
+          workspaceSlug={slug}
+          title={workspace.name}
+          subtitle={`${workspace.memberCount} members · ${workspace.channelCount} channels`}
+          workspaces={workspaces}
+          currentWorkspace={workspace}
+          onOpenSearch={() => palette.setOpen(true)}
+          onToggleRightPanel={toggleAssistant}
+          rightPanelOpen={rightPanelOpen}
+          onToggleSidebar={toggleSidebar}
+          sidebarOpen={sidebarOpen}
+          unreadNotifications={unread.count}
+        />
+
         <div
           className={cn(
-            'min-h-0 gap-1.5 relative flex flex-1 overflow-hidden',
+            'min-h-0 gap-1.5 p-1.5 pt-0 relative flex flex-1 overflow-hidden',
             isResizing && 'cursor-col-resize select-none',
           )}
         >
@@ -202,13 +218,6 @@ export function AppShell() {
                 style={{ width: `${leftWidth}px` }}
                 aria-label="Sidebar navigation"
               >
-                <div className="h-12 px-2 flex shrink-0 items-center border-b border-border/60">
-                  <WorkspaceMenu
-                    workspaces={workspaces}
-                    current={workspace}
-                    onToggleSidebar={closeSidebar}
-                  />
-                </div>
                 <div className="min-h-0 flex flex-1 flex-col">{channelNav}</div>
               </aside>
 
@@ -227,20 +236,7 @@ export function AppShell() {
           ) : null}
 
           {/* Column 2 / Box 2: the editor panel — the one lifted surface. */}
-          <div className="min-w-0 flex h-full flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground">
-            <AppHeader
-              user={user}
-              workspaceSlug={slug}
-              title={workspace.name}
-              subtitle={`${workspace.memberCount} members · ${workspace.channelCount} channels`}
-              onOpenSearch={() => palette.setOpen(true)}
-              onToggleRightPanel={toggleAssistant}
-              rightPanelOpen={rightPanelOpen}
-              onToggleSidebar={toggleSidebar}
-              sidebarOpen={sidebarOpen}
-              unreadNotifications={unread.count}
-            />
-
+          <div className="min-w-0 bg-white shadow-2xs flex h-full flex-1 flex-col overflow-hidden rounded-xl border border-border text-card-foreground dark:bg-card">
             {/*
               The page scroller. `min-h-full` on the content keeps the column
               full-height for pages that fill it (chat) without capping the ones

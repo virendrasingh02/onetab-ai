@@ -16,10 +16,10 @@ import {
   usePromptDialog,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { useCurrentWorkspace } from '@org/web-workspace';
 import { Layout, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import {
+  useCurrentWorkspace,
   useWhiteboardMutations,
   useWhiteboards,
 } from './use-work-tools.js';

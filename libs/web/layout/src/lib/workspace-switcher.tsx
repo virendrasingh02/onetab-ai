@@ -14,29 +14,32 @@ import { cn } from '@org/utils';
 import {
   Check,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   PanelLeft,
   Plus,
   Settings,
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 export interface WorkspaceMenuProps {
   workspaces: WorkspaceSummary[];
   current: WorkspaceSummary;
   onToggleSidebar?: () => void;
+  className?: string;
 }
 
 export function WorkspaceMenu({
   workspaces,
   current,
   onToggleSidebar,
+  className,
 }: WorkspaceMenuProps) {
-  const navigate = useNavigate();
-
   return (
-    <div className="group/workspace-header gap-1 flex w-full items-center justify-between">
+    <div
+      className={cn(
+        'group/workspace-header gap-1 flex w-full items-center justify-between',
+        className,
+      )}
+    >
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
@@ -142,53 +145,20 @@ export function WorkspaceMenu({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Navigation controls: toggle the rail, then browser-style back/forward. */}
-      <div className="gap-0.5 flex items-center">
-        {onToggleSidebar ? (
-          <Hint label="Toggle sidebar">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={onToggleSidebar}
-              aria-label="Toggle sidebar"
-              className="size-7 p-0 opacity-0 transition-opacity duration-(--duration-fast) group-focus-within/sidebar:opacity-100 group-hover/sidebar:opacity-100 group-hover/workspace-header:opacity-100 focus-visible:opacity-100"
-            >
-              <PanelLeft className="size-4 text-subtle hover:text-foreground" />
-            </Button>
-          </Hint>
-        ) : null}
-
-        <Hint label="Go back">
+      {/* Sidebar collapse button on hover */}
+      {onToggleSidebar ? (
+        <Hint label="Collapse sidebar">
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={() => navigate(-1)}
-            aria-label="Go back"
-            className="size-7 p-0"
+            onClick={onToggleSidebar}
+            aria-label="Collapse sidebar"
+            className="size-7 p-0 opacity-0 transition-opacity duration-(--duration-fast) group-focus-within/sidebar:opacity-100 group-hover/sidebar:opacity-100 group-hover/workspace-header:opacity-100 focus-visible:opacity-100"
           >
-            <ChevronLeft className="size-4 text-subtle hover:text-foreground" />
+            <PanelLeft className="size-4 text-subtle hover:text-foreground" />
           </Button>
         </Hint>
-
-        <Hint label="Go forward">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => navigate(1)}
-            aria-label="Go forward"
-            className="size-7 p-0"
-          >
-            <ChevronRight className="size-4 text-subtle hover:text-foreground" />
-          </Button>
-        </Hint>
-
-        {/*
-          A "Recent history" button sat here too, opening the command palette.
-          It duplicated the header's search field under a label that promised
-          something else, and it was the fourth icon crammed beside the
-          workspace name in a 240px rail.
-        */}
-      </div>
+      ) : null}
     </div>
   );
 }

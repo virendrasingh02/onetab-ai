@@ -14,10 +14,10 @@ import {
 } from '@org/ui';
 import { useCurrentUser } from '@org/auth';
 import { cn } from '@org/utils';
-import { useCurrentWorkspace } from '@org/web-workspace';
 import { CheckCircle, FileText, FolderPlus, Loader2, MoreHorizontal, Plus, TriangleAlert, Zap } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useCurrentWorkspace } from './use-work-tools.js';
 import { DocHeader } from './docs/DocHeader.js';
 import { DocSidebar } from './docs/DocSidebar.js';
 import { DocToolsDrawer } from './docs/DocToolsDrawer.js';

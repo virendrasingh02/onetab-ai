@@ -10,8 +10,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   EmptyState,
-  Page,
-  PageHeader,
   Panel,
   SkeletonList,
   Tabs,
@@ -22,7 +20,6 @@ import {
 } from '@org/ui';
 import { cn, formatDateTime } from '@org/utils';
 import { useIntegrationMutations, useIntegrations } from '@org/web-integrations';
-import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   CalendarClock,
   Check,
@@ -37,7 +34,11 @@ import {
   Video,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useCalendarEvents, useCalendarMutations } from './use-work-tools.js';
+import {
+  useCalendarEvents,
+  useCalendarMutations,
+  useCurrentWorkspace,
+} from './use-work-tools.js';
 
 interface MeetingApp {
   id: string;
@@ -336,86 +337,79 @@ export function MeetingsView() {
   );
 
   return (
-    <Page>
-      <PageHeader
-        title="Meetings & Huddles"
-        description="Everything on the workspace calendar, plus the video apps you have linked."
-        icon={<Video />}
-        accent="green"
-        actions={
-          <Button leadingIcon={<Plus />} disabled>
-            Schedule meeting
-          </Button>
-        }
-      />
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Channel-style Header */}
+      <div className="border-b border-border bg-background">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Video className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+                Meetings & Huddles
+              </h2>
+              <Badge variant="neutral" className="text-[11px] px-1.5 py-0 h-4.5">
+                {liveMeetings.length > 0 ? `${liveMeetings.length} live` : `${meetings.length} scheduled`}
+              </Badge>
+            </div>
 
-      <Card className="p-4 bg-surface-raised border-border flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary shrink-0">
-            <Share2 className="size-5" aria-hidden />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <span>Meeting apps</span>
-              <Badge variant="primary">{activeApps.length} active</Badge>
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Inbuilt OneTab Matrix huddles run natively. Any meeting or
-              calendar app you connect joins this list and appears on calendar
-              events as a join link.
+            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
+
+            <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
+              Workspace calendar meetings and native Matrix video/audio huddles
             </p>
           </div>
+
+          <div className="flex items-center gap-2">
+            <Button size="sm" className="h-7 text-xs gap-1" leadingIcon={<Plus className="size-3.5" />} disabled>
+              Schedule meeting
+            </Button>
+          </div>
         </div>
 
-        {/*
-          Only what is actually running: the inbuilt huddle plus every meeting
-          app the workspace connected. Apps that are not linked live on the
-          "Meeting apps" tab instead of sitting greyed out here.
-        */}
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          {activeApps.map((app) => (
-            <span
-              key={app.id}
-              title={
-                app.provider ? `${app.name}: Connected` : `${app.name}: Built in`
-              }
-              className="px-2 py-1 rounded-md text-[11px] font-medium flex items-center gap-1 border bg-selected/60 border-primary/30 text-foreground"
-            >
-              <span className="size-1.5 rounded-full bg-success" />
-              <span>{app.name}</span>
-            </span>
-          ))}
-          {activeApps.length === 1 ? (
-            <span className="text-[11px] text-subtle">
-              No external meeting apps linked yet
-            </span>
-          ) : null}
+        {/* Tab Navigation */}
+        <div className="px-3 sm:px-6 border-t border-border/40 bg-surface-muted/30">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="h-9 bg-transparent border-b-0 p-0 gap-4">
+              <TabsTrigger
+                value="all"
+                className="h-8 gap-1.5 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+              >
+                <Video className="size-3.5" />
+                <span>All meetings</span>
+                <Badge variant="neutral" className="text-[10px] px-1 py-0 h-3.5">{meetings.length}</Badge>
+              </TabsTrigger>
+              <TabsTrigger
+                value="live"
+                className="h-8 gap-1.5 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+              >
+                <Radio className="size-3.5 text-accent-teal" />
+                <span>Happening now</span>
+                <Badge variant="neutral" className="text-[10px] px-1 py-0 h-3.5">{liveMeetings.length}</Badge>
+              </TabsTrigger>
+              <TabsTrigger
+                value="linked"
+                className="h-8 gap-1.5 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+              >
+                <Link2 className="size-3.5 text-accent-blue" />
+                <span>With a join link</span>
+                <Badge variant="neutral" className="text-[10px] px-1 py-0 h-3.5">{linkedMeetings.length}</Badge>
+              </TabsTrigger>
+              <TabsTrigger
+                value="apps-hub"
+                className="h-8 gap-1.5 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+              >
+                <Share2 className="size-3.5" />
+                <span>Meeting apps</span>
+                <Badge variant="neutral" className="text-[10px] px-1 py-0 h-3.5">{activeApps.length}</Badge>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
-      </Card>
+      </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="all" className="gap-1.5">
-            <Video className="size-4" />
-            <span>All meetings</span>
-            <Badge variant="neutral">{meetings.length}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="live" className="gap-1.5">
-            <Radio className="size-4 text-accent-teal" />
-            <span>Happening now</span>
-            <Badge variant="neutral">{liveMeetings.length}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="linked" className="gap-1.5">
-            <Link2 className="size-4 text-accent-blue" />
-            <span>With a join link</span>
-            <Badge variant="neutral">{linkedMeetings.length}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="apps-hub" className="gap-1.5">
-            <Share2 className="size-4" />
-            <span>Meeting apps</span>
-            <Badge variant="neutral">{activeApps.length}</Badge>
-          </TabsTrigger>
-        </TabsList>
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="mx-auto max-w-6xl space-y-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
 
         {/*
           One body shared by the three list tabs: they differ only in which
@@ -611,6 +605,8 @@ export function MeetingsView() {
           ) : null}
         </TabsContent>
       </Tabs>
-    </Page>
+        </div>
+      </div>
+    </div>
   );
 }

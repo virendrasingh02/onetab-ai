@@ -4,14 +4,10 @@ import {
   Button,
   EmptyState,
   ErrorState,
-  Page,
-  PageHeader,
   Panel,
   SkeletonList,
-  Toolbar,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -21,7 +17,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useCalendarEvents } from './use-work-tools.js';
+import { useCalendarEvents, useCurrentWorkspace } from './use-work-tools.js';
 
 /** Monday-first, matching the column headers. */
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -115,39 +111,61 @@ export function CalendarView() {
     month.getMonth() === today.getMonth();
 
   return (
-    <Page width="full">
-      <PageHeader
-        title="Calendar"
-        description="Meetings, due dates and milestones in one schedule."
-        icon={<CalendarIcon />}
-        accent="green"
-        actions={
-          <Toolbar aria-label="Calendar controls">
-            <div className="p-0.5 flex items-center rounded-lg border bg-surface">
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Channel-style Header */}
+      <div className="border-b border-border bg-background">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <CalendarIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+                Calendar
+              </h2>
+              <Badge variant="neutral" className="text-[11px] px-1.5 py-0 h-4.5">
+                {MONTH_LABEL.format(month)}
+              </Badge>
+            </div>
+
+            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
+
+            <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
+              Meetings, due dates and milestones across your workspace
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="p-0.5 flex items-center rounded-lg border border-border bg-surface">
               <Button
                 variant="ghost"
                 size="icon-sm"
+                className="size-6"
                 aria-label="Previous month"
                 onClick={() => setMonth((current) => addMonths(current, -1))}
               >
-                <ChevronLeft />
+                <ChevronLeft className="size-3.5" />
               </Button>
-              <span className="px-2 text-sm font-medium">
+              <span className="px-2 text-xs font-medium">
                 {MONTH_LABEL.format(month)}
               </span>
               <Button
                 variant="ghost"
                 size="icon-sm"
+                className="size-6"
                 aria-label="Next month"
                 onClick={() => setMonth((current) => addMonths(current, 1))}
               >
-                <ChevronRight />
+                <ChevronRight className="size-3.5" />
               </Button>
             </div>
-            <Button leadingIcon={<Plus />}>Schedule event</Button>
-          </Toolbar>
-        }
-      />
+            <Button size="sm" className="h-7 text-xs gap-1" leadingIcon={<Plus className="size-3.5" />}>
+              Schedule event
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="mx-auto max-w-7xl">
 
       <div className="gap-6 lg:grid-cols-3 grid flex-1 grid-cols-1">
         <Panel className="lg:col-span-2">
@@ -263,6 +281,8 @@ export function CalendarView() {
           )}
         </Panel>
       </div>
-    </Page>
+        </div>
+      </div>
+    </div>
   );
 }

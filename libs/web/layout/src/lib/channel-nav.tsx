@@ -513,9 +513,9 @@ export function ChannelNav({
     <div className="min-h-0 flex h-full flex-col">
       <ScrollArea
         className="min-h-0 flex-1"
-        contentClassName="px-3.5 pt-3 pb-6"
+        contentClassName="px-3 pt-3 pb-6"
       >
-        <div className="pb-4 p-2">
+        <div className="pb-4 p-1">
           <nav aria-label="Primary navigation" className="space-y-0.5">
             {coreLinks.map((entry) => (
               <NavRow
@@ -560,7 +560,7 @@ export function ChannelNav({
                     return (
                       <div
                         key={entry.label}
-                        className="group/more-row flex items-center justify-between rounded-xl px-2.5 py-1.5 text-[13px] font-medium text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors"
+                        className="group/more-row flex items-center justify-between rounded-xl px-2.5 py-1.5 text-[13px] font-medium text-foreground/85 hover:bg-accent/70 hover:text-foreground transition-colors"
                       >
                         <NavLink
                           to={`/w/${workspaceSlug}/${entry.path}`}

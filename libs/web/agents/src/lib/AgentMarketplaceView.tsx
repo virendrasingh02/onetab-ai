@@ -22,8 +22,6 @@ import {
   Hint,
   Input,
   Label,
-  Page,
-  PageHeader,
   PageSection,
   SearchInput,
   Select,
@@ -400,23 +398,42 @@ export function AgentMarketplaceView() {
   };
 
   return (
-    <Page>
-      <PageHeader
-        title="AI Agents"
-        description="Manage, build, and deploy autonomous intelligent agents across your workspace."
-        icon={<Bot />}
-        accent="violet"
-        eyebrow={
-          <Badge variant="neutral" className="font-normal">
-            {installed.length} deployed
-          </Badge>
-        }
-        actions={
-          <>
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Channel-style Header */}
+      <div className="border-b border-border bg-background">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Bot className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+                AI Agents
+              </h2>
+              <Badge variant="neutral" className="text-[11px] px-1.5 py-0 h-4.5">
+                {installed.length} deployed
+              </Badge>
+            </div>
+
+            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
+
+            <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
+              Manage, build, and deploy autonomous intelligent agents
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <SearchInput
+              value={searchQuery}
+              onValueChange={setSearchQuery}
+              placeholder="Filter agents…"
+              className="h-7 text-xs"
+              wrapperClassName="w-36 sm:w-48"
+            />
+
             <Button
               onClick={() => setIsCreateOpen(true)}
-              size="lg"
-              leadingIcon={<Plus />}
+              size="sm"
+              className="h-7 text-xs gap-1"
+              leadingIcon={<Plus className="size-3.5" />}
             >
               New Agent
             </Button>
@@ -425,8 +442,8 @@ export function AgentMarketplaceView() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  size="icon"
-                  className="size-9 text-muted-foreground hover:text-foreground"
+                  size="icon-sm"
+                  className="size-7 text-muted-foreground hover:text-foreground"
                   aria-label="More agent options"
                 >
                   <MoreHorizontal className="size-4" />
@@ -435,68 +452,69 @@ export function AgentMarketplaceView() {
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem
                   onSelect={() => setIsCreateOpen(true)}
-                  className="gap-2"
+                  className="gap-2 text-xs"
                 >
                   <Plus className="size-3.5 text-muted-foreground" />
                   <span>Create with wizard</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => openBuilder()}
-                  className="gap-2"
+                  className="gap-2 text-xs"
                 >
                   <Wrench className="size-3.5 text-muted-foreground" />
                   <span>Open visual builder</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => navigate('logs')}
-                  className="gap-2"
+                  className="gap-2 text-xs"
                 >
                   <Activity className="size-3.5 text-muted-foreground" />
                   <span>Activity logs</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => handleTabChange('templates')}
-                  className="gap-2"
+                  className="gap-2 text-xs"
                 >
                   <Sparkles className="size-3.5 text-muted-foreground" />
                   <span>Browse templates</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </>
-        }
-        toolbar={
-          <div className="gap-3 flex flex-wrap items-end justify-between">
-            <Tabs
-              value={tab}
-              onValueChange={(next) => handleTabChange(next as AgentTab)}
-              className="min-w-0 flex-1"
-            >
-              <TabsList variant="underline" aria-label="Filter agents">
-                <TabsTrigger variant="underline" value="all">
-                  All Agents ({installed.length + AGENT_TEMPLATES.length})
-                </TabsTrigger>
-                <TabsTrigger variant="underline" value="mine">
-                  Managed by you ({installed.length})
-                </TabsTrigger>
-                <TabsTrigger variant="underline" value="templates">
-                  Templates ({AGENT_TEMPLATES.length})
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-
-            <SearchInput
-              value={searchQuery}
-              onValueChange={setSearchQuery}
-              placeholder="Filter agents by name, role…"
-              label="Filter agents"
-              className="mb-2"
-              /* Full width on a phone, a fixed field once the tabs fit beside it. */
-              wrapperClassName="w-full sm:w-64"
-            />
           </div>
-        }
-      />
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="px-3 sm:px-6 border-t border-border/40 bg-surface-muted/30">
+          <Tabs
+            value={tab}
+            onValueChange={(next) => handleTabChange(next as AgentTab)}
+          >
+            <TabsList className="h-9 bg-transparent border-b-0 p-0 gap-4">
+              <TabsTrigger
+                value="all"
+                className="h-8 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+              >
+                All Agents ({installed.length + AGENT_TEMPLATES.length})
+              </TabsTrigger>
+              <TabsTrigger
+                value="mine"
+                className="h-8 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+              >
+                Managed by you ({installed.length})
+              </TabsTrigger>
+              <TabsTrigger
+                value="templates"
+                className="h-8 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+              >
+                Templates ({AGENT_TEMPLATES.length})
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="mx-auto max-w-7xl">
 
       {agents.isLoading ? (
         <SkeletonList rows={3} />
@@ -887,7 +905,9 @@ export function AgentMarketplaceView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Page>
+        </div>
+      </div>
+    </div>
   );
 }
 

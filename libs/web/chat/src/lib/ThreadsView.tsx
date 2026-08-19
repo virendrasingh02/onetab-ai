@@ -4,10 +4,7 @@ import {
   EmptyState,
   LoadingState,
   Panel,
-  Page,
-  PageHeader,
   Tabs,
-  TabsContent,
   TabsList,
   TabsTrigger,
   UserAvatar,
@@ -97,50 +94,81 @@ export function ThreadsView() {
   const unread = threads.filter((thread) => thread.hasUnread);
 
   return (
-    <Page>
-      <PageHeader
-        title="Threads"
-        description="Follow-up conversations from every channel you are in."
-        icon={<MessagesSquare />}
-        accent="amber"
-      />
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Channel-style Header */}
+      <div className="border-b border-border bg-background">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <MessagesSquare className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+                Threads
+              </h2>
+              {unread.length > 0 ? (
+                <Badge variant="primary" className="text-[11px] px-1.5 py-0 h-4.5">
+                  {unread.length} unread
+                </Badge>
+              ) : null}
+            </div>
 
-      {!enabled ? (
-        <Panel flush>
-          <EmptyState
-            icon={<MessageSquareOff />}
-            title="Chat is not configured"
-            description="This deployment has no Matrix homeserver, so there are no conversations to thread. Set MATRIX_ENABLED and the homeserver settings to turn on messaging."
-          />
-        </Panel>
-      ) : (
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabsList aria-label="Thread filters" className="mb-4">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="unread">Unread</TabsTrigger>
-          </TabsList>
+            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
 
-          <TabsContent value="all">
-            <Panel flush>
-              <ThreadList
-                items={threads}
-                isLoading={isLoading}
-                emptyDescription="Reply in a thread from any channel and it will collect here."
-              />
-            </Panel>
-          </TabsContent>
+            <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
+              Follow-up conversations from every channel you are in
+            </p>
+          </div>
 
-          <TabsContent value="unread">
-            <Panel flush>
-              <ThreadList
-                items={unread}
-                isLoading={isLoading}
-                emptyDescription="You are caught up on every thread."
-              />
-            </Panel>
-          </TabsContent>
-        </Tabs>
-      )}
-    </Page>
+          <div className="flex items-center gap-2">
+            <Tabs value={tab} onValueChange={setTab} className="h-7">
+              <TabsList className="h-7 p-0.5">
+                <TabsTrigger value="all" className="h-6 px-2.5 text-xs">
+                  All
+                </TabsTrigger>
+                <TabsTrigger value="unread" className="h-6 px-2.5 text-xs gap-1">
+                  <span>Unread</span>
+                  {unread.length > 0 ? (
+                    <Badge variant="neutral" className="text-[10px] px-1 py-0 h-3.5">
+                      {unread.length}
+                    </Badge>
+                  ) : null}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-6">
+        {!enabled ? (
+          <Panel flush>
+            <EmptyState
+              icon={<MessageSquareOff />}
+              title="Chat is not configured"
+              description="This deployment has no Matrix homeserver, so there are no conversations to thread. Set MATRIX_ENABLED and the homeserver settings to turn on messaging."
+            />
+          </Panel>
+        ) : (
+          <div className="mx-auto max-w-5xl">
+            {tab === 'all' ? (
+              <Panel flush>
+                <ThreadList
+                  items={threads}
+                  isLoading={isLoading}
+                  emptyDescription="Reply in a thread from any channel and it will collect here."
+                />
+              </Panel>
+            ) : (
+              <Panel flush>
+                <ThreadList
+                  items={unread}
+                  isLoading={isLoading}
+                  emptyDescription="You are caught up on every thread."
+                />
+              </Panel>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

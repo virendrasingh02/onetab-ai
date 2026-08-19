@@ -77,14 +77,14 @@ export function navRowClass(
 ) {
   const { depth = 0, extra } = options;
   return cn(
-    'group gap-2.5 py-1.5 relative flex items-center rounded-xl',
+    'group gap-2.5 py-1.5 relative flex items-center rounded-xl font-medium tracking-[-0.01em]',
     DEPTH_PADDING[depth],
     DEPTH_TEXT[depth],
     'transition-all duration-(--duration-fast) ease-standard',
     'outline-none focus-visible:ring-1 focus-visible:ring-ring',
     isActive
-      ? 'font-medium shadow-2xs bg-accent/80 text-foreground'
-      : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
+      ? 'font-semibold shadow-2xs bg-accent text-foreground'
+      : 'text-foreground/90 font-medium hover:bg-accent/70 hover:text-foreground',
     extra,
   );
 }
@@ -101,11 +101,11 @@ export function navActionClass(
 ) {
   const { depth = 0, extra } = options;
   return cn(
-    'group gap-2.5 py-1.5 flex w-full items-center rounded-xl text-left',
+    'group gap-2.5 py-1.5 flex w-full items-center rounded-xl text-left font-medium',
     DEPTH_PADDING[depth],
     DEPTH_TEXT[depth],
-    'text-muted-foreground transition-all duration-(--duration-fast) ease-standard',
-    'hover:bg-accent/60 hover:text-foreground',
+    'text-foreground/80 transition-all duration-(--duration-fast) ease-standard',
+    'hover:bg-accent/70 hover:text-foreground',
     'outline-none focus-visible:ring-1 focus-visible:ring-ring',
     extra,
   );
@@ -125,8 +125,8 @@ export function navGroupHeaderClass(
     'gap-2 py-1.5 flex w-full items-center rounded-xl text-left',
     DEPTH_PADDING[depth],
     DEPTH_TEXT[depth],
-    'font-medium text-foreground',
-    'transition-colors duration-(--duration-fast) ease-standard hover:bg-accent/60',
+    'font-semibold text-foreground',
+    'transition-colors duration-(--duration-fast) ease-standard hover:bg-accent/70',
     extra,
   );
 }
@@ -166,11 +166,11 @@ export function NavRow({
         }
       >
         <Icon className={navIconClass(depth)} aria-hidden />
-        <span className="flex-1 truncate">{entry.label}</span>
+        <span className="flex-1 truncate font-medium">{entry.label}</span>
         {entry.badge !== undefined && (
           <Badge
             variant="neutral"
-            className="px-1.5 py-0 h-4 font-medium ml-auto font-mono text-[10px]"
+            className="px-1.5 py-0 h-4 font-semibold ml-auto font-mono text-[10px]"
           >
             {entry.badge}
           </Badge>
@@ -188,7 +188,7 @@ export function NavRow({
                 onTogglePin();
               }}
               aria-label={`Unpin ${entry.label} from sidebar`}
-              className="size-5 flex items-center justify-center rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-accent/60 transition-colors"
+              className="size-5 flex items-center justify-center rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-accent/60 transition-colors cursor-pointer"
             >
               <PinOff className="size-3" />
             </button>
@@ -238,15 +238,15 @@ export function Section({
           <CollapsibleTrigger
             className={cn(
               'group/trigger gap-1 flex items-center rounded-md',
-              'font-medium tracking-wide text-[11px] text-subtle uppercase',
-              'transition-colors duration-(--duration-fast) hover:text-muted-foreground',
-              'outline-none focus-visible:ring-1 focus-visible:ring-ring',
+              'font-semibold tracking-wider text-[11px] text-foreground/75 uppercase',
+              'transition-colors duration-(--duration-fast) hover:text-foreground',
+              'outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer',
             )}
           >
             <span>{title}</span>
             <ChevronDown
               className={cn(
-                'size-3 shrink-0 text-subtle opacity-0 transition-all duration-150',
+                'size-3 shrink-0 text-foreground/60 opacity-0 transition-all duration-150',
                 'group-focus-within/section:opacity-100 group-hover/section:opacity-100',
                 !open && '-rotate-90',
               )}
@@ -258,7 +258,7 @@ export function Section({
 
         <CollapsibleContent>
           {isEmpty ? (
-            <p className="px-2.5 py-1 text-[11px] text-subtle">{emptyLabel}</p>
+            <p className="px-2.5 py-1 text-[11px] font-medium text-subtle">{emptyLabel}</p>
           ) : null}
           {/*
             The hint sits *above* the list rather than replacing it. Sections

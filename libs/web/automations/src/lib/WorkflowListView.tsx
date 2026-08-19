@@ -12,8 +12,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   EmptyState,
-  Page,
-  PageHeader,
   PageSection,
   Tabs,
   TabsList,
@@ -155,71 +153,105 @@ export function WorkflowListView() {
   };
 
   return (
-    <Page>
-      <PageHeader
-        title="Automations"
-        description="Workflows that run on a trigger — on a schedule, a webhook, or an event in your workspace."
-        icon={<Zap />}
-        accent="amber"
-        actions={
-          <>
-            <Button onClick={openBuilder} size="lg" leadingIcon={<Plus />}>
-              New
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Channel-style Header */}
+      <div className="border-b border-border bg-background">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Zap className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+                Automations
+              </h2>
+              <Badge variant="neutral" className="text-[11px] px-1.5 py-0 h-4.5">
+                {workflows.length} workflows
+              </Badge>
+            </div>
+
+            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
+
+            <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
+              Workflows that run on triggers, schedules, webhooks, and events
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={openBuilder}
+              size="sm"
+              className="h-7 text-xs gap-1"
+              leadingIcon={<Plus className="size-3.5" />}
+            >
+              New Workflow
             </Button>
 
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  size="icon"
-                  className="size-9 text-muted-foreground hover:text-foreground"
+                  size="icon-sm"
+                  className="size-7 text-muted-foreground hover:text-foreground"
                   aria-label="More automation options"
                 >
                   <MoreHorizontal className="size-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onSelect={openBuilder} className="gap-2">
+                <DropdownMenuItem onSelect={openBuilder} className="gap-2 text-xs">
                   <Plus className="size-3.5 text-muted-foreground" />
                   <span>Create new workflow</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => navigate('logs')}
-                  className="gap-2"
+                  className="gap-2 text-xs"
                 >
                   <Activity className="size-3.5 text-muted-foreground" />
                   <span>Execution logs</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => setTab('prebuilt')}
-                  className="gap-2"
+                  className="gap-2 text-xs"
                 >
                   <Workflow className="size-3.5 text-muted-foreground" />
                   <span>Browse templates</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </>
-        }
-        toolbar={
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="px-3 sm:px-6 border-t border-border/40 bg-surface-muted/30">
           <Tabs
             value={tab}
             onValueChange={(next) => setTab(next as WorkflowTab)}
           >
-            <TabsList variant="underline" aria-label="Filter automations">
-              <TabsTrigger variant="underline" value="all">
+            <TabsList className="h-9 bg-transparent border-b-0 p-0 gap-4">
+              <TabsTrigger
+                value="all"
+                className="h-8 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+              >
                 All
               </TabsTrigger>
-              <TabsTrigger variant="underline" value="prebuilt">
+              <TabsTrigger
+                value="prebuilt"
+                className="h-8 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+              >
                 Templates
               </TabsTrigger>
-              <TabsTrigger variant="underline" value="mine">
+              <TabsTrigger
+                value="mine"
+                className="h-8 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+              >
                 Managed by you
               </TabsTrigger>
             </TabsList>
           </Tabs>
-        }
-      />
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="mx-auto max-w-7xl">
 
       {tab === 'all' ? (
         <>
@@ -288,7 +320,9 @@ export function WorkflowListView() {
           ))}
         </ul>
       )}
-    </Page>
+        </div>
+      </div>
+    </div>
   );
 }
 

@@ -30,8 +30,6 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useCurrentUser } from '@org/auth';
-import { useMembers } from '@org/web-members';
-import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Command,
   Filter,
@@ -77,7 +75,13 @@ import {
   type ProjectViewMode,
 } from './kanban/ViewDisplayMenu.js';
 import { KanbanBoard } from './KanbanBoard.js';
-import { useProjectMutations, useProjects, useTasks } from './use-work-tools.js';
+import {
+  useCurrentWorkspace,
+  useProjectMutations,
+  useProjects,
+  useTasks,
+  useWorkspaceMembers,
+} from './use-work-tools.js';
 
 export type AsanaViewMode = ProjectViewMode;
 
@@ -118,7 +122,7 @@ export function AsanaProjectManager() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { workspaceId } = useCurrentWorkspace();
   const currentUser = useCurrentUser();
-  const membersQuery = useMembers(workspaceId);
+  const membersQuery = useWorkspaceMembers(workspaceId);
   const projectsQuery = useProjects(workspaceId);
   const projectMutations = useProjectMutations(workspaceId);
   const prompts = usePromptDialog();

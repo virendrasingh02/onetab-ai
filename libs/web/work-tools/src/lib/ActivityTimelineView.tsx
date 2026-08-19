@@ -5,15 +5,12 @@ import {
   Button,
   Card,
   EmptyState,
-  Page,
-  PageHeader,
   Panel,
   SearchInput,
   SkeletonList,
   UserAvatar,
 } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';
-import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Activity,
   ArrowRight,
@@ -29,6 +26,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useCurrentWorkspace } from './use-work-tools.js';
 
 /**
  * Tabs over `ActivityKind`.
@@ -135,83 +133,102 @@ export function ActivityTimelineView() {
   }, [items, activeTab, searchQuery]);
 
   return (
-    <Page>
-      <PageHeader
-        title="Pulse"
-        description="Recent activity across this workspace's channels, members and files."
-        icon={<Activity />}
-        accent="violet"
-        actions={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void feed.refetch()}
-            loading={feed.isFetching}
-            className="gap-1.5"
-          >
-            <RefreshCw className="size-3.5" />
-            <span>Refresh feed</span>
-          </Button>
-        }
-      />
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Channel-style Header */}
+      <div className="border-b border-border bg-background">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Activity className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+                Pulse
+              </h2>
+              <Badge variant="neutral" className="text-[11px] px-1.5 py-0 h-4.5">
+                {metrics.eventsToday} events today
+              </Badge>
+            </div>
 
-      {/* Metrics Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <MetricTile
-          icon={<Users className="size-4" />}
-          tone="bg-primary/10 text-primary"
-          value={metrics.activePeople}
-          label="People active"
-        />
-        <MetricTile
-          icon={<Activity className="size-4" />}
-          tone="bg-accent-violet-soft text-accent-violet"
-          value={metrics.eventsToday}
-          label="Events today"
-        />
-        <MetricTile
-          icon={<MessageSquare className="size-4" />}
-          tone="bg-accent-amber-soft text-accent-amber"
-          value={metrics.messages}
-          label="Messages"
-        />
-        <MetricTile
-          icon={<FileUp className="size-4" />}
-          tone="bg-accent-blue-soft text-accent-blue"
-          value={metrics.files}
-          label="Files shared"
-        />
-      </div>
+            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
 
-      <Panel>
-        {/* Controls Header: Tabs & Search */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pb-4 border-b border-border mb-6">
-          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none pb-1 md:pb-0">
+            <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
+              Recent activity across channels, members and uploaded files
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <SearchInput
+              value={searchQuery}
+              onValueChange={setSearchQuery}
+              placeholder="Search feed…"
+              className="h-7 text-xs"
+              wrapperClassName="w-36 sm:w-48"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void feed.refetch()}
+              loading={feed.isFetching}
+              className="h-7 text-xs gap-1"
+            >
+              <RefreshCw className="size-3" />
+              <span>Refresh</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="px-3 sm:px-6 border-t border-border/40 bg-surface-muted/30">
+          <div className="flex items-center gap-4 h-9">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 aria-pressed={activeTab === tab.id}
                 className={cn(
-                  'px-3 py-1.5 text-xs font-medium rounded-btn transition-colors shrink-0',
+                  'h-8 px-2 text-xs font-medium border-b-2 rounded-none transition-colors cursor-pointer',
                   activeTab === tab.id
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                    ? 'border-primary text-foreground font-semibold'
+                    : 'border-transparent text-muted-foreground hover:text-foreground',
                 )}
               >
                 {tab.label}
               </button>
             ))}
           </div>
-
-          <SearchInput
-            value={searchQuery}
-            onValueChange={setSearchQuery}
-            placeholder="Search feed…"
-            label="Search activity feed"
-            wrapperClassName="min-w-48 max-w-72"
-          />
         </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="mx-auto max-w-5xl space-y-6">
+          {/* Metrics Bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <MetricTile
+              icon={<Users className="size-4" />}
+              tone="bg-primary/10 text-primary"
+              value={metrics.activePeople}
+              label="People active"
+            />
+            <MetricTile
+              icon={<Activity className="size-4" />}
+              tone="bg-accent-violet-soft text-accent-violet"
+              value={metrics.eventsToday}
+              label="Events today"
+            />
+            <MetricTile
+              icon={<MessageSquare className="size-4" />}
+              tone="bg-accent-amber-soft text-accent-amber"
+              value={metrics.messages}
+              label="Messages"
+            />
+            <MetricTile
+              icon={<FileUp className="size-4" />}
+              tone="bg-accent-blue-soft text-accent-blue"
+              value={metrics.files}
+              label="Files shared"
+            />
+          </div>
+
+          <Panel>
 
         {/* Timeline Feed */}
         {feed.isLoading ? (
@@ -318,7 +335,9 @@ export function ActivityTimelineView() {
           </ol>
         )}
       </Panel>
-    </Page>
+        </div>
+      </div>
+    </div>
   );
 }
 

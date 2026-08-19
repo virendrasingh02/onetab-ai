@@ -1,4 +1,10 @@
-import { queryKeys, workToolsApi } from '@org/api-client';
+import {
+  channelApi,
+  memberApi,
+  queryKeys,
+  workspaceApi,
+  workToolsApi,
+} from '@org/api-client';
 import type {
   CalendarEvent,
   DocumentKind,
@@ -6,6 +12,7 @@ import type {
   Task,
   Whiteboard,
   WorkDocument,
+  WorkspaceSummary,
 } from '@org/types';
 import type {
   CreateCalendarEventInput,
@@ -22,6 +29,7 @@ import type {
   UpdateWhiteboardInput,
 } from '@org/validation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useParams } from 'react-router-dom';
 
 /**
  * Data access for the work-tools screens.
@@ -29,6 +37,58 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
  * Everything is keyed by workspace because the API is too: the workspace is a
  * path segment the server authorises, not a filter the client chooses.
  */
+
+// --- current workspace ------------------------------------------------------
+
+export function useCurrentWorkspace(): {
+  slug: string | undefined;
+  workspace: WorkspaceSummary | undefined;
+  workspaceId: string | undefined;
+  isLoading: boolean;
+  isError: boolean;
+} {
+  const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
+  const query = useQuery({
+    queryKey: queryKeys.workspaces.detail(workspaceSlug ?? ''),
+    queryFn: (): Promise<WorkspaceSummary> =>
+      workspaceApi.bySlug(workspaceSlug as string),
+    enabled: !!workspaceSlug,
+    staleTime: 30_000,
+    retry: false,
+  });
+
+  return {
+    slug: workspaceSlug,
+    workspace: query.data,
+    workspaceId: query.data?.id,
+    isLoading: query.isLoading,
+    isError: query.isError,
+  };
+}
+
+// --- members ----------------------------------------------------------------
+
+export function useWorkspaceMembers(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.members.list(workspaceId ?? ''),
+    queryFn: () => memberApi.list(workspaceId as string),
+    enabled: !!workspaceId,
+  });
+}
+
+// --- channels ---------------------------------------------------------------
+
+export function useWorkspaceChannels(
+  workspaceId: string | undefined,
+  includeArchived = false,
+) {
+  return useQuery({
+    queryKey: queryKeys.channels.list(workspaceId ?? '', includeArchived),
+    queryFn: () => channelApi.list(workspaceId as string, includeArchived),
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+  });
+}
 
 // --- projects ---------------------------------------------------------------
 
