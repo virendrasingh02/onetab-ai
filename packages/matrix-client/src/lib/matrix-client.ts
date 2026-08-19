@@ -167,11 +167,45 @@ export class OneTabMatrixClient {
   }
 
   /**
-   * Signs in with a token minted by our own backend.
+   * Takes over a session minted by our own backend.
    *
    * This is the path the application actually uses: the user authenticates
-   * against our API, which provisions the Matrix identity. The browser never
-   * sees a Matrix password.
+   * against our API, which provisions the Matrix identity and opens the
+   * session for them. The browser never sees a Matrix password.
+   *
+   * The credentials arrive already bound to a device, so this only has to
+   * persist them and start syncing — there is no login round trip.
+   */
+  async adoptSession(credentials: {
+    userId: string;
+    accessToken: string;
+    deviceId: string;
+  }): Promise<MatrixSession> {
+    this.setStatus('connecting');
+
+    try {
+      const session: MatrixSession = {
+        userId: credentials.userId,
+        deviceId: credentials.deviceId,
+        accessToken: credentials.accessToken,
+        homeserverUrl: this.options.homeserverUrl,
+      };
+
+      await this.sessionStore.save(session);
+      await this.start(session);
+      return session;
+    } catch (error) {
+      const mapped = toMatrixError(error);
+      this.setStatus('error', { error: mapped.message });
+      throw mapped;
+    }
+  }
+
+  /**
+   * Signs in with a `m.login.token` minted by a homeserver that supports them.
+   *
+   * Kept for deployments that broker sessions that way; `adoptSession` is what
+   * this application uses.
    */
   async loginWithToken(token: string): Promise<MatrixSession> {
     this.setStatus('connecting');
@@ -200,10 +234,24 @@ export class OneTabMatrixClient {
     }
   }
 
-  /** Restores a persisted session. Returns false when there is none. */
-  async restore(): Promise<boolean> {
+  /**
+   * Restores a persisted session. Returns false when there is none.
+   *
+   * `expectedUserId` guards the shared-browser case: a stored session for
+   * somebody else is discarded rather than resumed, so signing into a second
+   * account never lands in the first account's conversations.
+   */
+  async restore(expectedUserId?: string): Promise<boolean> {
     const session = await this.sessionStore.load();
     if (!session) return false;
+
+    if (
+      session.homeserverUrl !== this.options.homeserverUrl ||
+      (expectedUserId && session.userId !== expectedUserId)
+    ) {
+      await this.sessionStore.clear();
+      return false;
+    }
 
     try {
       await this.start(session);
@@ -235,7 +283,9 @@ export class OneTabMatrixClient {
 
     this.sdk = sdk;
 
-    if (this.options.enableEncryption) {
+    // Crypto is per-device, so a session the homeserver issued without one
+    // cannot participate however the deployment is configured.
+    if (this.options.enableEncryption && session.deviceId) {
       try {
         await sdk.initRustCrypto();
       } catch (error) {

@@ -47,23 +47,47 @@ export class MatrixAuthService {
     return matrixUserId;
   }
 
+  /** The Matrix id already recorded for a user, without provisioning one. */
+  async getIdentity(userId: string): Promise<string | null> {
+    if (!this.admin.isEnabled) return null;
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { matrixUserId: true },
+    });
+
+    return user?.matrixUserId ?? null;
+  }
+
   /**
-   * Issues the credentials the browser needs to open its own Matrix session.
+   * Issues the credentials the browser needs to drive its own Matrix session.
    *
-   * The token is valid for about a minute and is exchanged immediately by the
-   * client, so it is never at rest anywhere sensitive.
+   * The access token is minted by the bridge on the user's behalf — they never
+   * see a Matrix password. `deviceId` is empty when the homeserver issued a
+   * session without one, which is the signal that this session cannot do
+   * end-to-end encryption. The browser persists the whole thing, so this runs
+   * once per browser rather than once per page load.
    */
   async issueClientCredentials(userId: string): Promise<{
     homeserverUrl: string;
     matrixUserId: string;
-    loginToken: string;
+    accessToken: string;
+    deviceId: string;
   } | null> {
     if (!this.admin.isEnabled) return null;
+
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { name: true, displayName: true },
+    });
 
     const matrixUserId = await this.ensureIdentity(userId);
     if (!matrixUserId) return null;
 
-    const loginToken = await this.admin.createLoginToken(matrixUserId);
+    const session = await this.admin.createUserSession(
+      matrixUserId,
+      user.displayName ?? user.name,
+    );
 
     return {
       // The configured URL, not one derived from the server name: those are
@@ -72,8 +96,9 @@ export class MatrixAuthService {
       // address — locally `http://localhost:8008`, which no amount of
       // string-building from `localhost` will produce.
       homeserverUrl: this.admin.homeserverUrl,
-      matrixUserId,
-      loginToken,
+      matrixUserId: session.matrixUserId,
+      accessToken: session.accessToken,
+      deviceId: session.deviceId,
     };
   }
 

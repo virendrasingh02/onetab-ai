@@ -404,15 +404,28 @@ export const userApi = {
 /** Matrix session brokering. The browser never holds Matrix credentials. */
 export const matrixApi = {
   config: () =>
-    request<{ enabled: boolean; serverName: string | null }>(
-      http.get('/matrix/config'),
-    ),
+    request<{
+      enabled: boolean;
+      /** Whether this deployment can encrypt private channels. */
+      encryption: boolean;
+      serverName: string | null;
+      homeserverUrl: string | null;
+      /** Null until the user's Matrix identity has been provisioned. */
+      matrixUserId: string | null;
+    }>(http.get('/matrix/config')),
 
+  /**
+   * Mints a Matrix session for the signed-in user.
+   *
+   * Each call registers a device on the homeserver, so the client only reaches
+   * for it when it has no stored session to resume.
+   */
   session: () =>
     request<{
       homeserverUrl: string;
       matrixUserId: string;
-      loginToken: string;
+      accessToken: string;
+      deviceId: string;
     }>(http.post('/matrix/session')),
 
   /**

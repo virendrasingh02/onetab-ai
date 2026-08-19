@@ -49,14 +49,6 @@ export function MatrixProvider({ children }: { children: ReactNode }) {
 
     async function syncConnection() {
       try {
-        const config = await matrixApi.config();
-
-        if (!config.enabled || disposed) {
-          setEnabled(false);
-          return;
-        }
-        setEnabled(true);
-
         const token = getAccessToken();
         if (!token) {
           if (instance) {
@@ -66,25 +58,51 @@ export function MatrixProvider({ children }: { children: ReactNode }) {
             setStatus({ state: 'disconnected' });
           }
           connectingForToken.current = null;
+          setEnabled(false);
           return;
         }
+
+        const config = await matrixApi.config();
+
+        if (!config.enabled || !config.homeserverUrl || disposed) {
+          setEnabled(false);
+          return;
+        }
+        setEnabled(true);
 
         if (connectingForToken.current === token) return;
         connectingForToken.current = token;
 
-        const session = await matrixApi.session();
-        if (disposed) return;
-
         instance = createMatrixClient({
-          homeserverUrl: session.homeserverUrl,
-          enableEncryption: true,
+          homeserverUrl: config.homeserverUrl,
+          // The deployment decides: a homeserver that cannot hand out
+          // device-bound sessions cannot do end-to-end encryption either.
+          enableEncryption: config.encryption,
         });
 
         unsubscribe = instance.on((event: MatrixClientEvent) => {
           if (event.type === 'connection') setStatus(event.status);
         });
 
-        await instance.loginWithToken(session.loginToken);
+        // Resuming the stored session keeps the browser on one Matrix device,
+        // which is what makes its encryption keys — and therefore its history
+        // in private channels — survive a reload. Without an identity to match
+        // it against there is nothing to resume *safely*: a session left by
+        // whoever used this browser last would be someone else's.
+        const resumed = config.matrixUserId
+          ? await instance.restore(config.matrixUserId)
+          : false;
+
+        if (!resumed) {
+          const session = await matrixApi.session();
+          if (disposed) return;
+          await instance.adoptSession({
+            userId: session.matrixUserId,
+            accessToken: session.accessToken,
+            deviceId: session.deviceId,
+          });
+        }
+
         if (!disposed) setClient(instance);
       } catch (caught) {
         if (!disposed) {

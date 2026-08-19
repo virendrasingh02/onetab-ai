@@ -28,6 +28,8 @@ import {
   PRIORITY_META,
   DUE_TONE_CLASSES,
 } from '../kanban/card-meta.js';
+import { useKanbanCustomStore } from '../kanban/kanban-custom-store.js';
+import { PriorityIcon, StatusIcon } from '../kanban/kanban-icons.js';
 import type { BoardAction } from '../kanban/server-board.js';
 import type { BoardState, KanbanCard, KanbanList } from '../kanban/types.js';
 
@@ -51,6 +53,7 @@ export function ProjectListView({
     listId: TaskStatus;
     title: string;
   } | null>(null);
+  const customStore = useKanbanCustomStore();
 
   const toggleCollapse = (listId: string) => {
     setCollapsedLists((prev) => ({ ...prev, [listId]: !prev[listId] }));
@@ -104,6 +107,7 @@ export function ProjectListView({
                 >
                   {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </button>
+                <StatusIcon status={list.id} className="size-4" />
                 <h3 className="text-sm font-semibold text-foreground tracking-tight flex items-center gap-2">
                   {list.title}
                   <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/40">
@@ -143,6 +147,7 @@ export function ProjectListView({
                       const dueInfo = describeDue(card);
                       const assignedMember = board.members.find((m) => card.memberIds.includes(m.id));
 
+                      const cardProps = customStore.getCardProperties(card.id);
                       return (
                         <tr
                           key={card.id}
@@ -153,7 +158,7 @@ export function ProjectListView({
                         >
                           {/* Task Name & Completion Toggle */}
                           <td className="py-2.5 px-4">
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2.5 min-w-0">
                               {/*
                                 "Done" is the column the task sits in, not a
                                 flag of its own, so ticking this moves the task
@@ -176,7 +181,7 @@ export function ProjectListView({
                                     toIndex: 0,
                                   })
                                 }
-                                className="text-muted-foreground hover:text-accent-green transition-colors"
+                                className="text-muted-foreground hover:text-accent-green transition-colors shrink-0"
                               >
                                 {card.dueComplete ? (
                                   <CheckCircle2 className="w-4 h-4 text-accent-green fill-accent-green" />
@@ -185,16 +190,33 @@ export function ProjectListView({
                                 )}
                               </button>
 
+                              <span className="font-mono text-[10.5px] font-semibold text-muted-foreground bg-muted/70 px-1.5 py-0.2 rounded border border-border/50 shrink-0">
+                                {cardProps.ticketId}
+                              </span>
+
                               <button
                                 type="button"
                                 onClick={() => onSelectCard(card, list.id)}
                                 className={cn(
-                                  'font-medium text-foreground hover:text-primary hover:underline text-left truncate max-w-[340px] transition-colors',
+                                  'font-medium text-foreground hover:text-primary hover:underline text-left truncate max-w-[300px] transition-colors',
                                   card.dueComplete && 'line-through text-muted-foreground'
                                 )}
                               >
                                 {card.title}
                               </button>
+
+                              {cardProps.labels && cardProps.labels.length > 0 && (
+                                <div className="hidden sm:flex items-center gap-1">
+                                  {cardProps.labels.slice(0, 2).map((lbl) => (
+                                    <span
+                                      key={lbl}
+                                      className="text-[9.5px] font-semibold px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20"
+                                    >
+                                      {lbl}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
 
                               {card.milestone && (
                                 <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border/40 ml-1">
@@ -270,17 +292,18 @@ export function ProjectListView({
                             )}
                           </td>
 
-                          {/* Priority */}
+                          {/* Priority with Linear Icon */}
                           <td className="py-2.5 px-3">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <button type="button">
-                                  <Badge
-                                    variant={PRIORITY_META[card.priority]?.variant || 'neutral'}
-                                    className="cursor-pointer hover:opacity-80 transition-opacity text-[10px] uppercase font-semibold tracking-wider"
-                                  >
-                                    {PRIORITY_META[card.priority]?.label || card.priority}
-                                  </Badge>
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md hover:bg-muted/60 text-xs font-medium cursor-pointer transition-colors"
+                                >
+                                  <PriorityIcon priority={card.priority} className="size-3.5" />
+                                  <span className="capitalize text-[11px] text-foreground/90">
+                                    {card.priority.toLowerCase().replace('_', ' ')}
+                                  </span>
                                 </button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="start">
@@ -294,10 +317,10 @@ export function ProjectListView({
                                         patch: { priority: p },
                                       })
                                     }
-                                    className="flex items-center gap-2"
+                                    className="flex items-center gap-2 text-xs"
                                   >
-                                    <span className={cn('w-2 h-2 rounded-full', PRIORITY_META[p].dot)} />
-                                    <span>{PRIORITY_META[p].label}</span>
+                                    <PriorityIcon priority={p} className="size-3.5" />
+                                    <span className="capitalize">{p.toLowerCase().replace('_', ' ')}</span>
                                   </DropdownMenuItem>
                                 ))}
                               </DropdownMenuContent>

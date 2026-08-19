@@ -2,9 +2,11 @@ import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac, randomBytes } from 'node:crypto';
 import {
+  deriveUserPassword,
   readMatrixConfig,
   toMatrixLocalpart,
   toMatrixUserId,
+  usesAdminCredentials,
   type MatrixConfig,
 } from './matrix.config.js';
 
@@ -13,6 +15,43 @@ interface RegisterResponse {
   access_token: string;
   device_id?: string;
 }
+
+interface LoginResponse {
+  user_id: string;
+  access_token: string;
+  device_id?: string;
+}
+
+/** A Matrix session the browser can drive directly. */
+export interface MatrixUserSession {
+  matrixUserId: string;
+  accessToken: string;
+  deviceId: string;
+}
+
+/**
+ * A homeserver rejection, with the Matrix error code preserved.
+ *
+ * Nest sees an ordinary `HttpException`; the retry paths in this file need the
+ * `errcode` to tell "your token died" apart from "no".
+ */
+export class MatrixRequestError extends HttpException {
+  constructor(
+    message: string,
+    status: number,
+    readonly errcode: string | undefined,
+    readonly upstreamStatus: number,
+  ) {
+    super(message, status);
+  }
+}
+
+/** The homeserver device the bridge itself logs in as. */
+const BRIDGE_DEVICE_ID = 'ONETAB_AI_BRIDGE';
+
+const MAX_RATE_LIMIT_RETRIES = 3;
+/** Long enough for Synapse's login bucket to refill, short of a dead request. */
+const MAX_RATE_LIMIT_WAIT_MS = 8_000;
 
 /**
  * Provisions and administers Matrix identities for our users.
@@ -26,24 +65,52 @@ interface RegisterResponse {
 export class MatrixAdminService {
   private readonly logger = new Logger(MatrixAdminService.name);
   private readonly config: MatrixConfig;
+  /** Cached admin session, refreshed lazily when the homeserver rejects it. */
+  private adminToken: string | null = null;
+  private adminLogin: Promise<string> | null = null;
+  /**
+   * Room creator by room id. Without an appservice the bridge acts *as* the
+   * creator to invite and kick, and that mapping never changes for a room.
+   */
+  private readonly roomCreators = new Map<string, string>();
 
   constructor(configService: ConfigService) {
     // `readMatrixConfig` takes a plain record, so the relevant keys are pulled
     // off ConfigService explicitly rather than casting the service itself.
-    this.config = readMatrixConfig({
+    this.config = this.readConfig(configService);
+    // A configured token is used as-is, and only replaced if the homeserver
+    // says it is dead.
+    this.adminToken = this.config.adminToken ?? null;
+  }
+
+  private readConfig(configService: ConfigService): MatrixConfig {
+    return readMatrixConfig({
       MATRIX_ENABLED: configService.get<string>('MATRIX_ENABLED'),
       MATRIX_HOMESERVER_URL: configService.get<string>('MATRIX_HOMESERVER_URL'),
+      MATRIX_HOMESERVER: configService.get<string>('MATRIX_HOMESERVER'),
       MATRIX_SERVER_NAME: configService.get<string>('MATRIX_SERVER_NAME'),
+      MATRIX_USERNAME: configService.get<string>('MATRIX_USERNAME'),
+      MATRIX_PASSWORD: configService.get<string>('MATRIX_PASSWORD'),
+      MATRIX_ADMIN_TOKEN: configService.get<string>('MATRIX_ADMIN_TOKEN'),
       MATRIX_REGISTRATION_SHARED_SECRET: configService.get<string>(
         'MATRIX_REGISTRATION_SHARED_SECRET',
       ),
       MATRIX_AS_TOKEN: configService.get<string>('MATRIX_AS_TOKEN'),
       MATRIX_HS_TOKEN: configService.get<string>('MATRIX_HS_TOKEN'),
+      MATRIX_USER_PASSWORD_SECRET: configService.get<string>(
+        'MATRIX_USER_PASSWORD_SECRET',
+      ),
+      MATRIX_ENCRYPTION: configService.get<string>('MATRIX_ENCRYPTION'),
     });
   }
 
   get isEnabled(): boolean {
     return this.config.enabled;
+  }
+
+  /** Whether this deployment encrypts private rooms. */
+  get isEncrypted(): boolean {
+    return this.config.enabled && this.config.encryption;
   }
 
   get serverName(): string {
@@ -78,6 +145,7 @@ export class MatrixAdminService {
   private async request<T>(
     path: string,
     init: RequestInit & { accessToken?: string } = {},
+    attempt = 0,
   ): Promise<T> {
     const config = this.assertEnabled();
     const { accessToken, ...rest } = init;
@@ -106,16 +174,232 @@ export class MatrixAdminService {
     const body = text ? JSON.parse(text) : {};
 
     if (!response.ok) {
+      // Synapse rate-limits logins per source address, and every bridged
+      // user's login arrives from this one process — so a workspace signing in
+      // together trips the limiter. It tells us exactly how long to wait.
+      if (response.status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
+        const waitMs = Math.min(
+          Number(body?.retry_after_ms) || 1_000,
+          MAX_RATE_LIMIT_WAIT_MS,
+        );
+        this.logger.warn(
+          `Matrix rate-limited ${path}; retrying in ${waitMs}ms.`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+        return this.request<T>(path, init, attempt + 1);
+      }
+
       this.logger.error(
         `Matrix ${path} -> ${response.status} ${body?.errcode ?? ''}`,
       );
-      throw new HttpException(
+      throw new MatrixRequestError(
         body?.error ?? 'The Matrix homeserver rejected the request.',
         response.status === 429 ? 429 : 502,
+        body?.errcode,
+        response.status,
       );
     }
 
     return body as T;
+  }
+
+  // --- privileged access ---------------------------------------------------
+
+  private get isAdminMode(): boolean {
+    return usesAdminCredentials(this.config);
+  }
+
+  private get canLoginAsAdmin(): boolean {
+    return Boolean(this.config.adminUsername && this.config.adminPassword);
+  }
+
+  /** Logs the bridge in as the configured server admin. */
+  private async loginAsAdmin(): Promise<string> {
+    const config = this.assertEnabled();
+
+    if (!this.canLoginAsAdmin) {
+      throw new HttpException(
+        'The Matrix admin token was rejected and there is no MATRIX_USERNAME / MATRIX_PASSWORD to sign in with.',
+        503,
+      );
+    }
+
+    const response = await this.request<LoginResponse>(
+      '/_matrix/client/v3/login',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'm.login.password',
+          identifier: { type: 'm.id.user', user: config.adminUsername },
+          password: config.adminPassword,
+          // A fixed device keeps repeated API restarts from littering the
+          // admin account with sessions. Two API instances would evict each
+          // other's token, which `withPrivileged` recovers from.
+          device_id: BRIDGE_DEVICE_ID,
+          initial_device_display_name: 'OneTab AI bridge',
+        }),
+      },
+    );
+
+    this.logger.log(`Signed in to Matrix as ${response.user_id}`);
+    return response.access_token;
+  }
+
+  /**
+   * The token used for privileged calls: the appservice token when one is
+   * configured, otherwise a cached admin session.
+   */
+  private async privilegedToken(): Promise<string | undefined> {
+    if (!this.isAdminMode) return this.config.asToken;
+    if (this.adminToken) return this.adminToken;
+
+    this.adminLogin ??= this.loginAsAdmin()
+      .then((token) => {
+        this.adminToken = token;
+        return token;
+      })
+      .finally(() => {
+        this.adminLogin = null;
+      });
+
+    return this.adminLogin;
+  }
+
+  /**
+   * Runs a privileged call, re-authenticating once if the token has died.
+   *
+   * Synapse access tokens outlive a process, so the cached one is usually
+   * fine — but an admin password change, a manual logout or a second API
+   * instance taking the shared device will invalidate it, and that should cost
+   * one retry rather than every request until a restart.
+   */
+  private async withPrivileged<T>(
+    call: (accessToken: string | undefined) => Promise<T>,
+  ): Promise<T> {
+    try {
+      return await call(await this.privilegedToken());
+    } catch (error) {
+      const expired =
+        error instanceof MatrixRequestError &&
+        (error.errcode === 'M_UNKNOWN_TOKEN' ||
+          error.errcode === 'M_MISSING_TOKEN');
+
+      if (!expired || !this.isAdminMode || !this.canLoginAsAdmin) throw error;
+
+      this.adminToken = null;
+      return call(await this.privilegedToken());
+    }
+  }
+
+  /**
+   * An access token that acts as `matrixUserId`.
+   *
+   * The Synapse admin "login as user" API returns a token that is not bound to
+   * a device, which is exactly right for the server-side calls below — room
+   * creation, invites — and exactly wrong for the browser, which needs a
+   * device for end-to-end encryption. `createUserSession` handles that case.
+   */
+  private async actAs(
+    matrixUserId: string,
+    options: { expiresInMs?: number } = {},
+  ): Promise<string> {
+    const response = await this.withPrivileged((accessToken) =>
+      this.request<{ access_token: string }>(
+        `/_synapse/admin/v1/users/${encodeURIComponent(matrixUserId)}/login`,
+        {
+          method: 'POST',
+          accessToken,
+          // Omitting `valid_until_ms` asks Synapse for a token that does not
+          // expire, which is what a browser session needs. Tokens the bridge
+          // uses for one call get a minute.
+          body: JSON.stringify(
+            options.expiresInMs
+              ? { valid_until_ms: Date.now() + options.expiresInMs }
+              : {},
+          ),
+        },
+      ),
+    );
+
+    return response.access_token;
+  }
+
+  /**
+   * A token with power in the room.
+   *
+   * An appservice can masquerade as anyone, so it needs nothing. Otherwise the
+   * bridge borrows the room's creator, who holds PL100 in every room we make.
+   */
+  private async roomActorToken(roomId: string): Promise<string | undefined> {
+    if (!this.isAdminMode) return this.config.asToken;
+
+    let creator = this.roomCreators.get(roomId);
+
+    if (!creator) {
+      const room = await this.withPrivileged((accessToken) =>
+        this.request<{ creator?: string }>(
+          `/_synapse/admin/v1/rooms/${encodeURIComponent(roomId)}`,
+          { accessToken },
+        ),
+      );
+
+      if (!room.creator) {
+        throw new HttpException(
+          `Matrix room ${roomId} has no known creator to act as.`,
+          502,
+        );
+      }
+
+      creator = room.creator;
+      this.roomCreators.set(roomId, creator);
+    }
+
+    return this.actAs(creator, { expiresInMs: 60_000 });
+  }
+
+  /**
+   * Creates the Matrix account backing one of our users.
+   *
+   * With admin credentials this is a single idempotent upsert; otherwise it
+   * falls back to Synapse's shared-secret registration endpoint.
+   */
+  async provisionUser(input: {
+    userId: string;
+    displayName: string;
+  }): Promise<{ matrixUserId: string }> {
+    const config = this.assertEnabled();
+    const localpart = toMatrixLocalpart(input.userId);
+
+    if (this.isAdminMode) {
+      const matrixUserId = toMatrixUserId(localpart, config.serverName);
+
+      await this.withPrivileged((accessToken) =>
+        this.request(
+          `/_synapse/admin/v2/users/${encodeURIComponent(matrixUserId)}`,
+          {
+            method: 'PUT',
+            accessToken,
+            body: JSON.stringify({
+              password: deriveUserPassword(
+                config.userPasswordSecret,
+                matrixUserId,
+              ),
+              displayname: input.displayName,
+              admin: false,
+              deactivated: false,
+              // Provisioning must never sign the person out of a browser they
+              // already have open.
+              logout_devices: false,
+            }),
+          },
+        ),
+      );
+
+      this.logger.log(`Provisioned Matrix identity ${matrixUserId}`);
+      return { matrixUserId };
+    }
+
+    return this.registerWithSharedSecret(localpart, input.displayName);
   }
 
   /**
@@ -124,10 +408,10 @@ export class MatrixAdminService {
    * The MAC is an HMAC-SHA1 over NUL-separated fields, in the exact order
    * Synapse expects — the order is part of the protocol, not a style choice.
    */
-  async provisionUser(input: {
-    userId: string;
-    displayName: string;
-  }): Promise<{ matrixUserId: string; accessToken: string }> {
+  private async registerWithSharedSecret(
+    localpart: string,
+    displayName: string,
+  ): Promise<{ matrixUserId: string }> {
     const config = this.assertEnabled();
 
     if (!config.registrationSharedSecret) {
@@ -137,7 +421,6 @@ export class MatrixAdminService {
       );
     }
 
-    const localpart = toMatrixLocalpart(input.userId);
     const password = randomBytes(32).toString('base64url');
 
     const { nonce } = await this.request<{ nonce: string }>(
@@ -163,7 +446,7 @@ export class MatrixAdminService {
           nonce,
           username: localpart,
           password,
-          displayname: input.displayName,
+          displayname: displayName,
           admin: false,
           mac,
         }),
@@ -172,32 +455,125 @@ export class MatrixAdminService {
 
     this.logger.log(`Provisioned Matrix identity ${registered.user_id}`);
 
-    return {
-      matrixUserId: registered.user_id,
-      accessToken: registered.access_token,
-    };
+    return { matrixUserId: registered.user_id };
   }
 
   /**
-   * Mints a short-lived login token the browser exchanges for a Matrix
-   * session, so the Matrix password never leaves the server.
+   * Opens a Matrix session for a bridged user, for the browser to take over.
    *
-   * Requires Synapse admin rights; `MATRIX_AS_TOKEN` must belong to an admin
-   * user or an application service with `login` permission.
+   * Two ways to get one, and which is available decides whether the browser
+   * can do end-to-end encryption:
+   *
+   * - `POST /login` with the derived password returns a *device-bound* token,
+   *   the only kind that can upload encryption keys. It is also the only kind
+   *   Synapse rate-limits, per source address — and every user's login leaves
+   *   from this one process.
+   * - The admin "login as user" API returns a token with no device. It syncs
+   *   and sends fine, cannot touch crypto, and has no rate limit.
+   *
+   * So encrypted deployments log in, and unencrypted ones puppet. A login the
+   * homeserver refuses is repaired first — a drifted password and an account
+   * this homeserver has never heard of both come back as 403 — and a login it
+   * rate-limits falls back to a puppet token rather than leaving the person
+   * without chat.
    */
-  async createLoginToken(matrixUserId: string): Promise<string> {
+  async createUserSession(
+    matrixUserId: string,
+    displayName?: string,
+  ): Promise<MatrixUserSession> {
     const config = this.assertEnabled();
 
-    const response = await this.request<{ access_token: string }>(
-      `/_synapse/admin/v1/users/${encodeURIComponent(matrixUserId)}/login`,
+    if (!config.encryption || !this.isAdminMode) {
+      return this.puppetSession(matrixUserId);
+    }
+
+    const password = deriveUserPassword(
+      config.userPasswordSecret,
+      matrixUserId,
+    );
+
+    try {
+      return await this.loginAsUser(matrixUserId, password);
+    } catch (error) {
+      if (!(error instanceof MatrixRequestError)) throw error;
+
+      if (error.upstreamStatus === 403) {
+        this.logger.warn(
+          `Matrix login for ${matrixUserId} was refused; repairing the account.`,
+        );
+        await this.resetUserPassword(matrixUserId, password, displayName);
+        return this.loginAsUser(matrixUserId, password);
+      }
+
+      if (error.upstreamStatus === 429) {
+        this.logger.warn(
+          `Matrix rate-limited the login for ${matrixUserId}; falling back to ` +
+            'a session without encryption. Relax `rc_login` on the homeserver ' +
+            'or set MATRIX_ENCRYPTION=false.',
+        );
+        return this.puppetSession(matrixUserId);
+      }
+
+      throw error;
+    }
+  }
+
+  /** A device-less session, minted through the admin API. */
+  private async puppetSession(
+    matrixUserId: string,
+  ): Promise<MatrixUserSession> {
+    return {
+      matrixUserId,
+      accessToken: await this.actAs(matrixUserId),
+      deviceId: '',
+    };
+  }
+
+  private async loginAsUser(
+    matrixUserId: string,
+    password: string,
+  ): Promise<MatrixUserSession> {
+    const response = await this.request<LoginResponse>(
+      '/_matrix/client/v3/login',
       {
         method: 'POST',
-        accessToken: config.asToken,
-        body: JSON.stringify({ valid_until_ms: Date.now() + 60_000 }),
+        body: JSON.stringify({
+          type: 'm.login.password',
+          identifier: { type: 'm.id.user', user: matrixUserId },
+          password,
+          initial_device_display_name: 'OneTab AI Web',
+        }),
       },
     );
 
-    return response.access_token;
+    return {
+      matrixUserId: response.user_id,
+      accessToken: response.access_token,
+      deviceId: response.device_id ?? '',
+    };
+  }
+
+  /** Sets the password, creating the account if the homeserver lacks it. */
+  private async resetUserPassword(
+    matrixUserId: string,
+    password: string,
+    displayName?: string,
+  ): Promise<void> {
+    await this.withPrivileged((accessToken) =>
+      this.request(
+        `/_synapse/admin/v2/users/${encodeURIComponent(matrixUserId)}`,
+        {
+          method: 'PUT',
+          accessToken,
+          body: JSON.stringify({
+            password,
+            ...(displayName ? { displayname: displayName } : {}),
+            // Other devices keep working: they hold tokens, not the password.
+            logout_devices: false,
+          }),
+        },
+      ),
+    );
   }
 
   /** Creates a Matrix room to back one of our channels. */
@@ -210,16 +586,30 @@ export class MatrixAdminService {
   }): Promise<string> {
     const config = this.assertEnabled();
 
+    // An appservice can create the room *as* the channel's creator with the
+    // `user_id` query parameter. Admin credentials cannot masquerade, so the
+    // bridge borrows the creator's own session instead — same outcome, and it
+    // is what leaves them holding PL100 in the room.
+    const accessToken = this.isAdminMode
+      ? await this.actAs(input.creatorMatrixId, { expiresInMs: 60_000 })
+      : config.asToken;
+
+    const path = this.isAdminMode
+      ? '/_matrix/client/v3/createRoom'
+      : `/_matrix/client/v3/createRoom?user_id=${encodeURIComponent(input.creatorMatrixId)}`;
+
     const response = await this.request<{ room_id: string }>(
-      `/_matrix/client/v3/createRoom?user_id=${encodeURIComponent(input.creatorMatrixId)}`,
+      path,
       {
         method: 'POST',
-        accessToken: config.asToken,
+        accessToken,
         body: JSON.stringify({
           name: input.name,
           topic: input.topic,
           preset: input.isPrivate ? 'private_chat' : 'public_chat',
-          initial_state: input.encrypted
+          // Encrypting a room the browsers cannot decrypt would make it
+          // unreadable, so the deployment switch has the final say.
+          initial_state: input.encrypted && config.encryption
             ? [
                 {
                   type: 'm.room.encryption',
@@ -236,12 +626,14 @@ export class MatrixAdminService {
   }
 
   async inviteToRoom(roomId: string, matrixUserId: string): Promise<void> {
-    const config = this.assertEnabled();
+    this.assertEnabled();
+    const accessToken = await this.roomActorToken(roomId);
+
     await this.request(
       `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/invite`,
       {
         method: 'POST',
-        accessToken: config.asToken,
+        accessToken,
         body: JSON.stringify({ user_id: matrixUserId }),
       },
     );
@@ -252,12 +644,14 @@ export class MatrixAdminService {
     matrixUserId: string,
     reason?: string,
   ): Promise<void> {
-    const config = this.assertEnabled();
+    this.assertEnabled();
+    const accessToken = await this.roomActorToken(roomId);
+
     await this.request(
       `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/kick`,
       {
         method: 'POST',
-        accessToken: config.asToken,
+        accessToken,
         body: JSON.stringify({ user_id: matrixUserId, reason }),
       },
     );
@@ -269,17 +663,18 @@ export class MatrixAdminService {
     matrixUserId: string,
     powerLevel: number,
   ): Promise<void> {
-    const config = this.assertEnabled();
+    this.assertEnabled();
+    const accessToken = await this.roomActorToken(roomId);
     const path = `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.power_levels/`;
 
     const current = await this.request<{ users?: Record<string, number> }>(
       path,
-      { method: 'GET', accessToken: config.asToken },
+      { method: 'GET', accessToken },
     );
 
     await this.request(path, {
       method: 'PUT',
-      accessToken: config.asToken,
+      accessToken,
       body: JSON.stringify({
         ...current,
         users: { ...(current.users ?? {}), [matrixUserId]: powerLevel },

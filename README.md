@@ -33,12 +33,19 @@ npm run matrix:setup          # grant the appservice sender admin rights
 npm run dev
 ```
 
-`matrix:setup` is required, not a convenience: minting the browser's login token
-goes through Synapse's admin API, which checks *server admin* rights rather than
-appservice rights, so without it `POST /matrix/session` returns 502. See
-[docker/matrix/README.md](docker/matrix/README.md). Set `MATRIX_ENABLED="false"`
-to run without a homeserver — the app is fully functional and reports chat as
-unavailable.
+`matrix:setup` is required, not a convenience: minting the browser's Matrix
+session goes through Synapse's admin API, which checks *server admin* rights
+rather than appservice rights, so without it `POST /matrix/session` returns 502.
+See [docker/matrix/README.md](docker/matrix/README.md).
+
+To point at a homeserver you have not installed anything on — a shared Synapse
+on the LAN, say — skip both scripts and give the bridge a server admin account
+instead (`MATRIX_USERNAME` / `MATRIX_PASSWORD`); it then drives everything
+through the admin API. See [libs/api/matrix/README.md](libs/api/matrix/README.md),
+and note what that costs for end-to-end encryption.
+
+Set `MATRIX_ENABLED="false"` to run without a homeserver — the app is fully
+functional and reports chat as unavailable.
 
 | App   | URL                            |
 | ----- | ------------------------------ |
@@ -160,8 +167,9 @@ id and gets a conversation back. All SDK access is confined to
 `@org/matrix-client`, which exposes domain objects and one typed event stream —
 an isolation the package asserts in its own tests, so a convenience re-export
 cannot quietly couple the app to `matrix-js-sdk`. The
-browser never holds a Matrix password: it exchanges our session for a single-use
-login token via `POST /matrix/session`. Our database stores workspace metadata,
+browser never holds a Matrix password: it exchanges our session for an access
+token minted on its behalf via `POST /matrix/session`, and reuses that stored
+session across reloads. Our database stores workspace metadata,
 preferences, pins and activity; message content is not duplicated. Chat is
 optional — with `MATRIX_ENABLED=false` the app runs unchanged and reports chat
 as unavailable.

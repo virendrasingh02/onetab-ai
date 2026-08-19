@@ -35,8 +35,21 @@ export const apiEnvSchema = z.object({
 
   // Matrix bridge. Optional: the API runs without a homeserver.
   MATRIX_ENABLED: z.enum(['true', 'false']).default('false'),
+  MATRIX_ENCRYPTION: z.enum(['true', 'false']).default('true'),
   MATRIX_HOMESERVER_URL: z.string().url().optional(),
+  // Alias. Blank-tolerant, because `.env` files write "unset" as `FOO=""`.
+  MATRIX_HOMESERVER: z
+    .string()
+    .optional()
+    .refine((value) => !value || z.string().url().safeParse(value).success, {
+      message: 'MATRIX_HOMESERVER must be a URL',
+    }),
   MATRIX_SERVER_NAME: z.string().optional(),
+  /** Server-admin account the bridge drives Synapse with. */
+  MATRIX_USERNAME: z.string().optional(),
+  MATRIX_PASSWORD: z.string().optional(),
+  MATRIX_ADMIN_TOKEN: z.string().optional(),
+  MATRIX_USER_PASSWORD_SECRET: z.string().optional(),
   MATRIX_REGISTRATION_SHARED_SECRET: z.string().optional(),
   MATRIX_AS_TOKEN: z.string().optional(),
   MATRIX_HS_TOKEN: z.string().optional(),

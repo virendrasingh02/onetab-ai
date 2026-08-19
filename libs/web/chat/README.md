@@ -5,10 +5,14 @@ Matrix.
 
 ## Design
 
-The browser never sees a Matrix password. `MatrixProvider` calls
-`POST /matrix/session`, receives a single-use login token from our API, and signs
-in with it. When Matrix is not configured the provider reports chat as
-unavailable rather than failing — the rest of the app keeps working.
+The browser never sees a Matrix password. `MatrixProvider` reads
+`GET /matrix/config` for the homeserver address and the signed-in user's Matrix
+id, resumes the session stored in this browser if it belongs to that same user,
+and only calls `POST /matrix/session` when there is nothing to resume — each of
+those registers a device on the homeserver, and the stored one is what carries
+this browser's encryption keys. When Matrix is not configured the provider
+reports chat as unavailable rather than failing — the rest of the app keeps
+working.
 
 Room state is held in a local reducer-style store rather than TanStack Query. A
 Matrix timeline is a push stream, not a cache to invalidate; modelling it as a

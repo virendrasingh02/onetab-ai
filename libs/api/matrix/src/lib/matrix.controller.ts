@@ -29,12 +29,31 @@ export class MatrixController {
     private readonly admin: MatrixAdminService,
   ) {}
 
-  /** Tells the client whether chat is available before it tries to connect. */
+  /**
+   * Tells the client whether chat is available before it tries to connect.
+   *
+   * `homeserverUrl` and `matrixUserId` are here so that a browser holding a
+   * stored Matrix session can resume it without calling `POST /session` —
+   * every one of those creates a device on the homeserver.
+   */
   @Get('config')
-  config() {
+  async config(@CurrentUser('id') userId: string) {
+    if (!this.admin.isEnabled) {
+      return {
+        enabled: false,
+        encryption: false,
+        serverName: null,
+        homeserverUrl: null,
+        matrixUserId: null,
+      };
+    }
+
     return {
-      enabled: this.admin.isEnabled,
-      serverName: this.admin.isEnabled ? this.admin.serverName : null,
+      enabled: true,
+      encryption: this.admin.isEncrypted,
+      serverName: this.admin.serverName,
+      homeserverUrl: this.admin.homeserverUrl,
+      matrixUserId: await this.auth.getIdentity(userId),
     };
   }
 
@@ -42,7 +61,7 @@ export class MatrixController {
    * Exchanges our session for Matrix credentials.
    *
    * This is the only way the browser obtains a Matrix session — it never sees
-   * a Matrix password, and the login token it receives expires in a minute.
+   * a Matrix password.
    */
   @Post('session')
   @HttpCode(HttpStatus.OK)

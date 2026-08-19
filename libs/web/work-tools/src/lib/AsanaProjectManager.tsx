@@ -33,8 +33,10 @@ import { useCurrentUser } from '@org/auth';
 import { useMembers } from '@org/web-members';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
+  Command,
   Filter,
   FolderKanban,
+  Keyboard,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -60,6 +62,8 @@ import {
   type ImportResult,
 } from './kanban/import/ImportBoardDialog.js';
 import { LinearFilterMenu } from './kanban/LinearFilterMenu.js';
+import { LinearCommandMenu } from './kanban/LinearCommandMenu.js';
+import { LinearShortcutsDialog } from './kanban/LinearShortcutsDialog.js';
 import { DEFAULT_PROJECT_HEX, PROJECT_COLORS } from './kanban/project-color.js';
 import { ProjectGallery } from './kanban/ProjectGallery.js';
 import {
@@ -192,6 +196,56 @@ export function AsanaProjectManager() {
   const filterCount = countActiveFilters(filter);
 
   const [isViewDisplayOpen, setIsViewDisplayOpen] = useState(false);
+  const [isCommandMenuOpen, setIsCommandMenuOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+
+  // Global Linear Keyboard Shortcuts Listener
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Don't trigger if user is actively typing in an input or textarea
+      const target = e.target as HTMLElement;
+      const isInput =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable;
+
+      // Cmd+K / Ctrl+K: Command Menu
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandMenuOpen((prev) => !prev);
+        return;
+      }
+
+      if (isInput) return;
+
+      // C: Create new task
+      if (e.key.toLowerCase() === 'c' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        handleQuickAddTask();
+      }
+
+      // F: Toggle filter menu
+      if (e.key.toLowerCase() === 'f' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setIsFilterMenuOpen((prev) => !prev);
+      }
+
+      // V: Toggle view switcher
+      if (e.key.toLowerCase() === 'v' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setIsViewDisplayOpen((prev) => !prev);
+      }
+
+      // ?: Open shortcuts cheat sheet
+      if (e.key === '?' || (e.key === '/' && (e.metaKey || e.ctrlKey))) {
+        e.preventDefault();
+        setIsShortcutsOpen((prev) => !prev);
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
@@ -422,6 +476,23 @@ export function AsanaProjectManager() {
         />
       ) : null}
 
+      <LinearCommandMenu
+        isOpen={isCommandMenuOpen}
+        onClose={() => setIsCommandMenuOpen(false)}
+        lists={board.board.lists}
+        members={members}
+        onOpenCard={(id) => setSelectedCardId(id)}
+        onQuickAddTask={handleQuickAddTask}
+        onViewModeChange={setViewMode}
+        onOpenFilter={() => setIsFilterMenuOpen(true)}
+        onOpenNewProject={openNewProject}
+      />
+
+      <LinearShortcutsDialog
+        isOpen={isShortcutsOpen}
+        onClose={() => setIsShortcutsOpen(false)}
+      />
+
       {prompts.dialog}
     </>
   );
@@ -556,7 +627,30 @@ export function AsanaProjectManager() {
 
         {/* Right Action Bar */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative w-36 sm:w-52">
+          {/* Linear Command Palette Trigger */}
+          <button
+            type="button"
+            onClick={() => setIsCommandMenuOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 h-8 rounded-md text-xs font-medium border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+            title="Open Command Palette (⌘K)"
+          >
+            <Command className="size-3.5 text-muted-foreground" />
+            <span className="hidden sm:inline">Search</span>
+            <kbd className="hidden sm:inline-flex items-center rounded border border-border bg-muted/60 px-1 text-[10px] font-mono font-medium">
+              ⌘K
+            </kbd>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsShortcutsOpen(true)}
+            className="flex items-center justify-center size-8 rounded-md border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+            title="Keyboard Shortcuts (?)"
+          >
+            <Keyboard className="size-3.5" />
+          </button>
+
+          <div className="relative w-36 sm:w-48">
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
             <Input
               placeholder="Filter tasks..."
