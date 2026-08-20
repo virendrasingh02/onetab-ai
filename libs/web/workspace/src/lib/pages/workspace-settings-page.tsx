@@ -78,12 +78,11 @@ import {
   Play,
   Pause,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { DesktopSettingsCard, notify } from '@org/web-desktop';
 import { useNotificationPermissionBar } from '@org/notifications';
-import { SlackNotionImportView } from '@org/web-integrations';
 import {
   useCurrentWorkspace,
   useDeleteWorkspace,
@@ -93,10 +92,27 @@ import { SettingsLayout } from '../settings-layout.js';
 import { WorkspaceMembersSettings } from '../components/workspace-members-settings.js';
 import { WorkspaceBillingSettings } from '../components/workspace-billing-settings.js';
 import { WorkspaceCompanyAnalytics } from '../components/workspace-company-analytics.js';
-import { WorkspaceKanbanSettings } from '../components/workspace-kanban-settings.js';
 import { UpgradePlanBanner } from '../components/upgrade-plan-banner.js';
 
-export function WorkspaceSettingsPage() {
+/**
+ * Panels this page renders but does not own.
+ *
+ * `@org/web-workspace` is the lowest layer of the feature graph — twelve
+ * libraries import `useCurrentWorkspace` from it — so it cannot import back out
+ * to `@org/web-integrations` or `@org/web-work-tools` for the two tabs that are
+ * really those features' own settings UI. The route composes them in instead.
+ */
+export interface WorkspaceSettingsPageProps {
+  /** The Slack/Notion migration panel, from `@org/web-integrations`. */
+  importPanel?: ReactNode;
+  /** The kanban field-customisation panel, from `@org/web-work-tools`. */
+  kanbanPanel?: ReactNode;
+}
+
+export function WorkspaceSettingsPage({
+  importPanel,
+  kanbanPanel,
+}: WorkspaceSettingsPageProps = {}) {
   const { workspace, workspaceId, isLoading } = useCurrentWorkspace();
   const updateWorkspace = useUpdateWorkspace(workspaceId);
   const deleteWorkspace = useDeleteWorkspace();
@@ -183,11 +199,6 @@ export function WorkspaceSettingsPage() {
   const [archiveInactiveDays, setArchiveInactiveDays] = useState('90');
   const [encryptedDM, setEncryptedDM] = useState(true);
   const [readReceipts, setReadReceipts] = useState(true);
-
-  const [kanbanDefaultView, setKanbanDefaultView] = useState('board');
-  const [showTaskAge, setShowTaskAge] = useState(true);
-  const [enableWipLimits, setEnableWipLimits] = useState(false);
-  const [autoArchiveCompleted, setAutoArchiveCompleted] = useState('30');
 
   const [docAutoSave, setDocAutoSave] = useState(true);
   const [grammarAssistance, setGrammarAssistance] = useState(true);
@@ -1909,7 +1920,7 @@ export function WorkspaceSettingsPage() {
         </div>
       )}
 
-      {currentTab === 'kanban-tasks' && <WorkspaceKanbanSettings />}
+      {currentTab === 'kanban-tasks' && kanbanPanel}
 
       {currentTab === 'documents' && (
         <div className="space-y-8">
@@ -2129,7 +2140,7 @@ export function WorkspaceSettingsPage() {
           </div>
 
           <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6">
-            <SlackNotionImportView embedded />
+            {importPanel}
           </div>
         </div>
       )}

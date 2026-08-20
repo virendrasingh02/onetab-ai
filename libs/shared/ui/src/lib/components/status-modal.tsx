@@ -1,4 +1,3 @@
-import { userApi } from '@org/api-client';
 import type { CurrentUser, PresenceStatus } from '@org/types';
 import { cn } from '@org/utils';
 import {
@@ -26,6 +25,7 @@ import {
   DialogTitle,
 } from './dialog.js';
 import { useFocusStore } from './focus-mode-store.js';
+import type { StatusPublisher } from './focus-mode-widget.js';
 import { Input } from './input.js';
 import { Popover, PopoverContent, PopoverTrigger } from './popover.js';
 
@@ -182,12 +182,17 @@ export const CLEAR_AFTER_OPTIONS: ClearOption[] = [
   },
 ];
 
-export interface StatusModalProps {
+export interface StatusModalProps extends StatusPublisher {
   currentUser?: CurrentUser | null;
   onUserUpdated?: (user: CurrentUser) => void;
 }
 
-export function StatusModal({ currentUser, onUserUpdated }: StatusModalProps) {
+export function StatusModal({
+  currentUser,
+  onUserUpdated,
+  onSaveStatus,
+  onClearStatus,
+}: StatusModalProps) {
   const isOpen = useFocusStore((s) => s.isStatusModalOpen);
   const closeStatusModal = useFocusStore((s) => s.closeStatusModal);
 
@@ -229,7 +234,8 @@ export function StatusModal({ currentUser, onUserUpdated }: StatusModalProps) {
       );
       const expiresAtDate = clearOption ? clearOption.calcExpiresAt() : null;
 
-      const updated = await userApi.updateStatus({
+      if (!onSaveStatus) return;
+      const updated = await onSaveStatus({
         statusText: statusText.trim() || null,
         statusEmoji: statusText.trim() ? statusEmoji || '💬' : null,
         statusExpiresAt:
@@ -255,7 +261,8 @@ export function StatusModal({ currentUser, onUserUpdated }: StatusModalProps) {
   const handleClearStatus = async () => {
     try {
       setIsSaving(true);
-      const updated = await userApi.clearStatus();
+      if (!onClearStatus) return;
+      const updated = await onClearStatus();
       if (onUserUpdated) {
         onUserUpdated(updated);
       }

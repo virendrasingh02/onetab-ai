@@ -1,6 +1,3 @@
-import { useCurrentUser } from '@org/auth';
-import { ChatBubble } from '@org/chat-ui';
-import type { Message as ChatUiMessage } from '@org/types';
 import {
   Badge,
   Button,
@@ -15,48 +12,29 @@ import {
   Hint,
   LoadingState,
   Panel,
-  ScrollArea,
   SearchInput,
   Spinner,
   toast,
   useRightPanelStore,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { ChatPanel, useDirectRoom, useMatrix } from '@org/web-chat';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
-  Activity,
-  BarChart3,
   Bell,
   BellOff,
   Blocks,
   Check,
   ChevronRight,
   Copy,
-  DollarSign,
-  ExternalLink,
-  FolderKanban,
   Headphones,
-  Layout,
-  MessageSquareOff,
   MoreHorizontal,
-  Palette,
-  PanelRight,
   RefreshCw,
-  Send,
   Settings,
-  Share2,
-  Shield,
-  Sparkles,
   Star,
-  Trash2,
   UserRound,
-  Users,
-  Webhook,
   X,
-  type LucideIcon,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -152,7 +130,6 @@ export interface AppModelItem {
   isConnected?: boolean;
   statusText?: string;
   quickStarters?: string[];
-  initialMessage?: string;
 }
 
 export const APP_LOGOS: Record<string, string> = {
@@ -181,19 +158,6 @@ export const APP_LOGOS: Record<string, string> = {
   webhooks: 'https://cdn.simpleicons.org/webhooks',
 };
 
-const CATEGORY_ICONS: Record<string, LucideIcon> = {
-  Analytics: BarChart3,
-  'Customer Support & Communication': Headphones,
-  Design: Palette,
-  'Developer Tools': Share2,
-  'Productivity & Project Management': FolderKanban,
-  'HR & Team Culture': Users,
-  'Sales & Marketing': Layout,
-  Finance: DollarSign,
-  'Internal Apps': Webhook,
-  Other: Webhook,
-};
-
 export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
   {
     id: 'github',
@@ -202,15 +166,11 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     provider: 'github',
     description:
       'Repository activity, pull request reviews, CI/CD status, and issue sync directly in chat.',
-    isConnected: true,
-    statusText: 'Connected · Syncing webhooks',
     quickStarters: [
       'Show open pull requests awaiting review',
       'Check latest CI build status on main branch',
       'List recent commits merged today',
     ],
-    initialMessage:
-      '🐙 **GitHub App Connected**\n\nAll repository webhooks are active. 4 pull requests are currently open and automated CI workflows are running smoothly. What repository details or actions would you like to inspect?',
   },
   {
     id: 'linear',
@@ -219,15 +179,11 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     provider: 'linear',
     description:
       'High-performance issue tracking, sprint cycle progress, and roadmaps.',
-    isConnected: true,
-    statusText: 'Connected · Active sprint cycle',
     quickStarters: [
       'List active sprint issues assigned to me',
       'Create bug ticket: "Fix dropdown z-index collision"',
       'Show Cycle 24 completion percentage',
     ],
-    initialMessage:
-      '📐 **Linear App Connected**\n\nSprint Cycle 24 is 68% complete with 8 issues in progress. You can query tickets, create issues, or inspect roadmaps directly here.',
   },
   {
     id: 'jira',
@@ -236,15 +192,11 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     provider: 'jira',
     description:
       'Enterprise issue tracking, sprint backlogs, and team agility metrics.',
-    isConnected: true,
-    statusText: 'Connected · 18 story points closed',
     quickStarters: [
       'Show current sprint backlog summary',
       'Move issue ONETAB-142 to In Review',
       'List unassigned P1 tickets in current epic',
     ],
-    initialMessage:
-      '🔷 **Jira App Connected**\n\nSprint board loaded with 24 total issues. 18 story points are closed and 6 are in development.',
   },
   {
     id: 'figma',
@@ -253,15 +205,11 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     provider: 'figma',
     description:
       'Design file sync, component comments, inspect frames, and design token exports.',
-    isConnected: true,
-    statusText: 'Connected · Workspace library synced',
     quickStarters: [
       'Show latest comments on "Design System v2"',
       'Sync UI tokens with repository styling',
       'Generate specs for the new message row layout',
     ],
-    initialMessage:
-      '🎨 **Figma App Connected**\n\nConnected to workspace design system. 3 design files were updated in the past 24 hours.',
   },
   {
     id: 'sentry',
@@ -270,15 +218,11 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     provider: 'sentry',
     description:
       'Realtime crash reporting, error monitoring, and performance telemetry.',
-    isConnected: true,
-    statusText: 'Connected · Monitoring 0 critical alerts',
     quickStarters: [
       'Check error spikes in the last 24 hours',
       'Show stack trace for latest 500 error',
       'Mute non-critical TypeError warnings in dev',
     ],
-    initialMessage:
-      '🚨 **Sentry Error Monitor Connected**\n\nProduction telemetry active. 0 unhandled P0 exceptions recorded today. Error budget is healthy at 99.98%.',
   },
   {
     id: 'gdrive',
@@ -287,15 +231,11 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     provider: 'gdrive',
     description:
       'Cloud file sharing, document access, sheets indexing, and permission controls.',
-    isConnected: true,
-    statusText: 'Connected · Shared Drive active',
     quickStarters: [
       'Search shared drive for "Q3 Product Roadmap"',
       'List recently edited team spreadsheets',
       'Link team assets folder to dev channels',
     ],
-    initialMessage:
-      '📁 **Google Drive Connected**\n\nShared team storage indexed. You can reference, link, and search documents directly.',
   },
   {
     id: 'slack',
@@ -304,15 +244,11 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     provider: 'slack',
     description:
       'Bi-directional message bridging, webhook integrations, and cross-platform notifications.',
-    isConnected: true,
-    statusText: 'Connected · 2-way sync',
     quickStarters: [
       'Check Slack bridge webhook status',
       'Sync announcements channel to #general',
       'Export channel transcript to Slack archive',
     ],
-    initialMessage:
-      '💬 **Slack Integration Connected**\n\nCross-workspace messaging bridge active and healthy.',
   },
   {
     id: 'notion',
@@ -321,15 +257,11 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     provider: 'notion',
     description:
       'Knowledge base synchronization, wikis, and team document indexing.',
-    isConnected: true,
-    statusText: 'Connected · Workspace pages indexed',
     quickStarters: [
       'Search Notion wiki for engineering guidelines',
       'Create new meeting notes page for today',
       'Sync product specs database with channels',
     ],
-    initialMessage:
-      '📓 **Notion App Connected**\n\nWorkspace wiki and engineering database are synchronized with chat.',
   },
   {
     id: 'datadog',
@@ -338,15 +270,11 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     provider: 'datadog',
     description:
       'Infrastructure observability, APM traces, and synthetic monitoring.',
-    isConnected: true,
-    statusText: 'Connected · APM online',
     quickStarters: [
       'Show P99 latency metrics for API gateway',
       'List active synthetic monitors and uptime',
       'Check CPU and memory usage on cluster nodes',
     ],
-    initialMessage:
-      '📈 **Datadog Observability Connected**\n\nAll dashboard metrics and infrastructure telemetry are streaming.',
   },
   {
     id: 'stripe',
@@ -355,15 +283,11 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     provider: 'stripe',
     description:
       'Subscription metrics, MRR analytics, invoice alerts, and payment events.',
-    isConnected: true,
-    statusText: 'Connected · Webhooks operational',
     quickStarters: [
       'Show current month MRR and customer growth',
       'Check recent successful transactions',
       'List active subscription tiers and churn rate',
     ],
-    initialMessage:
-      '💳 **Stripe Payments Connected**\n\nFinancial webhooks verified. Realtime revenue tracking is active.',
   },
 ];
 
@@ -401,7 +325,7 @@ export function AppAvatar({
           loading="lazy"
         />
       ) : (
-        <Blocks className="size-full text-violet-500" />
+        <Blocks className="size-full text-accent-violet" />
       )}
     </span>
   );
@@ -432,10 +356,6 @@ function AppConversation({ appId }: { appId: string }) {
   const { workspaceId } = useCurrentWorkspace();
   const integrationsQuery = useIntegrations(workspaceId);
 
-  const [chatActionsSlot, setChatActionsSlot] = useState<HTMLDivElement | null>(
-    null,
-  );
-
   const connectedIntegrations = useMemo(() => {
     return (integrationsQuery.data ?? []).map((i) => {
       const defaultMatch = DEFAULT_WORKSPACE_APPS.find(
@@ -450,13 +370,23 @@ function AppConversation({ appId }: { appId: string }) {
         isConnected: i.status === 'CONNECTED',
         statusText: i.status === 'CONNECTED' ? 'Connected · Active' : 'Disconnected',
         quickStarters: defaultMatch?.quickStarters,
-        initialMessage: defaultMatch?.initialMessage,
       } as AppModelItem;
     });
   }, [integrationsQuery.data]);
 
+  /*
+   * `DEFAULT_WORKSPACE_APPS` is a catalogue of providers this deployment knows
+   * how to talk to — names, categories, blurbs — and nothing more. Whether an
+   * app is actually connected comes only from the integrations endpoint, so an
+   * app the workspace has never linked reads as disconnected rather than
+   * inheriting a connected-looking default.
+   */
   const allApps = useMemo(() => {
-    const combined = [...DEFAULT_WORKSPACE_APPS];
+    const combined: AppModelItem[] = DEFAULT_WORKSPACE_APPS.map((entry) => ({
+      ...entry,
+      isConnected: false,
+      statusText: 'Not connected',
+    }));
     for (const item of connectedIntegrations) {
       const idx = combined.findIndex((c) => c.id === item.id);
       if (idx >= 0) {
@@ -495,13 +425,9 @@ function AppConversation({ appId }: { appId: string }) {
 
   return (
     <div className="min-h-0 flex flex-1 flex-col overflow-hidden bg-background text-foreground">
-      <AppMessageHeader app={app} chatActionsRef={setChatActionsSlot} />
+      <AppMessageHeader app={app} />
 
-      <AppDirectRoom
-        key={app.id}
-        app={app}
-        headerActionsSlot={chatActionsSlot}
-      />
+      <AppDetailPanel key={app.id} app={app} />
     </div>
   );
 }
@@ -509,13 +435,7 @@ function AppConversation({ appId }: { appId: string }) {
 /**
  * App's sticky title header — Counterpart to DirectMessageHeader & AgentMessageHeader.
  */
-function AppMessageHeader({
-  app,
-  chatActionsRef,
-}: {
-  app: AppModelItem;
-  chatActionsRef: (element: HTMLDivElement | null) => void;
-}) {
+function AppMessageHeader({ app }: { app: AppModelItem }) {
   const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
   const preferences = useAppPreferences(workspaceId);
   const openProfilePanel = useRightPanelStore((s) => s.openProfile);
@@ -524,7 +444,6 @@ function AppMessageHeader({
   const [synced, setSynced] = useState(false);
 
   const name = app.name;
-  const handle = app.provider || app.name.toLowerCase().replace(/\s+/g, '-');
   const slug = workspaceSlug || 'default';
 
   const isFavorite = preferences.isFavorite(app.id);
@@ -535,13 +454,13 @@ function AppMessageHeader({
       userId: `app-${app.id}`,
       name: app.name,
       avatarUrl: APP_LOGOS[app.provider.toLowerCase()],
-      title: `${app.category} · Connected App`,
+      title: app.category,
       role: app.category,
       bio: app.description,
-      status: app.isConnected !== false ? 'online' : 'unavailable',
+      status: app.isConnected ? 'online' : 'unavailable',
       statusEmoji: '⚡',
-      statusText: app.statusText || 'Connected App · Active',
-      email: `${handle}@app.local`,
+      statusText: app.statusText ?? 'Not connected',
+      // No email: an integration is not a person and has no mailbox.
     });
   };
 
@@ -605,7 +524,7 @@ function AppMessageHeader({
             {/* Direct Message APP badge */}
             <Badge
               variant="neutral"
-              className="gap-0.5 text-[9px] py-0 h-4 uppercase font-bold tracking-wider bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20"
+              className="gap-0.5 text-[9px] py-0 h-4 uppercase font-bold tracking-wider bg-accent-violet-soft text-accent-violet border-accent-violet/20"
             >
               <Blocks className="size-2.5 inline-block mr-0.5" />
               <span>APP</span>
@@ -768,11 +687,6 @@ function AppMessageHeader({
           </div>
         </div>
 
-        {/* Conversation tools portal in from the chat surface */}
-        <div
-          ref={chatActionsRef}
-          className="gap-0.5 flex items-center empty:hidden"
-        />
       </div>
     </div>
   );
@@ -781,50 +695,86 @@ function AppMessageHeader({
 /**
  * Full-height Direct Matrix Room conversation surface for Connected Apps.
  */
-function AppDirectRoom({
-  app,
-  headerActionsSlot,
-}: {
-  app: AppModelItem;
-  headerActionsSlot: HTMLElement | null;
-}) {
-  const { enabled } = useMatrix();
-  const { roomId, isLoading, error } = useDirectRoom(`app-${app.id}`);
+function AppDetailPanel({ app }: { app: AppModelItem }) {
+  const { workspaceId } = useCurrentWorkspace();
+  const { connect, disconnect } = useIntegrationMutations(workspaceId);
 
-  if (!enabled) {
-    return (
-      <EmptyState
-        size="lg"
-        icon={<MessageSquareOff />}
-        title="Chat is not configured"
-        description="This deployment has no Matrix homeserver. Set MATRIX_ENABLED and the homeserver settings to turn on app messages."
-      />
-    );
-  }
-
-  if (error) {
-    return (
-      <ErrorState
-        title={`Could not open the conversation with ${app.name}`}
-        description={error}
-      />
-    );
-  }
-
-  if (isLoading || !roomId) {
-    return (
-      <LoadingState label={`Opening your conversation with ${app.name}…`} />
-    );
-  }
+  const isBusy = connect.isPending || disconnect.isPending;
+  const failure = connect.error ?? disconnect.error;
 
   return (
-    <ChatPanel
-      roomId={roomId}
-      title={app.name}
-      subtitle={app.category || 'Connected App'}
-      headerActionsSlot={headerActionsSlot}
-      showMembers={false}
-    />
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
+        <section className="rounded-card border border-border bg-surface-raised p-5 space-y-3">
+          <div className="gap-3 flex items-start justify-between">
+            <div className="space-y-1">
+              <h2 className="text-sm font-medium">Connection</h2>
+              <p className="text-sm text-muted-foreground">
+                {app.description}
+              </p>
+            </div>
+            <Badge variant={app.isConnected ? 'success' : 'outline'}>
+              {app.isConnected ? 'Connected' : 'Not connected'}
+            </Badge>
+          </div>
+
+          <div className="gap-2 flex items-center">
+            {app.isConnected ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isBusy}
+                onClick={() =>
+                  disconnect.mutate(app.provider, {
+                    onSuccess: () =>
+                      toast.success(`${app.name} disconnected`),
+                  })
+                }
+              >
+                Disconnect
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                disabled={isBusy}
+                onClick={() =>
+                  connect.mutate(
+                    { provider: app.provider },
+                    {
+                      onSuccess: () =>
+                        toast.success(`${app.name} connected`),
+                    },
+                  )
+                }
+              >
+                Connect {app.name}
+              </Button>
+            )}
+            {isBusy ? <Spinner /> : null}
+          </div>
+
+          {failure ? (
+            <p role="alert" className="text-sm text-destructive">
+              {failure instanceof Error
+                ? failure.message
+                : `Could not update the ${app.name} connection.`}
+            </p>
+          ) : null}
+        </section>
+
+        {/*
+          An integration has no conversation surface: there is no endpoint that
+          takes a message for a third-party app and answers as it, so offering
+          a composer here would be a box that swallows what you type.
+        */}
+        <EmptyState
+          size="sm"
+          icon={<Blocks />}
+          title="No conversation for apps"
+          description={`${app.name} sends activity into your channels rather than a direct thread. Connect it, then pick the channels that should receive its updates.`}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -896,7 +846,7 @@ function NewAppMessage() {
     <div className="min-h-0 px-4 py-8 flex flex-1 flex-col items-center overflow-y-auto bg-background text-foreground">
       <div className="max-w-xl w-full">
         <div className="mb-4 text-center">
-          <Blocks className="mb-2 size-6 mx-auto text-violet-500" />
+          <Blocks className="mb-2 size-6 mx-auto text-accent-violet" />
           <h1 className="text-base font-semibold text-foreground">
             New App conversation
           </h1>
@@ -923,7 +873,7 @@ function NewAppMessage() {
                   className={cn(
                     'px-2.5 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer',
                     selectedCategory === cat
-                      ? 'bg-violet-600 text-white'
+                      ? 'bg-accent-violet text-white'
                       : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground',
                   )}
                 >
@@ -950,8 +900,6 @@ function NewAppMessage() {
           ) : (
             <ul className="p-2 space-y-1">
               {visible.map((app) => {
-                const Icon = CATEGORY_ICONS[app.category] || Webhook;
-
                 return (
                   <li key={app.id}>
                     <button
@@ -963,16 +911,16 @@ function NewAppMessage() {
                         name={app.name}
                         provider={app.provider}
                         size="md"
-                        className="group-hover:border-violet-500 transition-colors"
+                        className="group-hover:border-accent-violet transition-colors"
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold truncate text-foreground group-hover:text-violet-600 dark:group-hover:text-violet-400">
+                          <span className="text-sm font-semibold truncate text-foreground group-hover:text-accent-violet dark:group-hover:text-accent-violet">
                             {app.name}
                           </span>
                           <Badge
                             variant="neutral"
-                            className="gap-0.5 text-[9px] py-0 h-3.5 uppercase font-bold tracking-wider bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20"
+                            className="gap-0.5 text-[9px] py-0 h-3.5 uppercase font-bold tracking-wider bg-accent-violet-soft text-accent-violet border-accent-violet/20"
                           >
                             <Blocks className="size-2 inline-block mr-0.5" />
                             <span>APP</span>

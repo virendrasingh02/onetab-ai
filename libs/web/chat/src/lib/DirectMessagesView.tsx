@@ -14,7 +14,6 @@ import {
   Hint,
   LoadingState,
   Panel,
-  PRESENCE_LABELS,
   SearchInput,
   toast,
   toPresenceStatus,
@@ -44,210 +43,13 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChatPanel } from './chat-panel.js';
 import { useMatrix } from './matrix-provider.js';
 import { useDirectRoom } from './use-direct-room.js';
 import { useDirectMessagePreferences } from './use-dm-preferences.js';
 
-export const AI_AGENT_PEERS: WorkspaceMember[] = [
-  {
-    id: 'agent-copilot',
-    workspaceId: '',
-    role: 'MEMBER',
-    joinedAt: new Date().toISOString(),
-    user: {
-      id: 'agent-copilot',
-      name: 'copilot',
-      displayName: 'OneTab Copilot',
-      avatarUrl: undefined,
-      presence: 'ONLINE',
-      timezone: 'UTC',
-      statusEmoji: '🤖',
-      statusText: 'AI Assistant & Copilot',
-    },
-  },
-  {
-    id: 'agent-codereview',
-    workspaceId: '',
-    role: 'MEMBER',
-    joinedAt: new Date().toISOString(),
-    user: {
-      id: 'agent-codereview',
-      name: 'codereview',
-      displayName: 'Code Reviewer AI',
-      avatarUrl: undefined,
-      presence: 'ONLINE',
-      timezone: 'UTC',
-      statusEmoji: '💻',
-      statusText: 'Code Reviewer & AST Analysis',
-    },
-  },
-  {
-    id: 'agent-triage',
-    workspaceId: '',
-    role: 'MEMBER',
-    joinedAt: new Date().toISOString(),
-    user: {
-      id: 'agent-triage',
-      name: 'triage',
-      displayName: 'Incident & Bug Triage',
-      avatarUrl: undefined,
-      presence: 'ONLINE',
-      timezone: 'UTC',
-      statusEmoji: '🚨',
-      statusText: 'SRE & On-Call Copilot',
-    },
-  },
-  {
-    id: 'agent-standup',
-    workspaceId: '',
-    role: 'MEMBER',
-    joinedAt: new Date().toISOString(),
-    user: {
-      id: 'agent-standup',
-      name: 'standup',
-      displayName: 'Daily Standup Bot',
-      avatarUrl: undefined,
-      presence: 'ONLINE',
-      timezone: 'UTC',
-      statusEmoji: '📋',
-      statusText: 'Agile Coordinator',
-    },
-  },
-  {
-    id: 'agent-docs',
-    workspaceId: '',
-    role: 'MEMBER',
-    joinedAt: new Date().toISOString(),
-    user: {
-      id: 'agent-docs',
-      name: 'docs',
-      displayName: 'Docs & Knowledge AI',
-      avatarUrl: undefined,
-      presence: 'ONLINE',
-      timezone: 'UTC',
-      statusEmoji: '📝',
-      statusText: 'Knowledge Base Synthesizer',
-    },
-  },
-  {
-    id: 'agent-data',
-    workspaceId: '',
-    role: 'MEMBER',
-    joinedAt: new Date().toISOString(),
-    user: {
-      id: 'agent-data',
-      name: 'data',
-      displayName: 'SQL & Data Analyst',
-      avatarUrl: undefined,
-      presence: 'ONLINE',
-      timezone: 'UTC',
-      statusEmoji: '📊',
-      statusText: 'BI & Metric Bot',
-    },
-  },
-];
-
-export const APP_PEERS: WorkspaceMember[] = [
-  {
-    id: 'app-github',
-    workspaceId: '',
-    role: 'MEMBER',
-    joinedAt: new Date().toISOString(),
-    user: {
-      id: 'app-github',
-      name: 'github-app',
-      displayName: 'GitHub',
-      avatarUrl: undefined,
-      presence: 'ONLINE',
-      timezone: 'UTC',
-      statusEmoji: '🐙',
-      statusText: 'Pull Requests & CI/CD',
-    },
-  },
-  {
-    id: 'app-linear',
-    workspaceId: '',
-    role: 'MEMBER',
-    joinedAt: new Date().toISOString(),
-    user: {
-      id: 'app-linear',
-      name: 'linear-bot',
-      displayName: 'Linear',
-      avatarUrl: undefined,
-      presence: 'ONLINE',
-      timezone: 'UTC',
-      statusEmoji: '📐',
-      statusText: 'Issue Tracker & Cycles',
-    },
-  },
-  {
-    id: 'app-sentry',
-    workspaceId: '',
-    role: 'MEMBER',
-    joinedAt: new Date().toISOString(),
-    user: {
-      id: 'app-sentry',
-      name: 'sentry-bot',
-      displayName: 'Sentry Error Monitor',
-      avatarUrl: undefined,
-      presence: 'ONLINE',
-      timezone: 'UTC',
-      statusEmoji: '🚨',
-      statusText: 'Exception Alerts',
-    },
-  },
-  {
-    id: 'app-jira',
-    workspaceId: '',
-    role: 'MEMBER',
-    joinedAt: new Date().toISOString(),
-    user: {
-      id: 'app-jira',
-      name: 'jira-bot',
-      displayName: 'Jira Software',
-      avatarUrl: undefined,
-      presence: 'ONLINE',
-      timezone: 'UTC',
-      statusEmoji: '🔷',
-      statusText: 'Sprint Backlog',
-    },
-  },
-  {
-    id: 'app-figma',
-    workspaceId: '',
-    role: 'MEMBER',
-    joinedAt: new Date().toISOString(),
-    user: {
-      id: 'app-figma',
-      name: 'figma-bot',
-      displayName: 'Figma',
-      avatarUrl: undefined,
-      presence: 'ONLINE',
-      timezone: 'UTC',
-      statusEmoji: '🎨',
-      statusText: 'Design Sync',
-    },
-  },
-  {
-    id: 'app-gdrive',
-    workspaceId: '',
-    role: 'MEMBER',
-    joinedAt: new Date().toISOString(),
-    user: {
-      id: 'app-gdrive',
-      name: 'gdrive-bot',
-      displayName: 'Google Drive',
-      avatarUrl: undefined,
-      presence: 'ONLINE',
-      timezone: 'UTC',
-      statusEmoji: '📁',
-      statusText: 'Files & Storage',
-    },
-  },
-];
 
 /**
  * A direct message, laid out like a channel.
@@ -288,7 +90,7 @@ function DirectConversation({ peerId }: { peerId: string }) {
   );
 
   const allMembers = useMemo(
-    () => [...(members.data ?? []), ...AI_AGENT_PEERS, ...APP_PEERS],
+    () => members.data ?? [],
     [members.data],
   );
 
@@ -422,7 +224,8 @@ function DirectMessageHeader({
       userId: member.user.id,
       name,
       avatarUrl: member.user.avatarUrl ?? undefined,
-      email: member.user.email,
+      // No email: `PublicUser` is the public projection and deliberately
+      // withholds it. The profile panel treats it as optional.
       role: member.role,
       timezone: member.user.timezone,
       statusEmoji: member.user.statusEmoji,
@@ -519,7 +322,7 @@ function DirectMessageHeader({
             ) : member.user.id.startsWith('app-') ? (
               <Badge
                 variant="neutral"
-                className="gap-0.5 text-[9px] py-0 h-4 uppercase font-bold tracking-wider bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20"
+                className="gap-0.5 text-[9px] py-0 h-4 uppercase font-bold tracking-wider bg-accent-violet-soft text-accent-violet border-accent-violet/20"
               >
                 <Blocks className="size-2.5 inline-block mr-0.5" />
                 <span>APP</span>
@@ -712,13 +515,17 @@ function NewDirectMessage() {
   const [, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState('');
 
-  // Teammates, AI agents and Apps are all addressable peers.
-  const allPeers = useMemo(() => {
-    const teammates = (members.data ?? []).filter(
-      (member) => member.user.id !== currentUser?.id,
-    );
-    return [...teammates, ...AI_AGENT_PEERS, ...APP_PEERS];
-  }, [members.data, currentUser?.id]);
+  /*
+   * Teammates only. Agents and apps are not addressable here — neither has a
+   * Matrix identity — and each has its own surface in the sidebar.
+   */
+  const allPeers = useMemo(
+    () =>
+      (members.data ?? []).filter(
+        (member) => member.user.id !== currentUser?.id,
+      ),
+    [members.data, currentUser?.id],
+  );
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -798,7 +605,7 @@ function NewDirectMessage() {
                         presence={toPresenceStatus(member.user.presence)}
                         className={cn(
                           isAgent && 'ring-2 ring-primary/40',
-                          isApp && 'ring-2 ring-violet-500/40',
+                          isApp && 'ring-2 ring-accent-violet/40',
                         )}
                       />
                       <span className="min-w-0 flex-1">
@@ -814,7 +621,7 @@ function NewDirectMessage() {
                           ) : isApp ? (
                             <Badge
                               variant="neutral"
-                              className="text-[9px] py-0 h-3.5 uppercase font-bold tracking-wider bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20"
+                              className="text-[9px] py-0 h-3.5 uppercase font-bold tracking-wider bg-accent-violet-soft text-accent-violet border-accent-violet/20"
                             >
                               APP
                             </Badge>

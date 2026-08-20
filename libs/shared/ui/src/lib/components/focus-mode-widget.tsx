@@ -1,4 +1,3 @@
-import { userApi } from '@org/api-client';
 import type { CurrentUser, PresenceStatus } from '@org/types';
 import { cn } from '@org/utils';
 import {
@@ -45,7 +44,24 @@ export const FOCUS_DURATION_OPTIONS: FocusDurationOption[] = [
   { minutes: 90, label: 'Flow State', icon: '🚀' },
 ];
 
-export interface FocusModeWidgetProps {
+/**
+ * Publishing a status is the caller's job, not this library's.
+ *
+ * `@org/ui` is presentational and may not reach for `@org/api-client` — the
+ * module boundaries enforce it — so the shell, which already owns the signed-in
+ * user, passes the two operations in.
+ */
+export interface StatusPublisher {
+  onSaveStatus?: (input: {
+    statusEmoji?: string | null;
+    statusText?: string | null;
+    statusExpiresAt?: string | null;
+    presence?: PresenceStatus;
+  }) => Promise<CurrentUser>;
+  onClearStatus?: () => Promise<CurrentUser>;
+}
+
+export interface FocusModeWidgetProps extends StatusPublisher {
   currentUser?: CurrentUser | null;
   onUserUpdated?: (user: CurrentUser) => void;
 }
@@ -53,6 +69,8 @@ export interface FocusModeWidgetProps {
 export function FocusModeWidget({
   currentUser: _currentUser,
   onUserUpdated,
+  onSaveStatus,
+  onClearStatus,
 }: FocusModeWidgetProps) {
   const {
     isActive,
@@ -110,10 +128,10 @@ export function FocusModeWidget({
       autoSetSlackStatus: syncStatus,
     });
 
-    if (syncStatus) {
+    if (syncStatus && onSaveStatus) {
       try {
         const expiresAt = new Date(Date.now() + finalMins * 60 * 1000);
-        const updated = await userApi.updateStatus({
+        const updated = await onSaveStatus({
           statusEmoji: '🎯',
           statusText: objective ? `Focusing on ${objective}` : 'In Focus Mode',
           statusExpiresAt: expiresAt.toISOString(),
@@ -132,9 +150,9 @@ export function FocusModeWidget({
   const handleStopSession = async (completed = false) => {
     stopFocus(completed);
 
-    if (autoSetSlackStatus) {
+    if (autoSetSlackStatus && onClearStatus) {
       try {
-        const updated = await userApi.clearStatus();
+        const updated = await onClearStatus();
         if (onUserUpdated) onUserUpdated(updated);
       } catch {
         // ignore status clear error

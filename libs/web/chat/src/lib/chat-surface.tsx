@@ -13,7 +13,6 @@ import {
   ThreadListPanel,
   ThreadPanel,
   TypingIndicator,
-  UserProfileRightPanel,
 } from '@org/chat-ui';
 import type { Message, PresenceState, RoomMember } from '@org/matrix-client';
 import {
@@ -51,14 +50,11 @@ export interface ChatSurfaceWelcome {
   onOpenCopilot?: () => void;
 }
 
-type SidePanel =
-  | 'none'
-  | 'members'
-  | 'thread'
-  | 'threads'
-  | 'search'
-  | 'pinned'
-  | 'user-profile';
+/**
+ * A user profile is no longer one of these: it opens in the shell's right rail
+ * through `useRightPanelStore`, so it outlives switching conversations.
+ */
+type SidePanel = 'none' | 'members' | 'thread' | 'threads' | 'search' | 'pinned';
 
 export interface ChatSurfaceProps {
   title: string;
@@ -178,13 +174,6 @@ export function ChatSurface({
 }: ChatSurfaceProps) {
   const [panel, setPanel] = useState<SidePanel>('none');
   const [threadRootId, setThreadRootId] = useState<string | null>(null);
-  const [selectedUser, setSelectedUser] = useState<{
-    userId: string;
-    name: string;
-    avatarUrl?: string;
-    role?: string;
-    powerLevel?: number;
-  } | null>(null);
   const [editing, setEditing] = useState<Message | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightId, setHighlightId] = useState<string | null>(null);
@@ -383,13 +372,9 @@ export function ChatSurface({
   const sidePanelTitle =
     panel === 'members'
       ? 'Members'
-      : panel === 'user-profile'
-        ? selectedUser
-          ? selectedUser.name
-          : 'User Profile'
-        : panel === 'search'
-          ? 'Search'
-          : `Pinned${pinnedMessages.length ? ` — ${pinnedMessages.length}` : ''}`;
+      : panel === 'search'
+        ? 'Search'
+        : `Pinned${pinnedMessages.length ? ` — ${pinnedMessages.length}` : ''}`;
 
   const toggle = (next: SidePanel) =>
     setPanel((current) => {
@@ -566,6 +551,19 @@ export function ChatSurface({
             messages={pinnedMessages}
             onJump={jumpTo}
             onUnpin={onTogglePin}
+          />
+        ) : panel === 'members' ? (
+          <MemberList
+            members={members}
+            presenceOf={presenceOf}
+            onSelect={(member) =>
+              handleOpenUserProfile({
+                userId: member.userId,
+                name: member.displayName,
+                avatarUrl: member.avatarUrl,
+                powerLevel: member.powerLevel,
+              })
+            }
           />
         ) : null
       }

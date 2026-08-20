@@ -23,8 +23,6 @@ export {
 } from './lib/derive-threads.js';
 export {
   DirectMessagesView,
-  AI_AGENT_PEERS,
-  APP_PEERS,
 } from './lib/DirectMessagesView.js';
 export {
   useDirectMessagePreferences,

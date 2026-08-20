@@ -1,40 +1,29 @@
-import { useTheme } from '@org/design-system';
 import type { CurrentUser, WorkspaceSummary } from '@org/types';
 import {
   Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Hint,
-  LocalTime,
   toast,
   UserAvatar,
   useFocusStore,
   useRightPanelStore,
-  useWorldClockStore,
 } from '@org/ui';
 import type { ActivityIndicator } from '@org/notifications';
 import { useLogout } from '@org/auth';
-import { cn, describeTimezone } from '@org/utils';
+import { cn } from '@org/utils';
 import { openExternal, useDesktop } from '@org/web-desktop';
 import {
   ChevronLeft,
   ChevronRight,
-  Globe,
   HelpCircle,
-  LogOut,
-  Moon,
   PanelLeft,
   Search,
-  Settings,
   Smile,
   Sparkles,
-  Sun,
-  Target,
-  User as UserIcon,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -48,8 +37,6 @@ export interface AppHeaderProps {
   workspaces?: WorkspaceSummary[];
   currentWorkspace?: WorkspaceSummary;
   onOpenSearch: () => void;
-  onToggleRightPanel: () => void;
-  rightPanelOpen: boolean;
   onToggleSidebar?: () => void;
   sidebarOpen?: boolean;
   unreadNotifications?: number;
@@ -64,15 +51,12 @@ export function AppHeader({
   workspaces,
   currentWorkspace,
   onOpenSearch,
-  onToggleRightPanel,
-  rightPanelOpen,
   onToggleSidebar,
   sidebarOpen = true,
   unreadNotifications: _unreadNotifications = 0,
   workspaceActivity,
   actions,
 }: AppHeaderProps) {
-  const { theme, setTheme } = useTheme();
   const logout = useLogout();
   const navigate = useNavigate();
   const { appInfo } = useDesktop();
@@ -82,11 +66,7 @@ export function AppHeader({
     : /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
   const searchShortcut = isApple ? '⌘K' : 'Ctrl K';
 
-  const isFocusActive = useFocusStore((s) => s.isActive);
-  const remainingSeconds = useFocusStore((s) => s.remainingSeconds);
-  const openFocusModal = useFocusStore((s) => s.openFocusModal);
   const openStatusModal = useFocusStore((s) => s.openStatusModal);
-  const openWorldClock = useWorldClockStore((s) => s.openWorldClock);
   const openProfilePanel = useRightPanelStore((s) => s.openProfile);
   const isRightPanelOpen = useRightPanelStore((s) => s.open);
   const rightPanelView = useRightPanelStore((s) => s.view);
@@ -102,12 +82,6 @@ export function AppHeader({
     } else {
       setRightPanelView('assistant');
     }
-  };
-
-  const formatFocusTime = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   return (

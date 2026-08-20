@@ -1,22 +1,15 @@
-import { TaskStatus } from '@org/types';
+import { type TaskStatus } from '@org/types';
 import {
-  Badge,
   Button,
   DatePicker,
   Dialog,
   DialogContent,
   DialogTitle,
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuPortal,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-  SkeletonList,
   Textarea,
   UserAvatar,
   useRightPanelStore,
@@ -26,31 +19,19 @@ import {
   AlertTriangle,
   AlignLeft,
   AtSign,
-  Calendar,
   CalendarDays,
   CalendarPlus,
   CalendarX2,
   Check,
-  CheckCircle2,
   CheckSquare,
   ChevronDown,
   ChevronRight,
   Clock,
-  Contact,
   Copy,
-  CornerUpRight,
   Expand,
-  Eye,
-  FileCode,
   FileVideo,
   Filter,
-  Flame,
   GitBranch,
-  Hash,
-  Heart,
-  HelpCircle,
-  Image as ImageIcon,
-  Layers,
   Link2,
   ListCheck,
   Maximize2,
@@ -389,7 +370,7 @@ function CardDetailsBody({
         <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
             <span className="flex items-center gap-1 font-bold text-foreground">
-              <CubeProjectIcon className="size-3.5 text-amber-500" />
+              <CubeProjectIcon className="size-3.5 text-accent-amber" />
               <span>{board.title}</span>
             </span>
             <span>/</span>
@@ -420,7 +401,7 @@ function CardDetailsBody({
                 <span>3</span>
               </span>
               <span className="flex items-center gap-1 hover:text-foreground cursor-pointer" title="Completed checklists">
-                <Check className="size-3 text-emerald-500" />
+                <Check className="size-3 text-accent-green" />
                 <span>2</span>
               </span>
               <span className="flex items-center gap-1 hover:text-foreground cursor-pointer" title="Comments">
@@ -436,8 +417,8 @@ function CardDetailsBody({
                 <span>9</span>
               </span>
               {currentLead && (
-                <span className="flex items-center gap-1 px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold text-[10px]">
-                  <span className="size-3.5 rounded-full bg-amber-600 text-white flex items-center justify-center text-[8px] font-bold">
+                <span className="flex items-center gap-1 px-1.5 py-0.2 rounded bg-accent-amber-soft text-accent-amber font-semibold text-[10px]">
+                  <span className="size-3.5 rounded-full bg-accent-amber text-white flex items-center justify-center text-[8px] font-bold">
                     VI
                   </span>
                   <span>1 for me</span>
@@ -505,7 +486,7 @@ function CardDetailsBody({
             variant="ghost"
             size="icon-sm"
             onClick={() => setIsStarred(!isStarred)}
-            className={cn('size-7', isStarred ? 'text-amber-500' : 'text-muted-foreground')}
+            className={cn('size-7', isStarred ? 'text-accent-amber' : 'text-muted-foreground')}
             title="Star task"
           >
             <Star className={cn('size-3.5', isStarred && 'fill-current')} />
@@ -603,7 +584,7 @@ function CardDetailsBody({
                     type="button"
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border/80 bg-surface text-foreground hover:bg-accent/60 transition-colors font-medium cursor-pointer"
                   >
-                    <Check className="size-3 text-emerald-500" />
+                    <Check className="size-3 text-accent-green" />
                     <span>{listTitle}</span>
                   </button>
                 }
@@ -678,9 +659,9 @@ function CardDetailsBody({
                   trigger={
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-rose-500/30 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 font-medium"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-accent-rose/30 bg-accent-rose-soft text-accent-rose hover:bg-accent-rose-soft font-medium"
                     >
-                      <CalendarX2 className="size-3 text-rose-500" />
+                      <CalendarX2 className="size-3 text-accent-rose" />
                       <span>{card.dueDate ? formatDateShort(card.dueDate) : 'Due'}</span>
                     </button>
                   }
@@ -761,9 +742,9 @@ function CardDetailsBody({
           </div>
 
           {/* Blocked by Alert Badge */}
-          <div className="flex items-center gap-2 p-2.5 rounded-xl border border-amber-500/25 bg-amber-500/5 text-xs text-foreground">
-            <AlertTriangle className="size-3.5 text-amber-500 shrink-0" />
-            <span className="font-semibold text-amber-600 dark:text-amber-400">Blocked by</span>
+          <div className="flex items-center gap-2 p-2.5 rounded-xl border border-accent-amber/25 bg-accent-amber-soft text-xs text-foreground">
+            <AlertTriangle className="size-3.5 text-accent-amber shrink-0" />
+            <span className="font-semibold text-accent-amber">Blocked by</span>
             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-surface border border-border/80 text-[11px] font-medium">
               <StatusIcon status="BACKLOG" className="size-3" />
               <span>subtask 2</span>
@@ -977,7 +958,7 @@ function CardDetailsBody({
             <div className="space-y-1.5 p-3 rounded-xl bg-surface border border-border/60 shadow-2xs">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="size-5 rounded-full bg-rose-500 text-white font-bold flex items-center justify-center text-[9px]">
+                  <span className="size-5 rounded-full bg-accent-rose text-white font-bold flex items-center justify-center text-[9px]">
                     VS
                   </span>
                   <span className="font-semibold text-foreground text-xs">virendra singh</span>
@@ -1002,7 +983,7 @@ function CardDetailsBody({
             <div className="space-y-2 p-3 rounded-xl bg-surface border border-border/60 shadow-2xs">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="size-5 rounded-full bg-rose-500 text-white font-bold flex items-center justify-center text-[9px]">
+                  <span className="size-5 rounded-full bg-accent-rose text-white font-bold flex items-center justify-center text-[9px]">
                     VS
                   </span>
                   <span className="font-semibold text-foreground text-xs">virendra singh</span>

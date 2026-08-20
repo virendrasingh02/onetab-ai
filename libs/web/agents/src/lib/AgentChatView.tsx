@@ -1,6 +1,4 @@
-import { useCurrentUser } from '@org/auth';
-import { ChatBubble } from '@org/chat-ui';
-import type { Message as ChatUiMessage } from '@org/types';
+import { AIErrorRow, AIMessage, AIThinkingRow } from '@org/chat-ui';
 import {
   Badge,
   Button,
@@ -22,7 +20,6 @@ import {
   useRightPanelStore,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { ChatPanel, useDirectRoom, useMatrix } from '@org/web-chat';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Activity,
@@ -33,9 +30,7 @@ import {
   ChevronRight,
   Copy,
   Headphones,
-  MessageSquareOff,
   MoreHorizontal,
-  PanelRight,
   RefreshCw,
   Send,
   Sparkles,
@@ -49,7 +44,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { AgentAvatar } from './AgentMarketplaceView.js';
-import { useAgentMutations, useAgents } from './use-agents.js';
+import { useAgentConversation } from './use-agent-conversation.js';
+import { useAgents } from './use-agents.js';
 
 interface AgentPreferencesState {
   byWorkspace: Record<string, { favorites: string[]; muted: string[] }>;
@@ -143,48 +139,6 @@ export interface AgentModelItem {
   avatarUrl?: string | null;
 }
 
-export const DEFAULT_AGENTS: AgentModelItem[] = [
-  {
-    id: 'agent-copilot',
-    name: 'ChatGPT',
-    role: 'Workspace Assistant & AI Copilot',
-    description:
-      'AI coworker with thread memory and full workspace knowledge.',
-    model: 'gpt-4o',
-    isActive: true,
-    tools: JSON.stringify(['WorkspaceSearch', 'ChannelSummary', 'DocReader']),
-    systemPrompt:
-      'You are ChatGPT, a helpful AI teammate. Answer questions concisely, organize tasks, and assist team members with coding, design, and project workflows.',
-    avatarUrl: 'icon:bot',
-  },
-  {
-    id: 'agent-codereview',
-    name: 'Code Reviewer',
-    role: 'Senior Software Engineer & PR Auditor',
-    description:
-      'Specialized in TypeScript, Rust, Python, and security best practices.',
-    model: 'claude-3.5-sonnet',
-    isActive: true,
-    tools: JSON.stringify(['GitDiffAnalysis', 'LintRunner', 'SecurityAudit']),
-    systemPrompt:
-      'You are an expert code reviewer. Review pull requests for bugs, performance bottlenecks, edge cases, and maintainability.',
-    avatarUrl: 'icon:code',
-  },
-  {
-    id: 'agent-triage',
-    name: 'Incident & Bug Triage',
-    role: 'Engineering Reliability & Issue Tracker',
-    description:
-      'Triages bug reports, categorizes severity, and assigns owners.',
-    model: 'gpt-4o',
-    isActive: true,
-    tools: JSON.stringify(['IssueTracker', 'AlertManager', 'SlackNotify']),
-    systemPrompt:
-      'You are an incident triage assistant. Help categorize error logs, prioritize issues, and draft incident post-mortems.',
-    avatarUrl: 'icon:shield',
-  },
-];
-
 /**
  * AI Agent Chat View — structured, laid out, and styled identically to Direct Messages.
  *
@@ -211,24 +165,24 @@ function AgentConversation({ agentId }: { agentId: string }) {
   const { workspaceId } = useCurrentWorkspace();
   const agentsQuery = useAgents(workspaceId);
 
-  const [chatActionsSlot, setChatActionsSlot] = useState<HTMLDivElement | null>(
-    null,
-  );
+  const agent = agentsQuery.data?.find((a) => a.id === agentId);
 
-  const rawServerAgents = agentsQuery.data;
-  const serverAgents = useMemo(() => rawServerAgents ?? [], [rawServerAgents]);
-
-  const allAgents = useMemo(() => {
-    if (serverAgents.length > 0) return serverAgents;
-    return DEFAULT_AGENTS;
-  }, [serverAgents]);
-
-  const agent =
-    allAgents.find((a) => a.id === agentId) ||
-    DEFAULT_AGENTS.find((a) => a.id === agentId);
-
-  if (agentsQuery.isLoading && serverAgents.length === 0) {
+  if (agentsQuery.isLoading) {
     return <div className="p-8"><Spinner label="Opening agent conversation…" /></div>;
+  }
+
+  if (agentsQuery.error) {
+    return (
+      <ErrorState
+        fullPage
+        title="Could not load agents"
+        description={
+          agentsQuery.error instanceof Error
+            ? agentsQuery.error.message
+            : 'The workspace agents could not be loaded.'
+        }
+      />
+    );
   }
 
   if (!agent) {
@@ -243,16 +197,9 @@ function AgentConversation({ agentId }: { agentId: string }) {
 
   return (
     <div className="min-h-0 flex flex-1 flex-col overflow-hidden bg-background text-foreground">
-      <AgentMessageHeader
-        agent={agent}
-        chatActionsRef={setChatActionsSlot}
-      />
+      <AgentMessageHeader agent={agent} />
 
-      <AgentDirectRoom
-        key={agent.id}
-        agent={agent}
-        headerActionsSlot={chatActionsSlot}
-      />
+      <AgentConversationPanel key={agent.id} agent={agent} />
     </div>
   );
 }
@@ -260,13 +207,7 @@ function AgentConversation({ agentId }: { agentId: string }) {
 /**
  * Agent's sticky title header — Counterpart to DirectMessageHeader.
  */
-function AgentMessageHeader({
-  agent,
-  chatActionsRef,
-}: {
-  agent: AgentModelItem;
-  chatActionsRef: (element: HTMLDivElement | null) => void;
-}) {
+function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
   const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
   const preferences = useAgentPreferences(workspaceId);
   const openProfilePanel = useRightPanelStore((s) => s.openProfile);
@@ -521,64 +462,140 @@ function AgentMessageHeader({
             </DropdownMenu>
           </div>
         </div>
-
-        {/* Conversation tools portal in from the chat surface */}
-        <div
-          ref={chatActionsRef}
-          className="gap-0.5 flex items-center empty:hidden"
-        />
       </div>
     </div>
   );
 }
 
 /**
- * Full-height Direct Matrix Room conversation surface for AI Agents.
+ * Full-height conversation surface for one AI agent.
+ *
+ * Not a Matrix room: an agent has no Matrix identity to speak with, so there is
+ * nobody on the other end of a room to answer. The transcript is the agent's
+ * execution log — see `useAgentConversation` — and a turn is a real call to the
+ * agent-run endpoint, whose output the server records and this reads back.
  */
-function AgentDirectRoom({
-  agent,
-  headerActionsSlot,
-}: {
-  agent: AgentModelItem;
-  headerActionsSlot: HTMLElement | null;
-}) {
-  const { enabled } = useMatrix();
-  const { roomId, isLoading, error } = useDirectRoom(agent.id);
+function AgentConversationPanel({ agent }: { agent: AgentModelItem }) {
+  const { workspaceId } = useCurrentWorkspace();
+  const chat = useAgentConversation(workspaceId, agent.id);
+  const endRef = useRef<HTMLDivElement>(null);
 
-  if (!enabled) {
-    return (
-      <EmptyState
-        size="lg"
-        icon={<MessageSquareOff />}
-        title="Chat is not configured"
-        description="This deployment has no Matrix homeserver. Set MATRIX_ENABLED and the homeserver settings to turn on agent messages."
-      />
-    );
-  }
+  // Pin the view to the newest turn as it arrives, the way a chat log behaves.
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: 'end' });
+  }, [chat.messages.length, chat.isThinking]);
 
-  if (error) {
-    return (
-      <ErrorState
-        title={`Could not open the conversation with ${agent.name}`}
-        description={error}
-      />
-    );
-  }
-
-  if (isLoading || !roomId) {
+  if (chat.isLoadingHistory) {
     return (
       <LoadingState label={`Opening your conversation with ${agent.name}…`} />
     );
   }
 
+  if (chat.historyError) {
+    return (
+      <ErrorState
+        title={`Could not open the conversation with ${agent.name}`}
+        description={chat.historyError}
+      />
+    );
+  }
+
   return (
-    <ChatPanel
-      roomId={roomId}
-      title={agent.name}
-      subtitle={agent.role || 'AI Agent'}
-      headerActionsSlot={headerActionsSlot}
-      showMembers={false}
-    />
+    <div className="min-h-0 flex flex-1 flex-col items-center overflow-hidden">
+      {/* `min-h-0` is what lets the transcript scroll rather than the page. */}
+      <ScrollArea
+        className="max-w-3xl min-h-0 w-full flex-1"
+        contentClassName="px-4"
+      >
+        <div
+          role="log"
+          aria-live="polite"
+          aria-label={`Conversation with ${agent.name}`}
+          className="space-y-3 py-4"
+        >
+          {chat.messages.length === 0 && !chat.isThinking ? (
+            <EmptyState
+              size="lg"
+              icon={<Sparkles />}
+              title={`Start a conversation with ${agent.name}`}
+              description={
+                agent.description ||
+                'Ask a question and this agent will run against your workspace.'
+              }
+            />
+          ) : null}
+
+          {chat.messages.map((message) => (
+            <AIMessage
+              key={message.id}
+              message={message}
+              assistantLabel={agent.name}
+            />
+          ))}
+
+          {chat.isThinking ? <AIThinkingRow /> : null}
+
+          {chat.error ? (
+            <AIErrorRow error={new Error(chat.error)} onRetry={chat.retry} />
+          ) : null}
+
+          <div ref={endRef} />
+        </div>
+      </ScrollArea>
+
+      <div className="max-w-3xl px-4 pt-3 pb-3 w-full shrink-0">
+        <AgentComposer
+          value={chat.input}
+          onChange={chat.setInput}
+          onSend={chat.send}
+          disabled={chat.isThinking}
+          placeholder={`Message ${agent.name}…`}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** The agent composer: a growing textarea, Enter to send. */
+function AgentComposer({
+  value,
+  onChange,
+  onSend,
+  disabled,
+  placeholder,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  onSend: () => void;
+  disabled?: boolean;
+  placeholder?: string;
+}) {
+  return (
+    <div className="gap-2 rounded-card border border-border bg-surface-raised p-2 flex items-end">
+      <textarea
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          // Enter sends; Shift+Enter is a newline, as everywhere else in chat.
+          if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            onSend();
+          }
+        }}
+        rows={1}
+        placeholder={placeholder}
+        aria-label={placeholder}
+        className="max-h-40 min-h-9 bg-transparent px-2 py-1.5 text-sm w-full flex-1 resize-none outline-none placeholder:text-muted-foreground"
+      />
+      <Button
+        size="sm"
+        onClick={onSend}
+        disabled={disabled || !value.trim()}
+        aria-label="Send message"
+      >
+        <Send className="size-4" aria-hidden />
+      </Button>
+    </div>
   );
 }
 
@@ -592,12 +609,7 @@ function NewAgentMessage() {
   const [query, setQuery] = useState('');
 
   const rawServerAgents = agentsQuery.data;
-  const serverAgents = useMemo(() => rawServerAgents ?? [], [rawServerAgents]);
-
-  const agents = useMemo(() => {
-    if (serverAgents.length > 0) return serverAgents;
-    return DEFAULT_AGENTS;
-  }, [serverAgents]);
+  const agents = useMemo(() => rawServerAgents ?? [], [rawServerAgents]);
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -636,8 +648,15 @@ function NewAgentMessage() {
             />
           </div>
 
-          {agentsQuery.isLoading && serverAgents.length === 0 ? (
+          {agentsQuery.isLoading ? (
             <div className="p-8 flex justify-center"><Spinner label="Loading agents…" /></div>
+          ) : agents.length === 0 ? (
+            <EmptyState
+              size="sm"
+              icon={<Bot />}
+              title="No AI agents yet"
+              description="This workspace has no agents. Create one from the agent builder to start a conversation."
+            />
           ) : visible.length === 0 ? (
             <EmptyState
               size="sm"

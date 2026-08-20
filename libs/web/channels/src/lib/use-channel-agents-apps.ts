@@ -290,7 +290,14 @@ export function useChannelAgentsAndApps(
     } catch {
       // ignore
     }
-    return createInitialMessages(chKey);
+    /*
+     * Empty, not seeded. `createInitialMessages` writes a demo transcript
+     * complete with invented timings and tool calls; showing it by default put
+     * fabricated agent analysis in front of anyone who opened the tab, with
+     * nothing marking it as a sample. It is reachable on purpose through
+     * `resetToSample` instead.
+     */
+    return [];
   });
 
   // Sync to localStorage

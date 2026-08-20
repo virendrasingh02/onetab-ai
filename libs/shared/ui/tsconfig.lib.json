@@ -35,9 +35,6 @@
       "path": "../types/tsconfig.lib.json"
     },
     {
-      "path": "../api-client/tsconfig.lib.json"
-    },
-    {
       "path": "../utils/tsconfig.lib.json"
     },
     {

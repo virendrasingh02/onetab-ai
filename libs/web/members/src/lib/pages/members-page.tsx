@@ -125,7 +125,8 @@ export function MembersPage() {
                       userId: member.user.id,
                       name: member.user.displayName ?? member.user.name,
                       avatarUrl: member.user.avatarUrl ?? undefined,
-                      email: member.user.email,
+                      // No email: `PublicUser` is the public projection and
+                      // deliberately withholds it.
                       role: member.role,
                       timezone: member.user.timezone,
                       statusEmoji: member.user.statusEmoji,

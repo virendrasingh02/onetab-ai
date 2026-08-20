@@ -5,7 +5,6 @@ import {
   DialogTitle,
 } from '@org/ui';
 import { Keyboard } from 'lucide-react';
-import React from 'react';
 
 export interface LinearShortcutsDialogProps {
   isOpen: boolean;

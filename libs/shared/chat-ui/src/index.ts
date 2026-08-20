@@ -128,3 +128,13 @@ export {
   type ChatLayoutProps,
   type ThreadPanelProps,
 } from './lib/chat-layout.js';
+
+export {
+  AIErrorRow,
+  AIMessage,
+  AIThinkingRow,
+  type AIDensity,
+  type AIErrorRowProps,
+  type AIMessageProps,
+  type AITranscriptMessage,
+} from './lib/ai-message.js';

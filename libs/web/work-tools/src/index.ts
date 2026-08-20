@@ -44,6 +44,7 @@ export {
   CubeProjectIcon,
   UnassignedLeadIcon,
 } from './lib/kanban/kanban-icons.js';
+export { WorkspaceKanbanSettings } from './lib/kanban/workspace-kanban-settings.js';
 export { ProjectGallery } from './lib/kanban/ProjectGallery.js';
 export {
   buildBoard,

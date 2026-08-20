@@ -1,16 +1,12 @@
 import { cn } from '@org/utils';
 import {
-  Check,
-  Eye,
   FolderKanban,
   Kanban,
   LayoutDashboard,
   List,
-  SlidersHorizontal,
   Timeline,
 } from 'lucide-react';
-import React, { useEffect, useRef, useState, type ComponentType } from 'react';
-import { useKanbanCustomStore } from './kanban-custom-store.js';
+import { useEffect, useRef, useState, type ComponentType } from 'react';
 
 export type ProjectViewMode =
   | 'list'

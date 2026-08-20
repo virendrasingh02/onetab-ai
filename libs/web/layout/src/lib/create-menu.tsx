@@ -107,7 +107,7 @@ export interface SidebarFooterActionsProps {
  * The pinned footer: a primary "New chat" button plus the create menu.
  *
  * Every medallion here used to be a raw Tailwind palette colour
- * (`bg-violet-500/15`, `text-cyan-400`, …) which ignored the theme entirely and
+ * (`bg-accent-violet-soft`, `text-accent-cyan`, …) which ignored the theme entirely and
  * did not respond to light mode. They now resolve through the accent tokens.
  */
 export function SidebarFooterActions({

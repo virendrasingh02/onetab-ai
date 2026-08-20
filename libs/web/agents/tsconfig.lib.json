@@ -14,9 +14,6 @@
   "exclude": ["out-tsc", "dist", "src/**/*.spec.ts", "src/**/*.spec.tsx"],
   "references": [
     {
-      "path": "../auth/tsconfig.lib.json"
-    },
-    {
       "path": "../workspace/tsconfig.lib.json"
     },
     {

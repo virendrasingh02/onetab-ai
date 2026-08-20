@@ -65,6 +65,33 @@ const WorkspaceSettingsPage = lazy(() =>
     default: m.WorkspaceSettingsPage,
   })),
 );
+const SlackNotionImportView = lazy(() =>
+  import('@org/web-integrations').then((m) => ({
+    default: m.SlackNotionImportView,
+  })),
+);
+const WorkspaceKanbanSettings = lazy(() =>
+  import('@org/web-work-tools').then((m) => ({
+    default: m.WorkspaceKanbanSettings,
+  })),
+);
+
+/**
+ * The settings page with its two borrowed tabs supplied.
+ *
+ * `@org/web-workspace` sits below `@org/web-integrations` and
+ * `@org/web-work-tools` in the dependency graph, so it cannot import either;
+ * the route layer is the first place that may depend on all three. See
+ * `WorkspaceSettingsPageProps`.
+ */
+function WorkspaceSettings() {
+  return (
+    <WorkspaceSettingsPage
+      importPanel={<SlackNotionImportView embedded />}
+      kanbanPanel={<WorkspaceKanbanSettings />}
+    />
+  );
+}
 const WorkspaceRedirect = lazy(() =>
   import('@org/web-workspace').then((m) => ({ default: m.WorkspaceRedirect })),
 );
@@ -174,19 +201,19 @@ export function App() {
           {/* --- Separate Standalone Settings Routes --- */}
           <Route
             path="/w/:workspaceSlug/settings"
-            element={<WorkspaceSettingsPage />}
+            element={<WorkspaceSettings />}
           />
           <Route
             path="/w/:workspaceSlug/settings/*"
-            element={<WorkspaceSettingsPage />}
+            element={<WorkspaceSettings />}
           />
           <Route
             path="/w/:workspaceSlug/import-export"
-            element={<WorkspaceSettingsPage />}
+            element={<WorkspaceSettings />}
           />
           <Route
             path="/w/:workspaceSlug/integrations/import"
-            element={<WorkspaceSettingsPage />}
+            element={<WorkspaceSettings />}
           />
           <Route
             path="/w/:workspaceSlug/profile"
@@ -194,19 +221,19 @@ export function App() {
           />
           <Route
             path="/w/:workspaceSlug/billing"
-            element={<WorkspaceSettingsPage />}
+            element={<WorkspaceSettings />}
           />
           <Route
             path="/w/:workspaceSlug/plans"
-            element={<WorkspaceSettingsPage />}
+            element={<WorkspaceSettings />}
           />
           <Route
             path="/w/:workspaceSlug/analytics/*"
-            element={<WorkspaceSettingsPage />}
+            element={<WorkspaceSettings />}
           />
           <Route
             path="/w/:workspaceSlug/analytics"
-            element={<WorkspaceSettingsPage />}
+            element={<WorkspaceSettings />}
           />
 
           {/* --- Main Workspace Shell with Navigation & Tools --- */}

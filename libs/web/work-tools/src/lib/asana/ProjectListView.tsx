@@ -1,5 +1,4 @@
 import {
-  Badge,
   Button,
   DropdownMenu,
   DropdownMenuContent,
@@ -25,7 +24,6 @@ import { useState } from 'react';
 import {
   describeDue,
   PRIORITIES,
-  PRIORITY_META,
   DUE_TONE_CLASSES,
 } from '../kanban/card-meta.js';
 import { useKanbanCustomStore } from '../kanban/kanban-custom-store.js';
@@ -210,7 +208,7 @@ export function ProjectListView({
                                   {cardProps.labels.slice(0, 2).map((lbl) => (
                                     <span
                                       key={lbl}
-                                      className="text-[9.5px] font-semibold px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20"
+                                      className="text-[9.5px] font-semibold px-1.5 py-0.2 rounded bg-accent-violet-soft text-accent-violet border border-accent-violet/20"
                                     >
                                       {lbl}
                                     </span>

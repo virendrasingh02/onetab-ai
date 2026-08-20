@@ -5,6 +5,11 @@ export { AIImageGeneratorView } from './lib/AIImageGeneratorView.js';
 
 export { AIComposer, type AIComposerProps } from './lib/ai-composer.js';
 
+/*
+ * The transcript rows live in `@org/chat-ui` — the agent conversation renders
+ * them too, and it must not depend on this library to do it. Re-exported here
+ * so existing consumers keep one import.
+ */
 export {
   AIErrorRow,
   AIMessage,
@@ -12,7 +17,7 @@ export {
   type AIDensity,
   type AIErrorRowProps,
   type AIMessageProps,
-} from './lib/ai-message.js';
+} from '@org/chat-ui';
 
 export {
   AI_COMMANDS,

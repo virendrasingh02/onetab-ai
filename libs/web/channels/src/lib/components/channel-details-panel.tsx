@@ -249,7 +249,7 @@ export function ChannelDetailsPanel({
                     size="sm"
                     variant="outline"
                     onClick={onAddApp}
-                    className="h-7 text-xs gap-1 px-2 border-violet-500/30 text-violet-600 dark:text-violet-400"
+                    className="h-7 text-xs gap-1 px-2 border-accent-violet/30 text-accent-violet"
                   >
                     <Plus className="size-3" />
                     <span>App</span>
@@ -331,7 +331,7 @@ export function ChannelDetailsPanel({
                         <span className="text-xs font-bold text-foreground truncate">
                           {app.name}
                         </span>
-                        <span className="text-[10px] font-mono text-violet-500 truncate">
+                        <span className="text-[10px] font-mono text-accent-violet truncate">
                           {app.botHandle}
                         </span>
                       </div>
@@ -339,7 +339,7 @@ export function ChannelDetailsPanel({
                         variant={app.enabled ? 'primary' : 'neutral'}
                         className={cn(
                           'text-[10px] py-0 h-4',
-                          app.enabled && 'bg-violet-500/10 text-violet-600 border-violet-500/20',
+                          app.enabled && 'bg-accent-violet-soft text-accent-violet border-accent-violet/20',
                         )}
                       >
                         {app.enabled ? 'Connected' : 'Muted'}
@@ -355,7 +355,7 @@ export function ChannelDetailsPanel({
                       <button
                         type="button"
                         onClick={() => channelAgentsApps.toggleApp(app.id)}
-                        className="text-[10px] font-semibold text-violet-600 dark:text-violet-400 hover:underline cursor-pointer"
+                        className="text-[10px] font-semibold text-accent-violet hover:underline cursor-pointer"
                       >
                         {app.enabled ? 'Mute' : 'Enable'}
                       </button>

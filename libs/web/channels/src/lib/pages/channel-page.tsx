@@ -56,7 +56,6 @@ import {
   Plus,
   RefreshCw,
   Share2,
-  Sparkles,
   Star,
   Trash2,
   Upload,
@@ -105,6 +104,7 @@ function ChannelHeader({
   channel,
   members = [],
   onAddBookmark,
+  onStartHuddle,
   onOpenDetails,
   onOpenMembers,
   onOpenPins,
@@ -801,7 +801,7 @@ export function ChannelPage() {
                 onClick={() => setAddAppOpen(true)}
                 className="gap-2.5 text-xs font-medium cursor-pointer"
               >
-                <Blocks className="size-4 text-violet-500 shrink-0" />
+                <Blocks className="size-4 text-accent-violet shrink-0" />
                 <div className="flex-1 min-w-0">
                   <span className="text-foreground">Connect App</span>
                   <p className="text-[10px] text-muted-foreground truncate">

@@ -15,68 +15,34 @@ import { useMatrix } from './matrix-provider.js';
  * Modelled as a query rather than a mutation: from the caller's point of view
  * "the room for this person" is a stable resource, and re-selecting someone in
  * the list should be a cache hit, not another round of room creation.
+ *
+ * Only real people resolve here. Agents and integrations have no Matrix
+ * identity to hold up the other end of a room, and they each have a surface of
+ * their own — an agent conversation replays its execution log, an app shows its
+ * connection state — so neither is reachable through a direct message.
  */
 export function useDirectRoom(peerUserId: string | undefined) {
   const { client, enabled } = useMatrix();
-  const normalizedPeerId = peerUserId
-    ? peerUserId.startsWith('app-') || peerUserId.startsWith('agent-')
-      ? peerUserId
-      : [
-          'github',
-          'linear',
-          'jira',
-          'figma',
-          'sentry',
-          'gdrive',
-          'slack',
-          'notion',
-          'datadog',
-          'stripe',
-          'quickbooks',
-          'bamboohr',
-          'hubspot',
-          'discord',
-          'gcal',
-          'outlook',
-          'zendesk',
-          'intercom',
-          'mixpanel',
-          'gitlab',
-          'webhooks',
-        ].includes(peerUserId.toLowerCase())
-      ? `app-${peerUserId.toLowerCase()}`
-      : peerUserId
-    : undefined;
-
-  const isVirtualPeer =
-    !!normalizedPeerId &&
-    (normalizedPeerId.startsWith('agent-') ||
-      normalizedPeerId.startsWith('app-'));
 
   const query = useQuery({
-    queryKey: queryKeys.matrix.peerIdentity(normalizedPeerId ?? ''),
+    queryKey: queryKeys.matrix.peerIdentity(peerUserId ?? ''),
     queryFn: async () => {
-      if (isVirtualPeer) {
-        return `!dm-${normalizedPeerId}:onetab.local`;
-      }
       const { matrixUserId } = await matrixApi.peerIdentity(
-        normalizedPeerId as string,
+        peerUserId as string,
       );
       return (client as NonNullable<typeof client>).getOrCreateDirectMessage(
         matrixUserId,
       );
     },
-    enabled: !!normalizedPeerId && enabled && (isVirtualPeer || !!client),
+    enabled: !!peerUserId && enabled && !!client,
     // Neither the mapping nor the room changes for the life of the session.
     staleTime: Infinity,
     retry: 1,
   });
 
   return {
-    roomId: isVirtualPeer
-      ? `!dm-${normalizedPeerId}:onetab.local`
-      : (query.data ?? null),
-    isLoading: isVirtualPeer ? false : query.isLoading,
+    roomId: query.data ?? null,
+    isLoading: query.isLoading,
     error: query.isError ? 'This conversation could not be opened.' : null,
   };
 }

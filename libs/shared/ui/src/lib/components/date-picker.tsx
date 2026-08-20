@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { format, parseISO, isValid, addDays, addWeeks } from 'date-fns';
 import { Calendar as CalendarIcon, X } from 'lucide-react';
 import { cn } from '@org/utils';
@@ -20,6 +20,14 @@ export interface DatePickerProps {
   maxDate?: Date;
   showPresets?: boolean;
   id?: string;
+  /**
+   * Replaces the default field-shaped button.
+   *
+   * A board card shows its dates as inline chips in a dense row, where a
+   * full-width form control would not fit. Passing the control keeps one date
+   * popover — calendar, presets, clearing — behind both presentations.
+   */
+  trigger?: ReactNode;
 }
 
 export function DatePicker({
@@ -34,6 +42,7 @@ export function DatePicker({
   maxDate,
   showPresets = true,
   id,
+  trigger,
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
 
@@ -67,27 +76,29 @@ export function DatePicker({
     <div className={cn('relative flex items-center', className)}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button
-            id={id}
-            type="button"
-            variant="outline"
-            disabled={disabled}
-            aria-label={
-              dateValue
-                ? `Date selected: ${format(dateValue, 'MMM d, yyyy')}`
-                : placeholder
-            }
-            className={cn(
-              'h-9 px-3 font-normal shadow-xs w-full justify-start text-left',
-              !dateValue && 'text-muted-foreground',
-              clearable && dateValue && 'pr-8',
-            )}
-          >
-            <CalendarIcon className="mr-2 size-4 shrink-0 text-muted-foreground" />
-            <span className="text-xs sm:text-sm truncate">
-              {dateValue ? format(dateValue, 'MMM d, yyyy') : placeholder}
-            </span>
-          </Button>
+          {trigger ?? (
+            <Button
+              id={id}
+              type="button"
+              variant="outline"
+              disabled={disabled}
+              aria-label={
+                dateValue
+                  ? `Date selected: ${format(dateValue, 'MMM d, yyyy')}`
+                  : placeholder
+              }
+              className={cn(
+                'h-9 px-3 font-normal shadow-xs w-full justify-start text-left',
+                !dateValue && 'text-muted-foreground',
+                clearable && dateValue && 'pr-8',
+              )}
+            >
+              <CalendarIcon className="mr-2 size-4 shrink-0 text-muted-foreground" />
+              <span className="text-xs sm:text-sm truncate">
+                {dateValue ? format(dateValue, 'MMM d, yyyy') : placeholder}
+              </span>
+            </Button>
+          )}
         </PopoverTrigger>
         <PopoverContent className="p-0 w-auto" align={align}>
           <Calendar
@@ -141,7 +152,12 @@ export function DatePicker({
           ) : null}
         </PopoverContent>
       </Popover>
-      {clearable && dateValue && !disabled ? (
+      {/*
+        The overlay clear button is positioned against the default field. A
+        supplied trigger sets its own size, so the button would land on top of
+        it — those callers clear from the popover's own "Clear" instead.
+      */}
+      {clearable && dateValue && !disabled && !trigger ? (
         <Button
           type="button"
           variant="ghost"

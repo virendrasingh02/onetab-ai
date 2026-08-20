@@ -484,7 +484,6 @@ export function AsanaProjectManager() {
         isOpen={isCommandMenuOpen}
         onClose={() => setIsCommandMenuOpen(false)}
         lists={board.board.lists}
-        members={members}
         onOpenCard={(id) => setSelectedCardId(id)}
         onQuickAddTask={handleQuickAddTask}
         onViewModeChange={setViewMode}

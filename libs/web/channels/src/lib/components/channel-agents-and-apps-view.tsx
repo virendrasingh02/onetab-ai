@@ -172,7 +172,7 @@ export function ChannelAgentsAndAppsView({
                 <span>AI Agents &amp; Apps</span>
               </h2>
               <Badge variant="primary" className="text-xs py-0 h-5 gap-1">
-                <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="size-1.5 rounded-full bg-accent-green animate-pulse" />
                 <span>{activeAgents.length} Active AI Agents</span>
               </Badge>
               <Badge variant="neutral" className="text-xs py-0 h-5">
@@ -189,7 +189,7 @@ export function ChannelAgentsAndAppsView({
               size="sm"
               variant="outline"
               onClick={onAddApp}
-              className="h-8 text-xs gap-1.5 border-violet-500/30 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10"
+              className="h-8 text-xs gap-1.5 border-accent-violet/30 text-accent-violet hover:bg-accent-violet-soft"
             >
               <Blocks className="size-3.5" />
               <span>Connect App</span>
@@ -220,7 +220,7 @@ export function ChannelAgentsAndAppsView({
           </div>
 
           <div className="p-2.5 rounded-xl border border-border/80 bg-surface flex items-center gap-2.5">
-            <div className="size-8 rounded-lg bg-violet-500/10 text-violet-500 flex items-center justify-center shrink-0">
+            <div className="size-8 rounded-lg bg-accent-violet-soft text-accent-violet flex items-center justify-center shrink-0">
               <Blocks className="size-4" />
             </div>
             <div className="min-w-0">
@@ -232,7 +232,7 @@ export function ChannelAgentsAndAppsView({
           </div>
 
           <div className="p-2.5 rounded-xl border border-border/80 bg-surface flex items-center gap-2.5">
-            <div className="size-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
+            <div className="size-8 rounded-lg bg-accent-green-soft text-accent-green flex items-center justify-center shrink-0">
               <MessageSquare className="size-4" />
             </div>
             <div className="min-w-0">
@@ -242,12 +242,12 @@ export function ChannelAgentsAndAppsView({
           </div>
 
           <div className="p-2.5 rounded-xl border border-border/80 bg-surface flex items-center gap-2.5">
-            <div className="size-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+            <div className="size-8 rounded-lg bg-accent-amber-soft text-accent-amber flex items-center justify-center shrink-0">
               <Zap className="size-4" />
             </div>
             <div className="min-w-0">
               <p className="text-[11px] text-muted-foreground font-medium truncate">Response SLA</p>
-              <p className="text-sm font-bold text-foreground">~240ms <span className="text-[10px] text-emerald-500">Fast</span></p>
+              <p className="text-sm font-bold text-foreground">~240ms <span className="text-[10px] text-accent-green">Fast</span></p>
             </div>
           </div>
         </div>
@@ -275,7 +275,7 @@ export function ChannelAgentsAndAppsView({
               <span>AI Agents ({agents.length})</span>
             </TabsTrigger>
             <TabsTrigger value="apps" className="gap-1.5 text-xs">
-              <Blocks className="size-3.5 text-violet-500" />
+              <Blocks className="size-3.5 text-accent-violet" />
               <span>Connected Apps ({apps.length})</span>
             </TabsTrigger>
           </TabsList>
@@ -329,7 +329,7 @@ export function ChannelAgentsAndAppsView({
                     size="sm"
                     variant={filterSenderId === app.id ? 'primary' : 'outline'}
                     onClick={() => setFilterSenderId(app.id)}
-                    className="h-6 text-[11px] px-2 gap-1 text-violet-600 dark:text-violet-400"
+                    className="h-6 text-[11px] px-2 gap-1 text-accent-violet"
                   >
                     <span>{app.name}</span>
                   </Button>
@@ -401,7 +401,7 @@ export function ChannelAgentsAndAppsView({
                               className={cn(
                                 'text-[10px] py-0 h-4 uppercase font-bold tracking-wider',
                                 msg.badgeVariant === 'violet' &&
-                                  'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20',
+                                  'bg-accent-violet-soft text-accent-violet border-accent-violet/20',
                               )}
                             >
                               {msg.badgeLabel}
@@ -513,7 +513,7 @@ export function ChannelAgentsAndAppsView({
                             key={idx}
                             className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border border-border bg-surface-raised text-[11px] font-mono text-foreground"
                           >
-                            <Terminal className="size-3 text-emerald-500" />
+                            <Terminal className="size-3 text-accent-green" />
                             <span className="font-semibold text-primary">{tool.name}</span>
                             <span className="text-muted-foreground text-[10px]">
                               ({tool.output})
@@ -555,8 +555,8 @@ export function ChannelAgentsAndAppsView({
                                   key={idx}
                                   className={cn(
                                     'px-1 rounded',
-                                    isAdd && 'bg-emerald-500/20 text-emerald-300 font-semibold',
-                                    isRem && 'bg-rose-500/20 text-rose-300 line-through opacity-80',
+                                    isAdd && 'bg-accent-green-soft text-accent-green font-semibold',
+                                    isRem && 'bg-accent-rose-soft text-accent-rose line-through opacity-80',
                                   )}
                                 >
                                   {line}
@@ -577,13 +577,13 @@ export function ChannelAgentsAndAppsView({
                         <div className="flex items-start justify-between gap-2">
                           <h4 className="text-xs font-bold text-foreground hover:text-primary transition-colors flex items-center gap-1.5">
                             {msg.embedCard.type === 'github_pr' && (
-                              <GitPullRequest className="size-4 text-blue-500" />
+                              <GitPullRequest className="size-4 text-accent-blue" />
                             )}
                             {msg.embedCard.type === 'sentry_alert' && (
-                              <AlertTriangle className="size-4 text-rose-500" />
+                              <AlertTriangle className="size-4 text-accent-rose" />
                             )}
                             {msg.embedCard.type === 'linear_issue' && (
-                              <Workflow className="size-4 text-violet-500" />
+                              <Workflow className="size-4 text-accent-violet" />
                             )}
                             <span>{msg.embedCard.title}</span>
                           </h4>
@@ -744,7 +744,7 @@ export function ChannelAgentsAndAppsView({
                       >
                         <UserAvatar name={app.name} seed={app.icon} size="xs" />
                         <span className="font-semibold">{app.name}</span>
-                        <span className="text-violet-500 text-[10px] ml-auto">
+                        <span className="text-accent-violet text-[10px] ml-auto">
                           {app.botHandle}
                         </span>
                       </DropdownMenuItem>
@@ -924,7 +924,7 @@ export function ChannelAgentsAndAppsView({
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <Blocks className="size-4 text-violet-500" />
+                  <Blocks className="size-4 text-accent-violet" />
                   <span>Channel Connected Apps</span>
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -934,7 +934,7 @@ export function ChannelAgentsAndAppsView({
               <Button
                 size="sm"
                 onClick={onAddApp}
-                className="gap-1.5 text-xs h-8 bg-violet-600 hover:bg-violet-700 text-white"
+                className="gap-1.5 text-xs h-8 bg-accent-violet hover:bg-accent-violet text-white"
               >
                 <Plus className="size-3.5" />
                 <span>Connect App</span>
@@ -948,7 +948,7 @@ export function ChannelAgentsAndAppsView({
                   className={cn(
                     'p-4 rounded-2xl border transition-all flex flex-col justify-between',
                     app.enabled
-                      ? 'border-border/80 bg-surface shadow-xs hover:border-violet-500/40'
+                      ? 'border-border/80 bg-surface shadow-xs hover:border-accent-violet/40'
                       : 'border-border/50 bg-muted/20 opacity-75',
                   )}
                 >
@@ -964,7 +964,7 @@ export function ChannelAgentsAndAppsView({
                           <h4 className="text-sm font-bold text-foreground truncate">
                             {app.name}
                           </h4>
-                          <span className="text-xs font-mono text-violet-500">
+                          <span className="text-xs font-mono text-accent-violet">
                             {app.botHandle}
                           </span>
                         </div>
@@ -974,7 +974,7 @@ export function ChannelAgentsAndAppsView({
                         variant={app.enabled ? 'primary' : 'neutral'}
                         className={cn(
                           'text-[10px] py-0 h-4 capitalize',
-                          app.enabled && 'bg-violet-500/10 text-violet-600 border-violet-500/20',
+                          app.enabled && 'bg-accent-violet-soft text-accent-violet border-accent-violet/20',
                         )}
                       >
                         {app.enabled ? 'Connected' : 'Muted'}
@@ -1017,7 +1017,7 @@ export function ChannelAgentsAndAppsView({
                           );
                           setActiveSubTab('messages');
                         }}
-                        className="h-7 text-xs gap-1.5 text-violet-600 dark:text-violet-400 border-violet-500/30"
+                        className="h-7 text-xs gap-1.5 text-accent-violet border-accent-violet/30"
                       >
                         <Zap className="size-3" />
                         <span>Simulate Event</span>

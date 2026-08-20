@@ -1,16 +1,12 @@
+import type { AITranscriptMessage } from '@org/chat-ui';
 import type { AIChatMessage } from '@org/types';
 import { useState } from 'react';
 import { modelLabelFor, type AIModelValue } from './ai-models.js';
 import { stripMentions } from './ai-suggestions.js';
 import { useAIChat } from './use-ai.js';
 
-export interface AIConversationMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  /** ISO timestamp — formatted at render, not at creation. */
-  at: string;
-}
+/** The shape the shared transcript rows render. */
+export type AIConversationMessage = AITranscriptMessage;
 
 export interface UseAIConversationOptions {
   /** Seed the transcript with a greeting, as the docked assistant does. */

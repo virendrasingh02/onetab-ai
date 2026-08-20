@@ -17,7 +17,7 @@ export function StatusIcon({ status, className }: StatusIconProps) {
         <svg
           viewBox="0 0 16 16"
           fill="none"
-          className={cn('size-3.5 text-amber-500 shrink-0', className)}
+          className={cn('size-3.5 text-accent-amber shrink-0', className)}
           aria-hidden="true"
         >
           <circle
@@ -57,7 +57,7 @@ export function StatusIcon({ status, className }: StatusIconProps) {
         <svg
           viewBox="0 0 16 16"
           fill="none"
-          className={cn('size-3.5 text-amber-500 shrink-0', className)}
+          className={cn('size-3.5 text-accent-amber shrink-0', className)}
           aria-hidden="true"
         >
           <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
@@ -89,7 +89,7 @@ export function StatusIcon({ status, className }: StatusIconProps) {
         <svg
           viewBox="0 0 16 16"
           fill="none"
-          className={cn('size-3.5 text-blue-500 shrink-0', className)}
+          className={cn('size-3.5 text-accent-blue shrink-0', className)}
           aria-hidden="true"
         >
           <circle cx="8" cy="8" r="6.75" fill="currentColor" />
@@ -257,7 +257,7 @@ export function ActivityPulseBadge({ className }: { className?: string }) {
     <div
       title="Active activity"
       className={cn(
-        'size-5 rounded-full border border-dashed border-emerald-500/70 bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0',
+        'size-5 rounded-full border border-dashed border-accent-green/70 bg-accent-green-soft flex items-center justify-center text-accent-green shrink-0',
         className,
       )}
     >
@@ -283,7 +283,7 @@ export function CubeProjectIcon({ className }: { className?: string }) {
       strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={cn('size-4 text-amber-600 shrink-0', className)}
+      className={cn('size-4 text-accent-amber shrink-0', className)}
       aria-hidden="true"
     >
       <path d="m7.5 4.27 9 5.15" />

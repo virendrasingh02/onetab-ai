@@ -1,7 +1,22 @@
 import { Button } from '@org/ui';
 import { cn } from '@org/utils';
 import { Sparkles, TriangleAlert, User } from 'lucide-react';
-import type { AIConversationMessage } from './use-ai-conversation.js';
+
+/**
+ * One turn in an assistant transcript.
+ *
+ * Deliberately structural rather than imported from a feature library: the
+ * model chat, the docked assistant and an agent conversation all render these
+ * rows, and each builds its transcript from a different source — a live
+ * completion, a cached one, or an execution log read back from the server.
+ */
+export interface AITranscriptMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  /** ISO timestamp — formatted at render, not at creation. */
+  at: string;
+}
 
 /**
  * `compact` is the docked assistant in a ~340px rail; `comfortable` is the
@@ -14,7 +29,7 @@ const timeLabel = (iso: string) =>
   new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 export interface AIMessageProps {
-  message: AIConversationMessage;
+  message: AITranscriptMessage;
   /** Names the assistant after the model that answered. */
   assistantLabel?: string;
   density?: AIDensity;

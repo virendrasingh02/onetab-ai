@@ -1,3 +1,4 @@
+import { userApi } from '@org/api-client';
 import { useAuthStore, useCurrentUser } from '@org/auth';
 import {
   Button,
@@ -68,7 +69,6 @@ export function AppShell() {
 
   /* The rail's open state is shared app-wide — see `right-panel-store`. */
   const rightPanelOpen = useRightPanelStore((s) => s.open);
-  const rightPanelView = useRightPanelStore((s) => s.view);
   const setRightPanelOpen = useRightPanelStore((s) => s.setOpen);
   /* Not `setOpen(false)`: a hosted panel's owner has to hear about the close. */
   const dismissRightPanel = useRightPanelStore((s) => s.dismiss);
@@ -123,16 +123,6 @@ export function AppShell() {
     () => dismissRightPanel(),
     [dismissRightPanel],
   );
-  /* "Ask AI" opens/switches the rail on the assistant, or closes it if already showing assistant. */
-  const toggleAssistant = useCallback(() => {
-    const { open, view } = useRightPanelStore.getState();
-    if (open && view === 'assistant') {
-      dismissRightPanel();
-    } else {
-      useRightPanelStore.getState().setView('assistant');
-    }
-  }, [dismissRightPanel]);
-
   /*
    * The native menu bar, the tray menu and the global shortcut all reach the UI
    * through these. Registered before the early returns below so the hook order
@@ -222,8 +212,6 @@ export function AppShell() {
           workspaces={workspaces}
           currentWorkspace={workspace}
           onOpenSearch={() => palette.setOpen(true)}
-          onToggleRightPanel={toggleAssistant}
-          rightPanelOpen={rightPanelOpen && rightPanelView === 'assistant'}
           onToggleSidebar={toggleSidebar}
           sidebarOpen={sidebarOpen}
           unreadNotifications={unread.count}
@@ -392,8 +380,22 @@ export function AppShell() {
           onOpenChange={setCreateChannelOpen}
         />
 
-        <FocusModeWidget currentUser={user} onUserUpdated={setUser} />
-        <StatusModal currentUser={user} onUserUpdated={setUser} />
+        {/*
+          `@org/ui` is presentational and cannot call the API itself, so the
+          shell supplies the two status operations both surfaces share.
+        */}
+        <FocusModeWidget
+          currentUser={user}
+          onUserUpdated={setUser}
+          onSaveStatus={userApi.updateStatus}
+          onClearStatus={userApi.clearStatus}
+        />
+        <StatusModal
+          currentUser={user}
+          onUserUpdated={setUser}
+          onSaveStatus={userApi.updateStatus}
+          onClearStatus={userApi.clearStatus}
+        />
         <TeamWorldClockModal
           currentUser={user}
           members={membersQuery.data ?? []}

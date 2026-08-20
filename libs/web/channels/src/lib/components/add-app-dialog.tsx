@@ -85,7 +85,7 @@ export function AddAppDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <div className="gap-2.5 flex items-center">
-            <div className="size-9 flex items-center justify-center rounded-xl border border-violet-500/30 bg-violet-500/10 text-violet-500">
+            <div className="size-9 flex items-center justify-center rounded-xl border border-accent-violet/30 bg-accent-violet-soft text-accent-violet">
               <Blocks className="size-5" />
             </div>
             <div>
@@ -131,7 +131,7 @@ export function AddAppDialog({
                       isAlreadyAdded
                         ? 'opacity-60 cursor-not-allowed bg-muted/30 border-border/50'
                         : isSelected
-                          ? 'border-violet-500 bg-violet-500/5 ring-1 ring-violet-500'
+                          ? 'border-accent-violet bg-accent-violet-soft ring-1 ring-accent-violet'
                           : 'border-border/70 bg-surface hover:border-border hover:bg-surface-raised',
                     )}
                   >
@@ -182,7 +182,7 @@ export function AddAppDialog({
                           className={cn(
                             'size-5 rounded-full border flex items-center justify-center transition-colors',
                             isSelected
-                              ? 'border-violet-500 bg-violet-500 text-white'
+                              ? 'border-accent-violet bg-accent-violet text-white'
                               : 'border-border bg-surface',
                           )}
                         >
@@ -212,7 +212,7 @@ export function AddAppDialog({
             disabled={!selectedAppId || isSubmitting}
             loading={isSubmitting}
             onClick={handleAdd}
-            className="gap-1.5 bg-violet-600 hover:bg-violet-700 text-white"
+            className="gap-1.5 bg-accent-violet hover:bg-accent-violet text-white"
           >
             <Plus className="size-3.5" />
             <span>Connect App to Channel</span>

@@ -14,11 +14,7 @@ import {
   type PresenceStatus,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import {
-  AI_AGENT_PEERS,
-  APP_PEERS,
-  useDirectMessagePreferences,
-} from '@org/web-chat';
+import { useDirectMessagePreferences } from '@org/web-chat';
 import { useMembers } from '@org/web-members';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
@@ -147,21 +143,10 @@ function DirectMessageRow({
 
         <span className="gap-1.5 flex flex-1 items-center truncate">
           <span className="truncate">{name}</span>
-          {member.user.id.startsWith('agent-') ? (
-            <Badge
-              variant="primary"
-              className="h-3.5 px-1 py-0 text-[8px] uppercase font-bold tracking-wider shrink-0"
-            >
-              AI
-            </Badge>
-          ) : member.user.id.startsWith('app-') ? (
-            <Badge
-              variant="neutral"
-              className="h-3.5 px-1 py-0 text-[8px] uppercase font-bold tracking-wider shrink-0 bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20"
-            >
-              APP
-            </Badge>
-          ) : null}
+          {/*
+            No AI/APP badge: this list is teammates now. Agents and apps are
+            not addressable as direct messages, so no row here can be one.
+          */}
           {member.user.statusEmoji ? (
             <span
               className="shrink-0 text-[11px] select-none"
@@ -318,20 +303,15 @@ export function DirectMessagesSection({
 
   const { favoriteIds, mutedIds } = preferences;
 
-  // Teammates and AI agents/apps you can direct message.
+  /*
+   * Teammates only — favourites first. Agents and apps used to be listed here
+   * as stand-in peers, but neither can hold up the other end of a direct
+   * message; they are reached through their own sidebar sections instead.
+   */
   const people = useMemo(() => {
-    const teammates = (members.data ?? []).filter(
+    const roster = (members.data ?? []).filter(
       (member) => member.user.id !== currentUser?.id,
     );
-    const virtualPeers = [...AI_AGENT_PEERS, ...APP_PEERS];
-
-    const roster = [
-      ...teammates,
-      // Always provide Copilot and any favorited agents/apps in sidebar
-      ...virtualPeers.filter(
-        (vp) => vp.id === 'agent-copilot' || favoriteIds.includes(vp.user.id),
-      ),
-    ];
 
     return [
       ...roster.filter((member) => favoriteIds.includes(member.user.id)),

@@ -9,7 +9,7 @@ import {
 import { Sparkles } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { AIComposer } from './ai-composer.js';
-import { AIErrorRow, AIMessage, AIThinkingRow } from './ai-message.js';
+import { AIErrorRow, AIMessage, AIThinkingRow } from '@org/chat-ui';
 import { useAIConversation } from './use-ai-conversation.js';
 
 export interface AISidebarProps {

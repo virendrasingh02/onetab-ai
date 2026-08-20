@@ -1,4 +1,4 @@
-import { TaskStatus } from '@org/types';
+import { type TaskStatus } from '@org/types';
 import {
   DropdownMenu,
   DropdownMenuContent,

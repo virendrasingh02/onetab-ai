@@ -344,6 +344,7 @@ export {
   FOCUS_DURATION_OPTIONS,
   type FocusModeWidgetProps,
   type FocusDurationOption,
+  type StatusPublisher,
 } from './lib/components/focus-mode-widget.js';
 
 export {

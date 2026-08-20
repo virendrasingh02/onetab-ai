@@ -1,15 +1,10 @@
-import { TaskStatus } from '@org/types';
+import { type TaskStatus } from '@org/types';
 import {
   Dialog,
   DialogContent,
   DialogTitle,
 } from '@org/ui';
-import { cn } from '@org/utils';
 import {
-  Calendar,
-  Check,
-  CheckCircle2,
-  Copy,
   FolderKanban,
   GitBranch,
   Kanban,
@@ -17,22 +12,17 @@ import {
   List,
   Plus,
   Search,
-  Sparkles,
-  Tag,
-  Ticket,
   Timeline,
-  Users,
 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useKanbanCustomStore } from './kanban-custom-store.js';
-import { PriorityIcon, StatusIcon } from './kanban-icons.js';
-import type { BoardMember, KanbanCard, KanbanList, Priority } from './types.js';
+import { StatusIcon } from './kanban-icons.js';
+import type { KanbanCard, KanbanList } from './types.js';
 
 export interface LinearCommandMenuProps {
   isOpen: boolean;
   onClose: () => void;
   lists: KanbanList[];
-  members: BoardMember[];
   onOpenCard?: (cardId: string) => void;
   onQuickAddTask?: (listId?: TaskStatus) => void;
   onViewModeChange?: (mode: 'board' | 'list' | 'timeline' | 'dashboard' | 'projects') => void;
@@ -44,7 +34,6 @@ export function LinearCommandMenu({
   isOpen,
   onClose,
   lists,
-  members,
   onOpenCard,
   onQuickAddTask,
   onViewModeChange,

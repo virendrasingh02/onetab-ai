@@ -206,14 +206,14 @@ export function KanbanCardTile({
               <CalendarPlus className="size-3.5 text-muted-foreground shrink-0" />
               <span>{formatMonthYear(currentStartDate) || 'Start'}</span>
               <span className="text-muted-foreground text-[10px]">→</span>
-              <CalendarX2 className="size-3.5 text-rose-500 shrink-0" />
-              <span className="text-rose-500 font-medium">
+              <CalendarX2 className="size-3.5 text-accent-rose shrink-0" />
+              <span className="text-accent-rose font-medium">
                 {formattedDate || 'Target'}
               </span>
             </div>
           ) : (
             <div className="flex items-center gap-1.5 text-[11px] font-medium text-foreground/80">
-              <CalendarX2 className="size-3.5 text-rose-500 shrink-0" />
+              <CalendarX2 className="size-3.5 text-accent-rose shrink-0" />
               <span>{formattedDate}</span>
             </div>
           )}

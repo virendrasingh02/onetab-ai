@@ -13,7 +13,10 @@ export {
 } from './lib/use-workspaces.js';
 
 export { CreateWorkspacePage } from './lib/pages/create-workspace-page.js';
-export { WorkspaceSettingsPage } from './lib/pages/workspace-settings-page.js';
+export {
+  WorkspaceSettingsPage,
+  type WorkspaceSettingsPageProps,
+} from './lib/pages/workspace-settings-page.js';
 export { WorkspaceRedirect } from './lib/pages/workspace-redirect.js';
 export { UpgradePlanBanner } from './lib/components/upgrade-plan-banner.js';
 export { WorkspaceMembersSettings } from './lib/components/workspace-members-settings.js';

@@ -1,5 +1,4 @@
 import {
-  Badge,
   Button,
   DropdownMenu,
   DropdownMenuContent,
@@ -17,15 +16,13 @@ import {
   Headphones,
   Info,
   MoreHorizontal,
-  RefreshCw,
   RotateCcw,
-  Settings,
   Sparkles,
   Star,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AIComposer } from './ai-composer.js';
-import { AIErrorRow, AIMessage, AIThinkingRow } from './ai-message.js';
+import { AIErrorRow, AIMessage, AIThinkingRow } from '@org/chat-ui';
 import { useAIConversation } from './use-ai-conversation.js';
 
 /**

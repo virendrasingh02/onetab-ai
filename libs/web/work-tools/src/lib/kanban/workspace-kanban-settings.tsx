@@ -14,19 +14,14 @@ import {
   SelectValue,
   Switch,
 } from '@org/ui';
+import { PriorityIcon, StatusIcon } from './kanban-icons.js';
 import {
-  PriorityIcon,
-  StatusIcon,
   useKanbanCustomStore,
-  type CustomLabelItem,
-  type CustomPriorityItem,
-  type CustomStatusItem,
-} from '@org/web-work-tools';
+} from './kanban-custom-store.js';
 import {
   Contact,
   Hash,
   Plus,
-  Tag,
   Ticket,
   Trash2,
 } from 'lucide-react';
@@ -42,6 +37,48 @@ const PRESET_COLORS = [
   '#ec4899',
   '#64748b',
 ];
+
+/**
+ * The swatch row shared by the status, priority and label dialogs.
+ *
+ * They each drew their own before, which is why they had drifted: one offered
+ * five colours and the others eight, the selected ring was `border-primary` in
+ * one and `border-foreground` in the next, and none of the swatches carried a
+ * name — a colour-only button reads as an unlabelled control to a screen
+ * reader.
+ */
+function ColorSwatchPicker({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (color: string) => void;
+}) {
+  return (
+    <div>
+      <label className="text-xs font-semibold mb-1.5 block">{label}</label>
+      <div role="group" aria-label={label} className="flex items-center gap-2">
+        {PRESET_COLORS.map((color) => (
+          <button
+            key={color}
+            type="button"
+            aria-label={color}
+            aria-pressed={value === color}
+            onClick={() => onChange(color)}
+            className={`size-6 rounded-full border-2 transition-transform ${
+              value === color
+                ? 'border-foreground scale-110'
+                : 'border-transparent'
+            }`}
+            style={{ backgroundColor: color }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function WorkspaceKanbanSettings() {
   const store = useKanbanCustomStore();
@@ -371,8 +408,8 @@ export function WorkspaceKanbanSettings() {
                 key={team.id}
                 className="p-3 flex items-center justify-between gap-2 hover:bg-accent/30"
               >
-                <div className="flex items-center gap-2 text-xs font-medium text-sky-600 dark:text-sky-400">
-                  <Contact className="size-3.5 text-sky-500" />
+                <div className="flex items-center gap-2 text-xs font-medium text-accent-blue">
+                  <Contact className="size-3.5 text-accent-blue" />
                   <span>{team.name}</span>
                 </div>
                 <button
@@ -515,22 +552,11 @@ export function WorkspaceKanbanSettings() {
                     className="h-9 text-xs font-mono"
                   />
                 </div>
-                <div>
-                  <label className="text-xs font-semibold mb-1 block">Color</label>
-                  <div className="flex items-center gap-1.5 pt-1">
-                    {PRESET_COLORS.slice(0, 5).map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => setStatusColor(color)}
-                        className={`size-6 rounded-full border-2 transition-all ${
-                          statusColor === color ? 'border-primary scale-110' : 'border-transparent'
-                        }`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                  </div>
-                </div>
+                <ColorSwatchPicker
+                  label="Color"
+                  value={statusColor}
+                  onChange={setStatusColor}
+                />
               </div>
             </div>
             <DialogFooter>
@@ -573,6 +599,11 @@ export function WorkspaceKanbanSettings() {
                   className="h-9 text-xs font-mono"
                 />
               </div>
+              <ColorSwatchPicker
+                label="Color"
+                value={priorityColor}
+                onChange={setPriorityColor}
+              />
             </div>
             <DialogFooter>
               <Button type="button" variant="ghost" size="sm" onClick={() => setIsAddPriorityOpen(false)}>
@@ -604,22 +635,11 @@ export function WorkspaceKanbanSettings() {
                   className="h-9 text-xs"
                 />
               </div>
-              <div>
-                <label className="text-xs font-semibold mb-1.5 block">Label Color</label>
-                <div className="flex items-center gap-2">
-                  {PRESET_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setLabelColor(c)}
-                      className={`size-6 rounded-full border-2 transition-transform ${
-                        labelColor === c ? 'border-foreground scale-110' : 'border-transparent'
-                      }`}
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
-              </div>
+              <ColorSwatchPicker
+                label="Label Color"
+                value={labelColor}
+                onChange={setLabelColor}
+              />
             </div>
             <DialogFooter>
               <Button type="button" variant="ghost" size="sm" onClick={() => setIsAddLabelOpen(false)}>
