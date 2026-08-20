@@ -4,6 +4,24 @@ import wasm from 'vite-plugin-wasm';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
+/**
+ * Hostnames allowed to reach the dev server and the preview server through the
+ * Host header. Vite rejects anything not listed, so every way we hand the app
+ * to someone outside this machine has to be named here.
+ *
+ * `.trycloudflare.com` covers `cloudflared tunnel --url http://localhost:4200`
+ * (the quick tunnel, whose subdomain is random per run); `.cfargotunnel.com`
+ * covers a named tunnel addressed by its UUID. A tunnel routed at your own
+ * domain also needs that domain added.
+ */
+const TUNNEL_HOSTS = [
+  'my-custom-domain.local',
+  'host.docker.internal',
+  '.ngrok-free.app',
+  '.trycloudflare.com',
+  '.cfargotunnel.com',
+];
+
 export default defineConfig(() => ({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/web',
@@ -11,17 +29,24 @@ export default defineConfig(() => ({
     port: 4200,
     strictPort: true,
     host: 'localhost',
+    allowedHosts: TUNNEL_HOSTS,
   },
   preview: {
     port: 4200,
     strictPort: true,
     host: 'localhost',
+    // A shared preview build is reached through the same tunnel hostnames the
+    // dev server uses, and preview enforces `allowedHosts` just as strictly.
+    allowedHosts: TUNNEL_HOSTS,
   },
   resolve: {
     dedupe: ['react', 'react-dom'],
     alias: {
       react: path.resolve(import.meta.dirname, '../../node_modules/react'),
-      'react-dom': path.resolve(import.meta.dirname, '../../node_modules/react-dom'),
+      'react-dom': path.resolve(
+        import.meta.dirname,
+        '../../node_modules/react-dom',
+      ),
     },
   },
   plugins: [
@@ -70,7 +95,9 @@ export default defineConfig(() => ({
             )
           )
             return 'vendor-react';
-          if (/[\\/](@tanstack|axios|zustand|@reduxjs|react-redux)[\\/]/.test(id))
+          if (
+            /[\\/](@tanstack|axios|zustand|@reduxjs|react-redux)[\\/]/.test(id)
+          )
             return 'vendor-data';
           if (/[\\/](react-hook-form|@hookform|zod)[\\/]/.test(id))
             return 'vendor-forms';
