@@ -359,3 +359,9 @@ export {
 } from './lib/components/team-world-clock-modal.js';
 
 export { Toaster, toast, type ToasterProps } from './lib/components/toaster.js';
+
+export {
+  HuddleDock,
+  useHuddleDockStore,
+  type HuddleDockState,
+} from './lib/components/huddle-dock.js';

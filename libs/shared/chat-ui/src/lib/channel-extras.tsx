@@ -7,6 +7,7 @@ import {
   Input,
   ScrollArea,
   UserAvatar,
+  useHuddleDockStore,
 } from '@org/ui';
 import { cn, formatListTimestamp, formatRelative } from '@org/utils';
 import {
@@ -26,6 +27,7 @@ import {
   X,
 } from 'lucide-react';
 import { useMemo, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 /* --- channel bookmarks ---------------------------------------------------- */
 
@@ -62,7 +64,7 @@ export function BookmarksBar({
   return (
     <div
       className={cn(
-        'scrollbar-none min-h-9 py-1 gap-1.5 px-3 sm:px-4 flex shrink-0 items-center overflow-x-auto border-b border-border bg-surface-muted/50',
+        'min-h-9 py-1 gap-1.5 px-3 sm:px-4 flex shrink-0 scrollbar-none items-center overflow-x-auto border-b border-border bg-surface-muted/50',
         className,
       )}
     >
@@ -70,7 +72,7 @@ export function BookmarksBar({
         <div
           key={bookmark.id}
           className={cn(
-            'group relative flex shrink-0 items-center rounded-md border border-border/70 bg-surface px-2 py-1 text-xs text-muted-foreground shadow-xs transition-all duration-fast',
+            'group px-2 py-1 text-xs shadow-xs duration-fast relative flex shrink-0 items-center rounded-md border border-border/70 bg-surface text-muted-foreground transition-all',
             'hover:border-border hover:bg-surface-raised hover:text-foreground',
           )}
         >
@@ -78,7 +80,7 @@ export function BookmarksBar({
             href={bookmark.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 outline-none"
+            className="gap-1.5 flex items-center outline-none"
           >
             {bookmark.emoji ? (
               <span aria-hidden className="text-xs">
@@ -87,7 +89,7 @@ export function BookmarksBar({
             ) : (
               <Bookmark className="size-3 text-muted-foreground" />
             )}
-            <span className="max-w-44 truncate font-medium">
+            <span className="max-w-44 font-medium truncate">
               {bookmark.label}
             </span>
           </a>
@@ -101,7 +103,7 @@ export function BookmarksBar({
                 e.stopPropagation();
                 onRemove(bookmark.id);
               }}
-              className="ml-1 opacity-0 transition-opacity group-hover:opacity-100 text-muted-foreground hover:text-destructive focus:opacity-100"
+              className="ml-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive focus:opacity-100"
             >
               <X className="size-3" />
             </button>
@@ -142,11 +144,20 @@ export interface HuddleBarProps {
 }
 
 /**
- * The live-audio strip shown while a huddle is running in the channel.
+ * The live-audio dock shown while a huddle is running in the channel.
  *
- * Rendered above the timeline rather than as a floating window: a huddle is
- * part of the channel's state, and a reader scrolling history should still see
- * that one is happening.
+ * It opens full-width across the bottom of the app, in the row below the
+ * sidebar / conversation / right-rail columns that the notification bar also
+ * lands in — so it takes its own space rather than covering the composer, and
+ * stays put while you read another channel. It portals into `HuddleDock`,
+ * which the shell publishes; with no dock around (a conversation embedded
+ * somewhere else) it renders in place instead.
+ *
+ * The design is the huddle's own, not the notification bar's: a live call
+ * earns the violet, the pinging badge and the call-control pill.
+ *
+ * It renders nothing until there is a huddle — the button that starts one
+ * stays in the channel header.
  */
 export function HuddleBar({
   participants,
@@ -158,71 +169,105 @@ export function HuddleBar({
   onShareScreen,
   onStartVideo,
 }: HuddleBarProps) {
+  const dock = useHuddleDockStore((s) => s.slot);
+
   if (participants.length === 0 && !isJoined) return null;
 
-  return (
-    <div className="h-11 gap-2 px-3 sm:px-4 flex shrink-0 items-center border-b border-border bg-accent-violet-soft">
-      <Headphones className="size-4 shrink-0 text-accent-violet" aria-hidden />
-
-      <span className="text-xs font-medium shrink-0 text-foreground">
-        Huddle
-      </span>
-
-      <div className="flex items-center -space-x-1.5">
-        {participants.slice(0, 4).map((participant) => (
-          <UserAvatar
-            key={participant.userId}
-            name={participant.displayName}
-            src={participant.avatarUrl}
-            seed={participant.userId}
-            size="xs"
-            className="ring-2 ring-background"
-          />
-        ))}
+  const bar = (
+    <div
+      className="gap-3 px-2 py-1.5 shadow-xs animate-in fade-in slide-in-from-bottom-2 relative flex flex-wrap items-center overflow-hidden rounded-xl border border-accent-violet/40 bg-linear-to-r from-accent-violet-soft via-card to-accent-violet-soft/60 transition-all duration-300"
+      role="region"
+      aria-label="Huddle"
+    >
+      {/* Live badge: the pinging ring is what says "a call is running" from
+          across the screen, before you read a word of the bar. Same shape as
+          the notification bar's bell badge — a live call is the same kind of
+          claim on your attention. */}
+      <div className="size-8 shadow-inner relative flex shrink-0 items-center justify-center rounded-lg bg-accent-violet/15 text-accent-violet">
+        <Headphones className="size-4" aria-hidden />
+        <span className="-top-1 -right-1 size-2.5 absolute flex">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-violet opacity-75" />
+          <span className="size-2.5 relative inline-flex rounded-full bg-accent-violet" />
+        </span>
       </div>
 
-      <span className="text-xs tabular-nums truncate text-muted-foreground">
-        {participants.length} in the huddle
-      </span>
+      <div className="gap-0.5 min-w-0 flex flex-col">
+        <h4 className="text-sm font-medium tracking-tight leading-none text-foreground">
+          Huddle
+        </h4>
+        <span className="text-[11px] leading-none text-muted-foreground">
+          {isJoined ? 'You are in this huddle' : 'Live in this channel'}
+        </span>
+      </div>
 
-      <div className="ml-auto gap-1 flex shrink-0 items-center">
+      <div className="gap-2 ml-1 min-w-0 flex flex-1 items-center">
+        <div className="-space-x-1.5 flex items-center">
+          {participants.slice(0, 5).map((participant) => (
+            <UserAvatar
+              key={participant.userId}
+              name={participant.displayName}
+              src={participant.avatarUrl}
+              seed={participant.userId}
+              size="xs"
+              className="ring-2 ring-background"
+            />
+          ))}
+        </div>
+
+        <span className="text-xs truncate text-muted-foreground tabular-nums">
+          {participants.length} in the huddle
+        </span>
+      </div>
+
+      <div className="gap-2 flex shrink-0 items-center">
         {isJoined ? (
           <>
-            <Hint label={isMuted ? 'Unmute' : 'Mute'}>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={isMuted ? 'Unmute' : 'Mute'}
-                aria-pressed={isMuted}
-                onClick={onToggleMute}
-                className={isMuted ? 'text-destructive' : undefined}
-              >
-                {isMuted ? <MicOff /> : <Mic />}
-              </Button>
-            </Hint>
-            <Hint label="Turn on video">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Turn on video"
-                onClick={onStartVideo}
-              >
-                <Video />
-              </Button>
-            </Hint>
-            <Hint label="Share your screen">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Share your screen"
-                onClick={onShareScreen}
-              >
-                <MonitorUp />
-              </Button>
-            </Hint>
+            {/* The call controls read as one instrument, so they share a
+                single inset pill rather than floating loose on the bar. */}
+            <div className="gap-0.5 p-0.5 flex items-center rounded-full border border-border/60 bg-background/80">
+              <Hint label={isMuted ? 'Unmute' : 'Mute'}>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={isMuted ? 'Unmute' : 'Mute'}
+                  aria-pressed={isMuted}
+                  onClick={onToggleMute}
+                  className={cn(
+                    'rounded-full',
+                    isMuted ? 'text-destructive' : undefined,
+                  )}
+                >
+                  {isMuted ? <MicOff /> : <Mic />}
+                </Button>
+              </Hint>
+              <Hint label="Turn on video">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="rounded-full"
+                  aria-label="Turn on video"
+                  onClick={onStartVideo}
+                >
+                  <Video />
+                </Button>
+              </Hint>
+              <Hint label="Share your screen">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="rounded-full"
+                  aria-label="Share your screen"
+                  onClick={onShareScreen}
+                >
+                  <MonitorUp />
+                </Button>
+              </Hint>
+            </div>
+
             <Button
               variant="destructive"
               size="sm"
+              className="h-8 gap-1.5 text-xs px-3 shadow-sm font-medium"
               onClick={onLeave}
               leadingIcon={<PhoneOff className="size-3.5" />}
             >
@@ -230,13 +275,20 @@ export function HuddleBar({
             </Button>
           </>
         ) : (
-          <Button size="sm" onClick={onJoin}>
-            Join
+          <Button
+            size="sm"
+            className="h-8 gap-1.5 text-xs px-3 shadow-sm font-medium"
+            onClick={onJoin}
+            leadingIcon={<Headphones className="size-3.5" />}
+          >
+            Join huddle
           </Button>
         )}
       </div>
     </div>
   );
+
+  return dock ? createPortal(bar, dock) : bar;
 }
 
 /* --- message preview rows ------------------------------------------------- */
@@ -253,7 +305,12 @@ interface MessagePreviewProps {
  * A message rendered small, for the side panels that list messages rather than
  * host them: pins, saved items, search results.
  */
-function MessagePreview({ message, onJump, action, meta }: MessagePreviewProps) {
+function MessagePreview({
+  message,
+  onJump,
+  action,
+  meta,
+}: MessagePreviewProps) {
   return (
     <li className="group/preview gap-2.5 px-3 py-2.5 flex items-start border-b border-border last:border-0 hover:bg-muted/50">
       <UserAvatar
@@ -272,11 +329,11 @@ function MessagePreview({ message, onJump, action, meta }: MessagePreviewProps) 
           <span className="text-xs font-semibold truncate">
             {message.senderName}
           </span>
-          <span className="text-[10px] shrink-0 text-subtle">
+          <span className="shrink-0 text-[10px] text-subtle">
             {formatListTimestamp(message.timestamp)}
           </span>
         </span>
-        <span className="mt-0.5 block text-xs line-clamp-2 text-muted-foreground">
+        <span className="mt-0.5 text-xs line-clamp-2 block text-muted-foreground">
           {message.isRedacted ? 'This message was deleted.' : message.body}
         </span>
         {meta}
@@ -428,7 +485,7 @@ export function ThreadListPanel({
           <button
             type="button"
             onClick={() => onOpen?.(thread.root.id)}
-            className="gap-3 p-3 w-full text-left flex items-start transition-colors hover:bg-muted/50"
+            className="gap-3 p-3 flex w-full items-start text-left transition-colors hover:bg-muted/50"
           >
             <UserAvatar
               name={thread.root.senderName}
@@ -442,7 +499,7 @@ export function ThreadListPanel({
                 <span className="text-sm font-semibold truncate">
                   {thread.root.senderName}
                 </span>
-                <span className="text-[11px] shrink-0 text-subtle">
+                <span className="shrink-0 text-[11px] text-subtle">
                   {formatListTimestamp(thread.root.timestamp)}
                 </span>
                 {thread.hasUnread ? (
@@ -452,12 +509,12 @@ export function ThreadListPanel({
                 ) : null}
               </span>
 
-              <span className="mt-0.5 block text-sm line-clamp-2 text-muted-foreground">
+              <span className="mt-0.5 text-sm line-clamp-2 block text-muted-foreground">
                 {thread.root.body}
               </span>
 
               <span className="mt-1.5 gap-2 flex items-center">
-                <span className="flex items-center -space-x-1.5">
+                <span className="-space-x-1.5 flex items-center">
                   {thread.participants.slice(0, 3).map((participant) => (
                     <UserAvatar
                       key={participant.userId}
@@ -569,7 +626,7 @@ export function UnreadDivider({ label = 'New' }: { label?: string }) {
       aria-label={`${label} messages below`}
     >
       <span className="h-px flex-1 bg-destructive" aria-hidden />
-      <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full uppercase tracking-wide bg-destructive text-destructive-foreground">
+      <span className="px-1.5 py-0.5 font-semibold tracking-wide rounded-full bg-destructive text-[10px] text-destructive-foreground uppercase">
         {label}
       </span>
     </div>

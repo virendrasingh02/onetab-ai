@@ -5,6 +5,7 @@ import {
   EmptyState,
   ErrorBoundary,
   FocusModeWidget,
+  HuddleDock,
   LoadingState,
   ScrollArea,
   Sheet,
@@ -316,6 +317,10 @@ export function AppShell() {
             </>
           ) : null}
         </div>
+
+        {/* A running huddle opens full-width here, below all three boxes —
+            the conversation portals its bar into this row. Empty otherwise. */}
+        <HuddleDock />
 
         {/* Notification Enable Bar at the bottom outside of all boxes */}
         <NotificationEnableBar workspaceId={workspaceId} />

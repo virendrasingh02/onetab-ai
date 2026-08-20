@@ -529,19 +529,12 @@ export function ChatSurface({
           )}
 
           {/*
-            A bookmarks strip used to sit here, between the header and the
-            huddle bar. Channels show their bookmarks in a tab of their own —
-            this was the same links a second time, in a horizontal scroller,
-            costing a row of height on every conversation.
+            A bookmarks strip used to sit here, under the header. Channels show
+            their bookmarks in a tab of their own — this was the same links a
+            second time, in a horizontal scroller, costing a row of height on
+            every conversation. The huddle bar that sat under it is a floating
+            dock now, so the header is the header alone.
           */}
-          <HuddleBar
-            participants={huddleRoster}
-            isJoined={huddleJoined}
-            isMuted={huddleMuted}
-            onJoin={() => setHuddleJoined(true)}
-            onLeave={() => setHuddleJoined(false)}
-            onToggleMute={() => setHuddleMuted((muted) => !muted)}
-          />
         </>
       }
       sidePanelTitle={sidePanelTitle}
@@ -591,6 +584,21 @@ export function ChatSurface({
       }
     >
       <div className="min-h-0 relative flex flex-1 flex-col overflow-hidden">
+        {/*
+          The huddle bar opens full-width in the shell's dock below all three
+          columns — it portals into `HuddleDock`, so where it sits in this tree
+          does not place it. The state lives here because the huddle is this
+          conversation's; the button that starts one is in the header.
+        */}
+        <HuddleBar
+          participants={huddleRoster}
+          isJoined={huddleJoined}
+          isMuted={huddleMuted}
+          onJoin={() => setHuddleJoined(true)}
+          onLeave={() => setHuddleJoined(false)}
+          onToggleMute={() => setHuddleMuted((muted) => !muted)}
+        />
+
         {/* Threads live in the app's right rail — see the note by `inThreads`. */}
         {inThreads && threadsSlot
           ? createPortal(
