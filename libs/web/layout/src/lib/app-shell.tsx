@@ -68,8 +68,8 @@ export function AppShell() {
 
   /* The rail's open state is shared app-wide — see `right-panel-store`. */
   const rightPanelOpen = useRightPanelStore((s) => s.open);
+  const rightPanelView = useRightPanelStore((s) => s.view);
   const setRightPanelOpen = useRightPanelStore((s) => s.setOpen);
-  const toggleAssistantView = useRightPanelStore((s) => s.toggleView);
   /* Not `setOpen(false)`: a hosted panel's owner has to hear about the close. */
   const dismissRightPanel = useRightPanelStore((s) => s.dismiss);
 
@@ -123,11 +123,15 @@ export function AppShell() {
     () => dismissRightPanel(),
     [dismissRightPanel],
   );
-  /* "Ask AI" opens the rail *on the assistant*, whatever it was last showing. */
-  const toggleAssistant = useCallback(
-    () => toggleAssistantView('assistant'),
-    [toggleAssistantView],
-  );
+  /* "Ask AI" opens/switches the rail on the assistant, or closes it if already showing assistant. */
+  const toggleAssistant = useCallback(() => {
+    const { open, view } = useRightPanelStore.getState();
+    if (open && view === 'assistant') {
+      dismissRightPanel();
+    } else {
+      useRightPanelStore.getState().setView('assistant');
+    }
+  }, [dismissRightPanel]);
 
   /*
    * The native menu bar, the tray menu and the global shortcut all reach the UI
@@ -219,7 +223,7 @@ export function AppShell() {
           currentWorkspace={workspace}
           onOpenSearch={() => palette.setOpen(true)}
           onToggleRightPanel={toggleAssistant}
-          rightPanelOpen={rightPanelOpen}
+          rightPanelOpen={rightPanelOpen && rightPanelView === 'assistant'}
           onToggleSidebar={toggleSidebar}
           sidebarOpen={sidebarOpen}
           unreadNotifications={unread.count}

@@ -288,6 +288,7 @@ export function ChatSurface({
       role?: string;
       powerLevel?: number;
     }) => {
+      setPanel('none');
       openProfilePanel({
         userId: user.userId,
         name: user.name,
@@ -391,7 +392,13 @@ export function ChatSurface({
           : `Pinned${pinnedMessages.length ? ` — ${pinnedMessages.length}` : ''}`;
 
   const toggle = (next: SidePanel) =>
-    setPanel((current) => (current === next ? 'none' : next));
+    setPanel((current) => {
+      const isOpening = current !== next;
+      if (isOpening) {
+        useRightPanelStore.getState().dismiss();
+      }
+      return isOpening ? next : 'none';
+    });
 
   /*
    * Threads are the one conversation panel that reads as its own place rather
@@ -547,34 +554,7 @@ export function ChatSurface({
       sidePanelTitle={sidePanelTitle}
       onCloseSidePanel={() => setPanel('none')}
       sidePanel={
-        panel === 'user-profile' && selectedUser ? (
-          <UserProfileRightPanel
-            userId={selectedUser.userId}
-            name={selectedUser.name}
-            avatarUrl={selectedUser.avatarUrl}
-            role={selectedUser.role}
-            powerLevel={selectedUser.powerLevel}
-          />
-        ) : panel === 'members' ? (
-          <MemberList
-            members={members}
-            presenceOf={presenceOf}
-            onSelect={(m) =>
-              handleOpenUserProfile({
-                userId: m.userId,
-                name: m.displayName,
-                avatarUrl: m.avatarUrl,
-                powerLevel: m.powerLevel,
-                role:
-                  m.powerLevel >= 100
-                    ? 'Admin'
-                    : m.powerLevel >= 50
-                      ? 'Moderator'
-                      : 'Member',
-              })
-            }
-          />
-        ) : panel === 'search' ? (
+        panel === 'search' ? (
           <ConversationSearch
             query={searchQuery}
             onQueryChange={setSearchQuery}

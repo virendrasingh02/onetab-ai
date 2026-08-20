@@ -16,6 +16,7 @@ export interface PublicUser {
   name: string;
   displayName: string | null;
   avatarUrl: string | null;
+  title?: string | null;
   presence: PresenceStatus;
   statusText?: string | null;
   statusEmoji?: string | null;

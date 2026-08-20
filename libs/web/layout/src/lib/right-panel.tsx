@@ -127,13 +127,20 @@ export function RightPanel({
           userId={person?.userId ?? currentUser.id}
           name={person?.name ?? currentUser.displayName ?? currentUser.name}
           avatarUrl={person?.avatarUrl ?? currentUser.avatarUrl ?? undefined}
+          title={person?.title ?? currentUser.title ?? undefined}
           role={person?.role}
           powerLevel={person?.powerLevel}
           email={person?.email ?? currentUser.email}
           joinedAt={person?.joinedAt ?? currentUser.createdAt}
           bio={person?.bio ?? currentUser.bio ?? undefined}
-          status={person?.status}
+          timezone={person?.timezone ?? currentUser.timezone}
+          status={person?.status ?? 'online'}
+          statusEmoji={person?.statusEmoji ?? currentUser.statusEmoji}
+          statusText={person?.statusText ?? currentUser.statusText}
           onSendDirectMessage={openDirectMessage}
+          onStartCall={(targetUserId) => {
+            navigate(`/w/${workspaceSlug}/dms?user=${targetUserId}&call=true`);
+          }}
         />
       </PanelFrame>
     );

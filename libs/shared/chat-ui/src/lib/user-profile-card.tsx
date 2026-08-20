@@ -17,7 +17,17 @@ import {
   getSystemTimezone,
   getWorkingHoursStatus,
 } from '@org/utils';
-import { Calendar, Mail, MessageSquare, Shield, Sparkles, Zap } from 'lucide-react';
+import {
+  Calendar,
+  Clock,
+  Headphones,
+  Mail,
+  MessageSquare,
+  Phone,
+  Shield,
+  Sparkles,
+  Zap,
+} from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getUserColor } from './indicators.js';
 
@@ -39,6 +49,7 @@ export interface UserProfileCardProps {
   userId: string;
   name: string;
   avatarUrl?: string;
+  title?: string;
   role?: string;
   powerLevel?: number;
   email?: string;
@@ -51,12 +62,14 @@ export interface UserProfileCardProps {
   statusExpiresAt?: string | null;
   children: ReactNode;
   onSendDirectMessage?: (userId: string) => void;
+  onStartCall?: (userId: string) => void;
 }
 
 export function UserProfileCard({
   userId,
   name,
   avatarUrl,
+  title,
   role = 'Member',
   powerLevel = 0,
   email,
@@ -68,6 +81,7 @@ export function UserProfileCard({
   statusText,
   children,
   onSendDirectMessage,
+  onStartCall,
 }: UserProfileCardProps) {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const openProfilePanel = useRightPanelStore((s) => s.openProfile);
@@ -105,6 +119,7 @@ export function UserProfileCard({
       userId,
       name,
       avatarUrl,
+      title,
       role,
       powerLevel,
       email,
@@ -308,24 +323,34 @@ export function UserProfileRightPanel({
   userId,
   name,
   avatarUrl,
+  title,
   role = 'Member',
   powerLevel = 0,
   email,
   joinedAt,
   bio = 'Software Engineer & Team Collaborator on OneTab AI.',
+  timezone,
   status = 'online',
+  statusEmoji,
+  statusText,
   onSendDirectMessage,
+  onStartCall,
 }: {
   userId: string;
   name: string;
   avatarUrl?: string;
+  title?: string;
   role?: string;
   powerLevel?: number;
   email?: string;
   joinedAt?: string | number;
   bio?: string;
+  timezone?: string;
   status?: 'online' | 'unavailable' | 'offline';
+  statusEmoji?: string | null;
+  statusText?: string | null;
   onSendDirectMessage?: (userId: string) => void;
+  onStartCall?: (userId: string) => void;
 }) {
   const userColor = getUserColor(userId);
   const handle = `@${userId.replace(/^@/, '').split(':')[0]}`;
@@ -337,7 +362,7 @@ export function UserProfileRightPanel({
         style={{
           background: `linear-gradient(135deg, ${userColor} 0%, var(--surface-inset) 100%)`,
         }}
-        className="h-28 w-full relative p-4 flex items-start justify-between"
+        className="h-24 w-full relative p-4 flex items-start justify-between"
       >
         <span className="rounded-full bg-black/40 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur-xs flex items-center gap-1">
           <Sparkles className="size-3 text-warning-text" />
@@ -347,7 +372,7 @@ export function UserProfileRightPanel({
 
       {/* Profile Details Content Body */}
       <ScrollArea className="relative min-h-0 flex-1" contentClassName="space-y-4 p-4">
-        {/* Avatar & Action */}
+        {/* Avatar & Presence */}
         <div className="-mt-12 flex items-end justify-between">
           <div className="relative">
             <UserAvatar
@@ -368,19 +393,38 @@ export function UserProfileRightPanel({
               )}
             />
           </div>
+        </div>
 
+        {/* Action Buttons: Message & Call/Huddle */}
+        <div className="flex items-center gap-2 pt-1">
           <Button
             size="sm"
             onClick={() => onSendDirectMessage?.(userId)}
-            className="bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-bold rounded-xl px-3.5 py-1.5 shadow-md"
+            className="flex-1 bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-bold rounded-xl px-3 py-2 shadow-md gap-1.5"
           >
-            <MessageSquare className="mr-1.5 size-3.5" />
-            Direct Message
+            <MessageSquare className="size-3.5" />
+            <span>Message</span>
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (onStartCall) {
+                onStartCall(userId);
+              } else {
+                onSendDirectMessage?.(userId);
+              }
+            }}
+            className="flex-1 text-xs font-semibold rounded-xl px-3 py-2 shadow-xs border-border bg-surface hover:bg-accent gap-1.5"
+          >
+            <Headphones className="size-3.5" />
+            <span>Huddle / Call</span>
           </Button>
         </div>
 
-        {/* Name & Handle */}
-        <div className="space-y-0.5">
+        {/* Name, Title, Handle & Status */}
+        <div className="space-y-1">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-extrabold text-foreground tracking-tight">
               {name}
@@ -391,10 +435,84 @@ export function UserProfileRightPanel({
               </Badge>
             ) : null}
           </div>
-          <p className="text-xs font-mono text-muted-foreground">{handle}</p>
+
+          {title ? (
+            <p className="text-xs font-semibold text-primary-text">{title}</p>
+          ) : null}
+
+          <div className="flex items-center gap-2 text-xs">
+            <span className="font-mono text-muted-foreground">{handle}</span>
+            <span className="text-border">·</span>
+            <div className="flex items-center gap-1.5">
+              <span
+                className={cn(
+                  'size-2 rounded-full shrink-0',
+                  status === 'online'
+                    ? 'bg-success'
+                    : status === 'unavailable'
+                      ? 'bg-warning'
+                      : 'bg-muted-foreground',
+                )}
+              />
+              <span className="text-muted-foreground capitalize font-medium">
+                {status === 'unavailable' ? 'Away' : status}
+              </span>
+            </div>
+          </div>
         </div>
 
+        {/* Custom Status Banner */}
+        {(statusText || statusEmoji) && (
+          <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-foreground">
+            <span className="text-base shrink-0">{statusEmoji || '💬'}</span>
+            <span className="truncate font-medium">{statusText || 'Status set'}</span>
+          </div>
+        )}
+
         <hr className="border-border" />
+
+        {/* Local Time & Region */}
+        {(() => {
+          const userTimezone = timezone || 'UTC';
+          const reg = getRegionForTimezone(userTimezone);
+          const viewerZone = getSystemTimezone();
+          const diff = formatZoneDifference(userTimezone, viewerZone);
+          const workStatus = getWorkingHoursStatus(userTimezone);
+
+          return (
+            <div className="rounded-xl border border-border bg-surface-inset/50 p-3 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <Clock className="size-3 text-primary-text" />
+                  <span>Local Time</span>
+                </div>
+                <div className="text-[10px] flex items-center gap-1 text-muted-foreground font-medium">
+                  <span>{workStatus.icon}</span>
+                  <span>{workStatus.status === 'working' ? 'Working hours' : 'Off-hours'}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-0.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-base leading-none">{reg.flag}</span>
+                  <div className="min-w-0">
+                    <div className="font-semibold text-xs text-foreground truncate">
+                      {describeTimezone(userTimezone)}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {diff === 'same time as you' ? 'Same time as you' : diff}
+                    </div>
+                  </div>
+                </div>
+
+                <LocalTime
+                  timezone={userTimezone}
+                  className="font-mono font-bold text-foreground text-sm"
+                />
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Bio & Details */}
         <div className="space-y-3 text-xs">

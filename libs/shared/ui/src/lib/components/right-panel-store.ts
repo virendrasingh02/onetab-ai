@@ -52,6 +52,7 @@ export interface RightPanelProfile {
   userId: string;
   name: string;
   avatarUrl?: string;
+  title?: string;
   role?: string;
   powerLevel?: number;
   email?: string;
@@ -148,15 +149,14 @@ export const useRightPanelStore = create<RightPanelState>()(
         })),
 
       closeHosted: (view) =>
-        set((state) => ({
-          hosted: { ...state.hosted, [view]: null },
-          /*
-           * Falling back rather than closing: the rail was open before the page
-           * put anything in it, and yanking it shut on navigation is more
-           * disruptive than showing the assistant again.
-           */
-          view: state.view === view ? 'assistant' : state.view,
-        })),
+        set((state) => {
+          const wasOpenOnThisView = state.open && state.view === view;
+          return {
+            hosted: { ...state.hosted, [view]: null },
+            open: wasOpenOnThisView ? false : state.open,
+            view: state.view === view ? 'assistant' : state.view,
+          };
+        }),
     }),
     {
       name: 'onetab_right_panel_v1',

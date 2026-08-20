@@ -88,7 +88,21 @@ export function AppHeader({
   const openStatusModal = useFocusStore((s) => s.openStatusModal);
   const openWorldClock = useWorldClockStore((s) => s.openWorldClock);
   const openProfilePanel = useRightPanelStore((s) => s.openProfile);
+  const isRightPanelOpen = useRightPanelStore((s) => s.open);
+  const rightPanelView = useRightPanelStore((s) => s.view);
+  const dismissRightPanel = useRightPanelStore((s) => s.dismiss);
+  const setRightPanelView = useRightPanelStore((s) => s.setView);
   const [isSelfAway, setIsSelfAway] = useState(false);
+
+  const isAssistantActive = isRightPanelOpen && rightPanelView === 'assistant';
+
+  const handleToggleAssistant = () => {
+    if (isAssistantActive) {
+      dismissRightPanel();
+    } else {
+      setRightPanelView('assistant');
+    }
+  };
 
   const formatFocusTime = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -241,14 +255,14 @@ export function AppHeader({
 
         {/* Ask AI Assistant Button placed near the Profile Icon */}
         <Hint
-          label={rightPanelOpen ? 'Close AI Assistant' : 'Ask AI Assistant'}
+          label={isAssistantActive ? 'Close AI Assistant' : 'Ask AI Assistant'}
         >
           <Button
-            variant={rightPanelOpen ? 'primary' : 'outline'}
+            variant={isAssistantActive ? 'primary' : 'outline'}
             size="sm"
-            onClick={onToggleRightPanel}
-            aria-pressed={rightPanelOpen}
-            aria-label={rightPanelOpen ? 'Close AI assistant' : 'Ask AI'}
+            onClick={handleToggleAssistant}
+            aria-pressed={isAssistantActive}
+            aria-label={isAssistantActive ? 'Close AI assistant' : 'Ask AI'}
             className="gap-1 px-2 text-xs font-medium sm:gap-1.5 sm:px-3 h-7 cursor-pointer"
           >
             <Sparkles className="size-3.5" />
