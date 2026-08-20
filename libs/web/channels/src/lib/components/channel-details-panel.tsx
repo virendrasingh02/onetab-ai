@@ -64,6 +64,8 @@ export interface ChannelDetailsPanelProps {
   onClose: () => void;
   onEditDetails: () => void;
   onAddPeople: () => void;
+  onAddAgent?: () => void;
+  onOpenWorkflows?: () => void;
   onStartHuddle: () => void;
 }
 
@@ -86,6 +88,8 @@ export function ChannelDetailsPanel({
   onClose,
   onEditDetails,
   onAddPeople,
+  onAddAgent,
+  onOpenWorkflows,
   onStartHuddle,
 }: ChannelDetailsPanelProps) {
   const members = useChannelMembers(workspaceId, channel.id);
@@ -218,27 +222,121 @@ export function ChannelDetailsPanel({
             />
           </TabsContent>
 
-          <TabsContent value="apps" className="min-h-0 flex flex-1 flex-col">
-            <LinkOutTab
-              icon={Blocks}
-              title="No agents or apps here yet"
-              description="Agents and connected apps are set up for the whole workspace, then brought into a channel."
-              actionLabel="Browse agents & apps"
-              to={`/w/${workspaceSlug}/agents`}
-            />
+          <TabsContent
+            value="apps"
+            className="min-h-0 flex flex-1 flex-col p-4 space-y-4 overflow-y-auto"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-foreground">
+                Channel AI Agents &amp; Apps
+              </span>
+              {onAddAgent ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onAddAgent}
+                  className="h-7 text-xs gap-1.5"
+                >
+                  <Plus className="size-3.5" />
+                  <span>Add AI Agent</span>
+                </Button>
+              ) : null}
+            </div>
+
+            <div className="space-y-2">
+              <div className="p-3 rounded-xl border border-border bg-surface flex items-start gap-2.5">
+                <UserAvatar name="OneTab Copilot" seed="copilot" size="sm" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-foreground">
+                      OneTab Copilot
+                    </span>
+                    <Badge variant="primary" className="text-[10px] py-0 h-4">
+                      Active
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    AI Assistant with full channel history &amp; thread memory.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-border">
+              <LinkOutTab
+                icon={Blocks}
+                title="Browse All Workspace Agents"
+                description="Explore pre-built integrations, custom agents, and bot webhooks."
+                actionLabel="Explore marketplace"
+                to={`/w/${workspaceSlug}/agents`}
+              />
+            </div>
           </TabsContent>
 
           <TabsContent
             value="automations"
-            className="min-h-0 flex flex-1 flex-col"
+            className="min-h-0 flex flex-1 flex-col p-4 space-y-4 overflow-y-auto"
           >
-            <LinkOutTab
-              icon={Workflow}
-              title="No automations here yet"
-              description="Workflows run across the workspace. Build one and point its trigger at this channel."
-              actionLabel="Open automations"
-              to={`/w/${workspaceSlug}/automations`}
-            />
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-foreground">
+                Channel Workflows
+              </span>
+              {onOpenWorkflows ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onOpenWorkflows}
+                  className="h-7 text-xs gap-1.5"
+                >
+                  <Workflow className="size-3.5" />
+                  <span>Manage Workflows</span>
+                </Button>
+              ) : null}
+            </div>
+
+            <div className="space-y-2">
+              <div className="p-3 rounded-xl border border-border bg-surface flex items-start justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-foreground">
+                      Welcome New Members
+                    </span>
+                    <Badge variant="primary" className="text-[10px] py-0 h-4">
+                      Enabled
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Sends welcome guides &amp; tips when anyone joins #{channel.name}.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl border border-border bg-surface flex items-start justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-foreground">
+                      Daily Standup Reminder
+                    </span>
+                    <Badge variant="primary" className="text-[10px] py-0 h-4">
+                      Enabled
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Collects daily status updates at 9:30 AM every weekday.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-border">
+              <LinkOutTab
+                icon={Workflow}
+                title="Workspace Automations"
+                description="Create cross-channel workflows, webhook triggers, and scheduled jobs."
+                actionLabel="Open Workflow Builder"
+                to={`/w/${workspaceSlug}/automations`}
+              />
+            </div>
           </TabsContent>
         </Tabs>
       )}

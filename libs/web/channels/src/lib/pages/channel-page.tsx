@@ -33,14 +33,19 @@ import {
   Bell,
   BellOff,
   Bookmark,
+  Bot,
   Check,
   ChevronRight,
   Copy,
+  Download,
   ExternalLink,
   FileText,
+  FolderOpen,
   Hash,
   Image as ImageIcon,
   Info,
+  LayoutTemplate,
+  Link2,
   Lock,
   Mail,
   MessageSquare,
@@ -49,9 +54,13 @@ import {
   Pin,
   Plus,
   Share2,
+  Sparkles,
   Star,
   Trash2,
+  Upload,
   Users,
+  Workflow,
+  Zap,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -59,7 +68,10 @@ import { useParams } from 'react-router-dom';
 import { useCurrentUser } from '@org/auth';
 import { ChannelDetailsPanel } from '../components/channel-details-panel.js';
 import {
+  AddAgentToChannelDialog,
   AddPeopleDialog,
+  ChannelTemplatesDialog,
+  ChannelWorkflowsDialog,
   EditChannelDetailsDialog,
 } from '../components/channel-setup-dialogs.js';
 import {
@@ -141,7 +153,7 @@ function ChannelHeader({
   }, [workspaceSlug, channel.slug]);
 
   return (
-    <div className="border-b border-border bg-background">
+    <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/95 backdrop-blur-md">
       <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
         <div className="min-w-0 gap-2 flex items-center">
           <div className="min-w-0 gap-1.5 flex items-center">
@@ -456,6 +468,13 @@ export function ChannelPage() {
   const [addBookmarkOpen, setAddBookmarkOpen] = useState(false);
   const [addPeopleOpen, setAddPeopleOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [addAgentOpen, setAddAgentOpen] = useState(false);
+  const [workflowsOpen, setWorkflowsOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [filesFilter, setFilesFilter] = useState<
+    'all' | 'files' | 'media' | 'links'
+  >('all');
+
   // Controlled so the welcome block's "Ask the AI copilot" card can switch to
   // that tab; the tabs are otherwise driven by the user.
   const [activeTab, setActiveTab] = useState('chat');
@@ -543,6 +562,8 @@ export function ChannelPage() {
     files.data?.filter((file) => file.mimeType.startsWith('image/')) ?? [];
   const documentFiles =
     files.data?.filter((file) => !file.mimeType.startsWith('image/')) ?? [];
+  const totalFilesLinksCount =
+    mediaFiles.length + documentFiles.length + bookmarks.length;
 
   return (
     <div className="min-h-0 flex flex-1 flex-col">
@@ -577,6 +598,8 @@ export function ChannelPage() {
               onClose={closeDetailsPanel}
               onEditDetails={() => setDetailsOpen(true)}
               onAddPeople={() => setAddPeopleOpen(true)}
+              onAddAgent={() => setAddAgentOpen(true)}
+              onOpenWorkflows={() => setWorkflowsOpen(true)}
               onStartHuddle={() => {
                 setActiveTab('chat');
                 setHuddleRequest((count) => count + 1);
@@ -585,14 +608,6 @@ export function ChannelPage() {
             detailsSlot,
           )
         : null}
-
-      {/*
-        The bookmarks strip that used to sit here is gone. It duplicated the
-        Bookmarks tab immediately below it — the same links, in a cramped
-        horizontal scroller, above a tab bar that already carries a count. The
-        tab is the folder view; this was a second copy of it eating a row of
-        vertical space on every channel.
-      */}
 
       <AddBookmarkDialog
         open={addBookmarkOpen}
@@ -616,15 +631,44 @@ export function ChannelPage() {
         channel={channel}
       />
 
+      <AddAgentToChannelDialog
+        open={addAgentOpen}
+        onOpenChange={setAddAgentOpen}
+        channel={channel}
+      />
+
+      <ChannelTemplatesDialog
+        open={templatesOpen}
+        onOpenChange={setTemplatesOpen}
+        channel={channel}
+      />
+
+      <ChannelWorkflowsDialog
+        open={workflowsOpen}
+        onOpenChange={setWorkflowsOpen}
+        channel={channel}
+      />
+
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
         className="min-h-0 flex flex-1 flex-col"
       >
-        <div className="px-3 sm:px-6 pt-2 scrollbar-none overflow-x-auto border-b border-border bg-background">
-          <TabsList>
+        <div className="px-3 sm:px-6 pt-2 flex items-center gap-1 border-b border-border bg-background">
+          <TabsList className="scrollbar-none overflow-x-auto">
             <TabsTrigger value="chat" className="gap-1.5">
               <MessageSquare className="size-4" /> Messages
+            </TabsTrigger>
+            <TabsTrigger value="files-media" className="gap-1.5">
+              <FolderOpen className="size-4" /> Files &amp; Media
+              {mediaFiles.length + documentFiles.length > 0 ? (
+                <Badge
+                  variant="neutral"
+                  className="ml-0.5 px-1 py-0 text-[10px]"
+                >
+                  {mediaFiles.length + documentFiles.length}
+                </Badge>
+              ) : null}
             </TabsTrigger>
             <TabsTrigger value="bookmarks" className="gap-1.5">
               <Bookmark className="size-4" /> Bookmarks
@@ -637,16 +681,98 @@ export function ChannelPage() {
                 </Badge>
               ) : null}
             </TabsTrigger>
-            <TabsTrigger value="files" className="gap-1.5">
-              <FileText className="size-4" /> Files
-            </TabsTrigger>
-            <TabsTrigger value="media" className="gap-1.5">
-              <ImageIcon className="size-4" /> Media
-            </TabsTrigger>
             <TabsTrigger value="pins" className="gap-1.5">
               <Pin className="size-4" /> Pins
+              {(pins.data?.length ?? 0) > 0 ? (
+                <Badge
+                  variant="neutral"
+                  className="ml-0.5 px-1 py-0 text-[10px]"
+                >
+                  {pins.data?.length}
+                </Badge>
+              ) : null}
             </TabsTrigger>
           </TabsList>
+
+          {/* 3-dots Workflow, Templates, and AI Agents dropdown menu placed immediately after the tabs */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="size-7 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+                aria-label="Channel actions, workflows, templates, and AI agents"
+              >
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-60 p-1.5 space-y-0.5">
+              <DropdownMenuItem
+                onClick={() => setAddAgentOpen(true)}
+                className="gap-2.5 text-xs font-medium cursor-pointer"
+              >
+                <Bot className="size-4 text-primary shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-foreground">Add AI Agent</span>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    Add assistant / reviewer bot
+                  </p>
+                </div>
+              </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() => setWorkflowsOpen(true)}
+                  className="gap-2.5 text-xs font-medium cursor-pointer"
+                >
+                  <Workflow className="size-4 text-accent-violet shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-foreground">Workflows</span>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      Triggers, standups &amp; alerts
+                    </p>
+                  </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() => setTemplatesOpen(true)}
+                  className="gap-2.5 text-xs font-medium cursor-pointer"
+                >
+                  <LayoutTemplate className="size-4 text-accent-amber shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-foreground">Channel Templates</span>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      Sprint, incident &amp; launch packs
+                    </p>
+                  </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem
+                  onClick={() => setAddBookmarkOpen(true)}
+                  className="gap-2.5 text-xs cursor-pointer"
+                >
+                  <Bookmark className="size-4 text-muted-foreground shrink-0" />
+                  <span>Add Bookmark / Link</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() => setAddPeopleOpen(true)}
+                  className="gap-2.5 text-xs cursor-pointer"
+                >
+                  <Users className="size-4 text-muted-foreground shrink-0" />
+                  <span>Add People to Channel</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() => setDetailsOpen(true)}
+                  className="gap-2.5 text-xs cursor-pointer"
+                >
+                  <Pencil className="size-4 text-muted-foreground shrink-0" />
+                  <span>Edit Channel Details</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <TabsContent
@@ -674,24 +800,178 @@ export function ChannelPage() {
           />
         </TabsContent>
 
+        {/* Files & Media Tab */}
+        <TabsContent
+          value="files-media"
+          className="min-h-0 flex flex-1 flex-col"
+        >
+          <ScrollArea
+            className="min-h-0 flex-1"
+            contentClassName="px-4 sm:px-6 py-4 space-y-6"
+          >
+            {/* Top Toolbar: Filter pills & Actions */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Button
+                  size="sm"
+                  variant={filesFilter === 'all' ? 'primary' : 'outline'}
+                  onClick={() => setFilesFilter('all')}
+                  className="h-7 text-xs px-2.5"
+                >
+                  All ({mediaFiles.length + documentFiles.length})
+                </Button>
+                <Button
+                  size="sm"
+                  variant={filesFilter === 'files' ? 'primary' : 'outline'}
+                  onClick={() => setFilesFilter('files')}
+                  className="h-7 text-xs px-2.5 gap-1.5"
+                >
+                  <FileText className="size-3.5" />
+                  <span>Documents ({documentFiles.length})</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant={filesFilter === 'media' ? 'primary' : 'outline'}
+                  onClick={() => setFilesFilter('media')}
+                  className="h-7 text-xs px-2.5 gap-1.5"
+                >
+                  <ImageIcon className="size-3.5" />
+                  <span>Media ({mediaFiles.length})</span>
+                </Button>
+              </div>
+
+              <Button
+                size="sm"
+                className="h-7 text-xs gap-1.5"
+                onClick={() => {
+                  toast.info('Select a file from your device to upload');
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.onchange = () => toast.success('File uploaded to channel');
+                  input.click();
+                }}
+              >
+                <Upload className="size-3.5" />
+                <span>Upload File</span>
+              </Button>
+            </div>
+
+            {mediaFiles.length + documentFiles.length === 0 ? (
+              <EmptyState
+                icon={<FolderOpen />}
+                title="No files or media yet"
+                description="Share documents, design assets, and screenshots in this channel."
+                action={
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.onchange = () => toast.success('File uploaded');
+                      input.click();
+                    }}
+                  >
+                    Upload file
+                  </Button>
+                }
+              />
+            ) : null}
+
+            {/* Media & Images Section */}
+            {(filesFilter === 'all' || filesFilter === 'media') &&
+            mediaFiles.length > 0 ? (
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <ImageIcon className="size-3.5 text-accent-amber" />
+                  <span>Media &amp; Images ({mediaFiles.length})</span>
+                </h4>
+
+                <div className="gap-3 sm:grid-cols-4 grid grid-cols-2">
+                  {mediaFiles.map((file) => (
+                    <figure
+                      key={file.id}
+                      className="aspect-square overflow-hidden rounded-lg bg-muted border border-border group relative"
+                    >
+                      <img
+                        src={fileSrc(file.storageKey)}
+                        alt={file.filename}
+                        className="size-full object-cover transition-transform group-hover:scale-105"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2 text-white">
+                        <span className="text-[11px] truncate font-medium">
+                          {file.filename}
+                        </span>
+                      </div>
+                    </figure>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Documents & Files Section */}
+            {(filesFilter === 'all' || filesFilter === 'files') &&
+            documentFiles.length > 0 ? (
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <FileText className="size-3.5 text-accent-violet" />
+                  <span>Documents &amp; Files ({documentFiles.length})</span>
+                </h4>
+
+                <ul className="divide-y divide-border rounded-xl border border-border bg-surface overflow-hidden">
+                  {documentFiles.map((file) => (
+                    <li
+                      key={file.id}
+                      className="gap-3 px-4 py-3 flex items-center hover:bg-surface-raised transition-colors"
+                    >
+                      <FileText className="size-5 text-muted-foreground shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate text-foreground">
+                          {file.filename}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatBytes(file.size)} · Uploaded by{' '}
+                          {file.uploader.displayName ?? file.uploader.name}
+                        </p>
+                      </div>
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        onClick={() => {
+                          window.open(fileSrc(file.storageKey), '_blank');
+                        }}
+                        title="Download file"
+                      >
+                        <Download className="size-4" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </ScrollArea>
+        </TabsContent>
+
+        {/* Dedicated Bookmarks Tab (placed before Pins) */}
         <TabsContent value="bookmarks" className="min-h-0 flex flex-1 flex-col">
           <ScrollArea
             className="min-h-0 flex-1"
-            contentClassName="px-6 py-4 space-y-4"
+            contentClassName="px-4 sm:px-6 py-4 space-y-4"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between border-b border-border/60 pb-3">
               <div>
-                <h3 className="text-sm font-semibold text-foreground">
-                  Channel Bookmarks
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Bookmark className="size-4 text-primary" />
+                  <span>Channel Bookmarks</span>
                 </h3>
-                <p className="text-xs text-muted-foreground">
-                  Pinned links and resources for #{channel.name}
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Pinned links, documents, and resources for #{channel.name}
                 </p>
               </div>
               <Button
                 size="sm"
                 onClick={() => setAddBookmarkOpen(true)}
-                className="gap-1.5"
+                className="gap-1.5 text-xs h-7"
               >
                 <Plus className="size-3.5" />
                 <span>Add bookmark</span>
@@ -702,7 +982,7 @@ export function ChannelPage() {
               <EmptyState
                 icon={<Bookmark />}
                 title="No bookmarks yet"
-                description="Pin important links, spreadsheets, and docs to this channel."
+                description="Pin important links, spreadsheets, Figma designs, and docs to this channel."
                 action={
                   <Button
                     variant="outline"
@@ -714,7 +994,7 @@ export function ChannelPage() {
                 }
               />
             ) : (
-              <div className="gap-2.5 sm:grid-cols-2 lg:grid-cols-3 grid">
+              <div className="gap-3 sm:grid-cols-2 lg:grid-cols-3 grid">
                 {bookmarks.map((bm) => (
                   <div
                     key={bm.id}
@@ -759,65 +1039,6 @@ export function ChannelPage() {
                       </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
-        </TabsContent>
-
-        <TabsContent value="files" className="min-h-0 flex flex-1 flex-col">
-          <ScrollArea className="min-h-0 flex-1" contentClassName="px-6 py-4">
-            {files.isLoading ? (
-              <SkeletonList rows={4} />
-            ) : documentFiles.length === 0 ? (
-              <EmptyState
-                icon={<FileText />}
-                title="No files yet"
-                description="Files shared in this channel will appear here."
-              />
-            ) : (
-              <ul className="divide-y">
-                {documentFiles.map((file) => (
-                  <li key={file.id} className="gap-3 py-2.5 flex items-center">
-                    <FileText className="size-4 text-muted-foreground" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">
-                        {file.filename}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatBytes(file.size)} ·{' '}
-                        {file.uploader.displayName ?? file.uploader.name}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </ScrollArea>
-        </TabsContent>
-
-        <TabsContent value="media" className="min-h-0 flex flex-1 flex-col">
-          <ScrollArea className="min-h-0 flex-1" contentClassName="px-6 py-4">
-            {mediaFiles.length === 0 ? (
-              <EmptyState
-                icon={<ImageIcon />}
-                title="No media yet"
-                description="Images shared in this channel will appear here."
-              />
-            ) : (
-              <div className="gap-3 sm:grid-cols-4 grid grid-cols-2">
-                {mediaFiles.map((file) => (
-                  <figure
-                    key={file.id}
-                    className="aspect-square overflow-hidden rounded-lg bg-muted"
-                  >
-                    <img
-                      src={fileSrc(file.storageKey)}
-                      alt={file.filename}
-                      className="size-full object-cover"
-                      loading="lazy"
-                    />
-                  </figure>
                 ))}
               </div>
             )}
