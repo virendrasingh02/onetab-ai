@@ -1,4 +1,4 @@
-import type { ChannelSummary } from '@org/types';
+import type { ChannelMember, ChannelSummary } from '@org/types';
 import {
   Badge,
   Button,
@@ -19,6 +19,7 @@ import {
   TabsList,
   TabsTrigger,
   toast,
+  UserAvatar,
   useRightPanelStore,
 } from '@org/ui';
 import { cn, formatBytes } from '@org/utils';
@@ -50,6 +51,7 @@ import {
   Share2,
   Star,
   Trash2,
+  Users,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -86,16 +88,21 @@ function fileSrc(storageKey: string): string {
 
 function ChannelHeader({
   channel,
+  members = [],
   onAddBookmark,
   onOpenDetails,
+  onOpenMembers,
   onOpenPins,
   chatActionsRef,
   chatMenuRef,
 }: {
   channel: ChannelSummary;
+  members?: ChannelMember[];
   onAddBookmark?: () => void;
   /** Reveals the channel's details in the right rail. */
   onOpenDetails: () => void;
+  /** Reveals the channel's members tab in the right rail. */
+  onOpenMembers: () => void;
   /** Switches the page to its Pins tab. */
   onOpenPins: () => void;
   /**
@@ -368,12 +375,7 @@ function ChannelHeader({
           ) : null}
         </div>
 
-        {/*
-          Channel actions. The member avatar stack that used to sit here is gone
-          — it opened a dropdown listing the same people the right rail's
-          details panel now lists, with room to search them. Archive moved into
-          the menu beside the rest of the channel's administration.
-        */}
+        {/* Channel actions: Tools, Member Avatar Stack, Join */}
         <div className="gap-2 flex items-center">
           {/* Conversation tools portal in from the chat surface; empty on the
               non-chat tabs, where it collapses instead of leaving a gap. */}
@@ -381,6 +383,39 @@ function ChannelHeader({
             ref={chatActionsRef}
             className="gap-0.5 flex items-center empty:hidden"
           />
+
+          {/* Member Avatar Stack */}
+          {channel.membership ? (
+            <Hint label="View channel members">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onOpenMembers}
+                className="h-8 gap-1.5 px-2 text-xs font-normal text-muted-foreground hover:text-foreground"
+                aria-label={`View ${channel.memberCount || members.length} channel members`}
+              >
+                {members.length > 0 ? (
+                  <div className="-space-x-1.5 flex items-center">
+                    {members.slice(0, 3).map((m) => (
+                      <UserAvatar
+                        key={m.id}
+                        name={m.user.displayName ?? m.user.name}
+                        src={m.user.avatarUrl ?? undefined}
+                        seed={m.user.id}
+                        size="xs"
+                        className="size-5 ring-2 ring-background"
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <Users className="size-4" />
+                )}
+                <span className="text-xs font-medium tabular-nums text-foreground">
+                  {channel.memberCount || members.length}
+                </span>
+              </Button>
+            </Hint>
+          ) : null}
 
           {!channel.membership ? (
             <Button
@@ -453,6 +488,9 @@ export function ChannelPage() {
   /* Bumped to ask the conversation to start a huddle — see `ChatSurface`. */
   const [huddleRequest, setHuddleRequest] = useState(0);
   const [detailsPanelOpen, setDetailsPanelOpen] = useState(false);
+  const [detailsTab, setDetailsTab] = useState<
+    'about' | 'members' | 'apps' | 'automations'
+  >('about');
 
   const closeDetailsPanel = useCallback(() => setDetailsPanelOpen(false), []);
 
@@ -510,8 +548,16 @@ export function ChannelPage() {
     <div className="min-h-0 flex flex-1 flex-col">
       <ChannelHeader
         channel={channel}
+        members={members.data ?? []}
         onAddBookmark={() => setAddBookmarkOpen(true)}
-        onOpenDetails={() => setDetailsPanelOpen(true)}
+        onOpenDetails={() => {
+          setDetailsTab('about');
+          setDetailsPanelOpen(true);
+        }}
+        onOpenMembers={() => {
+          setDetailsTab('members');
+          setDetailsPanelOpen(true);
+        }}
         onOpenPins={() => setActiveTab('pins')}
         chatActionsRef={setChatActionsSlot}
         chatMenuRef={setChatMenuSlot}
@@ -527,6 +573,7 @@ export function ChannelPage() {
               workspaceSlug={workspaceSlug ?? ''}
               currentUserId={currentUser.id}
               createdByName={creatorName}
+              initialTab={detailsTab}
               onClose={closeDetailsPanel}
               onEditDetails={() => setDetailsOpen(true)}
               onAddPeople={() => setAddPeopleOpen(true)}

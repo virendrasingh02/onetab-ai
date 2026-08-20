@@ -43,7 +43,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   useArchiveChannel,
@@ -60,6 +60,7 @@ export interface ChannelDetailsPanelProps {
   currentUserId: string;
   /** Name of whoever created the channel, when they are still a member. */
   createdByName?: string;
+  initialTab?: 'about' | 'members' | 'apps' | 'automations';
   onClose: () => void;
   onEditDetails: () => void;
   onAddPeople: () => void;
@@ -81,6 +82,7 @@ export function ChannelDetailsPanel({
   workspaceSlug,
   currentUserId,
   createdByName,
+  initialTab = 'about',
   onClose,
   onEditDetails,
   onAddPeople,
@@ -96,6 +98,14 @@ export function ChannelDetailsPanel({
    * beside the close button instead, the way a settings affordance usually sits.
    */
   const [showSettings, setShowSettings] = useState(false);
+  const [activeTab, setActiveTab] = useState<
+    'about' | 'members' | 'apps' | 'automations'
+  >(initialTab);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+    setShowSettings(false);
+  }, [initialTab]);
 
   const ChannelIcon = channel.visibility === 'PRIVATE' ? Lock : Hash;
 
@@ -167,7 +177,15 @@ export function ChannelDetailsPanel({
           onEditDetails={onEditDetails}
         />
       ) : (
-        <Tabs defaultValue="about" className="min-h-0 flex flex-1 flex-col">
+        <Tabs
+          value={activeTab}
+          onValueChange={(val) =>
+            setActiveTab(
+              val as 'about' | 'members' | 'apps' | 'automations',
+            )
+          }
+          className="min-h-0 flex flex-1 flex-col"
+        >
           <div className="px-3 shrink-0 scrollbar-none overflow-x-auto border-b border-border">
             <TabsList>
               <TabsTrigger value="about">About</TabsTrigger>
