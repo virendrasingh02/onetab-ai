@@ -1,3 +1,4 @@
+import { workToolsApi } from '@org/api-client';
 import type { CalendarEvent } from '@org/types';
 import {
   accentClasses,
@@ -16,6 +17,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  toast,
   UserAvatar,
 } from '@org/ui';
 import { cn, formatDateTime } from '@org/utils';
@@ -24,6 +26,7 @@ import {
   CalendarClock,
   Check,
   ExternalLink,
+  FileText,
   Link2,
   MoreHorizontal,
   Plus,
@@ -33,7 +36,8 @@ import {
   TriangleAlert,
   Video,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   useCalendarEvents,
   useCalendarMutations,
@@ -260,7 +264,8 @@ function MeetingAppCard({
 
 /** Scheduled and live calls for the workspace, with connected meeting apps. */
 export function MeetingsView() {
-  const { workspaceId } = useCurrentWorkspace();
+  const navigate = useNavigate();
+  const { workspaceId, slug } = useCurrentWorkspace();
   const events = useCalendarEvents(
     workspaceId,
     new Date().toISOString(),
@@ -271,6 +276,35 @@ export function MeetingsView() {
   const { connect, disconnect } = useIntegrationMutations(workspaceId);
 
   const [activeTab, setActiveTab] = useState('all');
+
+  const handleCreateDocFromMeeting = useCallback(
+    async (event: CalendarEvent) => {
+      if (!workspaceId) return;
+      try {
+        const title = `Meeting Notes: ${event.title}`;
+        const meetingDate = formatDateTime(event.startAt);
+        const organizerName =
+          event.organizer.displayName ?? event.organizer.name;
+        const content = `# ${title}\n\n**Date & Time:** ${meetingDate}\n**Organizer:** ${organizerName}\n${
+          event.description ? `\n**Description:**\n${event.description}\n` : ''
+        }\n## 🎯 Agenda & Objectives\n- Item 1\n- Item 2\n\n## 📝 Discussion Notes\n- Key point discussed\n\n## ✅ Action Items\n- [ ] Action item 1\n- [ ] Action item 2\n`;
+        const created = await workToolsApi.createDocument(workspaceId, {
+          title,
+          content,
+          kind: 'NOTE',
+        });
+        toast.success('Meeting notes doc created', {
+          description: `"${title}" added to Documents.`,
+        });
+        if (slug) {
+          navigate(`/w/${slug}/docs?doc=${created.id}`);
+        }
+      } catch {
+        toast.error('Failed to create meeting notes doc');
+      }
+    },
+    [workspaceId, slug, navigate],
+  );
 
   const connectedProviders = useMemo(
     () =>
@@ -472,18 +506,25 @@ export function MeetingsView() {
                               <MoreHorizontal className="size-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuContent align="end" className="w-56">
                             <DropdownMenuItem
-                              disabled={!joinUrl}
-                              onSelect={() => {
-                                if (joinUrl) {
-                                  void navigator.clipboard.writeText(joinUrl);
-                                }
-                              }}
+                              onSelect={() =>
+                                void handleCreateDocFromMeeting(event)
+                              }
                             >
-                              <Link2 className="size-4" aria-hidden />
-                              Copy join link
+                              <FileText className="size-4 text-accent-blue" aria-hidden />
+                              Create meeting notes doc
                             </DropdownMenuItem>
+                            {joinUrl ? (
+                              <DropdownMenuItem
+                                onSelect={() => {
+                                  void navigator.clipboard.writeText(joinUrl);
+                                }}
+                              >
+                                <Link2 className="size-4" aria-hidden />
+                                Copy join link
+                              </DropdownMenuItem>
+                            ) : null}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               variant="destructive"

@@ -134,6 +134,9 @@ export interface ChatSurfaceProps {
   onAttach?: (files: FileList, threadRootId?: string) => void | Promise<void>;
   onTogglePin?: (eventId: string) => void;
   onToggleSave?: (eventId: string) => void;
+  onCreateTask?: (message: Message) => void;
+  onCreateDoc?: (message: Message) => void;
+  onAskAI?: (message: Message) => void;
   onSchedule?: (body: string, when: string) => void;
 }
 
@@ -170,6 +173,9 @@ export function ChatSurface({
   onAttach,
   onTogglePin,
   onToggleSave,
+  onCreateTask,
+  onCreateDoc,
+  onAskAI,
   onSchedule,
 }: ChatSurfaceProps) {
   const [panel, setPanel] = useState<SidePanel>('none');
@@ -336,6 +342,15 @@ export function ChatSurface({
           onToggleSave={
             onToggleSave ? () => onToggleSave(message.id) : undefined
           }
+          onCreateTask={
+            onCreateTask ? () => onCreateTask(message) : undefined
+          }
+          onCreateDoc={
+            onCreateDoc ? () => onCreateDoc(message) : undefined
+          }
+          onAskAI={
+            onAskAI ? () => onAskAI(message) : undefined
+          }
           onCopyText={() => void navigator.clipboard?.writeText(message.body)}
           onCopyLink={() =>
             void navigator.clipboard?.writeText(
@@ -366,6 +381,9 @@ export function ChatSurface({
       onDelete,
       onTogglePin,
       onToggleSave,
+      onCreateTask,
+      onCreateDoc,
+      onAskAI,
     ],
   );
 

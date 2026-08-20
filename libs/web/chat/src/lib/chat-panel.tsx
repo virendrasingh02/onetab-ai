@@ -1,5 +1,7 @@
+import { workToolsApi } from '@org/api-client';
 import { ConnectionBanner } from '@org/chat-ui';
-import { Button, EmptyState, LoadingState } from '@org/ui';
+import type { Message } from '@org/matrix-client';
+import { Button, EmptyState, LoadingState, toast, useRightPanelStore } from '@org/ui';
 import { MessageSquareOff } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { ChatSurface, type ChatSurfaceWelcome } from './chat-surface.js';
@@ -15,6 +17,7 @@ export interface ChatPanelProps {
   roomId: string | null;
   title: string;
   subtitle?: string;
+  workspaceId?: string;
   /** Host-rendered element to portal the header actions into. See `ChatSurface`. */
   headerActionsSlot?: HTMLElement | null;
   /**
@@ -28,6 +31,9 @@ export interface ChatPanelProps {
   welcome?: ChatSurfaceWelcome;
   /** Starts a huddle when it changes. See `ChatSurface`. */
   huddleRequest?: number;
+  onCreateTask?: (message: Message) => void;
+  onCreateDoc?: (message: Message) => void;
+  onAskAI?: (message: Message) => void;
 }
 
 /**
@@ -40,11 +46,15 @@ export function ChatPanel({
   roomId,
   title,
   subtitle,
+  workspaceId,
   headerActionsSlot,
   headerMenuSlot,
   showMembers = true,
   welcome,
   huddleRequest,
+  onCreateTask,
+  onCreateDoc,
+  onAskAI,
 }: ChatPanelProps) {
   const { client, status, enabled, error } = useMatrix();
   const room = useRoom(roomId ?? undefined);
@@ -91,6 +101,76 @@ export function ChatPanel({
       );
     },
     [room.messages, roomId, title, savedIds, setSaved],
+  );
+
+  const handleCreateTask = useCallback(
+    async (message: Message) => {
+      if (onCreateTask) {
+        onCreateTask(message);
+        return;
+      }
+      if (!workspaceId) {
+        toast.error('Workspace context required');
+        return;
+      }
+      try {
+        const snippet =
+          message.body.slice(0, 60).replace(/\n/g, ' ') || 'New Task';
+        await workToolsApi.createTask(workspaceId, {
+          title: snippet,
+          description: `Created from message in #${title} by ${message.senderName}:\n\n${message.body}`,
+          status: 'TODO',
+          priority: 'MEDIUM',
+        });
+        toast.success('Task created from message', {
+          description: `"${snippet}" added to Tasks.`,
+        });
+      } catch {
+        toast.error('Failed to create task from message');
+      }
+    },
+    [onCreateTask, workspaceId, title],
+  );
+
+  const handleCreateDoc = useCallback(
+    async (message: Message) => {
+      if (onCreateDoc) {
+        onCreateDoc(message);
+        return;
+      }
+      if (!workspaceId) {
+        toast.error('Workspace context required');
+        return;
+      }
+      try {
+        const docTitle = `Note from #${title} (${new Date().toLocaleDateString()})`;
+        await workToolsApi.createDocument(workspaceId, {
+          title: docTitle,
+          content: message.body,
+          kind: 'NOTE',
+        });
+        toast.success('Document created from message', {
+          description: `"${docTitle}" added to Documents.`,
+        });
+      } catch {
+        toast.error('Failed to create document from message');
+      }
+    },
+    [onCreateDoc, workspaceId, title],
+  );
+
+  const handleAskAI = useCallback(
+    (message: Message) => {
+      if (onAskAI) {
+        onAskAI(message);
+        return;
+      }
+      useRightPanelStore.getState().setView('assistant');
+      toast.info('AI Copilot ready', {
+        description: `Context: "${message.body.slice(0, 50)}..."`,
+      });
+    },
+    [onAskAI],
   );
 
   if (!enabled) {
@@ -154,6 +234,9 @@ export function ChatPanel({
       onAttach={actions.attach}
       onTogglePin={togglePin}
       onToggleSave={toggleSave}
+      onCreateTask={handleCreateTask}
+      onCreateDoc={handleCreateDoc}
+      onAskAI={handleAskAI}
     />
   );
 }

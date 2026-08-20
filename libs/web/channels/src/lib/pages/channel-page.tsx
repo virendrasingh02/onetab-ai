@@ -873,6 +873,7 @@ export function ChannelPage() {
         >
           <ChannelChat
             channelId={channel.id}
+            workspaceId={workspaceId}
             title={channel.name}
             subtitle={channel.topic ?? undefined}
             headerActionsSlot={chatActionsSlot}

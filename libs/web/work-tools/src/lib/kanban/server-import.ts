@@ -117,6 +117,7 @@ export interface ImportTasksInput {
   workspaceId: string;
   projectId: string;
   board: ImportedBoard;
+  members?: Array<{ id: string; name: string }>;
   onProgress?: (progress: ImportProgress) => void;
 }
 
@@ -124,13 +125,36 @@ function toCreateInput(
   card: ImportedCard,
   projectId: string,
   status: TaskStatus,
+  memberMap?: Map<string, string>,
 ): CreateTaskInput {
+  let description = card.description || '';
+  if (card.checklist && card.checklist.length > 0) {
+    const checklistText = card.checklist
+      .map((item) => `- [${item.done ? 'x' : ' '}] ${item.text}`)
+      .join('\n');
+    description = description
+      ? `${description}\n\n### Checklist\n${checklistText}`
+      : `### Checklist\n${checklistText}`;
+  }
+
+  let assigneeId: string | null = null;
+  if (memberMap && card.memberIds && card.memberIds.length > 0) {
+    for (const id of card.memberIds) {
+      const match = memberMap.get(id.toLowerCase());
+      if (match) {
+        assigneeId = match;
+        break;
+      }
+    }
+  }
+
   return {
     title: card.title.slice(0, 200),
-    description: card.description ? card.description.slice(0, 5000) : null,
+    description: description ? description.slice(0, 5000) : null,
     status,
     priority: card.priority,
     projectId,
+    assigneeId,
     dueDate: card.dueDate ? dayToIso(card.dueDate) : null,
   };
 }
@@ -147,6 +171,7 @@ export async function importTasksInto({
   workspaceId,
   projectId,
   board,
+  members = [],
   onProgress,
 }: ImportTasksInput): Promise<ImportProgress> {
   const progress: ImportProgress = {
@@ -155,6 +180,12 @@ export async function importTasksInto({
     failed: 0,
     warnings: describeLosses(board),
   };
+
+  const memberMap = new Map<string, string>();
+  for (const m of members) {
+    memberMap.set(m.name.toLowerCase(), m.id);
+    memberMap.set(m.id.toLowerCase(), m.id);
+  }
 
   onProgress?.({ ...progress });
 
@@ -166,7 +197,7 @@ export async function importTasksInto({
         try {
           await workToolsApi.createTask(
             workspaceId,
-            toCreateInput(card, projectId, status),
+            toCreateInput(card, projectId, status, memberMap),
           );
           progress.created += 1;
         } catch {

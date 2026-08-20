@@ -113,12 +113,13 @@ export class AgentsService {
 
     this.logger.log(`Executing AI Agent '${agent.name}' (${agent.id})`);
     const availableTools = this.mcpRegistry.getToolDefinitions();
+    const systemPrompt = `${agent.systemPrompt}\n\nWorkspace ID: ${workspaceId}\n\nYou have access to the following workspace tools:\n${availableTools.map((t) => `- ${t.name}: ${t.description}`).join('\n')}`;
 
     const chatResult = await this.aiService.chat({
-      provider: agent.provider as any,
-      model: agent.model,
+      provider: (agent.provider as any) || 'ollama',
+      model: agent.model || 'llama3',
       messages: [
-        { role: 'system', content: agent.systemPrompt },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: promptText },
       ],
     });

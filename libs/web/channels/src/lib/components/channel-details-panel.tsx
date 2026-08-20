@@ -31,6 +31,7 @@ import {
   Bot,
   ChevronDown,
   Copy,
+  Download,
   Hash,
   Headphones,
   Info,
@@ -922,6 +923,37 @@ function SettingsTab({
         onClick={() => {
           void navigator.clipboard?.writeText(window.location.href);
           toast.success('Link copied');
+        }}
+      />
+
+      <SettingRow
+        icon={Download}
+        label="Export channel history"
+        description="Download channel metadata and details as JSON"
+        onClick={() => {
+          const exportData = {
+            id: channel.id,
+            name: channel.name,
+            slug: channel.slug,
+            topic: channel.topic,
+            description: channel.description,
+            visibility: channel.visibility,
+            isArchived: channel.isArchived,
+            createdAt: channel.createdAt,
+            exportedAt: new Date().toISOString(),
+          };
+          const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+            type: 'application/json',
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `channel-${channel.slug}-export.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+          toast.success('Channel exported', {
+            description: `channel-${channel.slug}-export.json downloaded.`,
+          });
         }}
       />
 

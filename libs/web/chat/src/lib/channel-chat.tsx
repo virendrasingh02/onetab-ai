@@ -8,6 +8,7 @@ export interface ChannelChatProps {
   channelId: string;
   title: string;
   subtitle?: string;
+  workspaceId?: string;
   /**
    * Element in the host page's channel header to render the conversation's
    * actions into. Passing it also drops the surface's own header, so the
@@ -55,6 +56,7 @@ export function ChannelChat({
   channelId,
   title,
   subtitle,
+  workspaceId,
   headerActionsSlot,
   headerMenuSlot,
   showMembers,
@@ -66,7 +68,14 @@ export function ChannelChat({
 
   // `ChatPanel` renders the "chat is not configured" state itself.
   if (!enabled) {
-    return <ChatPanel roomId={null} title={title} subtitle={subtitle} />;
+    return (
+      <ChatPanel
+        roomId={null}
+        title={title}
+        subtitle={subtitle}
+        workspaceId={workspaceId}
+      />
+    );
   }
 
   if (error) {
@@ -87,6 +96,7 @@ export function ChannelChat({
       roomId={roomId}
       title={title}
       subtitle={subtitle}
+      workspaceId={workspaceId}
       headerActionsSlot={headerActionsSlot}
       headerMenuSlot={headerMenuSlot}
       showMembers={showMembers}

@@ -167,7 +167,7 @@ export class SearchService {
           category,
           title: row.title,
           snippet: row.description ? snippet(row.description, query) : undefined,
-          href: `tasks`,
+          href: row.projectId ? `tasks?project=${row.projectId}` : `tasks`,
           metadata: { status: row.status, priority: row.priority },
         }));
       }
@@ -186,7 +186,7 @@ export class SearchService {
           category,
           title: row.name,
           snippet: row.description ?? undefined,
-          href: `projects`,
+          href: `tasks?project=${row.id}`,
           metadata: { status: row.status },
         }));
       }

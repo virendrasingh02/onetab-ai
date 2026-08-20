@@ -26,10 +26,12 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea,
+  toast,
   usePromptDialog,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useCurrentUser } from '@org/auth';
+import { workToolsApi } from '@org/api-client';
 import {
   Command,
   Filter,
@@ -44,7 +46,7 @@ import {
   Trash2,
   TriangleAlert,
 } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ProjectDashboardView } from './asana/ProjectDashboardView.js';
 import { ProjectListView } from './asana/ProjectListView.js';
@@ -91,6 +93,127 @@ const PROJECT_STATUSES: readonly ProjectStatus[] = [
   ProjectStatus.ON_HOLD,
   ProjectStatus.COMPLETED,
   ProjectStatus.ARCHIVED,
+];
+
+export type ProjectTemplate = 'blank' | 'sprint' | 'launch' | 'bug_tracker';
+
+export interface StarterTask {
+  title: string;
+  status: TaskStatus;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  description: string;
+}
+
+export const PROJECT_TEMPLATES: Array<{
+  id: ProjectTemplate;
+  name: string;
+  description: string;
+  icon: string;
+  tasks: StarterTask[];
+}> = [
+  {
+    id: 'blank',
+    name: 'Blank Board',
+    description: 'Clean agile workspace with custom statuses',
+    icon: 'Folder',
+    tasks: [],
+  },
+  {
+    id: 'sprint',
+    name: 'Agile Sprint',
+    description: 'Sprint planning, backlog grooming, active execution and retrospective',
+    icon: 'Zap',
+    tasks: [
+      {
+        title: 'Sprint Planning & Goal Alignment',
+        status: TaskStatus.DONE,
+        priority: 'HIGH',
+        description: 'Define key sprint deliverables and success metrics.',
+      },
+      {
+        title: 'Feature Development - Core MVP',
+        status: TaskStatus.IN_PROGRESS,
+        priority: 'URGENT',
+        description: 'Implement primary user stories, endpoints, and schema updates.',
+      },
+      {
+        title: 'Code Review & Automated Test Suite',
+        status: TaskStatus.TODO,
+        priority: 'HIGH',
+        description: 'Ensure unit and integration tests pass with full coverage.',
+      },
+      {
+        title: 'Staging Deployment & Verification',
+        status: TaskStatus.TODO,
+        priority: 'MEDIUM',
+        description: 'Deploy to staging cluster and perform smoke tests.',
+      },
+      {
+        title: 'Sprint Retrospective & Demo',
+        status: TaskStatus.BACKLOG,
+        priority: 'LOW',
+        description: 'Review team velocity, blockers, and future improvements.',
+      },
+    ],
+  },
+  {
+    id: 'launch',
+    name: 'Product Launch',
+    description: 'Go-to-market plan, product UI/UX specs, QA and release checklist',
+    icon: 'Rocket',
+    tasks: [
+      {
+        title: 'Finalize Value Proposition & Positioning',
+        status: TaskStatus.DONE,
+        priority: 'HIGH',
+        description: 'Align product positioning with target audience.',
+      },
+      {
+        title: 'Product UI/UX Polish & Flow Walkthrough',
+        status: TaskStatus.IN_PROGRESS,
+        priority: 'URGENT',
+        description: 'Verify all user interaction flows and responsive states.',
+      },
+      {
+        title: 'Documentation & Knowledge Base Guides',
+        status: TaskStatus.TODO,
+        priority: 'MEDIUM',
+        description: 'Publish updated documentation and onboarding articles.',
+      },
+      {
+        title: 'Marketing Campaign & Community Release',
+        status: TaskStatus.TODO,
+        priority: 'HIGH',
+        description: 'Schedule announcement broadcast and release pulse.',
+      },
+    ],
+  },
+  {
+    id: 'bug_tracker',
+    name: 'Bug & Incident Tracker',
+    description: 'Triage incoming defects, reproduction, hotfix, and verification',
+    icon: 'Bug',
+    tasks: [
+      {
+        title: 'Triage Incoming Bug Reports',
+        status: TaskStatus.TODO,
+        priority: 'URGENT',
+        description: 'Review error telemetry and isolate root causes.',
+      },
+      {
+        title: 'Reproduce Reported Edge Cases',
+        status: TaskStatus.TODO,
+        priority: 'HIGH',
+        description: 'Create minimal reproduction test cases.',
+      },
+      {
+        title: 'Implement Bug Fix & Add Regression Test',
+        status: TaskStatus.BACKLOG,
+        priority: 'HIGH',
+        description: 'Ensure bug is resolved without breaking existing features.',
+      },
+    ],
+  },
 ];
 
 const STATUS_LABELS: Record<ProjectStatus, string> = {
@@ -203,6 +326,15 @@ export function AsanaProjectManager() {
   const [isCommandMenuOpen, setIsCommandMenuOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
 
+  const handleQuickAddTask = useCallback(() => {
+    board.dispatch({
+      type: 'card/add',
+      listId: TaskStatus.TODO,
+      title: 'New Task',
+      edge: 'top',
+    });
+  }, [board]);
+
   // Global Linear Keyboard Shortcuts Listener
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -249,7 +381,7 @@ export function AsanaProjectManager() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [handleQuickAddTask]);
 
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
@@ -266,6 +398,7 @@ export function AsanaProjectManager() {
     status: ProjectStatus.ACTIVE as ProjectStatus,
     icon: null,
     iconColor: null,
+    template: 'blank',
   });
 
   const openNewProject = () => {
@@ -275,12 +408,9 @@ export function AsanaProjectManager() {
       description: '',
       color: DEFAULT_PROJECT_HEX,
       status: ProjectStatus.ACTIVE,
-      // A suggestion rather than a blank: an unpicked project still gets a
-      // glyph, and changing one is a click where choosing one from nothing is
-      // a decision. `Folder` is in `ICON_REGISTRY` — a name that is not falls
-      // through to being drawn as literal text.
       icon: 'Folder',
       iconColor: DEFAULT_PROJECT_HEX,
+      template: 'blank',
     });
     setIsNewProjectOpen(true);
   };
@@ -295,6 +425,7 @@ export function AsanaProjectManager() {
       status: activeProject.status,
       icon: activeProject.icon,
       iconColor: activeProject.iconColor,
+      template: 'blank',
     });
     setIsEditProjectOpen(true);
   };
@@ -313,6 +444,31 @@ export function AsanaProjectManager() {
         icon: draft.icon,
         iconColor: draft.iconColor,
       });
+
+      // Seed starter tasks if template selected
+      const selectedTpl = PROJECT_TEMPLATES.find((t) => t.id === draft.template);
+      if (selectedTpl && selectedTpl.tasks.length > 0 && workspaceId) {
+        try {
+          await Promise.all(
+            selectedTpl.tasks.map((task) =>
+              workToolsApi.createTask(workspaceId, {
+                projectId: created.id,
+                title: task.title,
+                description: task.description,
+                status: task.status,
+                priority: task.priority,
+              }),
+            ),
+          );
+          toast.success('Project created', {
+            description: `Seeded with ${selectedTpl.name} starter tasks.`,
+          });
+        } catch {
+          toast.success('Project created');
+        }
+      } else {
+        toast.success('Project created');
+      }
 
       setIsNewProjectOpen(false);
       openProject(created.id);
@@ -371,15 +527,6 @@ export function AsanaProjectManager() {
     });
   };
 
-  const handleQuickAddTask = () => {
-    board.dispatch({
-      type: 'card/add',
-      listId: TaskStatus.TODO,
-      title: 'New Task',
-      edge: 'top',
-    });
-  };
-
   /**
    * An import becomes real tasks on the target project — labels, checklists and
    * extra assignees are reported back as warnings rather than silently dropped.
@@ -403,6 +550,7 @@ export function AsanaProjectManager() {
       workspaceId,
       projectId,
       board: result.board,
+      members,
       onProgress: setImportProgress,
     });
 
@@ -821,6 +969,7 @@ interface ProjectDraft {
   status: ProjectStatus;
   icon: string | null;
   iconColor: string | null;
+  template?: ProjectTemplate;
 }
 
 interface ProjectDialogProps {
@@ -871,7 +1020,7 @@ function ProjectDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[460px]">
         <form onSubmit={onSubmit}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-bold">
@@ -936,6 +1085,39 @@ function ProjectDialog({
                 />
               </div>
             </div>
+
+            {!showStatus ? (
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold">Starter Template</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {PROJECT_TEMPLATES.map((tpl) => {
+                    const isSelected = (draft.template ?? 'blank') === tpl.id;
+                    return (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onClick={() =>
+                          setDraft((prev) => ({ ...prev, template: tpl.id }))
+                        }
+                        className={cn(
+                          'flex flex-col items-start p-2.5 rounded-lg border text-left transition-colors cursor-pointer',
+                          isSelected
+                            ? 'border-primary bg-primary/10 ring-1 ring-primary'
+                            : 'border-border bg-surface hover:bg-accent/60',
+                        )}
+                      >
+                        <span className="text-xs font-semibold text-foreground">
+                          {tpl.name}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">
+                          {tpl.description}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
 
             {!showStatus ? (
               <div className="flex flex-col gap-1.5">

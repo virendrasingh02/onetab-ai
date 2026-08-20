@@ -120,7 +120,9 @@ export function ViewDisplayMenu({
           </label>
           <select
             value={groupBy}
-            onChange={(e) => setGroupBy(e.target.value as any)}
+            onChange={(e) =>
+              setGroupBy(e.target.value as 'status' | 'priority' | 'assignee')
+            }
             className="w-full h-7 rounded-lg border border-border bg-surface text-xs text-foreground px-2 outline-none"
           >
             <option value="status">Status</option>
@@ -135,7 +137,11 @@ export function ViewDisplayMenu({
           </label>
           <select
             value={orderBy}
-            onChange={(e) => setOrderBy(e.target.value as any)}
+            onChange={(e) =>
+              setOrderBy(
+                e.target.value as 'manual' | 'priority' | 'due' | 'created',
+              )
+            }
             className="w-full h-7 rounded-lg border border-border bg-surface text-xs text-foreground px-2 outline-none"
           >
             <option value="manual">Manual</option>

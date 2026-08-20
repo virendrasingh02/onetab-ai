@@ -21,8 +21,10 @@ import {
   Bookmark,
   Bot,
   Calendar as CalendarIcon,
+  CheckSquare,
   ChevronDown,
   Copy,
+  FileText,
   Forward,
   Link2,
   Lock,
@@ -66,6 +68,9 @@ export interface ChatBubbleProps {
   onCopyLink?: () => void;
   onCopyText?: () => void;
   onForward?: () => void;
+  onCreateTask?: () => void;
+  onCreateDoc?: () => void;
+  onAskAI?: () => void;
   threadParticipants?: RoomMember[];
   lastReplyAt?: number;
   isHighlighted?: boolean;
@@ -119,6 +124,9 @@ export function ChatBubble({
   onCopyLink,
   onCopyText,
   onForward,
+  onCreateTask,
+  onCreateDoc,
+  onAskAI,
   threadParticipants,
   lastReplyAt,
   isHighlighted = false,
@@ -468,9 +476,30 @@ export function ChatBubble({
               </DropdownMenuItem>
             ) : null}
             {onTogglePin ? (
-              <DropdownMenuItem onSelect={() => onTogglePin()} className="hover:bg-accent">
+              <DropdownMenuItem onSelect={() => onTogglePin()} className="hover:bg-accent cursor-pointer">
                 {isPinned ? <PinOff className="mr-2 size-4" /> : <Pin className="mr-2 size-4" />}
                 {isPinned ? 'Unpin from channel' : 'Pin to channel'}
+              </DropdownMenuItem>
+            ) : null}
+
+            <DropdownMenuSeparator className="bg-border" />
+
+            {onCreateTask ? (
+              <DropdownMenuItem onSelect={() => onCreateTask()} className="hover:bg-accent cursor-pointer">
+                <CheckSquare className="mr-2 size-4 text-emerald-500" />
+                Create task from message
+              </DropdownMenuItem>
+            ) : null}
+            {onCreateDoc ? (
+              <DropdownMenuItem onSelect={() => onCreateDoc()} className="hover:bg-accent cursor-pointer">
+                <FileText className="mr-2 size-4 text-blue-500" />
+                Create document from message
+              </DropdownMenuItem>
+            ) : null}
+            {onAskAI ? (
+              <DropdownMenuItem onSelect={() => onAskAI()} className="hover:bg-accent cursor-pointer">
+                <Bot className="mr-2 size-4 text-primary" />
+                Ask AI about message
               </DropdownMenuItem>
             ) : null}
 
