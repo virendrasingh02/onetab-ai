@@ -27,6 +27,8 @@ import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Bell,
   BellOff,
+  Blocks,
+  Bot,
   Check,
   ChevronRight,
   Copy,
@@ -45,6 +47,204 @@ import { ChatPanel } from './chat-panel.js';
 import { useMatrix } from './matrix-provider.js';
 import { useDirectRoom } from './use-direct-room.js';
 import { useDirectMessagePreferences } from './use-dm-preferences.js';
+
+export const AI_AGENT_PEERS: WorkspaceMember[] = [
+  {
+    id: 'agent-copilot',
+    workspaceId: '',
+    role: 'MEMBER',
+    joinedAt: new Date().toISOString(),
+    user: {
+      id: 'agent-copilot',
+      name: 'copilot',
+      displayName: 'OneTab Copilot',
+      avatarUrl: undefined,
+      presence: 'ONLINE',
+      timezone: 'UTC',
+      statusEmoji: '🤖',
+      statusText: 'AI Assistant & Copilot',
+    },
+  },
+  {
+    id: 'agent-codereview',
+    workspaceId: '',
+    role: 'MEMBER',
+    joinedAt: new Date().toISOString(),
+    user: {
+      id: 'agent-codereview',
+      name: 'codereview',
+      displayName: 'Code Reviewer AI',
+      avatarUrl: undefined,
+      presence: 'ONLINE',
+      timezone: 'UTC',
+      statusEmoji: '💻',
+      statusText: 'Code Reviewer & AST Analysis',
+    },
+  },
+  {
+    id: 'agent-triage',
+    workspaceId: '',
+    role: 'MEMBER',
+    joinedAt: new Date().toISOString(),
+    user: {
+      id: 'agent-triage',
+      name: 'triage',
+      displayName: 'Incident & Bug Triage',
+      avatarUrl: undefined,
+      presence: 'ONLINE',
+      timezone: 'UTC',
+      statusEmoji: '🚨',
+      statusText: 'SRE & On-Call Copilot',
+    },
+  },
+  {
+    id: 'agent-standup',
+    workspaceId: '',
+    role: 'MEMBER',
+    joinedAt: new Date().toISOString(),
+    user: {
+      id: 'agent-standup',
+      name: 'standup',
+      displayName: 'Daily Standup Bot',
+      avatarUrl: undefined,
+      presence: 'ONLINE',
+      timezone: 'UTC',
+      statusEmoji: '📋',
+      statusText: 'Agile Coordinator',
+    },
+  },
+  {
+    id: 'agent-docs',
+    workspaceId: '',
+    role: 'MEMBER',
+    joinedAt: new Date().toISOString(),
+    user: {
+      id: 'agent-docs',
+      name: 'docs',
+      displayName: 'Docs & Knowledge AI',
+      avatarUrl: undefined,
+      presence: 'ONLINE',
+      timezone: 'UTC',
+      statusEmoji: '📝',
+      statusText: 'Knowledge Base Synthesizer',
+    },
+  },
+  {
+    id: 'agent-data',
+    workspaceId: '',
+    role: 'MEMBER',
+    joinedAt: new Date().toISOString(),
+    user: {
+      id: 'agent-data',
+      name: 'data',
+      displayName: 'SQL & Data Analyst',
+      avatarUrl: undefined,
+      presence: 'ONLINE',
+      timezone: 'UTC',
+      statusEmoji: '📊',
+      statusText: 'BI & Metric Bot',
+    },
+  },
+];
+
+export const APP_PEERS: WorkspaceMember[] = [
+  {
+    id: 'app-github',
+    workspaceId: '',
+    role: 'MEMBER',
+    joinedAt: new Date().toISOString(),
+    user: {
+      id: 'app-github',
+      name: 'github-app',
+      displayName: 'GitHub',
+      avatarUrl: undefined,
+      presence: 'ONLINE',
+      timezone: 'UTC',
+      statusEmoji: '🐙',
+      statusText: 'Pull Requests & CI/CD',
+    },
+  },
+  {
+    id: 'app-linear',
+    workspaceId: '',
+    role: 'MEMBER',
+    joinedAt: new Date().toISOString(),
+    user: {
+      id: 'app-linear',
+      name: 'linear-bot',
+      displayName: 'Linear',
+      avatarUrl: undefined,
+      presence: 'ONLINE',
+      timezone: 'UTC',
+      statusEmoji: '📐',
+      statusText: 'Issue Tracker & Cycles',
+    },
+  },
+  {
+    id: 'app-sentry',
+    workspaceId: '',
+    role: 'MEMBER',
+    joinedAt: new Date().toISOString(),
+    user: {
+      id: 'app-sentry',
+      name: 'sentry-bot',
+      displayName: 'Sentry Error Monitor',
+      avatarUrl: undefined,
+      presence: 'ONLINE',
+      timezone: 'UTC',
+      statusEmoji: '🚨',
+      statusText: 'Exception Alerts',
+    },
+  },
+  {
+    id: 'app-jira',
+    workspaceId: '',
+    role: 'MEMBER',
+    joinedAt: new Date().toISOString(),
+    user: {
+      id: 'app-jira',
+      name: 'jira-bot',
+      displayName: 'Jira Software',
+      avatarUrl: undefined,
+      presence: 'ONLINE',
+      timezone: 'UTC',
+      statusEmoji: '🔷',
+      statusText: 'Sprint Backlog',
+    },
+  },
+  {
+    id: 'app-figma',
+    workspaceId: '',
+    role: 'MEMBER',
+    joinedAt: new Date().toISOString(),
+    user: {
+      id: 'app-figma',
+      name: 'figma-bot',
+      displayName: 'Figma',
+      avatarUrl: undefined,
+      presence: 'ONLINE',
+      timezone: 'UTC',
+      statusEmoji: '🎨',
+      statusText: 'Design Sync',
+    },
+  },
+  {
+    id: 'app-gdrive',
+    workspaceId: '',
+    role: 'MEMBER',
+    joinedAt: new Date().toISOString(),
+    user: {
+      id: 'app-gdrive',
+      name: 'gdrive-bot',
+      displayName: 'Google Drive',
+      avatarUrl: undefined,
+      presence: 'ONLINE',
+      timezone: 'UTC',
+      statusEmoji: '📁',
+      statusText: 'Files & Storage',
+    },
+  },
+];
 
 /**
  * A direct message, laid out like a channel.
@@ -84,7 +284,12 @@ function DirectConversation({ peerId }: { peerId: string }) {
     null,
   );
 
-  const member = (members.data ?? []).find((entry) => entry.user.id === peerId);
+  const allMembers = useMemo(
+    () => [...(members.data ?? []), ...AI_AGENT_PEERS, ...APP_PEERS],
+    [members.data],
+  );
+
+  const member = allMembers.find((entry) => entry.user.id === peerId);
 
   if (members.isLoading)
     return <LoadingState fullPage label="Opening conversation…" />;
@@ -291,6 +496,23 @@ function DirectMessageHeader({
               </span>
             ) : null}
             <Badge variant="neutral">{PRESENCE_LABELS[presence]}</Badge>
+            {member.user.id.startsWith('agent-') ? (
+              <Badge
+                variant="primary"
+                className="gap-0.5 text-[9px] py-0 h-4 uppercase font-bold tracking-wider"
+              >
+                <Bot className="size-2.5 inline-block mr-0.5" />
+                <span>AI AGENT</span>
+              </Badge>
+            ) : member.user.id.startsWith('app-') ? (
+              <Badge
+                variant="neutral"
+                className="gap-0.5 text-[9px] py-0 h-4 uppercase font-bold tracking-wider bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20"
+              >
+                <Blocks className="size-2.5 inline-block mr-0.5" />
+                <span>APP</span>
+              </Badge>
+            ) : null}
             {isMuted ? (
               <Badge variant="neutral" className="gap-1 text-muted-foreground">
                 <BellOff className="size-3" />
@@ -456,24 +678,26 @@ function NewDirectMessage() {
   const [, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState('');
 
-  // Messaging yourself is not a conversation.
-  const people = useMemo(
-    () =>
-      (members.data ?? []).filter(
-        (member) => member.user.id !== currentUser?.id,
-      ),
-    [members.data, currentUser?.id],
-  );
+  // Teammates, AI agents and Apps are all addressable peers.
+  const allPeers = useMemo(() => {
+    const teammates = (members.data ?? []).filter(
+      (member) => member.user.id !== currentUser?.id,
+    );
+    return [...teammates, ...AI_AGENT_PEERS, ...APP_PEERS];
+  }, [members.data, currentUser?.id]);
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return people;
-    return people.filter((member) =>
+    if (!needle) return allPeers;
+    return allPeers.filter((member) =>
       (member.user.displayName ?? member.user.name)
         .toLowerCase()
-        .includes(needle),
+        .includes(needle) ||
+      member.user.name.toLowerCase().includes(needle) ||
+      (member.user.statusText &&
+        member.user.statusText.toLowerCase().includes(needle)),
     );
-  }, [people, query]);
+  }, [allPeers, query]);
 
   const select = (member: WorkspaceMember) =>
     setSearchParams({ user: member.user.id }, { replace: true });
@@ -487,42 +711,44 @@ function NewDirectMessage() {
             New direct message
           </h1>
           <p className="text-sm text-muted-foreground">
-            Pick someone in this workspace to start a one-to-one conversation.
+            Pick a teammate, AI Agent, or App to start a conversation.
           </p>
         </div>
 
-        <Panel flush title="People">
+        <Panel flush title="People, AI Agents & Apps">
           <div className="p-3 border-b border-border">
             <SearchInput
               value={query}
               onValueChange={setQuery}
-              placeholder="Search people"
-              label="Search people"
+              placeholder="Search people, agents & apps"
+              label="Search people, agents & apps"
             />
           </div>
 
           {members.isLoading ? (
-            <LoadingState label="Loading people…" />
+            <LoadingState label="Loading directory…" />
           ) : members.isError ? (
             <ErrorState
-              title="Could not load people"
+              title="Could not load directory"
               description="The member list for this workspace is unavailable."
             />
           ) : visible.length === 0 ? (
             <EmptyState
               size="sm"
-              icon={people.length === 0 ? <Users /> : <Search />}
-              title={people.length === 0 ? 'No teammates yet' : 'No matches'}
+              icon={allPeers.length === 0 ? <Users /> : <Search />}
+              title={allPeers.length === 0 ? 'No contacts yet' : 'No matches'}
               description={
-                people.length === 0
+                allPeers.length === 0
                   ? 'Invite someone to this workspace to start a conversation.'
-                  : 'No one in this workspace matches that name.'
+                  : 'No person, agent, or app matches that search.'
               }
             />
           ) : (
             <ul className="p-2 space-y-px">
               {visible.map((member) => {
                 const name = member.user.displayName ?? member.user.name;
+                const isAgent = member.user.id.startsWith('agent-');
+                const isApp = member.user.id.startsWith('app-');
 
                 return (
                   <li key={member.user.id}>
@@ -536,13 +762,35 @@ function NewDirectMessage() {
                         src={member.user.avatarUrl}
                         seed={member.user.id}
                         presence={toPresenceStatus(member.user.presence)}
+                        className={cn(
+                          isAgent && 'ring-2 ring-primary/40',
+                          isApp && 'ring-2 ring-violet-500/40',
+                        )}
                       />
                       <span className="min-w-0 flex-1">
-                        <span className="text-sm font-medium block truncate">
-                          {name}
+                        <span className="text-sm font-medium flex items-center gap-1.5 truncate">
+                          <span className="truncate">{name}</span>
+                          {isAgent ? (
+                            <Badge
+                              variant="primary"
+                              className="text-[9px] py-0 h-3.5 uppercase font-bold tracking-wider"
+                            >
+                              AI AGENT
+                            </Badge>
+                          ) : isApp ? (
+                            <Badge
+                              variant="neutral"
+                              className="text-[9px] py-0 h-3.5 uppercase font-bold tracking-wider bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20"
+                            >
+                              APP
+                            </Badge>
+                          ) : null}
                         </span>
                         <span className="text-xs block truncate text-muted-foreground">
-                          @{member.user.name}
+                          @{member.user.name}{' '}
+                          {member.user.statusText
+                            ? `· ${member.user.statusText}`
+                            : ''}
                         </span>
                       </span>
                     </button>

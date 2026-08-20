@@ -17,7 +17,9 @@ import {
 import { cn } from '@org/utils';
 import {
   AlertTriangle,
+  Blocks,
   Bookmark,
+  Bot,
   Calendar as CalendarIcon,
   ChevronDown,
   Copy,
@@ -48,6 +50,8 @@ export interface ChatBubbleProps {
   message: Message;
   isOwn: boolean;
   isGrouped?: boolean;
+  senderBadge?: ReactNode;
+  avatarSlot?: ReactNode;
   onReact?: (key: string) => void;
   onReply?: () => void;
   onEdit?: () => void;
@@ -99,6 +103,8 @@ export function ChatBubble({
   message,
   isOwn,
   isGrouped = false,
+  senderBadge,
+  avatarSlot,
   onReact,
   onReply,
   onEdit,
@@ -131,6 +137,45 @@ export function ChatBubble({
   const gifMatch = message.body ? /^!\[(.*?)\]\((https?:\/\/.*?)\)$/.exec(message.body.trim()) : null;
   const isMentioned = message.body ? /@(here|channel|everyone|\w+)/.test(message.body) : false;
 
+  const isAgent =
+    message.senderId.startsWith('agent-') ||
+    message.senderId.includes('copilot') ||
+    message.senderId.includes('codereview') ||
+    message.senderId.includes('triage') ||
+    message.senderId.includes('standup') ||
+    message.senderId.includes('docs') ||
+    message.senderId.includes('data') ||
+    /\b(copilot|assistant|reviewer|standup|triage|bot|agent)\b/i.test(
+      message.senderName,
+    );
+
+  const isApp =
+    !isAgent &&
+    (message.senderId.startsWith('app-') ||
+      /\b(github|linear|sentry|jira|figma|gdrive|webhook|app)\b/i.test(
+        message.senderName,
+      ));
+
+  const effectiveBadge =
+    senderBadge ||
+    (isAgent ? (
+      <Badge
+        variant="primary"
+        className="text-[9px] py-0 h-4 uppercase font-bold tracking-wider gap-0.5"
+      >
+        <Bot className="size-2.5 inline-block mr-0.5" />
+        <span>AI AGENT</span>
+      </Badge>
+    ) : isApp ? (
+      <Badge
+        variant="neutral"
+        className="text-[9px] py-0 h-4 uppercase font-bold tracking-wider bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20 gap-0.5"
+      >
+        <Blocks className="size-2.5 inline-block mr-0.5" />
+        <span>APP</span>
+      </Badge>
+    ) : null);
+
   return (
     <article
       data-message-id={message.id}
@@ -157,6 +202,8 @@ export function ChatBubble({
               })}
             </time>
           </Hint>
+        ) : avatarSlot ? (
+          avatarSlot
         ) : (
           <UserProfileCard
             userId={message.senderId}
@@ -168,7 +215,11 @@ export function ChatBubble({
               src={message.senderAvatarUrl}
               seed={message.senderId}
               size="md"
-              className="size-10 rounded-full hover:opacity-90 cursor-pointer shadow-xs transition-transform hover:scale-105"
+              className={cn(
+                'size-10 rounded-full hover:opacity-90 cursor-pointer shadow-xs transition-transform hover:scale-105',
+                isAgent && 'ring-2 ring-primary/40',
+                isApp && 'ring-2 ring-violet-500/40',
+              )}
             />
           </UserProfileCard>
         )}
@@ -195,12 +246,18 @@ export function ChatBubble({
               </span>
             </UserProfileCard>
 
+            {effectiveBadge ? (
+              <span className="inline-flex items-center">{effectiveBadge}</span>
+            ) : null}
+
             <Hint label={formatFullTimestamp(message.timestamp)}>
               <time
                 dateTime={new Date(message.timestamp).toISOString()}
                 className="text-[11px] font-medium text-muted-foreground cursor-pointer hover:underline"
               >
-                {formatShortTimestamp(message.timestamp)}
+                {Date.now() - message.timestamp < 60_000
+                  ? 'Just now'
+                  : formatShortTimestamp(message.timestamp)}
               </time>
             </Hint>
 

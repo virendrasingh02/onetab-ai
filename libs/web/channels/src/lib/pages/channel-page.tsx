@@ -32,6 +32,7 @@ import {
   ArchiveRestore,
   Bell,
   BellOff,
+  Blocks,
   Bookmark,
   Bot,
   Check,
@@ -45,7 +46,6 @@ import {
   Image as ImageIcon,
   Info,
   LayoutTemplate,
-  Link2,
   Lock,
   Mail,
   MessageSquare,
@@ -60,13 +60,13 @@ import {
   Upload,
   Users,
   Workflow,
-  Zap,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams } from 'react-router-dom';
 import { useCurrentUser } from '@org/auth';
 import { ChannelDetailsPanel } from '../components/channel-details-panel.js';
+import { AddAppDialog } from '../components/add-app-dialog.js';
 import {
   AddAgentToChannelDialog,
   AddPeopleDialog,
@@ -84,6 +84,7 @@ import {
   useChannelPreferences,
   useJoinChannel,
 } from '../use-channels.js';
+import { useChannelAgentsAndApps } from '../use-channel-agents-apps.js';
 
 /**
  * Where an upload's bytes live.
@@ -465,10 +466,12 @@ export function ChannelPage() {
     channel?.id,
   );
   const members = useChannelMembers(workspaceId, channel?.id);
+  const channelAgentsApps = useChannelAgentsAndApps(workspaceId, channel?.id);
   const [addBookmarkOpen, setAddBookmarkOpen] = useState(false);
   const [addPeopleOpen, setAddPeopleOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [addAgentOpen, setAddAgentOpen] = useState(false);
+  const [addAppOpen, setAddAppOpen] = useState(false);
   const [workflowsOpen, setWorkflowsOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [filesFilter, setFilesFilter] = useState<
@@ -562,8 +565,6 @@ export function ChannelPage() {
     files.data?.filter((file) => file.mimeType.startsWith('image/')) ?? [];
   const documentFiles =
     files.data?.filter((file) => !file.mimeType.startsWith('image/')) ?? [];
-  const totalFilesLinksCount =
-    mediaFiles.length + documentFiles.length + bookmarks.length;
 
   return (
     <div className="min-h-0 flex flex-1 flex-col">
@@ -599,6 +600,11 @@ export function ChannelPage() {
               onEditDetails={() => setDetailsOpen(true)}
               onAddPeople={() => setAddPeopleOpen(true)}
               onAddAgent={() => setAddAgentOpen(true)}
+              onAddApp={() => setAddAppOpen(true)}
+              onOpenAgentsAppsTab={() => {
+                setDetailsPanelOpen(false);
+                setActiveTab('agents-apps');
+              }}
               onOpenWorkflows={() => setWorkflowsOpen(true)}
               onStartHuddle={() => {
                 setActiveTab('chat');
@@ -635,6 +641,30 @@ export function ChannelPage() {
         open={addAgentOpen}
         onOpenChange={setAddAgentOpen}
         channel={channel}
+        onAgentAdded={(agent) =>
+          channelAgentsApps.addAgent({
+            id: agent.id,
+            name: agent.name,
+            handle: agent.handle,
+            role: agent.role,
+            description: agent.description,
+            model: agent.model,
+            avatarSeed: agent.avatarSeed,
+            tags: agent.tags,
+            status: 'active',
+            enabled: true,
+            triggers: [agent.handle, `/${agent.handle.replace('@', '')}`],
+            capabilities: agent.tags,
+          })
+        }
+      />
+
+      <AddAppDialog
+        open={addAppOpen}
+        onOpenChange={setAddAppOpen}
+        channel={channel}
+        existingAppSlugs={channelAgentsApps.apps.map((a) => a.slug)}
+        onAddApp={(app) => channelAgentsApps.addApp(app)}
       />
 
       <ChannelTemplatesDialog
@@ -720,58 +750,73 @@ export function ChannelPage() {
                 </div>
               </DropdownMenuItem>
 
-                <DropdownMenuItem
-                  onClick={() => setWorkflowsOpen(true)}
-                  className="gap-2.5 text-xs font-medium cursor-pointer"
-                >
-                  <Workflow className="size-4 text-accent-violet shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-foreground">Workflows</span>
-                    <p className="text-[10px] text-muted-foreground truncate">
-                      Triggers, standups &amp; alerts
-                    </p>
-                  </div>
-                </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setAddAppOpen(true)}
+                className="gap-2.5 text-xs font-medium cursor-pointer"
+              >
+                <Blocks className="size-4 text-violet-500 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-foreground">Connect App</span>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    GitHub, Linear, Sentry &amp; Jira
+                  </p>
+                </div>
+              </DropdownMenuItem>
 
-                <DropdownMenuItem
-                  onClick={() => setTemplatesOpen(true)}
-                  className="gap-2.5 text-xs font-medium cursor-pointer"
-                >
-                  <LayoutTemplate className="size-4 text-accent-amber shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-foreground">Channel Templates</span>
-                    <p className="text-[10px] text-muted-foreground truncate">
-                      Sprint, incident &amp; launch packs
-                    </p>
-                  </div>
-                </DropdownMenuItem>
+              <DropdownMenuSeparator />
 
-                <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setWorkflowsOpen(true)}
+                className="gap-2.5 text-xs font-medium cursor-pointer"
+              >
+                <Workflow className="size-4 text-accent-violet shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-foreground">Workflows</span>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    Triggers, standups &amp; alerts
+                  </p>
+                </div>
+              </DropdownMenuItem>
 
-                <DropdownMenuItem
-                  onClick={() => setAddBookmarkOpen(true)}
-                  className="gap-2.5 text-xs cursor-pointer"
-                >
-                  <Bookmark className="size-4 text-muted-foreground shrink-0" />
-                  <span>Add Bookmark / Link</span>
-                </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setTemplatesOpen(true)}
+                className="gap-2.5 text-xs font-medium cursor-pointer"
+              >
+                <LayoutTemplate className="size-4 text-accent-amber shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-foreground">Channel Templates</span>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    Sprint, incident &amp; launch packs
+                  </p>
+                </div>
+              </DropdownMenuItem>
 
-                <DropdownMenuItem
-                  onClick={() => setAddPeopleOpen(true)}
-                  className="gap-2.5 text-xs cursor-pointer"
-                >
-                  <Users className="size-4 text-muted-foreground shrink-0" />
-                  <span>Add People to Channel</span>
-                </DropdownMenuItem>
+              <DropdownMenuSeparator />
 
-                <DropdownMenuItem
-                  onClick={() => setDetailsOpen(true)}
-                  className="gap-2.5 text-xs cursor-pointer"
-                >
-                  <Pencil className="size-4 text-muted-foreground shrink-0" />
-                  <span>Edit Channel Details</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
+              <DropdownMenuItem
+                onClick={() => setAddBookmarkOpen(true)}
+                className="gap-2.5 text-xs cursor-pointer"
+              >
+                <Bookmark className="size-4 text-muted-foreground shrink-0" />
+                <span>Add Bookmark / Link</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => setAddPeopleOpen(true)}
+                className="gap-2.5 text-xs cursor-pointer"
+              >
+                <Users className="size-4 text-muted-foreground shrink-0" />
+                <span>Add People to Channel</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => setDetailsOpen(true)}
+                className="gap-2.5 text-xs cursor-pointer"
+              >
+                <Pencil className="size-4 text-muted-foreground shrink-0" />
+                <span>Edit Channel Details</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
           </DropdownMenu>
         </div>
 

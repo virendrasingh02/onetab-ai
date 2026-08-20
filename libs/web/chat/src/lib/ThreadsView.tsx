@@ -1,3 +1,5 @@
+import { channelApi, queryKeys } from '@org/api-client';
+import { useQuery } from '@tanstack/react-query';
 import {
   Badge,
   Button,
@@ -10,7 +12,6 @@ import {
   UserAvatar,
 } from '@org/ui';
 import { formatRelative } from '@org/utils';
-import { useChannels } from '@org/web-channels';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { Hash, MessagesSquare, Reply } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -141,7 +142,12 @@ function ThreadList({
 export function ThreadsView() {
   const [tab, setTab] = useState('all');
   const { slug, workspaceId } = useCurrentWorkspace();
-  const channelsQuery = useChannels(workspaceId);
+  const channelsQuery = useQuery({
+    queryKey: queryKeys.channels.list(workspaceId ?? '', false),
+    queryFn: () => channelApi.list(workspaceId as string, false),
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+  });
   const { threads, isLoading } = useAllThreads();
 
   const unread = useMemo(

@@ -50,11 +50,103 @@ const GROUP_MENTIONS: MentionCandidate[] = [
   },
 ];
 
+const DEFAULT_AI_AGENT_MENTIONS: MentionCandidate[] = [
+  {
+    id: 'agent-copilot',
+    name: 'copilot',
+    subtitle: 'OneTab Copilot — Channel AI Assistant & Q&A',
+    kind: 'agent',
+    badge: 'AI AGENT',
+  },
+  {
+    id: 'agent-codereview',
+    name: 'codereview',
+    subtitle: 'Code Reviewer AI — Automated PR & diff inspection',
+    kind: 'agent',
+    badge: 'AI AGENT',
+  },
+  {
+    id: 'agent-triage',
+    name: 'triage',
+    subtitle: 'Incident & Bug Triage — SRE error responder',
+    kind: 'agent',
+    badge: 'AI AGENT',
+  },
+  {
+    id: 'agent-standup',
+    name: 'standup',
+    subtitle: 'Daily Standup Bot — Async recaps & blocker tracking',
+    kind: 'agent',
+    badge: 'AI AGENT',
+  },
+  {
+    id: 'agent-docs',
+    name: 'docs',
+    subtitle: 'Docs & Knowledge AI — Markdown & wiki synthesizer',
+    kind: 'agent',
+    badge: 'AI AGENT',
+  },
+  {
+    id: 'agent-data',
+    name: 'data',
+    subtitle: 'SQL & Data Analyst — Metric queries & visualizations',
+    kind: 'agent',
+    badge: 'AI AGENT',
+  },
+];
+
+const DEFAULT_APP_MENTIONS: MentionCandidate[] = [
+  {
+    id: 'app-github',
+    name: 'github-app',
+    subtitle: 'GitHub — Pull requests, reviews & CI workflows',
+    kind: 'app',
+    badge: 'APP',
+  },
+  {
+    id: 'app-linear',
+    name: 'linear-bot',
+    subtitle: 'Linear — Issue tracker & cycle progress',
+    kind: 'app',
+    badge: 'APP',
+  },
+  {
+    id: 'app-sentry',
+    name: 'sentry-bot',
+    subtitle: 'Sentry — Realtime uncaught exception alerts',
+    kind: 'app',
+    badge: 'APP',
+  },
+  {
+    id: 'app-jira',
+    name: 'jira-bot',
+    subtitle: 'Jira Software — Sprint backlog & status updates',
+    kind: 'app',
+    badge: 'APP',
+  },
+  {
+    id: 'app-figma',
+    name: 'figma-bot',
+    subtitle: 'Figma — Design updates & frame comments',
+    kind: 'app',
+    badge: 'APP',
+  },
+  {
+    id: 'app-gdrive',
+    name: 'gdrive-bot',
+    subtitle: 'Google Drive — Document attachments & sync',
+    kind: 'app',
+    badge: 'APP',
+  },
+];
+
 export interface ComposerProps {
   onSend: (body: string) => void | Promise<void>;
   onTyping?: (isTyping: boolean) => void;
   onAttach?: (files: FileList) => void;
   members?: RoomMember[];
+  agentMentions?: MentionCandidate[];
+  appMentions?: MentionCandidate[];
   placeholder?: string;
   disabled?: boolean;
   contextSlot?: ReactNode;
@@ -80,6 +172,8 @@ export function Composer({
   onTyping,
   onAttach,
   members = [],
+  agentMentions,
+  appMentions,
   placeholder = 'Message channel…',
   disabled = false,
   contextSlot,
@@ -99,6 +193,8 @@ export function Composer({
   const mentionCandidates = useMemo<MentionCandidate[]>(
     () => [
       ...GROUP_MENTIONS,
+      ...(agentMentions ?? DEFAULT_AI_AGENT_MENTIONS),
+      ...(appMentions ?? DEFAULT_APP_MENTIONS),
       ...members.map((member) => ({
         id: member.userId,
         name: member.displayName,
@@ -106,7 +202,7 @@ export function Composer({
         kind: 'user' as const,
       })),
     ],
-    [members],
+    [members, agentMentions, appMentions],
   );
 
   const handleSelectGif = (gifUrl: string, title?: string) => {

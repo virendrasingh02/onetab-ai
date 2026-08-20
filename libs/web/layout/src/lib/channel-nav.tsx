@@ -536,7 +536,7 @@ export function ChannelNav({
   return (
     <div className="min-h-0 flex h-full flex-col">
       {/* Sticky Sidebar Navigation Header */}
-      <div className="sticky top-0 z-10 shrink-0 px-3 pt-3 pb-2 border-b border-border/40 bg-surface-muted/95 backdrop-blur-md">
+      <div className="top-0 px-3 pt-3 pb-2 backdrop-blur-md sticky z-10 shrink-0 border-b border-border/40 bg-surface-muted/95">
         <nav aria-label="Primary navigation" className="space-y-0.5">
           {coreLinks.map((entry) => (
             <NavRow
@@ -581,7 +581,7 @@ export function ChannelNav({
                   return (
                     <div
                       key={entry.path}
-                      className="group/more-row gap-1.5 px-2 py-1.5 flex items-center justify-between rounded-md text-xs text-muted-foreground hover:bg-surface-raised hover:text-foreground"
+                      className="group/more-row gap-1.5 px-2 py-1.5 text-xs flex items-center justify-between rounded-md text-muted-foreground hover:bg-surface-raised hover:text-foreground"
                     >
                       <NavLink
                         to={`/w/${workspaceSlug}/${entry.path}`}
@@ -638,7 +638,10 @@ export function ChannelNav({
         </nav>
       </div>
 
-      <ScrollArea className="min-h-0 flex-1" contentClassName="px-3 pt-2 pb-6">
+      <ScrollArea
+        className="min-h-0 px-3 pt-1 pb-3 flex-1"
+        contentClassName="px-3 pt-2 pb-6"
+      >
         <div className="space-y-4">
           <div>
             <Section

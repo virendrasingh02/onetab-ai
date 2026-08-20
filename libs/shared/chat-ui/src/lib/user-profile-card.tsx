@@ -23,7 +23,6 @@ import {
   Headphones,
   Mail,
   MessageSquare,
-  Phone,
   Shield,
   Sparkles,
   Zap,
@@ -81,7 +80,7 @@ export function UserProfileCard({
   statusText,
   children,
   onSendDirectMessage,
-  onStartCall,
+  onStartCall: _onStartCall,
 }: UserProfileCardProps) {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const openProfilePanel = useRightPanelStore((s) => s.openProfile);

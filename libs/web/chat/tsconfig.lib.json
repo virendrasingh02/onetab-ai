@@ -28,16 +28,13 @@
   ],
   "references": [
     {
-      "path": "../../shared/api-client/tsconfig.lib.json"
-    },
-    {
       "path": "../../../packages/matrix-client/tsconfig.lib.json"
     },
     {
       "path": "../../shared/chat-ui/tsconfig.lib.json"
     },
     {
-      "path": "../channels/tsconfig.lib.json"
+      "path": "../../shared/api-client/tsconfig.lib.json"
     },
     {
       "path": "../../shared/utils/tsconfig.lib.json"

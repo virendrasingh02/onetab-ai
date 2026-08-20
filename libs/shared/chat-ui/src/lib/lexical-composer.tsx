@@ -79,7 +79,9 @@ import {
 } from 'lexical';
 import {
   AtSign,
+  Blocks,
   Bold,
+  Bot,
   Check,
   Code,
   Heading1,
@@ -100,6 +102,7 @@ import {
   Strikethrough,
   Undo2,
 } from 'lucide-react';
+import { Badge } from '@org/ui';
 import {
   useCallback,
   useEffect,
@@ -191,8 +194,9 @@ export interface MentionCandidate {
   name: string;
   subtitle?: string;
   avatarUrl?: string;
-  /** Group mentions (`@here`, `@channel`) are listed above people. */
-  kind?: 'user' | 'group';
+  /** Group mentions (`@here`, `@channel`) are listed above people, AI agents and apps have distinct badges. */
+  kind?: 'user' | 'group' | 'agent' | 'app';
+  badge?: string;
 }
 
 export interface LexicalComposerInputProps {
@@ -533,10 +537,18 @@ function MentionsPlugin({
         if (!anchorRef.current || options.length === 0) return null;
 
         const groups = options.filter((o) => o.candidate.kind === 'group');
-        const people = options.filter((o) => o.candidate.kind !== 'group');
+        const agents = options.filter((o) => o.candidate.kind === 'agent');
+        const apps = options.filter((o) => o.candidate.kind === 'app');
+        const people = options.filter(
+          (o) => !o.candidate.kind || o.candidate.kind === 'user',
+        );
 
         const renderOption = (option: MentionMenuOption) => {
           const index = options.indexOf(option);
+          const isAgent = option.candidate.kind === 'agent';
+          const isApp = option.candidate.kind === 'app';
+          const isGroup = option.candidate.kind === 'group';
+
           return (
             <MenuItem
               key={option.key}
@@ -545,9 +557,17 @@ function MentionsPlugin({
               onHighlight={() => setHighlightedIndex(index)}
               onSelect={() => selectOptionAndCleanUp(option)}
             >
-              {option.candidate.kind === 'group' ? (
+              {isGroup ? (
                 <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/20 font-bold text-primary-text">
                   @
+                </span>
+              ) : isAgent ? (
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary border border-primary/20">
+                  <Bot className="size-3.5" />
+                </span>
+              ) : isApp ? (
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20">
+                  <Blocks className="size-3.5" />
                 </span>
               ) : (
                 <span
@@ -566,8 +586,23 @@ function MentionsPlugin({
                 </span>
               )}
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-semibold text-foreground">
-                  @{option.candidate.name}
+                <span className="flex items-center gap-1.5 font-semibold text-foreground">
+                  <span className="truncate">@{option.candidate.name}</span>
+                  {isAgent ? (
+                    <Badge
+                      variant="primary"
+                      className="text-[9px] py-0 h-3.5 uppercase font-bold tracking-wider"
+                    >
+                      AI AGENT
+                    </Badge>
+                  ) : isApp ? (
+                    <Badge
+                      variant="neutral"
+                      className="text-[9px] py-0 h-3.5 uppercase font-bold tracking-wider bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20"
+                    >
+                      APP
+                    </Badge>
+                  ) : null}
                 </span>
                 {option.candidate.subtitle ? (
                   <span className="block truncate text-[10px] text-muted-foreground">
@@ -591,6 +626,21 @@ function MentionsPlugin({
               </li>
             ) : null}
             {groups.map(renderOption)}
+
+            {agents.length > 0 ? (
+              <li className="mt-1 px-2 py-1 text-[10px] font-bold uppercase text-primary">
+                AI Agents — {agents.length}
+              </li>
+            ) : null}
+            {agents.map(renderOption)}
+
+            {apps.length > 0 ? (
+              <li className="mt-1 px-2 py-1 text-[10px] font-bold uppercase text-violet-500">
+                Connected Apps — {apps.length}
+              </li>
+            ) : null}
+            {apps.map(renderOption)}
+
             {people.length > 0 ? (
               <li className="mt-1 px-2 py-1 text-[10px] font-bold uppercase text-subtle">
                 People — {people.length}

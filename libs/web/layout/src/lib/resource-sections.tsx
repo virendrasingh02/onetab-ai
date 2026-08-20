@@ -180,17 +180,33 @@ export function AgentNavRow({
     <li className="group/row relative">
       <NavLink
         to={`/w/${workspaceSlug}/agents/chat?id=${agent.id}`}
-        className={navRowClass(isSelected, {
-          depth,
-          extra: 'pr-14',
-        })}
+        className={({ isActive }) =>
+          navRowClass(isSelected || isActive, {
+            depth,
+            extra: cn('pr-14', muted && 'text-muted-foreground'),
+          })
+        }
         title={agent.detail ? `${agent.name} — ${agent.detail}` : agent.name}
       >
-        <IconRenderer
-          icon={agent.icon ?? 'Bot'}
-          fallbackEmoji="🤖"
-          sizeClassName={navIconClass(depth)}
-        />
+        <span
+          className={navIconClass(
+            depth,
+            'relative flex items-center justify-center',
+          )}
+        >
+          <IconRenderer
+            icon={agent.icon ?? 'Bot'}
+            fallbackEmoji="🤖"
+            sizeClassName="size-4 text-primary"
+          />
+          <span
+            className={cn(
+              '-right-0.5 -bottom-0.5 size-2 absolute rounded-full border-2 border-sidebar bg-success',
+            )}
+          >
+            <span className="sr-only">Active</span>
+          </span>
+        </span>
         <span className="flex-1 truncate">{agent.name}</span>
       </NavLink>
 
@@ -605,7 +621,29 @@ export function AgentsSection({
   const mutations = useAgentMutations(workspaceId);
   const { isFavorite, toggleFavorite } = useSidebarFavorites(workspaceId);
 
-  const items: ResourceItemData[] = (agents.data ?? []).map((agent) => ({
+  const serverAgents = agents.data ?? [];
+  const agentList =
+    serverAgents.length > 0
+      ? serverAgents
+      : [
+          {
+            id: 'agent-copilot',
+            name: 'OneTab Copilot',
+            role: 'Workspace Assistant & Automation Bot',
+          },
+          {
+            id: 'agent-codereview',
+            name: 'Code Reviewer',
+            role: 'Senior Software Engineer & PR Auditor',
+          },
+          {
+            id: 'agent-triage',
+            name: 'Incident & Bug Triage',
+            role: 'Engineering Reliability & Issue Tracker',
+          },
+        ];
+
+  const items: ResourceItemData[] = agentList.map((agent) => ({
     id: agent.id,
     name: agent.name,
     icon: 'Bot',
@@ -649,10 +687,13 @@ export function AgentsSection({
         </Hint>
       }
     >
-      {items.map((item) => {
+      {items.map((item, index) => {
         const isSelected =
-          location.pathname.endsWith('/agents') &&
-          location.search.includes(`agent=${item.id}`);
+          (location.pathname.includes('/agents/chat') &&
+            (location.search.includes(`id=${item.id}`) ||
+              (!location.search.includes('id=') && index === 0))) ||
+          (location.pathname.endsWith('/agents') &&
+            location.search.includes(`agent=${item.id}`));
 
         return (
           <AgentNavRow

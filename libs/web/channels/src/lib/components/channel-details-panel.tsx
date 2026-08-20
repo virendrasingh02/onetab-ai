@@ -21,12 +21,14 @@ import {
   toast,
   UserAvatar,
   usePromptDialog,
+  useRightPanelStore,
 } from '@org/ui';
 import { cn, formatDate } from '@org/utils';
 import {
   Bell,
   BellOff,
   Blocks,
+  Bot,
   ChevronDown,
   Copy,
   Hash,
@@ -51,6 +53,7 @@ import {
   useChannelMembers,
   useChannelPreferences,
 } from '../use-channels.js';
+import { useChannelAgentsAndApps } from '../use-channel-agents-apps.js';
 
 export interface ChannelDetailsPanelProps {
   channel: ChannelSummary;
@@ -65,6 +68,8 @@ export interface ChannelDetailsPanelProps {
   onEditDetails: () => void;
   onAddPeople: () => void;
   onAddAgent?: () => void;
+  onAddApp?: () => void;
+  onOpenAgentsAppsTab?: () => void;
   onOpenWorkflows?: () => void;
   onStartHuddle: () => void;
 }
@@ -89,11 +94,14 @@ export function ChannelDetailsPanel({
   onEditDetails,
   onAddPeople,
   onAddAgent,
+  onAddApp,
+  onOpenAgentsAppsTab,
   onOpenWorkflows,
   onStartHuddle,
 }: ChannelDetailsPanelProps) {
   const members = useChannelMembers(workspaceId, channel.id);
   const memberList = members.data ?? [];
+  const channelAgentsApps = useChannelAgentsAndApps(workspaceId, channel.id);
 
   /*
    * Settings is a mode, not a tab. It is administration — archive, rename,
@@ -227,40 +235,147 @@ export function ChannelDetailsPanel({
             className="min-h-0 flex flex-1 flex-col p-4 space-y-4 overflow-y-auto"
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-foreground">
-                Channel AI Agents &amp; Apps
-              </span>
-              {onAddAgent ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={onAddAgent}
-                  className="h-7 text-xs gap-1.5"
-                >
-                  <Plus className="size-3.5" />
-                  <span>Add AI Agent</span>
-                </Button>
-              ) : null}
-            </div>
-
-            <div className="space-y-2">
-              <div className="p-3 rounded-xl border border-border bg-surface flex items-start gap-2.5">
-                <UserAvatar name="OneTab Copilot" seed="copilot" size="sm" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-foreground">
-                      OneTab Copilot
-                    </span>
-                    <Badge variant="primary" className="text-[10px] py-0 h-4">
-                      Active
-                    </Badge>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    AI Assistant with full channel history &amp; thread memory.
-                  </p>
-                </div>
+              <div>
+                <span className="text-xs font-semibold text-foreground block">
+                  Channel AI Agents &amp; Apps
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  {channelAgentsApps.agents.length} agents · {channelAgentsApps.apps.length} apps
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {onAddApp ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={onAddApp}
+                    className="h-7 text-xs gap-1 px-2 border-violet-500/30 text-violet-600 dark:text-violet-400"
+                  >
+                    <Plus className="size-3" />
+                    <span>App</span>
+                  </Button>
+                ) : null}
+                {onAddAgent ? (
+                  <Button
+                    size="sm"
+                    onClick={onAddAgent}
+                    className="h-7 text-xs gap-1 px-2"
+                  >
+                    <Plus className="size-3" />
+                    <span>Agent</span>
+                  </Button>
+                ) : null}
               </div>
             </div>
+
+            {/* List of active AI agents */}
+            <div className="space-y-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                Active AI Agents ({channelAgentsApps.agents.length})
+              </span>
+              {channelAgentsApps.agents.map((agent) => (
+                <div
+                  key={agent.id}
+                  className="p-3 rounded-xl border border-border bg-surface flex items-start gap-2.5 transition-colors hover:border-border-strong"
+                >
+                  <UserAvatar name={agent.name} seed={agent.avatarSeed} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-xs font-bold text-foreground truncate">
+                          {agent.name}
+                        </span>
+                        <span className="text-[10px] font-mono text-primary truncate">
+                          {agent.handle}
+                        </span>
+                      </div>
+                      <Badge
+                        variant={agent.enabled ? 'primary' : 'neutral'}
+                        className="text-[10px] py-0 h-4"
+                      >
+                        {agent.enabled ? 'Active' : 'Paused'}
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
+                      {agent.description}
+                    </p>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-muted-foreground">
+                        {agent.model}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => channelAgentsApps.toggleAgent(agent.id)}
+                        className="text-[10px] font-semibold text-primary hover:underline cursor-pointer"
+                      >
+                        {agent.enabled ? 'Pause' : 'Enable'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {/* List of connected apps */}
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block pt-2">
+                Connected Apps ({channelAgentsApps.apps.length})
+              </span>
+              {channelAgentsApps.apps.map((app) => (
+                <div
+                  key={app.id}
+                  className="p-3 rounded-xl border border-border bg-surface flex items-start gap-2.5 transition-colors hover:border-border-strong"
+                >
+                  <UserAvatar name={app.name} seed={app.icon} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-xs font-bold text-foreground truncate">
+                          {app.name}
+                        </span>
+                        <span className="text-[10px] font-mono text-violet-500 truncate">
+                          {app.botHandle}
+                        </span>
+                      </div>
+                      <Badge
+                        variant={app.enabled ? 'primary' : 'neutral'}
+                        className={cn(
+                          'text-[10px] py-0 h-4',
+                          app.enabled && 'bg-violet-500/10 text-violet-600 border-violet-500/20',
+                        )}
+                      >
+                        {app.enabled ? 'Connected' : 'Muted'}
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
+                      {app.description}
+                    </p>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-[10px] text-muted-foreground">
+                        {app.events.length} event triggers
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => channelAgentsApps.toggleApp(app.id)}
+                        className="text-[10px] font-semibold text-violet-600 dark:text-violet-400 hover:underline cursor-pointer"
+                      >
+                        {app.enabled ? 'Mute' : 'Enable'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {onOpenAgentsAppsTab ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onOpenAgentsAppsTab}
+                className="w-full text-xs h-8 gap-1.5"
+              >
+                <Bot className="size-3.5 text-primary" />
+                <span>Open Full AI Agents &amp; Apps Tab</span>
+              </Button>
+            ) : null}
 
             <div className="pt-2 border-t border-border">
               <LinkOutTab
@@ -726,7 +841,7 @@ function MembersTab({
                       userId: member.user.id,
                       name: member.user.displayName ?? member.user.name,
                       avatarUrl: member.user.avatarUrl ?? undefined,
-                      email: member.user.email,
+                      email: (member.user as any).email,
                       role: member.role,
                       timezone: member.user.timezone,
                       statusEmoji: member.user.statusEmoji,

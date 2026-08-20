@@ -18,10 +18,16 @@ import { useMatrix } from './matrix-provider.js';
  */
 export function useDirectRoom(peerUserId: string | undefined) {
   const { client, enabled } = useMatrix();
+  const isVirtualPeer =
+    !!peerUserId &&
+    (peerUserId.startsWith('agent-') || peerUserId.startsWith('app-'));
 
   const query = useQuery({
     queryKey: queryKeys.matrix.peerIdentity(peerUserId ?? ''),
     queryFn: async () => {
+      if (isVirtualPeer) {
+        return `!dm-${peerUserId}:onetab.local`;
+      }
       const { matrixUserId } = await matrixApi.peerIdentity(
         peerUserId as string,
       );
@@ -29,15 +35,17 @@ export function useDirectRoom(peerUserId: string | undefined) {
         matrixUserId,
       );
     },
-    enabled: !!peerUserId && enabled && !!client,
+    enabled: !!peerUserId && enabled && (isVirtualPeer || !!client),
     // Neither the mapping nor the room changes for the life of the session.
     staleTime: Infinity,
     retry: 1,
   });
 
   return {
-    roomId: query.data ?? null,
-    isLoading: query.isLoading,
+    roomId: isVirtualPeer
+      ? `!dm-${peerUserId}:onetab.local`
+      : (query.data ?? null),
+    isLoading: isVirtualPeer ? false : query.isLoading,
     error: query.isError ? 'This conversation could not be opened.' : null,
   };
 }
