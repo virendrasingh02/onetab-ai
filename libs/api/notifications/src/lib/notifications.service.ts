@@ -28,6 +28,8 @@ export interface ActivityFeedItem {
   id: string;
   kind: string;
   occurredAt: string;
+  /** True when this row named the *calling* user — never anyone else. */
+  isMention: boolean;
   channel: { id: string; name: string; slug: string } | null;
   user: {
     id: string;
@@ -211,6 +213,12 @@ export class NotificationsService {
       id: row.id,
       kind: row.kind,
       occurredAt: row.occurredAt.toISOString(),
+      /*
+       * Resolved per caller rather than shipped as a list: who else a message
+       * named is not this user's business, and the client only ever needs the
+       * boolean to pick a dot colour.
+       */
+      isMention: row.mentionedUserIds.includes(userId),
       channel: row.channel,
       user: row.user
         ? {

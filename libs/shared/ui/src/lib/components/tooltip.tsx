@@ -6,8 +6,9 @@ export const TooltipProvider = TooltipPrimitive.Provider;
 export const Tooltip = TooltipPrimitive.Root;
 export const TooltipTrigger = TooltipPrimitive.Trigger;
 
-export interface TooltipContentProps
-  extends ComponentProps<typeof TooltipPrimitive.Content> {
+export interface TooltipContentProps extends ComponentProps<
+  typeof TooltipPrimitive.Content
+> {
   /** Optional arrow pointer. Disabled by default for modern floating pill style. */
   showArrow?: boolean;
 }
@@ -28,7 +29,7 @@ export function TooltipContent({
         collisionPadding={collisionPadding}
         className={cn(
           'z-(--z-tooltip) origin-(--radix-tooltip-content-transform-origin)',
-          'w-fit max-w-72 rounded-popup border border-border bg-popover px-2 py-1 text-[11px] font-normal text-popover-foreground shadow-elevated',
+          'max-w-72 px-2 py-1 font-normal w-fit rounded-popup border border-border bg-popover text-[11px] text-popover-foreground shadow-elevated',
           'animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
           className,
         )}
@@ -36,7 +37,7 @@ export function TooltipContent({
       >
         {children}
         {showArrow && (
-          <TooltipPrimitive.Arrow className="fill-popover stroke-border stroke-1 size-2.5" />
+          <TooltipPrimitive.Arrow className="size-2.5 fill-popover stroke-border stroke-1" />
         )}
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
@@ -54,7 +55,7 @@ export function Kbd({ className, children, ...props }: KbdProps) {
   return (
     <kbd
       className={cn(
-        'inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-[4px] border border-border bg-surface-raised px-1.5 text-[10px] font-medium leading-none text-subtle select-none shadow-[0_1px_0_0_rgba(0,0,0,0.04)] dark:text-muted-foreground',
+        'px-1.5 font-medium inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-[4px] border border-border bg-surface-raised text-[10px] leading-none text-subtle shadow-[0_1px_0_0_rgba(0,0,0,0.04)] select-none dark:text-muted-foreground',
         className,
       )}
       {...props}
@@ -80,11 +81,11 @@ export function renderShortcut(shortcut: ReactNode): ReactNode {
   if (trimmed.includes('+') && !trimmed.includes(' ')) {
     const parts = trimmed.split('+');
     return (
-      <span className="inline-flex items-center gap-1">
+      <span className="gap-1 inline-flex items-center">
         {parts.map((part, i) => (
-          <span key={i} className="inline-flex items-center gap-1">
+          <span key={i} className="gap-1 inline-flex items-center">
             {i > 0 && (
-              <span className="text-[10px] text-muted-foreground/70 font-normal">
+              <span className="font-normal text-[10px] text-muted-foreground/70">
                 +
               </span>
             )}
@@ -101,7 +102,7 @@ export function renderShortcut(shortcut: ReactNode): ReactNode {
   }
 
   return (
-    <span className="inline-flex items-center gap-1.5">
+    <span className="gap-1.5 inline-flex items-center">
       {tokens.map((token, i) => {
         const lower = token.toLowerCase();
         if (
@@ -114,7 +115,7 @@ export function renderShortcut(shortcut: ReactNode): ReactNode {
           return (
             <span
               key={i}
-              className="text-[11px] font-normal text-muted-foreground"
+              className="font-normal text-[11px] text-muted-foreground"
             >
               {token}
             </span>
@@ -126,8 +127,10 @@ export function renderShortcut(shortcut: ReactNode): ReactNode {
   );
 }
 
-export interface HintProps
-  extends Omit<ComponentProps<typeof TooltipPrimitive.Content>, 'content'> {
+export interface HintProps extends Omit<
+  ComponentProps<typeof TooltipPrimitive.Content>,
+  'content'
+> {
   label: ReactNode;
   children: ReactNode;
   /** Keyboard shortcut rendered alongside the label (e.g. "G then U", "Ctrl+K"). */
@@ -154,7 +157,7 @@ export function Hint({
       <TooltipTrigger asChild>{children}</TooltipTrigger>
       <TooltipContent side={side} showArrow={showArrow} {...props}>
         {shortcut ? (
-          <span className="inline-flex items-center gap-2">
+          <span className="gap-2 inline-flex items-center">
             <span>{label}</span>
             {renderShortcut(shortcut)}
           </span>
@@ -165,4 +168,3 @@ export function Hint({
     </Tooltip>
   );
 }
-

@@ -107,7 +107,10 @@ function DirectMessageRow({
           project rows in the same sidebar.
         */}
         <span
-          className={navIconClass(1, 'relative flex items-center justify-center')}
+          className={navIconClass(
+            1,
+            'relative flex items-center justify-center',
+          )}
         >
           {member.user.avatarUrl ? (
             <img
@@ -118,7 +121,7 @@ function DirectMessageRow({
           ) : (
             <span
               aria-hidden
-              className="flex size-full items-center justify-center rounded-md bg-secondary text-[9px] font-semibold text-foreground"
+              className="font-semibold flex size-full items-center justify-center rounded-md bg-secondary text-[9px] text-foreground"
             >
               {name.charAt(0).toUpperCase()}
             </span>
@@ -130,7 +133,7 @@ function DirectMessageRow({
           */}
           <span
             className={cn(
-              'absolute -right-1 -bottom-1 size-2 rounded-full border-2 border-sidebar',
+              '-right-1 -bottom-1 size-2 absolute rounded-full border-2 border-sidebar',
               PRESENCE_DOT[presence],
             )}
           >
@@ -138,12 +141,16 @@ function DirectMessageRow({
           </span>
         </span>
 
-        <span className="flex-1 truncate flex items-center gap-1.5">
+        <span className="gap-1.5 flex flex-1 items-center truncate">
           <span className="truncate">{name}</span>
           {member.user.statusEmoji ? (
             <span
-              className="text-[11px] select-none shrink-0"
-              title={member.user.statusText ? `${member.user.statusEmoji} ${member.user.statusText}` : undefined}
+              className="shrink-0 text-[11px] select-none"
+              title={
+                member.user.statusText
+                  ? `${member.user.statusEmoji} ${member.user.statusText}`
+                  : undefined
+              }
             >
               {member.user.statusEmoji}
             </span>
@@ -157,7 +164,10 @@ function DirectMessageRow({
         ) : null}
 
         {member.role === 'OWNER' ? (
-          <Badge variant="neutral" className="ml-auto h-3.5 px-1 py-0 text-[9px]">
+          <Badge
+            variant="neutral"
+            className="h-3.5 px-1 py-0 ml-auto text-[9px]"
+          >
             Owner
           </Badge>
         ) : null}
@@ -234,7 +244,9 @@ function DirectMessageRow({
               ) : (
                 <BellOff className="size-4" />
               )}
-              <span>{isMuted ? 'Unmute conversation' : 'Mute conversation'}</span>
+              <span>
+                {isMuted ? 'Unmute conversation' : 'Mute conversation'}
+              </span>
             </DropdownMenuItem>
 
             <DropdownMenuItem
@@ -275,7 +287,11 @@ function DirectMessageRow({
  * Starred people sort to the top, the way starred channels do; within each half
  * the roster keeps the order the member list came in.
  */
-export function DirectMessagesSection({ workspaceSlug }: { workspaceSlug: string }) {
+export function DirectMessagesSection({
+  workspaceSlug,
+}: {
+  workspaceSlug: string;
+}) {
   const { workspaceId } = useCurrentWorkspace();
   const currentUser = useCurrentUser();
   const members = useMembers(workspaceId);
@@ -306,7 +322,7 @@ export function DirectMessagesSection({ workspaceSlug }: { workspaceSlug: string
             variant="ghost"
             size="icon-sm"
             aria-label="New direct message"
-            className="size-5 p-0 opacity-0 transition-opacity duration-150 group-hover/section:opacity-100 group-focus-within/section:opacity-100 focus-visible:opacity-100"
+            className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
           >
             <NavLink to={`/w/${workspaceSlug}/dms`}>
               <Plus className="size-3.5" />

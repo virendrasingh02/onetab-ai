@@ -36,25 +36,25 @@ export function ErrorState({
     <div
       role="alert"
       className={cn(
-        'flex flex-col items-center justify-center gap-3 text-center',
-        fullPage ? 'min-h-[60vh] w-full px-6' : 'px-6 py-12',
+        'gap-3 flex flex-col items-center justify-center text-center',
+        fullPage ? 'px-6 min-h-[60vh] w-full' : 'px-6 py-12',
         className,
       )}
       {...props}
     >
       <div
         aria-hidden
-        className="bg-destructive/10 text-destructive flex size-11 items-center justify-center rounded-full"
+        className="size-11 flex items-center justify-center rounded-full bg-destructive/10 text-destructive"
       >
         <AlertTriangle className="size-5" />
       </div>
-      <p className="text-foreground text-sm font-semibold">{title}</p>
-      <p className="text-muted-foreground max-w-sm text-sm text-balance">
+      <p className="text-sm font-semibold text-foreground">{title}</p>
+      <p className="max-w-sm text-sm text-balance text-muted-foreground">
         {description}
       </p>
 
       {onRetry || action ? (
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-2 gap-2 flex items-center">
           {onRetry ? (
             <Button
               variant="outline"
@@ -71,10 +71,10 @@ export function ErrorState({
 
       {detail ? (
         <details className="mt-3 max-w-full text-left">
-          <summary className="text-muted-foreground hover:text-foreground cursor-pointer text-xs">
+          <summary className="text-xs cursor-pointer text-muted-foreground hover:text-foreground">
             Technical details
           </summary>
-          <pre className="bg-muted text-muted-foreground scrollbar-subtle mt-2 max-h-40 overflow-auto rounded-md p-3 text-left font-mono text-[11px] whitespace-pre-wrap">
+          <pre className="scrollbar-subtle mt-2 max-h-40 p-3 overflow-auto rounded-md bg-muted text-left font-mono text-[11px] whitespace-pre-wrap text-muted-foreground">
             {detail}
           </pre>
         </details>

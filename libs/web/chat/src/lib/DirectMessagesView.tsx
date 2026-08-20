@@ -85,7 +85,8 @@ function DirectConversation({ peerId }: { peerId: string }) {
 
   const member = (members.data ?? []).find((entry) => entry.user.id === peerId);
 
-  if (members.isLoading) return <LoadingState fullPage label="Opening conversation…" />;
+  if (members.isLoading)
+    return <LoadingState fullPage label="Opening conversation…" />;
 
   if (members.isError) {
     return (
@@ -111,8 +112,11 @@ function DirectConversation({ peerId }: { peerId: string }) {
   const name = member.user.displayName ?? member.user.name;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <DirectMessageHeader member={member} chatActionsRef={setChatActionsSlot} />
+    <div className="min-h-0 flex flex-1 flex-col">
+      <DirectMessageHeader
+        member={member}
+        chatActionsRef={setChatActionsSlot}
+      />
 
       {!enabled ? (
         <EmptyState
@@ -232,9 +236,9 @@ function DirectMessageHeader({
 
   return (
     <div className="border-b border-border bg-background">
-      <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="flex min-w-0 items-center gap-2">
+      <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
+        <div className="min-w-0 gap-2 flex items-center">
+          <div className="min-w-0 gap-2 flex items-center">
             <UserAvatar
               name={name}
               src={member.user.avatarUrl}
@@ -243,12 +247,12 @@ function DirectMessageHeader({
               size="sm"
               className="size-7"
             />
-            <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+            <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
               {name}
             </h2>
             {member.user.statusEmoji ? (
               <span
-                className="select-none text-xs"
+                className="text-xs select-none"
                 title={
                   member.user.statusText
                     ? `${member.user.statusEmoji} ${member.user.statusText}`
@@ -267,7 +271,7 @@ function DirectMessageHeader({
             ) : null}
           </div>
 
-          <div className="flex items-center gap-0.5">
+          <div className="gap-0.5 flex items-center">
             <Hint
               label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             >
@@ -317,7 +321,7 @@ function DirectMessageHeader({
                   onClick={handleCopyLink}
                   className="justify-between"
                 >
-                  <div className="flex items-center gap-2.5">
+                  <div className="gap-2.5 flex items-center">
                     {copied ? (
                       <Check className="size-4 text-success-text" />
                     ) : (
@@ -332,16 +336,14 @@ function DirectMessageHeader({
                   onClick={handleToggleFavorite}
                   className="justify-between"
                 >
-                  <div className="flex items-center gap-2.5">
+                  <div className="gap-2.5 flex items-center">
                     <Star
                       className={cn(
                         'size-4',
                         isFavorite && 'fill-current text-accent-amber',
                       )}
                     />
-                    <span>
-                      {isFavorite ? 'Remove Favorite' : 'Favorite'}
-                    </span>
+                    <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
                   </div>
                   <ChevronRight className="size-4 text-muted-foreground/70" />
                 </DropdownMenuItem>
@@ -399,7 +401,7 @@ function DirectMessageHeader({
 
           {/* The handle is the one bit of identity the avatar and name do not
               already carry; it drops out first when the row gets tight. */}
-          <p className="hidden min-w-0 max-w-[32ch] truncate border-l border-border pl-2 text-xs text-muted-foreground lg:block">
+          <p className="min-w-0 pl-2 text-xs lg:block hidden max-w-[32ch] truncate border-l border-border text-muted-foreground">
             @{member.user.name}
           </p>
         </div>
@@ -407,7 +409,7 @@ function DirectMessageHeader({
         {/* Conversation tools portal in from the chat surface. */}
         <div
           ref={chatActionsRef}
-          className="flex items-center gap-0.5 empty:hidden"
+          className="gap-0.5 flex items-center empty:hidden"
         />
       </div>
     </div>
@@ -449,10 +451,10 @@ function NewDirectMessage() {
     setSearchParams({ user: member.user.id }, { replace: true });
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-4 py-8">
-      <div className="w-full max-w-lg">
+    <div className="min-h-0 px-4 py-8 flex flex-1 flex-col items-center overflow-y-auto">
+      <div className="max-w-lg w-full">
         <div className="mb-4 text-center">
-          <MessageSquare className="mx-auto mb-2 size-6 text-muted-foreground" />
+          <MessageSquare className="mb-2 size-6 mx-auto text-muted-foreground" />
           <h1 className="text-base font-semibold text-foreground">
             New direct message
           </h1>
@@ -462,7 +464,7 @@ function NewDirectMessage() {
         </div>
 
         <Panel flush title="People">
-          <div className="border-b border-border p-3">
+          <div className="p-3 border-b border-border">
             <SearchInput
               value={query}
               onValueChange={setQuery}
@@ -490,7 +492,7 @@ function NewDirectMessage() {
               }
             />
           ) : (
-            <ul className="space-y-px p-2">
+            <ul className="p-2 space-y-px">
               {visible.map((member) => {
                 const name = member.user.displayName ?? member.user.name;
 
@@ -499,7 +501,7 @@ function NewDirectMessage() {
                     <button
                       type="button"
                       onClick={() => select(member)}
-                      className="flex w-full items-center gap-2.5 rounded-md p-2 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+                      className="gap-2.5 p-2 flex w-full items-center rounded-md text-left transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none"
                     >
                       <UserAvatar
                         name={name}
@@ -508,10 +510,10 @@ function NewDirectMessage() {
                         presence={toPresenceStatus(member.user.presence)}
                       />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">
+                        <span className="text-sm font-medium block truncate">
                           {name}
                         </span>
-                        <span className="block truncate text-xs text-muted-foreground">
+                        <span className="text-xs block truncate text-muted-foreground">
                           @{member.user.name}
                         </span>
                       </span>

@@ -65,34 +65,28 @@ export function ProjectNavRow({
   /* "Share" copies the same link; it only differs in the confirmation it shows. */
   const { copied: shared, copy: handleShare } = useCopyLink(projectUrl);
 
-  const handleRename = useCallback(
-    async () => {
-      const name = await prompts.promptText({
-        title: 'Rename project',
-        label: 'Project name',
-        defaultValue: project.name,
-        confirmLabel: 'Rename',
-      });
-      if (!name || !mutations) return;
-      mutations.update.mutate({ projectId: project.id, input: { name } });
-    },
-    [project.id, project.name, prompts, mutations],
-  );
+  const handleRename = useCallback(async () => {
+    const name = await prompts.promptText({
+      title: 'Rename project',
+      label: 'Project name',
+      defaultValue: project.name,
+      confirmLabel: 'Rename',
+    });
+    if (!name || !mutations) return;
+    mutations.update.mutate({ projectId: project.id, input: { name } });
+  }, [project.id, project.name, prompts, mutations]);
 
-  const handleDelete = useCallback(
-    async () => {
-      const confirmed = await prompts.confirmAction({
-        title: `Delete “${project.name}”?`,
-        description:
-          'The project and every task on its board are deleted for everyone. This cannot be undone.',
-        confirmLabel: 'Delete project',
-        destructive: true,
-      });
-      if (!confirmed || !mutations) return;
-      mutations.remove.mutate(project.id);
-    },
-    [project.id, project.name, prompts, mutations],
-  );
+  const handleDelete = useCallback(async () => {
+    const confirmed = await prompts.confirmAction({
+      title: `Delete “${project.name}”?`,
+      description:
+        'The project and every task on its board are deleted for everyone. This cannot be undone.',
+      confirmLabel: 'Delete project',
+      destructive: true,
+    });
+    if (!confirmed || !mutations) return;
+    mutations.remove.mutate(project.id);
+  }, [project.id, project.name, prompts, mutations]);
 
   return (
     <li className="group/row relative">
@@ -132,10 +126,7 @@ export function ProjectNavRow({
               <span>Open board</span>
             </DropdownMenuItem>
 
-            <DropdownMenuItem
-              onSelect={handleRename}
-              className="gap-2.5"
-            >
+            <DropdownMenuItem onSelect={handleRename} className="gap-2.5">
               <Pencil className="size-4" />
               <span>Rename project</span>
             </DropdownMenuItem>
@@ -185,10 +176,7 @@ export function ProjectNavRow({
               <span>Project settings</span>
             </DropdownMenuItem>
 
-            <DropdownMenuItem
-              onSelect={handleShare}
-              className="gap-2.5"
-            >
+            <DropdownMenuItem onSelect={handleShare} className="gap-2.5">
               {shared ? (
                 <Check className="size-4 text-success-text" />
               ) : (
@@ -241,7 +229,7 @@ export function ProjectsTreeSection({
             variant="ghost"
             size="icon-sm"
             aria-label="New project"
-            className="size-5 p-0 opacity-0 transition-opacity duration-150 group-hover/section:opacity-100 group-focus-within/section:opacity-100 focus-visible:opacity-100"
+            className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
           >
             <NavLink to={`/w/${workspaceSlug}/tasks?newProject=true`}>
               <Plus className="size-3.5" />

@@ -43,7 +43,7 @@ export function Calendar({
       : selected;
 
   const [currentMonth, setCurrentMonth] = useState<Date>(
-    selectedDate ?? new Date()
+    selectedDate ?? new Date(),
   );
 
   const monthStart = startOfMonth(currentMonth);
@@ -70,13 +70,13 @@ export function Calendar({
   };
 
   return (
-    <div className={cn('w-[280px] p-3 select-none', className)}>
+    <div className={cn('p-3 w-[280px] select-none', className)}>
       {/* Calendar Header */}
       <div className="mb-3 flex items-center justify-between">
         <span className="text-sm font-semibold text-foreground">
           {format(currentMonth, 'MMMM yyyy')}
         </span>
-        <div className="flex items-center gap-1">
+        <div className="gap-1 flex items-center">
           <Button
             type="button"
             variant="ghost"
@@ -116,7 +116,7 @@ export function Calendar({
         {weekDays.map((day) => (
           <span
             key={day}
-            className="text-[11px] font-medium text-muted-foreground"
+            className="font-medium text-[11px] text-muted-foreground"
           >
             {day}
           </span>
@@ -124,7 +124,7 @@ export function Calendar({
       </div>
 
       {/* Days grid */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="gap-1 grid grid-cols-7">
         {days.map((day) => {
           const isSelected = selectedDate && isSameDay(day, selectedDate);
           const isCurrentMonth = isSameMonth(day, currentMonth);
@@ -138,12 +138,18 @@ export function Calendar({
               disabled={isDisabled}
               onClick={() => onSelect?.(day)}
               className={cn(
-                'flex size-8 items-center justify-center rounded-md text-xs font-normal transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                'size-8 text-xs font-normal flex items-center justify-center rounded-md transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none',
                 !isCurrentMonth && 'text-muted-foreground/40',
-                isCurrentMonth && !isSelected && 'text-foreground hover:bg-accent hover:text-accent-foreground',
-                isCurrentDay && !isSelected && 'font-semibold text-primary ring-1 ring-primary/40',
-                isSelected && 'bg-primary font-semibold text-primary-foreground shadow-xs hover:bg-primary/90',
-                isDisabled && 'cursor-not-allowed opacity-30 hover:bg-transparent hover:text-inherit'
+                isCurrentMonth &&
+                  !isSelected &&
+                  'text-foreground hover:bg-accent hover:text-accent-foreground',
+                isCurrentDay &&
+                  !isSelected &&
+                  'font-semibold text-primary ring-1 ring-primary/40',
+                isSelected &&
+                  'font-semibold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90',
+                isDisabled &&
+                  'cursor-not-allowed opacity-30 hover:bg-transparent hover:text-inherit',
               )}
             >
               {format(day, 'd')}

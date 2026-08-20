@@ -68,23 +68,32 @@ export function TimezoneSelect({
           disabled={disabled}
           role="combobox"
           aria-expanded={open}
-          className={cn('h-9 w-full justify-between px-3 text-xs font-normal', className)}
+          className={cn(
+            'h-9 px-3 text-xs font-normal w-full justify-between',
+            className,
+          )}
         >
-          <span className="flex min-w-0 items-center gap-2">
-            <Globe className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+          <span className="min-w-0 gap-2 flex items-center">
+            <Globe
+              className="size-3.5 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
             <span className="truncate">{describeTimezone(value)}</span>
           </span>
-          <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
+          <span className="gap-2 flex shrink-0 items-center text-muted-foreground">
             <span className="tabular-nums">{formatTimeInZone(now, value)}</span>
             <ChevronsUpDown className="size-3.5" aria-hidden />
           </span>
         </Button>
       </PopoverTrigger>
 
-      <PopoverContent align="start" className="w-(--radix-popover-trigger-width) p-0">
-        <div className="relative border-b border-border p-2">
+      <PopoverContent
+        align="start"
+        className="p-0 w-(--radix-popover-trigger-width)"
+      >
+        <div className="p-2 relative border-b border-border">
           <Search
-            className="absolute top-1/2 left-4 size-3.5 -translate-y-1/2 text-muted-foreground"
+            className="left-4 size-3.5 absolute top-1/2 -translate-y-1/2 text-muted-foreground"
             aria-hidden
           />
           <Input
@@ -101,7 +110,7 @@ export function TimezoneSelect({
           <button
             type="button"
             onClick={() => select(systemZone)}
-            className="flex w-full items-center gap-2 border-b border-border px-3 py-2 text-left text-xs text-primary hover:bg-accent"
+            className="gap-2 px-3 py-2 text-xs flex w-full items-center border-b border-border text-left text-primary hover:bg-accent"
           >
             <Globe className="size-3.5 shrink-0" aria-hidden />
             <span className="truncate">
@@ -112,7 +121,7 @@ export function TimezoneSelect({
 
         <ScrollArea className="max-h-64" contentClassName="p-1">
           {matches.length === 0 ? (
-            <p className="p-4 text-center text-xs text-muted-foreground">
+            <p className="p-4 text-xs text-center text-muted-foreground">
               No timezone matches “{query}”.
             </p>
           ) : (
@@ -125,9 +134,9 @@ export function TimezoneSelect({
                   onClick={() => select(zone)}
                   aria-selected={isSelected}
                   className={cn(
-                    'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs',
+                    'gap-2 px-2 py-1.5 text-xs flex w-full items-center rounded-md text-left',
                     'hover:bg-accent focus-visible:bg-accent focus-visible:outline-none',
-                    isSelected && 'bg-selected/70 font-medium',
+                    isSelected && 'font-medium bg-selected/70',
                   )}
                 >
                   <Check
@@ -141,7 +150,8 @@ export function TimezoneSelect({
                     {describeTimezone(zone)}
                   </span>
                   <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
-                    {formatTimeInZone(now, zone)} · {formatZoneOffset(zone, now)}
+                    {formatTimeInZone(now, zone)} ·{' '}
+                    {formatZoneOffset(zone, now)}
                   </span>
                 </button>
               );

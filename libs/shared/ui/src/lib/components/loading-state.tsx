@@ -6,12 +6,16 @@ export interface SpinnerProps extends ComponentProps<'svg'> {
   label?: string;
 }
 
-export function Spinner({ className, label = 'Loading', ...props }: SpinnerProps) {
+export function Spinner({
+  className,
+  label = 'Loading',
+  ...props
+}: SpinnerProps) {
   return (
     <>
       <Loader2
         role="presentation"
-        className={cn('text-muted-foreground size-4 animate-spin', className)}
+        className={cn('size-4 animate-spin text-muted-foreground', className)}
         {...props}
       />
       <span className="sr-only">{label}</span>
@@ -41,14 +45,17 @@ export function LoadingState({
       aria-live="polite"
       aria-busy="true"
       className={cn(
-        'flex flex-col items-center justify-center gap-3',
+        'gap-3 flex flex-col items-center justify-center',
         fullPage ? 'min-h-[60vh] w-full' : 'p-8',
         className,
       )}
       {...props}
     >
-      <Loader2 className="text-muted-foreground size-5 animate-spin" aria-hidden />
-      <p className="text-muted-foreground text-sm">{label}</p>
+      <Loader2
+        className="size-5 animate-spin text-muted-foreground"
+        aria-hidden
+      />
+      <p className="text-sm text-muted-foreground">{label}</p>
     </div>
   );
 }

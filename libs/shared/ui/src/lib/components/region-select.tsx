@@ -1,8 +1,4 @@
-import {
-  WORLD_REGIONS,
-  cn,
-  type RegionInfo,
-} from '@org/utils';
+import { WORLD_REGIONS, cn, type RegionInfo } from '@org/utils';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from './button.js';
@@ -64,18 +60,21 @@ export function RegionSelect({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            'h-9 w-full justify-between px-3 text-xs font-normal',
+            'h-9 px-3 text-xs font-normal w-full justify-between',
             className,
           )}
         >
-          <span className="flex min-w-0 items-center gap-2">
+          <span className="min-w-0 gap-2 flex items-center">
             <span className="text-base leading-none">{currentRegion.flag}</span>
             <span className="truncate">{currentRegion.name}</span>
-            <span className="text-[10px] text-muted-foreground font-mono">
+            <span className="font-mono text-[10px] text-muted-foreground">
               ({currentRegion.code})
             </span>
           </span>
-          <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+          <ChevronsUpDown
+            className="size-3.5 shrink-0 text-muted-foreground"
+            aria-hidden
+          />
         </Button>
       </PopoverTrigger>
 
@@ -103,26 +102,30 @@ export function RegionSelect({
                   type="button"
                   onClick={() => handleSelect(region)}
                   className={cn(
-                    'w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-colors text-left',
+                    'px-2.5 py-1.5 text-xs flex w-full items-center justify-between rounded-md text-left transition-colors',
                     isSelected
-                      ? 'bg-primary/10 text-primary font-medium'
-                      : 'hover:bg-accent text-foreground',
+                      ? 'font-medium bg-primary/10 text-primary'
+                      : 'text-foreground hover:bg-accent',
                   )}
                 >
-                  <span className="flex items-center gap-2 truncate">
-                    <span className="text-base leading-none">{region.flag}</span>
+                  <span className="gap-2 flex items-center truncate">
+                    <span className="text-base leading-none">
+                      {region.flag}
+                    </span>
                     <span className="truncate">{region.name}</span>
-                    <span className="text-[10px] text-muted-foreground font-mono">
+                    <span className="font-mono text-[10px] text-muted-foreground">
                       {region.code}
                     </span>
                   </span>
-                  {isSelected && <Check className="size-3.5 text-primary shrink-0" />}
+                  {isSelected && (
+                    <Check className="size-3.5 shrink-0 text-primary" />
+                  )}
                 </button>
               );
             })}
 
             {matches.length === 0 && (
-              <div className="py-4 text-center text-xs text-muted-foreground">
+              <div className="py-4 text-xs text-center text-muted-foreground">
                 No regions match "{query}"
               </div>
             )}

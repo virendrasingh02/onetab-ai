@@ -15,10 +15,28 @@ export interface ChannelChatProps {
    */
   headerActionsSlot?: HTMLElement | null;
   /**
+   * Element inside the host page's own "⋯" menu to render the conversation's
+   * menu entries into — pinned messages, today. See `ChatSurface`.
+   */
+  headerMenuSlot?: HTMLElement | null;
+  /**
+   * Off when the host lists the roster somewhere better — the channel page puts
+   * it in the right rail's details panel, so the header does not repeat it.
+   */
+  showMembers?: boolean;
+  /**
    * Channel metadata and setup actions for the block that introduces the
    * channel at the top of its timeline. Omitting it leaves the block out.
    */
   welcome?: ChatSurfaceWelcome;
+  /**
+   * Bumped by the host to ask the conversation to start a huddle.
+   *
+   * A counter rather than a boolean: the request has to be repeatable, and the
+   * huddle's own state stays here in the surface where the bar that renders it
+   * lives.
+   */
+  huddleRequest?: number;
 }
 
 /**
@@ -38,7 +56,10 @@ export function ChannelChat({
   title,
   subtitle,
   headerActionsSlot,
+  headerMenuSlot,
+  showMembers,
   welcome,
+  huddleRequest,
 }: ChannelChatProps) {
   const { enabled } = useMatrix();
   const { roomId, isLoading, error } = useChannelRoom(channelId);
@@ -67,7 +88,10 @@ export function ChannelChat({
       title={title}
       subtitle={subtitle}
       headerActionsSlot={headerActionsSlot}
+      headerMenuSlot={headerMenuSlot}
+      showMembers={showMembers}
       welcome={welcome}
+      huddleRequest={huddleRequest}
     />
   );
 }

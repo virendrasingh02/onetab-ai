@@ -20,6 +20,12 @@ export interface ActivityFeedItem {
   id: string;
   kind: string;
   occurredAt: IsoDateString;
+  /**
+   * Whether the row named the signed-in user. Resolved server-side per caller,
+   * which is what lets the sidebar show a red dot for "someone called you" and
+   * a grey one for everything else.
+   */
+  isMention: boolean;
   channel: { id: string; name: string; slug: string } | null;
   user: {
     id: string;

@@ -2,10 +2,7 @@ export { MatrixProvider, useMatrix } from './lib/matrix-provider.js';
 export { usePresence, useRoom, useRoomActions } from './lib/use-chat.js';
 export { useChannelRoom } from './lib/use-channel-room.js';
 export { useDirectRoom } from './lib/use-direct-room.js';
-export {
-  useAllThreads,
-  type CrossRoomThread,
-} from './lib/use-all-threads.js';
+export { useAllThreads, type CrossRoomThread } from './lib/use-all-threads.js';
 export { ChatPanel, type ChatPanelProps } from './lib/chat-panel.js';
 export {
   ChatSurface,
@@ -31,3 +28,10 @@ export {
   type DirectMessagePreferences,
 } from './lib/use-dm-preferences.js';
 export { ThreadsView } from './lib/ThreadsView.js';
+export { SavedView } from './lib/SavedView.js';
+export {
+  useSavedIds,
+  useSavedMessagesStore,
+  useToggleSaved,
+  type SavedMessage,
+} from './lib/use-saved-messages.js';

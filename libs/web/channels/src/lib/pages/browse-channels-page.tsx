@@ -27,29 +27,35 @@ export function BrowseChannelsPage() {
   }, [channels.data, query]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="min-h-0 flex flex-1 flex-col">
       {/* Channel-style Header */}
       <div className="border-b border-border bg-background">
-        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="flex min-w-0 items-center gap-1.5">
-              <Hash className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-              <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+        <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
+          <div className="min-w-0 gap-2 flex items-center">
+            <div className="min-w-0 gap-1.5 flex items-center">
+              <Hash
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
                 Browse channels
               </h2>
-              <Badge variant="neutral" className="text-[11px] px-1.5 py-0 h-4.5">
+              <Badge
+                variant="neutral"
+                className="px-1.5 py-0 h-4.5 text-[11px]"
+              >
                 {formatCount(filtered.length)}
               </Badge>
             </div>
 
-            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
+            <div className="h-4 mx-1 sm:block hidden w-px bg-border" />
 
-            <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
+            <p className="min-w-0 text-xs sm:block hidden max-w-[48ch] truncate text-muted-foreground">
               Discover and join public or private channels in this workspace
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             <SearchInput
               value={query}
               onValueChange={setQuery}
@@ -78,66 +84,65 @@ export function BrowseChannelsPage() {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-        <div className="mx-auto max-w-4xl">
-
-      {channels.isLoading ? (
-        <SkeletonList rows={6} />
-      ) : filtered.length === 0 ? (
-        <EmptyState
-          icon={<Search />}
-          title={query ? 'No channels match' : 'No channels yet'}
-          description={
-            query
-              ? `Nothing matched "${query}".`
-              : 'Create the first channel to get started.'
-          }
-        />
-      ) : (
-        <ul className="divide-y rounded-lg border">
-          {filtered.map((channel) => {
-            const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
-            return (
-              <li
-                key={channel.id}
-                className="gap-3 px-4 py-3 flex items-center"
-              >
-                <Icon className="size-4 shrink-0 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
-                  <Link
-                    to={`/w/${slug}/c/${channel.slug}`}
-                    className="text-sm font-medium truncate hover:underline"
+      <div className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto">
+        <div className="max-w-4xl mx-auto">
+          {channels.isLoading ? (
+            <SkeletonList rows={6} />
+          ) : filtered.length === 0 ? (
+            <EmptyState
+              icon={<Search />}
+              title={query ? 'No channels match' : 'No channels yet'}
+              description={
+                query
+                  ? `Nothing matched "${query}".`
+                  : 'Create the first channel to get started.'
+              }
+            />
+          ) : (
+            <ul className="divide-y rounded-lg border">
+              {filtered.map((channel) => {
+                const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
+                return (
+                  <li
+                    key={channel.id}
+                    className="gap-3 px-4 py-3 flex items-center"
                   >
-                    {channel.name}
-                  </Link>
-                  <p className="text-xs truncate text-muted-foreground">
-                    {channel.memberCount} member
-                    {channel.memberCount === 1 ? '' : 's'}
-                    {channel.topic ? ` · ${channel.topic}` : ''}
-                  </p>
-                </div>
-                {channel.isArchived ? (
-                  <Badge variant="warning">Archived</Badge>
-                ) : channel.membership ? (
-                  <Badge variant="neutral">Joined</Badge>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => join.mutate(channel.id)}
-                  >
-                    Join
-                  </Button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                    <Icon className="size-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        to={`/w/${slug}/c/${channel.slug}`}
+                        className="text-sm font-medium truncate hover:underline"
+                      >
+                        {channel.name}
+                      </Link>
+                      <p className="text-xs truncate text-muted-foreground">
+                        {channel.memberCount} member
+                        {channel.memberCount === 1 ? '' : 's'}
+                        {channel.topic ? ` · ${channel.topic}` : ''}
+                      </p>
+                    </div>
+                    {channel.isArchived ? (
+                      <Badge variant="warning">Archived</Badge>
+                    ) : channel.membership ? (
+                      <Badge variant="neutral">Joined</Badge>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => join.mutate(channel.id)}
+                      >
+                        Join
+                      </Button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
 
-        <CreateChannelDialog open={createOpen} onOpenChange={setCreateOpen} />
+          <CreateChannelDialog open={createOpen} onOpenChange={setCreateOpen} />
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
 }

@@ -26,10 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from './dialog.js';
-import {
-  FOCUS_SOUND_OPTIONS,
-  type FocusSoundType,
-} from './focus-audio.js';
+import { FOCUS_SOUND_OPTIONS, type FocusSoundType } from './focus-audio.js';
 import { useFocusStore } from './focus-mode-store.js';
 import { Input } from './input.js';
 import { Popover, PopoverContent, PopoverTrigger } from './popover.js';
@@ -159,7 +156,9 @@ export function FocusModeWidget({
   };
 
   const progressPercent =
-    totalSeconds > 0 ? ((totalSeconds - remainingSeconds) / totalSeconds) * 100 : 0;
+    totalSeconds > 0
+      ? ((totalSeconds - remainingSeconds) / totalSeconds) * 100
+      : 0;
 
   return (
     <>
@@ -170,7 +169,7 @@ export function FocusModeWidget({
       >
         <DialogContent className="max-w-md p-0 overflow-hidden border-border bg-popover text-foreground">
           <DialogHeader className="p-5 pb-3 border-b border-border">
-            <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+            <DialogTitle className="gap-2 text-base font-semibold flex items-center">
               <Sparkles className="size-4.5 text-primary" />
               Start a Focus Session
             </DialogTitle>
@@ -185,7 +184,7 @@ export function FocusModeWidget({
               <label className="text-xs font-medium text-foreground">
                 Session Duration
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="sm:grid-cols-4 gap-2 grid grid-cols-2">
                 {FOCUS_DURATION_OPTIONS.map((opt) => (
                   <button
                     key={opt.minutes}
@@ -195,9 +194,9 @@ export function FocusModeWidget({
                       setCustomMinutes('');
                     }}
                     className={cn(
-                      'p-2.5 rounded-lg border flex flex-col items-center gap-1 text-center transition-all',
+                      'p-2.5 gap-1 flex flex-col items-center rounded-lg border text-center transition-all',
                       selectedMinutes === opt.minutes && !customMinutes
-                        ? 'border-primary bg-primary/10 text-primary-text font-semibold shadow-xs ring-1 ring-primary'
+                        ? 'font-semibold shadow-xs border-primary bg-primary/10 text-primary-text ring-1 ring-primary'
                         : 'border-border bg-surface text-foreground hover:bg-accent',
                     )}
                   >
@@ -211,7 +210,7 @@ export function FocusModeWidget({
               </div>
 
               {/* Custom Minutes Input */}
-              <div className="flex items-center gap-2 pt-1">
+              <div className="gap-2 pt-1 flex items-center">
                 <Input
                   type="number"
                   min={1}
@@ -240,8 +239,8 @@ export function FocusModeWidget({
 
             {/* Ambient Soundscape Synthesizer */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
+              <label className="text-xs font-medium flex items-center justify-between text-foreground">
+                <span className="gap-1.5 flex items-center">
                   <Music className="size-3.5 text-primary" />
                   Ambient Background Sound
                 </span>
@@ -250,29 +249,29 @@ export function FocusModeWidget({
                 </span>
               </label>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+              <div className="sm:grid-cols-3 gap-1.5 grid grid-cols-2">
                 {FOCUS_SOUND_OPTIONS.map((snd) => (
                   <button
                     key={snd.id}
                     type="button"
                     onClick={() => setSelectedSound(snd.id)}
                     className={cn(
-                      'p-2 rounded-lg border flex items-center gap-2 text-left transition-all text-xs',
+                      'p-2 gap-2 text-xs flex items-center rounded-lg border text-left transition-all',
                       selectedSound === snd.id
-                        ? 'border-primary bg-primary/10 text-primary-text font-medium ring-1 ring-primary'
+                        ? 'font-medium border-primary bg-primary/10 text-primary-text ring-1 ring-primary'
                         : 'border-border bg-surface text-foreground hover:bg-accent',
                     )}
                   >
                     <span className="text-base">{snd.icon}</span>
                     <div className="min-w-0">
-                      <div className="truncate font-medium">{snd.name}</div>
+                      <div className="font-medium truncate">{snd.name}</div>
                     </div>
                   </button>
                 ))}
               </div>
 
               {selectedSound !== 'none' && (
-                <div className="flex items-center gap-2 pt-1.5 px-1">
+                <div className="gap-2 pt-1.5 px-1 flex items-center">
                   <Volume2 className="size-3.5 text-muted-foreground" />
                   <input
                     type="range"
@@ -283,7 +282,7 @@ export function FocusModeWidget({
                     onChange={(e) =>
                       setSelectedVolume(parseFloat(e.target.value))
                     }
-                    className="w-full h-1.5 bg-border rounded-lg appearance-none cursor-pointer accent-primary"
+                    className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-border accent-primary"
                   />
                 </div>
               )}
@@ -291,14 +290,14 @@ export function FocusModeWidget({
 
             {/* Sync Slack Status and DND */}
             <div className="pt-1 space-y-2 border-t border-border">
-              <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-foreground">
+              <label className="gap-2 text-xs flex cursor-pointer items-center text-foreground select-none">
                 <input
                   type="checkbox"
                   checked={syncStatus}
                   onChange={(e) => setSyncStatus(e.target.checked)}
-                  className="rounded border-border text-primary focus:ring-ring size-4"
+                  className="rounded size-4 border-border text-primary focus:ring-ring"
                 />
-                <span className="flex items-center gap-1.5">
+                <span className="gap-1.5 flex items-center">
                   <Target className="size-3.5 text-primary" />
                   Auto-set Slack status to 🎯 In Focus Mode & DND
                 </span>
@@ -306,7 +305,7 @@ export function FocusModeWidget({
             </div>
           </div>
 
-          <DialogFooter className="p-4 bg-surface-muted/50 border-t border-border flex items-center justify-between">
+          <DialogFooter className="p-4 flex items-center justify-between border-t border-border bg-surface-muted/50">
             <Button variant="ghost" size="sm" onClick={closeFocusModal}>
               Cancel
             </Button>
@@ -337,31 +336,31 @@ export function FocusModeWidget({
             /* Minimized Focus Pill */
             <div
               onClick={() => setIsMinimized(false)}
-              className="group flex items-center gap-2.5 px-3.5 py-2 rounded-full border border-primary/40 bg-surface/95 backdrop-blur-md shadow-overlay text-foreground cursor-pointer hover:border-primary transition-all hover:scale-105"
+              className="group gap-2.5 px-3.5 py-2 backdrop-blur-md flex cursor-pointer items-center rounded-full border border-primary/40 bg-surface/95 text-foreground shadow-overlay transition-all hover:scale-105 hover:border-primary"
             >
-              <div className="relative size-4 flex items-center justify-center">
-                <div className="size-3 rounded-full bg-primary animate-ping opacity-75 absolute" />
+              <div className="size-4 relative flex items-center justify-center">
+                <div className="size-3 animate-ping absolute rounded-full bg-primary opacity-75" />
                 <span className="text-xs">🎯</span>
               </div>
-              <span className="font-mono text-xs font-semibold text-primary">
+              <span className="text-xs font-semibold font-mono text-primary">
                 {formatTime(remainingSeconds)}
               </span>
               <Maximize2 className="size-3 text-muted-foreground group-hover:text-foreground" />
             </div>
           ) : (
             /* Full Focus Card */
-            <div className="overflow-hidden rounded-2xl border border-border bg-popover/95 backdrop-blur-md text-foreground shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-200">
+            <div className="rounded-2xl backdrop-blur-md shadow-2xl animate-in fade-in slide-in-from-bottom-4 overflow-hidden border border-border bg-popover/95 text-foreground duration-200">
               {/* Header */}
-              <div className="flex items-center justify-between px-3.5 py-2 border-b border-border bg-surface-muted/50 text-xs">
-                <div className="flex items-center gap-1.5 font-medium text-foreground">
-                  <span className="size-2 rounded-full bg-success animate-pulse" />
+              <div className="px-3.5 py-2 text-xs flex items-center justify-between border-b border-border bg-surface-muted/50">
+                <div className="gap-1.5 font-medium flex items-center text-foreground">
+                  <span className="size-2 animate-pulse rounded-full bg-success" />
                   Focus Mode Active
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="gap-1 flex items-center">
                   <button
                     type="button"
                     onClick={() => setIsMinimized(true)}
-                    className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent"
+                    className="p-1 rounded text-muted-foreground hover:bg-accent hover:text-foreground"
                     title="Minimize"
                   >
                     <Minimize2 className="size-3.5" />
@@ -369,7 +368,7 @@ export function FocusModeWidget({
                   <button
                     type="button"
                     onClick={() => handleStopSession(false)}
-                    className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    className="p-1 rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                     title="End Session"
                   >
                     <X className="size-3.5" />
@@ -380,7 +379,7 @@ export function FocusModeWidget({
               {/* Body */}
               <div className="p-4 flex flex-col items-center text-center">
                 {/* Circular Progress & Timer */}
-                <div className="relative size-28 flex items-center justify-center my-1">
+                <div className="size-28 my-1 relative flex items-center justify-center">
                   <svg className="size-full -rotate-90" viewBox="0 0 100 100">
                     <circle
                       className="text-border"
@@ -407,10 +406,10 @@ export function FocusModeWidget({
                     />
                   </svg>
                   <div className="absolute flex flex-col items-center">
-                    <span className="font-mono text-2xl font-bold tracking-tight text-foreground">
+                    <span className="text-2xl font-bold tracking-tight font-mono text-foreground">
                       {formatTime(remainingSeconds)}
                     </span>
-                    <span className="text-[10px] text-muted-foreground uppercase font-medium">
+                    <span className="font-medium text-[10px] text-muted-foreground uppercase">
                       {isPaused ? 'Paused' : 'Focusing'}
                     </span>
                   </div>
@@ -418,7 +417,7 @@ export function FocusModeWidget({
 
                 {/* Task Objective */}
                 {taskObjective ? (
-                  <div className="mt-1 mb-2 px-2 py-0.5 max-w-full rounded-full bg-primary/10 text-primary-text text-[11px] font-medium truncate flex items-center gap-1">
+                  <div className="mt-1 mb-2 px-2 py-0.5 font-medium gap-1 flex max-w-full items-center truncate rounded-full bg-primary/10 text-[11px] text-primary-text">
                     <Target className="size-3 shrink-0" />
                     <span className="truncate">{taskObjective}</span>
                   </div>
@@ -429,7 +428,7 @@ export function FocusModeWidget({
                 )}
 
                 {/* Controls */}
-                <div className="flex items-center gap-2 mt-2">
+                <div className="gap-2 mt-2 flex items-center">
                   {/* Pause / Resume */}
                   <Button
                     variant={isPaused ? 'primary' : 'outline'}
@@ -453,7 +452,7 @@ export function FocusModeWidget({
                     variant="ghost"
                     size="sm"
                     onClick={() => addTime(5)}
-                    className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1"
+                    className="h-8 px-2.5 text-xs gap-1 text-muted-foreground hover:text-foreground"
                     title="Add 5 minutes"
                   >
                     <Plus className="size-3.5" /> 5m
@@ -484,7 +483,7 @@ export function FocusModeWidget({
                       align="center"
                       className="w-56 p-2 border-border bg-popover"
                     >
-                      <div className="text-[11px] font-semibold text-muted-foreground mb-1.5 px-1">
+                      <div className="font-semibold mb-1.5 px-1 text-[11px] text-muted-foreground">
                         Ambient Soundscape
                       </div>
                       <div className="space-y-1">
@@ -494,13 +493,13 @@ export function FocusModeWidget({
                             type="button"
                             onClick={() => setSound(snd.id)}
                             className={cn(
-                              'w-full flex items-center justify-between p-1.5 rounded text-xs transition-colors',
+                              'p-1.5 rounded text-xs flex w-full items-center justify-between transition-colors',
                               soundType === snd.id
-                                ? 'bg-primary/10 text-primary font-medium'
-                                : 'hover:bg-accent text-foreground',
+                                ? 'font-medium bg-primary/10 text-primary'
+                                : 'text-foreground hover:bg-accent',
                             )}
                           >
-                            <span className="flex items-center gap-2">
+                            <span className="gap-2 flex items-center">
                               <span>{snd.icon}</span>
                               <span>{snd.name}</span>
                             </span>
@@ -511,7 +510,7 @@ export function FocusModeWidget({
                         ))}
                       </div>
                       {soundType !== 'none' && (
-                        <div className="pt-2 mt-2 border-t border-border flex items-center gap-2 px-1">
+                        <div className="pt-2 mt-2 gap-2 px-1 flex items-center border-t border-border">
                           <Volume2 className="size-3 text-muted-foreground" />
                           <input
                             type="range"
@@ -522,7 +521,7 @@ export function FocusModeWidget({
                             onChange={(e) =>
                               setVolume(parseFloat(e.target.value))
                             }
-                            className="w-full h-1 bg-border rounded-lg appearance-none cursor-pointer accent-primary"
+                            className="h-1 w-full cursor-pointer appearance-none rounded-lg bg-border accent-primary"
                           />
                         </div>
                       )}
@@ -534,7 +533,7 @@ export function FocusModeWidget({
                     variant="outline"
                     size="sm"
                     onClick={() => handleStopSession(true)}
-                    className="h-8 px-2.5 text-xs text-success hover:text-success hover:bg-success/10"
+                    className="h-8 px-2.5 text-xs text-success hover:bg-success/10 hover:text-success"
                     title="Complete Session"
                   >
                     <CheckCircle2 className="size-3.5" />

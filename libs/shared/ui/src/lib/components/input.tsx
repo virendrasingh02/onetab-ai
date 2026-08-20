@@ -1,6 +1,8 @@
 import { cn } from '@org/utils';
 import type { ComponentProps, ReactNode, Ref } from 'react';
-import TextareaAutosize, { type TextareaAutosizeProps } from 'react-textarea-autosize';
+import TextareaAutosize, {
+  type TextareaAutosizeProps,
+} from 'react-textarea-autosize';
 
 export interface InputProps extends ComponentProps<'input'> {
   /** Decoration rendered inside the field, before the text. */
@@ -35,13 +37,13 @@ export function Input({
       className={cn(
         // Tokens, not literals — the field was pinned to a dark ramp
         // (#111113 on #27272A) and stayed dark on the light canvas.
-        'flex h-8 w-full min-w-0 rounded-input border border-input bg-surface px-3 py-1 text-xs text-foreground',
+        'h-8 min-w-0 px-3 py-1 text-xs flex w-full rounded-input border border-input bg-surface text-foreground',
         'placeholder:text-subtle',
         'transition-[color,background-color,border-color,box-shadow] duration-(--duration-fast) outline-none',
         'focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25',
         'disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-disabled disabled:opacity-100',
         'aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20',
-        'file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-xs file:font-medium file:text-foreground',
+        'file:h-7 file:text-xs file:font-medium file:inline-flex file:border-0 file:bg-transparent file:text-foreground',
         leadingIcon && 'pl-9',
         trailingSlot && 'pr-9',
         className,
@@ -57,14 +59,14 @@ export function Input({
       {leadingIcon ? (
         <span
           aria-hidden
-          className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-subtle [&_svg]:size-4"
+          className="left-3 [&_svg]:size-4 pointer-events-none absolute top-1/2 -translate-y-1/2 text-subtle"
         >
           {leadingIcon}
         </span>
       ) : null}
       {field}
       {trailingSlot ? (
-        <span className="absolute top-1/2 right-2 -translate-y-1/2">
+        <span className="right-2 absolute top-1/2 -translate-y-1/2">
           {trailingSlot}
         </span>
       ) : null}
@@ -102,7 +104,7 @@ export function Textarea({
        */
       minRows={minRows ?? rows ?? 2}
       className={cn(
-        'flex min-h-16 w-full rounded-input border border-input bg-surface px-3 py-2 text-xs text-foreground',
+        'min-h-16 px-3 py-2 text-xs flex w-full rounded-input border border-input bg-surface text-foreground',
         'resize-none placeholder:text-subtle',
         'transition-[color,background-color,border-color,box-shadow] duration-(--duration-fast) outline-none',
         'focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25',

@@ -19,6 +19,7 @@ import {
   SkeletonList,
   Textarea,
   UserAvatar,
+  useRightPanelStore,
 } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';
 import {
@@ -38,6 +39,7 @@ import {
   Contact,
   Copy,
   CornerUpRight,
+  Expand,
   Eye,
   FileCode,
   FileVideo,
@@ -53,9 +55,9 @@ import {
   ListCheck,
   Maximize2,
   MessageSquare,
-  Minimize2,
   MoreHorizontal,
   Paperclip,
+  PanelRight,
   Pencil,
   Play,
   Plus,
@@ -73,9 +75,14 @@ import {
   Video,
   X,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAddTaskComment, useTaskComments } from '../use-work-tools.js';
 import { parseDay } from './card-meta.js';
+import {
+  useKanbanCardViewStore,
+  type KanbanCardViewMode,
+} from './kanban-card-view-store.js';
 import { useKanbanCustomStore } from './kanban-custom-store.js';
 import { KanbanLabelPicker } from './KanbanLabelPicker.js';
 import { KanbanLeadPicker } from './KanbanLeadPicker.js';
@@ -113,6 +120,15 @@ function findCard(
   return undefined;
 }
 
+/**
+ * Hosts an open card in whichever of the three surfaces the user last chose.
+ *
+ * The rail case is a portal rather than a second copy of the body: the card's
+ * edit state (a half-typed description, an open picker) lives in
+ * `CardDetailsBody`, and re-mounting it on every view change would throw that
+ * away. The shell publishes an empty element and this renders into it, so
+ * switching between rail and dialog moves the same live component.
+ */
 export function CardDetailsDialog({
   workspaceId,
   board,
@@ -121,11 +137,50 @@ export function CardDetailsDialog({
   onClose,
 }: CardDetailsDialogProps) {
   const found = cardId ? findCard(board, cardId) : undefined;
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const mode = useKanbanCardViewStore((s) => s.mode);
+
+  const cardSlot = useRightPanelStore((s) => s.slots.card);
+  const openHosted = useRightPanelStore((s) => s.openHosted);
+  const closeHosted = useRightPanelStore((s) => s.closeHosted);
+
+  const inPanel = mode === 'panel';
+
+  /*
+   * Claim the rail while a card is open in panel mode, and give it back on
+   * close or on a switch to a dialog — otherwise the rail would outlive the
+   * card and show an empty column. `onClose` goes with the claim so dismissing
+   * the rail closes the card rather than orphaning it.
+   */
+  useEffect(() => {
+    if (!found || !inPanel) return;
+    /* The card draws its own toolbar, so it needs no title from the rail. */
+    openHosted('card', { title: '', onClose });
+    return () => closeHosted('card');
+  }, [found, inPanel, onClose, openHosted, closeHosted]);
+
+  if (!found) return null;
+
+  const body = (
+    <CardDetailsBody
+      workspaceId={workspaceId}
+      board={board}
+      card={found.card}
+      listId={found.list.id}
+      listTitle={found.list.title}
+      dispatch={dispatch}
+      onClose={onClose}
+      mode={mode}
+    />
+  );
+
+  if (inPanel) {
+    // Nothing to render until the shell has mounted its slot — one frame.
+    return cardSlot ? createPortal(body, cardSlot) : null;
+  }
 
   return (
     <Dialog
-      open={Boolean(found)}
+      open
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
@@ -133,7 +188,7 @@ export function CardDetailsDialog({
       <DialogContent
         className={cn(
           'p-0 overflow-hidden flex flex-col bg-card text-card-foreground transition-all duration-200 border border-border shadow-2xl rounded-2xl',
-          isFullscreen
+          mode === 'full'
             ? 'w-[98vw] h-[96vh] max-w-none'
             : 'w-[94vw] max-w-6xl h-[90vh]',
         )}
@@ -142,21 +197,58 @@ export function CardDetailsDialog({
           (event.currentTarget as HTMLElement | null)?.focus();
         }}
       >
-        {found ? (
-          <CardDetailsBody
-            workspaceId={workspaceId}
-            board={board}
-            card={found.card}
-            listId={found.list.id}
-            listTitle={found.list.title}
-            dispatch={dispatch}
-            onClose={onClose}
-            isFullscreen={isFullscreen}
-            onToggleFullscreen={() => setIsFullscreen(!isFullscreen)}
-          />
-        ) : null}
+        {body}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/* ------------------------------------------------------- view switcher --- */
+
+const VIEW_OPTIONS: Array<{
+  mode: KanbanCardViewMode;
+  label: string;
+  icon: typeof PanelRight;
+}> = [
+  { mode: 'panel', label: 'Open in side panel', icon: PanelRight },
+  { mode: 'modal', label: 'Normal window', icon: Maximize2 },
+  { mode: 'full', label: 'Full width', icon: Expand },
+];
+
+function CardViewSwitcher() {
+  const mode = useKanbanCardViewStore((s) => s.mode);
+  const setMode = useKanbanCardViewStore((s) => s.setMode);
+
+  return (
+    <div
+      role="group"
+      aria-label="Card view"
+      className="p-0.5 gap-0.5 flex items-center rounded-btn border border-border/60 bg-muted/50"
+    >
+      {VIEW_OPTIONS.map((option) => {
+        const isActive = option.mode === mode;
+        return (
+          <button
+            key={option.mode}
+            type="button"
+            aria-pressed={isActive}
+            aria-label={option.label}
+            title={option.label}
+            onClick={() => setMode(option.mode)}
+            className={cn(
+              'size-6 grid place-items-center rounded-[calc(var(--radius-btn)-2px)]',
+              'transition-colors duration-(--duration-fast) ease-standard',
+              'outline-none focus-visible:ring-1 focus-visible:ring-ring',
+              isActive
+                ? 'bg-card text-foreground shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <option.icon className="size-3.5" aria-hidden />
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -170,8 +262,8 @@ interface CardDetailsBodyProps {
   listTitle: string;
   dispatch: (action: BoardAction) => void;
   onClose: () => void;
-  isFullscreen: boolean;
-  onToggleFullscreen: () => void;
+  /** Drives how much the header dares to show — the rail is ~320px wide. */
+  mode: KanbanCardViewMode;
 }
 
 function formatDateShort(dateStr?: string): string {
@@ -188,8 +280,7 @@ function CardDetailsBody({
   listTitle,
   dispatch,
   onClose,
-  isFullscreen,
-  onToggleFullscreen,
+  mode,
 }: CardDetailsBodyProps) {
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState(card.description);
@@ -277,10 +368,23 @@ function CardDetailsBody({
     setEditingDescription(true);
   };
 
+  /*
+   * The rail is roughly a third of the dialog's width, so the header's
+   * breadcrumb-plus-six-counters row and the side-by-side columns cannot simply
+   * be reused there. Media queries are no help — the viewport is wide, the
+   * container is not — so the layout branches on the mode instead.
+   */
+  const isPanel = mode === 'panel';
+
   return (
     <div className="flex flex-col h-full overflow-hidden bg-card text-card-foreground">
       {/* ---------------- 1. TOP TOOLBAR / HEADER ---------------- */}
-      <header className="h-13 px-4 sm:px-6 border-b border-border/70 bg-surface/50 backdrop-blur-sm flex items-center justify-between gap-4 shrink-0">
+      <header
+        className={cn(
+          'h-13 border-b border-border/70 bg-surface/50 backdrop-blur-sm flex items-center justify-between shrink-0',
+          isPanel ? 'px-2 gap-1.5' : 'px-4 sm:px-6 gap-4',
+        )}
+      >
         {/* Left: Breadcrumbs & Meta Badges */}
         <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
@@ -305,7 +409,12 @@ function CardDetailsBody({
               <ChevronDown className="size-3 text-muted-foreground ml-0.5" />
             </div>
 
-            <div className="hidden lg:flex items-center gap-2.5 text-muted-foreground text-[11px]">
+            <div
+              className={cn(
+                'items-center gap-2.5 text-muted-foreground text-[11px]',
+                isPanel ? 'hidden' : 'hidden lg:flex',
+              )}
+            >
               <span className="flex items-center gap-1 hover:text-foreground cursor-pointer" title="Subtasks">
                 <GitBranch className="size-3" />
                 <span>3</span>
@@ -402,22 +511,14 @@ function CardDetailsBody({
             <Star className={cn('size-3.5', isStarred && 'fill-current')} />
           </Button>
 
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={onToggleFullscreen}
-            className="size-7 text-muted-foreground hover:text-foreground"
-            title={isFullscreen ? 'Exit full screen' : 'Full screen'}
-          >
-            {isFullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
-          </Button>
+          <CardViewSwitcher />
 
           <Button
             variant="ghost"
             size="icon-sm"
             onClick={onClose}
             className="size-7 text-muted-foreground hover:text-foreground"
-            title="Close modal"
+            title="Close card"
           >
             <X className="size-4" />
           </Button>
@@ -425,12 +526,29 @@ function CardDetailsBody({
       </header>
 
       {/* ---------------- 2. MAIN 2-COLUMN LAYOUT ---------------- */}
-      <div className="flex min-h-0 flex-1 overflow-hidden divide-x divide-border/60">
+      <div
+        className={cn(
+          'flex min-h-0 flex-1 overflow-hidden divide-border/60',
+          isPanel ? 'flex-col divide-y' : 'divide-x',
+        )}
+      >
         {/* LEFT COLUMN: Title, AI Banner, Properties, Description, Checklists */}
-        <div className="flex-1 min-w-0 overflow-y-auto p-6 md:p-8 space-y-6">
+        <div
+          className={cn(
+            'flex-1 min-w-0 overflow-y-auto space-y-6',
+            isPanel ? 'p-4' : 'p-6 md:p-8',
+          )}
+        >
           {/* Large Editable Title */}
           <div>
-            <DialogTitle className="sr-only">{card.title}</DialogTitle>
+            {/* `DialogTitle` reads Radix's dialog context, so it only exists
+                in the two dialog modes; in the rail there is no dialog to
+                label and a plain heading is the accessible equivalent. */}
+            {isPanel ? (
+              <h2 className="sr-only">{card.title}</h2>
+            ) : (
+              <DialogTitle className="sr-only">{card.title}</DialogTitle>
+            )}
             <Textarea
               rows={2}
               defaultValue={card.title}
@@ -465,7 +583,12 @@ function CardDetailsBody({
           </div>
 
           {/* Structured 2-Column Properties Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3.5 py-3 border-y border-border/50 text-xs">
+          <div
+            className={cn(
+              'grid gap-x-8 gap-y-3.5 py-3 border-y border-border/50 text-xs',
+              isPanel ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2',
+            )}
+          >
             {/* Row 1 Left: Status */}
             <div className="flex items-center gap-3">
               <span className="w-24 text-muted-foreground flex items-center gap-1.5 font-medium">
@@ -820,7 +943,14 @@ function CardDetailsBody({
         </div>
 
         {/* RIGHT COLUMN: Activity & Comments Feed */}
-        <div className="w-full md:w-96 flex flex-col h-full bg-surface-inset/30 overflow-hidden">
+        <div
+          className={cn(
+            'w-full flex flex-col bg-surface-inset/30 overflow-hidden',
+            // Stacked under the card in the rail, capped so the card body it
+            // belongs to never gets squeezed out of view above it.
+            isPanel ? 'max-h-[45%] shrink-0' : 'md:w-96 h-full',
+          )}
+        >
           {/* Activity Header */}
           <div className="p-3.5 px-5 border-b border-border/60 bg-surface/40 flex items-center justify-between shrink-0">
             <h3 className="text-xs font-bold text-foreground flex items-center gap-2">

@@ -163,7 +163,9 @@ export function CommandPalette({
       setSelectedIndex((prev) => (prev + 1) % (filtered.length || 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev - 1 + filtered.length) % (filtered.length || 1));
+      setSelectedIndex(
+        (prev) => (prev - 1 + filtered.length) % (filtered.length || 1),
+      );
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (filtered[selectedIndex]) {
@@ -176,11 +178,11 @@ export function CommandPalette({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideCloseButton
-        className="top-[16%] max-w-xl translate-y-0 overflow-hidden p-0"
+        className="max-w-xl translate-y-0 p-0 top-[16%] overflow-hidden"
       >
         <DialogTitle className="sr-only">Command palette</DialogTitle>
 
-        <div className="flex items-center gap-2.5 border-b border-border px-4 py-1">
+        <div className="gap-2.5 px-4 py-1 flex items-center border-b border-border">
           <Search className="size-4 shrink-0 text-subtle" aria-hidden />
           <input
             autoFocus
@@ -189,9 +191,9 @@ export function CommandPalette({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             aria-label={placeholder}
-            className="h-11 w-full bg-transparent text-xs text-foreground placeholder:text-subtle outline-none"
+            className="h-11 text-xs w-full bg-transparent text-foreground outline-none placeholder:text-subtle"
           />
-          <kbd className="rounded-btn border border-border bg-surface-raised px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+          <kbd className="px-1.5 py-0.5 rounded-btn border border-border bg-surface-raised font-mono text-[10px] text-muted-foreground">
             ESC
           </kbd>
         </div>
@@ -203,7 +205,7 @@ export function CommandPalette({
             the eight static navigation commands.
           */}
           {renderResults && query ? (
-            <div className="mb-2 border-b border-border pb-2">
+            <div className="mb-2 pb-2 border-b border-border">
               {renderResults(query)}
             </div>
           ) : null}
@@ -212,12 +214,12 @@ export function CommandPalette({
             children
           ) : filtered.length === 0 ? (
             renderResults && query ? null : (
-              <div className="p-8 text-center text-xs text-subtle">
+              <div className="p-8 text-xs text-center text-subtle">
                 No commands found matching "{query}"
               </div>
             )
           ) : (
-            <div className="flex flex-col gap-0.5">
+            <div className="gap-0.5 flex flex-col">
               {filtered.map((item, idx) => {
                 const isSelected = idx === selectedIndex;
                 return (
@@ -226,23 +228,23 @@ export function CommandPalette({
                     onClick={() => item.action()}
                     onMouseEnter={() => setSelectedIndex(idx)}
                     className={cn(
-                      'flex w-full items-center justify-between rounded-btn px-3 py-2 text-xs',
+                      'px-3 py-2 text-xs flex w-full items-center justify-between rounded-btn',
                       'transition-colors duration-(--duration-fast) ease-standard',
                       isSelected
                         ? 'bg-accent text-foreground'
                         : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                     )}
                   >
-                    <div className="flex items-center gap-2.5">
+                    <div className="gap-2.5 flex items-center">
                       {item.icon}
                       <span className="font-medium">{item.label}</span>
                       <span className="font-mono text-[10px] text-subtle">
                         · {item.category}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="gap-2 flex items-center">
                       {item.shortcut ? (
-                        <kbd className="rounded border border-border bg-surface-raised px-1.5 py-0.5 font-mono text-[10px] text-subtle">
+                        <kbd className="rounded px-1.5 py-0.5 border border-border bg-surface-raised font-mono text-[10px] text-subtle">
                           {item.shortcut}
                         </kbd>
                       ) : null}
@@ -257,22 +259,22 @@ export function CommandPalette({
           )}
         </ScrollArea>
 
-        <div className="flex items-center justify-between border-t border-border bg-surface-muted px-4 py-2 text-[11px] text-subtle">
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1">
-              <kbd className="rounded border border-border bg-surface-raised px-1 py-0.5 font-mono text-[9px]">
+        <div className="px-4 py-2 flex items-center justify-between border-t border-border bg-surface-muted text-[11px] text-subtle">
+          <div className="gap-3 flex items-center">
+            <span className="gap-1 flex items-center">
+              <kbd className="rounded px-1 py-0.5 border border-border bg-surface-raised font-mono text-[9px]">
                 ↵
               </kbd>{' '}
               select
             </span>
-            <span className="flex items-center gap-1">
-              <kbd className="rounded border border-border bg-surface-raised px-1 py-0.5 font-mono text-[9px]">
+            <span className="gap-1 flex items-center">
+              <kbd className="rounded px-1 py-0.5 border border-border bg-surface-raised font-mono text-[9px]">
                 ↑↓
               </kbd>{' '}
               navigate
             </span>
           </div>
-          <span className="flex items-center gap-1 text-primary-text">
+          <span className="gap-1 flex items-center text-primary-text">
             <Sparkles className="size-3" /> Linear AI enabled
           </span>
         </div>

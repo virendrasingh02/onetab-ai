@@ -64,8 +64,9 @@ export function DropdownMenuContent({
   );
 }
 
-export interface DropdownMenuItemProps
-  extends ComponentProps<typeof DropdownMenuPrimitive.Item> {
+export interface DropdownMenuItemProps extends ComponentProps<
+  typeof DropdownMenuPrimitive.Item
+> {
   inset?: boolean;
   variant?: 'default' | 'destructive';
   description?: ReactNode;
@@ -90,7 +91,7 @@ export function DropdownMenuItem({
       className={cn(
         menuItem,
         inset && menuIndicatorInset,
-        description && 'items-start py-1.5',
+        description && 'py-1.5 items-start',
         variant === 'destructive' &&
           'text-destructive focus:bg-destructive/10 focus:text-destructive [&_svg]:text-destructive focus:[&_svg]:text-destructive',
         className,
@@ -100,11 +101,11 @@ export function DropdownMenuItem({
       {description ? (
         <>
           {icon}
-          <div className="flex flex-col min-w-0 flex-1">
-            <div className="flex items-center justify-between font-medium leading-snug text-xs">
+          <div className="min-w-0 flex flex-1 flex-col">
+            <div className="font-medium leading-snug text-xs flex items-center justify-between">
               {restChildren}
             </div>
-            <p className="text-[11px] text-muted-foreground font-normal leading-normal mt-0.5 whitespace-normal pr-1">
+            <p className="font-normal leading-normal mt-0.5 pr-1 text-[11px] whitespace-normal text-muted-foreground">
               {description}
             </p>
           </div>
@@ -166,7 +167,7 @@ export function DropdownMenuLabel({
   return (
     <DropdownMenuPrimitive.Label
       className={cn(
-        'text-subtle px-2 py-1 text-[10px] font-semibold tracking-wider uppercase',
+        'px-2 py-1 font-semibold tracking-wider text-[10px] text-subtle uppercase',
         inset && menuIndicatorInset,
         className,
       )}
@@ -181,7 +182,7 @@ export function DropdownMenuSeparator({
 }: ComponentProps<typeof DropdownMenuPrimitive.Separator>) {
   return (
     <DropdownMenuPrimitive.Separator
-      className={cn('bg-border -mx-1 my-1 h-px', className)}
+      className={cn('-mx-1 my-1 h-px bg-border', className)}
       {...props}
     />
   );
@@ -194,7 +195,7 @@ export function DropdownMenuShortcut({
   return (
     <span
       className={cn(
-        'text-subtle ml-auto pl-3 font-mono text-[10px] font-normal tracking-wide',
+        'pl-3 font-normal tracking-wide ml-auto font-mono text-[10px] text-subtle',
         className,
       )}
       {...props}
@@ -221,7 +222,7 @@ export function DropdownMenuSubTrigger({
       {...props}
     >
       {children}
-      <ChevronRight className="ml-auto size-3.5 text-subtle shrink-0" />
+      <ChevronRight className="size-3.5 ml-auto shrink-0 text-subtle" />
     </DropdownMenuPrimitive.SubTrigger>
   );
 }

@@ -77,14 +77,14 @@ export function navRowClass(
 ) {
   const { depth = 0, extra } = options;
   return cn(
-    'group gap-2.5 py-1.5 relative flex items-center rounded-xl font-medium tracking-[-0.01em]',
+    'group gap-2.5 py-1.5 font-medium relative flex items-center rounded-xl tracking-[-0.01em]',
     DEPTH_PADDING[depth],
     DEPTH_TEXT[depth],
     'transition-all duration-(--duration-fast) ease-standard',
     'outline-none focus-visible:ring-1 focus-visible:ring-ring',
     isActive
       ? 'font-semibold shadow-2xs bg-accent text-foreground'
-      : 'text-foreground/90 font-medium hover:bg-accent/70 hover:text-foreground',
+      : 'font-medium text-foreground/90 hover:bg-accent/70 hover:text-foreground',
     extra,
   );
 }
@@ -101,7 +101,7 @@ export function navActionClass(
 ) {
   const { depth = 0, extra } = options;
   return cn(
-    'group gap-2.5 py-1.5 flex w-full items-center rounded-xl text-left font-medium',
+    'group gap-2.5 py-1.5 font-medium flex w-full items-center rounded-xl text-left',
     DEPTH_PADDING[depth],
     DEPTH_TEXT[depth],
     'text-foreground/80 transition-all duration-(--duration-fast) ease-standard',
@@ -166,7 +166,7 @@ export function NavRow({
         }
       >
         <Icon className={navIconClass(depth)} aria-hidden />
-        <span className="flex-1 truncate font-medium">{entry.label}</span>
+        <span className="font-medium flex-1 truncate">{entry.label}</span>
         {entry.badge !== undefined && (
           <Badge
             variant="neutral"
@@ -178,7 +178,7 @@ export function NavRow({
       </NavLink>
 
       {onTogglePin && entry.path !== '' ? (
-        <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 transition-opacity group-hover/nav-row:opacity-100 group-focus-within/nav-row:opacity-100">
+        <div className="right-1 absolute top-1/2 -translate-y-1/2 opacity-0 transition-opacity group-focus-within/nav-row:opacity-100 group-hover/nav-row:opacity-100">
           <Hint label="Unpin from sidebar">
             <button
               type="button"
@@ -188,7 +188,7 @@ export function NavRow({
                 onTogglePin();
               }}
               aria-label={`Unpin ${entry.label} from sidebar`}
-              className="size-5 flex items-center justify-center rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-accent/60 transition-colors cursor-pointer"
+              className="size-5 flex cursor-pointer items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-accent/60 hover:text-foreground"
             >
               <PinOff className="size-3" />
             </button>
@@ -240,7 +240,7 @@ export function Section({
               'group/trigger gap-1 flex items-center rounded-md',
               'font-semibold tracking-wider text-[11px] text-foreground/75 uppercase',
               'transition-colors duration-(--duration-fast) hover:text-foreground',
-              'outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer',
+              'cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
             )}
           >
             <span>{title}</span>
@@ -258,7 +258,9 @@ export function Section({
 
         <CollapsibleContent>
           {isEmpty ? (
-            <p className="px-2.5 py-1 text-[11px] font-medium text-subtle">{emptyLabel}</p>
+            <p className="px-2.5 py-1 font-medium text-[11px] text-subtle">
+              {emptyLabel}
+            </p>
           ) : null}
           {/*
             The hint sits *above* the list rather than replacing it. Sections

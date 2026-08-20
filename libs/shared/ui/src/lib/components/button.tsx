@@ -16,18 +16,18 @@ import type { ComponentProps, ReactNode } from 'react';
  */
 const buttonVariants = cva(
   [
-    'inline-flex items-center justify-center gap-2 whitespace-nowrap',
-    'rounded-btn text-xs font-medium',
+    'gap-2 inline-flex items-center justify-center whitespace-nowrap',
+    'text-xs font-medium rounded-btn',
     'transition-colors duration-(--duration-fast) ease-standard',
     'outline-none focus-visible:ring-2 focus-visible:ring-ring/55',
     'disabled:pointer-events-none disabled:opacity-50',
-    "[&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0",
+    "[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
   ],
   {
     variants: {
       variant: {
         primary:
-          'bg-primary text-primary-foreground shadow-xs hover:bg-primary-hover active:scale-[0.98]',
+          'shadow-xs bg-primary text-primary-foreground hover:bg-primary-hover active:scale-[0.98]',
         secondary:
           'bg-surface-raised text-foreground hover:bg-selected active:scale-[0.98]',
         /*
@@ -36,12 +36,12 @@ const buttonVariants = cva(
          * disappeared into the background it sat on.
          */
         outline:
-          'border border-border-strong bg-surface text-foreground shadow-xs hover:bg-accent',
+          'shadow-xs border border-border-strong bg-surface text-foreground hover:bg-accent',
         ghost: 'text-muted-foreground hover:bg-accent hover:text-foreground',
         subtle:
           'bg-surface-raised text-muted-foreground hover:bg-selected hover:text-foreground',
         destructive:
-          'bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90 active:scale-[0.98]',
+          'shadow-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 active:scale-[0.98]',
         link: 'text-primary underline-offset-4 hover:underline',
         sidebar:
           'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-sidebar-ring/50',
@@ -59,8 +59,7 @@ const buttonVariants = cva(
 );
 
 export interface ButtonProps
-  extends ComponentProps<'button'>,
-    VariantProps<typeof buttonVariants> {
+  extends ComponentProps<'button'>, VariantProps<typeof buttonVariants> {
   /** Render as the single child element instead of a `<button>`. */
   asChild?: boolean;
   /** Shows a spinner and blocks interaction. */

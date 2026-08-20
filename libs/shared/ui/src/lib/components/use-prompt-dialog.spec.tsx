@@ -40,7 +40,11 @@ function RenameFromMenu({ onRename }: { onRename: (value: string) => void }) {
 }
 
 /** The sidebar's exact shape: `onSelect` (Radix's own event) driving an async fn. */
-function RenameViaOnSelect({ onRename }: { onRename: (value: string) => void }) {
+function RenameViaOnSelect({
+  onRename,
+}: {
+  onRename: (value: string) => void;
+}) {
   const prompts = usePromptDialog();
   const rename = async () => {
     const name = await prompts.promptText({
@@ -57,7 +61,9 @@ function RenameViaOnSelect({ onRename }: { onRename: (value: string) => void }) 
       <DropdownMenu>
         <DropdownMenuTrigger>Open menu</DropdownMenuTrigger>
         <DropdownMenuContent>
-          <DropdownMenuItem onSelect={() => void rename()}>Rename</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => void rename()}>
+            Rename
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       {prompts.dialog}
@@ -160,6 +166,8 @@ describe('usePromptDialog opened from a dropdown menu', () => {
     /* Radix modal layers set `pointer-events: none` on the body. If the menu and
        the dialog unwind out of order it is never restored and the whole app
        stops responding to the mouse. */
-    await waitFor(() => expect(document.body.style.pointerEvents).not.toBe('none'));
+    await waitFor(() =>
+      expect(document.body.style.pointerEvents).not.toBe('none'),
+    );
   });
 });

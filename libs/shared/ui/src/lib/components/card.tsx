@@ -23,7 +23,7 @@ export function CardHeader({ className, ...props }: ComponentProps<'div'>) {
     <div
       data-slot="card-header"
       className={cn(
-        'flex flex-col gap-1 p-4 pb-2',
+        'gap-1 p-4 pb-2 flex flex-col',
         'has-data-[slot=card-action]:grid has-data-[slot=card-action]:grid-cols-[1fr_auto] has-data-[slot=card-action]:items-start',
         className,
       )}
@@ -36,7 +36,10 @@ export function CardTitle({ className, ...props }: ComponentProps<'h3'>) {
   return (
     <h3
       data-slot="card-title"
-      className={cn('text-sm font-semibold tracking-tight text-foreground', className)}
+      className={cn(
+        'text-sm font-semibold tracking-tight text-foreground',
+        className,
+      )}
       {...props}
     />
   );
@@ -64,7 +67,11 @@ export function CardAction({ className, ...props }: ComponentProps<'div'>) {
 
 export function CardContent({ className, ...props }: ComponentProps<'div'>) {
   return (
-    <div data-slot="card-content" className={cn('p-4 pt-2', className)} {...props} />
+    <div
+      data-slot="card-content"
+      className={cn('p-4 pt-2', className)}
+      {...props}
+    />
   );
 }
 
@@ -72,7 +79,7 @@ export function CardFooter({ className, ...props }: ComponentProps<'div'>) {
   return (
     <div
       data-slot="card-footer"
-      className={cn('flex items-center gap-2 p-4 pt-0', className)}
+      className={cn('gap-2 p-4 pt-0 flex items-center', className)}
       {...props}
     />
   );

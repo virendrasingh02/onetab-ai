@@ -130,24 +130,27 @@ export function SidebarFooterActions({
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="gap-2 flex items-center">
       <button
         onClick={onNewChat}
         className={cn(
           // `rounded-btn`, not `rounded-full`: these two were the only pills in
           // a sidebar built entirely on the button radius token.
-          'flex flex-1 items-center justify-between gap-2 rounded-btn border border-border/60',
-          'bg-secondary/80 px-3 py-2 text-xs font-medium text-secondary-foreground',
+          'gap-2 flex flex-1 items-center justify-between rounded-btn border border-border/60',
+          'px-3 py-2 text-xs font-medium bg-secondary/80 text-secondary-foreground',
           'transition-colors duration-(--duration-fast) ease-standard hover:bg-secondary',
           'outline-none focus-visible:ring-1 focus-visible:ring-ring',
         )}
       >
-        <span className="flex items-center gap-2">
+        <span className="gap-2 flex items-center">
           {/* Was a hand-inlined 14-line <svg>; lucide already ships this. */}
-          <MessageCircle className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          <MessageCircle
+            className="size-4 shrink-0 text-muted-foreground"
+            aria-hidden
+          />
           <span>New chat</span>
         </span>
-        <kbd className="rounded border border-border/40 bg-background/70 px-1.5 py-0.5 font-sans text-[10px] tabular-nums text-muted-foreground">
+        <kbd className="rounded px-1.5 py-0.5 border border-border/40 bg-background/70 font-sans text-[10px] text-muted-foreground tabular-nums">
           Ctrl+O
         </kbd>
       </button>
@@ -157,7 +160,7 @@ export function SidebarFooterActions({
           <button
             type="button"
             className={cn(
-              'flex size-8.5 shrink-0 items-center justify-center rounded-btn border border-border/60',
+              'size-8.5 flex shrink-0 items-center justify-center rounded-btn border border-border/60',
               'bg-secondary/80 text-muted-foreground',
               'transition-colors duration-(--duration-fast) ease-standard',
               'hover:bg-secondary hover:text-foreground',
@@ -175,7 +178,7 @@ export function SidebarFooterActions({
           sideOffset={8}
           className="w-80 p-1.5"
         >
-          <DropdownMenuLabel className="px-2.5 py-1.5 text-[11px] font-medium tracking-wide text-subtle uppercase">
+          <DropdownMenuLabel className="px-2.5 py-1.5 font-medium tracking-wide text-[11px] text-subtle uppercase">
             Create
           </DropdownMenuLabel>
 
@@ -185,24 +188,24 @@ export function SidebarFooterActions({
               <DropdownMenuItem
                 key={action.label}
                 onSelect={() => run(action)}
-                className="flex items-center gap-3 px-2.5 py-2"
+                className="gap-3 px-2.5 py-2 flex items-center"
               >
                 <span
                   aria-hidden
                   className={cn(
-                    'flex size-8 shrink-0 items-center justify-center rounded-full border',
+                    'size-8 flex shrink-0 items-center justify-center rounded-full border',
                     action.tone,
                   )}
                 >
                   <Icon className="size-4" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center justify-between gap-2">
+                  <span className="gap-2 flex items-center justify-between">
                     <span className="text-xs font-medium text-foreground">
                       {action.label}
                     </span>
                     {action.shortcut ? (
-                      <kbd className="rounded border border-border/40 bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                      <kbd className="rounded px-1.5 py-0.5 border border-border/40 bg-muted/60 font-mono text-[10px] text-muted-foreground">
                         {action.shortcut}
                       </kbd>
                     ) : null}
@@ -219,16 +222,16 @@ export function SidebarFooterActions({
 
           <DropdownMenuItem
             onSelect={() => navigate(`/w/${workspaceSlug}/directory`)}
-            className="flex items-center gap-3 px-2.5 py-2"
+            className="gap-3 px-2.5 py-2 flex items-center"
           >
             <span
               aria-hidden
-              className="flex size-8 shrink-0 items-center justify-center text-muted-foreground"
+              className="size-8 flex shrink-0 items-center justify-center text-muted-foreground"
             >
               <UserPlus className="size-4" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-xs font-medium text-foreground">
+              <span className="text-xs font-medium block text-foreground">
                 Invite Teammates
               </span>
               <span className="block truncate text-[11px] text-muted-foreground">

@@ -98,8 +98,8 @@ export function CreateChannelDialog({
       <DialogContent className="sm:max-w-md">
         <form onSubmit={onSubmit} noValidate>
           <DialogHeader>
-            <div className="flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-lg border border-border bg-surface-raised text-primary">
+            <div className="gap-2 flex items-center">
+              <div className="size-8 flex items-center justify-center rounded-lg border border-border bg-surface-raised text-primary">
                 {isPrivate ? (
                   <Lock className="size-4" />
                 ) : (
@@ -187,7 +187,7 @@ export function CreateChannelDialog({
                 name="visibility"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="flex items-start justify-between gap-4 rounded-lg border border-border bg-surface-raised p-3">
+                    <div className="gap-4 p-3 flex items-start justify-between rounded-lg border border-border bg-surface-raised">
                       <div>
                         <FormLabel>Make private</FormLabel>
                         <p className="mt-1 text-[11px] text-muted-foreground">

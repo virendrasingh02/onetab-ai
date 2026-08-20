@@ -14,6 +14,7 @@ import {
   TeamWorldClockModal,
   TooltipProvider,
   useCommandPalette,
+  useRightPanelStore,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { CreateChannelDialog, useChannels } from '@org/web-channels';
@@ -21,18 +22,20 @@ import { useDesktopCommand } from '@org/web-desktop';
 import { useMembers } from '@org/web-members';
 import {
   NotificationEnableBar,
+  useChannelActivity,
   useNotificationFeed,
   useNotificationUnread,
+  useWorkspaceActivity,
 } from '@org/notifications';
 import { WorkspaceSearchPanel } from '@org/web-search';
 import { useCurrentWorkspace, useWorkspaces } from '@org/web-workspace';
 import { Building2 } from 'lucide-react';
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AppHeader } from './app-header.js';
-import { AssistantPanel } from './assistant-panel.js';
 import { ChannelNav } from './channel-nav.js';
 import { ResizeHandle } from './resize-handle.js';
+import { RightPanel } from './right-panel.js';
 import { useResizableLayout } from './use-resizable-layout.js';
 import { WorkspaceMenu } from './workspace-switcher.js';
 
@@ -50,12 +53,10 @@ export function AppShell() {
     leftWidth,
     rightWidth,
     sidebarOpen,
-    rightPanelOpen,
     isResizing,
     isMobile,
     bounds,
     setSidebarOpen,
-    setRightPanelOpen,
     startLeftResize,
     startRightResize,
     resetLeftWidth,
@@ -63,6 +64,13 @@ export function AppShell() {
     stepLeftWidth,
     stepRightWidth,
   } = useResizableLayout();
+
+  /* The rail's open state is shared app-wide — see `right-panel-store`. */
+  const rightPanelOpen = useRightPanelStore((s) => s.open);
+  const setRightPanelOpen = useRightPanelStore((s) => s.setOpen);
+  const toggleAssistantView = useRightPanelStore((s) => s.toggleView);
+  /* Not `setOpen(false)`: a hosted panel's owner has to hear about the close. */
+  const dismissRightPanel = useRightPanelStore((s) => s.dismiss);
 
   const workspacesQuery = useWorkspaces();
   const { slug, workspace, workspaceId, isLoading } = useCurrentWorkspace();
@@ -76,6 +84,21 @@ export function AppShell() {
    */
   const notificationFeed = useNotificationFeed(workspaceId);
   const unread = useNotificationUnread(workspaceId, notificationFeed.data);
+  const channelActivity = useChannelActivity(
+    workspaceId,
+    notificationFeed.data,
+  );
+
+  /*
+   * Every workspace's feed, not just this one's — the switcher has to say
+   * whether anything is waiting in the workspaces the user is *not* looking at,
+   * which is the only place that answer can come from.
+   */
+  const workspaceIds = useMemo(
+    () => (workspacesQuery.data ?? []).map((entry) => entry.id),
+    [workspacesQuery.data],
+  );
+  const workspaceActivity = useWorkspaceActivity(workspaceIds);
 
   /*
    * Navigating dismisses the mobile drawers — on a phone they cover the page
@@ -96,12 +119,13 @@ export function AppShell() {
     [setSidebarOpen],
   );
   const closeAssistant = useCallback(
-    () => setRightPanelOpen(false),
-    [setRightPanelOpen],
+    () => dismissRightPanel(),
+    [dismissRightPanel],
   );
+  /* "Ask AI" opens the rail *on the assistant*, whatever it was last showing. */
   const toggleAssistant = useCallback(
-    () => setRightPanelOpen((open) => !open),
-    [setRightPanelOpen],
+    () => toggleAssistantView('assistant'),
+    [toggleAssistantView],
   );
 
   /*
@@ -111,7 +135,9 @@ export function AppShell() {
    */
   useDesktopCommand('open-search', () => palette.setOpen(true));
   useDesktopCommand('open-shortcuts', () => palette.setOpen(true));
-  useDesktopCommand('open-ai-assistant', () => setRightPanelOpen(true));
+  useDesktopCommand('open-ai-assistant', () =>
+    useRightPanelStore.getState().setView('assistant'),
+  );
   useDesktopCommand('toggle-sidebar', toggleSidebar);
   useDesktopCommand('new-channel', () => setCreateChannelOpen(true));
   useDesktopCommand('open-settings', () => {
@@ -173,6 +199,7 @@ export function AppShell() {
       channels={channelsQuery.data}
       isLoading={channelsQuery.isLoading}
       inboxUnread={unread.count}
+      channelActivity={channelActivity}
       onCreateChannel={() => setCreateChannelOpen(true)}
       onBrowseChannels={() => navigate(`/w/${slug}/channels`)}
     />
@@ -195,6 +222,7 @@ export function AppShell() {
           onToggleSidebar={toggleSidebar}
           sidebarOpen={sidebarOpen}
           unreadNotifications={unread.count}
+          workspaceActivity={workspaceActivity}
         />
 
         <div
@@ -258,7 +286,8 @@ export function AppShell() {
             </main>
           </div>
 
-          {/* Column 3 / Box 3: AI Assistant Panel Box */}
+          {/* Column 3 / Box 3: the switchable side rail — assistant, a
+              person, the page's details, or an open Kanban card. */}
           {rightPanelOpen && !isMobile ? (
             <>
               <ResizeHandle
@@ -276,9 +305,13 @@ export function AppShell() {
               <aside
                 className="flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-surface-muted text-foreground"
                 style={{ width: `${rightWidth}px` }}
-                aria-label="AI assistant"
+                aria-label="Side panel"
               >
-                <AssistantPanel onClose={closeAssistant} />
+                <RightPanel
+                  currentUser={user}
+                  workspaceSlug={slug}
+                  onClose={closeAssistant}
+                />
               </aside>
             </>
           ) : null}
@@ -322,8 +355,12 @@ export function AppShell() {
             hideCloseButton
             className="w-85 gap-0 p-0 max-w-[90vw] bg-surface-muted"
           >
-            <SheetTitle className="sr-only">AI assistant</SheetTitle>
-            <AssistantPanel onClose={closeAssistant} />
+            <SheetTitle className="sr-only">Side panel</SheetTitle>
+            <RightPanel
+              currentUser={user}
+              workspaceSlug={slug}
+              onClose={closeAssistant}
+            />
           </SheetContent>
         </Sheet>
 

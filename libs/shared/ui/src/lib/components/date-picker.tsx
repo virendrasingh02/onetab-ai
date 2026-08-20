@@ -72,20 +72,24 @@ export function DatePicker({
             type="button"
             variant="outline"
             disabled={disabled}
-            aria-label={dateValue ? `Date selected: ${format(dateValue, 'MMM d, yyyy')}` : placeholder}
+            aria-label={
+              dateValue
+                ? `Date selected: ${format(dateValue, 'MMM d, yyyy')}`
+                : placeholder
+            }
             className={cn(
-              'h-9 w-full justify-start px-3 text-left font-normal shadow-xs',
+              'h-9 px-3 font-normal shadow-xs w-full justify-start text-left',
               !dateValue && 'text-muted-foreground',
-              clearable && dateValue && 'pr-8'
+              clearable && dateValue && 'pr-8',
             )}
           >
             <CalendarIcon className="mr-2 size-4 shrink-0 text-muted-foreground" />
-            <span className="truncate text-xs sm:text-sm">
+            <span className="text-xs sm:text-sm truncate">
               {dateValue ? format(dateValue, 'MMM d, yyyy') : placeholder}
             </span>
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align={align}>
+        <PopoverContent className="p-0 w-auto" align={align}>
           <Calendar
             selected={dateValue}
             onSelect={handleSelect}
@@ -94,7 +98,7 @@ export function DatePicker({
             disabled={disabled}
           />
           {showPresets ? (
-            <div className="border-border border-t p-2 flex items-center justify-between gap-1 text-xs">
+            <div className="p-2 gap-1 text-xs flex items-center justify-between border-t border-border">
               <Button
                 type="button"
                 variant="ghost"
@@ -144,7 +148,7 @@ export function DatePicker({
           size="icon-sm"
           onClick={handleClear}
           aria-label="Clear date"
-          className="absolute right-1 size-7 text-muted-foreground hover:text-foreground"
+          className="right-1 size-7 absolute text-muted-foreground hover:text-foreground"
         >
           <X className="size-3.5" />
         </Button>

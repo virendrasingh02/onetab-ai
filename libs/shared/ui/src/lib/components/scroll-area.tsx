@@ -24,11 +24,10 @@ import SimpleBar from 'simplebar-react';
  *  - The element that scrolls is not the root. Reach it with `viewportRef`
  *    (`scrollTop`, `scrollTo`) or `viewportProps` (`onScroll`).
  */
-export interface ScrollAreaProps
-  extends Omit<
-    ComponentProps<typeof SimpleBar>,
-    'children' | 'scrollableNodeProps' | 'ref'
-  > {
+export interface ScrollAreaProps extends Omit<
+  ComponentProps<typeof SimpleBar>,
+  'children' | 'scrollableNodeProps' | 'ref'
+> {
   children?: ReactNode;
   /** Classes for the scrolled content. Put padding and spacing here. */
   contentClassName?: string;

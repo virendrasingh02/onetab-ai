@@ -11,9 +11,9 @@ import type { ComponentProps } from 'react';
  */
 const badgeVariants = cva(
   [
-    'inline-flex w-fit shrink-0 items-center justify-center gap-1',
-    'rounded-sm border px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap tracking-tight',
-    "[&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-3",
+    'gap-1 inline-flex w-fit shrink-0 items-center justify-center',
+    'px-1.5 py-0.5 font-medium tracking-tight rounded-sm border text-[11px] whitespace-nowrap',
+    "[&_svg:not([class*='size-'])]:size-3 [&_svg]:pointer-events-none",
   ],
   {
     variants: {
@@ -27,7 +27,7 @@ const badgeVariants = cva(
         info: 'border-info/25 bg-info/10 text-info-text',
         outline: 'border-border-strong bg-transparent text-foreground',
         count:
-          'min-w-4 rounded-[4px] border-transparent bg-destructive px-1 font-mono text-[10px] text-destructive-foreground tabular-nums',
+          'min-w-4 px-1 rounded-[4px] border-transparent bg-destructive font-mono text-[10px] text-destructive-foreground tabular-nums',
       },
     },
     defaultVariants: { variant: 'neutral' },
@@ -35,8 +35,7 @@ const badgeVariants = cva(
 );
 
 export interface BadgeProps
-  extends ComponentProps<'span'>,
-    VariantProps<typeof badgeVariants> {
+  extends ComponentProps<'span'>, VariantProps<typeof badgeVariants> {
   asChild?: boolean;
 }
 

@@ -12,7 +12,10 @@ import {
 import { cn } from '@org/utils';
 import { useAgentMutations, useAgents } from '@org/web-agents';
 import { useWorkflowMutations, useWorkflows } from '@org/web-automations';
-import { useIntegrationMutations, useIntegrations } from '@org/web-integrations';
+import {
+  useIntegrationMutations,
+  useIntegrations,
+} from '@org/web-integrations';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Bell,
@@ -134,7 +137,7 @@ export function AppLogo({
   return (
     <span
       className={cn(
-        'relative flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-accent/40 p-0.5',
+        'p-0.5 relative flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-accent/40',
         sizeClassName,
         className,
       )}
@@ -637,7 +640,7 @@ export function AgentsSection({
             variant="ghost"
             size="icon-sm"
             aria-label="Add agent"
-            className="size-5 p-0 opacity-0 transition-opacity duration-150 group-hover/section:opacity-100 group-focus-within/section:opacity-100 focus-visible:opacity-100"
+            className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
           >
             <NavLink to={`/w/${workspaceSlug}/agents?tab=all`}>
               <Plus className="size-3.5" />
@@ -728,7 +731,7 @@ export function AppsSection({
             variant="ghost"
             size="icon-sm"
             aria-label="Add app"
-            className="size-5 p-0 opacity-0 transition-opacity duration-150 group-hover/section:opacity-100 group-focus-within/section:opacity-100 focus-visible:opacity-100"
+            className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
           >
             <NavLink to={`/w/${workspaceSlug}/integrations`}>
               <Plus className="size-3.5" />
@@ -817,7 +820,7 @@ export function WorkflowsSection({
             variant="ghost"
             size="icon-sm"
             aria-label="Add workflow"
-            className="size-5 p-0 opacity-0 transition-opacity duration-150 group-hover/section:opacity-100 group-focus-within/section:opacity-100 focus-visible:opacity-100"
+            className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
           >
             <NavLink to={`/w/${workspaceSlug}/automations?tab=all`}>
               <Plus className="size-3.5" />

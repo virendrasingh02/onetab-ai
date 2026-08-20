@@ -143,8 +143,7 @@ export function useSidebarFavorites(workspaceId: string | undefined) {
     favoriteAppIds: workspaceFavs.app ?? [],
     favoriteWorkflowIds: workspaceFavs.workflow ?? [],
     isNavPinned: (path: string) => isNavPinned(activeWorkspaceId, path),
-    toggleNavPinned: (path: string) =>
-      toggleNavPinned(activeWorkspaceId, path),
+    toggleNavPinned: (path: string) => toggleNavPinned(activeWorkspaceId, path),
     pinnedNavPaths,
   };
 }

@@ -27,7 +27,8 @@ const avatarVariants = cva(
 );
 
 export interface AvatarProps
-  extends ComponentProps<typeof AvatarPrimitive.Root>,
+  extends
+    ComponentProps<typeof AvatarPrimitive.Root>,
     VariantProps<typeof avatarVariants> {}
 
 export function Avatar({ className, size, shape, ...props }: AvatarProps) {
@@ -61,7 +62,7 @@ export function AvatarFallback({
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        'flex size-full items-center justify-center font-medium text-white',
+        'font-medium text-white flex size-full items-center justify-center',
         className,
       )}
       {...props}
@@ -95,7 +96,9 @@ export const PRESENCE_LABELS: Record<PresenceStatus, string> = {
  * `toLowerCase()` cast, which is how the members list ended up rendering both
  * "away" and "busy" as offline.
  */
-export function toPresenceStatus(value: string | null | undefined): PresenceStatus {
+export function toPresenceStatus(
+  value: string | null | undefined,
+): PresenceStatus {
   const normalized = value?.toLowerCase();
   return normalized === 'online' ||
     normalized === 'away' ||
@@ -143,7 +146,7 @@ export function UserAvatar({
           role="status"
           aria-label={`${name} is ${presence}`}
           className={cn(
-            'border-background absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2',
+            '-right-0.5 -bottom-0.5 size-2.5 absolute rounded-full border-2 border-background',
             PRESENCE_STYLES[presence],
           )}
         />
@@ -151,9 +154,13 @@ export function UserAvatar({
       {statusEmoji && !presence ? (
         <span
           role="status"
-          aria-label={statusText ? `${name}: ${statusText}` : `${name} status ${statusEmoji}`}
+          aria-label={
+            statusText
+              ? `${name}: ${statusText}`
+              : `${name} status ${statusEmoji}`
+          }
           title={statusText ? `${statusEmoji} ${statusText}` : undefined}
-          className="absolute -right-1 -bottom-1 text-[11px] leading-none select-none drop-shadow-xs"
+          className="-right-1 -bottom-1 drop-shadow-xs absolute text-[11px] leading-none select-none"
         >
           {statusEmoji}
         </span>
@@ -206,10 +213,10 @@ export function WorkspaceAvatar({
     !src &&
     Boolean(
       icon &&
-        (icon.startsWith('http://') ||
-          icon.startsWith('https://') ||
-          icon.startsWith('data:image') ||
-          icon.startsWith('/')),
+      (icon.startsWith('http://') ||
+        icon.startsWith('https://') ||
+        icon.startsWith('data:image') ||
+        icon.startsWith('/')),
     );
 
   const imageSrc = src || (isImageIcon ? icon : null);
@@ -223,7 +230,9 @@ export function WorkspaceAvatar({
             // An icon supplies its own colour; the tinted tile is for initials.
             icon ? undefined : { backgroundColor: avatarTint(seed ?? name) }
           }
-          className={icon ? 'bg-surface-raised border border-border' : undefined}
+          className={
+            icon ? 'border border-border bg-surface-raised' : undefined
+          }
         >
           {icon ? (
             <IconRenderer
@@ -240,4 +249,3 @@ export function WorkspaceAvatar({
     </Avatar>
   );
 }
-

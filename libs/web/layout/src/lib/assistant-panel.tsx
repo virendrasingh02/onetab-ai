@@ -49,7 +49,7 @@ export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
   return (
     /* Surface comes from the host — the rail `aside` on desktop, the sheet on
        mobile — so the panel never paints a second tone over it. */
-    <div className={cn('flex h-full min-h-0 flex-col', className)}>
+    <div className={cn('min-h-0 flex h-full flex-col', className)}>
       <div className="h-12 px-3 flex shrink-0 items-center justify-between border-b border-border">
         {/* Same title treatment as the sheet the panel becomes on mobile. */}
         <span className="gap-1.5 font-semibold text-sm flex items-center text-foreground">
@@ -59,7 +59,12 @@ export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
 
         <div className="gap-0.5 flex items-center">
           <Hint label="New chat">
-            <Button variant="ghost" size="icon-sm" onClick={reset} aria-label="New chat">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={reset}
+              aria-label="New chat"
+            >
               <RotateCcw className="size-4" />
             </Button>
           </Hint>

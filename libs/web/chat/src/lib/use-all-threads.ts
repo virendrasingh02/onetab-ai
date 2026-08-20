@@ -40,10 +40,9 @@ export function useAllThreads() {
       // The timeline is already in memory; it is where the root message and
       // the sender's display name come from.
       const byId = new Map(
-        client.getTimeline(room.id).messages.map((message) => [
-          message.id,
-          message,
-        ]),
+        client
+          .getTimeline(room.id)
+          .messages.map((message) => [message.id, message]),
       );
 
       for (const thread of client.getThreads(room.id)) {

@@ -63,7 +63,9 @@ export class ErrorBoundary extends Component<
         description="An unexpected error occurred while rendering. You can retry, or reload the page if the problem persists."
         onRetry={this.reset}
         detail={
-          import.meta.env?.DEV ? `${error.message}\n\n${error.stack ?? ''}` : undefined
+          import.meta.env?.DEV
+            ? `${error.message}\n\n${error.stack ?? ''}`
+            : undefined
         }
       />
     );

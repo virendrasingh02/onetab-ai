@@ -13,7 +13,7 @@ import { Button, EmptyState, LoadingState } from '@org/ui';
  * `MatrixProvider` on every render — so its screens are imported statically
  * too. Splitting them would only add a chunk boundary with nothing behind it.
  */
-import { DirectMessagesView, ThreadsView } from '@org/web-chat';
+import { DirectMessagesView, SavedView, ThreadsView } from '@org/web-chat';
 import { lazy, Suspense } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 
@@ -232,6 +232,7 @@ export function App() {
             <Route path="meetings" element={<MeetingsView />} />
             <Route path="dms" element={<DirectMessagesView />} />
             <Route path="threads" element={<ThreadsView />} />
+            <Route path="saved" element={<SavedView />} />
             <Route path="ai-chat" element={<AIChatView />} />
             <Route path="ai/prompts" element={<PromptLibraryView />} />
             <Route path="ai/images" element={<AIImageGeneratorView />} />

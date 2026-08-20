@@ -92,7 +92,7 @@ export function DocNavRow({
   const { copied: shared, copy: handleShare } = useCopyLink(docUrl);
 
   return (
-    <li className="group/row relative space-y-0.5">
+    <li className="group/row space-y-0.5 relative">
       <NavLink
         to={`/w/${workspaceSlug}/docs?doc=${doc.id}`}
         className={navRowClass(isSelected, {
@@ -134,30 +134,21 @@ export function DocNavRow({
             </DropdownMenuItem>
 
             {onAddSubpage ? (
-              <DropdownMenuItem
-                onSelect={onAddSubpage}
-                className="gap-2.5"
-              >
+              <DropdownMenuItem onSelect={onAddSubpage} className="gap-2.5">
                 <Plus className="size-4" />
                 <span>Add subpage</span>
               </DropdownMenuItem>
             ) : null}
 
             {onRename ? (
-              <DropdownMenuItem
-                onSelect={onRename}
-                className="gap-2.5"
-              >
+              <DropdownMenuItem onSelect={onRename} className="gap-2.5">
                 <Pencil className="size-4" />
                 <span>Rename doc</span>
               </DropdownMenuItem>
             ) : null}
 
             {onDuplicate ? (
-              <DropdownMenuItem
-                onSelect={onDuplicate}
-                className="gap-2.5"
-              >
+              <DropdownMenuItem onSelect={onDuplicate} className="gap-2.5">
                 <Copy className="size-4" />
                 <span>Duplicate doc</span>
               </DropdownMenuItem>
@@ -204,10 +195,7 @@ export function DocNavRow({
               </DropdownMenuSub>
             ) : null}
 
-            <DropdownMenuItem
-              onSelect={handleShare}
-              className="gap-2.5"
-            >
+            <DropdownMenuItem onSelect={handleShare} className="gap-2.5">
               {shared ? (
                 <Check className="size-4 text-success-text" />
               ) : (
@@ -346,7 +334,7 @@ export function DocsTreeSection({
             : 'No docs yet'
       }
       action={
-        <div className="flex items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover/section:opacity-100 group-focus-within/section:opacity-100 focus-within:opacity-100">
+        <div className="gap-0.5 flex items-center opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-within:opacity-100">
           <Hint label="Add company">
             <Button
               variant="ghost"
@@ -395,14 +383,14 @@ export function DocsTreeSection({
                 <ChevronDown
                   className={cn(
                     'size-3 shrink-0 text-subtle opacity-0 transition-all duration-150',
-                    'group-hover/comp:opacity-100 group-focus-within/comp:opacity-100',
+                    'group-focus-within/comp:opacity-100 group-hover/comp:opacity-100',
                     isCollapsed && '-rotate-90',
                   )}
                   aria-hidden
                 />
               </button>
 
-              <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/comp:opacity-100 group-focus-within/comp:opacity-100">
+              <div className="gap-0.5 flex items-center opacity-0 transition-opacity group-focus-within/comp:opacity-100 group-hover/comp:opacity-100">
                 <Hint label={`Add doc in ${company.name}`}>
                   <Button
                     variant="ghost"

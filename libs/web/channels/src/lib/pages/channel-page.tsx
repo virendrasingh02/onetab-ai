@@ -11,7 +11,6 @@ import {
   EmptyState,
   ErrorState,
   Hint,
-  Input,
   LoadingState,
   ScrollArea,
   SkeletonList,
@@ -19,12 +18,12 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-  toPresenceStatus,
   toast,
-  UserAvatar,
+  useRightPanelStore,
 } from '@org/ui';
-import { cn, formatBytes, formatDate } from '@org/utils';
-import { AddBookmarkDialog, BookmarksBar } from '@org/chat-ui';
+import { cn, formatBytes } from '@org/utils';
+import { AddBookmarkDialog } from '@org/chat-ui';
+import { useMarkChannelSeen } from '@org/notifications';
 import { ChannelChat } from '@org/web-chat';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
@@ -33,7 +32,6 @@ import {
   Bell,
   BellOff,
   Bookmark,
-  BookmarkPlus,
   Check,
   ChevronRight,
   Copy,
@@ -41,6 +39,7 @@ import {
   FileText,
   Hash,
   Image as ImageIcon,
+  Info,
   Lock,
   Mail,
   MessageSquare,
@@ -48,15 +47,15 @@ import {
   Pencil,
   Pin,
   Plus,
-  Search,
   Share2,
-  Sparkles,
   Star,
   Trash2,
 } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams } from 'react-router-dom';
-import { ChannelAICopilot } from './ChannelAICopilot.js';
+import { useCurrentUser } from '@org/auth';
+import { ChannelDetailsPanel } from '../components/channel-details-panel.js';
 import {
   AddPeopleDialog,
   EditChannelDetailsDialog,
@@ -85,166 +84,37 @@ function fileSrc(storageKey: string): string {
     : `/uploads/${storageKey}`;
 }
 
-function ChannelMembersDropdown({
-  channel,
-  members,
-}: {
-  channel: ChannelSummary;
-  members: ReturnType<typeof useChannelMembers>;
-}) {
-  const [memberSearch, setMemberSearch] = useState('');
-  const memberList = useMemo(() => members.data ?? [], [members.data]);
-  const maxVisibleAvatars = 4;
-  const visibleMembers = useMemo(
-    () => memberList.slice(0, maxVisibleAvatars),
-    [memberList],
-  );
-  const remainingCount = Math.max(
-    0,
-    (memberList.length || channel.memberCount) - visibleMembers.length,
-  );
-
-  const filteredMembers = useMemo(() => {
-    if (!memberSearch.trim()) return memberList;
-    const query = memberSearch.toLowerCase();
-    return memberList.filter(
-      (m) =>
-        m.user.displayName?.toLowerCase().includes(query) ||
-        m.user.name.toLowerCase().includes(query),
-    );
-  }, [memberList, memberSearch]);
-
-  return (
-    <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="group flex items-center rounded-full p-0.5 hover:bg-accent/60 transition-all outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          aria-label={`View ${channel.memberCount} members`}
-        >
-          <div className="flex items-center -space-x-2">
-            {visibleMembers.map((m) => (
-              <UserAvatar
-                key={m.id}
-                name={m.user.displayName ?? m.user.name}
-                src={m.user.avatarUrl}
-                seed={m.user.id}
-                size="sm"
-                className="size-7 ring-2 ring-background transition-transform group-hover:scale-105"
-              />
-            ))}
-            {remainingCount > 0 ? (
-              <span className="size-7 flex items-center justify-center rounded-full bg-surface-raised border border-border text-[11px] font-semibold text-foreground ring-2 ring-background">
-                +{remainingCount}
-              </span>
-            ) : null}
-          </div>
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        side="bottom"
-        sideOffset={6}
-        className="w-80 p-0"
-      >
-        <div className="p-3 border-b border-border flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm text-foreground">
-              Channel Members
-            </span>
-            <Badge variant="neutral">
-              {memberList.length || channel.memberCount}
-            </Badge>
-          </div>
-        </div>
-
-        {memberList.length > 4 ? (
-          <div className="p-2 border-b border-border">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
-              <Input
-                value={memberSearch}
-                onChange={(e) => setMemberSearch(e.target.value)}
-                placeholder="Find members..."
-                className="h-8 pl-8 text-xs"
-              />
-            </div>
-          </div>
-        ) : null}
-
-        <ScrollArea className="max-h-72">
-          <div className="p-1.5 space-y-0.5">
-            {filteredMembers.length === 0 ? (
-              <p className="py-6 text-center text-xs text-muted-foreground">
-                No members found
-              </p>
-            ) : (
-              filteredMembers.map((m) => {
-                const name = m.user.displayName ?? m.user.name;
-                const presence = toPresenceStatus(m.user.presence);
-                return (
-                  <div
-                    key={m.id}
-                    className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-accent/60 transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <UserAvatar
-                        name={name}
-                        src={m.user.avatarUrl}
-                        seed={m.user.id}
-                        presence={presence}
-                        size="sm"
-                        className="size-7"
-                      />
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold truncate text-foreground">
-                          {name}
-                        </p>
-                        <p className="text-[11px] truncate text-muted-foreground">
-                          @{m.user.name}
-                        </p>
-                      </div>
-                    </div>
-
-                    {m.role === 'ADMIN' ? (
-                      <Badge
-                        variant="neutral"
-                        className="text-[10px] px-1.5 py-0"
-                      >
-                        Admin
-                      </Badge>
-                    ) : null}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </ScrollArea>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 function ChannelHeader({
   channel,
   onAddBookmark,
+  onOpenDetails,
+  onOpenPins,
   chatActionsRef,
+  chatMenuRef,
 }: {
   channel: ChannelSummary;
   onAddBookmark?: () => void;
+  /** Reveals the channel's details in the right rail. */
+  onOpenDetails: () => void;
+  /** Switches the page to its Pins tab. */
+  onOpenPins: () => void;
   /**
-   * Receives the element the conversation portals its actions into — huddle,
-   * threads, pins, saved, search, members. This header is the channel's only
-   * one, so those controls belong in this row rather than in a second bar
-   * below the tabs.
+   * Receives the element the conversation portals its actions into — huddle and
+   * search. This header is the channel's only one, so those controls belong in
+   * this row rather than in a second bar below the tabs.
    */
   chatActionsRef?: (element: HTMLDivElement | null) => void;
+  /**
+   * Receives the element inside this header's “⋯” menu that the conversation
+   * portals its own menu entries into, so the page and the conversation share
+   * one menu instead of opening two next to each other.
+   */
+  chatMenuRef?: (element: HTMLDivElement | null) => void;
 }) {
   const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
   const preferences = useChannelPreferences(workspaceId);
   const archive = useArchiveChannel(workspaceId);
   const join = useJoinChannel(workspaceId);
-  const members = useChannelMembers(workspaceId, channel.id);
 
   const [copied, setCopied] = useState(false);
 
@@ -265,11 +135,14 @@ function ChannelHeader({
 
   return (
     <div className="border-b border-border bg-background">
-      <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-            <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+      <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
+        <div className="min-w-0 gap-2 flex items-center">
+          <div className="min-w-0 gap-1.5 flex items-center">
+            <Icon
+              className="size-4 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+            <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
               {channel.name}
             </h2>
             {channel.visibility === 'PRIVATE' ? (
@@ -286,7 +159,7 @@ function ChannelHeader({
             ) : null}
           </div>
 
-          <div className="flex items-center gap-0.5">
+          <div className="gap-0.5 flex items-center">
             <Hint
               label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             >
@@ -320,20 +193,12 @@ function ChannelHeader({
               </Button>
             </Hint>
 
-            {onAddBookmark ? (
-              <Hint label="Add bookmark">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Add bookmark"
-                  onClick={onAddBookmark}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <BookmarkPlus className="size-4" />
-                </Button>
-              </Hint>
-            ) : null}
-
+            {/*
+              Add bookmark, channel details and archive each had an icon of
+              their own here, next to five more from the conversation. None of
+              them is a per-message action, so they are all one level down in
+              the menu now and the row holds only what you use while reading.
+            */}
             {channel.membership ? (
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
@@ -346,9 +211,13 @@ function ChannelHeader({
                     <MoreHorizontal className="size-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" side="bottom" className="w-64">
+                <DropdownMenuContent
+                  align="start"
+                  side="bottom"
+                  className="w-64"
+                >
                   <DropdownMenuItem className="justify-between">
-                    <div className="flex items-center gap-2.5">
+                    <div className="gap-2.5 flex items-center">
                       <Mail className="size-4" />
                       <span>Mark as unread</span>
                     </div>
@@ -360,8 +229,11 @@ function ChannelHeader({
                     <span>Rename</span>
                   </DropdownMenuItem>
 
-                  <DropdownMenuItem onClick={handleCopyLink} className="justify-between">
-                    <div className="flex items-center gap-2.5">
+                  <DropdownMenuItem
+                    onClick={handleCopyLink}
+                    className="justify-between"
+                  >
+                    <div className="gap-2.5 flex items-center">
                       {copied ? (
                         <Check className="size-4 text-success-text" />
                       ) : (
@@ -373,14 +245,31 @@ function ChannelHeader({
                   </DropdownMenuItem>
 
                   {onAddBookmark ? (
-                    <DropdownMenuItem onClick={onAddBookmark} className="justify-between">
-                      <div className="flex items-center gap-2.5">
+                    <DropdownMenuItem
+                      onClick={onAddBookmark}
+                      className="justify-between"
+                    >
+                      <div className="gap-2.5 flex items-center">
                         <Bookmark className="size-4" />
                         <span>Add bookmark</span>
                       </div>
                       <DropdownMenuShortcut>B</DropdownMenuShortcut>
                     </DropdownMenuItem>
                   ) : null}
+
+                  <DropdownMenuItem onClick={onOpenPins} className="gap-2.5">
+                    <Pin className="size-4" />
+                    <span>Channel pins</span>
+                  </DropdownMenuItem>
+
+                  {/* The conversation's own entries land here — see the note on
+                      `chatMenuRef`. Empty on the non-chat tabs. */}
+                  <div ref={chatMenuRef} className="contents" />
+
+                  <DropdownMenuItem onClick={onOpenDetails} className="gap-2.5">
+                    <Info className="size-4" />
+                    <span>Channel details</span>
+                  </DropdownMenuItem>
 
                   <DropdownMenuSeparator />
 
@@ -393,7 +282,7 @@ function ChannelHeader({
                     }
                     className="justify-between"
                   >
-                    <div className="flex items-center gap-2.5">
+                    <div className="gap-2.5 flex items-center">
                       <Star
                         className={cn(
                           'size-4',
@@ -439,6 +328,8 @@ function ChannelHeader({
 
                   <DropdownMenuSeparator />
 
+                  {/* Archiving is not deleting, and this entry used to say
+                      “Delete Channel” while calling the archive mutation. */}
                   {channel.membership?.role === 'ADMIN' ? (
                     <DropdownMenuItem
                       onClick={() =>
@@ -447,7 +338,7 @@ function ChannelHeader({
                           archived: !channel.isArchived,
                         })
                       }
-                      variant="destructive"
+                      variant={channel.isArchived ? undefined : 'destructive'}
                       className="gap-2.5"
                     >
                       {channel.isArchived ? (
@@ -457,17 +348,12 @@ function ChannelHeader({
                         </>
                       ) : (
                         <>
-                          <Trash2 className="size-4" />
-                          <span>Delete Channel</span>
+                          <Archive className="size-4" />
+                          <span>Archive channel</span>
                         </>
                       )}
                     </DropdownMenuItem>
-                  ) : (
-                    <DropdownMenuItem variant="destructive" className="gap-2.5">
-                      <Trash2 className="size-4" />
-                      <span>Delete Channel</span>
-                    </DropdownMenuItem>
-                  )}
+                  ) : null}
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : null}
@@ -476,23 +362,25 @@ function ChannelHeader({
           {/* The topic used to sit under the conversation's own title. With one
               header left, it shows here — where there is room for it. */}
           {channel.topic ? (
-            <p className="hidden min-w-0 max-w-[48ch] truncate border-l border-border pl-2 text-xs text-muted-foreground lg:block">
+            <p className="min-w-0 pl-2 text-xs lg:block hidden max-w-[48ch] truncate border-l border-border text-muted-foreground">
               {channel.topic}
             </p>
           ) : null}
         </div>
 
-        {/* Channel actions: Conversation Tools, Member Avatar Stack Dropdown, Join Button, Archive */}
-        <div className="flex items-center gap-2">
+        {/*
+          Channel actions. The member avatar stack that used to sit here is gone
+          — it opened a dropdown listing the same people the right rail's
+          details panel now lists, with room to search them. Archive moved into
+          the menu beside the rest of the channel's administration.
+        */}
+        <div className="gap-2 flex items-center">
           {/* Conversation tools portal in from the chat surface; empty on the
               non-chat tabs, where it collapses instead of leaving a gap. */}
           <div
             ref={chatActionsRef}
-            className="flex items-center gap-0.5 empty:hidden"
+            className="gap-0.5 flex items-center empty:hidden"
           />
-
-          {/* Member Avatar Stack with Dropdown */}
-          <ChannelMembersDropdown channel={channel} members={members} />
 
           {!channel.membership ? (
             <Button
@@ -503,30 +391,6 @@ function ChannelHeader({
               Join channel
             </Button>
           ) : null}
-
-          {channel.membership?.role === 'ADMIN' ? (
-            <Hint
-              label={channel.isArchived ? 'Unarchive channel' : 'Archive channel'}
-            >
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={channel.isArchived ? 'Unarchive' : 'Archive'}
-                onClick={() =>
-                  archive.mutate({
-                    channelId: channel.id,
-                    archived: !channel.isArchived,
-                  })
-                }
-              >
-                {channel.isArchived ? (
-                  <ArchiveRestore className="size-4" />
-                ) : (
-                  <Archive className="size-4" />
-                )}
-              </Button>
-            </Hint>
-          ) : null}
         </div>
       </div>
     </div>
@@ -534,11 +398,16 @@ function ChannelHeader({
 }
 
 /**
- * Channel workspace: Chat / About / Bookmarks / Files / Media / Pins.
+ * Channel workspace: Chat / AI Copilot / Bookmarks / Files / Media / Pins.
+ *
+ * "About" is no longer one of them. Four short fields did not justify a
+ * full-width tab that hid the conversation while you read them — they are
+ * published to the right rail instead, where they sit *beside* the channel.
  */
 export function ChannelPage() {
   const { channelSlug } = useParams<{ channelSlug: string }>();
-  const { workspaceId } = useCurrentWorkspace();
+  const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
+  const currentUser = useCurrentUser();
   const channelQuery = useChannel(workspaceId, channelSlug);
   const channel = channelQuery.data;
 
@@ -560,6 +429,56 @@ export function ChannelPage() {
   const [chatActionsSlot, setChatActionsSlot] = useState<HTMLDivElement | null>(
     null,
   );
+  const [chatMenuSlot, setChatMenuSlot] = useState<HTMLDivElement | null>(null);
+
+  /*
+   * The channel had a full-width "AI Copilot" tab of its own, which meant two
+   * assistants with two transcripts: this one, and the rail's. Asking about the
+   * channel you are reading is the same act as asking anything else, so the
+   * welcome block's prompt opens the one assistant instead of a second one that
+   * covered the conversation it was meant to be about.
+   */
+  const openAssistantView = useRightPanelStore((s) => s.setView);
+  const openAssistant = useCallback(
+    () => openAssistantView('assistant'),
+    [openAssistantView],
+  );
+
+  const detailsSlot = useRightPanelStore((s) => s.slots.details);
+  const detailsHost = useRightPanelStore((s) => s.hosted.details);
+  const openHosted = useRightPanelStore((s) => s.openHosted);
+  const closeHosted = useRightPanelStore((s) => s.closeHosted);
+  const markChannelSeen = useMarkChannelSeen(workspaceId);
+
+  /* Bumped to ask the conversation to start a huddle — see `ChatSurface`. */
+  const [huddleRequest, setHuddleRequest] = useState(0);
+  const [detailsPanelOpen, setDetailsPanelOpen] = useState(false);
+
+  const closeDetailsPanel = useCallback(() => setDetailsPanelOpen(false), []);
+
+  /*
+   * Claims the rail while the details panel is open, and gives it back on close
+   * or when the page unmounts — otherwise the rail would outlive the channel
+   * and show details for one the user has navigated away from.
+   *
+   * The panel passes no title: it draws its own header, with the channel name,
+   * the favourite and notification controls and its own tab strip.
+   */
+  useEffect(() => {
+    if (!detailsPanelOpen || !channel) return;
+    openHosted('details', { title: '', onClose: closeDetailsPanel });
+    return () => closeHosted('details');
+  }, [detailsPanelOpen, channel, closeDetailsPanel, openHosted, closeHosted]);
+
+  /* Navigating to another channel closes the details of the last one. */
+  useEffect(() => {
+    setDetailsPanelOpen(false);
+  }, [channelSlug]);
+
+  /* Opening a channel is what marks it read — see `useChannelActivity`. */
+  useEffect(() => {
+    markChannelSeen(channel?.id);
+  }, [channel?.id, markChannelSeen]);
 
   if (channelQuery.isLoading) return <LoadingState fullPage />;
   if (channelQuery.isError || !channel) {
@@ -588,18 +507,45 @@ export function ChannelPage() {
     files.data?.filter((file) => !file.mimeType.startsWith('image/')) ?? [];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="min-h-0 flex flex-1 flex-col">
       <ChannelHeader
         channel={channel}
         onAddBookmark={() => setAddBookmarkOpen(true)}
+        onOpenDetails={() => setDetailsPanelOpen(true)}
+        onOpenPins={() => setActiveTab('pins')}
         chatActionsRef={setChatActionsSlot}
+        chatMenuRef={setChatMenuSlot}
       />
 
-      <BookmarksBar
-        bookmarks={bookmarks}
-        onAdd={() => setAddBookmarkOpen(true)}
-        onRemove={removeBookmark}
-      />
+      {/* The details panel lives in the app's right rail, rendered from here so
+          its dialogs and mutations stay with the page that owns the channel. */}
+      {detailsPanelOpen && detailsHost && detailsSlot && currentUser
+        ? createPortal(
+            <ChannelDetailsPanel
+              channel={channel}
+              workspaceId={workspaceId}
+              workspaceSlug={workspaceSlug ?? ''}
+              currentUserId={currentUser.id}
+              createdByName={creatorName}
+              onClose={closeDetailsPanel}
+              onEditDetails={() => setDetailsOpen(true)}
+              onAddPeople={() => setAddPeopleOpen(true)}
+              onStartHuddle={() => {
+                setActiveTab('chat');
+                setHuddleRequest((count) => count + 1);
+              }}
+            />,
+            detailsSlot,
+          )
+        : null}
+
+      {/*
+        The bookmarks strip that used to sit here is gone. It duplicated the
+        Bookmarks tab immediately below it — the same links, in a cramped
+        horizontal scroller, above a tab bar that already carries a count. The
+        tab is the folder view; this was a second copy of it eating a row of
+        vertical space on every channel.
+      */}
 
       <AddBookmarkDialog
         open={addBookmarkOpen}
@@ -628,19 +574,18 @@ export function ChannelPage() {
         onValueChange={setActiveTab}
         className="min-h-0 flex flex-1 flex-col"
       >
-        <div className="border-b border-border bg-background px-3 sm:px-6 pt-2 overflow-x-auto scrollbar-none">
+        <div className="px-3 sm:px-6 pt-2 scrollbar-none overflow-x-auto border-b border-border bg-background">
           <TabsList>
             <TabsTrigger value="chat" className="gap-1.5">
               <MessageSquare className="size-4" /> Messages
             </TabsTrigger>
-            <TabsTrigger value="copilot" className="gap-1.5 text-accent-violet">
-              <Sparkles className="size-4" /> AI Copilot
-            </TabsTrigger>
-            <TabsTrigger value="about">About</TabsTrigger>
             <TabsTrigger value="bookmarks" className="gap-1.5">
               <Bookmark className="size-4" /> Bookmarks
               {bookmarks.length > 0 ? (
-                <Badge variant="neutral" className="ml-0.5 px-1 py-0 text-[10px]">
+                <Badge
+                  variant="neutral"
+                  className="ml-0.5 px-1 py-0 text-[10px]"
+                >
                   {bookmarks.length}
                 </Badge>
               ) : null}
@@ -659,13 +604,17 @@ export function ChannelPage() {
 
         <TabsContent
           value="chat"
-          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+          className="min-h-0 flex flex-1 flex-col overflow-hidden"
         >
           <ChannelChat
             channelId={channel.id}
             title={channel.name}
             subtitle={channel.topic ?? undefined}
             headerActionsSlot={chatActionsSlot}
+            headerMenuSlot={chatMenuSlot}
+            /* The roster lives in the right rail's details panel. */
+            showMembers={false}
+            huddleRequest={huddleRequest}
             welcome={{
               createdAt: channel.createdAt,
               createdByName: creatorName,
@@ -673,57 +622,16 @@ export function ChannelPage() {
               isPrivate: channel.visibility === 'PRIVATE',
               onAddPeople: () => setAddPeopleOpen(true),
               onEditDescription: () => setDetailsOpen(true),
-              onOpenCopilot: () => setActiveTab('copilot'),
+              onOpenCopilot: openAssistant,
             }}
           />
         </TabsContent>
 
-        <TabsContent
-          value="copilot"
-          className="flex min-h-0 flex-1 flex-col overflow-hidden"
-        >
-          <ChannelAICopilot channel={channel} workspaceId={workspaceId} />
-        </TabsContent>
-
-        <TabsContent value="about" className="flex min-h-0 flex-1 flex-col">
-          <ScrollArea className="min-h-0 flex-1" contentClassName="space-y-4 px-6 py-4">
-            <dl className="gap-4 sm:grid-cols-2 grid">
-              <div>
-                <dt className="text-xs font-medium text-muted-foreground uppercase">
-                  Topic
-                </dt>
-                <dd className="mt-1 text-sm">
-                  {channel.topic || (
-                    <span className="text-muted-foreground">No topic set</span>
-                  )}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium text-muted-foreground uppercase">
-                  Created
-                </dt>
-                <dd className="mt-1 text-sm">
-                  {formatDate(channel.createdAt)}
-                </dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="text-xs font-medium text-muted-foreground uppercase">
-                  Description
-                </dt>
-                <dd className="mt-1 text-sm leading-relaxed">
-                  {channel.description || (
-                    <span className="text-muted-foreground">
-                      No description yet.
-                    </span>
-                  )}
-                </dd>
-              </div>
-            </dl>
-          </ScrollArea>
-        </TabsContent>
-
-        <TabsContent value="bookmarks" className="flex min-h-0 flex-1 flex-col">
-          <ScrollArea className="min-h-0 flex-1" contentClassName="px-6 py-4 space-y-4">
+        <TabsContent value="bookmarks" className="min-h-0 flex flex-1 flex-col">
+          <ScrollArea
+            className="min-h-0 flex-1"
+            contentClassName="px-6 py-4 space-y-4"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-foreground">
@@ -759,37 +667,37 @@ export function ChannelPage() {
                 }
               />
             ) : (
-              <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="gap-2.5 sm:grid-cols-2 lg:grid-cols-3 grid">
                 {bookmarks.map((bm) => (
                   <div
                     key={bm.id}
-                    className="group relative flex items-start justify-between rounded-card border border-border bg-surface p-3 transition-all hover:border-border-strong hover:bg-surface-raised shadow-xs"
+                    className="group p-3 shadow-xs relative flex items-start justify-between rounded-card border border-border bg-surface transition-all hover:border-border-strong hover:bg-surface-raised"
                   >
                     <a
                       href={bm.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="min-w-0 flex-1 flex items-start gap-2.5 outline-none"
+                      className="min-w-0 gap-2.5 flex flex-1 items-start outline-none"
                     >
-                      <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-surface-raised text-base">
+                      <div className="size-8 text-base flex shrink-0 items-center justify-center rounded-md border border-border bg-surface-raised">
                         {bm.emoji || '🔗'}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                        <p className="text-sm font-medium truncate text-foreground transition-colors group-hover:text-primary">
                           {bm.label}
                         </p>
-                        <p className="truncate text-xs text-muted-foreground mt-0.5">
+                        <p className="text-xs mt-0.5 truncate text-muted-foreground">
                           {bm.href}
                         </p>
                       </div>
                     </a>
 
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="gap-1 flex items-center opacity-0 transition-opacity group-hover:opacity-100">
                       <a
                         href={bm.href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-1 text-muted-foreground hover:text-foreground rounded"
+                        className="p-1 rounded text-muted-foreground hover:text-foreground"
                         aria-label="Open link"
                       >
                         <ExternalLink className="size-3.5" />
@@ -797,7 +705,7 @@ export function ChannelPage() {
                       <button
                         type="button"
                         onClick={() => removeBookmark(bm.id)}
-                        className="p-1 text-muted-foreground hover:text-destructive rounded"
+                        className="p-1 rounded text-muted-foreground hover:text-destructive"
                         aria-label="Remove bookmark"
                       >
                         <Trash2 className="size-3.5" />
@@ -810,7 +718,7 @@ export function ChannelPage() {
           </ScrollArea>
         </TabsContent>
 
-        <TabsContent value="files" className="flex min-h-0 flex-1 flex-col">
+        <TabsContent value="files" className="min-h-0 flex flex-1 flex-col">
           <ScrollArea className="min-h-0 flex-1" contentClassName="px-6 py-4">
             {files.isLoading ? (
               <SkeletonList rows={4} />
@@ -841,7 +749,7 @@ export function ChannelPage() {
           </ScrollArea>
         </TabsContent>
 
-        <TabsContent value="media" className="flex min-h-0 flex-1 flex-col">
+        <TabsContent value="media" className="min-h-0 flex flex-1 flex-col">
           <ScrollArea className="min-h-0 flex-1" contentClassName="px-6 py-4">
             {mediaFiles.length === 0 ? (
               <EmptyState
@@ -869,7 +777,7 @@ export function ChannelPage() {
           </ScrollArea>
         </TabsContent>
 
-        <TabsContent value="pins" className="flex min-h-0 flex-1 flex-col">
+        <TabsContent value="pins" className="min-h-0 flex flex-1 flex-col">
           <ScrollArea className="min-h-0 flex-1" contentClassName="px-6 py-4">
             {pins.isLoading ? (
               <SkeletonList rows={3} />
@@ -882,14 +790,14 @@ export function ChannelPage() {
             ) : (
               <ul className="space-y-2">
                 {pins.data?.map((pin) => (
-                  <li key={pin.id} className="rounded-card border p-3">
+                  <li key={pin.id} className="p-3 rounded-card border">
                     <p className="text-sm font-medium">{pin.title}</p>
                     {pin.url ? (
                       <a
                         href={pin.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-xs text-primary underline truncate block mt-0.5"
+                        className="text-xs mt-0.5 block truncate text-primary underline"
                       >
                         {pin.url}
                       </a>
@@ -904,4 +812,3 @@ export function ChannelPage() {
     </div>
   );
 }
-

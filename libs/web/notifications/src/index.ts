@@ -8,12 +8,15 @@ export {
 } from './lib/notification-enable-bar.js';
 
 export {
+  useChannelActivity,
+  useMarkChannelSeen,
   useNotificationFeed,
   useNotificationPreferenceMutations,
   useNotificationPreferences,
   useNotificationUnread,
   usePushDeviceMutations,
   usePushDevices,
+  useWorkspaceActivity,
+  type ActivityIndicator,
   type NotificationUnread,
 } from './lib/use-notifications.js';
-

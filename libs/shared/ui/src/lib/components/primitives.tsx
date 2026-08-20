@@ -15,7 +15,7 @@ export function Label({
     <LabelPrimitive.Root
       data-slot="label"
       className={cn(
-        'flex items-center gap-2 text-sm leading-none font-medium select-none',
+        'gap-2 text-sm font-medium flex items-center leading-none select-none',
         'peer-disabled:cursor-not-allowed peer-disabled:opacity-50',
         'group-data-[disabled=true]:opacity-50',
         className,
@@ -39,7 +39,7 @@ export function Separator({
       decorative={decorative}
       orientation={orientation}
       className={cn(
-        'bg-border shrink-0',
+        'shrink-0 bg-border',
         orientation === 'horizontal' ? 'h-px w-full' : 'h-full w-px',
         className,
       )}
@@ -65,8 +65,8 @@ export function Switch({
     <SwitchPrimitive.Root
       data-slot="switch"
       className={cn(
-        'peer inline-flex h-5 w-9 shrink-0 items-center rounded-full border-2 border-transparent shadow-xs transition-colors',
-        'focus-visible:ring-ring/40 focus-visible:ring-[3px] focus-visible:outline-none',
+        'peer h-5 w-9 shadow-xs inline-flex shrink-0 items-center rounded-full border-2 border-transparent transition-colors',
+        'focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none',
         'disabled:cursor-not-allowed disabled:opacity-50',
         'data-[state=checked]:bg-primary data-[state=unchecked]:bg-input',
         className,
@@ -75,7 +75,7 @@ export function Switch({
     >
       <SwitchPrimitive.Thumb
         className={cn(
-          'bg-background pointer-events-none block size-4 rounded-full ring-0 shadow-sm transition-transform',
+          'size-4 shadow-sm pointer-events-none block rounded-full bg-background ring-0 transition-transform',
           'data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0',
         )}
       />
@@ -108,10 +108,10 @@ export function TabsList({
       data-slot="tabs-list"
       data-variant={variant}
       className={cn(
-        'text-muted-foreground max-w-full overflow-x-auto scrollbar-none flex-nowrap',
+        'max-w-full scrollbar-none flex-nowrap overflow-x-auto text-muted-foreground',
         variant === 'pill'
-          ? 'inline-flex h-9 w-fit items-center justify-start sm:justify-center rounded-lg bg-muted p-1'
-          : 'flex w-full items-center gap-6 border-b border-border/60',
+          ? 'h-9 sm:justify-center p-1 inline-flex w-fit items-center justify-start rounded-lg bg-muted'
+          : 'gap-6 flex w-full items-center border-b border-border/60',
         className,
       )}
       {...props}
@@ -128,20 +128,20 @@ export function TabsTrigger({
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        'inline-flex items-center justify-center gap-1.5 font-medium whitespace-nowrap',
+        'gap-1.5 font-medium inline-flex items-center justify-center whitespace-nowrap',
         'transition-[color,box-shadow] focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none',
         'disabled:pointer-events-none disabled:opacity-50',
-        "[&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4",
+        "[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none",
         variant === 'pill'
           ? [
-              'flex-1 rounded-md px-3 py-1 text-sm',
-              'data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs',
+              'px-3 py-1 text-sm flex-1 rounded-md',
+              'data-[state=active]:shadow-xs data-[state=active]:bg-background data-[state=active]:text-foreground',
             ]
           : [
               // The inactive border keeps the row from shifting 2px on select.
-              'shrink-0 border-b-2 border-transparent pb-3 text-sm rounded-t-sm',
+              'pb-3 text-sm shrink-0 rounded-t-sm border-b-2 border-transparent',
               'hover:text-foreground',
-              'data-[state=active]:border-primary data-[state=active]:font-semibold data-[state=active]:text-foreground',
+              'data-[state=active]:font-semibold data-[state=active]:border-primary data-[state=active]:text-foreground',
             ],
         className,
       )}

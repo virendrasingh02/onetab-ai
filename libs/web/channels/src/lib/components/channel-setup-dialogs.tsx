@@ -18,7 +18,10 @@ import { cn } from '@org/utils';
 import { useQuery } from '@tanstack/react-query';
 import { Check, PenLine, Search, UserPlus } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { useChannelMemberMutations, useUpdateChannel } from '../use-channels.js';
+import {
+  useChannelMemberMutations,
+  useUpdateChannel,
+} from '../use-channels.js';
 
 export interface AddPeopleDialogProps {
   open: boolean;
@@ -105,8 +108,8 @@ export function AddPeopleDialog({
       <DialogContent className="sm:max-w-md">
         <form onSubmit={submit}>
           <DialogHeader>
-            <div className="flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-lg border border-border bg-surface-raised text-primary">
+            <div className="gap-2 flex items-center">
+              <div className="size-8 flex items-center justify-center rounded-lg border border-border bg-surface-raised text-primary">
                 <UserPlus className="size-4" />
               </div>
               <div>
@@ -120,7 +123,7 @@ export function AddPeopleDialog({
 
           <div className="space-y-3 px-6 py-4">
             <div className="relative">
-              <Search className="absolute top-2.5 left-2.5 size-3.5 text-muted-foreground" />
+              <Search className="top-2.5 left-2.5 size-3.5 absolute text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -131,13 +134,16 @@ export function AddPeopleDialog({
               />
             </div>
 
-            <ScrollArea className="max-h-64" contentClassName="space-y-0.5 pr-1">
+            <ScrollArea
+              className="max-h-64"
+              contentClassName="space-y-0.5 pr-1"
+            >
               {membersQuery.isLoading ? (
-                <p className="py-6 text-center text-xs text-muted-foreground">
+                <p className="py-6 text-xs text-center text-muted-foreground">
                   Loading members…
                 </p>
               ) : candidates.length === 0 ? (
-                <p className="py-6 text-center text-xs text-muted-foreground">
+                <p className="py-6 text-xs text-center text-muted-foreground">
                   No workspace members match that search.
                 </p>
               ) : (
@@ -159,7 +165,7 @@ export function AddPeopleDialog({
                         )
                       }
                       className={cn(
-                        'flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors',
+                        'gap-2.5 px-2 py-1.5 flex w-full items-center rounded-lg text-left transition-colors',
                         joined
                           ? 'opacity-50'
                           : isSelected
@@ -174,7 +180,7 @@ export function AddPeopleDialog({
                         size="sm"
                       />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-xs font-semibold text-foreground">
+                        <span className="text-xs font-semibold block truncate text-foreground">
                           {name}
                         </span>
                         <span className="block truncate text-[11px] text-muted-foreground">
@@ -182,7 +188,7 @@ export function AddPeopleDialog({
                         </span>
                       </span>
                       {joined ? (
-                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        <span className="tracking-wide text-[10px] text-muted-foreground uppercase">
                           In channel
                         </span>
                       ) : isSelected ? (
@@ -269,8 +275,8 @@ export function EditChannelDetailsDialog({
       <DialogContent className="sm:max-w-md">
         <form onSubmit={submit}>
           <DialogHeader>
-            <div className="flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-lg border border-border bg-surface-raised text-primary">
+            <div className="gap-2 flex items-center">
+              <div className="size-8 flex items-center justify-center rounded-lg border border-border bg-surface-raised text-primary">
                 <PenLine className="size-4" />
               </div>
               <div>

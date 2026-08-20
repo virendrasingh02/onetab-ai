@@ -55,7 +55,9 @@ function ThreadList({
                 <Hash aria-hidden />
                 {thread.roomName}
               </Badge>
-              {thread.hasUnread ? <Badge variant="primary">Unread</Badge> : null}
+              {thread.hasUnread ? (
+                <Badge variant="primary">Unread</Badge>
+              ) : null}
             </div>
 
             <p className="mt-1.5 text-sm font-medium line-clamp-2 text-foreground">
@@ -94,40 +96,52 @@ export function ThreadsView() {
   const unread = threads.filter((thread) => thread.hasUnread);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="min-h-0 flex flex-1 flex-col">
       {/* Channel-style Header */}
       <div className="border-b border-border bg-background">
-        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="flex min-w-0 items-center gap-1.5">
-              <MessagesSquare className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-              <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+        <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
+          <div className="min-w-0 gap-2 flex items-center">
+            <div className="min-w-0 gap-1.5 flex items-center">
+              <MessagesSquare
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
                 Threads
               </h2>
               {unread.length > 0 ? (
-                <Badge variant="primary" className="text-[11px] px-1.5 py-0 h-4.5">
+                <Badge
+                  variant="primary"
+                  className="px-1.5 py-0 h-4.5 text-[11px]"
+                >
                   {unread.length} unread
                 </Badge>
               ) : null}
             </div>
 
-            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
+            <div className="h-4 mx-1 sm:block hidden w-px bg-border" />
 
-            <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
+            <p className="min-w-0 text-xs sm:block hidden max-w-[48ch] truncate text-muted-foreground">
               Follow-up conversations from every channel you are in
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             <Tabs value={tab} onValueChange={setTab} className="h-7">
               <TabsList className="h-7 p-0.5">
                 <TabsTrigger value="all" className="h-6 px-2.5 text-xs">
                   All
                 </TabsTrigger>
-                <TabsTrigger value="unread" className="h-6 px-2.5 text-xs gap-1">
+                <TabsTrigger
+                  value="unread"
+                  className="h-6 px-2.5 text-xs gap-1"
+                >
                   <span>Unread</span>
                   {unread.length > 0 ? (
-                    <Badge variant="neutral" className="text-[10px] px-1 py-0 h-3.5">
+                    <Badge
+                      variant="neutral"
+                      className="px-1 py-0 h-3.5 text-[10px]"
+                    >
                       {unread.length}
                     </Badge>
                   ) : null}
@@ -138,7 +152,7 @@ export function ThreadsView() {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-6">
+      <div className="min-h-0 p-3 sm:p-6 flex-1 overflow-y-auto">
         {!enabled ? (
           <Panel flush>
             <EmptyState
@@ -148,7 +162,7 @@ export function ThreadsView() {
             />
           </Panel>
         ) : (
-          <div className="mx-auto max-w-5xl">
+          <div className="max-w-5xl mx-auto">
             {tab === 'all' ? (
               <Panel flush>
                 <ThreadList

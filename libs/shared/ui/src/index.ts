@@ -139,7 +139,12 @@ export {
   type ErrorBoundaryProps,
 } from './lib/components/error-boundary.js';
 
-export { Input, Textarea, type InputProps, type TextareaProps } from './lib/components/input.js';
+export {
+  Input,
+  Textarea,
+  type InputProps,
+  type TextareaProps,
+} from './lib/components/input.js';
 
 export {
   SearchInput,
@@ -189,7 +194,10 @@ export {
 
 export { Calendar, type CalendarProps } from './lib/components/calendar.js';
 
-export { DatePicker, type DatePickerProps } from './lib/components/date-picker.js';
+export {
+  DatePicker,
+  type DatePickerProps,
+} from './lib/components/date-picker.js';
 
 export {
   Form,
@@ -307,6 +315,21 @@ export {
 } from './lib/components/focus-mode-store.js';
 
 export {
+  ActivityDot,
+  type ActivityDotProps,
+  type ActivityLevel,
+} from './lib/components/activity-dot.js';
+
+export {
+  useRightPanelStore,
+  type HostedPanel,
+  type RightPanelHostedView,
+  type RightPanelProfile,
+  type RightPanelState,
+  type RightPanelView,
+} from './lib/components/right-panel-store.js';
+
+export {
   StatusModal,
   SLACK_STATUS_PRESETS,
   CLEAR_AFTER_OPTIONS,
@@ -335,12 +358,4 @@ export {
   type TeamMemberData,
 } from './lib/components/team-world-clock-modal.js';
 
-export {
-  Toaster,
-  toast,
-  type ToasterProps,
-} from './lib/components/toaster.js';
-
-
-
-
+export { Toaster, toast, type ToasterProps } from './lib/components/toaster.js';

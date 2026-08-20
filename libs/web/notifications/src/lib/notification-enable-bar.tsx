@@ -254,12 +254,12 @@ export function NotificationEnableBar({
     return (
       <div
         className={cn(
-          'gap-3 border-success/30 from-success/10 to-success/5 px-4 py-2.5 text-xs text-success-text shadow-xs relative flex items-center justify-between overflow-hidden rounded-xl border bg-gradient-to-r via-card transition-all duration-300',
+          'gap-3 px-4 py-2.5 text-xs shadow-xs relative flex items-center justify-between overflow-hidden rounded-xl border border-success/30 bg-gradient-to-r from-success/10 via-card to-success/5 text-success-text transition-all duration-300',
           className,
         )}
       >
         <div className="gap-2 flex items-center">
-          <div className="size-6 bg-success/20 text-success-text flex items-center justify-center rounded-full">
+          <div className="size-6 flex items-center justify-center rounded-full bg-success/20 text-success-text">
             <Check className="size-3.5" />
           </div>
           <span className="font-medium">
@@ -286,12 +286,12 @@ export function NotificationEnableBar({
     return (
       <div
         className={cn(
-          'gap-3 border-warning/30 from-warning/10 to-warning/5 px-4 py-2.5 text-xs text-warning-text shadow-xs relative flex flex-wrap items-center justify-between overflow-hidden rounded-xl border bg-gradient-to-r via-card',
+          'gap-3 px-4 py-2.5 text-xs shadow-xs relative flex flex-wrap items-center justify-between overflow-hidden rounded-xl border border-warning/30 bg-gradient-to-r from-warning/10 via-card to-warning/5 text-warning-text',
           className,
         )}
       >
         <div className="gap-2 min-w-0 flex items-center">
-          <ShieldAlert className="size-4 text-warning-text shrink-0" />
+          <ShieldAlert className="size-4 shrink-0 text-warning-text" />
           <span className="truncate">
             Notifications are blocked in your browser settings. Unblock them in
             your site settings to receive alerts.

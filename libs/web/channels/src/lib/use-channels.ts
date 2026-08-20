@@ -340,7 +340,8 @@ export function useChannelBookmarks(
   channelId: string | undefined,
 ) {
   const storageKey = useMemo(
-    () => `onetab_channel_bm_${workspaceId || 'default'}_${channelId || 'default'}`,
+    () =>
+      `onetab_channel_bm_${workspaceId || 'default'}_${channelId || 'default'}`,
     [workspaceId, channelId],
   );
 
@@ -405,7 +406,9 @@ export function useChannelBookmarks(
         } catch {
           // ignore
         }
-        toast.info(target ? `Bookmark "${target.label}" removed` : 'Bookmark removed');
+        toast.info(
+          target ? `Bookmark "${target.label}" removed` : 'Bookmark removed',
+        );
         return updated;
       });
     },
@@ -418,4 +421,3 @@ export function useChannelBookmarks(
     removeBookmark,
   };
 }
-

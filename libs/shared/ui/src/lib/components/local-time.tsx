@@ -40,7 +40,10 @@ export function useMinuteTick(): Date {
   return now;
 }
 
-export interface LocalTimeProps extends Omit<ComponentProps<'time'>, 'children'> {
+export interface LocalTimeProps extends Omit<
+  ComponentProps<'time'>,
+  'children'
+> {
   /** IANA zone, e.g. `Asia/Kolkata`. Defaults to the viewer's own. */
   timezone?: string;
   /** Show a clock glyph before the time. */
@@ -85,13 +88,15 @@ export function LocalTime({
       dateTime={now.toISOString()}
       onClick={onClick}
       className={cn(
-        'inline-flex items-center gap-1.5 tabular-nums',
-        interactive && 'cursor-pointer hover:text-foreground transition-colors',
+        'gap-1.5 inline-flex items-center tabular-nums',
+        interactive && 'cursor-pointer transition-colors hover:text-foreground',
         className,
       )}
       {...props}
     >
-      {icon ? <Clock className="size-3.5 shrink-0 opacity-70" aria-hidden /> : null}
+      {icon ? (
+        <Clock className="size-3.5 shrink-0 opacity-70" aria-hidden />
+      ) : null}
       <span>{time}</span>
       {showOffset ? (
         <span className="text-subtle">{formatZoneOffset(zone, now)}</span>
@@ -108,7 +113,7 @@ export function LocalTime({
     <Hint
       label={
         <span className="block text-left">
-          <span className="block font-medium">
+          <span className="font-medium block">
             {hintName ? `${hintName} · ` : ''}
             {formatDateInZone(now, zone)}, {time}
           </span>

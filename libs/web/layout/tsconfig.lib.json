@@ -41,22 +41,19 @@
       "path": "../channels/tsconfig.lib.json"
     },
     {
-      "path": "../chat/tsconfig.lib.json"
-    },
-    {
       "path": "../../shared/utils/tsconfig.lib.json"
     },
     {
       "path": "../auth/tsconfig.lib.json"
     },
     {
-      "path": "../../shared/ui/tsconfig.lib.json"
-    },
-    {
       "path": "../../shared/types/tsconfig.lib.json"
     },
     {
       "path": "../../shared/design-system/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/ui/tsconfig.lib.json"
     },
     {
       "path": "../work-tools/tsconfig.lib.json"
@@ -71,6 +68,9 @@
       "path": "../desktop/tsconfig.lib.json"
     },
     {
+      "path": "../chat/tsconfig.lib.json"
+    },
+    {
       "path": "../ai/tsconfig.lib.json"
     },
     {
@@ -78,6 +78,9 @@
     },
     {
       "path": "../../shared/hooks/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/chat-ui/tsconfig.lib.json"
     }
   ]
 }

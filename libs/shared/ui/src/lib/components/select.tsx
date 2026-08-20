@@ -29,7 +29,7 @@ export function SelectTrigger({
        */
       className={cn(
         'gap-2 flex w-fit items-center justify-between rounded-input border border-input bg-surface',
-        'text-xs text-foreground whitespace-nowrap',
+        'text-xs whitespace-nowrap text-foreground',
         'transition-[color,border-color,box-shadow] duration-(--duration-fast) ease-standard',
         'focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25 focus-visible:outline-none',
         'disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-disabled disabled:opacity-100',
@@ -63,7 +63,7 @@ export function SelectContent({
            are the same object to the eye, so they share radius and lift. */
         className={cn(
           'relative z-50 max-h-(--radix-select-content-available-height) bg-popover text-popover-foreground',
-          'min-w-36 overflow-hidden rounded-popup border border-border p-1 shadow-overlay',
+          'min-w-36 p-1 overflow-hidden rounded-popup border border-border shadow-overlay',
           'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
           'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
           'duration-(--duration-fast) ease-standard',
@@ -97,7 +97,7 @@ export function SelectLabel({
     <SelectPrimitive.Label
       data-slot="select-label"
       className={cn(
-        'px-2 py-1 text-[10px] font-semibold tracking-wider uppercase text-subtle',
+        'px-2 py-1 font-semibold tracking-wider text-[10px] text-subtle uppercase',
         className,
       )}
       {...props}
@@ -141,7 +141,7 @@ export function SelectSeparator({
   return (
     <SelectPrimitive.Separator
       data-slot="select-separator"
-      className={cn('-mx-1 my-1 h-px bg-border shrink-0', className)}
+      className={cn('-mx-1 my-1 h-px shrink-0 bg-border', className)}
       {...props}
     />
   );
@@ -154,7 +154,7 @@ function SelectScrollUpButton({
   return (
     <SelectPrimitive.ScrollUpButton
       className={cn(
-        'py-1 flex cursor-default items-center justify-center text-subtle [&_svg]:size-3.5',
+        'py-1 [&_svg]:size-3.5 flex cursor-default items-center justify-center text-subtle',
         className,
       )}
       {...props}
@@ -171,7 +171,7 @@ function SelectScrollDownButton({
   return (
     <SelectPrimitive.ScrollDownButton
       className={cn(
-        'py-1 flex cursor-default items-center justify-center text-subtle [&_svg]:size-3.5',
+        'py-1 [&_svg]:size-3.5 flex cursor-default items-center justify-center text-subtle',
         className,
       )}
       {...props}

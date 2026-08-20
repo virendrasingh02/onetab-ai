@@ -3,6 +3,7 @@ import { Button, EmptyState, LoadingState } from '@org/ui';
 import { MessageSquareOff } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { ChatSurface, type ChatSurfaceWelcome } from './chat-surface.js';
+import { useSavedIds, useToggleSaved } from './use-saved-messages.js';
 import { useMatrix } from './matrix-provider.js';
 import { usePresence, useRoom, useRoomActions } from './use-chat.js';
 
@@ -16,10 +17,17 @@ export interface ChatPanelProps {
   subtitle?: string;
   /** Host-rendered element to portal the header actions into. See `ChatSurface`. */
   headerActionsSlot?: HTMLElement | null;
+  /**
+   * Element inside the host page's own "⋯" menu to render the conversation's
+   * menu entries into — pinned messages, today. See `ChatSurface`.
+   */
+  headerMenuSlot?: HTMLElement | null;
   /** Off for direct messages, which have a fixed roster of two. */
   showMembers?: boolean;
   /** Channel metadata for the welcome block. See `ChatSurface`. */
   welcome?: ChatSurfaceWelcome;
+  /** Starts a huddle when it changes. See `ChatSurface`. */
+  huddleRequest?: number;
 }
 
 /**
@@ -33,17 +41,25 @@ export function ChatPanel({
   title,
   subtitle,
   headerActionsSlot,
+  headerMenuSlot,
   showMembers = true,
   welcome,
+  huddleRequest,
 }: ChatPanelProps) {
   const { client, status, enabled, error } = useMatrix();
   const room = useRoom(roomId ?? undefined);
   const actions = useRoomActions(roomId ?? undefined);
 
-  // Pins and saved items have no Matrix account-data binding yet, so they live
-  // here for the session. The surface does not care where they come from.
+  // Pins have no Matrix account-data binding yet, so they live here for the
+  // session. The surface does not care where they come from.
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
-  const [savedIds, setSavedIds] = useState<string[]>([]);
+
+  /*
+   * Saved items do outlive the visit: they are listed on the sidebar's Saved
+   * page, which never opens this room. See `use-saved-messages`.
+   */
+  const savedIds = useSavedIds(roomId ?? undefined);
+  const setSaved = useToggleSaved();
 
   const memberIds = useMemo(
     () => room.members.map((member) => member.userId),
@@ -56,8 +72,25 @@ export function ChatPanel({
     [],
   );
   const toggleSave = useCallback(
-    (eventId: string) => setSavedIds((current) => toggle(current, eventId)),
-    [],
+    (eventId: string) => {
+      const message = room.messages.find((entry) => entry.id === eventId);
+      if (!message || !roomId) return;
+
+      setSaved(
+        {
+          id: eventId,
+          roomId,
+          channelName: title,
+          senderName: message.senderName,
+          senderAvatarUrl: message.senderAvatarUrl,
+          body: message.body,
+          sentAt: message.timestamp,
+          savedAt: Date.now(),
+        },
+        savedIds.includes(eventId),
+      );
+    },
+    [room.messages, roomId, title, savedIds, setSaved],
   );
 
   if (!enabled) {
@@ -95,8 +128,10 @@ export function ChatPanel({
       title={title}
       subtitle={subtitle}
       headerActionsSlot={headerActionsSlot}
+      headerMenuSlot={headerMenuSlot}
       showMembers={showMembers}
       welcome={welcome}
+      huddleRequest={huddleRequest}
       isEncrypted={client.getRoom(roomId)?.isEncrypted ?? false}
       banner={<ConnectionBanner status={status} />}
       myUserId={client.getSession()?.userId}

@@ -1,4 +1,5 @@
 import {
+  ActivityDot,
   Button,
   DropdownMenu,
   DropdownMenuContent,
@@ -13,12 +14,16 @@ import {
   usePromptDialog,
   type PromptDialog,
 } from '@org/ui';
+import type { ActivityIndicator } from '@org/notifications';
 import type { ChannelSummary } from '@org/types';
 import { cn } from '@org/utils';
 import { useAgents, useAgentMutations } from '@org/web-agents';
 import { useWorkflows, useWorkflowMutations } from '@org/web-automations';
 import { useChannelPreferences, useGroupedChannels } from '@org/web-channels';
-import { useIntegrations, useIntegrationMutations } from '@org/web-integrations';
+import {
+  useIntegrations,
+  useIntegrationMutations,
+} from '@org/web-integrations';
 import {
   useDocsWorkspace,
   useProjectMutations,
@@ -28,6 +33,7 @@ import {
   Activity,
   Bell,
   BellOff,
+  Bookmark,
   Check,
   ChevronRight,
   Clock,
@@ -86,6 +92,9 @@ const CORE_LINKS: readonly NavEntry[] = [
 
 /** Secondary destinations that can be pinned to the primary sidebar or accessed via More. */
 const MORE_DESTINATIONS: readonly NavEntry[] = [
+  /* Saved was an icon in the channel header, so the list only existed while you
+     stood in the channel it belonged to. It is a destination now. */
+  { path: 'saved', label: 'Saved', icon: Bookmark },
   { path: 'meetings', label: 'Meetings', icon: Video },
   { path: 'pulse', label: 'Pulse', icon: Activity },
   { path: 'schedule', label: 'Schedule', icon: Clock },
@@ -120,12 +129,14 @@ function titleCaseProvider(provider: string): string {
 function ChannelRow({
   channel,
   workspaceSlug,
+  activity,
   onToggleFavorite,
   onToggleMute,
   prompts,
 }: {
   channel: ChannelSummary;
   workspaceSlug: string;
+  activity?: ActivityIndicator;
   onToggleFavorite: (channel: ChannelSummary) => void;
   onToggleMute: (channel: ChannelSummary) => void;
   prompts: PromptDialog;
@@ -136,6 +147,19 @@ function ChannelRow({
   const isFavorite = channel.membership?.isFavorite ?? false;
   const isMuted = channel.membership?.isMuted ?? false;
   const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
+
+  /*
+   * A muted channel keeps its mention dot but loses its ambient one. Muting
+   * says "stop telling me about the chatter here", not "hide it when someone
+   * asks for me by name" — Slack draws the same distinction, and the second
+   * reading loses messages people are waiting on.
+   */
+  const level = isMuted
+    ? activity?.level === 'mention'
+      ? 'mention'
+      : 'none'
+    : (activity?.level ?? 'none');
+  const hasUnread = level !== 'none';
 
   const channelUrl = `${window.location.origin}/w/${workspaceSlug}/c/${channel.slug}`;
   const { copied, copy: handleCopyLink } = useCopyLink(channelUrl);
@@ -153,32 +177,26 @@ function ChannelRow({
     unreadTimer.current = setTimeout(() => setUnreadState(false), 2000);
   }, []);
 
-  const handleRename = useCallback(
-    async () => {
-      const name = await prompts.promptText({
-        title: `Rename #${channel.name}`,
-        label: 'Channel name',
-        defaultValue: channel.name,
-        confirmLabel: 'Rename',
-      });
-      if (!name) return;
-    },
-    [channel.name, prompts],
-  );
+  const handleRename = useCallback(async () => {
+    const name = await prompts.promptText({
+      title: `Rename #${channel.name}`,
+      label: 'Channel name',
+      defaultValue: channel.name,
+      confirmLabel: 'Rename',
+    });
+    if (!name) return;
+  }, [channel.name, prompts]);
 
-  const handleDeleteChannel = useCallback(
-    async () => {
-      const confirmed = await prompts.confirmAction({
-        title: `Delete #${channel.name}?`,
-        description:
-          'Are you sure you want to delete this channel? All messages and attachments will be removed.',
-        confirmLabel: 'Delete Channel',
-        destructive: true,
-      });
-      if (!confirmed) return;
-    },
-    [channel.name, prompts],
-  );
+  const handleDeleteChannel = useCallback(async () => {
+    const confirmed = await prompts.confirmAction({
+      title: `Delete #${channel.name}?`,
+      description:
+        'Are you sure you want to delete this channel? All messages and attachments will be removed.',
+      confirmLabel: 'Delete Channel',
+      destructive: true,
+    });
+    if (!confirmed) return;
+  }, [channel.name, prompts]);
 
   return (
     <li className="group/row relative">
@@ -191,12 +209,25 @@ function ChannelRow({
               channel.membership ? 'pr-14' : 'pr-8',
               channel.isArchived && 'opacity-65',
               isMuted && 'text-muted-foreground',
+              // Unread rows read as bold in every chat client; without it the
+              // dot is the only cue and it is four pixels wide.
+              hasUnread && 'font-semibold text-foreground',
             ),
           })
         }
       >
         <Icon className={navIconClass(1)} aria-hidden />
         <span className="flex-1 truncate">{channel.name}</span>
+        <ActivityDot
+          level={level}
+          count={activity?.mentionCount}
+          label={
+            level === 'mention'
+              ? `You were mentioned in #${channel.name}`
+              : `Unread activity in #${channel.name}`
+          }
+          className="mr-1"
+        />
         {isMuted && (
           <Hint label="Notifications muted">
             <BellOff className="mr-1 size-3 shrink-0 text-muted-foreground/70" />
@@ -231,10 +262,7 @@ function ChannelRow({
                 <DropdownMenuShortcut>U</DropdownMenuShortcut>
               </DropdownMenuItem>
 
-              <DropdownMenuItem
-                onSelect={handleRename}
-                className="gap-2.5"
-              >
+              <DropdownMenuItem onSelect={handleRename} className="gap-2.5">
                 <Pencil className="size-4" />
                 <span>Rename</span>
               </DropdownMenuItem>
@@ -306,10 +334,7 @@ function ChannelRow({
 
               <DropdownMenuSeparator />
 
-              <DropdownMenuItem
-                onSelect={handleShare}
-                className="gap-2.5"
-              >
+              <DropdownMenuItem onSelect={handleShare} className="gap-2.5">
                 {shared ? (
                   <Check className="size-4 text-success-text" />
                 ) : (
@@ -343,6 +368,8 @@ export interface ChannelNavProps {
   isLoading: boolean;
   /** Unread activity, shown on the Inbox row — the feed's only destination. */
   inboxUnread?: number;
+  /** Unread state per channel id, for the rows' dots. */
+  channelActivity?: Record<string, ActivityIndicator>;
   onCreateChannel: () => void;
   onBrowseChannels: () => void;
 }
@@ -353,6 +380,7 @@ export function ChannelNav({
   channels,
   isLoading,
   inboxUnread = 0,
+  channelActivity,
   onCreateChannel,
   onBrowseChannels,
 }: ChannelNavProps) {
@@ -456,17 +484,13 @@ export function ChannelNav({
 
   const starredDocs = useMemo(
     () =>
-      (docsWorkspace.docs ?? []).filter((d) =>
-        favoriteDocIds.includes(d.id),
-      ),
+      (docsWorkspace.docs ?? []).filter((d) => favoriteDocIds.includes(d.id)),
     [docsWorkspace.docs, favoriteDocIds],
   );
 
   const starredAgents = useMemo(
     () =>
-      (agentsQuery.data ?? []).filter((a) =>
-        favoriteAgentIds.includes(a.id),
-      ),
+      (agentsQuery.data ?? []).filter((a) => favoriteAgentIds.includes(a.id)),
     [agentsQuery.data, favoriteAgentIds],
   );
 
@@ -511,10 +535,7 @@ export function ChannelNav({
 
   return (
     <div className="min-h-0 flex h-full flex-col">
-      <ScrollArea
-        className="min-h-0 flex-1"
-        contentClassName="px-3 pt-3 pb-6"
-      >
+      <ScrollArea className="min-h-0 flex-1" contentClassName="px-3 pt-3 pb-6">
         <div className="pb-4 p-1">
           <nav aria-label="Primary navigation" className="space-y-0.5">
             {coreLinks.map((entry) => (
@@ -560,12 +581,12 @@ export function ChannelNav({
                     return (
                       <div
                         key={entry.label}
-                        className="group/more-row flex items-center justify-between rounded-xl px-2.5 py-1.5 text-[13px] font-medium text-foreground/85 hover:bg-accent/70 hover:text-foreground transition-colors"
+                        className="group/more-row px-2.5 py-1.5 font-medium flex items-center justify-between rounded-xl text-[13px] text-foreground/85 transition-colors hover:bg-accent/70 hover:text-foreground"
                       >
                         <NavLink
                           to={`/w/${workspaceSlug}/${entry.path}`}
                           end={entry.end}
-                          className="flex items-center gap-2.5 flex-1 min-w-0"
+                          className="gap-2.5 min-w-0 flex flex-1 items-center"
                         >
                           <Icon
                             className="size-4 shrink-0 text-muted-foreground"
@@ -594,14 +615,15 @@ export function ChannelNav({
                             className={cn(
                               'size-6 flex items-center justify-center rounded-md transition-all',
                               isPinned
-                                ? 'text-foreground opacity-100 bg-accent/80'
-                                : 'text-muted-foreground opacity-0 group-hover/more-row:opacity-100 group-focus-within/more-row:opacity-100 hover:text-foreground hover:bg-accent',
+                                ? 'bg-accent/80 text-foreground opacity-100'
+                                : 'text-muted-foreground opacity-0 group-focus-within/more-row:opacity-100 group-hover/more-row:opacity-100 hover:bg-accent hover:text-foreground',
                             )}
                           >
                             <Pin
                               className={cn(
                                 'size-3.5',
-                                isPinned && 'fill-current rotate-45 text-foreground',
+                                isPinned &&
+                                  'rotate-45 fill-current text-foreground',
                               )}
                             />
                           </button>
@@ -621,7 +643,12 @@ export function ChannelNav({
               emptyLabel="Drop an important item here to keep it handy."
             >
               {groups.favorites.map((channel) => (
-                <ChannelRow key={channel.id} channel={channel} {...rowProps} />
+                <ChannelRow
+                  key={channel.id}
+                  channel={channel}
+                  activity={channelActivity?.[channel.id]}
+                  {...rowProps}
+                />
               ))}
 
               {starredProjects.map((project) => {
@@ -810,7 +837,7 @@ export function ChannelNav({
                     size="icon-sm"
                     onClick={onCreateChannel}
                     aria-label="Create a channel"
-                    className="size-5 p-0 opacity-0 transition-opacity duration-150 group-hover/section:opacity-100 group-focus-within/section:opacity-100 focus-visible:opacity-100"
+                    className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
                   >
                     <Plus className="size-3.5" />
                   </Button>
@@ -818,7 +845,12 @@ export function ChannelNav({
               }
             >
               {groups.joined.map((channel) => (
-                <ChannelRow key={channel.id} channel={channel} {...rowProps} />
+                <ChannelRow
+                  key={channel.id}
+                  channel={channel}
+                  activity={channelActivity?.[channel.id]}
+                  {...rowProps}
+                />
               ))}
               <li>
                 <button

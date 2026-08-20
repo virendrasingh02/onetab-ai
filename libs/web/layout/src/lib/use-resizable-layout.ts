@@ -26,11 +26,19 @@ export const DEFAULT_LAYOUT_BOUNDS: LayoutBounds = {
   rightDefault: 320,
 };
 
+/**
+ * Note the absence of `rightPanelOpen`.
+ *
+ * The right rail is opened from all over the app — a profile card, a Kanban
+ * card, a channel's details — so its open state lives in `useRightPanelStore`
+ * alongside the view it should show. Keeping a second copy here meant two
+ * writers for one boolean, and the rail would flicker shut whenever the other
+ * one won.
+ */
 export interface StoredLayoutConfig {
   leftWidth: number;
   rightWidth: number;
   sidebarOpen: boolean;
-  rightPanelOpen: boolean;
 }
 
 export interface UseResizableLayoutOptions {
@@ -50,7 +58,10 @@ const canUseDOM = () => typeof window !== 'undefined';
  */
 function viewportMax(configuredMax: number) {
   if (!canUseDOM()) return configuredMax;
-  return Math.min(configuredMax, Math.floor(window.innerWidth * MAX_PANEL_VIEWPORT_RATIO));
+  return Math.min(
+    configuredMax,
+    Math.floor(window.innerWidth * MAX_PANEL_VIEWPORT_RATIO),
+  );
 }
 
 /**
@@ -82,7 +93,6 @@ export function useResizableLayout(options: UseResizableLayoutOptions = {}) {
       leftWidth: bounds.leftDefault,
       rightWidth: bounds.rightDefault,
       sidebarOpen: true,
-      rightPanelOpen: true,
     };
 
     if (!canUseDOM()) return fallback;
@@ -105,10 +115,6 @@ export function useResizableLayout(options: UseResizableLayoutOptions = {}) {
           typeof parsed.sidebarOpen === 'boolean'
             ? parsed.sidebarOpen
             : fallback.sidebarOpen,
-        rightPanelOpen:
-          typeof parsed.rightPanelOpen === 'boolean'
-            ? parsed.rightPanelOpen
-            : fallback.rightPanelOpen,
       };
     } catch {
       return fallback;
@@ -129,12 +135,9 @@ export function useResizableLayout(options: UseResizableLayoutOptions = {}) {
    * first impression.
    */
   const [sidebarOpen, setSidebarOpen] = useState(() =>
-    canUseDOM() && window.innerWidth < MOBILE_BREAKPOINT ? false : initial.sidebarOpen,
-  );
-  const [rightPanelOpen, setRightPanelOpen] = useState(() =>
     canUseDOM() && window.innerWidth < MOBILE_BREAKPOINT
       ? false
-      : initial.rightPanelOpen,
+      : initial.sidebarOpen,
   );
 
   /* Persist desktop layout only — see the note on the hook. */
@@ -145,13 +148,12 @@ export function useResizableLayout(options: UseResizableLayoutOptions = {}) {
         leftWidth,
         rightWidth,
         sidebarOpen,
-        rightPanelOpen,
       };
       window.localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(config));
     } catch {
       /* Quota or private mode — layout preferences are not worth surfacing. */
     }
-  }, [isMobile, leftWidth, rightWidth, sidebarOpen, rightPanelOpen]);
+  }, [isMobile, leftWidth, rightWidth, sidebarOpen]);
 
   /*
    * Track the breakpoint with `matchMedia` instead of a `resize` handler: it
@@ -179,9 +181,14 @@ export function useResizableLayout(options: UseResizableLayoutOptions = {}) {
     const handleResize = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        setLeftWidth((prev) => Math.max(bounds.leftMin, Math.min(prev, viewportMax(bounds.leftMax))));
+        setLeftWidth((prev) =>
+          Math.max(bounds.leftMin, Math.min(prev, viewportMax(bounds.leftMax))),
+        );
         setRightWidth((prev) =>
-          Math.max(bounds.rightMin, Math.min(prev, viewportMax(bounds.rightMax))),
+          Math.max(
+            bounds.rightMin,
+            Math.min(prev, viewportMax(bounds.rightMax)),
+          ),
         );
       });
     };
@@ -219,10 +226,14 @@ export function useResizableLayout(options: UseResizableLayoutOptions = {}) {
       const handleMove = (moveEvent: PointerEvent) => {
         if (side === 'left') {
           const next = moveEvent.clientX - contentOffsetRef.current;
-          setLeftWidth(clamp(next, bounds.leftMin, viewportMax(bounds.leftMax)));
+          setLeftWidth(
+            clamp(next, bounds.leftMin, viewportMax(bounds.leftMax)),
+          );
         } else {
           const next = window.innerWidth - moveEvent.clientX;
-          setRightWidth(clamp(next, bounds.rightMin, viewportMax(bounds.rightMax)));
+          setRightWidth(
+            clamp(next, bounds.rightMin, viewportMax(bounds.rightMax)),
+          );
         }
       };
 
@@ -273,12 +284,10 @@ export function useResizableLayout(options: UseResizableLayoutOptions = {}) {
     leftWidth,
     rightWidth,
     sidebarOpen,
-    rightPanelOpen,
     isResizing,
     isMobile,
     bounds,
     setSidebarOpen,
-    setRightPanelOpen,
     startLeftResize,
     startRightResize,
     resetLeftWidth,

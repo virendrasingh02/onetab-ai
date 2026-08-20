@@ -21,6 +21,7 @@
   "type": "module",
   "dependencies": {
     "@hookform/resolvers": "^5.7.1",
+    "@org/chat-ui": "*",
     "@org/hooks": "*",
     "@org/notifications": "*",
     "@org/web-ai": "*",

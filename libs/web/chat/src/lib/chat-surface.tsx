@@ -1,6 +1,5 @@
 import {
   AttachmentRenderer,
-  BookmarksBar,
   ChatBubble,
   ChatHeader,
   ChatLayout,
@@ -11,25 +10,27 @@ import {
   MemberList,
   MessageList,
   PinnedPanel,
-  SavedPanel,
   ThreadListPanel,
   ThreadPanel,
   TypingIndicator,
   UserProfileRightPanel,
-  type ChannelBookmark,
 } from '@org/chat-ui';
 import type { Message, PresenceState, RoomMember } from '@org/matrix-client';
-import { Badge, Button, Hint } from '@org/ui';
 import {
-  Bookmark,
-  Headphones,
-  Lock,
-  MessagesSquare,
-  Pin,
-  Search,
-  Users,
-} from 'lucide-react';
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+  Badge,
+  Button,
+  DropdownMenuItem,
+  Hint,
+  useRightPanelStore,
+} from '@org/ui';
+import { Headphones, Lock, Pin, Search, Users } from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { deriveThreads, groupReplies } from './derive-threads.js';
 
@@ -57,7 +58,6 @@ type SidePanel =
   | 'threads'
   | 'search'
   | 'pinned'
-  | 'saved'
   | 'user-profile';
 
 export interface ChatSurfaceProps {
@@ -89,6 +89,17 @@ export interface ChatSurfaceProps {
   headerActionsSlot?: HTMLElement | null;
 
   /**
+   * Where the conversation's *menu* entries should live.
+   *
+   * The header only has room for the two controls you reach for mid-sentence —
+   * huddle and search. Anything rarer belongs in the channel's existing "⋯"
+   * menu, which the page owns, so the page passes the element inside it and the
+   * surface portals its items up there rather than opening a second dropdown
+   * three pixels from the first.
+   */
+  headerMenuSlot?: HTMLElement | null;
+
+  /**
    * Whether the roster control belongs in this conversation.
    *
    * A direct message has exactly two people in it and no way to invite a third,
@@ -100,14 +111,21 @@ export interface ChatSurfaceProps {
   /** Set to introduce the channel above the first message. See {@link ChatSurfaceWelcome}. */
   welcome?: ChatSurfaceWelcome;
 
-  bookmarks?: ChannelBookmark[];
+  /**
+   * Bumped by the host to ask for a huddle — the channel's details panel does
+   * it from the right rail. A counter rather than a boolean because the request
+   * has to be repeatable, and because the huddle's own state belongs here,
+   * beside the bar that renders it.
+   */
+  huddleRequest?: number;
+
   huddleParticipants?: RoomMember[];
   pinnedIds?: string[];
   savedIds?: string[];
   firstUnreadId?: string | null;
 
+  /** Offered by the channel welcome block; there is no bookmarks bar. */
   onAddBookmark?: () => void;
-  onRemoveBookmark?: (id: string) => void;
   onSend: (body: string, threadRootId?: string) => void | Promise<void>;
   onEdit?: (eventId: string, body: string) => void | Promise<void>;
   onDelete?: (eventId: string) => void | Promise<void>;
@@ -139,15 +157,15 @@ export function ChatSurface({
   onLoadOlder,
   presenceOf,
   headerActionsSlot,
+  headerMenuSlot,
   showMembers = true,
   welcome,
-  bookmarks = [],
+  huddleRequest = 0,
   huddleParticipants = [],
   pinnedIds = [],
   savedIds = [],
   firstUnreadId,
   onAddBookmark,
-  onRemoveBookmark,
   onSend,
   onEdit,
   onDelete,
@@ -172,6 +190,11 @@ export function ChatSurface({
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [huddleJoined, setHuddleJoined] = useState(false);
   const [huddleMuted, setHuddleMuted] = useState(false);
+
+  /* Zero is the initial value, not a request — see `huddleRequest`. */
+  useEffect(() => {
+    if (huddleRequest > 0) setHuddleJoined(true);
+  }, [huddleRequest]);
 
   const byId = useMemo(
     () => new Map(messages.map((message) => [message.id, message])),
@@ -221,13 +244,8 @@ export function ChatSurface({
     [pinnedIds, byId],
   );
 
-  const savedMessages = useMemo(
-    () =>
-      savedIds
-        .map((id) => byId.get(id))
-        .filter((message): message is Message => !!message),
-    [savedIds, byId],
-  );
+  /* `savedIds` still drives each bubble's bookmark toggle; the list of saved
+     messages itself now lives on the Saved page in the sidebar. */
 
   const huddleRoster = useMemo(() => {
     const me = myUserId ? memberById.get(myUserId) : undefined;
@@ -260,16 +278,19 @@ export function ChatSurface({
     ? (repliesByRoot.get(threadRootId) ?? [])
     : [];
 
-  const handleOpenUserProfile = useCallback((user: {
-    userId: string;
-    name: string;
-    avatarUrl?: string;
-    role?: string;
-    powerLevel?: number;
-  }) => {
-    setSelectedUser(user);
-    setPanel('user-profile');
-  }, []);
+  const handleOpenUserProfile = useCallback(
+    (user: {
+      userId: string;
+      name: string;
+      avatarUrl?: string;
+      role?: string;
+      powerLevel?: number;
+    }) => {
+      setSelectedUser(user);
+      setPanel('user-profile');
+    },
+    [],
+  );
 
   const renderMessage = useCallback(
     (message: Message, grouped: boolean) => {
@@ -355,19 +376,45 @@ export function ChatSurface({
     panel === 'members'
       ? 'Members'
       : panel === 'user-profile'
-        ? selectedUser ? selectedUser.name : 'User Profile'
+        ? selectedUser
+          ? selectedUser.name
+          : 'User Profile'
         : panel === 'search'
           ? 'Search'
-          : panel === 'pinned'
-            ? `Pinned${pinnedMessages.length ? ` — ${pinnedMessages.length}` : ''}`
-            : panel === 'saved'
-              ? 'Saved for later'
-              : panel === 'threads'
-                ? 'Threads'
-                : 'Thread';
+          : `Pinned${pinnedMessages.length ? ` — ${pinnedMessages.length}` : ''}`;
 
   const toggle = (next: SidePanel) =>
     setPanel((current) => (current === next ? 'none' : next));
+
+  /*
+   * Threads are the one conversation panel that reads as its own place rather
+   * than a lens on the messages beside it — you leave the channel scrolling
+   * where it is and work through replies. So it goes to the app's right rail,
+   * as its own panel, instead of the in-conversation side column the other
+   * four share.
+   *
+   * The state stays here: the thread composer, the open root and the reply list
+   * all belong to this conversation, so the rail publishes an element and this
+   * portals into it.
+   */
+  const inThreads = panel === 'threads' || panel === 'thread';
+  const threadsSlot = useRightPanelStore((s) => s.slots.threads);
+  const openHosted = useRightPanelStore((s) => s.openHosted);
+  const closeHosted = useRightPanelStore((s) => s.closeHosted);
+
+  const closeThreads = useCallback(() => {
+    setPanel('none');
+    setThreadRootId(null);
+  }, []);
+
+  useEffect(() => {
+    if (!inThreads) return;
+    openHosted('threads', {
+      title: panel === 'thread' ? 'Thread' : 'Threads',
+      onClose: closeThreads,
+    });
+    return () => closeHosted('threads');
+  }, [inThreads, panel, closeThreads, openHosted, closeHosted]);
 
   const headerActions = (
     <>
@@ -384,45 +431,13 @@ export function ChatSurface({
         </Hint>
       ) : null}
 
-      <Hint label="Threads">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Threads"
-          aria-pressed={panel === 'threads'}
-          onClick={() => toggle('threads')}
-        >
-          <MessagesSquare />
-        </Button>
-      </Hint>
-
-      <Hint label="Pinned messages">
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label="Pinned messages"
-          aria-pressed={panel === 'pinned'}
-          onClick={() => toggle('pinned')}
-          leadingIcon={<Pin />}
-        >
-          {pinnedMessages.length > 0 ? (
-            <Badge variant="neutral">{pinnedMessages.length}</Badge>
-          ) : null}
-        </Button>
-      </Hint>
-
-      <Hint label="Saved for later">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Saved for later"
-          aria-pressed={panel === 'saved'}
-          onClick={() => toggle('saved')}
-        >
-          <Bookmark />
-        </Button>
-      </Hint>
-
+      {/*
+        Threads, pinned and saved used to sit here too, which made five icons
+        plus a member stack in a row that also has to hold the channel name.
+        Threads is a sidebar destination and opens in the right rail from any
+        message; saved is a sidebar destination; pinned moved into the channel's
+        "⋯" menu below. What is left is the two you reach for mid-sentence.
+      */}
       <Hint label="Search in conversation">
         <Button
           variant="ghost"
@@ -437,14 +452,39 @@ export function ChatSurface({
     </>
   );
 
+  /*
+   * Portalled into the host's own "⋯" menu. Radix finds its items by querying
+   * the content element's DOM, so items rendered into a container inside it
+   * still take part in keyboard navigation — which is what makes this work
+   * rather than needing a second dropdown of our own.
+   */
+  const headerMenuItems = (
+    <DropdownMenuItem
+      className="justify-between"
+      onSelect={() => toggle('pinned')}
+    >
+      <span className="gap-2.5 flex items-center">
+        <Pin className="size-4" />
+        <span>Pinned messages</span>
+      </span>
+      {pinnedMessages.length > 0 ? (
+        <Badge variant="neutral">{pinnedMessages.length}</Badge>
+      ) : null}
+    </DropdownMenuItem>
+  );
+
   return (
     <ChatLayout
       banner={banner}
       header={
         <>
+          {headerMenuSlot
+            ? createPortal(headerMenuItems, headerMenuSlot)
+            : null}
+
           {headerActionsSlot ? (
             createPortal(
-              <div className="flex items-center gap-0.5 text-muted-foreground">
+              <div className="gap-0.5 flex items-center text-muted-foreground">
                 {isEncrypted ? (
                   <Hint label="End-to-end encrypted">
                     <Lock
@@ -456,6 +496,8 @@ export function ChatSurface({
 
                 {headerActions}
 
+                {/* The member stack and its panel moved to the right rail's
+                    channel details, which lists them with room to search. */}
                 {showMembers ? (
                   <Hint label="Channel Members">
                     <Button
@@ -479,17 +521,19 @@ export function ChatSurface({
               subtitle={subtitle}
               isEncrypted={isEncrypted}
               memberCount={showMembers ? members.length : undefined}
-              onToggleMembers={showMembers ? () => toggle('members') : undefined}
+              onToggleMembers={
+                showMembers ? () => toggle('members') : undefined
+              }
               actions={headerActions}
             />
           )}
 
-          <BookmarksBar
-            bookmarks={bookmarks}
-            onAdd={onAddBookmark}
-            onRemove={onRemoveBookmark}
-          />
-
+          {/*
+            A bookmarks strip used to sit here, between the header and the
+            huddle bar. Channels show their bookmarks in a tab of their own —
+            this was the same links a second time, in a horizontal scroller,
+            costing a row of height on every conversation.
+          */}
           <HuddleBar
             participants={huddleRoster}
             isJoined={huddleJoined}
@@ -521,7 +565,12 @@ export function ChatSurface({
                 name: m.displayName,
                 avatarUrl: m.avatarUrl,
                 powerLevel: m.powerLevel,
-                role: m.powerLevel >= 100 ? 'Admin' : m.powerLevel >= 50 ? 'Moderator' : 'Member',
+                role:
+                  m.powerLevel >= 100
+                    ? 'Admin'
+                    : m.powerLevel >= 50
+                      ? 'Moderator'
+                      : 'Member',
               })
             }
           />
@@ -538,111 +587,115 @@ export function ChatSurface({
             onJump={jumpTo}
             onUnpin={onTogglePin}
           />
-        ) : panel === 'saved' ? (
-          <SavedPanel
-            messages={savedMessages}
-            onJump={jumpTo}
-            onRemove={onToggleSave}
-          />
-        ) : panel === 'threads' ? (
-          <ThreadListPanel
-            threads={threads}
-            onOpen={(rootId) => {
-              setThreadRootId(rootId);
-              setPanel('thread');
-            }}
-          />
-        ) : panel === 'thread' && threadRoot ? (
-          <ThreadPanel
-            replyCount={threadReplies.length}
-            rootSlot={renderMessage(threadRoot, false)}
-            repliesSlot={threadReplies.map((reply) => (
-              <div key={reply.id}>{renderMessage(reply, false)}</div>
-            ))}
-            composerSlot={
-              <Composer
-                members={members}
-                showFormatting={false}
-                placeholder="Reply in thread…"
-                onSend={(body) => onSend(body, threadRoot.id)}
-                onTyping={onTyping}
-                onAttach={
-                  onAttach
-                    ? (files) => void onAttach(files, threadRoot.id)
-                    : undefined
-                }
-              />
-            }
-          />
         ) : null
       }
     >
-    <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
-      {/* No `overflow` here: the list owns its own scroller, and nesting one
-          inside another gave the timeline two scrollbars. */}
-      <div className="flex-1 min-h-0 flex flex-col">
-        <MessageList
-          messages={rootMessages}
-          isLoading={isLoading}
-          isLoadingOlder={isLoadingOlder}
-          hasMore={hasMore}
-          error={error}
-          unreadBeforeId={firstUnreadId}
-          onLoadOlder={onLoadOlder}
-          renderMessage={renderMessage}
-          introSlot={
-            welcome ? (
-              <ChannelWelcome
-                channelName={title}
-                isPrivate={welcome.isPrivate ?? isEncrypted}
-                createdAt={welcome.createdAt}
-                createdByName={welcome.createdByName}
-                description={welcome.description ?? subtitle}
-                members={members}
-                onAddPeople={welcome.onAddPeople}
-                onEditDescription={welcome.onEditDescription}
-                onOpenCopilot={welcome.onOpenCopilot}
-                onAddBookmark={onAddBookmark}
-                onStartHuddle={() => setHuddleJoined(true)}
-              />
-            ) : null
-          }
-        />
-      </div>
+      <div className="min-h-0 relative flex flex-1 flex-col overflow-hidden">
+        {/* Threads live in the app's right rail — see the note by `inThreads`. */}
+        {inThreads && threadsSlot
+          ? createPortal(
+              panel === 'thread' && threadRoot ? (
+                <ThreadPanel
+                  replyCount={threadReplies.length}
+                  rootSlot={renderMessage(threadRoot, false)}
+                  repliesSlot={threadReplies.map((reply) => (
+                    <div key={reply.id}>{renderMessage(reply, false)}</div>
+                  ))}
+                  composerSlot={
+                    <Composer
+                      members={members}
+                      showFormatting={false}
+                      placeholder="Reply in thread…"
+                      onSend={(body) => onSend(body, threadRoot.id)}
+                      onTyping={onTyping}
+                      onAttach={
+                        onAttach
+                          ? (files) => void onAttach(files, threadRoot.id)
+                          : undefined
+                      }
+                    />
+                  }
+                />
+              ) : (
+                <ThreadListPanel
+                  threads={threads}
+                  onOpen={(rootId) => {
+                    setThreadRootId(rootId);
+                    setPanel('thread');
+                  }}
+                />
+              ),
+              threadsSlot,
+            )
+          : null}
 
-      <div className="shrink-0 sticky bottom-0 z-20 w-full bg-surface-raised border-t border-border/50">
-        <TypingIndicator names={typingNames} />
-        <Composer
-          members={members}
-          onTyping={onTyping}
-          onAttach={onAttach ? (files) => void onAttach(files) : undefined}
-          placeholder={editing ? 'Edit your message…' : `Message ${title}`}
-          onSchedule={onSchedule}
-          contextSlot={
-            editing ? (
-              <div className="mb-2 gap-2 px-2 py-1 text-xs flex items-center rounded-md bg-muted">
-                <span className="flex-1 truncate">Editing: {editing.body}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditing(null)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            ) : null
-          }
-          onSend={async (body) => {
-            if (editing && onEdit) {
-              await onEdit(editing.id, body);
-              setEditing(null);
-            } else {
-              await onSend(body);
+        {/* No `overflow` here: the list owns its own scroller, and nesting one
+          inside another gave the timeline two scrollbars. */}
+        <div className="min-h-0 flex flex-1 flex-col">
+          <MessageList
+            messages={rootMessages}
+            isLoading={isLoading}
+            isLoadingOlder={isLoadingOlder}
+            hasMore={hasMore}
+            error={error}
+            unreadBeforeId={firstUnreadId}
+            onLoadOlder={onLoadOlder}
+            renderMessage={renderMessage}
+            introSlot={
+              welcome ? (
+                <ChannelWelcome
+                  channelName={title}
+                  isPrivate={welcome.isPrivate ?? isEncrypted}
+                  createdAt={welcome.createdAt}
+                  createdByName={welcome.createdByName}
+                  description={welcome.description ?? subtitle}
+                  members={members}
+                  onAddPeople={welcome.onAddPeople}
+                  onEditDescription={welcome.onEditDescription}
+                  onOpenCopilot={welcome.onOpenCopilot}
+                  onAddBookmark={onAddBookmark}
+                  onStartHuddle={() => setHuddleJoined(true)}
+                />
+              ) : null
             }
-          }}
-        />
+          />
+        </div>
+
+        <div className="bottom-0 sticky z-20 w-full shrink-0 border-t border-border/50 bg-surface-raised">
+          <TypingIndicator names={typingNames} />
+          <Composer
+            members={members}
+            onTyping={onTyping}
+            onAttach={onAttach ? (files) => void onAttach(files) : undefined}
+            placeholder={editing ? 'Edit your message…' : `Message ${title}`}
+            onSchedule={onSchedule}
+            contextSlot={
+              editing ? (
+                <div className="mb-2 gap-2 px-2 py-1 text-xs flex items-center rounded-md bg-muted">
+                  <span className="flex-1 truncate">
+                    Editing: {editing.body}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditing(null)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              ) : null
+            }
+            onSend={async (body) => {
+              if (editing && onEdit) {
+                await onEdit(editing.id, body);
+                setEditing(null);
+              } else {
+                await onSend(body);
+              }
+            }}
+          />
+        </div>
       </div>
-    </div>
     </ChatLayout>
   );
 }

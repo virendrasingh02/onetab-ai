@@ -332,6 +332,9 @@ model RecentActivity {
   /// Pointer into Matrix. Unique so a retried appservice transaction cannot
   /// record the same event twice.
   matrixEventId String?      @unique
+  /// Users this event named. Ids only — still no message content — so the
+  /// sidebar can tell "something happened" apart from "someone called you".
+  mentionedUserIds String[]  @default([])
   occurredAt    DateTime     @default(now())
   channel       Channel?     @relation(fields: [channelId], references: [id], onDelete: Cascade)
   user          User?        @relation(fields: [userId], references: [id])

@@ -1,8 +1,15 @@
 export { AppShell } from './lib/app-shell.js';
 export { AppHeader, type AppHeaderProps } from './lib/app-header.js';
-export { AssistantPanel, type AssistantPanelProps } from './lib/assistant-panel.js';
+export {
+  AssistantPanel,
+  type AssistantPanelProps,
+} from './lib/assistant-panel.js';
 export { ChannelNav, type ChannelNavProps } from './lib/channel-nav.js';
-export { WorkspaceMenu, type WorkspaceMenuProps } from './lib/workspace-switcher.js';
+export { RightPanel, type RightPanelProps } from './lib/right-panel.js';
+export {
+  WorkspaceMenu,
+  type WorkspaceMenuProps,
+} from './lib/workspace-switcher.js';
 export {
   useResizableLayout,
   DEFAULT_LAYOUT_BOUNDS,

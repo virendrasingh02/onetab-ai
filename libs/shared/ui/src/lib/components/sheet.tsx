@@ -15,19 +15,19 @@ export const SheetPortal = SheetPrimitive.Portal;
 
 const sheetVariants = cva(
   [
-    'bg-background fixed z-50 flex flex-col gap-4 shadow-overlay transition ease-in-out',
+    'gap-4 ease-in-out fixed z-50 flex flex-col bg-background shadow-overlay transition',
     'data-[state=open]:animate-in data-[state=closed]:animate-out',
-    'data-[state=open]:duration-300 data-[state=closed]:duration-200',
+    'data-[state=closed]:duration-200 data-[state=open]:duration-300',
   ],
   {
     variants: {
       side: {
-        top: 'inset-x-0 top-0 h-auto border-b data-[state=open]:slide-in-from-top data-[state=closed]:slide-out-to-top',
+        top: 'inset-x-0 top-0 data-[state=open]:slide-in-from-top data-[state=closed]:slide-out-to-top h-auto border-b',
         bottom:
-          'inset-x-0 bottom-0 h-auto border-t data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom',
-        left: 'inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left',
+          'inset-x-0 bottom-0 data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom h-auto border-t',
+        left: 'inset-y-0 left-0 sm:max-w-sm data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left h-full w-3/4 border-r',
         right:
-          'inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right',
+          'inset-y-0 right-0 sm:max-w-sm data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right h-full w-3/4 border-l',
       },
     },
     defaultVariants: { side: 'right' },
@@ -35,7 +35,8 @@ const sheetVariants = cva(
 );
 
 export interface SheetContentProps
-  extends ComponentProps<typeof SheetPrimitive.Content>,
+  extends
+    ComponentProps<typeof SheetPrimitive.Content>,
     VariantProps<typeof sheetVariants> {
   hideCloseButton?: boolean;
 }
@@ -51,7 +52,7 @@ export function SheetContent({
     <SheetPortal>
       <SheetPrimitive.Overlay
         className={cn(
-          'fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px]',
+          'inset-0 bg-black/40 fixed z-50 backdrop-blur-[2px]',
           'data-[state=open]:animate-in data-[state=open]:fade-in-0',
           'data-[state=closed]:animate-out data-[state=closed]:fade-out-0',
         )}
@@ -65,8 +66,8 @@ export function SheetContent({
         {hideCloseButton ? null : (
           <SheetPrimitive.Close
             className={cn(
-              'absolute top-4 right-4 rounded-md p-1 opacity-70 transition-opacity hover:opacity-100',
-              'focus-visible:ring-ring/40 focus-visible:ring-[3px] focus-visible:outline-none',
+              'top-4 right-4 p-1 absolute rounded-md opacity-70 transition-opacity hover:opacity-100',
+              'focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none',
             )}
           >
             <X className="size-4" />
@@ -82,7 +83,7 @@ export function SheetHeader({ className, ...props }: ComponentProps<'div'>) {
   return (
     <div
       data-slot="sheet-header"
-      className={cn('flex flex-col gap-1.5 px-6 pt-6', className)}
+      className={cn('gap-1.5 px-6 pt-6 flex flex-col', className)}
       {...props}
     />
   );
@@ -92,7 +93,7 @@ export function SheetFooter({ className, ...props }: ComponentProps<'div'>) {
   return (
     <div
       data-slot="sheet-footer"
-      className={cn('mt-auto flex flex-col gap-2 px-6 pb-6', className)}
+      className={cn('gap-2 px-6 pb-6 mt-auto flex flex-col', className)}
       {...props}
     />
   );
@@ -105,7 +106,7 @@ export function SheetTitle({
   return (
     <SheetPrimitive.Title
       data-slot="sheet-title"
-      className={cn('text-foreground text-base font-semibold', className)}
+      className={cn('text-base font-semibold text-foreground', className)}
       {...props}
     />
   );
@@ -118,7 +119,7 @@ export function SheetDescription({
   return (
     <SheetPrimitive.Description
       data-slot="sheet-description"
-      className={cn('text-muted-foreground text-sm', className)}
+      className={cn('text-sm text-muted-foreground', className)}
       {...props}
     />
   );

@@ -1,6 +1,12 @@
 import { notificationApi, queryKeys } from '@org/api-client';
-import type { NotificationPreference } from '@org/types';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { ActivityFeedItem, NotificationPreference } from '@org/types';
+import type { ActivityLevel } from '@org/ui';
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 
 /** The centre lists a workspace's recent history, not its whole history. */
@@ -37,7 +43,9 @@ export function useNotificationPreferenceMutations(
 
   const update = useMutation({
     mutationFn: (
-      input: Partial<Omit<NotificationPreference, 'id' | 'userId' | 'workspaceId'>>,
+      input: Partial<
+        Omit<NotificationPreference, 'id' | 'userId' | 'workspaceId'>
+      >,
     ) => notificationApi.updatePreferences(workspaceId as string, input),
     /*
      * Muting a channel changes what the feed is allowed to return, so the feed
@@ -55,7 +63,13 @@ export function useNotificationPreferenceMutations(
   });
 
   const toggleChannelMute = useMutation({
-    mutationFn: ({ channelId, muted }: { channelId: string; muted: boolean }) => {
+    mutationFn: ({
+      channelId,
+      muted,
+    }: {
+      channelId: string;
+      muted: boolean;
+    }) => {
       const current = queryClient.getQueryData<NotificationPreference>(
         queryKeys.notifications.preferences(workspaceId ?? ''),
       );
@@ -130,37 +144,75 @@ const SEEN_KEY_PREFIX = 'onetab:notifications:seen:';
 
 const seenListeners = new Set<() => void>();
 
-function seenKey(workspaceId: string) {
-  return `${SEEN_KEY_PREFIX}${workspaceId}`;
+/*
+ * Bumped on every marker write so hooks that derive a *map* of markers have a
+ * scalar to depend on. `useSyncExternalStore` requires a snapshot that is
+ * reference-stable between changes, and a freshly built object never is.
+ */
+let seenVersion = 0;
+
+/**
+ * Markers are per workspace, and additionally per channel.
+ *
+ * The workspace marker is what the Inbox clears — it answers "have I looked at
+ * this workspace's activity at all". The channel marker is set by opening the
+ * channel, so reading one channel puts out that channel's dot without also
+ * putting out its neighbours'.
+ */
+function seenKey(workspaceId: string, channelId?: string) {
+  return channelId
+    ? `${SEEN_KEY_PREFIX}${workspaceId}:c:${channelId}`
+    : `${SEEN_KEY_PREFIX}${workspaceId}`;
 }
 
-function readSeenAt(workspaceId: string | undefined): string | null {
+function readSeenAt(
+  workspaceId: string | undefined,
+  channelId?: string,
+): string | null {
   if (!workspaceId || typeof window === 'undefined') return null;
   try {
-    return window.localStorage.getItem(seenKey(workspaceId));
+    return window.localStorage.getItem(seenKey(workspaceId, channelId));
   } catch {
     // Safari in private mode throws on every localStorage access.
     return null;
   }
 }
 
-function writeSeenAt(workspaceId: string, at: string) {
+function notifySeenChanged() {
+  seenVersion += 1;
+  for (const listener of seenListeners) listener();
+}
+
+function writeSeenAt(workspaceId: string, at: string, channelId?: string) {
   try {
-    window.localStorage.setItem(seenKey(workspaceId), at);
+    window.localStorage.setItem(seenKey(workspaceId, channelId), at);
   } catch {
     // Nothing to do — the badge simply will not persist across reloads.
   }
-  for (const listener of seenListeners) listener();
+  notifySeenChanged();
 }
 
 function subscribeSeen(listener: () => void) {
   seenListeners.add(listener);
   // `storage` fires only in *other* tabs, which is exactly the gap above.
-  window.addEventListener('storage', listener);
+  const onStorage = () => {
+    seenVersion += 1;
+    listener();
+  };
+  window.addEventListener('storage', onStorage);
   return () => {
     seenListeners.delete(listener);
-    window.removeEventListener('storage', listener);
+    window.removeEventListener('storage', onStorage);
   };
+}
+
+/** Re-renders whenever any seen marker changes, in this tab or another. */
+function useSeenVersion(): number {
+  return useSyncExternalStore(
+    subscribeSeen,
+    () => seenVersion,
+    () => 0,
+  );
 }
 
 export interface NotificationUnread {
@@ -204,4 +256,166 @@ export function useNotificationUnread(
   }, [workspaceId, feed]);
 
   return { count, markAllSeen };
+}
+
+// ---------------------------------------------------------------------------
+// Activity indicators
+// ---------------------------------------------------------------------------
+
+/**
+ * What a single row in the sidebar should show.
+ *
+ * `level` is what the dot renders; the counts are there so a mention can carry
+ * a number without the caller re-deriving it from the feed.
+ */
+export interface ActivityIndicator {
+  level: ActivityLevel;
+  count: number;
+  mentionCount: number;
+}
+
+const NO_ACTIVITY: ActivityIndicator = {
+  level: 'none',
+  count: 0,
+  mentionCount: 0,
+};
+
+/** Rows that landed after `seenAt`. A missing marker means nothing is unread. */
+function unreadSince(
+  items: ActivityFeedItem[] | undefined,
+  seenAt: string | null,
+): ActivityFeedItem[] {
+  if (!items?.length || !seenAt) return [];
+  const seenTime = Date.parse(seenAt);
+  if (Number.isNaN(seenTime)) return [];
+  return items.filter((item) => Date.parse(item.occurredAt) > seenTime);
+}
+
+function toIndicator(items: ActivityFeedItem[]): ActivityIndicator {
+  if (!items.length) return NO_ACTIVITY;
+  const mentionCount = items.filter((item) => item.isMention).length;
+  return {
+    level: mentionCount > 0 ? 'mention' : 'activity',
+    count: items.length,
+    mentionCount,
+  };
+}
+
+/**
+ * An indicator per workspace, including ones the user is not currently in.
+ *
+ * Every workspace's feed is fetched under the same query key and options the
+ * current workspace already uses, so the workspace on screen costs nothing
+ * extra — React Query serves it from the one cache entry rather than issuing a
+ * second request with a conflicting refetch interval.
+ */
+export function useWorkspaceActivity(
+  workspaceIds: string[],
+): Record<string, ActivityIndicator> {
+  const seenVersionValue = useSeenVersion();
+
+  const feeds = useQueries({
+    queries: workspaceIds.map((workspaceId) => ({
+      queryKey: queryKeys.notifications.feed(workspaceId),
+      queryFn: () => notificationApi.feed(workspaceId, FEED_LIMIT),
+      staleTime: 30_000,
+      refetchInterval: FEED_REFETCH_MS,
+    })),
+  });
+
+  const feedData = feeds.map((query) => query.data);
+
+  /*
+   * Both `feeds` and `feedData` are rebuilt every render, and their length
+   * changes as workspaces load, so neither can be a dependency: a spread
+   * dependency array that changes size is a React error, and the arrays
+   * themselves would recompute this on every render. `dataUpdatedAt` moves only
+   * when a feed actually refetches, which is exactly when the answer can change.
+   */
+  const fingerprint = feeds.map((query) => query.dataUpdatedAt).join(',');
+  const idsKey = workspaceIds.join(',');
+
+  return useMemo(() => {
+    const result: Record<string, ActivityIndicator> = {};
+    workspaceIds.forEach((workspaceId, index) => {
+      result[workspaceId] = toIndicator(
+        unreadSince(feedData[index], readSeenAt(workspaceId)),
+      );
+    });
+    return result;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idsKey, fingerprint, seenVersionValue]);
+}
+
+/**
+ * An indicator per channel of one workspace.
+ *
+ * A channel counts as read once the *channel's* own marker passes the row, or
+ * once the workspace marker does — so both opening the channel and clearing the
+ * Inbox put the dot out, and neither one silences the channels next to it.
+ */
+export function useChannelActivity(
+  workspaceId: string | undefined,
+  feed: ActivityFeedItem[] | undefined,
+): Record<string, ActivityIndicator> {
+  const seenVersionValue = useSeenVersion();
+
+  return useMemo(() => {
+    const result: Record<string, ActivityIndicator> = {};
+    if (!workspaceId || !feed?.length) return result;
+
+    const workspaceSeen = Date.parse(readSeenAt(workspaceId) ?? '');
+    const channelSeen = new Map<string, number>();
+    const grouped = new Map<string, ActivityFeedItem[]>();
+
+    for (const item of feed) {
+      const channelId = item.channel?.id;
+      if (!channelId) continue;
+
+      if (!channelSeen.has(channelId)) {
+        const parsed = Date.parse(readSeenAt(workspaceId, channelId) ?? '');
+        channelSeen.set(
+          channelId,
+          Math.max(
+            Number.isNaN(parsed) ? 0 : parsed,
+            Number.isNaN(workspaceSeen) ? 0 : workspaceSeen,
+          ),
+        );
+      }
+
+      const cutoff = channelSeen.get(channelId) ?? 0;
+      // A zero cutoff means this browser has never stamped a marker; treating
+      // the whole backlog as unread would light up every channel on first run.
+      if (cutoff === 0 || Date.parse(item.occurredAt) <= cutoff) continue;
+
+      const bucket = grouped.get(channelId);
+      if (bucket) bucket.push(item);
+      else grouped.set(channelId, [item]);
+    }
+
+    for (const [channelId, items] of grouped) {
+      result[channelId] = toIndicator(items);
+    }
+    return result;
+    /* `seenVersionValue` is not read in the body — the markers it stands for
+       are, via `readSeenAt`. Dropping it would leave stale dots on screen after
+       a channel is marked read, which is the one thing this must not do. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId, feed, seenVersionValue]);
+}
+
+/**
+ * Stamps a channel as read.
+ *
+ * Called when the channel page mounts, which is the moment the user has
+ * actually seen what is in it.
+ */
+export function useMarkChannelSeen(workspaceId: string | undefined) {
+  return useCallback(
+    (channelId: string | undefined) => {
+      if (!workspaceId || !channelId) return;
+      writeSeenAt(workspaceId, new Date().toISOString(), channelId);
+    },
+    [workspaceId],
+  );
 }

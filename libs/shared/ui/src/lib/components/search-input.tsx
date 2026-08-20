@@ -3,8 +3,10 @@ import { Search, X } from 'lucide-react';
 import type { ComponentProps } from 'react';
 import { Input } from './input.js';
 
-export interface SearchInputProps
-  extends Omit<ComponentProps<'input'>, 'value' | 'onChange' | 'type'> {
+export interface SearchInputProps extends Omit<
+  ComponentProps<'input'>,
+  'value' | 'onChange' | 'type'
+> {
   value: string;
   onValueChange: (value: string) => void;
   /** Names the field for assistive tech. Falls back to the placeholder. */
@@ -65,7 +67,7 @@ export function SearchInput({
             onClick={() => onValueChange('')}
             aria-label={`Clear ${accessibleName.toLowerCase()}`}
             className={cn(
-              'flex size-5 items-center justify-center rounded-btn',
+              'size-5 flex items-center justify-center rounded-btn',
               'text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
               'outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
             )}

@@ -57,7 +57,9 @@ export interface PromptDialog {
 export function usePromptDialog(): PromptDialog {
   const [request, setRequest] = useState<Request | null>(null);
   const [value, setValue] = useState('');
-  const resolveRef = useRef<((result: string | null | boolean) => void) | null>(null);
+  const resolveRef = useRef<((result: string | null | boolean) => void) | null>(
+    null,
+  );
   const fieldId = useId();
 
   const settle = useCallback((result: string | null | boolean) => {

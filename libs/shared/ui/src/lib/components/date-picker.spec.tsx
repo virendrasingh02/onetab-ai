@@ -15,7 +15,9 @@ describe('DatePicker', () => {
 
   it('opens popover calendar on trigger click', async () => {
     render(<DatePicker value="2026-10-15" />);
-    const trigger = screen.getByRole('button', { name: /Date selected: Oct 15, 2026/i });
+    const trigger = screen.getByRole('button', {
+      name: /Date selected: Oct 15, 2026/i,
+    });
     await userEvent.click(trigger);
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();

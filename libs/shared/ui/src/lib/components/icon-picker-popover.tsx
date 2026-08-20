@@ -124,7 +124,7 @@ function Icon123(props: LucideProps) {
 }
 
 // Icon Registry mapping icon names to Lucide Icon components
-export const ICON_REGISTRY: Record<string, React.ComponentType<LucideProps>> = {      
+export const ICON_REGISTRY: Record<string, React.ComponentType<LucideProps>> = {
   '123': Icon123,
   User,
   BarChart3,
@@ -264,19 +264,87 @@ export const ICON_COLOR_PRESETS = [
 export const EMOJI_CATEGORIES = [
   {
     name: 'Popular',
-    emojis: ['📝', '🚀', '⚡', '🎨', '🛡️', '📊', '💡', '📚', '🧩', '🔬', '⚙️', '🌐', '🎯', '🔥', '✨', '🌟'],
+    emojis: [
+      '📝',
+      '🚀',
+      '⚡',
+      '🎨',
+      '🛡️',
+      '📊',
+      '💡',
+      '📚',
+      '🧩',
+      '🔬',
+      '⚙️',
+      '🌐',
+      '🎯',
+      '🔥',
+      '✨',
+      '🌟',
+    ],
   },
   {
     name: 'Smileys',
-    emojis: ['😀', '😃', '😄', '😁', '🥳', '😎', '🤖', '👾', '👽', '👻', '🎃', '😺', '🤠', '🧠', '👀', '🤙'],
+    emojis: [
+      '😀',
+      '😃',
+      '😄',
+      '😁',
+      '🥳',
+      '😎',
+      '🤖',
+      '👾',
+      '👽',
+      '👻',
+      '🎃',
+      '😺',
+      '🤠',
+      '🧠',
+      '👀',
+      '🤙',
+    ],
   },
   {
     name: 'Objects',
-    emojis: ['📦', '📁', '📄', '💻', '📱', '🖥️', '🔑', '🔒', '🏷️', '📌', '🎨', '🎭', '🎬', '🎧', '🎤', '🥁'],
+    emojis: [
+      '📦',
+      '📁',
+      '📄',
+      '💻',
+      '📱',
+      '🖥️',
+      '🔑',
+      '🔒',
+      '🏷️',
+      '📌',
+      '🎨',
+      '🎭',
+      '🎬',
+      '🎧',
+      '🎤',
+      '🥁',
+    ],
   },
   {
     name: 'Symbols',
-    emojis: ['⏰', '⌛', '💰', '💳', '💎', '🛒', '🎁', '🎂', '☕', '🍔', '🍕', '🍎', '🌈', '☀️', '🌙', '⭐'],
+    emojis: [
+      '⏰',
+      '⌛',
+      '💰',
+      '💳',
+      '💎',
+      '🛒',
+      '🎁',
+      '🎂',
+      '☕',
+      '🍔',
+      '🍕',
+      '🍎',
+      '🌈',
+      '☀️',
+      '🌙',
+      '⭐',
+    ],
   },
 ];
 
@@ -300,12 +368,16 @@ export function IconRenderer({
   }
 
   // Check if icon is custom uploaded URL or Data URI
-  if (icon.startsWith('http://') || icon.startsWith('https://') || icon.startsWith('data:image')) {
+  if (
+    icon.startsWith('http://') ||
+    icon.startsWith('https://') ||
+    icon.startsWith('data:image')
+  ) {
     return (
       <img
         src={icon}
         alt="icon"
-        className={cn('object-cover rounded-sm', sizeClassName, className)}
+        className={cn('rounded-sm object-cover', sizeClassName, className)}
       />
     );
   }
@@ -363,7 +435,9 @@ export function IconPickerPopover({
   trigger,
   align = 'start',
 }: IconPickerPopoverProps) {
-  const [activeTab, setActiveTab] = useState<'emoji' | 'icons' | 'upload'>('icons');
+  const [activeTab, setActiveTab] = useState<'emoji' | 'icons' | 'upload'>(
+    'icons',
+  );
   const [filterQuery, setFilterQuery] = useState('');
   const [selectedColor, setSelectedColor] = useState<string>(iconColor);
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
@@ -385,7 +459,8 @@ export function IconPickerPopover({
   const handleRandomIcon = () => {
     const randomIndex = Math.floor(Math.random() * iconNames.length);
     const randomIcon = iconNames[randomIndex];
-    const randomColorObj = ICON_COLOR_PRESETS[Math.floor(Math.random() * ICON_COLOR_PRESETS.length)];
+    const randomColorObj =
+      ICON_COLOR_PRESETS[Math.floor(Math.random() * ICON_COLOR_PRESETS.length)];
     setSelectedColor(randomColorObj.hex);
     onSelectIcon(randomIcon, randomColorObj.hex);
   };
@@ -437,29 +512,33 @@ export function IconPickerPopover({
             disabled={disabled}
             aria-busy={isPending}
             className={cn(
-              'size-16 rounded-2xl bg-surface-raised border-2 border-surface shadow-lg flex items-center justify-center text-3xl transition-transform cursor-pointer overflow-hidden',
-              disabled ? 'opacity-60 cursor-not-allowed' : 'hover:scale-105',
+              'size-16 rounded-2xl shadow-lg text-3xl flex cursor-pointer items-center justify-center overflow-hidden border-2 border-surface bg-surface-raised transition-transform',
+              disabled ? 'cursor-not-allowed opacity-60' : 'hover:scale-105',
               isPending && 'animate-pulse',
             )}
             title={disabled ? 'You cannot change this icon' : 'Change Icon'}
           >
-            <IconRenderer icon={icon} iconColor={selectedColor} sizeClassName="size-8" />
+            <IconRenderer
+              icon={icon}
+              iconColor={selectedColor}
+              sizeClassName="size-8"
+            />
           </button>
         )}
       </PopoverTrigger>
 
       <PopoverContent
         align={align}
-        className="w-[340px] p-0 overflow-hidden text-xs"
+        className="p-0 text-xs w-[340px] overflow-hidden"
       >
         {/* Navigation Tabs Bar & Remove Button */}
-        <div className="flex items-center justify-between border-b border-border px-3 py-2 bg-surface-inset/60">
-          <div className="flex items-center gap-4">
+        <div className="px-3 py-2 flex items-center justify-between border-b border-border bg-surface-inset/60">
+          <div className="gap-4 flex items-center">
             <button
               type="button"
               onClick={() => setActiveTab('emoji')}
               className={cn(
-                'text-xs font-medium transition-colors pb-0.5 border-b-2 cursor-pointer',
+                'text-xs font-medium pb-0.5 cursor-pointer border-b-2 transition-colors',
                 activeTab === 'emoji'
                   ? 'border-foreground text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -471,7 +550,7 @@ export function IconPickerPopover({
               type="button"
               onClick={() => setActiveTab('icons')}
               className={cn(
-                'text-xs font-medium transition-colors pb-0.5 border-b-2 cursor-pointer',
+                'text-xs font-medium pb-0.5 cursor-pointer border-b-2 transition-colors',
                 activeTab === 'icons'
                   ? 'border-foreground text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -484,7 +563,7 @@ export function IconPickerPopover({
                 type="button"
                 onClick={() => setActiveTab('upload')}
                 className={cn(
-                  'text-xs font-medium transition-colors pb-0.5 border-b-2 cursor-pointer',
+                  'text-xs font-medium pb-0.5 cursor-pointer border-b-2 transition-colors',
                   activeTab === 'upload'
                     ? 'border-foreground text-foreground'
                     : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -502,7 +581,7 @@ export function IconPickerPopover({
                 onRemoveIcon();
                 setIsOpen(false);
               }}
-              className="text-xs text-muted-foreground hover:text-popover-foreground transition-colors cursor-pointer"
+              className="text-xs cursor-pointer text-muted-foreground transition-colors hover:text-popover-foreground"
             >
               Remove
             </button>
@@ -513,14 +592,14 @@ export function IconPickerPopover({
         {activeTab === 'icons' && (
           <div className="p-3 space-y-3">
             {/* Filter Search Bar + Action Controls */}
-            <div className="flex items-center gap-1.5">
+            <div className="gap-1.5 flex items-center">
               <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                <Search className="left-2.5 size-3.5 absolute top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={filterQuery}
                   onChange={(e) => setFilterQuery(e.target.value)}
                   placeholder="Filter..."
-                  className="h-8 pl-8 text-xs bg-surface-raised/80 border-border/60 focus:border-border-strong text-popover-foreground placeholder:text-subtle rounded-md"
+                  className="h-8 pl-8 text-xs rounded-md border-border/60 bg-surface-raised/80 text-popover-foreground placeholder:text-subtle focus:border-border-strong"
                 />
               </div>
 
@@ -529,31 +608,36 @@ export function IconPickerPopover({
                 type="button"
                 onClick={handleRandomIcon}
                 title="Random Icon"
-                className="size-8 rounded-md bg-surface-raised/80 hover:bg-selected border border-border/60 flex items-center justify-center text-secondary-foreground hover:text-foreground transition-colors cursor-pointer shrink-0"
+                className="size-8 flex shrink-0 cursor-pointer items-center justify-center rounded-md border border-border/60 bg-surface-raised/80 text-secondary-foreground transition-colors hover:bg-selected hover:text-foreground"
               >
                 <Shuffle className="size-3.5" />
               </button>
 
               {/* Color Selector Button */}
-              <Popover open={isColorPickerOpen} onOpenChange={setIsColorPickerOpen}>
+              <Popover
+                open={isColorPickerOpen}
+                onOpenChange={setIsColorPickerOpen}
+              >
                 <PopoverTrigger asChild>
                   <button
                     type="button"
                     title="Change Icon Color"
-                    className="size-8 rounded-md bg-surface-raised/80 hover:bg-selected border border-border/60 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                    className="size-8 flex shrink-0 cursor-pointer items-center justify-center rounded-md border border-border/60 bg-surface-raised/80 transition-colors hover:bg-selected"
                   >
                     <span
-                      className="size-3.5 rounded-full border border-border-strong/30 shadow-xs"
+                      className="size-3.5 shadow-xs rounded-full border border-border-strong/30"
                       style={{ backgroundColor: selectedColor }}
                     />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent
                   align="end"
-                  className="w-48 p-2 bg-popover border border-border text-popover-foreground shadow-xl rounded-lg"
+                  className="w-48 p-2 shadow-xl rounded-lg border border-border bg-popover text-popover-foreground"
                 >
-                  <p className="text-[11px] font-semibold text-muted-foreground mb-2 px-1">Icon Color</p>
-                  <div className="grid grid-cols-4 gap-1.5">
+                  <p className="font-semibold mb-2 px-1 text-[11px] text-muted-foreground">
+                    Icon Color
+                  </p>
+                  <div className="gap-1.5 grid grid-cols-4">
                     {ICON_COLOR_PRESETS.map((color) => (
                       <button
                         key={color.id}
@@ -566,11 +650,11 @@ export function IconPickerPopover({
                           }
                         }}
                         title={color.label}
-                        className="size-8 rounded-md flex items-center justify-center hover:scale-110 transition-transform cursor-pointer border border-border"
+                        className="size-8 flex cursor-pointer items-center justify-center rounded-md border border-border transition-transform hover:scale-110"
                         style={{ backgroundColor: color.hex }}
                       >
                         {selectedColor === color.hex && (
-                          <Check className="size-3.5 text-background stroke-[3]" />
+                          <Check className="size-3.5 stroke-[3] text-background" />
                         )}
                       </button>
                     ))}
@@ -581,7 +665,9 @@ export function IconPickerPopover({
 
             {/* Scrollable Icon Grid */}
             <div className="space-y-1">
-              <p className="text-[11px] font-semibold text-muted-foreground px-0.5">Icons</p>
+              <p className="font-semibold px-0.5 text-[11px] text-muted-foreground">
+                Icons
+              </p>
               <ScrollArea
                 className="max-h-56"
                 contentClassName="grid grid-cols-6 gap-1.5 pr-1"
@@ -599,13 +685,16 @@ export function IconPickerPopover({
                       }}
                       title={name}
                       className={cn(
-                        'size-10 rounded-lg flex items-center justify-center transition-all cursor-pointer border',
+                        'size-10 flex cursor-pointer items-center justify-center rounded-lg border transition-all',
                         isSelected
-                          ? 'bg-selected/80 border-border-strong shadow-sm scale-105'
-                          : 'bg-surface-raised/40 border-transparent hover:bg-surface-raised hover:border-border',
+                          ? 'shadow-sm scale-105 border-border-strong bg-selected/80'
+                          : 'border-transparent bg-surface-raised/40 hover:border-border hover:bg-surface-raised',
                       )}
                     >
-                      <IconComp className="size-5" style={{ color: selectedColor }} />
+                      <IconComp
+                        className="size-5"
+                        style={{ color: selectedColor }}
+                      />
                     </button>
                   );
                 })}
@@ -618,12 +707,12 @@ export function IconPickerPopover({
         {activeTab === 'emoji' && (
           <div className="p-3 space-y-3">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+              <Search className="left-2.5 size-3.5 absolute top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={filterQuery}
                 onChange={(e) => setFilterQuery(e.target.value)}
                 placeholder="Search emojis..."
-                className="h-8 pl-8 text-xs bg-surface-raised/80 border-border/60 focus:border-border-strong text-popover-foreground placeholder:text-subtle rounded-md"
+                className="h-8 pl-8 text-xs rounded-md border-border/60 bg-surface-raised/80 text-popover-foreground placeholder:text-subtle focus:border-border-strong"
               />
             </div>
 
@@ -637,8 +726,10 @@ export function IconPickerPopover({
 
                 return (
                   <div key={cat.name} className="space-y-1">
-                    <p className="text-[10px] font-semibold text-muted-foreground px-0.5">{cat.name}</p>
-                    <div className="grid grid-cols-7 gap-1">
+                    <p className="font-semibold px-0.5 text-[10px] text-muted-foreground">
+                      {cat.name}
+                    </p>
+                    <div className="gap-1 grid grid-cols-7">
                       {filteredList.map((emoji) => (
                         <button
                           key={emoji}
@@ -647,7 +738,7 @@ export function IconPickerPopover({
                             onSelectIcon(emoji);
                             setIsOpen(false);
                           }}
-                          className="size-8 rounded-lg hover:bg-surface-raised flex items-center justify-center text-lg transition-transform hover:scale-110 cursor-pointer"
+                          className="size-8 text-lg flex cursor-pointer items-center justify-center rounded-lg transition-transform hover:scale-110 hover:bg-surface-raised"
                         >
                           {emoji}
                         </button>
@@ -664,10 +755,10 @@ export function IconPickerPopover({
         {activeTab === 'upload' && allowUpload && (
           <div className="p-4 space-y-4 text-xs">
             <div>
-              <p className="font-semibold text-foreground mb-1">Upload File</p>
-              <label className="border-2 border-dashed border-border hover:border-border-strong rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer bg-popover/50 hover:bg-surface-raised/50 transition-colors">
+              <p className="font-semibold mb-1 text-foreground">Upload File</p>
+              <label className="p-4 gap-2 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-popover/50 transition-colors hover:border-border-strong hover:bg-surface-raised/50">
                 <Upload className="size-6 text-muted-foreground" />
-                <span className="text-secondary-foreground font-medium text-center">
+                <span className="font-medium text-center text-secondary-foreground">
                   Click or drag image file here
                 </span>
                 <span className="text-[10px] text-subtle">
@@ -682,26 +773,34 @@ export function IconPickerPopover({
                 />
               </label>
               {uploadError ? (
-                <p className="text-[11px] text-destructive mt-1.5">{uploadError}</p>
+                <p className="mt-1.5 text-[11px] text-destructive">
+                  {uploadError}
+                </p>
               ) : null}
             </div>
 
-            <div className="relative flex items-center gap-2 my-2">
+            <div className="gap-2 my-2 relative flex items-center">
               <div className="flex-1 border-t border-border" />
-              <span className="text-[10px] text-subtle uppercase font-semibold">OR LINK</span>
+              <span className="font-semibold text-[10px] text-subtle uppercase">
+                OR LINK
+              </span>
               <div className="flex-1 border-t border-border" />
             </div>
 
             <form onSubmit={handleUrlSubmit} className="space-y-2">
               <p className="font-semibold text-foreground">Image URL</p>
-              <div className="flex gap-2">
+              <div className="gap-2 flex">
                 <Input
                   value={uploadedUrl}
                   onChange={(e) => setUploadedUrl(e.target.value)}
                   placeholder="https://example.com/icon.png"
-                  className="h-8 text-xs bg-surface-raised/80 border-border/60 focus:border-border-strong text-popover-foreground placeholder:text-subtle rounded-md"
+                  className="h-8 text-xs rounded-md border-border/60 bg-surface-raised/80 text-popover-foreground placeholder:text-subtle focus:border-border-strong"
                 />
-                <Button type="submit" size="sm" className="h-8 text-xs bg-primary text-primary-foreground hover:bg-primary-hover">
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="h-8 text-xs bg-primary text-primary-foreground hover:bg-primary-hover"
+                >
                   Submit
                 </Button>
               </div>

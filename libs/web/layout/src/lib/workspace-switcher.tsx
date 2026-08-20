@@ -1,5 +1,7 @@
+import type { ActivityIndicator } from '@org/notifications';
 import type { WorkspaceSummary } from '@org/types';
 import {
+  ActivityDot,
   Button,
   DropdownMenu,
   DropdownMenuContent,
@@ -9,30 +11,60 @@ import {
   DropdownMenuTrigger,
   Hint,
   WorkspaceAvatar,
+  type ActivityLevel,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import {
-  Check,
-  ChevronDown,
-  PanelLeft,
-  Plus,
-  Settings,
-} from 'lucide-react';
+import { Check, ChevronDown, PanelLeft, Plus, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export interface WorkspaceMenuProps {
   workspaces: WorkspaceSummary[];
   current: WorkspaceSummary;
+  /** Unread state per workspace id. Absent ids simply show no dot. */
+  workspaceActivity?: Record<string, ActivityIndicator>;
   onToggleSidebar?: () => void;
   className?: string;
+}
+
+/**
+ * The loudest thing happening anywhere *else*.
+ *
+ * The trigger stands in for every workspace the user is not looking at, so a
+ * single mention in any of them has to win over any amount of ordinary traffic
+ * in the rest — otherwise the one signal worth interrupting for is the one the
+ * grey dot hides. The current workspace is excluded: its own channels are
+ * already on screen with their own dots.
+ */
+function summariseOthers(
+  workspaces: WorkspaceSummary[],
+  currentId: string,
+  activity: Record<string, ActivityIndicator> | undefined,
+): ActivityLevel {
+  if (!activity) return 'none';
+
+  let level: ActivityLevel = 'none';
+  for (const workspace of workspaces) {
+    if (workspace.id === currentId) continue;
+    const entry = activity[workspace.id];
+    if (entry?.level === 'mention') return 'mention';
+    if (entry?.level === 'activity') level = 'activity';
+  }
+  return level;
 }
 
 export function WorkspaceMenu({
   workspaces,
   current,
+  workspaceActivity,
   onToggleSidebar,
   className,
 }: WorkspaceMenuProps) {
+  const othersLevel = summariseOthers(
+    workspaces,
+    current.id,
+    workspaceActivity,
+  );
+
   return (
     <div
       className={cn(
@@ -49,14 +81,30 @@ export function WorkspaceMenu({
               'outline-none focus-visible:ring-1 focus-visible:ring-ring',
             )}
           >
-            <WorkspaceAvatar
-              name={current.name}
-              src={current.avatarUrl}
-              icon={current.icon}
-              iconColor={current.iconColor}
-              seed={current.id}
-              size="sm"
-            />
+            {/*
+              The dot rides the avatar rather than sitting after the name: the
+              name truncates, and an indicator that can be clipped away is not
+              an indicator.
+            */}
+            <span className="relative shrink-0">
+              <WorkspaceAvatar
+                name={current.name}
+                src={current.avatarUrl}
+                icon={current.icon}
+                iconColor={current.iconColor}
+                seed={current.id}
+                size="sm"
+              />
+              <ActivityDot
+                level={othersLevel}
+                label={
+                  othersLevel === 'mention'
+                    ? 'You were mentioned in another workspace'
+                    : 'Activity in another workspace'
+                }
+                className="-right-0.5 -top-0.5 absolute ring-2 ring-background"
+              />
+            </span>
 
             <span className="min-w-0 gap-1.5 flex flex-1 items-center">
               <span className="font-semibold tracking-tight text-base truncate text-foreground">
@@ -81,6 +129,7 @@ export function WorkspaceMenu({
           <div className="space-y-0.5 my-1">
             {workspaces.map((workspace) => {
               const isSelected = workspace.id === current.id;
+              const indicator = workspaceActivity?.[workspace.id];
               return (
                 <DropdownMenuItem
                   key={workspace.id}
@@ -108,9 +157,15 @@ export function WorkspaceMenu({
                         {workspace.memberCount === 1 ? '' : 's'}
                       </span>
                     </span>
-                    {isSelected ? (
-                      <Check className="size-4 ml-auto shrink-0 text-primary" />
-                    ) : null}
+                    <span className="gap-1.5 ml-auto flex shrink-0 items-center">
+                      <ActivityDot
+                        level={indicator?.level ?? 'none'}
+                        count={indicator?.mentionCount}
+                      />
+                      {isSelected ? (
+                        <Check className="size-4 text-primary" />
+                      ) : null}
+                    </span>
                   </Link>
                 </DropdownMenuItem>
               );

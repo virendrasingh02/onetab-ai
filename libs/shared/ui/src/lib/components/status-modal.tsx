@@ -98,10 +98,38 @@ export const SLACK_STATUS_PRESETS: StatusPreset[] = [
 ];
 
 export const POPULAR_EMOJIS = [
-  '💬', '📅', '🚗', '🤒', '🌴', '🍱', '🏠', '🎯',
-  '☕', '🎧', '⚡', '🔕', '🚀', '💡', '💻', '🧘',
-  '🏃', '🍔', '🎉', '👋', '🔥', '✨', '🏖️', '✈️',
-  '📞', '🛑', '👀', '🧠', '⭐', '🥑', '🍕', '🍻',
+  '💬',
+  '📅',
+  '🚗',
+  '🤒',
+  '🌴',
+  '🍱',
+  '🏠',
+  '🎯',
+  '☕',
+  '🎧',
+  '⚡',
+  '🔕',
+  '🚀',
+  '💡',
+  '💻',
+  '🧘',
+  '🏃',
+  '🍔',
+  '🎉',
+  '👋',
+  '🔥',
+  '✨',
+  '🏖️',
+  '✈️',
+  '📞',
+  '🛑',
+  '👀',
+  '🧠',
+  '⭐',
+  '🥑',
+  '🍕',
+  '🍻',
 ];
 
 export interface ClearOption {
@@ -204,7 +232,10 @@ export function StatusModal({ currentUser, onUserUpdated }: StatusModalProps) {
       const updated = await userApi.updateStatus({
         statusText: statusText.trim() || null,
         statusEmoji: statusText.trim() ? statusEmoji || '💬' : null,
-        statusExpiresAt: statusText.trim() && expiresAtDate ? expiresAtDate.toISOString() : null,
+        statusExpiresAt:
+          statusText.trim() && expiresAtDate
+            ? expiresAtDate.toISOString()
+            : null,
         presence: pauseNotifications ? ('BUSY' as PresenceStatus) : undefined,
       });
 
@@ -212,9 +243,7 @@ export function StatusModal({ currentUser, onUserUpdated }: StatusModalProps) {
         onUserUpdated(updated);
       }
 
-      toast.success(
-        statusText.trim() ? 'Status updated' : 'Status cleared',
-      );
+      toast.success(statusText.trim() ? 'Status updated' : 'Status cleared');
       closeStatusModal();
     } catch {
       toast.error('Failed to update status. Please try again.');
@@ -249,7 +278,7 @@ export function StatusModal({ currentUser, onUserUpdated }: StatusModalProps) {
     <Dialog open={isOpen} onOpenChange={(open) => !open && closeStatusModal()}>
       <DialogContent className="max-w-md p-0 overflow-hidden border-border bg-popover text-foreground">
         <DialogHeader className="p-5 pb-3 border-b border-border">
-          <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+          <DialogTitle className="gap-2 text-base font-semibold flex items-center">
             <Smile className="size-4.5 text-primary" />
             Set a status
           </DialogTitle>
@@ -261,16 +290,22 @@ export function StatusModal({ currentUser, onUserUpdated }: StatusModalProps) {
         <div className="p-5 space-y-4">
           {/* Active status banner */}
           {hasCurrentStatus && (
-            <div className="flex items-center justify-between p-2.5 rounded-lg border border-primary/20 bg-primary/5 text-xs">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-base">{currentUser?.statusEmoji || '💬'}</span>
-                <span className="font-medium text-foreground truncate">
+            <div className="p-2.5 text-xs flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5">
+              <div className="gap-2 min-w-0 flex items-center">
+                <span className="text-base">
+                  {currentUser?.statusEmoji || '💬'}
+                </span>
+                <span className="font-medium truncate text-foreground">
                   {currentUser?.statusText}
                 </span>
                 {currentUser?.statusExpiresAt && (
-                  <span className="text-[10px] text-muted-foreground flex items-center gap-1 shrink-0">
+                  <span className="gap-1 flex shrink-0 items-center text-[10px] text-muted-foreground">
                     <Clock className="size-3" />
-                    until {new Date(currentUser.statusExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    until{' '}
+                    {new Date(currentUser.statusExpiresAt).toLocaleTimeString(
+                      [],
+                      { hour: '2-digit', minute: '2-digit' },
+                    )}
                   </span>
                 )}
               </div>
@@ -279,7 +314,7 @@ export function StatusModal({ currentUser, onUserUpdated }: StatusModalProps) {
                 size="sm"
                 onClick={handleClearStatus}
                 disabled={isSaving}
-                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-destructive gap-1"
+                className="h-6 px-2 gap-1 text-[11px] text-muted-foreground hover:text-destructive"
               >
                 <Trash2 className="size-3" />
                 Clear
@@ -292,7 +327,7 @@ export function StatusModal({ currentUser, onUserUpdated }: StatusModalProps) {
             <label className="text-xs font-medium text-foreground">
               What's your status?
             </label>
-            <div className="flex items-center gap-2">
+            <div className="gap-2 flex items-center">
               <Popover
                 open={isEmojiPickerOpen}
                 onOpenChange={setIsEmojiPickerOpen}
@@ -300,7 +335,7 @@ export function StatusModal({ currentUser, onUserUpdated }: StatusModalProps) {
                 <PopoverTrigger asChild>
                   <button
                     type="button"
-                    className="size-9 shrink-0 flex items-center justify-center text-lg rounded-input border border-border bg-surface hover:bg-accent transition-colors"
+                    className="size-9 text-lg flex shrink-0 items-center justify-center rounded-input border border-border bg-surface transition-colors hover:bg-accent"
                     title="Select emoji"
                   >
                     {statusEmoji || '💬'}
@@ -310,10 +345,10 @@ export function StatusModal({ currentUser, onUserUpdated }: StatusModalProps) {
                   align="start"
                   className="w-64 p-2 border-border bg-popover shadow-overlay"
                 >
-                  <div className="text-[11px] font-semibold text-muted-foreground mb-1.5 px-1">
+                  <div className="font-semibold mb-1.5 px-1 text-[11px] text-muted-foreground">
                     Choose an emoji
                   </div>
-                  <div className="grid grid-cols-8 gap-1">
+                  <div className="gap-1 grid grid-cols-8">
                     {POPULAR_EMOJIS.map((emoji) => (
                       <button
                         key={emoji}
@@ -323,8 +358,9 @@ export function StatusModal({ currentUser, onUserUpdated }: StatusModalProps) {
                           setIsEmojiPickerOpen(false);
                         }}
                         className={cn(
-                          'size-7 flex items-center justify-center text-base rounded hover:bg-accent transition-transform hover:scale-110',
-                          statusEmoji === emoji && 'bg-primary/20 ring-1 ring-primary',
+                          'size-7 text-base rounded flex items-center justify-center transition-transform hover:scale-110 hover:bg-accent',
+                          statusEmoji === emoji &&
+                            'bg-primary/20 ring-1 ring-primary',
                         )}
                       >
                         {emoji}
@@ -346,7 +382,7 @@ export function StatusModal({ currentUser, onUserUpdated }: StatusModalProps) {
                   <button
                     type="button"
                     onClick={() => setStatusText('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="right-2 absolute top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     <X className="size-3.5" />
                   </button>
@@ -357,10 +393,10 @@ export function StatusModal({ currentUser, onUserUpdated }: StatusModalProps) {
 
           {/* Quick presets */}
           <div className="space-y-2">
-            <label className="text-[11px] font-medium text-subtle uppercase tracking-wider">
+            <label className="font-medium tracking-wider text-[11px] text-subtle uppercase">
               Popular presets
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+            <div className="sm:grid-cols-2 gap-1.5 grid grid-cols-1">
               {SLACK_STATUS_PRESETS.map((preset) => {
                 const isSelected =
                   statusText === preset.text && statusEmoji === preset.emoji;
@@ -370,17 +406,17 @@ export function StatusModal({ currentUser, onUserUpdated }: StatusModalProps) {
                     type="button"
                     onClick={() => handleApplyPreset(preset)}
                     className={cn(
-                      'flex items-center justify-between p-2 rounded-lg border text-left transition-all text-xs',
+                      'p-2 text-xs flex items-center justify-between rounded-lg border text-left transition-all',
                       isSelected
-                        ? 'border-primary bg-primary/10 text-primary-text font-medium shadow-xs'
-                        : 'border-border/60 bg-surface/50 hover:bg-surface hover:border-border text-foreground',
+                        ? 'font-medium shadow-xs border-primary bg-primary/10 text-primary-text'
+                        : 'border-border/60 bg-surface/50 text-foreground hover:border-border hover:bg-surface',
                     )}
                   >
-                    <div className="flex items-center gap-2 truncate">
+                    <div className="gap-2 flex items-center truncate">
                       <span className="text-base shrink-0">{preset.emoji}</span>
                       <span className="truncate">{preset.text}</span>
                     </div>
-                    <span className="text-[10px] text-muted-foreground shrink-0 ml-1.5">
+                    <span className="ml-1.5 shrink-0 text-[10px] text-muted-foreground">
                       {preset.durationLabel}
                     </span>
                   </button>
@@ -391,21 +427,21 @@ export function StatusModal({ currentUser, onUserUpdated }: StatusModalProps) {
 
           {/* Clear status after */}
           <div className="space-y-1.5 pt-1">
-            <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+            <label className="text-xs font-medium gap-1.5 flex items-center text-foreground">
               <Clock className="size-3.5 text-muted-foreground" />
               Clear status after
             </label>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="gap-1.5 flex flex-wrap">
               {CLEAR_AFTER_OPTIONS.map((opt) => (
                 <button
                   key={opt.id}
                   type="button"
                   onClick={() => setSelectedClearId(opt.id)}
                   className={cn(
-                    'px-2.5 py-1 rounded-full text-xs transition-colors border',
+                    'px-2.5 py-1 text-xs rounded-full border transition-colors',
                     selectedClearId === opt.id
-                      ? 'border-primary bg-primary text-primary-foreground font-medium'
-                      : 'border-border bg-surface text-muted-foreground hover:text-foreground hover:bg-accent',
+                      ? 'font-medium border-primary bg-primary text-primary-foreground'
+                      : 'border-border bg-surface text-muted-foreground hover:bg-accent hover:text-foreground',
                   )}
                 >
                   {opt.label}
@@ -415,18 +451,18 @@ export function StatusModal({ currentUser, onUserUpdated }: StatusModalProps) {
           </div>
 
           {/* Pause notifications */}
-          <label className="flex items-center gap-2.5 pt-1 cursor-pointer select-none text-xs text-foreground">
+          <label className="gap-2.5 pt-1 text-xs flex cursor-pointer items-center text-foreground select-none">
             <input
               type="checkbox"
               checked={pauseNotifications}
               onChange={(e) => setPauseNotifications(e.target.checked)}
-              className="rounded border-border text-primary focus:ring-ring size-4"
+              className="rounded size-4 border-border text-primary focus:ring-ring"
             />
             <span>Pause notifications (Do Not Disturb)</span>
           </label>
         </div>
 
-        <DialogFooter className="p-4 bg-surface-muted/50 border-t border-border flex items-center justify-between">
+        <DialogFooter className="p-4 flex items-center justify-between border-t border-border bg-surface-muted/50">
           <Button
             variant="ghost"
             size="sm"
@@ -436,7 +472,7 @@ export function StatusModal({ currentUser, onUserUpdated }: StatusModalProps) {
             Cancel
           </Button>
 
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             {hasCurrentStatus && (
               <Button
                 variant="outline"
