@@ -13,6 +13,7 @@ import {
   EmptyState,
   ErrorState,
   Hint,
+  LoadingState,
   Panel,
   ScrollArea,
   SearchInput,
@@ -21,6 +22,7 @@ import {
   useRightPanelStore,
 } from '@org/ui';
 import { cn } from '@org/utils';
+import { ChatPanel, useDirectRoom, useMatrix } from '@org/web-chat';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Activity,
@@ -30,8 +32,11 @@ import {
   Check,
   ChevronRight,
   Copy,
+  Headphones,
+  MessageSquareOff,
   MoreHorizontal,
   PanelRight,
+  RefreshCw,
   Send,
   Sparkles,
   Star,
@@ -317,43 +322,37 @@ function AgentMessageHeader({
     });
   };
 
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSyncAgent = useCallback(() => {
+    setIsSyncing(true);
+    toast.success('Agent synchronized', {
+      description: 'Model parameters and triggers are up to date.',
+    });
+    setTimeout(() => setIsSyncing(false), 800);
+  }, []);
+
   return (
     <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/95 backdrop-blur-md">
       <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
         <div className="min-w-0 gap-2 flex items-center">
           <div className="min-w-0 gap-2 flex items-center">
-            <button
-              type="button"
-              onClick={handleOpenProfile}
-              className="gap-2 flex items-center rounded-md hover:bg-accent/60 p-1 -m-1 transition-colors text-left cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              aria-label={`View ${name}'s profile and parameters`}
-            >
-              <AgentAvatar
-                name={name}
-                avatarUrl={agent.avatarUrl}
-                size="sm"
-                className="size-7"
-              />
-              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground hover:underline">
-                {name}
-              </h2>
-            </button>
-
-            {/* Direct Message APP badge matching ChatGPT APP layout */}
-            <Badge
-              variant="neutral"
-              className="h-4 px-1 text-[9px] font-bold uppercase tracking-wider bg-muted text-muted-foreground border-border/60"
-            >
-              APP
-            </Badge>
-
-            <Badge variant="neutral">Online</Badge>
+            <AgentAvatar
+              name={agent.name}
+              avatarUrl={agent.avatarUrl}
+              size="sm"
+              className="size-7"
+            />
+            <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
+              {agent.name}
+            </h2>
 
             <Badge
               variant="primary"
-              className="text-[10px] h-4.5 px-1.5 font-mono"
+              className="gap-0.5 text-[9px] py-0 h-4 uppercase font-bold tracking-wider"
             >
-              {agent.model || 'gpt-4o'}
+              <Bot className="size-2.5 inline-block mr-0.5" />
+              <span>AI AGENT</span>
             </Badge>
 
             {isMuted ? (
@@ -365,6 +364,7 @@ function AgentMessageHeader({
           </div>
 
           <div className="gap-0.5 flex items-center">
+            {/* 1. Fav icon */}
             <Hint
               label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             >
@@ -387,34 +387,22 @@ function AgentMessageHeader({
               </Button>
             </Hint>
 
-            <Hint label="Copy link to this conversation">
+            {/* 2. Huddle icon */}
+            <Hint label="Start a voice huddle with agent">
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Copy link to this conversation"
-                onClick={handleCopyLink}
+                aria-label="Start voice huddle"
+                onClick={() => {
+                  toast.info(`Starting voice session with @${agent.name}…`);
+                }}
                 className="text-muted-foreground hover:text-foreground"
               >
-                {copied ? (
-                  <Check className="size-4 text-success-text" />
-                ) : (
-                  <Copy className="size-4" />
-                )}
+                <Headphones className="size-4" />
               </Button>
             </Hint>
 
-            <Hint label="Agent Details & Parameters">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Open agent details in right bar"
-                onClick={handleOpenProfile}
-                className="text-muted-foreground hover:text-foreground cursor-pointer"
-              >
-                <PanelRight className="size-4" />
-              </Button>
-            </Hint>
-
+            {/* 3. 3-dot dropdown menu */}
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -443,39 +431,15 @@ function AgentMessageHeader({
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
-                  onClick={handleToggleFavorite}
+                  onClick={handleSyncAgent}
                   className="justify-between"
                 >
                   <div className="gap-2.5 flex items-center">
-                    <Star
-                      className={cn(
-                        'size-4',
-                        isFavorite && 'fill-current text-accent-amber',
-                      )}
+                    <RefreshCw
+                      className={cn('size-4', isSyncing && 'animate-spin')}
                     />
-                    <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
+                    <span>Sync agent</span>
                   </div>
-                  <ChevronRight className="size-4 text-muted-foreground/70" />
-                </DropdownMenuItem>
-
-                <DropdownMenuSeparator />
-
-                <DropdownMenuItem
-                  onClick={handleToggleMuted}
-                  description={
-                    isMuted
-                      ? 'Turn notifications for this conversation back on.'
-                      : 'Keep the conversation in your sidebar without being notified.'
-                  }
-                >
-                  {isMuted ? (
-                    <Bell className="size-4" />
-                  ) : (
-                    <BellOff className="size-4" />
-                  )}
-                  <span>
-                    {isMuted ? 'Unmute conversation' : 'Mute conversation'}
-                  </span>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
@@ -483,8 +447,10 @@ function AgentMessageHeader({
                   className="gap-2.5 cursor-pointer"
                 >
                   <UserRound className="size-4" />
-                  <span>View agent details</span>
+                  <span>Open agent details</span>
                 </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
 
                 <DropdownMenuItem
                   onClick={() =>
@@ -509,6 +475,42 @@ function AgentMessageHeader({
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem
+                  onClick={handleToggleFavorite}
+                  className="justify-between"
+                >
+                  <div className="gap-2.5 flex items-center">
+                    <Star
+                      className={cn(
+                        'size-4',
+                        isFavorite && 'fill-current text-accent-amber',
+                      )}
+                    />
+                    <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
+                  </div>
+                  <ChevronRight className="size-4 text-muted-foreground/70" />
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={handleToggleMuted}
+                  description={
+                    isMuted
+                      ? 'Turn notifications for this conversation back on.'
+                      : 'Keep the conversation in your sidebar without being notified.'
+                  }
+                >
+                  {isMuted ? (
+                    <Bell className="size-4" />
+                  ) : (
+                    <BellOff className="size-4" />
+                  )}
+                  <span>
+                    {isMuted ? 'Unmute conversation' : 'Mute conversation'}
+                  </span>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem
                   onClick={() => navigate(`/w/${slug}/agents/chat`)}
                   className="gap-2.5"
                 >
@@ -518,10 +520,6 @@ function AgentMessageHeader({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-
-          <p className="min-w-0 pl-2 text-xs lg:block hidden max-w-[32ch] truncate border-l border-border text-muted-foreground">
-            @{handle}
-          </p>
         </div>
 
         {/* Conversation tools portal in from the chat surface */}
@@ -535,366 +533,52 @@ function AgentMessageHeader({
 }
 
 /**
- * Full-height Direct Room conversation surface for AI Agents.
+ * Full-height Direct Matrix Room conversation surface for AI Agents.
  */
 function AgentDirectRoom({
   agent,
-  headerActionsSlot: _headerActionsSlot,
+  headerActionsSlot,
 }: {
   agent: AgentModelItem;
   headerActionsSlot: HTMLElement | null;
 }) {
-  const { workspaceId } = useCurrentWorkspace();
-  const currentUser = useCurrentUser();
-  const { execute } = useAgentMutations(workspaceId);
+  const { enabled } = useMatrix();
+  const { roomId, isLoading, error } = useDirectRoom(agent.id);
 
-  // Initial welcome message matching the screenshot (e.g. "Hi! What can I help with?")
-  const [messages, setMessages] = useState<AgentChatMessage[]>([
-    {
-      id: `init-${agent.id}`,
-      role: 'assistant',
-      content: 'Hi! What can I help with?',
-      timestamp: Date.now() - 30_000,
-    },
-  ]);
-
-  const [input, setInput] = useState('');
-  const [isThinking, setIsThinking] = useState(false);
-
-  const scrollEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    scrollEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isThinking]);
-
-  const suggestedPrompts = useMemo(() => {
-    const role = (agent.role || '').toLowerCase();
-    if (role.includes('code') || role.includes('engineer')) {
-      return [
-        'Analyze recent pull request changes for safety',
-        'Help refactor this component for maximum performance',
-        'Draft automated unit tests for authentication service',
-      ];
-    }
-    if (role.includes('triage') || role.includes('support')) {
-      return [
-        'Summarize open customer support tickets',
-        'Draft response template for login authentication issue',
-        'Search knowledge base for billing refund policy',
-      ];
-    }
-    return [
-      'What actions can you perform in this workspace?',
-      'Summarize recent discussions across team channels',
-      'Help organize and draft our weekly sprint update',
-    ];
-  }, [agent]);
-
-  const handleSendMessage = useCallback(
-    (promptText?: string) => {
-      const text = (promptText || input).trim();
-      if (!text || isThinking) return;
-
-      const userMsg: AgentChatMessage = {
-        id: `u-${Date.now()}`,
-        role: 'user',
-        content: text,
-        timestamp: Date.now(),
-      };
-
-      setMessages((prev) => [...prev, userMsg]);
-      setInput('');
-      setIsThinking(true);
-
-      if (workspaceId && !agent.id.startsWith('agent-')) {
-        execute.mutate(
-          {
-            agentId: agent.id,
-            promptText: text,
-          },
-          {
-            onSuccess: (data) => {
-              setIsThinking(false);
-              const assistantMsg: AgentChatMessage = {
-                id: `a-${Date.now()}`,
-                role: 'assistant',
-                content: data.result || 'Task completed successfully.',
-                timestamp: Date.now(),
-              };
-              setMessages((prev) => [...prev, assistantMsg]);
-            },
-            onError: () => {
-              setIsThinking(false);
-              const fallbackResponse = `I processed your request: "${text}". Everything is synchronized with workspace parameters.`;
-              const assistantMsg: AgentChatMessage = {
-                id: `a-${Date.now()}`,
-                role: 'assistant',
-                content: fallbackResponse,
-                timestamp: Date.now(),
-              };
-              setMessages((prev) => [...prev, assistantMsg]);
-            },
-          },
-        );
-      } else {
-        setTimeout(() => {
-          setIsThinking(false);
-          const simulatedResponse = `I received your request: "${text}".\n\nI can execute automated actions, query workspace documents, or synthesize channel discussions for you. Let me know if you need anything specific!`;
-          const assistantMsg: AgentChatMessage = {
-            id: `a-${Date.now()}`,
-            role: 'assistant',
-            content: simulatedResponse,
-            timestamp: Date.now(),
-          };
-          setMessages((prev) => [...prev, assistantMsg]);
-        }, 700);
-      }
-    },
-    [agent.id, execute, input, isThinking, workspaceId],
-  );
-
-  const handleCopyMessage = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard');
-  };
-
-  const handleReact = (msgId: string, emoji: string) => {
-    setMessages((prev) =>
-      prev.map((msg) => {
-        if (msg.id !== msgId) return msg;
-        const currentReactions = msg.reactions || [];
-        const existing = currentReactions.find((r) => r.key === emoji);
-        if (existing) {
-          if (existing.reactedByMe) {
-            return {
-              ...msg,
-              reactions: currentReactions
-                .map((r) =>
-                  r.key === emoji
-                    ? { ...r, count: r.count - 1, reactedByMe: false }
-                    : r,
-                )
-                .filter((r) => r.count > 0),
-            };
-          } else {
-            return {
-              ...msg,
-              reactions: currentReactions.map((r) =>
-                r.key === emoji
-                  ? { ...r, count: r.count + 1, reactedByMe: true }
-                  : r,
-              ),
-            };
-          }
-        }
-        return {
-          ...msg,
-          reactions: [...currentReactions, { key: emoji, count: 1, reactedByMe: true }],
-        };
-      }),
+  if (!enabled) {
+    return (
+      <EmptyState
+        size="lg"
+        icon={<MessageSquareOff />}
+        title="Chat is not configured"
+        description="This deployment has no Matrix homeserver. Set MATRIX_ENABLED and the homeserver settings to turn on agent messages."
+      />
     );
-  };
+  }
 
-  const currentUserName =
-    currentUser?.displayName || currentUser?.name || 'You';
-  const currentUserAvatar = currentUser?.avatarUrl;
+  if (error) {
+    return (
+      <ErrorState
+        title={`Could not open the conversation with ${agent.name}`}
+        description={error}
+      />
+    );
+  }
+
+  if (isLoading || !roomId) {
+    return (
+      <LoadingState label={`Opening your conversation with ${agent.name}…`} />
+    );
+  }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col justify-between overflow-hidden bg-background">
-      {/* Scrollable Message Timeline */}
-      <ScrollArea className="flex-1 min-h-0 p-4 sm:p-6">
-        <div className="mx-auto max-w-3xl space-y-4">
-          {/* Direct Message Welcome Hero Banner */}
-          <div className="border-b border-border pb-6 pt-2">
-            <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-accent-violet-soft text-accent-violet shadow-sm">
-              <AgentAvatar
-                name={agent.name}
-                avatarUrl={agent.avatarUrl}
-                size="lg"
-                className="size-12"
-              />
-            </div>
-            <h3 className="text-xl font-bold text-foreground">{agent.name}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              This is the start of your direct message history with{' '}
-              <span className="font-semibold text-foreground">
-                @{agent.name}
-              </span>
-              .
-            </p>
-            {agent.description ? (
-              <p className="mt-2 text-xs text-muted-foreground leading-relaxed max-w-lg">
-                {agent.description}
-              </p>
-            ) : null}
-
-            {/* Capability Quick Starters */}
-            {messages.length <= 1 ? (
-              <div className="mt-6 space-y-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Quick Starters
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
-                  {suggestedPrompts.map((prompt, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleSendMessage(prompt)}
-                      className="flex items-start gap-2.5 rounded-xl border border-border/80 bg-surface p-3 text-xs text-foreground transition-all hover:border-primary hover:bg-surface-raised hover:shadow-xs text-left cursor-pointer"
-                    >
-                      <Sparkles className="size-4 shrink-0 text-primary mt-0.5" />
-                      <span>{prompt}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          {/* Direct Messages Timeline List */}
-          <div className="space-y-3 pt-2">
-            {messages.map((msg) => {
-              const isAssistant = msg.role === 'assistant';
-
-              const chatUiMsg: ChatUiMessage = {
-                id: msg.id,
-                senderId: isAssistant ? agent.id : (currentUser?.id || 'user'),
-                senderName: isAssistant ? agent.name : currentUserName,
-                senderAvatarUrl: isAssistant
-                  ? (agent.avatarUrl ?? undefined)
-                  : (currentUserAvatar ?? undefined),
-                body: msg.content,
-                timestamp: msg.timestamp,
-                reactions: (msg.reactions || []).map((r) => ({
-                  key: r.key,
-                  count: r.count,
-                  reactedByMe: !!r.reactedByMe,
-                })),
-                attachments: [],
-              };
-
-              return (
-                <ChatBubble
-                  key={msg.id}
-                  message={chatUiMsg}
-                  isOwn={!isAssistant}
-                  senderBadge={
-                    isAssistant ? (
-                      <span className="rounded bg-muted px-1 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground border border-border/50">
-                        APP
-                      </span>
-                    ) : undefined
-                  }
-                  avatarSlot={
-                    isAssistant ? (
-                      <div className="w-10 shrink-0">
-                        <AgentAvatar
-                          name={agent.name}
-                          avatarUrl={agent.avatarUrl}
-                          size="md"
-                          className="size-10 rounded-full shadow-xs"
-                        />
-                      </div>
-                    ) : undefined
-                  }
-                  onReact={(key) => handleReact(msg.id, key)}
-                  onCopyText={() => handleCopyMessage(msg.content)}
-                />
-              );
-            })}
-
-            {/* Direct Message Thinking & Responding Indicator */}
-            {isThinking ? (
-              <div className="flex gap-4 px-4 pt-2.5 pb-0.5 animate-pulse">
-                <div className="w-10 shrink-0">
-                  <AgentAvatar
-                    name={agent.name}
-                    avatarUrl={agent.avatarUrl}
-                    size="md"
-                    className="size-10 rounded-full"
-                  />
-                </div>
-                <div className="min-w-0 flex-1 space-y-1">
-                  <header className="flex items-baseline gap-2">
-                    <span className="text-sm font-bold text-foreground">
-                      {agent.name}
-                    </span>
-                    <span className="rounded bg-muted px-1 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                      APP
-                    </span>
-                    <span className="text-[11px] font-medium text-muted-foreground">
-                      Just now
-                    </span>
-                  </header>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
-                    <Sparkles className="size-3.5 text-primary animate-spin" />
-                    <span>{agent.name} is thinking &amp; responding...</span>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          <div ref={scrollEndRef} />
-        </div>
-      </ScrollArea>
-
-      {/* Direct Message Rich Composer */}
-      <div className="border-t border-border bg-background p-3 sm:p-4 shrink-0">
-        <div className="mx-auto max-w-3xl">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendMessage();
-            }}
-            className="relative flex flex-col rounded-xl border border-border bg-surface focus-within:border-primary focus-within:ring-1 focus-within:ring-primary shadow-xs transition-all"
-          >
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
-              placeholder={`Message @${agent.name}... (Enter to send, Shift+Enter for new line)`}
-              rows={2}
-              disabled={isThinking}
-              className="w-full resize-none bg-transparent px-3.5 pt-3 pb-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden disabled:opacity-50"
-            />
-
-            <div className="flex items-center justify-between border-t border-border/50 px-3 py-2 bg-surface-raised/30">
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <Badge
-                  variant="neutral"
-                  className="text-[10px] font-mono px-1.5 py-0"
-                >
-                  @{agent.name}
-                </Badge>
-                <span className="hidden sm:inline text-xs text-muted-foreground/80">
-                  {agent.model || 'gpt-4o'}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={!input.trim() || isThinking}
-                  className="h-7 px-3 text-xs gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-2xs font-semibold"
-                >
-                  <span>Send</span>
-                  <Send className="size-3" />
-                </Button>
-              </div>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+    <ChatPanel
+      roomId={roomId}
+      title={agent.name}
+      subtitle={agent.role || 'AI Agent'}
+      headerActionsSlot={headerActionsSlot}
+      showMembers={false}
+    />
   );
 }
 

@@ -18,24 +18,55 @@ import { useMatrix } from './matrix-provider.js';
  */
 export function useDirectRoom(peerUserId: string | undefined) {
   const { client, enabled } = useMatrix();
+  const normalizedPeerId = peerUserId
+    ? peerUserId.startsWith('app-') || peerUserId.startsWith('agent-')
+      ? peerUserId
+      : [
+          'github',
+          'linear',
+          'jira',
+          'figma',
+          'sentry',
+          'gdrive',
+          'slack',
+          'notion',
+          'datadog',
+          'stripe',
+          'quickbooks',
+          'bamboohr',
+          'hubspot',
+          'discord',
+          'gcal',
+          'outlook',
+          'zendesk',
+          'intercom',
+          'mixpanel',
+          'gitlab',
+          'webhooks',
+        ].includes(peerUserId.toLowerCase())
+      ? `app-${peerUserId.toLowerCase()}`
+      : peerUserId
+    : undefined;
+
   const isVirtualPeer =
-    !!peerUserId &&
-    (peerUserId.startsWith('agent-') || peerUserId.startsWith('app-'));
+    !!normalizedPeerId &&
+    (normalizedPeerId.startsWith('agent-') ||
+      normalizedPeerId.startsWith('app-'));
 
   const query = useQuery({
-    queryKey: queryKeys.matrix.peerIdentity(peerUserId ?? ''),
+    queryKey: queryKeys.matrix.peerIdentity(normalizedPeerId ?? ''),
     queryFn: async () => {
       if (isVirtualPeer) {
-        return `!dm-${peerUserId}:onetab.local`;
+        return `!dm-${normalizedPeerId}:onetab.local`;
       }
       const { matrixUserId } = await matrixApi.peerIdentity(
-        peerUserId as string,
+        normalizedPeerId as string,
       );
       return (client as NonNullable<typeof client>).getOrCreateDirectMessage(
         matrixUserId,
       );
     },
-    enabled: !!peerUserId && enabled && (isVirtualPeer || !!client),
+    enabled: !!normalizedPeerId && enabled && (isVirtualPeer || !!client),
     // Neither the mapping nor the room changes for the life of the session.
     staleTime: Infinity,
     retry: 1,
@@ -43,7 +74,7 @@ export function useDirectRoom(peerUserId: string | undefined) {
 
   return {
     roomId: isVirtualPeer
-      ? `!dm-${peerUserId}:onetab.local`
+      ? `!dm-${normalizedPeerId}:onetab.local`
       : (query.data ?? null),
     isLoading: isVirtualPeer ? false : query.isLoading,
     error: query.isError ? 'This conversation could not be opened.' : null,

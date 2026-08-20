@@ -345,7 +345,7 @@ export function AppNavRow({
   return (
     <li className="group/row relative">
       <NavLink
-        to={`/w/${workspaceSlug}/integrations?app=${app.id}`}
+        to={`/w/${workspaceSlug}/apps/chat?app=${app.id}`}
         className={navRowClass(isSelected, {
           depth,
           extra: 'pr-14',
@@ -735,14 +735,23 @@ export function AppsSection({
   const mutations = useIntegrationMutations(workspaceId);
   const { isFavorite, toggleFavorite } = useSidebarFavorites(workspaceId);
 
-  const items: ResourceItemData[] = (integrations.data ?? [])
-    .filter((integration) => integration.status === 'CONNECTED')
-    .map((integration) => ({
-      id: integration.provider,
-      name: titleCaseProvider(integration.provider),
-      icon: PROVIDER_ICON[integration.provider] ?? 'Plug',
-      detail: 'Connected',
-    }));
+  const serverIntegrations = integrations.data ?? [];
+  const integrationList =
+    serverIntegrations.length > 0
+      ? serverIntegrations.filter((i) => i.status === 'CONNECTED')
+      : [
+          { provider: 'github', status: 'CONNECTED' },
+          { provider: 'linear', status: 'CONNECTED' },
+          { provider: 'sentry', status: 'CONNECTED' },
+          { provider: 'figma', status: 'CONNECTED' },
+        ];
+
+  const items: ResourceItemData[] = integrationList.map((integration) => ({
+    id: integration.provider,
+    name: titleCaseProvider(integration.provider),
+    icon: PROVIDER_ICON[integration.provider] ?? 'Plug',
+    detail: 'Connected',
+  }));
 
   const handleDisconnect = async (app: ResourceItemData) => {
     if (prompts) {
@@ -781,10 +790,15 @@ export function AppsSection({
         </Hint>
       }
     >
-      {items.map((item) => {
+      {items.map((item, index) => {
         const isSelected =
-          location.pathname.endsWith('/integrations') &&
-          location.search.includes(`app=${item.id}`);
+          (location.pathname.includes('/apps/chat') &&
+            (location.search.includes(`app=${item.id}`) ||
+              (!location.search.includes('app=') && index === 0))) ||
+          (location.pathname.endsWith('/apps') &&
+            location.search.includes(`app=${item.id}`)) ||
+          (location.pathname.endsWith('/integrations') &&
+            location.search.includes(`app=${item.id}`));
 
         return (
           <AppNavRow

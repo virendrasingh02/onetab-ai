@@ -125,6 +125,9 @@ const WorkflowExecutionLogsView = lazy(() =>
 const IntegrationHubView = lazy(() =>
   import('@org/web-integrations').then((m) => ({ default: m.IntegrationHubView })),
 );
+const AppChatView = lazy(() =>
+  import('@org/web-integrations').then((m) => ({ default: m.AppChatView })),
+);
 
 
 function NotFoundPage() {
@@ -246,6 +249,9 @@ export function App() {
             <Route path="automations/builder" element={<WorkflowCanvasView />} />
             <Route path="automations/logs" element={<WorkflowExecutionLogsView />} />
             <Route path="integrations" element={<IntegrationHubView />} />
+            <Route path="apps" element={<AppChatView />} />
+            <Route path="apps/chat" element={<AppChatView />} />
+            <Route path="apps/:appId/chat" element={<AppChatView />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>

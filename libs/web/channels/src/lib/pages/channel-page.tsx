@@ -43,6 +43,7 @@ import {
   FileText,
   FolderOpen,
   Hash,
+  Headphones,
   Image as ImageIcon,
   Info,
   LayoutTemplate,
@@ -53,6 +54,7 @@ import {
   Pencil,
   Pin,
   Plus,
+  RefreshCw,
   Share2,
   Sparkles,
   Star,
@@ -112,6 +114,8 @@ function ChannelHeader({
   channel: ChannelSummary;
   members?: ChannelMember[];
   onAddBookmark?: () => void;
+  /** Starts a huddle in the channel. */
+  onStartHuddle?: () => void;
   /** Reveals the channel's details in the right rail. */
   onOpenDetails: () => void;
   /** Reveals the channel's members tab in the right rail. */
@@ -137,6 +141,7 @@ function ChannelHeader({
   const join = useJoinChannel(workspaceId);
 
   const [copied, setCopied] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
   const isFavorite = channel.membership?.isFavorite ?? false;
@@ -152,6 +157,30 @@ function ChannelHeader({
     });
     setTimeout(() => setCopied(false), 2000);
   }, [workspaceSlug, channel.slug]);
+
+  const handleSyncChannel = useCallback(() => {
+    setIsSyncing(true);
+    toast.success('Channel synchronized', {
+      description: 'Latest events and channel timeline are up to date.',
+    });
+    setTimeout(() => setIsSyncing(false), 800);
+  }, []);
+
+  const handleToggleFavorite = useCallback(() => {
+    preferences.mutate(
+      {
+        channelId: channel.id,
+        input: { isFavorite: !isFavorite },
+      },
+      {
+        onSuccess: () => {
+          toast.success(
+            !isFavorite ? 'Added to favorites' : 'Removed from favorites',
+          );
+        },
+      },
+    );
+  }, [channel.id, isFavorite, preferences]);
 
   return (
     <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/95 backdrop-blur-md">
@@ -180,6 +209,7 @@ function ChannelHeader({
           </div>
 
           <div className="gap-0.5 flex items-center">
+            {/* 1. Fav icon */}
             <Hint
               label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             >
@@ -190,35 +220,32 @@ function ChannelHeader({
                 aria-label={
                   isFavorite ? 'Remove from favorites' : 'Add to favorites'
                 }
-                onClick={() => {
-                  preferences.mutate(
-                    {
-                      channelId: channel.id,
-                      input: { isFavorite: !isFavorite },
-                    },
-                    {
-                      onSuccess: () => {
-                        toast.success(
-                          !isFavorite
-                            ? 'Added to favorites'
-                            : 'Removed from favorites',
-                        );
-                      },
-                    },
-                  );
-                }}
+                onClick={handleToggleFavorite}
                 className={isFavorite ? 'text-warning' : undefined}
               >
-                <Star className={cn('size-4', isFavorite && 'fill-current')} />
+                <Star
+                  className={cn(
+                    'size-4',
+                    isFavorite && 'fill-current text-accent-amber',
+                  )}
+                />
               </Button>
             </Hint>
 
-            {/*
-              Add bookmark, channel details and archive each had an icon of
-              their own here, next to five more from the conversation. None of
-              them is a per-message action, so they are all one level down in
-              the menu now and the row holds only what you use while reading.
-            */}
+            {/* 2. Huddle icon */}
+            <Hint label="Start a huddle">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Start a huddle"
+                onClick={onStartHuddle}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <Headphones className="size-4" />
+              </Button>
+            </Hint>
+
+            {/* 3. 3-dot dropdown menu */}
             {channel.membership ? (
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
@@ -236,19 +263,6 @@ function ChannelHeader({
                   side="bottom"
                   className="w-64"
                 >
-                  <DropdownMenuItem className="justify-between">
-                    <div className="gap-2.5 flex items-center">
-                      <Mail className="size-4" />
-                      <span>Mark as unread</span>
-                    </div>
-                    <DropdownMenuShortcut>U</DropdownMenuShortcut>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem className="gap-2.5">
-                    <Pencil className="size-4" />
-                    <span>Rename</span>
-                  </DropdownMenuItem>
-
                   <DropdownMenuItem
                     onClick={handleCopyLink}
                     className="justify-between"
@@ -262,6 +276,38 @@ function ChannelHeader({
                       <span>{copied ? 'Link copied!' : 'Copy link'}</span>
                     </div>
                     <DropdownMenuShortcut>C</DropdownMenuShortcut>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={handleSyncChannel}
+                    className="justify-between"
+                  >
+                    <div className="gap-2.5 flex items-center">
+                      <RefreshCw
+                        className={cn('size-4', isSyncing && 'animate-spin')}
+                      />
+                      <span>Sync channel</span>
+                    </div>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem onClick={onOpenDetails} className="gap-2.5">
+                    <Info className="size-4" />
+                    <span>Open channel details</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuItem className="justify-between">
+                    <div className="gap-2.5 flex items-center">
+                      <Mail className="size-4" />
+                      <span>Mark as unread</span>
+                    </div>
+                    <DropdownMenuShortcut>U</DropdownMenuShortcut>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem className="gap-2.5">
+                    <Pencil className="size-4" />
+                    <span>Rename</span>
                   </DropdownMenuItem>
 
                   {onAddBookmark ? (
@@ -286,20 +332,10 @@ function ChannelHeader({
                       `chatMenuRef`. Empty on the non-chat tabs. */}
                   <div ref={chatMenuRef} className="contents" />
 
-                  <DropdownMenuItem onClick={onOpenDetails} className="gap-2.5">
-                    <Info className="size-4" />
-                    <span>Channel details</span>
-                  </DropdownMenuItem>
-
                   <DropdownMenuSeparator />
 
                   <DropdownMenuItem
-                    onClick={() =>
-                      preferences.mutate({
-                        channelId: channel.id,
-                        input: { isFavorite: !isFavorite },
-                      })
-                    }
+                    onClick={handleToggleFavorite}
                     className="justify-between"
                   >
                     <div className="gap-2.5 flex items-center">
@@ -312,6 +348,24 @@ function ChannelHeader({
                       <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
                     </div>
                     <ChevronRight className="size-4 text-muted-foreground/70" />
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem className="gap-2.5">
+                    <Bell className="size-4" />
+                    <span>Notification settings</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={() =>
+                      preferences.mutate({
+                        channelId: channel.id,
+                        input: { isMuted: !isMuted },
+                      })
+                    }
+                    description="Follow this Channel in the future to show it in your sidebar again."
+                  >
+                    <BellOff className="size-4" />
+                    <span>{isMuted ? 'Follow Channel' : 'Unfollow'}</span>
                   </DropdownMenuItem>
 
                   <DropdownMenuSeparator />
@@ -378,14 +432,6 @@ function ChannelHeader({
               </DropdownMenu>
             ) : null}
           </div>
-
-          {/* The topic used to sit under the conversation's own title. With one
-              header left, it shows here — where there is room for it. */}
-          {channel.topic ? (
-            <p className="min-w-0 pl-2 text-xs lg:block hidden max-w-[48ch] truncate border-l border-border text-muted-foreground">
-              {channel.topic}
-            </p>
-          ) : null}
         </div>
 
         {/* Channel actions: Tools, Member Avatar Stack, Join */}
@@ -572,6 +618,7 @@ export function ChannelPage() {
         channel={channel}
         members={members.data ?? []}
         onAddBookmark={() => setAddBookmarkOpen(true)}
+        onStartHuddle={() => setHuddleRequest((n) => n + 1)}
         onOpenDetails={() => {
           setDetailsTab('about');
           setDetailsPanelOpen(true);

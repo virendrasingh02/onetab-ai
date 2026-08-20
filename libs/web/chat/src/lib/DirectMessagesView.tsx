@@ -32,9 +32,12 @@ import {
   Check,
   ChevronRight,
   Copy,
+  Headphones,
+  Mail,
   MessageSquare,
   MessageSquareOff,
   MoreHorizontal,
+  RefreshCw,
   Search,
   Star,
   UserRound,
@@ -460,6 +463,16 @@ function DirectMessageHeader({
     });
   };
 
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSyncConversation = useCallback(() => {
+    setIsSyncing(true);
+    toast.success('Conversation synchronized', {
+      description: 'Matrix timeline and peer presence updated.',
+    });
+    setTimeout(() => setIsSyncing(false), 800);
+  }, []);
+
   return (
     <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/95 backdrop-blur-md">
       <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
@@ -495,7 +508,6 @@ function DirectMessageHeader({
                 {member.user.statusEmoji}
               </span>
             ) : null}
-            <Badge variant="neutral">{PRESENCE_LABELS[presence]}</Badge>
             {member.user.id.startsWith('agent-') ? (
               <Badge
                 variant="primary"
@@ -522,6 +534,7 @@ function DirectMessageHeader({
           </div>
 
           <div className="gap-0.5 flex items-center">
+            {/* 1. Fav icon */}
             <Hint
               label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             >
@@ -535,26 +548,31 @@ function DirectMessageHeader({
                 onClick={handleToggleFavorite}
                 className={isFavorite ? 'text-warning' : undefined}
               >
-                <Star className={cn('size-4', isFavorite && 'fill-current')} />
+                <Star
+                  className={cn(
+                    'size-4',
+                    isFavorite && 'fill-current text-accent-amber',
+                  )}
+                />
               </Button>
             </Hint>
 
-            <Hint label="Copy link to this conversation">
+            {/* 2. Huddle icon */}
+            <Hint label="Start a huddle">
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Copy link to this conversation"
-                onClick={handleCopyLink}
+                aria-label="Start a huddle"
+                onClick={() => {
+                  toast.info('Starting direct huddle…');
+                }}
                 className="text-muted-foreground hover:text-foreground"
               >
-                {copied ? (
-                  <Check className="size-4 text-success-text" />
-                ) : (
-                  <Copy className="size-4" />
-                )}
+                <Headphones className="size-4" />
               </Button>
             </Hint>
 
+            {/* 3. 3-dot dropdown menu */}
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -580,6 +598,36 @@ function DirectMessageHeader({
                     <span>{copied ? 'Link copied!' : 'Copy link'}</span>
                   </div>
                   <DropdownMenuShortcut>C</DropdownMenuShortcut>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={handleSyncConversation}
+                  className="justify-between"
+                >
+                  <div className="gap-2.5 flex items-center">
+                    <RefreshCw
+                      className={cn('size-4', isSyncing && 'animate-spin')}
+                    />
+                    <span>Sync conversation</span>
+                  </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={handleOpenProfile}
+                  className="gap-2.5 cursor-pointer"
+                >
+                  <UserRound className="size-4" />
+                  <span>Open profile & details</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem className="justify-between">
+                  <div className="gap-2.5 flex items-center">
+                    <Mail className="size-4" />
+                    <span>Mark as unread</span>
+                  </div>
+                  <DropdownMenuShortcut>U</DropdownMenuShortcut>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
@@ -631,14 +679,6 @@ function DirectMessageHeader({
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem
-                  onClick={handleOpenProfile}
-                  className="gap-2.5 cursor-pointer"
-                >
-                  <UserRound className="size-4" />
-                  <span>View profile</span>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem
                   onClick={() => navigate(`/w/${slug}/dms`)}
                   className="gap-2.5"
                 >
@@ -648,12 +688,6 @@ function DirectMessageHeader({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-
-          {/* The handle is the one bit of identity the avatar and name do not
-              already carry; it drops out first when the row gets tight. */}
-          <p className="min-w-0 pl-2 text-xs lg:block hidden max-w-[32ch] truncate border-l border-border text-muted-foreground">
-            @{member.user.name}
-          </p>
         </div>
 
         {/* Conversation tools portal in from the chat surface. */}

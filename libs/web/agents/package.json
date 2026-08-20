@@ -21,6 +21,7 @@
     "@org/types": "*",
     "@org/ui": "*",
     "@org/utils": "*",
+    "@org/web-chat": "*",
     "@org/web-workspace": "*",
     "@tanstack/react-query": "^5.101.4",
     "@xyflow/react": "^12.11.2",

@@ -1,6 +1,29 @@
-import { Badge, Button, ScrollArea } from '@org/ui';
-import { RotateCcw, Sparkles } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import {
+  Badge,
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Hint,
+  ScrollArea,
+  toast,
+} from '@org/ui';
+import { cn } from '@org/utils';
+import {
+  Check,
+  Copy,
+  Headphones,
+  Info,
+  MoreHorizontal,
+  RefreshCw,
+  RotateCcw,
+  Settings,
+  Sparkles,
+  Star,
+} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { AIComposer } from './ai-composer.js';
 import { AIErrorRow, AIMessage, AIThinkingRow } from './ai-message.js';
 import { useAIConversation } from './use-ai-conversation.js';
@@ -15,6 +38,8 @@ import { useAIConversation } from './use-ai-conversation.js';
  */
 export function AIChatView() {
   const chat = useAIConversation();
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const streamEndRef = useRef<HTMLDivElement>(null);
 
@@ -23,6 +48,19 @@ export function AIChatView() {
   useEffect(() => {
     streamEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [chat.messages, chat.isThinking]);
+
+  const handleCopy = () => {
+    const transcript = chat.messages.map((m) => `${m.role}: ${m.content}`).join('\n\n');
+    navigator.clipboard.writeText(transcript || window.location.href);
+    setCopied(true);
+    toast.success('Copied to clipboard');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleToggleFavorite = () => {
+    setIsFavorite(!isFavorite);
+    toast.success(!isFavorite ? 'Added to favorites' : 'Removed from favorites');
+  };
 
   const composer = (
     <AIComposer
@@ -72,27 +110,110 @@ export function AIChatView() {
         </div>
       ) : (
         <>
-          <header className="max-w-3xl gap-3 px-4 py-2 mb-3 flex w-full shrink-0 items-center justify-between border-b border-border">
-            <span className="gap-2 min-w-0 flex items-center">
+          <header className="max-w-3xl gap-3 px-4 py-2.5 mb-2 flex w-full shrink-0 items-center justify-between border-b border-border">
+            <div className="gap-2 min-w-0 flex items-center">
               <span className="size-7 shrink-0 flex items-center justify-center rounded-full bg-primary text-primary-foreground">
                 <Sparkles className="size-3.5" aria-hidden />
               </span>
               <span className="font-semibold text-sm truncate">
                 AI Assistant
               </span>
-              <Badge variant="outline" className="shrink-0 text-[10px]">
-                {chat.modelLabel}
-              </Badge>
-            </span>
+            </div>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={chat.reset}
-              leadingIcon={<RotateCcw className="size-3.5" />}
-            >
-              New chat
-            </Button>
+            <div className="flex items-center gap-1">
+              {/* 1. Fav icon */}
+              <Hint
+                label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+              >
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-pressed={isFavorite}
+                  aria-label={
+                    isFavorite ? 'Remove from favorites' : 'Add to favorites'
+                  }
+                  onClick={handleToggleFavorite}
+                  className={isFavorite ? 'text-warning' : undefined}
+                >
+                  <Star
+                    className={cn(
+                      'size-4',
+                      isFavorite && 'fill-current text-accent-amber',
+                    )}
+                  />
+                </Button>
+              </Hint>
+
+              {/* 2. Huddle icon */}
+              <Hint label="Start a voice huddle with AI">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Start a voice huddle"
+                  onClick={() => {
+                    toast.info('Starting voice copilot huddle…');
+                  }}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <Headphones className="size-4" />
+                </Button>
+              </Hint>
+
+              {/* 3. 3-dot dropdown menu */}
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="AI Options"
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <MoreHorizontal className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" side="bottom" className="w-60">
+                  <DropdownMenuItem onClick={handleCopy} className="justify-between">
+                    <div className="gap-2.5 flex items-center">
+                      {copied ? (
+                        <Check className="size-4 text-success-text" />
+                      ) : (
+                        <Copy className="size-4" />
+                      )}
+                      <span>Copy transcript</span>
+                    </div>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem onClick={chat.reset} className="justify-between">
+                    <div className="gap-2.5 flex items-center">
+                      <RotateCcw className="size-4" />
+                      <span>Sync &amp; Clear context</span>
+                    </div>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+                    onClick={() => {
+                      toast.info(`Active Model: ${chat.modelLabel} · Context: Workspace Index`);
+                    }}
+                    className="gap-2.5"
+                  >
+                    <Info className="size-4" />
+                    <span>Model details</span>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuItem onClick={handleToggleFavorite} className="gap-2.5">
+                    <Star
+                      className={cn(
+                        'size-4',
+                        isFavorite && 'fill-current text-accent-amber',
+                      )}
+                    />
+                    <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </header>
 
           {/* `min-h-0` is what lets the transcript scroll: without it this flex
