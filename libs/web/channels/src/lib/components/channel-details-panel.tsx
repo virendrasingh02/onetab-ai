@@ -567,6 +567,7 @@ function MembersTab({
   onAddPeople: () => void;
 }) {
   const [query, setQuery] = useState('');
+  const openProfilePanel = useRightPanelStore((s) => s.openProfile);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -619,24 +620,38 @@ function MembersTab({
         ) : (
           <ul className="space-y-0.5">
             {filtered.map((member) => (
-              <li
-                key={member.id}
-                className="gap-2.5 px-2 py-1.5 flex items-center rounded-btn hover:bg-accent/60"
-              >
-                <UserAvatar
-                  name={member.user.displayName ?? member.user.name}
-                  src={member.user.avatarUrl ?? undefined}
-                  seed={member.user.id}
-                  size="xs"
-                />
-                <span className="min-w-0 text-xs font-medium flex-1 truncate">
-                  {member.user.displayName ?? member.user.name}
-                </span>
-                {member.role === 'ADMIN' ? (
-                  <Badge variant="neutral" className="text-[10px]">
-                    Admin
-                  </Badge>
-                ) : null}
+              <li key={member.id}>
+                <button
+                  type="button"
+                  onClick={() =>
+                    openProfilePanel({
+                      userId: member.user.id,
+                      name: member.user.displayName ?? member.user.name,
+                      avatarUrl: member.user.avatarUrl ?? undefined,
+                      email: member.user.email,
+                      role: member.role,
+                      timezone: member.user.timezone,
+                      statusEmoji: member.user.statusEmoji,
+                      statusText: member.user.statusText,
+                    })
+                  }
+                  className="gap-2.5 px-2 py-1.5 flex w-full items-center rounded-btn hover:bg-accent/60 text-left transition-colors cursor-pointer"
+                >
+                  <UserAvatar
+                    name={member.user.displayName ?? member.user.name}
+                    src={member.user.avatarUrl ?? undefined}
+                    seed={member.user.id}
+                    size="xs"
+                  />
+                  <span className="min-w-0 text-xs font-medium flex-1 truncate">
+                    {member.user.displayName ?? member.user.name}
+                  </span>
+                  {member.role === 'ADMIN' ? (
+                    <Badge variant="neutral" className="text-[10px]">
+                      Admin
+                    </Badge>
+                  ) : null}
+                </button>
               </li>
             ))}
           </ul>

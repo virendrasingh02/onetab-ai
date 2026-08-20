@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
   Hint,
   LocalTime,
+  toast,
   UserAvatar,
   useFocusStore,
   useRightPanelStore,
@@ -35,6 +36,7 @@ import {
   Target,
   User as UserIcon,
 } from 'lucide-react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { WorkspaceMenu } from './workspace-switcher.js';
 
@@ -86,6 +88,7 @@ export function AppHeader({
   const openStatusModal = useFocusStore((s) => s.openStatusModal);
   const openWorldClock = useWorldClockStore((s) => s.openWorldClock);
   const openProfilePanel = useRightPanelStore((s) => s.openProfile);
+  const [isSelfAway, setIsSelfAway] = useState(false);
 
   const formatFocusTime = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -211,13 +214,6 @@ export function AppHeader({
           </Hint>
         ) : null}
 
-        {/*
-          Focus Mode and the local clock used to sit here as permanent controls.
-          Neither is something you act on while reading a channel, and between
-          them they took a third of the right-hand run — they now live in the
-          account menu below, where the same two entries already existed.
-        */}
-
         {/* Mobile Search Button */}
         <Hint label="Search">
           <Button
@@ -273,78 +269,117 @@ export function AppHeader({
                 src={user.avatarUrl}
                 seed={user.id}
                 size="sm"
-                presence="online"
+                presence={isSelfAway ? 'away' : 'online'}
                 statusEmoji={user.statusEmoji}
                 statusText={user.statusText}
               />
             </button>
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent align="end" className="w-56 p-1.5">
-            <DropdownMenuLabel className="font-normal">
-              <span className="text-xs font-medium block truncate">
-                {user.displayName ?? user.name}
-              </span>
-              <span className="block truncate text-[11px] text-subtle">
-                {user.email}
-              </span>
-              <Link
-                to={`/w/${workspaceSlug}/settings`}
-                className="mt-1 gap-1.5 flex items-center text-[11px] text-muted-foreground hover:text-foreground"
-              >
-                <LocalTime timezone={user.timezone} icon showOffset />
-                <span className="truncate">
-                  · {describeTimezone(user.timezone)}
-                </span>
-              </Link>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator className="my-1" />
-
-            <DropdownMenuItem
-              onClick={openStatusModal}
-              className="text-xs gap-2 cursor-pointer"
+          <DropdownMenuContent
+            align="end"
+            sideOffset={6}
+            className="w-64 sm:w-72 p-2 rounded-2xl border border-border bg-popover text-foreground shadow-2xl space-y-1 select-none animate-in fade-in zoom-in-95 duration-100"
+          >
+            {/* Header Identity Row: Square avatar, name, active status */}
+            <div
+              onClick={() => {
+                openProfilePanel({
+                  userId: user.id,
+                  name: user.displayName ?? user.name,
+                  avatarUrl: user.avatarUrl ?? undefined,
+                  email: user.email,
+                  bio: user.bio ?? undefined,
+                  joinedAt: user.createdAt,
+                  timezone: user.timezone,
+                  statusEmoji: user.statusEmoji,
+                  statusText: user.statusText,
+                  status: isSelfAway ? 'unavailable' : 'online',
+                });
+              }}
+              className="gap-3 p-2 flex items-center rounded-xl cursor-pointer hover:bg-accent/60 transition-colors"
             >
-              <Smile className="size-3.5 shrink-0 text-primary" />
-              <div className="flex-1 truncate">
-                {user.statusText ? (
-                  <div className="gap-1.5 flex items-center truncate">
-                    <span>{user.statusEmoji || '💬'}</span>
-                    <span className="truncate">{user.statusText}</span>
-                  </div>
-                ) : (
-                  'Set a status'
-                )}
+              <UserAvatar
+                name={user.displayName ?? user.name}
+                src={user.avatarUrl}
+                seed={user.id}
+                shape="rounded"
+                size="md"
+                presence={isSelfAway ? 'away' : 'online'}
+                className="size-10 rounded-xl ring-1 ring-border/50 shrink-0"
+              />
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-bold tracking-tight text-foreground truncate">
+                  {user.displayName ?? user.name}
+                </h4>
+                <div className="gap-1.5 mt-0.5 flex items-center">
+                  <span
+                    className={cn(
+                      'size-2 rounded-full shrink-0',
+                      isSelfAway ? 'bg-warning' : 'bg-success',
+                    )}
+                  />
+                  <span className="text-xs text-muted-foreground font-medium">
+                    {isSelfAway ? 'Away' : 'Active'}
+                  </span>
+                </div>
               </div>
-            </DropdownMenuItem>
+            </div>
 
+            {/* Update your status button box */}
+            <div className="py-1">
+              <button
+                type="button"
+                onClick={openStatusModal}
+                className="gap-2.5 px-3 py-2 w-full flex items-center rounded-xl border border-border/80 bg-surface-inset/60 text-muted-foreground hover:text-foreground hover:bg-surface-inset hover:border-border transition-colors text-left"
+              >
+                <Smile className="size-4 shrink-0 text-muted-foreground" />
+                <span className="text-xs font-medium truncate">
+                  {user.statusText ? (
+                    <span className="text-foreground">
+                      {user.statusEmoji ? `${user.statusEmoji} ` : ''}
+                      {user.statusText}
+                    </span>
+                  ) : (
+                    'Update your status'
+                  )}
+                </span>
+              </button>
+            </div>
+
+            {/* Set yourself as away */}
             <DropdownMenuItem
-              onClick={openFocusModal}
-              className="text-xs gap-2 cursor-pointer"
+              onClick={() => {
+                setIsSelfAway((prev) => !prev);
+                toast.success(
+                  !isSelfAway ? 'Status set to away' : 'Status set to active',
+                );
+              }}
+              className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60"
             >
-              <Target className="size-3.5 shrink-0 text-primary" />
               <span>
-                {isFocusActive
-                  ? `Focusing (${formatFocusTime(remainingSeconds)})`
-                  : 'Focus Mode'}
+                Set yourself as{' '}
+                <strong>{isSelfAway ? 'active' : 'away'}</strong>
               </span>
             </DropdownMenuItem>
 
+            {/* Notifications */}
             <DropdownMenuItem
-              onClick={openWorldClock}
-              className="text-xs gap-2 cursor-pointer"
+              onClick={() =>
+                navigate(`/w/${workspaceSlug}/settings?tab=notifications`)
+              }
+              className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60 justify-between"
             >
-              <Globe className="size-3.5 shrink-0 text-primary" />
-              <span>Team Time Zones & Clock</span>
+              <span>Notifications</span>
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <span>On</span>
+                <ChevronRight className="size-3.5 text-muted-foreground/70" />
+              </span>
             </DropdownMenuItem>
 
-            <DropdownMenuSeparator className="my-1" />
+            <DropdownMenuSeparator className="my-1 border-border/60" />
 
-            {/*
-              Profile opens the right rail rather than routing. The `/profile`
-              route rendered the settings page verbatim, so "Profile" and
-              "Settings" led to the same screen; the rail is the one place that
-              actually shows a person.
-            */}
+            {/* Profile (opens right rail) */}
             <DropdownMenuItem
               onClick={() =>
                 openProfilePanel({
@@ -357,44 +392,45 @@ export function AppHeader({
                   timezone: user.timezone,
                   statusEmoji: user.statusEmoji,
                   statusText: user.statusText,
+                  status: isSelfAway ? 'unavailable' : 'online',
                 })
               }
-              className="text-xs gap-2 cursor-pointer"
+              className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60"
             >
-              <UserIcon className="size-3.5" />
               Profile
             </DropdownMenuItem>
-            <DropdownMenuItem asChild className="text-xs cursor-pointer">
-              <Link to={`/w/${workspaceSlug}/settings`}>
-                <Settings className="size-3.5" />
-                Settings
-              </Link>
-            </DropdownMenuItem>
 
-            <DropdownMenuSeparator className="my-1" />
-            <DropdownMenuLabel className="font-medium text-[11px] text-subtle">
-              Appearance
-            </DropdownMenuLabel>
+            {/* Preferences */}
             <DropdownMenuItem
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="text-xs cursor-pointer"
+              asChild
+              className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60"
             >
-              {theme === 'dark' ? (
-                <Sun className="size-3.5" />
-              ) : (
-                <Moon className="size-3.5" />
-              )}
-              {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+              <Link to={`/w/${workspaceSlug}/settings`}>Preferences</Link>
             </DropdownMenuItem>
 
-            <DropdownMenuSeparator className="my-1" />
+            <DropdownMenuSeparator className="my-1 border-border/60" />
+
+            {/* Downloads */}
             <DropdownMenuItem
-              variant="destructive"
+              onClick={() => void openExternal('https://github.com/onetab-ai')}
+              className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60 justify-between"
+            >
+              <span>Downloads</span>
+              <span className="text-[11px] font-mono text-muted-foreground">
+                {isApple ? '⌘Shift J' : 'Ctrl+Shift+J'}
+              </span>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator className="my-1 border-border/60" />
+
+            {/* Sign out */}
+            <DropdownMenuItem
               onClick={() => logout.mutate()}
-              className="text-xs cursor-pointer"
+              className="px-2.5 py-2 text-xs font-medium text-destructive cursor-pointer rounded-lg hover:bg-destructive/10"
             >
-              <LogOut className="size-3.5" />
-              Sign out
+              <span>
+                Sign out of {currentWorkspace?.name ?? 'relibit labs'}
+              </span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

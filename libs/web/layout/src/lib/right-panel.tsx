@@ -50,9 +50,14 @@ export function RightPanel({
   const hosted = useRightPanelStore((s) => s.hosted);
   const setSlot = useRightPanelStore((s) => s.setSlot);
 
-  /* There is no per-person DM route yet, only the DM list. */
   const openDirectMessage = useCallback(
-    () => navigate(`/w/${workspaceSlug}/dms`),
+    (targetUserId?: string) => {
+      if (targetUserId) {
+        navigate(`/w/${workspaceSlug}/dms?user=${targetUserId}`);
+      } else {
+        navigate(`/w/${workspaceSlug}/dms`);
+      }
+    },
     [navigate, workspaceSlug],
   );
 

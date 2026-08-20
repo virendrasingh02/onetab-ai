@@ -14,6 +14,7 @@ import {
   SearchInput,
   SkeletonList,
   UserAvatar,
+  useRightPanelStore,
 } from '@org/ui';
 import { formatRelative } from '@org/utils';
 import { useCurrentWorkspace } from '@org/web-workspace';
@@ -34,6 +35,7 @@ export function MembersPage() {
   const members = useMembers(workspaceId);
   const { updateRole, remove } = useMemberMutations(workspaceId);
   const currentUser = useCurrentUser();
+  const openProfilePanel = useRightPanelStore((s) => s.openProfile);
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
 
@@ -115,41 +117,60 @@ export function MembersPage() {
             const isOwner = member.role === WorkspaceRole.OWNER;
 
             return (
-              <li key={member.id} className="gap-3 px-4 py-3 flex items-center">
-                <UserAvatar
-                  name={member.user.displayName ?? member.user.name}
-                  src={member.user.avatarUrl}
-                  seed={member.user.id}
-                  presence={
-                    member.user.presence === 'ONLINE' ? 'online' : 'offline'
+              <li key={member.id} className="gap-3 px-4 py-3 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() =>
+                    openProfilePanel({
+                      userId: member.user.id,
+                      name: member.user.displayName ?? member.user.name,
+                      avatarUrl: member.user.avatarUrl ?? undefined,
+                      email: member.user.email,
+                      role: member.role,
+                      timezone: member.user.timezone,
+                      statusEmoji: member.user.statusEmoji,
+                      statusText: member.user.statusText,
+                      status:
+                        member.user.presence === 'ONLINE' ? 'online' : 'offline',
+                    })
                   }
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">
-                    {member.user.displayName ?? member.user.name}
-                    {isSelf ? (
-                      <span className="font-normal text-muted-foreground">
-                        {' '}
-                        (you)
-                      </span>
-                    ) : null}
-                  </p>
-                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <span>Joined {formatRelative(member.joinedAt)}</span>
-                    {/*
-                      Their local time, ticking, from their own profile zone —
-                      the thing you actually want to know before pinging someone
-                      in a workspace spread across timezones.
-                    */}
-                    <span aria-hidden>·</span>
-                    <LocalTime
-                      timezone={member.user.timezone}
-                      icon
-                      withHint
-                      hintName={member.user.displayName ?? member.user.name}
-                    />
-                  </p>
-                </div>
+                  className="gap-3 min-w-0 flex flex-1 items-center text-left cursor-pointer hover:opacity-80 transition-opacity"
+                >
+                  <UserAvatar
+                    name={member.user.displayName ?? member.user.name}
+                    src={member.user.avatarUrl}
+                    seed={member.user.id}
+                    presence={
+                      member.user.presence === 'ONLINE' ? 'online' : 'offline'
+                    }
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate hover:underline">
+                      {member.user.displayName ?? member.user.name}
+                      {isSelf ? (
+                        <span className="font-normal text-muted-foreground">
+                          {' '}
+                          (you)
+                        </span>
+                      ) : null}
+                    </p>
+                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span>Joined {formatRelative(member.joinedAt)}</span>
+                      {/*
+                        Their local time, ticking, from their own profile zone —
+                        the thing you actually want to know before pinging someone
+                        in a workspace spread across timezones.
+                      */}
+                      <span aria-hidden>·</span>
+                      <LocalTime
+                        timezone={member.user.timezone}
+                        icon
+                        withHint
+                        hintName={member.user.displayName ?? member.user.name}
+                      />
+                    </p>
+                  </div>
+                </button>
 
                 <Badge variant={ROLE_BADGE[member.role] ?? 'neutral'}>
                   {member.role.toLowerCase()}

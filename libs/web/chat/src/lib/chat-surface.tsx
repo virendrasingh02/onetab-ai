@@ -278,6 +278,8 @@ export function ChatSurface({
     ? (repliesByRoot.get(threadRootId) ?? [])
     : [];
 
+  const openProfilePanel = useRightPanelStore((s) => s.openProfile);
+
   const handleOpenUserProfile = useCallback(
     (user: {
       userId: string;
@@ -286,10 +288,15 @@ export function ChatSurface({
       role?: string;
       powerLevel?: number;
     }) => {
-      setSelectedUser(user);
-      setPanel('user-profile');
+      openProfilePanel({
+        userId: user.userId,
+        name: user.name,
+        avatarUrl: user.avatarUrl,
+        role: user.role,
+        powerLevel: user.powerLevel,
+      });
     },
-    [],
+    [openProfilePanel],
   );
 
   const renderMessage = useCallback(

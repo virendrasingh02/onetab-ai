@@ -19,6 +19,7 @@ import {
   toast,
   toPresenceStatus,
   UserAvatar,
+  useRightPanelStore,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useMembers } from '@org/web-members';
@@ -197,6 +198,7 @@ function DirectMessageHeader({
 }) {
   const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
   const preferences = useDirectMessagePreferences(workspaceId);
+  const openProfilePanel = useRightPanelStore((s) => s.openProfile);
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
 
@@ -206,6 +208,25 @@ function DirectMessageHeader({
 
   const isFavorite = preferences.isFavorite(member.user.id);
   const isMuted = preferences.isMuted(member.user.id);
+
+  const handleOpenProfile = () => {
+    openProfilePanel({
+      userId: member.user.id,
+      name,
+      avatarUrl: member.user.avatarUrl ?? undefined,
+      email: member.user.email,
+      role: member.role,
+      timezone: member.user.timezone,
+      statusEmoji: member.user.statusEmoji,
+      statusText: member.user.statusText,
+      status:
+        presence === 'online'
+          ? 'online'
+          : presence === 'away'
+            ? 'unavailable'
+            : 'offline',
+    });
+  };
 
   const handleCopyLink = () => {
     const url = `${window.location.origin}/w/${slug}/dms?user=${member.user.id}`;
@@ -239,17 +260,24 @@ function DirectMessageHeader({
       <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
         <div className="min-w-0 gap-2 flex items-center">
           <div className="min-w-0 gap-2 flex items-center">
-            <UserAvatar
-              name={name}
-              src={member.user.avatarUrl}
-              seed={member.user.id}
-              presence={presence}
-              size="sm"
-              className="size-7"
-            />
-            <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
-              {name}
-            </h2>
+            <button
+              type="button"
+              onClick={handleOpenProfile}
+              className="gap-2 flex items-center rounded-md hover:bg-accent/60 p-1 -m-1 transition-colors text-left cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              aria-label={`View ${name}'s profile`}
+            >
+              <UserAvatar
+                name={name}
+                src={member.user.avatarUrl}
+                seed={member.user.id}
+                presence={presence}
+                size="sm"
+                className="size-7"
+              />
+              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground hover:underline">
+                {name}
+              </h2>
+            </button>
             {member.user.statusEmoji ? (
               <span
                 className="text-xs select-none"
@@ -381,8 +409,8 @@ function DirectMessageHeader({
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem
-                  onClick={() => navigate(`/w/${slug}/members`)}
-                  className="gap-2.5"
+                  onClick={handleOpenProfile}
+                  className="gap-2.5 cursor-pointer"
                 >
                   <UserRound className="size-4" />
                   <span>View profile</span>
