@@ -13,13 +13,14 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import {
+  AllowArchivedWorkspace,
   CurrentUser,
+  RequireWorkspacePermissions,
   WorkspaceId,
   WorkspaceMemberRole,
-  WorkspaceRoles,
   zodBody,
 } from '@org/api-common';
-import { WorkspaceRole } from '@org/types';
+import { WorkspacePermission, WorkspaceRole } from '@org/types';
 import {
   acceptInvitationSchema,
   inviteMembersSchema,
@@ -41,7 +42,7 @@ export class MemberController {
   }
 
   @Patch(':userId/role')
-  @WorkspaceRoles(WorkspaceRole.ADMIN)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_MEMBERS)
   @HttpCode(HttpStatus.NO_CONTENT)
   updateRole(
     @WorkspaceId() workspaceId: string,
@@ -53,7 +54,7 @@ export class MemberController {
   }
 
   @Delete(':userId')
-  @WorkspaceRoles(WorkspaceRole.ADMIN)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_MEMBERS)
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(
     @WorkspaceId() workspaceId: string,
@@ -64,6 +65,7 @@ export class MemberController {
   }
 
   @Post('leave')
+  @AllowArchivedWorkspace()
   @HttpCode(HttpStatus.NO_CONTENT)
   leave(
     @WorkspaceId() workspaceId: string,
@@ -82,13 +84,13 @@ export class InvitationController {
   ) {}
 
   @Get()
-  @WorkspaceRoles(WorkspaceRole.ADMIN)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_MEMBERS)
   list(@WorkspaceId() workspaceId: string) {
     return this.members.listInvitations(workspaceId);
   }
 
   @Post()
-  @WorkspaceRoles(WorkspaceRole.ADMIN)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_MEMBERS)
   invite(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
@@ -99,7 +101,7 @@ export class InvitationController {
   }
 
   @Delete(':invitationId')
-  @WorkspaceRoles(WorkspaceRole.ADMIN)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_MEMBERS)
   @HttpCode(HttpStatus.NO_CONTENT)
   revoke(
     @WorkspaceId() workspaceId: string,

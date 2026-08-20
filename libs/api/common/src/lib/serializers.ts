@@ -6,6 +6,7 @@ import type {
   PublicUser,
   Upload,
   Workspace,
+  WorkspaceStatus,
 } from '@org/types';
 
 /**
@@ -59,6 +60,8 @@ interface WorkspaceRow {
   icon: string | null;
   iconColor: string | null;
   ownerId: string;
+  status: string;
+  archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -73,6 +76,8 @@ export function toWorkspace(workspace: WorkspaceRow): Workspace {
     icon: workspace.icon,
     iconColor: workspace.iconColor,
     ownerId: workspace.ownerId,
+    status: workspace.status as WorkspaceStatus,
+    archivedAt: workspace.archivedAt?.toISOString() ?? null,
     createdAt: workspace.createdAt.toISOString(),
     updatedAt: workspace.updatedAt.toISOString(),
   };

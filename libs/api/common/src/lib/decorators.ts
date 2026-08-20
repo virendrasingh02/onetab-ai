@@ -3,7 +3,11 @@ import {
   createParamDecorator,
   type ExecutionContext,
 } from '@nestjs/common';
-import type { SystemRole, WorkspaceRole } from '@org/types';
+import type {
+  SystemRole,
+  WorkspacePermission,
+  WorkspaceRole,
+} from '@org/types';
 
 /** Identity attached to the request by JwtStrategy. */
 export interface AuthenticatedUser {
@@ -36,6 +40,31 @@ export const WORKSPACE_ROLES_KEY = 'workspaceRoles';
 export const WorkspaceRoles = (...roles: WorkspaceRole[]) =>
   SetMetadata(WORKSPACE_ROLES_KEY, roles);
 
+export const WORKSPACE_PERMISSIONS_KEY = 'workspacePermissions';
+/**
+ * Capabilities the route requires, all of which the caller must hold.
+ *
+ * Prefer this to `@WorkspaceRoles()` for anything new. A route that asks for
+ * `MANAGE_MEMBERS` keeps saying what it means when the role table changes,
+ * whereas "at least ADMIN" silently becomes wrong the moment a role exists
+ * that outranks ADMIN without managing members. Enforced by
+ * `WorkspaceRoleGuard` against the shared grant table in `@org/types`.
+ */
+export const RequireWorkspacePermissions = (
+  ...permissions: WorkspacePermission[]
+) => SetMetadata(WORKSPACE_PERMISSIONS_KEY, permissions);
+
+export const ALLOW_ARCHIVED_KEY = 'allowArchivedWorkspace';
+/**
+ * Lets a route run against an archived workspace.
+ *
+ * Archiving freezes writes, so mutating routes are refused by default. The
+ * handful that must still work — unarchiving it, deleting it, leaving it —
+ * opt back in with this.
+ */
+export const AllowArchivedWorkspace = () =>
+  SetMetadata(ALLOW_ARCHIVED_KEY, true);
+
 /** Injects the authenticated user, or one of its fields. */
 export const CurrentUser = createParamDecorator(
   (field: keyof AuthenticatedUser | undefined, ctx: ExecutionContext) => {
@@ -63,5 +92,20 @@ export const WorkspaceMemberRole = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext) => {
     const request = ctx.switchToHttp().getRequest();
     return request.workspaceRole as WorkspaceRole | undefined;
+  },
+);
+
+/**
+ * Injects every permission the caller holds in the resolved workspace.
+ *
+ * For handlers that shape a response by capability — returning the actions a
+ * client may offer — rather than gating the route outright.
+ */
+export const WorkspacePermissions = createParamDecorator(
+  (_data: unknown, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest();
+    return request.workspacePermissions as
+      | readonly WorkspacePermission[]
+      | undefined;
   },
 );

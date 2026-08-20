@@ -11,7 +11,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { WorkspaceRoleGuard } from '@org/api-auth';
-import { CurrentUser, WorkspaceId } from '@org/api-common';
+import {
+  CurrentUser,
+  RequireWorkspacePermissions,
+  WorkspaceId,
+} from '@org/api-common';
+import { WorkspacePermission } from '@org/types';
 import { AgentsService } from './agents.service.js';
 
 /**
@@ -45,6 +50,7 @@ export class AgentsController {
   }
 
   @Post()
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   createAgent(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
@@ -65,6 +71,7 @@ export class AgentsController {
   }
 
   @Patch(':agentId')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   updateAgent(
     @WorkspaceId() workspaceId: string,
     @Param('agentId') agentId: string,
@@ -85,6 +92,7 @@ export class AgentsController {
   }
 
   @Delete(':agentId')
+  @RequireWorkspacePermissions(WorkspacePermission.DELETE)
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteAgent(
     @WorkspaceId() workspaceId: string,
@@ -94,6 +102,7 @@ export class AgentsController {
   }
 
   @Post(':agentId/execute')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   executeAgent(
     @WorkspaceId() workspaceId: string,
     @Param('agentId') agentId: string,

@@ -2,10 +2,13 @@ import type {
   ChannelRole,
   ChannelVisibility,
   InvitationStatus,
+  MembershipStatus,
   PresenceStatus,
   SystemRole,
   WorkspaceRole,
+  WorkspaceStatus,
 } from './enums.js';
+import type { WorkspacePermission } from './permissions.js';
 
 /** ISO-8601 timestamp. Transport is always a string; parse at the edge. */
 export type IsoDateString = string;
@@ -62,13 +65,23 @@ export interface Workspace extends IconSelection {
   description: string | null;
   avatarUrl: string | null;
   ownerId: string;
+  status: WorkspaceStatus;
+  archivedAt: IsoDateString | null;
   createdAt: IsoDateString;
   updatedAt: IsoDateString;
 }
 
-/** A workspace in the switcher, with the viewer's own role attached. */
+/**
+ * A workspace in the switcher, with the viewer's own standing attached.
+ *
+ * `permissions` is derived from `role` server-side and shipped alongside it so
+ * the client can disable an action it is not allowed to take. It is a hint for
+ * the interface only — the API re-derives it on every request and never reads
+ * it back from the browser.
+ */
 export interface WorkspaceSummary extends Workspace {
   role: WorkspaceRole;
+  permissions: readonly WorkspacePermission[];
   memberCount: number;
   channelCount: number;
 }
@@ -77,6 +90,7 @@ export interface WorkspaceMember {
   id: string;
   workspaceId: string;
   role: WorkspaceRole;
+  status: MembershipStatus;
   joinedAt: IsoDateString;
   user: PublicUser;
 }

@@ -176,6 +176,42 @@ export function useUpdateWorkspace(workspaceId: string | undefined) {
   });
 }
 
+/**
+ * Archives or restores the workspace.
+ *
+ * Both directions are one hook because they are one control in the UI, and
+ * both invalidate the same thing: `status` rides on every workspace payload,
+ * and the screens that gate writes on it need the fresh value immediately.
+ *
+ * Account-scoped caches are dropped too — everything already fetched was
+ * fetched under the old status, and a board still offering an "Add task"
+ * button after freezing would be lying to the user.
+ */
+export function useSetWorkspaceArchived(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (archived: boolean) =>
+      archived
+        ? workspaceApi.archive(workspaceId as string)
+        : workspaceApi.restore(workspaceId as string),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all() });
+      if (workspaceId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.members.all(workspaceId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.workTools.all(workspaceId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.channels.all(workspaceId),
+        });
+      }
+    },
+  });
+}
+
 export function useDeleteWorkspace() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();

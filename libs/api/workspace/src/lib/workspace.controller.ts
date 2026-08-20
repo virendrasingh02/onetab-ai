@@ -17,15 +17,17 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
+  AllowArchivedWorkspace,
   CurrentUser,
   Public,
+  RequireWorkspacePermissions,
   WorkspaceId,
   WorkspaceRoles,
   zodBody,
 } from '@org/api-common';
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import type { IncomingFile } from '@org/api-storage';
-import { WorkspaceRole } from '@org/types';
+import { WorkspacePermission, WorkspaceRole } from '@org/types';
 import {
   createWorkspaceSchema,
   updateWorkspaceSchema,
@@ -68,7 +70,7 @@ export class WorkspaceController {
    */
   @Post(':workspaceId/logo')
   @UseGuards(WorkspaceRoleGuard)
-  @WorkspaceRoles(WorkspaceRole.ADMIN)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   @UseInterceptors(
     // Buffered in memory: a logo is small, and multer's disk mode would put a
     // caller-influenced filename on disk before we can vet it.
@@ -103,7 +105,7 @@ export class WorkspaceController {
 
   @Delete(':workspaceId/logo')
   @UseGuards(WorkspaceRoleGuard)
-  @WorkspaceRoles(WorkspaceRole.ADMIN)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   removeLogo(@WorkspaceId() workspaceId: string) {
     return this.workspaces.removeLogo(workspaceId);
   }
@@ -119,7 +121,7 @@ export class WorkspaceController {
 
   @Patch(':workspaceId')
   @UseGuards(WorkspaceRoleGuard)
-  @WorkspaceRoles(WorkspaceRole.ADMIN)
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   update(
     @WorkspaceId() workspaceId: string,
     @Body(zodBody(updateWorkspaceSchema)) body: UpdateWorkspaceInput,
@@ -130,12 +132,41 @@ export class WorkspaceController {
   @Delete(':workspaceId')
   @UseGuards(WorkspaceRoleGuard)
   @WorkspaceRoles(WorkspaceRole.OWNER)
+  @AllowArchivedWorkspace()
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
   ): Promise<void> {
     return this.workspaces.remove(workspaceId, userId);
+  }
+
+  /**
+   * Freezes the workspace. Members keep read access; every write is refused
+   * until it is restored. Data is untouched, which is what makes this the
+   * step to reach for before `DELETE`.
+   */
+  @Post(':workspaceId/archive')
+  @UseGuards(WorkspaceRoleGuard)
+  @WorkspaceRoles(WorkspaceRole.OWNER)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  archive(@WorkspaceId() workspaceId: string): Promise<void> {
+    return this.workspaces.setArchived(workspaceId, true);
+  }
+
+  /**
+   * Lifts the freeze.
+   *
+   * `@AllowArchivedWorkspace` is what makes this reachable at all — without
+   * it the guard would refuse the very request that undoes the archive.
+   */
+  @Post(':workspaceId/restore')
+  @UseGuards(WorkspaceRoleGuard)
+  @WorkspaceRoles(WorkspaceRole.OWNER)
+  @AllowArchivedWorkspace()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  restore(@WorkspaceId() workspaceId: string): Promise<void> {
+    return this.workspaces.setArchived(workspaceId, false);
   }
 
   @Post(':workspaceId/transfer-ownership')

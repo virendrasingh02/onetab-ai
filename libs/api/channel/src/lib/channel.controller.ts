@@ -14,10 +14,12 @@ import {
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import {
   CurrentUser,
+  RequireWorkspacePermissions,
   WorkspaceId,
   toUpload,
   zodBody,
 } from '@org/api-common';
+import { WorkspacePermission } from '@org/types';
 import {
   addChannelMembersSchema,
   channelPreferencesSchema,
@@ -49,6 +51,7 @@ export class ChannelController {
   }
 
   @Post()
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   create(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
@@ -67,6 +70,7 @@ export class ChannelController {
   }
 
   @Patch(':channelId')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   update(
     @WorkspaceId() workspaceId: string,
     @Param('channelId') channelId: string,
@@ -77,6 +81,7 @@ export class ChannelController {
   }
 
   @Post(':channelId/archive')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   archive(
     @WorkspaceId() workspaceId: string,
     @Param('channelId') channelId: string,
@@ -86,6 +91,7 @@ export class ChannelController {
   }
 
   @Post(':channelId/unarchive')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   unarchive(
     @WorkspaceId() workspaceId: string,
     @Param('channelId') channelId: string,
@@ -95,6 +101,7 @@ export class ChannelController {
   }
 
   @Post(':channelId/make-private')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   makePrivate(
     @WorkspaceId() workspaceId: string,
     @Param('channelId') channelId: string,
@@ -106,11 +113,15 @@ export class ChannelController {
   // --- membership ---------------------------------------------------------
 
   @Get(':channelId/members')
-  listMembers(@Param('channelId') channelId: string) {
-    return this.channels.listMembers(channelId);
+  listMembers(
+    @WorkspaceId() workspaceId: string,
+    @Param('channelId') channelId: string,
+  ) {
+    return this.channels.listMembers(workspaceId, channelId);
   }
 
   @Post(':channelId/members')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   addMembers(
     @WorkspaceId() workspaceId: string,
     @Param('channelId') channelId: string,
@@ -139,59 +150,72 @@ export class ChannelController {
   @Post(':channelId/join')
   @HttpCode(HttpStatus.NO_CONTENT)
   join(
+    @WorkspaceId() workspaceId: string,
     @Param('channelId') channelId: string,
     @CurrentUser('id') userId: string,
   ): Promise<void> {
-    return this.channels.join(channelId, userId);
+    return this.channels.join(workspaceId, channelId, userId);
   }
 
   @Patch(':channelId/preferences')
   @HttpCode(HttpStatus.NO_CONTENT)
   setPreferences(
+    @WorkspaceId() workspaceId: string,
     @Param('channelId') channelId: string,
     @CurrentUser('id') userId: string,
     @Body(zodBody(channelPreferencesSchema)) body: ChannelPreferencesInput,
   ): Promise<void> {
-    return this.channels.setPreferences(channelId, userId, body);
+    return this.channels.setPreferences(workspaceId, channelId, userId, body);
   }
 
   @Post(':channelId/read')
   @HttpCode(HttpStatus.NO_CONTENT)
   markRead(
+    @WorkspaceId() workspaceId: string,
     @Param('channelId') channelId: string,
     @CurrentUser('id') userId: string,
   ): Promise<void> {
-    return this.channels.markRead(channelId, userId);
+    return this.channels.markRead(workspaceId, channelId, userId);
   }
 
   // --- pins & files -------------------------------------------------------
 
   @Get(':channelId/pins')
-  listPins(@Param('channelId') channelId: string) {
-    return this.channels.listPins(channelId);
+  listPins(
+    @WorkspaceId() workspaceId: string,
+    @Param('channelId') channelId: string,
+  ) {
+    return this.channels.listPins(workspaceId, channelId);
   }
 
   @Post(':channelId/pins')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   createPin(
+    @WorkspaceId() workspaceId: string,
     @Param('channelId') channelId: string,
     @CurrentUser('id') userId: string,
     @Body(zodBody(createPinSchema)) body: CreatePinInput,
   ) {
-    return this.channels.createPin(channelId, userId, body);
+    return this.channels.createPin(workspaceId, channelId, userId, body);
   }
 
   @Delete(':channelId/pins/:pinId')
+  @RequireWorkspacePermissions(WorkspacePermission.DELETE)
   @HttpCode(HttpStatus.NO_CONTENT)
   removePin(
+    @WorkspaceId() workspaceId: string,
     @Param('channelId') channelId: string,
     @Param('pinId') pinId: string,
   ): Promise<void> {
-    return this.channels.removePin(channelId, pinId);
+    return this.channels.removePin(workspaceId, channelId, pinId);
   }
 
   @Get(':channelId/files')
-  async listFiles(@Param('channelId') channelId: string) {
-    const uploads = await this.channels.listUploads(channelId);
+  async listFiles(
+    @WorkspaceId() workspaceId: string,
+    @Param('channelId') channelId: string,
+  ) {
+    const uploads = await this.channels.listUploads(workspaceId, channelId);
     return uploads.map(toUpload);
   }
 }

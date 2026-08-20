@@ -12,7 +12,13 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { WorkspaceRoleGuard } from '@org/api-auth';
-import { CurrentUser, WorkspaceId, zodBody } from '@org/api-common';
+import {
+  CurrentUser,
+  RequireWorkspacePermissions,
+  WorkspaceId,
+  zodBody,
+} from '@org/api-common';
+import { WorkspacePermission } from '@org/types';
 import type { DocumentKind, TaskStatus } from '@org/types';
 import {
   createCalendarEventSchema,
@@ -63,6 +69,7 @@ export class WorkToolsController {
   }
 
   @Post('projects')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   createProject(
     @WorkspaceId() workspaceId: string,
     @Body(zodBody(createProjectSchema)) body: CreateProjectInput,
@@ -71,6 +78,7 @@ export class WorkToolsController {
   }
 
   @Patch('projects/:projectId')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   updateProject(
     @WorkspaceId() workspaceId: string,
     @Param('projectId') projectId: string,
@@ -80,6 +88,7 @@ export class WorkToolsController {
   }
 
   @Delete('projects/:projectId')
+  @RequireWorkspacePermissions(WorkspacePermission.DELETE)
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteProject(
     @WorkspaceId() workspaceId: string,
@@ -100,6 +109,7 @@ export class WorkToolsController {
   }
 
   @Post('tasks')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   createTask(
     @WorkspaceId() workspaceId: string,
     @Body(zodBody(createTaskSchema)) body: CreateTaskInput,
@@ -108,6 +118,7 @@ export class WorkToolsController {
   }
 
   @Patch('tasks/:taskId')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   updateTask(
     @WorkspaceId() workspaceId: string,
     @Param('taskId') taskId: string,
@@ -118,6 +129,7 @@ export class WorkToolsController {
 
   /** Board drag-and-drop. Narrower than PATCH so a drop cannot edit content. */
   @Patch('tasks/:taskId/move')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   moveTask(
     @WorkspaceId() workspaceId: string,
     @Param('taskId') taskId: string,
@@ -127,6 +139,7 @@ export class WorkToolsController {
   }
 
   @Delete('tasks/:taskId')
+  @RequireWorkspacePermissions(WorkspacePermission.DELETE)
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteTask(
     @WorkspaceId() workspaceId: string,
@@ -144,6 +157,7 @@ export class WorkToolsController {
   }
 
   @Post('tasks/:taskId/comments')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   addTaskComment(
     @WorkspaceId() workspaceId: string,
     @Param('taskId') taskId: string,
@@ -165,6 +179,7 @@ export class WorkToolsController {
   }
 
   @Post('calendar')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   createCalendarEvent(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
@@ -174,6 +189,7 @@ export class WorkToolsController {
   }
 
   @Patch('calendar/:eventId')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   updateCalendarEvent(
     @WorkspaceId() workspaceId: string,
     @Param('eventId') eventId: string,
@@ -183,6 +199,7 @@ export class WorkToolsController {
   }
 
   @Delete('calendar/:eventId')
+  @RequireWorkspacePermissions(WorkspacePermission.DELETE)
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteCalendarEvent(
     @WorkspaceId() workspaceId: string,
@@ -210,6 +227,7 @@ export class WorkToolsController {
   }
 
   @Post('documents')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   createDocument(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
@@ -219,6 +237,7 @@ export class WorkToolsController {
   }
 
   @Patch('documents/:docId')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   updateDocument(
     @WorkspaceId() workspaceId: string,
     @Param('docId') docId: string,
@@ -228,6 +247,7 @@ export class WorkToolsController {
   }
 
   @Delete('documents/:docId')
+  @RequireWorkspacePermissions(WorkspacePermission.DELETE)
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteDocument(
     @WorkspaceId() workspaceId: string,
@@ -252,6 +272,7 @@ export class WorkToolsController {
   }
 
   @Post('whiteboards')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   createWhiteboard(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
@@ -261,6 +282,7 @@ export class WorkToolsController {
   }
 
   @Patch('whiteboards/:whiteboardId')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   updateWhiteboard(
     @WorkspaceId() workspaceId: string,
     @Param('whiteboardId') whiteboardId: string,
@@ -270,6 +292,7 @@ export class WorkToolsController {
   }
 
   @Delete('whiteboards/:whiteboardId')
+  @RequireWorkspacePermissions(WorkspacePermission.DELETE)
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteWhiteboard(
     @WorkspaceId() workspaceId: string,

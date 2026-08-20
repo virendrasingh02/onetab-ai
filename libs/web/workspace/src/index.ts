@@ -3,6 +3,7 @@ export {
   useCreateWorkspaceFlow,
   useCurrentWorkspace,
   useDeleteWorkspace,
+  useSetWorkspaceArchived,
   useSlugSuggestion,
   useTransferOwnership,
   useUpdateWorkspace,
@@ -11,6 +12,8 @@ export {
   type CreateWorkspaceFlowInput,
   type CreateWorkspaceFlowResult,
 } from './lib/use-workspaces.js';
+
+export { useWorkspacePermission } from './lib/use-workspace-permission.js';
 
 export { CreateWorkspacePage } from './lib/pages/create-workspace-page.js';
 export {

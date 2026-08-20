@@ -178,6 +178,19 @@ export const workspaceApi = {
     request<void>(http.delete(`/workspaces/${workspaceId}`)),
 
   /**
+   * Freezes the workspace: it stays listed and readable, but the API refuses
+   * every write until it is restored.
+   *
+   * The reversible half of the Danger Zone, and the step to offer before
+   * `remove`, which is not.
+   */
+  archive: (workspaceId: string) =>
+    request<void>(http.post(`/workspaces/${workspaceId}/archive`)),
+
+  restore: (workspaceId: string) =>
+    request<void>(http.post(`/workspaces/${workspaceId}/restore`)),
+
+  /**
    * The icon half of a workspace update, on its own.
    *
    * It shares the `PATCH` route with everything else about a workspace, but the

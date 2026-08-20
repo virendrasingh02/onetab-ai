@@ -67,11 +67,18 @@ export class AIPlatformController {
     return this.aiService.analyzeVision(body.imageUrl, body.prompt);
   }
 
+  /**
+   * Retrieval over this workspace's documents.
+   *
+   * The workspace id is taken from the guard-resolved request, never from the
+   * body — retrieval that trusted a client-supplied tenant would be an
+   * invitation to read another workspace's knowledge base.
+   */
   @Post('rag-search')
   ragSearch(
-    @WorkspaceId() _workspaceId: string,
+    @WorkspaceId() workspaceId: string,
     @Body() body: { query: string; limit?: number },
   ) {
-    return this.aiService.queryRAG(body.query, body.limit);
+    return this.aiService.queryRAG(workspaceId, body.query, body.limit);
   }
 }

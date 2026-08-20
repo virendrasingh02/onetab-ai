@@ -3,6 +3,8 @@ export {
   ChannelVisibility,
   DocumentKind,
   InvitationStatus,
+  MembershipStatus,
+  WorkspaceStatus,
   PresenceStatus,
   ProjectStatus,
   SystemRole,
@@ -13,6 +15,15 @@ export {
   WorkspaceRole,
   hasWorkspaceRole,
 } from './lib/enums.js';
+
+export {
+  ROLE_PERMISSIONS,
+  WORKSPACE_PERMISSIONS,
+  WorkspacePermission,
+  permissionsForRole,
+  roleHasAllPermissions,
+  roleHasPermission,
+} from './lib/permissions.js';
 
 export type {
   Channel,

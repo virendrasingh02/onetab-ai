@@ -2,14 +2,19 @@ export { ZodValidationPipe, zodBody } from './lib/zod-validation.pipe.js';
 export { HttpExceptionFilter } from './lib/http-exception.filter.js';
 
 export {
+  ALLOW_ARCHIVED_KEY,
+  AllowArchivedWorkspace,
   CurrentUser,
   IS_PUBLIC_KEY,
   Public,
+  RequireWorkspacePermissions,
   SYSTEM_ROLES_KEY,
   SystemRoles,
+  WORKSPACE_PERMISSIONS_KEY,
   WORKSPACE_ROLES_KEY,
   WorkspaceId,
   WorkspaceMemberRole,
+  WorkspacePermissions,
   WorkspaceRoles,
   type AuthenticatedUser,
 } from './lib/decorators.js';

@@ -11,7 +11,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { WorkspaceRoleGuard } from '@org/api-auth';
-import { WorkspaceId, zodBody } from '@org/api-common';
+import {
+  RequireWorkspacePermissions,
+  WorkspaceId,
+  zodBody,
+} from '@org/api-common';
+import { WorkspacePermission } from '@org/types';
 import {
   createPromptTemplateSchema,
   updatePromptTemplateSchema,
@@ -38,6 +43,7 @@ export class PromptTemplateController {
   }
 
   @Post()
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   create(
     @WorkspaceId() workspaceId: string,
     @Body(zodBody(createPromptTemplateSchema)) body: CreatePromptTemplateInput,
@@ -46,6 +52,7 @@ export class PromptTemplateController {
   }
 
   @Patch(':templateId')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   update(
     @WorkspaceId() workspaceId: string,
     @Param('templateId') templateId: string,
@@ -55,6 +62,7 @@ export class PromptTemplateController {
   }
 
   @Delete(':templateId')
+  @RequireWorkspacePermissions(WorkspacePermission.DELETE)
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(
     @WorkspaceId() workspaceId: string,

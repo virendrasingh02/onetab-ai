@@ -14,6 +14,33 @@ export const WorkspaceRole = {
 } as const;
 export type WorkspaceRole = (typeof WorkspaceRole)[keyof typeof WorkspaceRole];
 
+/**
+ * Lifecycle of a workspace.
+ *
+ * `ARCHIVED` is the reversible half of the Danger Zone: the workspace and all
+ * its data stay intact and readable, but nothing new can be written to it.
+ * Deletion remains separate and irreversible.
+ */
+export const WorkspaceStatus = {
+  ACTIVE: 'ACTIVE',
+  ARCHIVED: 'ARCHIVED',
+} as const;
+export type WorkspaceStatus =
+  (typeof WorkspaceStatus)[keyof typeof WorkspaceStatus];
+
+/**
+ * Lifecycle of one person's membership.
+ *
+ * Suspending revokes access without discarding the row, so the member's
+ * history and role survive being let back in.
+ */
+export const MembershipStatus = {
+  ACTIVE: 'ACTIVE',
+  SUSPENDED: 'SUSPENDED',
+} as const;
+export type MembershipStatus =
+  (typeof MembershipStatus)[keyof typeof MembershipStatus];
+
 export const ChannelRole = {
   ADMIN: 'ADMIN',
   MEMBER: 'MEMBER',

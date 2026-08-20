@@ -5,13 +5,17 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PUBLIC_USER_SELECT, toWorkspace } from '@org/api-common';
+import { PUBLIC_USER_SELECT, toPublicUser, toWorkspace } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import { StorageService, type IncomingFile } from '@org/api-storage';
 import {
   ApiErrorCode,
   WorkspaceRole,
+  WorkspaceStatus,
+  permissionsForRole,
+  type MembershipStatus,
   type Workspace,
+  type WorkspaceMember as WorkspaceMemberDto,
   type WorkspaceSummary,
 } from '@org/types';
 import {
@@ -60,6 +64,7 @@ export class WorkspaceService {
     return memberships.map((membership) => ({
       ...toWorkspace(membership.workspace),
       role: membership.role as WorkspaceRole,
+      permissions: permissionsForRole(membership.role as WorkspaceRole),
       memberCount: membership.workspace._count.members,
       channelCount: membership.workspace._count.channels,
     }));
@@ -79,9 +84,11 @@ export class WorkspaceService {
       throw new NotFoundException('Workspace not found.');
     }
 
+    const role = workspace.members[0].role as WorkspaceRole;
     return {
       ...toWorkspace(workspace),
-      role: workspace.members[0].role as WorkspaceRole,
+      role,
+      permissions: permissionsForRole(role),
       memberCount: workspace._count.members,
       channelCount: workspace._count.channels,
     };
@@ -133,6 +140,7 @@ export class WorkspaceService {
     return {
       ...toWorkspace(workspace),
       role: WorkspaceRole.OWNER,
+      permissions: permissionsForRole(WorkspaceRole.OWNER),
       memberCount: workspace._count.members,
       channelCount: workspace._count.channels,
     };
@@ -161,6 +169,23 @@ export class WorkspaceService {
       },
     });
     return toWorkspace(workspace);
+  }
+
+  /**
+   * Freezes or unfreezes the workspace.
+   *
+   * Nothing is deleted and no membership changes — `WorkspaceRoleGuard` reads
+   * `status` on every request and refuses writes while it is ARCHIVED, so this
+   * one column is the whole mechanism and it is entirely reversible.
+   */
+  async setArchived(workspaceId: string, archived: boolean): Promise<void> {
+    await this.prisma.workspace.update({
+      where: { id: workspaceId },
+      data: {
+        status: archived ? WorkspaceStatus.ARCHIVED : WorkspaceStatus.ACTIVE,
+        archivedAt: archived ? new Date() : null,
+      },
+    });
   }
 
   /** Hard delete. Channels, members and invitations cascade from the schema. */
@@ -321,12 +346,27 @@ export class WorkspaceService {
     return candidates.find((slug) => !used.has(slug)) ?? `${base}-${Date.now()}`;
   }
 
-  /** Members shown on the workspace overview. */
-  async listMembers(workspaceId: string) {
-    return this.prisma.workspaceMember.findMany({
+  /**
+   * Members shown on the workspace overview.
+   *
+   * Returns the DTO rather than the Prisma rows: the generated enums do not
+   * cross the package boundary, and mapping here keeps this shape identical to
+   * what `MemberService.list` returns.
+   */
+  async listMembers(workspaceId: string): Promise<WorkspaceMemberDto[]> {
+    const members = await this.prisma.workspaceMember.findMany({
       where: { workspaceId },
       orderBy: [{ role: 'asc' }, { joinedAt: 'asc' }],
       include: { user: { select: PUBLIC_USER_SELECT } },
     });
+
+    return members.map((member) => ({
+      id: member.id,
+      workspaceId: member.workspaceId,
+      role: member.role as WorkspaceRole,
+      status: member.status as MembershipStatus,
+      joinedAt: member.joinedAt.toISOString(),
+      user: toPublicUser(member.user),
+    }));
   }
 }

@@ -11,7 +11,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { WorkspaceRoleGuard } from '@org/api-auth';
-import { CurrentUser, WorkspaceId } from '@org/api-common';
+import {
+  CurrentUser,
+  RequireWorkspacePermissions,
+  WorkspaceId,
+} from '@org/api-common';
+import { WorkspacePermission } from '@org/types';
 import { AutomationsService } from './automations.service.js';
 
 /**
@@ -38,6 +43,7 @@ export class AutomationsController {
   }
 
   @Post('workflows')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   createWorkflow(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
@@ -54,6 +60,7 @@ export class AutomationsController {
   }
 
   @Patch('workflows/:workflowId')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   updateWorkflow(
     @WorkspaceId() workspaceId: string,
     @Param('workflowId') workflowId: string,
@@ -75,6 +82,7 @@ export class AutomationsController {
   }
 
   @Delete('workflows/:workflowId')
+  @RequireWorkspacePermissions(WorkspacePermission.DELETE)
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteWorkflow(
     @WorkspaceId() workspaceId: string,
@@ -84,6 +92,7 @@ export class AutomationsController {
   }
 
   @Post('workflows/:workflowId/trigger')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   triggerWorkflow(
     @WorkspaceId() workspaceId: string,
     @Param('workflowId') workflowId: string,

@@ -51,7 +51,7 @@ import {
   initials,
   type RegionInfo,
 } from '@org/utils';
-import { WorkspaceRole, hasWorkspaceRole } from '@org/types';
+import { WorkspaceRole, WorkspaceStatus, hasWorkspaceRole } from '@org/types';
 import {
   changePasswordSchema,
   updateProfileSchema,
@@ -86,6 +86,7 @@ import { useNotificationPermissionBar } from '@org/notifications';
 import {
   useCurrentWorkspace,
   useDeleteWorkspace,
+  useSetWorkspaceArchived,
   useUpdateWorkspace,
 } from '../use-workspaces.js';
 import { SettingsLayout } from '../settings-layout.js';
@@ -116,6 +117,7 @@ export function WorkspaceSettingsPage({
   const { workspace, workspaceId, isLoading } = useCurrentWorkspace();
   const updateWorkspace = useUpdateWorkspace(workspaceId);
   const deleteWorkspace = useDeleteWorkspace();
+  const setArchived = useSetWorkspaceArchived(workspaceId);
   const { theme, setTheme } = useTheme();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -282,6 +284,7 @@ export function WorkspaceSettingsPage({
 
   const isAdmin = hasWorkspaceRole(workspace.role, WorkspaceRole.ADMIN);
   const isOwner = workspace.role === WorkspaceRole.OWNER;
+  const isArchived = workspace.status === WorkspaceStatus.ARCHIVED;
 
   const onProfileSubmit = profileForm.handleSubmit(async (values) => {
     try {
@@ -2465,9 +2468,61 @@ export function WorkspaceSettingsPage({
           <div>
             <h1 className="text-xl font-bold tracking-tight text-destructive">Danger Zone</h1>
             <p className="text-xs text-muted-foreground mt-1">
-              Irreversible workspace deletion and ownership actions.
+              Archiving is reversible. Deletion is not.
             </p>
           </div>
+
+          {/*
+            Archive sits above delete deliberately: it answers most of the same
+            need — stop this workspace being used — without discarding anything,
+            so it should be the one the eye reaches first.
+          */}
+          {isArchived ? (
+            <div className="bg-muted/40 border border-border rounded-xl p-6 space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">
+                  Restore Workspace
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1 max-w-lg">
+                  <strong className="text-foreground">{workspace.name}</strong> is
+                  archived. Everyone can still read it, but nobody can make
+                  changes until it is restored.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                loading={setArchived.isPending}
+                onClick={() => setArchived.mutate(false)}
+                className="text-xs"
+              >
+                Restore workspace
+              </Button>
+            </div>
+          ) : (
+            <div className="bg-muted/40 border border-border rounded-xl p-6 space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">
+                  Archive Workspace
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1 max-w-lg">
+                  Freeze <strong className="text-foreground">{workspace.name}</strong>.
+                  Members keep read access to every channel, document and file,
+                  but no one can make changes. Nothing is deleted, and you can
+                  restore it at any time.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                loading={setArchived.isPending}
+                onClick={() => setArchived.mutate(true)}
+                className="text-xs"
+              >
+                Archive workspace
+              </Button>
+            </div>
+          )}
 
           <div className="bg-destructive/5 border border-destructive/30 rounded-xl p-6 space-y-4">
             <div>

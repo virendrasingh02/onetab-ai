@@ -1,4 +1,4 @@
-import type { SystemRole, WorkspaceRole } from './enums.js';
+import type { SystemRole, WorkspaceRole, WorkspaceStatus } from './enums.js';
 import type { IsoDateString } from './entities.js';
 
 export interface AdminPage<T> {
@@ -55,6 +55,8 @@ export interface AdminWorkspace {
   description: string | null;
   avatarUrl: string | null;
   ownerId: string;
+  status: WorkspaceStatus;
+  archivedAt: IsoDateString | null;
   createdAt: IsoDateString;
   updatedAt: IsoDateString;
   owner: { id: string; name: string; email: string };

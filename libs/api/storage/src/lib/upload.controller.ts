@@ -15,7 +15,12 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { WorkspaceRoleGuard } from '@org/api-auth';
-import { CurrentUser, WorkspaceId } from '@org/api-common';
+import {
+  CurrentUser,
+  RequireWorkspacePermissions,
+  WorkspaceId,
+} from '@org/api-common';
+import { WorkspacePermission } from '@org/types';
 import type { Response } from 'express';
 import {
   MAX_UPLOAD_BYTES,
@@ -43,6 +48,7 @@ export class UploadController {
   }
 
   @Post()
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   @UseInterceptors(
     // Buffered in memory: the size cap is small, and multer's disk mode would
     // put a caller-influenced filename on disk before we can vet it.
@@ -81,6 +87,7 @@ export class UploadController {
   }
 
   @Delete(':uploadId')
+  @RequireWorkspacePermissions(WorkspacePermission.DELETE)
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(
     @WorkspaceId() workspaceId: string,

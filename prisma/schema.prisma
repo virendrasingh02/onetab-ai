@@ -72,6 +72,10 @@ model Workspace {
   /// Hex tint for `icon`, and only meaningful when `icon` is a Lucide name.
   iconColor                String?
   ownerId                  String
+  /// ARCHIVED freezes the workspace: it stays listed and readable, but every
+  /// write is refused. Deletion is separate and irreversible.
+  status                   WorkspaceStatus           @default(ACTIVE)
+  archivedAt               DateTime?
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
   aiAgents                 AIAgent[]
@@ -101,18 +105,23 @@ model Workspace {
 }
 
 model WorkspaceMember {
-  id          String        @id @default(cuid())
+  id          String           @id @default(cuid())
   workspaceId String
   userId      String
-  role        WorkspaceRole @default(MEMBER)
-  joinedAt    DateTime      @default(now())
+  role        WorkspaceRole    @default(MEMBER)
+  /// SUSPENDED keeps the row — and so the role and history — while refusing
+  /// access, which is what letting someone back in later needs.
+  status      MembershipStatus @default(ACTIVE)
+  joinedAt    DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
   lastSeenAt  DateTime?
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, userId])
   @@index([userId])
   @@index([workspaceId, role])
+  @@index([workspaceId, status])
   @@map("workspace_members")
 }
 
@@ -892,6 +901,20 @@ enum WorkspaceRole {
   ADMIN
   MEMBER
   GUEST
+}
+
+/// Lifecycle of a workspace. ARCHIVED is reversible and preserves all data;
+/// deletion is not.
+enum WorkspaceStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+/// Lifecycle of one membership. SUSPENDED revokes access without dropping the
+/// row, so the role and history survive a later reinstatement.
+enum MembershipStatus {
+  ACTIVE
+  SUSPENDED
 }
 
 enum ChannelRole {

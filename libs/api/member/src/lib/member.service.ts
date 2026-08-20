@@ -19,6 +19,7 @@ import {
   WorkspaceRole,
   hasWorkspaceRole,
   type Invitation,
+  type MembershipStatus,
   type WorkspaceMember,
 } from '@org/types';
 import type {
@@ -43,6 +44,7 @@ export class MemberService {
       id: member.id,
       workspaceId: member.workspaceId,
       role: member.role as WorkspaceRole,
+      status: member.status as MembershipStatus,
       joinedAt: member.joinedAt.toISOString(),
       user: toPublicUser(member.user),
     }));

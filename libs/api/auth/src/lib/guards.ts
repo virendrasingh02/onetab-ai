@@ -8,13 +8,27 @@ import {
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import {
+  ALLOW_ARCHIVED_KEY,
   IS_PUBLIC_KEY,
   SYSTEM_ROLES_KEY,
+  WORKSPACE_PERMISSIONS_KEY,
   WORKSPACE_ROLES_KEY,
   type AuthenticatedUser,
 } from '@org/api-common';
 import { PrismaService } from '@org/database';
-import { SystemRole, WorkspaceRole, hasWorkspaceRole } from '@org/types';
+import {
+  MembershipStatus,
+  SystemRole,
+  WorkspacePermission,
+  WorkspaceRole,
+  WorkspaceStatus,
+  hasWorkspaceRole,
+  permissionsForRole,
+  roleHasPermission,
+} from '@org/types';
+
+/** HTTP methods that change state, and so are refused on a frozen workspace. */
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 /**
  * Applied globally in `AppModule`, so routes are authenticated by default and
@@ -70,11 +84,17 @@ export class SystemRoleGuard implements CanActivate {
 }
 
 /**
- * Resolves the caller's membership of the workspace named in the route and
- * enforces the minimum role from `@WorkspaceRoles(...)`.
+ * The account context for a request: resolves the workspace named in the
+ * route, proves the caller belongs to it, and enforces what their role allows.
  *
  * Accepts either `:workspaceId` or `:workspaceSlug`, and caches the resolved
- * workspace id and role on the request so handlers do not repeat the lookup.
+ * workspace id, role and permission set on the request so handlers do not
+ * repeat the lookup.
+ *
+ * The workspace is only ever read from the route — never from a body or a
+ * header — and membership is re-checked on every request rather than carried
+ * in the JWT, so revoking someone takes effect on their next call instead of
+ * at their next login.
  */
 @Injectable()
 export class WorkspaceRoleGuard implements CanActivate {
@@ -95,7 +115,7 @@ export class WorkspaceRoleGuard implements CanActivate {
 
     const workspace = await this.prisma.workspace.findFirst({
       where: workspaceId ? { id: workspaceId } : { slug: workspaceSlug },
-      select: { id: true },
+      select: { id: true, status: true },
     });
     if (!workspace) throw new NotFoundException('Workspace not found.');
 
@@ -103,33 +123,79 @@ export class WorkspaceRoleGuard implements CanActivate {
       where: {
         workspaceId_userId: { workspaceId: workspace.id, userId: user.id },
       },
-      select: { role: true },
+      select: { role: true, status: true },
     });
 
     // Report a missing membership as 404, not 403: confirming that a workspace
-    // exists to a non-member is itself a disclosure.
-    if (!membership) throw new NotFoundException('Workspace not found.');
+    // exists to a non-member is itself a disclosure. A suspended member is
+    // told the same thing — they are, for now, not a member.
+    if (!membership || membership.status === MembershipStatus.SUSPENDED) {
+      throw new NotFoundException('Workspace not found.');
+    }
 
+    const role = membership.role as WorkspaceRole;
+
+    // An archived workspace stays readable so its history is not stranded, but
+    // refuses writes. Checked on the HTTP method rather than per route, so a
+    // new endpoint is frozen by default instead of by remembering to say so.
+    if (
+      workspace.status === WorkspaceStatus.ARCHIVED &&
+      MUTATING_METHODS.has(request.method) &&
+      !this.reflector.getAllAndOverride<boolean>(ALLOW_ARCHIVED_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ])
+    ) {
+      throw new ForbiddenException(
+        'This workspace is archived. Restore it to make changes.',
+      );
+    }
+
+    this.assertRole(context, role);
+    this.assertPermissions(context, role);
+
+    request.workspaceId = workspace.id;
+    request.workspaceRole = role;
+    request.workspacePermissions = permissionsForRole(role);
+    return true;
+  }
+
+  /** Legacy `@WorkspaceRoles(...)` gate — the lowest listed role wins. */
+  private assertRole(context: ExecutionContext, role: WorkspaceRole): void {
     const required = this.reflector.getAllAndOverride<WorkspaceRole[]>(
       WORKSPACE_ROLES_KEY,
       [context.getHandler(), context.getClass()],
     );
+    if (!required?.length) return;
 
-    const role = membership.role as WorkspaceRole;
-
-    if (required?.length) {
-      const minimum = required.reduce((lowest, candidate) =>
-        hasWorkspaceRole(lowest, candidate) ? candidate : lowest,
+    const minimum = required.reduce((lowest, candidate) =>
+      hasWorkspaceRole(lowest, candidate) ? candidate : lowest,
+    );
+    if (!hasWorkspaceRole(role, minimum)) {
+      throw new ForbiddenException(
+        `This action requires the ${minimum} role or higher.`,
       );
-      if (!hasWorkspaceRole(role, minimum)) {
-        throw new ForbiddenException(
-          `This action requires the ${minimum} role or higher.`,
-        );
-      }
     }
+  }
 
-    request.workspaceId = workspace.id;
-    request.workspaceRole = role;
-    return true;
+  /** `@RequireWorkspacePermissions(...)` — every listed capability is needed. */
+  private assertPermissions(
+    context: ExecutionContext,
+    role: WorkspaceRole,
+  ): void {
+    const required = this.reflector.getAllAndOverride<WorkspacePermission[]>(
+      WORKSPACE_PERMISSIONS_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (!required?.length) return;
+
+    const missing = required.filter(
+      (permission) => !roleHasPermission(role, permission),
+    );
+    if (missing.length > 0) {
+      throw new ForbiddenException(
+        `You do not have permission to do this (requires: ${missing.join(', ')}).`,
+      );
+    }
   }
 }

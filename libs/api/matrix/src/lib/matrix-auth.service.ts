@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@org/database';
 import { MatrixAdminService } from './matrix-admin.service.js';
 
@@ -114,8 +114,26 @@ export class MatrixAuthService {
   ): Promise<string | null> {
     if (!this.admin.isEnabled) return null;
 
-    const channel = await this.prisma.channel.findUniqueOrThrow({
-      where: { id: channelId },
+    /*
+     * This route sits outside `/workspaces/:workspaceId`, so
+     * `WorkspaceRoleGuard` never runs for it and the channel id arrives
+     * unvetted. The membership test therefore has to happen here: without it
+     * any signed-in account could provision — and be handed the id of — the
+     * Matrix room backing any channel in any workspace, which is a chat
+     * history leak dressed up as a room link.
+     *
+     * Private channels additionally require channel membership, mirroring
+     * `findBySlug`: workspace membership alone does not open a private room.
+     */
+    const channel = await this.prisma.channel.findFirst({
+      where: {
+        id: channelId,
+        workspace: { members: { some: { userId: creatorUserId } } },
+        OR: [
+          { visibility: 'PUBLIC' },
+          { members: { some: { userId: creatorUserId } } },
+        ],
+      },
       select: {
         id: true,
         name: true,
@@ -124,6 +142,9 @@ export class MatrixAuthService {
         matrixRoomId: true,
       },
     });
+
+    // 404 rather than 403, so this cannot be used to probe channel ids.
+    if (!channel) throw new NotFoundException('Channel not found.');
 
     if (channel.matrixRoomId) return channel.matrixRoomId;
 

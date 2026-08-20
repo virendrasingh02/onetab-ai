@@ -1,0 +1,16 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./out-tsc/vitest",
+    "types": ["node", "vitest/globals"],
+    "composite": false,
+    "emitDeclarationOnly": false,
+    "noEmit": true
+  },
+  "include": [
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts",
+    "src/**/*.d.ts",
+    "vitest.config.mts"
+  ]
+}

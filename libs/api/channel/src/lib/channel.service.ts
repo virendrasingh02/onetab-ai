@@ -254,7 +254,12 @@ export class ChannelService {
 
   // --- membership ---------------------------------------------------------
 
-  async listMembers(channelId: string): Promise<ChannelMember[]> {
+  async listMembers(
+    workspaceId: string,
+    channelId: string,
+  ): Promise<ChannelMember[]> {
+    await this.assertChannel(workspaceId, channelId);
+
     const members = await this.prisma.channelMember.findMany({
       where: { channelId },
       orderBy: { joinedAt: 'asc' },
@@ -286,7 +291,7 @@ export class ChannelService {
       skipDuplicates: true,
     });
 
-    return this.listMembers(channelId);
+    return this.listMembers(workspaceId, channelId);
   }
 
   async removeMember(
@@ -297,6 +302,10 @@ export class ChannelService {
   ): Promise<void> {
     if (actorId !== targetUserId) {
       await this.assertCanManage(workspaceId, channelId, actorId);
+    } else {
+      // Leaving needs no role, but still needs the channel to be one of this
+      // workspace's — otherwise the route accepts any channel id in the world.
+      await this.assertChannel(workspaceId, channelId);
     }
 
     await this.prisma.channelMember.deleteMany({
@@ -304,7 +313,13 @@ export class ChannelService {
     });
   }
 
-  async join(channelId: string, userId: string): Promise<void> {
+  async join(
+    workspaceId: string,
+    channelId: string,
+    userId: string,
+  ): Promise<void> {
+    await this.assertChannel(workspaceId, channelId);
+
     const channel = await this.prisma.channel.findUniqueOrThrow({
       where: { id: channelId },
       select: { visibility: true, isArchived: true },
@@ -326,10 +341,13 @@ export class ChannelService {
 
   /** Per-user star / mute. Never affects other members. */
   async setPreferences(
+    workspaceId: string,
     channelId: string,
     userId: string,
     input: ChannelPreferencesInput,
   ): Promise<void> {
+    await this.assertChannel(workspaceId, channelId);
+
     const membership = await this.prisma.channelMember.findUnique({
       where: { channelId_userId: { channelId, userId } },
       select: { id: true },
@@ -349,7 +367,13 @@ export class ChannelService {
     });
   }
 
-  async markRead(channelId: string, userId: string): Promise<void> {
+  async markRead(
+    workspaceId: string,
+    channelId: string,
+    userId: string,
+  ): Promise<void> {
+    await this.assertChannel(workspaceId, channelId);
+
     await this.prisma.channelMember.updateMany({
       where: { channelId, userId },
       data: { lastReadAt: new Date() },
@@ -358,7 +382,12 @@ export class ChannelService {
 
   // --- pins ---------------------------------------------------------------
 
-  async listPins(channelId: string): Promise<ChannelPin[]> {
+  async listPins(
+    workspaceId: string,
+    channelId: string,
+  ): Promise<ChannelPin[]> {
+    await this.assertChannel(workspaceId, channelId);
+
     const pins = await this.prisma.channelPin.findMany({
       where: { channelId },
       orderBy: { pinnedAt: 'desc' },
@@ -367,10 +396,13 @@ export class ChannelService {
   }
 
   async createPin(
+    workspaceId: string,
     channelId: string,
     userId: string,
     input: CreatePinInput,
   ): Promise<ChannelPin> {
+    await this.assertChannel(workspaceId, channelId);
+
     const pin = await this.prisma.channelPin.create({
       data: {
         channelId,
@@ -383,18 +415,51 @@ export class ChannelService {
     return toChannelPin(pin);
   }
 
-  async removePin(channelId: string, pinId: string): Promise<void> {
+  async removePin(
+    workspaceId: string,
+    channelId: string,
+    pinId: string,
+  ): Promise<void> {
+    await this.assertChannel(workspaceId, channelId);
     await this.prisma.channelPin.deleteMany({ where: { id: pinId, channelId } });
   }
 
   /** Files shared in a channel — the channel "Files"/"Media" tabs. */
-  async listUploads(channelId: string) {
+  async listUploads(workspaceId: string, channelId: string) {
+    await this.assertChannel(workspaceId, channelId);
+
     return this.prisma.upload.findMany({
-      where: { channelId },
+      // Both, not just the channel: an upload row carries its own workspace,
+      // so scoping on it too keeps a mis-filed row from crossing the boundary.
+      where: { channelId, workspaceId },
       orderBy: { createdAt: 'desc' },
       take: 100,
       include: { uploader: { select: PUBLIC_USER_SELECT } },
     });
+  }
+
+  /**
+   * Binds a channel id from the URL to the workspace the guard resolved.
+   *
+   * `WorkspaceRoleGuard` only proves the caller belongs to the workspace named
+   * in the path — it says nothing about the channel. Without this check a
+   * member could pass *their own* workspace id together with a channel id from
+   * somebody else's and the guard would wave it through, so every route that
+   * accepts a `:channelId` has to bind the two together here.
+   *
+   * Reports a mismatch as 404, matching how a non-member is told a workspace
+   * does not exist: confirming that a channel id is real is itself a
+   * disclosure.
+   */
+  private async assertChannel(
+    workspaceId: string,
+    channelId: string,
+  ): Promise<void> {
+    const channel = await this.prisma.channel.findFirst({
+      where: { id: channelId, workspaceId },
+      select: { id: true },
+    });
+    if (!channel) throw new NotFoundException('Channel not found.');
   }
 
   /**
@@ -406,6 +471,11 @@ export class ChannelService {
     channelId: string,
     userId: string,
   ): Promise<void> {
+    // Before any role is weighed: a workspace admin is an admin of *their*
+    // channels, and without this the role check would happily authorise them
+    // against a channel belonging to another workspace entirely.
+    await this.assertChannel(workspaceId, channelId);
+
     const [channelMembership, workspaceMembership] = await Promise.all([
       this.prisma.channelMember.findUnique({
         where: { channelId_userId: { channelId, userId } },

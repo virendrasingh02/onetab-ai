@@ -27,6 +27,17 @@ export interface VectorEmbedding {
   payload?: Record<string, unknown>;
 }
 
+/**
+ * Tenant narrowing for a vector search.
+ *
+ * An object rather than a bare string so later dimensions — a document kind, a
+ * channel — can be added without every call site changing shape, and so the
+ * required `workspaceId` cannot be confused with the query text beside it.
+ */
+export interface VectorFilter {
+  workspaceId: string;
+}
+
 export interface RAGQueryResult {
   text: string;
   score: number;
@@ -127,14 +138,28 @@ export class AIInfrastructureService implements OnModuleInit {
     );
   }
 
+  /**
+   * Vector search, always narrowed to one tenant.
+   *
+   * `filter` is required rather than optional on purpose. The collections are
+   * shared across every workspace, so a search with no filter reads as
+   * "everyone's documents" — and an optional parameter is one forgotten
+   * argument away from exactly that. Making it mandatory means a caller with
+   * no workspace in hand cannot compile, let alone leak.
+   */
   async searchVector(
     collectionName: string,
     vector: number[],
+    filter: VectorFilter,
     limit = 10
   ): Promise<Array<{ id: string; score: number; payload?: Record<string, unknown> }>> {
     this.logger.log(
-      `Searching Qdrant collection '${collectionName}' with vector size ${vector.length}, limit ${limit}`
+      `Searching Qdrant collection '${collectionName}' for workspace ${filter.workspaceId} ` +
+        `with vector size ${vector.length}, limit ${limit}`
     );
+    // When the Qdrant client is wired in, `filter` becomes a `must` clause on
+    // the payload — never a post-filter on results, which would still page in
+    // another tenant's chunks and merely hide them.
     return [];
   }
 
@@ -157,12 +182,15 @@ export class AIInfrastructureService implements OnModuleInit {
    * Ingests a document for RAG: chunks text, computes embeddings, and stores in Qdrant.
    */
   async ingestDocumentForRAG(
+    workspaceId: string,
     documentId: string,
     text: string,
     metadata: Record<string, unknown> = {}
   ): Promise<void> {
     const chunks = this.chunkDocument(text);
-    this.logger.log(`Ingesting document ${documentId} with ${chunks.length} chunks into RAG pipeline`);
+    this.logger.log(
+      `Ingesting document ${documentId} for workspace ${workspaceId} with ${chunks.length} chunks into RAG pipeline`
+    );
 
     for (let index = 0; index < chunks.length; index++) {
       const chunkText = chunks[index]!;
@@ -171,10 +199,13 @@ export class AIInfrastructureService implements OnModuleInit {
         id: `${documentId}_chunk_${index}`,
         vector,
         payload: {
+          ...metadata,
+          // Written last so caller-supplied metadata can never overwrite the
+          // tenant tag that retrieval filters on.
+          workspaceId,
           documentId,
           chunkIndex: index,
           text: chunkText,
-          ...metadata,
         },
       });
     }
@@ -183,9 +214,18 @@ export class AIInfrastructureService implements OnModuleInit {
   /**
    * Queries the vector storage for relevant context chunks matching a user prompt.
    */
-  async queryRAG(queryText: string, limit = 5): Promise<RAGQueryResult[]> {
+  async queryRAG(
+    workspaceId: string,
+    queryText: string,
+    limit = 5
+  ): Promise<RAGQueryResult[]> {
     const queryVector = await this.generateEmbedding(queryText);
-    const rawResults = await this.searchVector('workspace_docs', queryVector, limit);
+    const rawResults = await this.searchVector(
+      'workspace_docs',
+      queryVector,
+      { workspaceId },
+      limit
+    );
     return rawResults.map((res) => ({
       text: (res.payload?.['text'] as string) ?? '',
       score: res.score,

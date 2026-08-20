@@ -9,5 +9,12 @@
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
-  "references": []
+  "references": [],
+  "exclude": [
+    "out-tsc",
+    "dist",
+    "vitest.config.mts",
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts"
+  ]
 }

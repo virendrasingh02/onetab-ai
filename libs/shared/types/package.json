@@ -17,6 +17,19 @@
     "tags": [
       "type:types",
       "scope:shared"
-    ]
+    ],
+    "targets": {
+      "test": {
+        "executor": "nx:run-commands",
+        "cache": true,
+        "outputs": [
+          "{projectRoot}/test-output/vitest/coverage"
+        ],
+        "options": {
+          "command": "vitest run --passWithNoTests",
+          "cwd": "libs/shared/types"
+        }
+      }
+    }
   }
 }

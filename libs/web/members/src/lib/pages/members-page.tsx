@@ -1,5 +1,5 @@
 import { useCurrentUser } from '@org/auth';
-import { WorkspaceRole, hasWorkspaceRole } from '@org/types';
+import { WorkspacePermission, WorkspaceRole } from '@org/types';
 import {
   Badge,
   Button,
@@ -17,7 +17,7 @@ import {
   useRightPanelStore,
 } from '@org/ui';
 import { formatRelative } from '@org/utils';
-import { useCurrentWorkspace } from '@org/web-workspace';
+import { useCurrentWorkspace, useWorkspacePermission } from '@org/web-workspace';
 import { MoreHorizontal, UserPlus, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -39,9 +39,10 @@ export function MembersPage() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
 
-  const canManage = workspace
-    ? hasWorkspaceRole(workspace.role, WorkspaceRole.ADMIN)
-    : false;
+  // Asks for the capability rather than comparing role rungs, so this agrees
+  // with what the API's guard will decide for the same request.
+  const { can } = useWorkspacePermission();
+  const canManage = can(WorkspacePermission.MANAGE_MEMBERS);
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
