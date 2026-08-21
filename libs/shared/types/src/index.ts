@@ -128,8 +128,10 @@ export type {
   AISummaryResponse,
   AIToolCall,
   AITranslationResponse,
-  AIUsageStats,
+  AIChatUsage,
+  AIInferenceUsage,
   AIVisionResponse,
+
   ModelResolutionResult,
   PromptTemplate,
   ProviderConnectionTestResult,

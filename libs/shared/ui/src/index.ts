@@ -9,9 +9,14 @@
 
 export {
   Button,
+  ButtonGroup,
+  IconButton,
   buttonVariants,
   type ButtonProps,
+  type ButtonGroupProps,
+  type IconButtonProps,
 } from './lib/components/button.js';
+
 
 export {
   Card,
@@ -141,10 +146,13 @@ export {
 
 export {
   Input,
+  InputGroup,
   Textarea,
   type InputProps,
+  type InputGroupProps,
   type TextareaProps,
 } from './lib/components/input.js';
+
 
 export {
   SearchInput,
@@ -366,3 +374,167 @@ export {
   useHuddleDockStore,
   type HuddleDockState,
 } from './lib/components/huddle-dock.js';
+
+/* --- platform design system primitives & advanced components ------------ */
+
+export { Slider, type SliderProps } from './lib/components/slider.js';
+
+export {
+  RadioGroup,
+  RadioGroupItem,
+  type RadioGroupProps,
+  type RadioGroupItemProps,
+} from './lib/components/radio-group.js';
+
+export {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+  type AccordionProps,
+  type AccordionItemProps,
+  type AccordionTriggerProps,
+  type AccordionContentProps,
+} from './lib/components/accordion.js';
+
+export {
+  Toggle,
+  toggleVariants,
+  type ToggleProps,
+} from './lib/components/toggle.js';
+
+export {
+  ToggleGroup,
+  ToggleGroupItem,
+  type ToggleGroupProps,
+  type ToggleGroupItemProps,
+} from './lib/components/toggle-group.js';
+
+export {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuLabel,
+  ContextMenuCheckboxItem,
+  type ContextMenuProps,
+  type ContextMenuTriggerProps,
+  type ContextMenuContentProps,
+  type ContextMenuItemProps,
+} from './lib/components/context-menu.js';
+
+export {
+  Drawer,
+  DrawerFooter,
+  type DrawerProps,
+} from './lib/components/drawer.js';
+
+export {
+  Pagination,
+  type PaginationProps,
+} from './lib/components/pagination.js';
+
+export {
+  Combobox,
+  type ComboboxProps,
+  type ComboboxOption,
+} from './lib/components/combobox.js';
+
+export {
+  DataGrid,
+  type DataGridProps,
+  type DataGridColumn,
+  type DataGridBulkAction,
+  type SortDirection,
+} from './lib/components/data-grid.js';
+
+export {
+  KanbanBoard,
+  type KanbanBoardProps,
+  type KanbanCardItem,
+  type KanbanColumn,
+} from './lib/components/kanban-board.js';
+
+export {
+  Timeline,
+  type TimelineProps,
+  type TimelineItem,
+  type TimelineEventStatus,
+} from './lib/components/timeline.js';
+
+export {
+  TreeView,
+  type TreeViewProps,
+  type TreeNode,
+} from './lib/components/tree-view.js';
+
+export {
+  ResizablePanels,
+  type ResizablePanelsProps,
+} from './lib/components/resizable-panels.js';
+
+export {
+  FilterBuilder,
+  type FilterBuilderProps,
+  type FilterRule,
+  type FilterField,
+  type FilterOperator,
+} from './lib/components/filter-builder.js';
+
+/* --- AI-native design system layer -------------------------------------- */
+
+export {
+  AIAgentCard,
+  type AIAgentCardProps,
+  type AgentStatus,
+} from './lib/components/ai-agent-card.js';
+
+export {
+  AIModelSelector,
+  DEFAULT_AI_MODELS,
+  type AIModelSelectorProps,
+  type AIModelOption,
+} from './lib/components/ai-model-selector.js';
+
+export {
+  AIExecutionTimeline,
+  type AIExecutionTimelineProps,
+  type AIExecutionStep,
+  type AIExecutionStepType,
+  type AIExecutionStepStatus,
+} from './lib/components/ai-execution-timeline.js';
+
+export {
+  AIThinkingState,
+  type AIThinkingStateProps,
+} from './lib/components/ai-thinking-state.js';
+
+export {
+  AICitationViewer,
+  type AICitationViewerProps,
+  type AICitation,
+} from './lib/components/ai-citation-viewer.js';
+
+export {
+  AIUsageWidget,
+  type AIUsageWidgetProps,
+} from './lib/components/ai-usage-widget.js';
+
+/* --- Universal dynamic cards & block system ----------------------------- */
+
+export {
+  UniversalCard,
+  type UniversalCardProps,
+  type UniversalCardConfig,
+  type UniversalCardType,
+  type UniversalCardAction,
+} from './lib/components/universal-card-registry.js';
+
+
+export {
+  BlockRenderer,
+  type PageBlockConfig,
+  type BlockType,
+} from './lib/components/block-registry.js';
+

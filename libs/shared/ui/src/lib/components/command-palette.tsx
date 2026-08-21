@@ -74,6 +74,17 @@ export function CommandPalette({
       },
     },
     {
+      id: 'design-system',
+      category: 'Design System',
+      label: 'Open Design System Studio & Component Explorer',
+      icon: <Sparkles className="size-4 text-primary" />,
+      shortcut: 'G S',
+      action: () => {
+        onOpenChange(false);
+        navigate('design-system');
+      },
+    },
+    {
       id: 'ai-chat',
       category: 'AI Workflows',
       label: 'Open AI Assistant',
@@ -84,6 +95,7 @@ export function CommandPalette({
         navigate('ai-chat');
       },
     },
+
     {
       id: 'automations',
       category: 'AI Workflows',

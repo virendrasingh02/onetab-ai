@@ -11,7 +11,15 @@ import type { Accent } from '@org/design-system';
  * `warning`, `destructive` and `info` for that.
  */
 export const accentClasses = {
+  mint: {
+    text: 'text-primary-text',
+    bg: 'bg-primary',
+    soft: 'bg-primary/15 text-primary-text',
+    border: 'border-primary/30',
+    ring: 'ring-primary/30',
+  },
   violet: {
+
     text: 'text-accent-violet',
     bg: 'bg-accent-violet',
     soft: 'bg-accent-violet-soft text-accent-violet',

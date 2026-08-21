@@ -9,13 +9,9 @@ export interface InputProps extends ComponentProps<'input'> {
   leadingIcon?: ReactNode;
   trailingSlot?: ReactNode;
   invalid?: boolean;
+  inputSize?: 'sm' | 'md' | 'lg';
   /**
    * Classes for the positioning wrapper that a decorated field renders.
-   *
-   * Width has to land on the wrapper, not the field: the field is `w-full`
-   * inside it, so a `w-64` passed through `className` is overridden by the
-   * wrapper's own `w-full` and the control silently stays full-bleed. Ignored
-   * when the field has no decoration and so renders no wrapper.
    */
   wrapperClassName?: string;
 }
@@ -26,26 +22,32 @@ export function Input({
   leadingIcon,
   trailingSlot,
   invalid,
+  inputSize = 'md',
   wrapperClassName,
   ...props
 }: InputProps) {
+  const sizeClasses = {
+    sm: 'h-7 px-2.5 text-xs',
+    md: 'h-8 px-3 text-xs',
+    lg: 'h-9 px-3.5 text-sm',
+  }[inputSize];
+
   const field = (
     <input
       type={type}
       data-slot="input"
       aria-invalid={invalid || undefined}
       className={cn(
-        // Tokens, not literals — the field was pinned to a dark ramp
-        // (#111113 on #27272A) and stayed dark on the light canvas.
-        'h-8 min-w-0 px-3 py-1 text-xs flex w-full rounded-input border border-input bg-surface text-foreground',
+        'min-w-0 flex w-full rounded-input border border-input bg-surface text-foreground',
+        sizeClasses,
         'placeholder:text-subtle',
         'transition-[color,background-color,border-color,box-shadow] duration-(--duration-fast) outline-none',
         'focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25',
         'disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-disabled disabled:opacity-100',
         'aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20',
         'file:h-7 file:text-xs file:font-medium file:inline-flex file:border-0 file:bg-transparent file:text-foreground',
-        leadingIcon && 'pl-9',
-        trailingSlot && 'pr-9',
+        leadingIcon && (inputSize === 'sm' ? 'pl-7' : inputSize === 'lg' ? 'pl-10' : 'pl-9'),
+        trailingSlot && (inputSize === 'sm' ? 'pr-7' : inputSize === 'lg' ? 'pr-10' : 'pr-9'),
         className,
       )}
       {...props}
@@ -59,14 +61,17 @@ export function Input({
       {leadingIcon ? (
         <span
           aria-hidden
-          className="left-3 [&_svg]:size-4 pointer-events-none absolute top-1/2 -translate-y-1/2 text-subtle"
+          className={cn(
+            'pointer-events-none absolute top-1/2 -translate-y-1/2 text-subtle [&_svg]:size-4',
+            inputSize === 'sm' ? 'left-2.5 [&_svg]:size-3.5' : 'left-3',
+          )}
         >
           {leadingIcon}
         </span>
       ) : null}
       {field}
       {trailingSlot ? (
-        <span className="right-2 absolute top-1/2 -translate-y-1/2">
+        <span className="right-2 absolute top-1/2 -translate-y-1/2 flex items-center">
           {trailingSlot}
         </span>
       ) : null}
@@ -74,14 +79,45 @@ export function Input({
   );
 }
 
+export interface InputGroupProps extends ComponentProps<'div'> {
+  prefixNode?: ReactNode;
+  suffixNode?: ReactNode;
+}
+
+export function InputGroup({
+  className,
+  prefixNode,
+  suffixNode,
+  children,
+  ...props
+}: InputGroupProps) {
+  return (
+    <div
+      className={cn(
+        'inline-flex w-full items-stretch rounded-input border border-input bg-surface focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25 overflow-hidden',
+        className,
+      )}
+      {...props}
+    >
+      {prefixNode && (
+        <div className="flex items-center px-2.5 bg-surface-raised border-r border-border text-xs text-muted-foreground select-none">
+          {prefixNode}
+        </div>
+      )}
+      <div className="flex-1 [&_input]:border-0 [&_input]:rounded-none [&_input]:focus-visible:ring-0 [&_input]:bg-transparent">
+        {children}
+      </div>
+      {suffixNode && (
+        <div className="flex items-center px-2.5 bg-surface-raised border-l border-border text-xs text-muted-foreground select-none">
+          {suffixNode}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export type TextareaProps = TextareaAutosizeProps & {
   invalid?: boolean;
-  /*
-   * `TextareaAutosizeProps` drops `ref` — the underlying component is a
-   * `forwardRef`, so its prop type never carried one. Under the React 19 ref
-   * contract a caller's `ref` is just a prop that gets spread through, so the
-   * type is all that was missing.
-   */
   ref?: Ref<HTMLTextAreaElement>;
 };
 
@@ -96,12 +132,6 @@ export function Textarea({
     <TextareaAutosize
       data-slot="textarea"
       aria-invalid={invalid || undefined}
-      /*
-       * Autosize writes the measured height as `!important` inline style, which
-       * outranks the `rows` attribute the browser would otherwise size from —
-       * so every `rows={n}` call site collapsed to one line. `rows` always
-       * meant "start this tall", which is exactly `minRows`.
-       */
       minRows={minRows ?? rows ?? 2}
       className={cn(
         'min-h-16 px-3 py-2 text-xs flex w-full rounded-input border border-input bg-surface text-foreground',
@@ -116,3 +146,4 @@ export function Textarea({
     />
   );
 }
+

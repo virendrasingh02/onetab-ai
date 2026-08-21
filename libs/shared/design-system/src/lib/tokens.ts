@@ -38,10 +38,72 @@ export const colorTokens = {
 export type ColorToken = keyof typeof colorTokens;
 
 /**
+ * Density Scale definitions
+ */
+export const DENSITIES = ['compact', 'default', 'comfortable'] as const;
+export type Density = (typeof DENSITIES)[number];
+
+/**
+ * Radius presets
+ */
+export const RADII = ['xs', 'sm', 'md', 'lg', 'xl'] as const;
+export type RadiusPreset = (typeof RADII)[number];
+
+export const radiusScale = {
+  xs: '4px',
+  sm: '6px',
+  md: '8px',
+  lg: '10px',
+  xl: '12px',
+  '2xl': '16px',
+  full: '9999px',
+} as const;
+
+/** Spacing scale matching the design spec (4px to 128px) */
+export const spacingScale = {
+  0: '0px',
+  1: '4px',
+  1.5: '6px',
+  2: '8px',
+  2.5: '10px',
+  3: '12px',
+  4: '16px',
+  5: '20px',
+  6: '24px',
+  8: '32px',
+  10: '40px',
+  12: '48px',
+  16: '64px',
+  20: '80px',
+  24: '96px',
+  32: '128px',
+} as const;
+
+/** Typography hierarchy */
+export const typography = {
+  fontSans: "'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+  fontMono: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+  sizes: {
+    display: { fontSize: '32px', lineHeight: '38px', letterSpacing: '-0.03em', fontWeight: '700' },
+    h1: { fontSize: '24px', lineHeight: '30px', letterSpacing: '-0.025em', fontWeight: '600' },
+    h2: { fontSize: '20px', lineHeight: '26px', letterSpacing: '-0.02em', fontWeight: '600' },
+    h3: { fontSize: '16px', lineHeight: '22px', letterSpacing: '-0.015em', fontWeight: '600' },
+    h4: { fontSize: '14px', lineHeight: '20px', letterSpacing: '-0.01em', fontWeight: '600' },
+    bodyLarge: { fontSize: '15px', lineHeight: '22px', letterSpacing: '-0.01em', fontWeight: '400' },
+    body: { fontSize: '14px', lineHeight: '20px', letterSpacing: '-0.011em', fontWeight: '400' },
+    bodySmall: { fontSize: '13px', lineHeight: '18px', letterSpacing: '-0.005em', fontWeight: '400' },
+    caption: { fontSize: '12px', lineHeight: '16px', letterSpacing: '0em', fontWeight: '400' },
+    label: { fontSize: '12px', lineHeight: '16px', letterSpacing: '0.01em', fontWeight: '500' },
+    code: { fontSize: '13px', lineHeight: '18px', letterSpacing: '0em', fontWeight: '400' },
+  },
+} as const;
+
+/**
  * Categorical accents, in the order charts should consume them. Adjacent
  * entries are separated in hue so a series stays distinguishable.
  */
 export const ACCENTS = [
+  'mint',
   'violet',
   'blue',
   'green',
@@ -58,7 +120,7 @@ export type Accent = (typeof ACCENTS)[number];
 
 /** `var(--accent-*)` references for JS consumers (canvas, chart libraries). */
 export const accentTokens = Object.fromEntries(
-  ACCENTS.map((name) => [name, `var(--accent-${name})`]),
+  ACCENTS.map((name) => [name, name === 'mint' ? 'var(--primary)' : `var(--accent-${name})`]),
 ) as Record<Accent, string>;
 
 /** Stable accent for an arbitrary key, so a label keeps its colour. */
@@ -73,8 +135,8 @@ export function accentFor(seed: string): Accent {
 
 /** Motion, mirroring the `--animate-duration-*` / `--ease-*` tokens. */
 export const motion = {
-  fast: 0.15,
-  base: 0.2,
+  fast: 0.12,
+  base: 0.18,
   slow: 0.25,
   easeStandard: [0.2, 0, 0, 1],
   easeEntrance: [0, 0, 0, 1],
@@ -99,6 +161,7 @@ export const layout = {
   sidebarWidth: 240,
   sidebarMinWidth: 200,
   sidebarMaxWidth: 420,
+  sidebarCollapsedWidth: 64,
   headerHeight: 48,
   toolbarHeight: 40,
   rightPanelWidth: 320,

@@ -1607,8 +1607,9 @@ export function WorkspaceSettingsPage({
 
       {/* ---------------- SECTION: AI PROVIDERS & API KEYS ---------------- */}
       {currentTab === 'ai-providers' && (
-        <AIProvidersSettings workspaceId={workspaceId} />
+        <AIProvidersSettings workspaceId={workspaceId ?? ''} />
       )}
+
 
       {/* ---------------- SECTION 4: AI MODELS & PERSONA ---------------- */}
       {currentTab === 'ai-persona' && (

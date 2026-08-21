@@ -7,17 +7,27 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import type { Accent, Density, RadiusPreset } from './tokens.js';
 
 export type Theme = 'light' | 'dark' | 'system';
 /** The theme actually painted, after `system` has been resolved. */
 export type ResolvedTheme = 'light' | 'dark';
 
 export const THEME_STORAGE_KEY = 'onetab.theme';
+export const DENSITY_STORAGE_KEY = 'onetab.density';
+export const ACCENT_STORAGE_KEY = 'onetab.accent';
+export const RADIUS_STORAGE_KEY = 'onetab.radius';
 
 interface ThemeContextValue {
   theme: Theme;
   resolvedTheme: ResolvedTheme;
+  density: Density;
+  accent: Accent;
+  radius: RadiusPreset;
   setTheme: (theme: Theme) => void;
+  setDensity: (density: Density) => void;
+  setAccent: (accent: Accent) => void;
+  setRadius: (radius: RadiusPreset) => void;
   toggleTheme: () => void;
 }
 
@@ -28,17 +38,17 @@ function prefersDark(): boolean {
   return window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
-function readStoredTheme(storageKey: string, defaultTheme: Theme = 'light'): Theme {
-  if (typeof window === 'undefined') return defaultTheme;
+function readStoredValue<T extends string>(storageKey: string, defaultValue: T, validValues: readonly T[]): T {
+  if (typeof window === 'undefined') return defaultValue;
   try {
     const stored = window.localStorage.getItem(storageKey);
-    if (stored === 'light' || stored === 'dark' || stored === 'system') {
-      return stored;
+    if (stored && (validValues as readonly string[]).includes(stored)) {
+      return stored as T;
     }
   } catch {
-    // Private mode / storage disabled — fall through to the default.
+    // Storage disabled / private browsing
   }
-  return defaultTheme;
+  return defaultValue;
 }
 
 function resolve(theme: Theme): ResolvedTheme {
@@ -46,36 +56,62 @@ function resolve(theme: Theme): ResolvedTheme {
   return theme;
 }
 
-/** Applies the resolved theme to <html> and keeps native UI in sync. */
-function applyTheme(resolved: ResolvedTheme) {
+/** Applies the resolved theme, density, accent, and radius to <html> and document root. */
+function applyAppearance(
+  resolved: ResolvedTheme,
+  density: Density,
+  accent: Accent,
+  radius: RadiusPreset,
+) {
+  if (typeof document === 'undefined') return;
   const root = document.documentElement;
   root.classList.toggle('dark', resolved === 'dark');
   root.style.colorScheme = resolved;
+  root.setAttribute('data-density', density);
+  root.setAttribute('data-accent', accent);
+  root.setAttribute('data-radius', radius);
 }
 
 export interface ThemeProviderProps {
   children: ReactNode;
   defaultTheme?: Theme;
+  defaultDensity?: Density;
+  defaultAccent?: Accent;
+  defaultRadius?: RadiusPreset;
   storageKey?: string;
 }
 
 export function ThemeProvider({
   children,
   defaultTheme = 'light',
+  defaultDensity = 'default',
+  defaultAccent = 'mint',
+  defaultRadius = 'md',
   storageKey = THEME_STORAGE_KEY,
 }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<Theme>(
-    () => readStoredTheme(storageKey, defaultTheme),
+  const [theme, setThemeState] = useState<Theme>(() =>
+    readStoredValue(storageKey, defaultTheme, ['light', 'dark', 'system'] as const),
   );
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() =>
-    resolve(readStoredTheme(storageKey, defaultTheme)),
+    resolve(readStoredValue(storageKey, defaultTheme, ['light', 'dark', 'system'] as const)),
+  );
+  const [density, setDensityState] = useState<Density>(() =>
+    readStoredValue(DENSITY_STORAGE_KEY, defaultDensity, ['compact', 'default', 'comfortable'] as const),
+  );
+  const [accent, setAccentState] = useState<Accent>(() =>
+    readStoredValue(ACCENT_STORAGE_KEY, defaultAccent, [
+      'mint', 'violet', 'blue', 'green', 'amber', 'pink', 'cyan', 'orange', 'indigo', 'teal', 'rose'
+    ] as const),
+  );
+  const [radius, setRadiusState] = useState<RadiusPreset>(() =>
+    readStoredValue(RADIUS_STORAGE_KEY, defaultRadius, ['xs', 'sm', 'md', 'lg', 'xl'] as const),
   );
 
   useEffect(() => {
     const next = resolve(theme);
     setResolvedTheme(next);
-    applyTheme(next);
-  }, [theme]);
+    applyAppearance(next, density, accent, radius);
+  }, [theme, density, accent, radius]);
 
   // Track OS changes, but only while the user is on `system`.
   useEffect(() => {
@@ -84,11 +120,11 @@ export function ThemeProvider({
     const onChange = () => {
       const next: ResolvedTheme = query.matches ? 'dark' : 'light';
       setResolvedTheme(next);
-      applyTheme(next);
+      applyAppearance(next, density, accent, radius);
     };
     query.addEventListener('change', onChange);
     return () => query.removeEventListener('change', onChange);
-  }, [theme]);
+  }, [theme, density, accent, radius]);
 
   const setTheme = useCallback(
     (next: Theme) => {
@@ -96,19 +132,57 @@ export function ThemeProvider({
       try {
         window.localStorage.setItem(storageKey, next);
       } catch {
-        // Non-fatal: the theme still applies for this session.
+        // Non-fatal
       }
     },
     [storageKey],
   );
+
+  const setDensity = useCallback((next: Density) => {
+    setDensityState(next);
+    try {
+      window.localStorage.setItem(DENSITY_STORAGE_KEY, next);
+    } catch {
+      // Non-fatal
+    }
+  }, []);
+
+  const setAccent = useCallback((next: Accent) => {
+    setAccentState(next);
+    try {
+      window.localStorage.setItem(ACCENT_STORAGE_KEY, next);
+    } catch {
+      // Non-fatal
+    }
+  }, []);
+
+  const setRadius = useCallback((next: RadiusPreset) => {
+    setRadiusState(next);
+    try {
+      window.localStorage.setItem(RADIUS_STORAGE_KEY, next);
+    } catch {
+      // Non-fatal
+    }
+  }, []);
 
   const toggleTheme = useCallback(() => {
     setTheme(resolve(theme) === 'dark' ? 'light' : 'dark');
   }, [theme, setTheme]);
 
   const value = useMemo(
-    () => ({ theme, resolvedTheme, setTheme, toggleTheme }),
-    [theme, resolvedTheme, setTheme, toggleTheme],
+    () => ({
+      theme,
+      resolvedTheme,
+      density,
+      accent,
+      radius,
+      setTheme,
+      setDensity,
+      setAccent,
+      setRadius,
+      toggleTheme,
+    }),
+    [theme, resolvedTheme, density, accent, radius, setTheme, setDensity, setAccent, setRadius, toggleTheme],
   );
 
   return <ThemeContext value={value}>{children}</ThemeContext>;
@@ -123,9 +197,18 @@ export function useTheme(): ThemeContextValue {
 }
 
 /**
- * Inline script that applies the stored theme before first paint.
- *
- * React mounts too late to prevent a flash on reload, so
- * this runs synchronously in <head>. Keep it dependency-free.
+ * Inline script that applies stored appearance attributes before first paint.
  */
-export const themeInitScript = `(function(){try{var k=localStorage.getItem('${THEME_STORAGE_KEY}');var d=k==='dark'||(k==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`;
+export const themeInitScript = `(function(){try{
+  var k=localStorage.getItem('${THEME_STORAGE_KEY}');
+  var d=k==='dark'||(k==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.classList.toggle('dark',d);
+  document.documentElement.style.colorScheme=d?'dark':'light';
+  var den=localStorage.getItem('${DENSITY_STORAGE_KEY}')||'default';
+  document.documentElement.setAttribute('data-density',den);
+  var acc=localStorage.getItem('${ACCENT_STORAGE_KEY}')||'mint';
+  document.documentElement.setAttribute('data-accent',acc);
+  var rad=localStorage.getItem('${RADIUS_STORAGE_KEY}')||'md';
+  document.documentElement.setAttribute('data-radius',rad);
+}catch(e){}})();`;
+

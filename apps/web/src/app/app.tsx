@@ -161,6 +161,10 @@ const IntegrationHubView = lazy(() =>
 const AppChatView = lazy(() =>
   import('@org/web-integrations').then((m) => ({ default: m.AppChatView })),
 );
+const DesignSystemStudio = lazy(() =>
+  import('@org/web-settings').then((m) => ({ default: m.DesignSystemStudio })),
+);
+
 
 
 function NotFoundPage() {
@@ -288,11 +292,14 @@ export function App() {
             <Route path="cards" element={<CardRegistryView />} />
             <Route path="cards/builder" element={<CardBuilderView />} />
             <Route path="cards/:cardId/builder" element={<CardBuilderView />} />
+            <Route path="design-system" element={<DesignSystemStudio />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>
 
+        <Route path="/design-system" element={<DesignSystemStudio />} />
         <Route path="/404" element={<NotFoundPage />} />
+
         <Route path="*" element={<Navigate to="/404" replace />} />
       </Routes>
     </Suspense>

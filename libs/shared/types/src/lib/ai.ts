@@ -165,7 +165,7 @@ export interface AIChatRequest {
   structuredOutput?: Record<string, unknown>;
 }
 
-export interface AIUsageStats {
+export interface AIChatUsage {
   promptTokens?: number;
   completionTokens?: number;
   reasoningTokens?: number;
@@ -173,13 +173,16 @@ export interface AIUsageStats {
   latencyMs?: number;
 }
 
+export type AIInferenceUsage = AIChatUsage;
+
 export interface AIChatResponse {
   message: AIChatMessage;
-  usage?: AIUsageStats;
+  usage?: AIChatUsage;
   provider?: AIProvider;
   model?: string;
   finishReason?: string;
 }
+
 
 /* ------------------------------------------------------------- Streaming --- */
 
@@ -214,8 +217,9 @@ export interface AIStreamToolResultEvent {
 
 export interface AIStreamUsageEvent {
   type: 'usage';
-  usage: AIUsageStats;
+  usage: AIChatUsage;
 }
+
 
 export interface AIStreamCompleteEvent {
   type: 'message_complete';
