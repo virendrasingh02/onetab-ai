@@ -147,7 +147,8 @@ export interface AgentModelItem {
 export function AgentChatView() {
   const { agentId: paramAgentId } = useParams<{ agentId?: string }>();
   const [searchParams] = useSearchParams();
-  const agentId = searchParams.get('id') || searchParams.get('agent') || paramAgentId;
+  const agentId =
+    searchParams.get('id') || searchParams.get('agent') || paramAgentId;
 
   return agentId ? (
     <AgentConversation agentId={agentId} />
@@ -167,7 +168,11 @@ function AgentConversation({ agentId }: { agentId: string }) {
   const agent = agentsQuery.data?.find((a) => a.id === agentId);
 
   if (agentsQuery.isLoading) {
-    return <div className="p-8"><Spinner label="Opening agent conversation…" /></div>;
+    return (
+      <div className="p-8">
+        <Spinner label="Opening agent conversation…" />
+      </div>
+    );
   }
 
   if (agentsQuery.error) {
@@ -227,7 +232,10 @@ function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
       avatarUrl: agent.avatarUrl ?? undefined,
       title: `${agent.model || 'gpt-4o'} · AI Agent`,
       role: agent.role || 'AI Agent',
-      bio: agent.description || agent.systemPrompt || 'Autonomous workspace AI agent configured for team tasks.',
+      bio:
+        agent.description ||
+        agent.systemPrompt ||
+        'Autonomous workspace AI agent configured for team tasks.',
       status: agent.isActive !== false ? 'online' : 'unavailable',
       statusEmoji: '🤖',
       statusText: 'AI Agent · Ready',
@@ -273,7 +281,7 @@ function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
   }, []);
 
   return (
-    <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/95 backdrop-blur-md">
+    <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
       <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
         <div className="min-w-0 gap-2 flex items-center">
           <div className="min-w-0 gap-2 flex items-center">
@@ -283,15 +291,14 @@ function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
               size="sm"
               className="size-7"
             />
-            <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
+            <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
               {agent.name}
             </h2>
 
             <Badge
               variant="primary"
-              className="gap-0.5 text-[9px] py-0 h-4 uppercase font-bold tracking-wider"
+              className="gap-0.5 py-0 h-5 font-bold tracking-wider text-[10px] uppercase"
             >
-              <Bot className="size-2.5 inline-block mr-0.5" />
               <span>AI AGENT</span>
             </Badge>
 
@@ -555,7 +562,7 @@ function AgentComposer({
   placeholder?: string;
 }) {
   return (
-    <div className="gap-2 rounded-card border border-border bg-surface-raised p-2 flex items-end">
+    <div className="gap-2 p-2 flex items-end rounded-card border border-border bg-surface-raised">
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -569,7 +576,7 @@ function AgentComposer({
         rows={1}
         placeholder={placeholder}
         aria-label={placeholder}
-        className="max-h-40 min-h-9 bg-transparent px-2 py-1.5 text-sm w-full flex-1 resize-none outline-none placeholder:text-muted-foreground"
+        className="max-h-40 min-h-9 px-2 py-1.5 text-sm w-full flex-1 resize-none bg-transparent outline-none placeholder:text-muted-foreground"
       />
       <Button
         size="sm"
@@ -618,7 +625,8 @@ function NewAgentMessage() {
             New AI Agent conversation
           </h1>
           <p className="text-sm text-muted-foreground">
-            Pick an AI agent in this workspace to start a one-to-one conversation.
+            Pick an AI agent in this workspace to start a one-to-one
+            conversation.
           </p>
         </div>
 
@@ -633,7 +641,9 @@ function NewAgentMessage() {
           </div>
 
           {agentsQuery.isLoading ? (
-            <div className="p-8 flex justify-center"><Spinner label="Loading agents…" /></div>
+            <div className="p-8 flex justify-center">
+              <Spinner label="Loading agents…" />
+            </div>
           ) : agents.length === 0 ? (
             <EmptyState
               size="sm"
@@ -655,7 +665,7 @@ function NewAgentMessage() {
                   <button
                     type="button"
                     onClick={() => select(agent)}
-                    className="gap-2.5 p-2.5 flex w-full items-center rounded-md text-left transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none cursor-pointer"
+                    className="gap-2.5 p-2.5 flex w-full cursor-pointer items-center rounded-md text-left transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none"
                   >
                     <AgentAvatar
                       name={agent.name}
@@ -663,19 +673,19 @@ function NewAgentMessage() {
                       size="md"
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-1.5">
+                      <span className="gap-1.5 flex items-center">
                         <span className="text-sm font-medium block truncate text-foreground">
                           {agent.name}
                         </span>
                         <Badge
                           variant="neutral"
-                          className="h-3.5 px-1 text-[9px] font-bold uppercase tracking-wider bg-muted text-muted-foreground"
+                          className="h-3.5 px-1 font-bold tracking-wider bg-muted text-[9px] text-muted-foreground uppercase"
                         >
                           APP
                         </Badge>
                         <Badge
                           variant="primary"
-                          className="text-[9px] h-3.5 px-1 font-mono ml-auto"
+                          className="h-3.5 px-1 ml-auto font-mono text-[9px]"
                         >
                           {agent.model || 'gpt-4o'}
                         </Badge>

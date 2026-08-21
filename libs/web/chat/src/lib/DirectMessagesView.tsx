@@ -49,7 +49,6 @@ import { useMatrix } from './matrix-provider.js';
 import { useDirectRoom } from './use-direct-room.js';
 import { useDirectMessagePreferences } from './use-dm-preferences.js';
 
-
 /**
  * A direct message, laid out like a channel.
  *
@@ -88,10 +87,7 @@ function DirectConversation({ peerId }: { peerId: string }) {
     null,
   );
 
-  const allMembers = useMemo(
-    () => members.data ?? [],
-    [members.data],
-  );
+  const allMembers = useMemo(() => members.data ?? [], [members.data]);
 
   const member = allMembers.find((entry) => entry.user.id === peerId);
 
@@ -277,14 +273,14 @@ function DirectMessageHeader({
   }, []);
 
   return (
-    <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/95 backdrop-blur-md">
+    <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
       <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
         <div className="min-w-0 gap-2 flex items-center">
           <div className="min-w-0 gap-2 flex items-center">
             <button
               type="button"
               onClick={handleOpenProfile}
-              className="gap-2 flex items-center rounded-md hover:bg-accent/60 p-1 -m-1 transition-colors text-left cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="gap-2 p-1 -m-1 flex cursor-pointer items-center rounded-md text-left transition-colors hover:bg-accent/60 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
               aria-label={`View ${name}'s profile`}
             >
               <UserAvatar
@@ -295,7 +291,7 @@ function DirectMessageHeader({
                 size="sm"
                 className="size-7"
               />
-              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground hover:underline">
+              <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
                 {name}
               </h2>
             </button>
@@ -314,17 +310,17 @@ function DirectMessageHeader({
             {member.user.id.startsWith('agent-') ? (
               <Badge
                 variant="primary"
-                className="gap-0.5 text-[9px] py-0 h-4 uppercase font-bold tracking-wider"
+                className="gap-0.5 py-0 h-4 font-bold tracking-wider text-[9px] uppercase"
               >
-                <Bot className="size-2.5 inline-block mr-0.5" />
+                <Bot className="size-2.5 mr-0.5 inline-block" />
                 <span>AI AGENT</span>
               </Badge>
             ) : member.user.id.startsWith('app-') ? (
               <Badge
                 variant="neutral"
-                className="gap-0.5 text-[9px] py-0 h-4 uppercase font-bold tracking-wider bg-accent-violet-soft text-accent-violet border-accent-violet/20"
+                className="gap-0.5 py-0 h-4 font-bold tracking-wider border-accent-violet/20 bg-accent-violet-soft text-[9px] text-accent-violet uppercase"
               >
-                <Blocks className="size-2.5 inline-block mr-0.5" />
+                <Blocks className="size-2.5 mr-0.5 inline-block" />
                 <span>APP</span>
               </Badge>
             ) : null}
@@ -515,13 +511,14 @@ function NewDirectMessage() {
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return allPeers;
-    return allPeers.filter((member) =>
-      (member.user.displayName ?? member.user.name)
-        .toLowerCase()
-        .includes(needle) ||
-      member.user.name.toLowerCase().includes(needle) ||
-      (member.user.statusText &&
-        member.user.statusText.toLowerCase().includes(needle)),
+    return allPeers.filter(
+      (member) =>
+        (member.user.displayName ?? member.user.name)
+          .toLowerCase()
+          .includes(needle) ||
+        member.user.name.toLowerCase().includes(needle) ||
+        (member.user.statusText &&
+          member.user.statusText.toLowerCase().includes(needle)),
     );
   }, [allPeers, query]);
 
@@ -594,19 +591,19 @@ function NewDirectMessage() {
                         )}
                       />
                       <span className="min-w-0 flex-1">
-                        <span className="text-sm font-medium flex items-center gap-1.5 truncate">
+                        <span className="text-sm font-medium gap-1.5 flex items-center truncate">
                           <span className="truncate">{name}</span>
                           {isAgent ? (
                             <Badge
                               variant="primary"
-                              className="text-[9px] py-0 h-3.5 uppercase font-bold tracking-wider"
+                              className="py-0 h-3.5 font-bold tracking-wider text-[9px] uppercase"
                             >
                               AI AGENT
                             </Badge>
                           ) : isApp ? (
                             <Badge
                               variant="neutral"
-                              className="text-[9px] py-0 h-3.5 uppercase font-bold tracking-wider bg-accent-violet-soft text-accent-violet border-accent-violet/20"
+                              className="py-0 h-3.5 font-bold tracking-wider border-accent-violet/20 bg-accent-violet-soft text-[9px] text-accent-violet uppercase"
                             >
                               APP
                             </Badge>

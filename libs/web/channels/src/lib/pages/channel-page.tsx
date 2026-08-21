@@ -179,7 +179,7 @@ function ChannelHeader({
   }, [channel.id, isFavorite, preferences]);
 
   return (
-    <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/95 backdrop-blur-md">
+    <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
       <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
         <div className="min-w-0 gap-2 flex items-center">
           <div className="min-w-0 gap-1.5 flex items-center">
@@ -187,12 +187,9 @@ function ChannelHeader({
               className="size-4 shrink-0 text-muted-foreground"
               aria-hidden
             />
-            <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
+            <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
               {channel.name}
             </h2>
-            {channel.visibility === 'PRIVATE' ? (
-              <Badge variant="neutral">Private</Badge>
-            ) : null}
             {channel.isArchived ? (
               <Badge variant="warning">Archived</Badge>
             ) : null}
@@ -452,7 +449,7 @@ function ChannelHeader({
                 ) : (
                   <Users className="size-4" />
                 )}
-                <span className="text-xs font-medium tabular-nums text-foreground">
+                <span className="text-xs font-medium text-foreground tabular-nums">
                   {channel.memberCount || members.length}
                 </span>
               </Button>
@@ -713,7 +710,7 @@ export function ChannelPage() {
         onValueChange={setActiveTab}
         className="min-h-0 flex flex-1 flex-col"
       >
-        <div className="px-3 sm:px-6 pt-2 flex items-center gap-1 border-b border-border bg-background">
+        <div className="px-3 sm:px-6 pt-2 gap-1 flex items-center border-b border-border bg-background">
           <TabsList className="scrollbar-none overflow-x-auto">
             <TabsTrigger value="chat" className="gap-1.5">
               <MessageSquare className="size-4" /> Messages
@@ -759,21 +756,24 @@ export function ChannelPage() {
               <Button
                 variant="ghost"
                 size="icon-sm"
-                className="size-7 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+                className="size-7 shrink-0 cursor-pointer text-muted-foreground hover:text-foreground"
                 aria-label="Channel actions, workflows, templates, and AI agents"
               >
                 <MoreHorizontal className="size-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-60 p-1.5 space-y-0.5">
+            <DropdownMenuContent
+              align="start"
+              className="w-60 p-1.5 space-y-0.5"
+            >
               <DropdownMenuItem
                 onClick={() => setAddAgentOpen(true)}
                 className="gap-2.5 text-xs font-medium cursor-pointer"
               >
-                <Bot className="size-4 text-primary shrink-0" />
-                <div className="flex-1 min-w-0">
+                <Bot className="size-4 shrink-0 text-primary" />
+                <div className="min-w-0 flex-1">
                   <span className="text-foreground">Add AI Agent</span>
-                  <p className="text-[10px] text-muted-foreground truncate">
+                  <p className="truncate text-[10px] text-muted-foreground">
                     Add assistant / reviewer bot
                   </p>
                 </div>
@@ -783,10 +783,10 @@ export function ChannelPage() {
                 onClick={() => setAddAppOpen(true)}
                 className="gap-2.5 text-xs font-medium cursor-pointer"
               >
-                <Blocks className="size-4 text-accent-violet shrink-0" />
-                <div className="flex-1 min-w-0">
+                <Blocks className="size-4 shrink-0 text-accent-violet" />
+                <div className="min-w-0 flex-1">
                   <span className="text-foreground">Connect App</span>
-                  <p className="text-[10px] text-muted-foreground truncate">
+                  <p className="truncate text-[10px] text-muted-foreground">
                     GitHub, Linear, Sentry &amp; Jira
                   </p>
                 </div>
@@ -798,10 +798,10 @@ export function ChannelPage() {
                 onClick={() => setWorkflowsOpen(true)}
                 className="gap-2.5 text-xs font-medium cursor-pointer"
               >
-                <Workflow className="size-4 text-accent-violet shrink-0" />
-                <div className="flex-1 min-w-0">
+                <Workflow className="size-4 shrink-0 text-accent-violet" />
+                <div className="min-w-0 flex-1">
                   <span className="text-foreground">Workflows</span>
-                  <p className="text-[10px] text-muted-foreground truncate">
+                  <p className="truncate text-[10px] text-muted-foreground">
                     Triggers, standups &amp; alerts
                   </p>
                 </div>
@@ -811,10 +811,10 @@ export function ChannelPage() {
                 onClick={() => setTemplatesOpen(true)}
                 className="gap-2.5 text-xs font-medium cursor-pointer"
               >
-                <LayoutTemplate className="size-4 text-accent-amber shrink-0" />
-                <div className="flex-1 min-w-0">
+                <LayoutTemplate className="size-4 shrink-0 text-accent-amber" />
+                <div className="min-w-0 flex-1">
                   <span className="text-foreground">Channel Templates</span>
-                  <p className="text-[10px] text-muted-foreground truncate">
+                  <p className="truncate text-[10px] text-muted-foreground">
                     Sprint, incident &amp; launch packs
                   </p>
                 </div>
@@ -826,7 +826,7 @@ export function ChannelPage() {
                 onClick={() => setAddBookmarkOpen(true)}
                 className="gap-2.5 text-xs cursor-pointer"
               >
-                <Bookmark className="size-4 text-muted-foreground shrink-0" />
+                <Bookmark className="size-4 shrink-0 text-muted-foreground" />
                 <span>Add Bookmark / Link</span>
               </DropdownMenuItem>
 
@@ -834,7 +834,7 @@ export function ChannelPage() {
                 onClick={() => setAddPeopleOpen(true)}
                 className="gap-2.5 text-xs cursor-pointer"
               >
-                <Users className="size-4 text-muted-foreground shrink-0" />
+                <Users className="size-4 shrink-0 text-muted-foreground" />
                 <span>Add People to Channel</span>
               </DropdownMenuItem>
 
@@ -842,7 +842,7 @@ export function ChannelPage() {
                 onClick={() => setDetailsOpen(true)}
                 className="gap-2.5 text-xs cursor-pointer"
               >
-                <Pencil className="size-4 text-muted-foreground shrink-0" />
+                <Pencil className="size-4 shrink-0 text-muted-foreground" />
                 <span>Edit Channel Details</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -885,8 +885,8 @@ export function ChannelPage() {
             contentClassName="px-4 sm:px-6 py-4 space-y-6"
           >
             {/* Top Toolbar: Filter pills & Actions */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
-              <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="gap-3 pb-3 flex flex-wrap items-center justify-between border-b border-border/60">
+              <div className="gap-1.5 flex flex-wrap items-center">
                 <Button
                   size="sm"
                   variant={filesFilter === 'all' ? 'primary' : 'outline'}
@@ -922,7 +922,8 @@ export function ChannelPage() {
                   toast.info('Select a file from your device to upload');
                   const input = document.createElement('input');
                   input.type = 'file';
-                  input.onchange = () => toast.success('File uploaded to channel');
+                  input.onchange = () =>
+                    toast.success('File uploaded to channel');
                   input.click();
                 }}
               >
@@ -956,7 +957,7 @@ export function ChannelPage() {
             {(filesFilter === 'all' || filesFilter === 'media') &&
             mediaFiles.length > 0 ? (
               <div className="space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <h4 className="text-xs font-bold tracking-wider gap-1.5 flex items-center text-muted-foreground uppercase">
                   <ImageIcon className="size-3.5 text-accent-amber" />
                   <span>Media &amp; Images ({mediaFiles.length})</span>
                 </h4>
@@ -965,7 +966,7 @@ export function ChannelPage() {
                   {mediaFiles.map((file) => (
                     <figure
                       key={file.id}
-                      className="aspect-square overflow-hidden rounded-lg bg-muted border border-border group relative"
+                      className="group relative aspect-square overflow-hidden rounded-lg border border-border bg-muted"
                     >
                       <img
                         src={fileSrc(file.storageKey)}
@@ -973,8 +974,8 @@ export function ChannelPage() {
                         className="size-full object-cover transition-transform group-hover:scale-105"
                         loading="lazy"
                       />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2 text-white">
-                        <span className="text-[11px] truncate font-medium">
+                      <div className="inset-0 bg-black/50 p-2 text-white absolute flex items-end opacity-0 transition-opacity group-hover:opacity-100">
+                        <span className="font-medium truncate text-[11px]">
                           {file.filename}
                         </span>
                       </div>
@@ -988,18 +989,18 @@ export function ChannelPage() {
             {(filesFilter === 'all' || filesFilter === 'files') &&
             documentFiles.length > 0 ? (
               <div className="space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <h4 className="text-xs font-bold tracking-wider gap-1.5 flex items-center text-muted-foreground uppercase">
                   <FileText className="size-3.5 text-accent-violet" />
                   <span>Documents &amp; Files ({documentFiles.length})</span>
                 </h4>
 
-                <ul className="divide-y divide-border rounded-xl border border-border bg-surface overflow-hidden">
+                <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
                   {documentFiles.map((file) => (
                     <li
                       key={file.id}
-                      className="gap-3 px-4 py-3 flex items-center hover:bg-surface-raised transition-colors"
+                      className="gap-3 px-4 py-3 flex items-center transition-colors hover:bg-surface-raised"
                     >
-                      <FileText className="size-5 text-muted-foreground shrink-0" />
+                      <FileText className="size-5 shrink-0 text-muted-foreground" />
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium truncate text-foreground">
                           {file.filename}
@@ -1033,13 +1034,13 @@ export function ChannelPage() {
             className="min-h-0 flex-1"
             contentClassName="px-4 sm:px-6 py-4 space-y-4"
           >
-            <div className="flex items-center justify-between border-b border-border/60 pb-3">
+            <div className="pb-3 flex items-center justify-between border-b border-border/60">
               <div>
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <h3 className="text-sm font-semibold gap-2 flex items-center text-foreground">
                   <Bookmark className="size-4 text-primary" />
                   <span>Channel Bookmarks</span>
                 </h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="text-xs mt-0.5 text-muted-foreground">
                   Pinned links, documents, and resources for #{channel.name}
                 </p>
               </div>
@@ -1073,7 +1074,7 @@ export function ChannelPage() {
                 {bookmarks.map((bm) => (
                   <div
                     key={bm.id}
-                    className="group p-3 shadow-xs relative flex items-start justify-between rounded-card border border-border bg-surface transition-all hover:border-border-strong hover:bg-surface-raised"
+                    className="group p-3 relative flex items-start justify-between rounded-card border border-border bg-surface shadow-xs transition-all hover:border-border-strong hover:bg-surface-raised"
                   >
                     <a
                       href={bm.href}

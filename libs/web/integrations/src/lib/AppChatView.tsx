@@ -37,7 +37,10 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { useIntegrationMutations, useIntegrations } from './use-integrations.js';
+import {
+  useIntegrationMutations,
+  useIntegrations,
+} from './use-integrations.js';
 
 interface AppPreferencesState {
   byWorkspace: Record<string, { favorites: string[]; muted: string[] }>;
@@ -104,8 +107,7 @@ function useAppPreferences(workspaceId: string | undefined) {
     mutedIds,
     isFavorite: (appId: string) => favoriteIds.includes(appId),
     isMuted: (appId: string) => mutedIds.includes(appId),
-    toggleFavorite: (appId: string) =>
-      toggleFavorite(activeWorkspaceId, appId),
+    toggleFavorite: (appId: string) => toggleFavorite(activeWorkspaceId, appId),
     toggleMuted: (appId: string) => toggleMuted(activeWorkspaceId, appId),
   };
 }
@@ -301,7 +303,8 @@ export function AppAvatar({
   className?: string;
   size?: 'sm' | 'md' | 'lg';
 }) {
-  const logoUrl = APP_LOGOS[provider.toLowerCase()] || APP_LOGOS[name.toLowerCase()];
+  const logoUrl =
+    APP_LOGOS[provider.toLowerCase()] || APP_LOGOS[name.toLowerCase()];
   const sizeClasses = {
     sm: 'size-7 p-1 rounded-lg text-xs',
     md: 'size-10 p-1.5 rounded-xl text-sm',
@@ -339,10 +342,7 @@ export function AppAvatar({
 export function AppChatView() {
   const { appId: paramAppId } = useParams<{ appId?: string }>();
   const [searchParams] = useSearchParams();
-  const appId =
-    searchParams.get('app') ||
-    searchParams.get('id') ||
-    paramAppId;
+  const appId = searchParams.get('app') || searchParams.get('id') || paramAppId;
 
   return appId ? <AppConversation appId={appId} /> : <NewAppMessage />;
 }
@@ -358,16 +358,20 @@ function AppConversation({ appId }: { appId: string }) {
   const connectedIntegrations = useMemo(() => {
     return (integrationsQuery.data ?? []).map((i) => {
       const defaultMatch = DEFAULT_WORKSPACE_APPS.find(
-        (d) => d.id === i.provider.toLowerCase() || d.provider === i.provider.toLowerCase(),
+        (d) =>
+          d.id === i.provider.toLowerCase() ||
+          d.provider === i.provider.toLowerCase(),
       );
       return {
         id: i.provider.toLowerCase(),
         name: defaultMatch?.name || i.provider,
         category: defaultMatch?.category || 'Developer Tools',
         provider: i.provider.toLowerCase(),
-        description: defaultMatch?.description || `${i.provider} workspace integration.`,
+        description:
+          defaultMatch?.description || `${i.provider} workspace integration.`,
         isConnected: i.status === 'CONNECTED',
-        statusText: i.status === 'CONNECTED' ? 'Connected · Active' : 'Disconnected',
+        statusText:
+          i.status === 'CONNECTED' ? 'Connected · Active' : 'Disconnected',
         quickStarters: defaultMatch?.quickStarters,
       } as AppModelItem;
     });
@@ -499,14 +503,14 @@ function AppMessageHeader({ app }: { app: AppModelItem }) {
   };
 
   return (
-    <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/95 backdrop-blur-md">
+    <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
       <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
         <div className="min-w-0 gap-2 flex items-center">
           <div className="min-w-0 gap-2 flex items-center">
             <button
               type="button"
               onClick={handleOpenProfile}
-              className="gap-2 flex items-center rounded-md hover:bg-accent/60 p-1 -m-1 transition-colors text-left cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="gap-2 p-1 -m-1 flex cursor-pointer items-center rounded-md text-left transition-colors hover:bg-accent/60 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
               aria-label={`View ${name}'s details`}
             >
               <AppAvatar
@@ -515,7 +519,7 @@ function AppMessageHeader({ app }: { app: AppModelItem }) {
                 size="sm"
                 className="size-7"
               />
-              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground hover:underline">
+              <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
                 {name}
               </h2>
             </button>
@@ -523,9 +527,8 @@ function AppMessageHeader({ app }: { app: AppModelItem }) {
             {/* Direct Message APP badge */}
             <Badge
               variant="neutral"
-              className="gap-0.5 text-[9px] py-0 h-4 uppercase font-bold tracking-wider bg-accent-violet-soft text-accent-violet border-accent-violet/20"
+              className="gap-0.5 py-0 h-5 font-bold tracking-wider border-accent-violet/20 bg-accent-violet-soft text-[10px] text-accent-violet uppercase"
             >
-              <Blocks className="size-2.5 inline-block mr-0.5" />
               <span>APP</span>
             </Badge>
 
@@ -670,7 +673,6 @@ function AppMessageHeader({ app }: { app: AppModelItem }) {
             </DropdownMenu>
           </div>
         </div>
-
       </div>
     </div>
   );
@@ -688,14 +690,12 @@ function AppDetailPanel({ app }: { app: AppModelItem }) {
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
-        <section className="rounded-card border border-border bg-surface-raised p-5 space-y-3">
+      <div className="max-w-2xl px-6 py-8 space-y-6 mx-auto">
+        <section className="p-5 space-y-3 rounded-card border border-border bg-surface-raised">
           <div className="gap-3 flex items-start justify-between">
             <div className="space-y-1">
               <h2 className="text-sm font-medium">Connection</h2>
-              <p className="text-sm text-muted-foreground">
-                {app.description}
-              </p>
+              <p className="text-sm text-muted-foreground">{app.description}</p>
             </div>
             <Badge variant={app.isConnected ? 'success' : 'outline'}>
               {app.isConnected ? 'Connected' : 'Not connected'}
@@ -710,8 +710,7 @@ function AppDetailPanel({ app }: { app: AppModelItem }) {
                 disabled={isBusy}
                 onClick={() =>
                   disconnect.mutate(app.provider, {
-                    onSuccess: () =>
-                      toast.success(`${app.name} disconnected`),
+                    onSuccess: () => toast.success(`${app.name} disconnected`),
                   })
                 }
               >
@@ -725,8 +724,7 @@ function AppDetailPanel({ app }: { app: AppModelItem }) {
                   connect.mutate(
                     { provider: app.provider },
                     {
-                      onSuccess: () =>
-                        toast.success(`${app.name} connected`),
+                      onSuccess: () => toast.success(`${app.name} connected`),
                     },
                   )
                 }
@@ -775,14 +773,17 @@ function NewAppMessage() {
   const connectedIntegrations = useMemo(() => {
     return (integrationsQuery.data ?? []).map((i) => {
       const defaultMatch = DEFAULT_WORKSPACE_APPS.find(
-        (d) => d.id === i.provider.toLowerCase() || d.provider === i.provider.toLowerCase(),
+        (d) =>
+          d.id === i.provider.toLowerCase() ||
+          d.provider === i.provider.toLowerCase(),
       );
       return {
         id: i.provider.toLowerCase(),
         name: defaultMatch?.name || i.provider,
         category: defaultMatch?.category || 'Developer Tools',
         provider: i.provider.toLowerCase(),
-        description: defaultMatch?.description || `${i.provider} workspace integration.`,
+        description:
+          defaultMatch?.description || `${i.provider} workspace integration.`,
         isConnected: i.status === 'CONNECTED',
       } as AppModelItem;
     });
@@ -835,12 +836,13 @@ function NewAppMessage() {
             New App conversation
           </h1>
           <p className="text-sm text-muted-foreground">
-            Pick a connected app or integration to start an interactive conversation.
+            Pick a connected app or integration to start an interactive
+            conversation.
           </p>
         </div>
 
         <Panel flush title="Connected Apps &amp; Integrations">
-          <div className="p-3 border-b border-border space-y-2">
+          <div className="p-3 space-y-2 border-b border-border">
             <SearchInput
               value={query}
               onValueChange={setQuery}
@@ -848,16 +850,16 @@ function NewAppMessage() {
               label="Search apps"
             />
 
-            <div className="flex flex-wrap gap-1 pt-1">
+            <div className="gap-1 pt-1 flex flex-wrap">
               {categories.map((cat) => (
                 <button
                   key={cat}
                   type="button"
                   onClick={() => setSelectedCategory(cat)}
                   className={cn(
-                    'px-2.5 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer',
+                    'px-2.5 py-1 text-xs font-medium cursor-pointer rounded-full transition-colors',
                     selectedCategory === cat
-                      ? 'bg-accent-violet text-white'
+                      ? 'text-white bg-accent-violet'
                       : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground',
                   )}
                 >
@@ -889,38 +891,38 @@ function NewAppMessage() {
                     <button
                       type="button"
                       onClick={() => select(app)}
-                      className="gap-3 p-2.5 flex w-full items-center rounded-xl text-left transition-colors hover:bg-muted/80 focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none cursor-pointer group"
+                      className="gap-3 p-2.5 group flex w-full cursor-pointer items-center rounded-xl text-left transition-colors hover:bg-muted/80 focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none"
                     >
                       <AppAvatar
                         name={app.name}
                         provider={app.provider}
                         size="md"
-                        className="group-hover:border-accent-violet transition-colors"
+                        className="transition-colors group-hover:border-accent-violet"
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="gap-2 flex items-center">
                           <span className="text-sm font-semibold truncate text-foreground group-hover:text-accent-violet dark:group-hover:text-accent-violet">
                             {app.name}
                           </span>
                           <Badge
                             variant="neutral"
-                            className="gap-0.5 text-[9px] py-0 h-3.5 uppercase font-bold tracking-wider bg-accent-violet-soft text-accent-violet border-accent-violet/20"
+                            className="gap-0.5 py-0 h-3.5 font-bold tracking-wider border-accent-violet/20 bg-accent-violet-soft text-[9px] text-accent-violet uppercase"
                           >
-                            <Blocks className="size-2 inline-block mr-0.5" />
+                            <Blocks className="size-2 mr-0.5 inline-block" />
                             <span>APP</span>
                           </Badge>
                           <Badge
                             variant="neutral"
-                            className="text-[10px] py-0 h-3.5"
+                            className="py-0 h-3.5 text-[10px]"
                           >
                             {app.category}
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        <p className="text-xs mt-0.5 truncate text-muted-foreground">
                           {app.description}
                         </p>
                       </div>
-                      <ChevronRight className="size-4 text-muted-foreground/60 shrink-0 group-hover:text-foreground transition-colors" />
+                      <ChevronRight className="size-4 shrink-0 text-muted-foreground/60 transition-colors group-hover:text-foreground" />
                     </button>
                   </li>
                 );
