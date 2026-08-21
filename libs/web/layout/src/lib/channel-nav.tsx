@@ -536,7 +536,7 @@ export function ChannelNav({
   return (
     <div className="min-h-0 flex h-full flex-col">
       {/* Sticky Sidebar Navigation Header */}
-      <div className="top-0 px-3 pt-3 pb-2 backdrop-blur-md sticky z-10 shrink-0 border-b border-border/40 bg-surface-muted/95">
+      <div className="px-3 pt-3 pb-2 backdrop-blur-md z-10 shrink-0 border-b border-border/40 bg-surface-muted/95">
         <nav aria-label="Primary navigation" className="space-y-0.5">
           {coreLinks.map((entry) => (
             <NavRow

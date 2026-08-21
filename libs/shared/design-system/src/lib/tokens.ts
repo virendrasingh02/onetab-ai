@@ -81,7 +81,7 @@ export const spacingScale = {
 
 /** Typography hierarchy */
 export const typography = {
-  fontSans: "'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+  fontSans: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
   fontMono: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
   sizes: {
     display: { fontSize: '32px', lineHeight: '38px', letterSpacing: '-0.03em', fontWeight: '700' },
