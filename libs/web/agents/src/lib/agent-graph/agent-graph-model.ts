@@ -230,6 +230,7 @@ export interface NodeKindSpec {
 }
 
 const PROVIDER_OPTIONS = [
+  { value: 'nvidia', label: 'NVIDIA' },
   { value: 'ollama', label: 'Ollama (local)' },
   { value: 'openai', label: 'OpenAI' },
   { value: 'anthropic', label: 'Anthropic' },
@@ -398,8 +399,8 @@ export const NODE_SPECS: Record<AgentNodeKind, NodeKindSpec> = {
     singleton: true,
     handles: { cap: true },
     defaults: {
-      provider: 'ollama',
-      model: 'llama3',
+      provider: 'nvidia',
+      model: 'nvidia/nemotron-3-super-120b-a12b',
       temperature: 0.2,
       maxTokens: 4096,
       streaming: true,
@@ -417,7 +418,7 @@ export const NODE_SPECS: Record<AgentNodeKind, NodeKindSpec> = {
         label: 'Model',
         mono: true,
         required: true,
-        placeholder: 'llama3',
+        placeholder: 'nvidia/nemotron-3-super-120b-a12b',
       },
       {
         type: 'number',

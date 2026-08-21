@@ -67,6 +67,34 @@ export const apiEnvSchema = z.object({
   MEILI_MASTER_KEY: z.string().default('masterKey123'),
   QDRANT_URL: z.string().default('http://localhost:6333'),
   OLLAMA_URL: z.string().default('http://localhost:11434'),
+
+  // Multi-Provider AI Platform configuration
+  NVIDIA_API_KEY: z.string().optional(),
+  NVIDIA_BASE_URL: z.string().default('https://integrate.api.nvidia.com/v1'),
+  OPENAI_API_KEY: z.string().optional(),
+  OPENAI_BASE_URL: z.string().default('https://api.openai.com/v1'),
+  ANTHROPIC_API_KEY: z.string().optional(),
+  ANTHROPIC_BASE_URL: z.string().default('https://api.anthropic.com/v1'),
+  GOOGLE_AI_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
+  DEEPSEEK_API_KEY: z.string().optional(),
+  DEEPSEEK_BASE_URL: z.string().default('https://api.deepseek.com'),
+  GROQ_API_KEY: z.string().optional(),
+  GROQ_BASE_URL: z.string().default('https://api.groq.com/openai/v1'),
+  MISTRAL_API_KEY: z.string().optional(),
+  MISTRAL_BASE_URL: z.string().default('https://api.mistral.ai/v1'),
+  XAI_API_KEY: z.string().optional(),
+  XAI_BASE_URL: z.string().default('https://api.x.ai/v1'),
+  TOGETHER_API_KEY: z.string().optional(),
+  TOGETHER_BASE_URL: z.string().default('https://api.together.xyz/v1'),
+  OPENROUTER_API_KEY: z.string().optional(),
+  OPENROUTER_BASE_URL: z.string().default('https://openrouter.ai/api/v1'),
+  COHERE_API_KEY: z.string().optional(),
+  COHERE_BASE_URL: z.string().default('https://api.cohere.com/v2'),
+
+  // Default Platform Provider & Model
+  AI_DEFAULT_PROVIDER: z.string().default('nvidia'),
+  AI_DEFAULT_MODEL: z.string().default('nvidia/nemotron-3-super-120b-a12b'),
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;

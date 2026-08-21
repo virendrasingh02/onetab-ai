@@ -15,6 +15,7 @@ import {
   FolderArchive,
   Globe,
   Kanban,
+  Key,
   MessageSquare,
   Plug,
   Search,
@@ -101,6 +102,12 @@ export function SettingsLayout({
       section: 'workspace',
       title: 'AI & Automation',
       items: [
+        {
+          id: 'ai-providers',
+          label: 'AI Providers & Keys',
+          icon: Key,
+          badge: 'NEW',
+        },
         {
           id: 'ai-persona',
           label: 'AI Models & Persona',

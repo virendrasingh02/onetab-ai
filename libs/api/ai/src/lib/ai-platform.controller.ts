@@ -1,28 +1,147 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { WorkspaceRoleGuard } from '@org/api-auth';
-import { WorkspaceId } from '@org/api-common';
+import {
+  CurrentUser,
+  WorkspaceId,
+  type AuthenticatedUser,
+} from '@org/api-common';
+import type {
+  AIProvider,
+  SaveProviderCredentialInput,
+  UpdateModelSettingsInput,
+} from '@org/types';
+import type { Response } from 'express';
+import { AICredentialService } from './ai-credential.service.js';
 import {
   AIInfrastructureService,
   type ChatMessage,
 } from './ai-infrastructure.service.js';
 
 /**
- * Model inference for one workspace.
+ * Model inference and configuration for one workspace.
  *
  * Scoped to a workspace even though the models hold no workspace data: these
  * calls cost money and compute, so they need an owner to attribute and rate
- * limit against. Under `JwtAuthGuard` alone, any account could burn the
- * platform's inference budget without belonging to anything.
- *
- * The throttle is far below the global default for the same reason — a chat
- * round trip is orders of magnitude more expensive than a database read.
+ * limit against.
  */
 @Controller({ path: 'workspaces/:workspaceId/ai', version: '1' })
 @UseGuards(WorkspaceRoleGuard)
-@Throttle({ default: { limit: 30, ttl: 60_000 } })
+@Throttle({ default: { limit: 60, ttl: 60_000 } })
 export class AIPlatformController {
-  constructor(private readonly aiService: AIInfrastructureService) {}
+  constructor(
+    private readonly aiService: AIInfrastructureService,
+    private readonly credentialService: AICredentialService
+  ) {}
+
+  @Get('providers')
+  getProviders(@WorkspaceId() workspaceId: string) {
+    return this.credentialService.listWorkspaceProviders(workspaceId);
+  }
+
+  @Get('providers/:provider')
+  getProvider(
+    @WorkspaceId() workspaceId: string,
+    @Param('provider') provider: AIProvider
+  ) {
+    return this.credentialService.getWorkspaceProvider(workspaceId, provider);
+  }
+
+  @Post('providers/:provider/credentials')
+  saveCredential(
+    @WorkspaceId() workspaceId: string,
+    @Param('provider') provider: AIProvider,
+    @Body() body: SaveProviderCredentialInput,
+    @CurrentUser() user?: AuthenticatedUser
+  ) {
+    return this.credentialService.saveCredential(
+      workspaceId,
+      provider,
+      body,
+      user?.id
+    );
+  }
+
+  @Patch('providers/:provider/credentials')
+  updateCredential(
+    @WorkspaceId() workspaceId: string,
+    @Param('provider') provider: AIProvider,
+    @Body() body: SaveProviderCredentialInput,
+    @CurrentUser() user?: AuthenticatedUser
+  ) {
+    return this.credentialService.saveCredential(
+      workspaceId,
+      provider,
+      body,
+      user?.id
+    );
+  }
+
+  @Delete('providers/:provider/credentials')
+  deleteCredential(
+    @WorkspaceId() workspaceId: string,
+    @Param('provider') provider: AIProvider,
+    @CurrentUser() user?: AuthenticatedUser
+  ) {
+    return this.credentialService.deleteCredential(
+      workspaceId,
+      provider,
+      user?.id
+    );
+  }
+
+  @Post('providers/:provider/test')
+  testProvider(
+    @WorkspaceId() workspaceId: string,
+    @Param('provider') provider: AIProvider,
+    @Body() body: { model?: string }
+  ) {
+    return this.credentialService.testWorkspaceConnection(
+      workspaceId,
+      provider,
+      body?.model
+    );
+  }
+
+  @Patch('models/:model')
+  updateModelSetting(
+    @WorkspaceId() workspaceId: string,
+    @Param('model') model: string,
+    @Body() body: UpdateModelSettingsInput
+  ) {
+    return this.credentialService.updateModelSettings(
+      workspaceId,
+      model,
+      body
+    );
+  }
+
+  @Get('models')
+  getModels(@WorkspaceId() _workspaceId: string) {
+    return this.aiService.getAllModels();
+  }
+
+  @Post('test-connection')
+  testConnection(
+    @WorkspaceId() workspaceId: string,
+    @Body() body: { provider: AIProvider; model?: string }
+  ) {
+    return this.credentialService.testWorkspaceConnection(
+      workspaceId,
+      body.provider,
+      body.model
+    );
+  }
 
   @Post('chat')
   chat(
@@ -30,11 +149,54 @@ export class AIPlatformController {
     @Body()
     body: {
       messages: ChatMessage[];
-      provider?: 'ollama' | 'openai' | 'anthropic' | 'gemini';
+      provider?: AIProvider;
       model?: string;
-    },
+      temperature?: number;
+      maxTokens?: number;
+      stream?: boolean;
+      tools?: Array<Record<string, unknown>>;
+      structuredOutput?: Record<string, unknown>;
+    }
   ) {
     return this.aiService.chat(body);
+  }
+
+  @Post('stream')
+  async stream(
+    @WorkspaceId() _workspaceId: string,
+    @Body()
+    body: {
+      messages: ChatMessage[];
+      provider?: AIProvider;
+      model?: string;
+      temperature?: number;
+      maxTokens?: number;
+      tools?: Array<Record<string, unknown>>;
+      structuredOutput?: Record<string, unknown>;
+    },
+    @Res() res: Response
+  ) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    try {
+      for await (const event of this.aiService.streamChat(body)) {
+        res.write(`data: ${JSON.stringify(event)}\n\n`);
+      }
+    } catch (err: unknown) {
+      const errorEvent = {
+        type: 'error',
+        error: {
+          code: 'AI_PROVIDER_ERROR',
+          message: err instanceof Error ? err.message : String(err),
+        },
+      };
+      res.write(`data: ${JSON.stringify(errorEvent)}\n\n`);
+    } finally {
+      res.end();
+    }
   }
 
   @Post('summarize')
@@ -45,7 +207,7 @@ export class AIPlatformController {
   @Post('translate')
   translate(
     @WorkspaceId() _workspaceId: string,
-    @Body() body: { text: string; targetLanguage: string },
+    @Body() body: { text: string; targetLanguage: string }
   ) {
     return this.aiService.translateText(body.text, body.targetLanguage);
   }
@@ -54,7 +216,7 @@ export class AIPlatformController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   generateImage(
     @WorkspaceId() _workspaceId: string,
-    @Body() body: { prompt: string; provider?: string },
+    @Body() body: { prompt: string; provider?: string }
   ) {
     return this.aiService.generateImage(body.prompt, body.provider);
   }
@@ -62,22 +224,18 @@ export class AIPlatformController {
   @Post('vision')
   analyzeVision(
     @WorkspaceId() _workspaceId: string,
-    @Body() body: { imageUrl: string; prompt?: string },
+    @Body() body: { imageUrl: string; prompt?: string }
   ) {
     return this.aiService.analyzeVision(body.imageUrl, body.prompt);
   }
 
   /**
    * Retrieval over this workspace's documents.
-   *
-   * The workspace id is taken from the guard-resolved request, never from the
-   * body — retrieval that trusted a client-supplied tenant would be an
-   * invitation to read another workspace's knowledge base.
    */
   @Post('rag-search')
   ragSearch(
     @WorkspaceId() workspaceId: string,
-    @Body() body: { query: string; limit?: number },
+    @Body() body: { query: string; limit?: number }
   ) {
     return this.aiService.queryRAG(workspaceId, body.query, body.limit);
   }

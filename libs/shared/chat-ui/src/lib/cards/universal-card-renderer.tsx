@@ -5,9 +5,6 @@ import type {
   CardRenderContext,
 } from '@org/types';
 import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
   Badge,
   Button,
   Checkbox,
@@ -525,10 +522,10 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
         const title = evaluateTemplate(props['title'], localData, context);
         const description = evaluateTemplate(props['description'], localData, context);
         return (
-          <Alert key={node.id} variant={(props['variant'] as any) || 'default'} className="my-2 text-xs">
-            <AlertTitle className="font-bold">{title}</AlertTitle>
-            {description && <AlertDescription>{description}</AlertDescription>}
-          </Alert>
+          <div key={node.id} className="my-2 rounded-lg border border-border bg-surface-muted/60 p-3 text-xs">
+            <div className="font-semibold text-foreground">{title}</div>
+            {description && <div className="mt-1 text-muted-foreground">{description}</div>}
+          </div>
         );
       }
 

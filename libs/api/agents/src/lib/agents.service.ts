@@ -52,8 +52,8 @@ export class AgentsService {
         description: data.description,
         avatarUrl: data.avatarUrl,
         systemPrompt: data.systemPrompt ?? 'You are an autonomous AI employee.',
-        provider: data.provider ?? 'ollama',
-        model: data.model ?? 'llama3',
+        provider: data.provider ?? (process.env['AI_DEFAULT_PROVIDER'] || 'nvidia'),
+        model: data.model ?? (process.env['AI_DEFAULT_MODEL'] || 'nvidia/nemotron-3-super-120b-a12b'),
         tools: JSON.stringify(data.tools ?? ['search_docs', 'create_task']),
         // Set when deploying a catalogue template, so the card can tell a
         // pre-built agent from one built by hand.
@@ -116,8 +116,8 @@ export class AgentsService {
     const systemPrompt = `${agent.systemPrompt}\n\nWorkspace ID: ${workspaceId}\n\nYou have access to the following workspace tools:\n${availableTools.map((t) => `- ${t.name}: ${t.description}`).join('\n')}`;
 
     const chatResult = await this.aiService.chat({
-      provider: (agent.provider as any) || 'ollama',
-      model: agent.model || 'llama3',
+      provider: (agent.provider as any) || undefined,
+      model: agent.model || undefined,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: promptText },

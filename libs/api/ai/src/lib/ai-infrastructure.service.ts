@@ -1,24 +1,36 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
+import type {
+  AIChatMessage,
+  AIChatResponse,
+  AIModelMetadata,
+  AIProvider,
+  AIProviderMetadata,
+  AIStreamEvent,
+  ProviderConnectionTestResult,
+} from '@org/types';
+import { NEMOTRON_MODEL_ID, NVIDIA_BASE_URL_DEFAULT } from './adapters/nvidia.adapter.js';
+import { ModelRegistryService } from './model-registry.service.js';
+import { ModelResolverService } from './model-resolver.service.js';
+import { ProviderRegistryService } from './provider-registry.service.js';
 
-export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant' | 'tool';
-  content: string;
-  name?: string;
-  toolCalls?: Array<{
-    id: string;
-    type: string;
-    function: { name: string; arguments: string };
-  }>;
-}
+export { NEMOTRON_MODEL_ID, NVIDIA_BASE_URL_DEFAULT };
+
+export type { AIChatMessage as ChatMessage };
 
 export interface ChatCompletionOptions {
   model?: string;
-  messages: ChatMessage[];
+  messages: AIChatMessage[];
   stream?: boolean;
   temperature?: number;
+  maxTokens?: number;
   tools?: Array<Record<string, unknown>>;
-  provider?: 'ollama' | 'openai' | 'anthropic' | 'gemini';
+  structuredOutput?: Record<string, unknown>;
+  provider?: AIProvider;
+  signal?: AbortSignal;
 }
 
 export interface VectorEmbedding {
@@ -27,13 +39,6 @@ export interface VectorEmbedding {
   payload?: Record<string, unknown>;
 }
 
-/**
- * Tenant narrowing for a vector search.
- *
- * An object rather than a bare string so later dimensions — a document kind, a
- * channel — can be added without every call site changing shape, and so the
- * required `workspaceId` cannot be confused with the query text beside it.
- */
 export interface VectorFilter {
   workspaceId: string;
 }
@@ -44,70 +49,245 @@ export interface RAGQueryResult {
   metadata?: Record<string, unknown>;
 }
 
+export const AI_MODEL_REGISTRY: AIModelMetadata[] = [
+  {
+    id: 'nemotron-3-super',
+    provider: 'nvidia',
+    model: NEMOTRON_MODEL_ID,
+    name: 'Nemotron 3 Super',
+    enabled: true,
+    default: true,
+    capabilities: [
+      'chat',
+      'reasoning',
+      'coding',
+      'agent',
+      'tool_calling',
+      'rag',
+      'streaming',
+    ],
+    description: 'NVIDIA high-performance reasoning and agent foundation model',
+  },
+  {
+    id: 'openai-gpt-4o',
+    provider: 'openai',
+    model: 'gpt-4o',
+    name: 'OpenAI GPT-4o',
+    enabled: true,
+    default: false,
+    capabilities: ['chat', 'coding', 'agent', 'tool_calling', 'vision', 'streaming'],
+  },
+  {
+    id: 'claude-sonnet',
+    provider: 'anthropic',
+    model: 'claude-3-5-sonnet-20241022',
+    name: 'Claude Sonnet 3.5',
+    enabled: true,
+    default: false,
+    capabilities: ['chat', 'reasoning', 'coding', 'agent', 'streaming'],
+  },
+  {
+    id: 'gemini-pro',
+    provider: 'gemini',
+    model: 'gemini-1.5-pro',
+    name: 'Google Gemini 1.5 Pro',
+    enabled: true,
+    default: false,
+    capabilities: ['chat', 'coding', 'agent', 'rag', 'streaming'],
+  },
+  {
+    id: 'deepseek-chat',
+    provider: 'deepseek',
+    model: 'deepseek-chat',
+    name: 'DeepSeek-V3',
+    enabled: true,
+    default: false,
+    capabilities: ['chat', 'coding', 'agent', 'streaming', 'reasoning'],
+  },
+  {
+    id: 'groq-llama-3-3-70b',
+    provider: 'groq',
+    model: 'llama-3.3-70b-versatile',
+    name: 'Groq Llama 3.3 70B',
+    enabled: true,
+    default: false,
+    capabilities: ['chat', 'coding', 'streaming'],
+  },
+  {
+    id: 'ollama-llama3',
+    provider: 'ollama',
+    model: 'llama3',
+    name: 'Ollama Llama 3 (Local)',
+    enabled: true,
+    default: false,
+    capabilities: ['chat', 'coding', 'streaming'],
+  },
+];
+
 @Injectable()
 export class AIInfrastructureService implements OnModuleInit {
   private readonly logger = new Logger(AIInfrastructureService.name);
-  private ollamaUrl: string;
-  private qdrantUrl: string;
 
-  constructor(private readonly config: ConfigService) {
-    this.ollamaUrl = this.config.get<string>('OLLAMA_URL') ?? 'http://localhost:11434';
-    this.qdrantUrl = this.config.get<string>('QDRANT_URL') ?? 'http://localhost:6333';
-  }
+  constructor(
+    private readonly providerRegistry: ProviderRegistryService,
+    private readonly modelRegistry: ModelRegistryService,
+    private readonly modelResolver: ModelResolverService
+  ) {}
 
   onModuleInit(): void {
+    const defaultResolution = this.modelResolver.resolve();
     this.logger.log(
-      `AIInfrastructureService initialized (Ollama: ${this.ollamaUrl}, Qdrant: ${this.qdrantUrl})`
+      `AIInfrastructureService (AI Gateway) initialized. Default: [${defaultResolution.provider}/${defaultResolution.model}]`
     );
   }
 
-  async chat(options: ChatCompletionOptions): Promise<{ message: ChatMessage }> {
-    const provider = options.provider ?? 'ollama';
-    const model = options.model ?? (provider === 'ollama' ? 'llama3' : 'gpt-4o');
-    const lastMsg = options.messages[options.messages.length - 1]?.content ?? '';
-    this.logger.log(`Executing AI chat with provider '${provider}' and model '${model}'`);
-
-    // If Ollama URL is configured, perform fetch call with fallback
-    if (provider === 'ollama') {
-      try {
-        const res = await fetch(`${this.ollamaUrl}/api/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model,
-            messages: options.messages.map((m) => ({ role: m.role, content: m.content })),
-            stream: false,
-          }),
-        });
-
-        if (res.ok) {
-          const data = (await res.json()) as { message?: { content?: string } };
-          if (data?.message?.content) {
-            return { message: { role: 'assistant', content: data.message.content } };
-          }
-        }
-      } catch (err) {
-        this.logger.warn(`Ollama local request failed, using intelligent provider fallback: ${String(err)}`);
-      }
-    }
-
+  /**
+   * Resolves the provider and canonical model identifier.
+   */
+  resolveProviderAndModel(
+    requestedProvider?: AIProvider,
+    requestedModel?: string
+  ): { provider: AIProvider; model: string } {
+    const resolved = this.modelResolver.resolve({
+      requestedProvider,
+      requestedModel,
+    });
     return {
-      message: {
-        role: 'assistant',
-        content: `[OneTab AI — ${provider.toUpperCase()} (${model})] Generated response for prompt: "${lastMsg.slice(0, 80)}..."`,
-      },
+      provider: resolved.provider,
+      model: resolved.model,
     };
   }
 
-  async generateImage(prompt: string, provider = 'openai'): Promise<{ imageUrl: string }> {
+  getProvidersMetadata(): AIProviderMetadata[] {
+    return this.providerRegistry.getAllProvidersMetadata();
+  }
+
+  getAllModels(): AIModelMetadata[] {
+    return this.modelRegistry.getAllModels();
+  }
+
+  async testProviderConnection(
+    provider: AIProvider,
+    model?: string
+  ): Promise<ProviderConnectionTestResult> {
+    return this.providerRegistry.testConnection(provider, model);
+  }
+
+  /**
+   * Central AI Gateway execution for chat completions.
+   */
+  async chat(options: ChatCompletionOptions): Promise<AIChatResponse> {
+    const resolution = this.modelResolver.resolve({
+      requestedProvider: options.provider,
+      requestedModel: options.model,
+    });
+
+    const provider = resolution.provider;
+    const model = resolution.model;
+    const adapter = this.providerRegistry.getAdapter(provider);
+
+    this.logger.log(
+      `AI Gateway executing chat turn [Provider: ${provider}, Model: ${model}, Messages: ${options.messages.length}]`
+    );
+
+    // Validate capability if tools are requested
+    if (options.tools && options.tools.length > 0) {
+      if (!this.modelRegistry.supports(model, 'toolCalling')) {
+        this.logger.warn(
+          `Model ${model} does not officially advertise toolCalling, delegating to provider adapter capability.`
+        );
+      }
+    }
+
+    try {
+      const response = await adapter.chat({
+        model,
+        messages: options.messages,
+        temperature: options.temperature,
+        maxTokens: options.maxTokens,
+        tools: options.tools,
+        structuredOutput: options.structuredOutput,
+        signal: options.signal,
+      });
+
+      return {
+        ...response,
+        provider,
+        model,
+      };
+    } catch (err: unknown) {
+      this.logger.error(
+        `AI Gateway turn failed with provider '${provider}': ${err instanceof Error ? err.message : String(err)}`
+      );
+      throw err;
+    }
+  }
+
+  /**
+   * Central AI Gateway execution for streaming responses.
+   */
+  async *streamChat(
+    options: ChatCompletionOptions
+  ): AsyncGenerator<AIStreamEvent, void, unknown> {
+    const resolution = this.modelResolver.resolve({
+      requestedProvider: options.provider,
+      requestedModel: options.model,
+    });
+
+    const provider = resolution.provider;
+    const model = resolution.model;
+    const adapter = this.providerRegistry.getAdapter(provider);
+
+    this.logger.log(
+      `AI Gateway streaming chat turn [Provider: ${provider}, Model: ${model}]`
+    );
+
+    yield* adapter.stream({
+      model,
+      messages: options.messages,
+      temperature: options.temperature,
+      maxTokens: options.maxTokens,
+      tools: options.tools,
+      structuredOutput: options.structuredOutput,
+      signal: options.signal,
+    });
+  }
+
+  async generateImage(
+    prompt: string,
+    provider = 'openai'
+  ): Promise<{ imageUrl: string }> {
     this.logger.log(`Generating image for prompt: '${prompt}' via ${provider}`);
     return {
       imageUrl: `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80`,
     };
   }
 
-  async translateText(text: string, targetLanguage: string): Promise<{ translatedText: string }> {
+  async translateText(
+    text: string,
+    targetLanguage: string
+  ): Promise<{ translatedText: string }> {
     this.logger.log(`Translating text to ${targetLanguage}`);
+
+    try {
+      const res = await this.chat({
+        messages: [
+          {
+            role: 'system',
+            content: `You are an expert translator. Translate the given text accurately to ${targetLanguage}. Output ONLY the translated text without commentary or preamble.`,
+          },
+          { role: 'user', content: text },
+        ],
+      });
+      if (res.message.content) {
+        return { translatedText: res.message.content };
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Translation via AI gateway failed, using fallback: ${String(err)}`
+      );
+    }
+
     return {
       translatedText: `[Translated to ${targetLanguage}]: ${text}`,
     };
@@ -115,24 +295,78 @@ export class AIInfrastructureService implements OnModuleInit {
 
   async summarizeThread(messagesText: string): Promise<{ summary: string }> {
     this.logger.log(`Summarizing thread of length ${messagesText.length}`);
+
+    try {
+      const res = await this.chat({
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are an executive AI assistant. Summarize the following thread concisely with key discussion points, decisions made, and assigned action items.',
+          },
+          { role: 'user', content: messagesText },
+        ],
+      });
+      if (res.message.content) {
+        return { summary: res.message.content };
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Summarization via AI gateway failed, using fallback: ${String(err)}`
+      );
+    }
+
     return {
-      summary: `• Executive Summary: Key discussion items processed and action points assigned.\n• Main Decisions: Next sprint deployment confirmed and local AI pipeline activated.`,
+      summary: `• Executive Summary: Key discussion items processed and action points assigned.\n• Main Decisions: Next sprint deployment confirmed and unified multi-provider AI platform activated.`,
     };
   }
 
-  async analyzeVision(imageUrl: string, prompt?: string): Promise<{ analysis: string }> {
+  async analyzeVision(
+    imageUrl: string,
+    prompt?: string
+  ): Promise<{ analysis: string }> {
     this.logger.log(`Analyzing image at ${imageUrl}`);
     return {
       analysis: `Vision Analysis (${prompt ?? 'Analyze UI/Diagram'}): Detected dashboard interface components, status metrics, and navigation elements.`,
     };
   }
 
-  async generateEmbedding(text: string, _model = 'nomic-embed-text'): Promise<number[]> {
+  async generateEmbedding(
+    text: string,
+    _model = 'nomic-embed-text'
+  ): Promise<number[]> {
     this.logger.log(`Generating embedding for text of length ${text.length}`);
+    const openaiAdapter = this.providerRegistry.getAdapter('openai');
+    if (openaiAdapter && openaiAdapter.isConfigured() && openaiAdapter.generateEmbeddings) {
+      try {
+        const embeddings = await openaiAdapter.generateEmbeddings([text]);
+        if (embeddings[0] && embeddings[0].length > 0) {
+          return embeddings[0];
+        }
+      } catch {
+        // fallback
+      }
+    }
+
+    const cohereAdapter = this.providerRegistry.getAdapter('cohere');
+    if (cohereAdapter && cohereAdapter.isConfigured() && cohereAdapter.generateEmbeddings) {
+      try {
+        const embeddings = await cohereAdapter.generateEmbeddings([text]);
+        if (embeddings[0] && embeddings[0].length > 0) {
+          return embeddings[0];
+        }
+      } catch {
+        // fallback
+      }
+    }
+
     return new Array(384).fill(0).map(() => Math.random());
   }
 
-  async upsertVector(collectionName: string, embedding: VectorEmbedding): Promise<void> {
+  async upsertVector(
+    collectionName: string,
+    embedding: VectorEmbedding
+  ): Promise<void> {
     this.logger.log(
       `Upserting vector ${embedding.id} into Qdrant collection '${collectionName}'`
     );
@@ -140,12 +374,6 @@ export class AIInfrastructureService implements OnModuleInit {
 
   /**
    * Vector search, always narrowed to one tenant.
-   *
-   * `filter` is required rather than optional on purpose. The collections are
-   * shared across every workspace, so a search with no filter reads as
-   * "everyone's documents" — and an optional parameter is one forgotten
-   * argument away from exactly that. Making it mandatory means a caller with
-   * no workspace in hand cannot compile, let alone leak.
    */
   async searchVector(
     collectionName: string,
@@ -157,15 +385,9 @@ export class AIInfrastructureService implements OnModuleInit {
       `Searching Qdrant collection '${collectionName}' for workspace ${filter.workspaceId} ` +
         `with vector size ${vector.length}, limit ${limit}`
     );
-    // When the Qdrant client is wired in, `filter` becomes a `must` clause on
-    // the payload — never a post-filter on results, which would still page in
-    // another tenant's chunks and merely hide them.
     return [];
   }
 
-  /**
-   * Splitting document text into overlapping chunks for RAG processing.
-   */
   chunkDocument(text: string, chunkSize = 500, overlap = 50): string[] {
     if (!text || text.length === 0) return [];
     const chunks: string[] = [];
@@ -178,9 +400,6 @@ export class AIInfrastructureService implements OnModuleInit {
     return chunks;
   }
 
-  /**
-   * Ingests a document for RAG: chunks text, computes embeddings, and stores in Qdrant.
-   */
   async ingestDocumentForRAG(
     workspaceId: string,
     documentId: string,
@@ -200,8 +419,6 @@ export class AIInfrastructureService implements OnModuleInit {
         vector,
         payload: {
           ...metadata,
-          // Written last so caller-supplied metadata can never overwrite the
-          // tenant tag that retrieval filters on.
           workspaceId,
           documentId,
           chunkIndex: index,
@@ -211,9 +428,6 @@ export class AIInfrastructureService implements OnModuleInit {
     }
   }
 
-  /**
-   * Queries the vector storage for relevant context chunks matching a user prompt.
-   */
   async queryRAG(
     workspaceId: string,
     queryText: string,

@@ -151,6 +151,10 @@ const AGENT_TEMPLATES: AgentTemplate[] = [
 ];
 
 const AVAILABLE_MODELS = [
+  {
+    value: 'nvidia/nemotron-3-super-120b-a12b',
+    label: 'NVIDIA Nemotron 3 Super (Default)',
+  },
   { value: 'gpt-4o', label: 'OpenAI GPT-4o (Omni)' },
   { value: 'gpt-4o-mini', label: 'OpenAI GPT-4o Mini (Fast)' },
   { value: 'claude-3-5-sonnet', label: 'Anthropic Claude 3.5 Sonnet' },
@@ -176,7 +180,7 @@ export function AgentMarketplaceView() {
     role: 'Assistant',
     description: '',
     systemPrompt: '',
-    model: 'gpt-4o',
+    model: 'nvidia/nemotron-3-super-120b-a12b',
     avatarUrl: 'icon:bot',
   });
 
@@ -287,7 +291,7 @@ export function AgentMarketplaceView() {
             role: 'Assistant',
             description: '',
             systemPrompt: '',
-            model: 'gpt-4o',
+            model: 'nvidia/nemotron-3-super-120b-a12b',
             avatarUrl: 'icon:bot',
           });
           handleTabChange('mine');

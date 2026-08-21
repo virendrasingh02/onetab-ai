@@ -94,6 +94,7 @@ import { WorkspaceMembersSettings } from '../components/workspace-members-settin
 import { WorkspaceBillingSettings } from '../components/workspace-billing-settings.js';
 import { WorkspaceCompanyAnalytics } from '../components/workspace-company-analytics.js';
 import { UpgradePlanBanner } from '../components/upgrade-plan-banner.js';
+import { AIProvidersSettings } from '../components/ai-providers-settings.js';
 
 /**
  * Panels this page renders but does not own.
@@ -1604,6 +1605,11 @@ export function WorkspaceSettingsPage({
         </div>
       )}
 
+      {/* ---------------- SECTION: AI PROVIDERS & API KEYS ---------------- */}
+      {currentTab === 'ai-providers' && (
+        <AIProvidersSettings workspaceId={workspaceId} />
+      )}
+
       {/* ---------------- SECTION 4: AI MODELS & PERSONA ---------------- */}
       {currentTab === 'ai-persona' && (
         <div className="space-y-8">
@@ -1776,6 +1782,10 @@ export function WorkspaceSettingsPage({
           <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6 space-y-4">
             <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide">Custom API Keys</h3>
             <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-foreground">NVIDIA API Key (Default Provider)</label>
+                <Input type="password" value="nvapi-••••••••••••••••" readOnly className="h-8 text-xs font-mono mt-1" />
+              </div>
               <div>
                 <label className="text-xs font-medium text-foreground">OpenAI API Key</label>
                 <Input type="password" value="sk-proj-••••••••••••••••" readOnly className="h-8 text-xs font-mono mt-1" />

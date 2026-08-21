@@ -20,10 +20,14 @@ export class HealthService {
     const matrixUrl = this.config.get<string>('MATRIX_HOMESERVER_URL');
     const ollamaUrl = this.config.get<string>('OLLAMA_URL');
     const minioUrl = this.config.get<string>('MINIO_ENDPOINT');
+    const nvidiaKey = this.config.get<string>('NVIDIA_API_KEY');
+    const nvidiaBaseUrl =
+      this.config.get<string>('NVIDIA_BASE_URL') ?? 'https://integrate.api.nvidia.com/v1';
 
     const services: ServiceHealth[] = [
       await this.checkDatabase(),
       this.checkApi(),
+      await this.checkNvidia(nvidiaKey, nvidiaBaseUrl),
       await this.checkHttp(
         'Matrix Homeserver',
         matrixUrl ? `${trimSlash(matrixUrl)}/_matrix/client/versions` : null,
@@ -129,6 +133,57 @@ export class HealthService {
       return {
         name,
         status: 'DOWN',
+        latencyMs: null,
+        detail:
+          error instanceof Error && error.name === 'AbortError'
+            ? `No response within ${PROBE_TIMEOUT_MS}ms.`
+            : `Unreachable: ${error instanceof Error ? error.message : error}`,
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  private async checkNvidia(
+    apiKey: string | undefined,
+    baseUrl: string
+  ): Promise<ServiceHealth> {
+    if (!apiKey) {
+      return {
+        name: 'AI Gateway (NVIDIA)',
+        status: 'DEGRADED',
+        latencyMs: null,
+        detail: 'NVIDIA_API_KEY is not configured in environment.',
+      };
+    }
+
+    const started = Date.now();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(`${trimSlash(baseUrl)}/models`, {
+        signal: controller.signal,
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      const latencyMs = Date.now() - started;
+      const ok = response.ok || response.status === 200;
+      return {
+        name: 'AI Gateway (NVIDIA)',
+        status: !ok
+          ? 'DEGRADED'
+          : latencyMs < DEGRADED_LATENCY_MS
+            ? 'HEALTHY'
+            : 'DEGRADED',
+        latencyMs: ok ? latencyMs : null,
+        detail: ok
+          ? `Connected (Default model: Nemotron 3 Super) in ${latencyMs}ms.`
+          : `HTTP ${response.status} from NVIDIA API.`,
+      };
+    } catch (error) {
+      return {
+        name: 'AI Gateway (NVIDIA)',
+        status: 'DEGRADED',
         latencyMs: null,
         detail:
           error instanceof Error && error.name === 'AbortError'

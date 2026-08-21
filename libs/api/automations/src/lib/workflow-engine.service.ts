@@ -65,9 +65,12 @@ export class WorkflowEngineService {
       case 'WEBHOOK':
         return { stepId: node.id, type: node.type, status: 'SUCCESS', output: { webhookDispatched: true } };
       case 'AI_ACTION': {
+        const nodeConfig = (node as { config?: { provider?: string; model?: string; prompt?: string } }).config;
+        const prompt = nodeConfig?.prompt ?? `Summarize workflow payload: ${JSON.stringify(payload)}`;
         const aiRes = await this.aiService.chat({
-          provider: 'ollama',
-          messages: [{ role: 'user', content: `Summarize workflow payload: ${JSON.stringify(payload)}` }],
+          ...(nodeConfig?.provider ? { provider: nodeConfig.provider as any } : {}),
+          ...(nodeConfig?.model ? { model: nodeConfig.model } : {}),
+          messages: [{ role: 'user', content: prompt }],
         });
         return { stepId: node.id, type: node.type, status: 'SUCCESS', output: { aiOutput: aiRes.message.content } };
       }

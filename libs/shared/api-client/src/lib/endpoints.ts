@@ -17,6 +17,9 @@ import type {
   AIChatRequest,
   AIChatResponse,
   AIImageResponse,
+  AIModelMetadata,
+  AIProvider,
+  AIProviderMetadata,
   AIRagResult,
   AISummaryResponse,
   AITranslationResponse,
@@ -58,10 +61,12 @@ import type {
   Project,
   ProjectDetail,
   PromptTemplate,
+  ProviderConnectionTestResult,
   PublicUser,
   PushDevice,
   ReportDefinition,
   ReportType,
+  SaveProviderCredentialInput,
   SearchCategory,
   SearchResultItem,
   SSOConfiguration,
@@ -71,6 +76,7 @@ import type {
   TaskComment,
   Upload,
   UserAnalytics,
+  UpdateModelSettingsInput,
   Whiteboard,
   WorkDocument,
   Workspace,
@@ -1124,6 +1130,81 @@ export const uploadApi = {
  * and each is rate limited well below the global default on the API side.
  */
 export const aiApi = {
+  getProviders: (workspaceId: string) =>
+    request<AIProviderMetadata[]>(
+      http.get(`/workspaces/${workspaceId}/ai/providers`, { timeout: 30_000 }),
+    ),
+
+  getProvider: (workspaceId: string, provider: AIProvider) =>
+    request<AIProviderMetadata>(
+      http.get(`/workspaces/${workspaceId}/ai/providers/${provider}`, {
+        timeout: 30_000,
+      }),
+    ),
+
+  saveCredential: (
+    workspaceId: string,
+    provider: AIProvider,
+    input: SaveProviderCredentialInput,
+  ) =>
+    request<AIProviderMetadata>(
+      http.post(
+        `/workspaces/${workspaceId}/ai/providers/${provider}/credentials`,
+        input,
+        { timeout: 30_000 },
+      ),
+    ),
+
+  deleteCredential: (workspaceId: string, provider: AIProvider) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/ai/providers/${provider}/credentials`,
+        { timeout: 30_000 },
+      ),
+    ),
+
+  testProvider: (
+    workspaceId: string,
+    provider: AIProvider,
+    model?: string,
+  ) =>
+    request<ProviderConnectionTestResult>(
+      http.post(
+        `/workspaces/${workspaceId}/ai/providers/${provider}/test`,
+        { ...(model ? { model } : {}) },
+        { timeout: 60_000 },
+      ),
+    ),
+
+  updateModelSetting: (
+    workspaceId: string,
+    modelId: string,
+    input: UpdateModelSettingsInput,
+  ) =>
+    request<void>(
+      http.patch(`/workspaces/${workspaceId}/ai/models/${modelId}`, input, {
+        timeout: 30_000,
+      }),
+    ),
+
+  getModels: (workspaceId: string) =>
+    request<AIModelMetadata[]>(
+      http.get(`/workspaces/${workspaceId}/ai/models`, { timeout: 30_000 }),
+    ),
+
+  testConnection: (
+    workspaceId: string,
+    provider: AIProvider,
+    model?: string,
+  ) =>
+    request<ProviderConnectionTestResult>(
+      http.post(
+        `/workspaces/${workspaceId}/ai/test-connection`,
+        { provider, ...(model ? { model } : {}) },
+        { timeout: 60_000 },
+      ),
+    ),
+
   chat: (workspaceId: string, input: AIChatRequest, signal?: AbortSignal) =>
     request<AIChatResponse>(
       http.post(`/workspaces/${workspaceId}/ai/chat`, input, {

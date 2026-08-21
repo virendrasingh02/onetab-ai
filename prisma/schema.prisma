@@ -994,3 +994,39 @@ enum DocumentKind {
   DOC
   WIKI
 }
+
+model AIProviderCredential {
+  id              String    @id @default(cuid())
+  provider        String
+  scopeType       String    @default("workspace")
+  scopeId         String
+  encryptedApiKey String
+  maskedKey       String    @default("")
+  baseUrl         String?
+  defaultModel    String?
+  enabled         Boolean   @default(true)
+  metadata        String?   @default("{}")
+  createdBy       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lastTestedAt    DateTime?
+  status          String    @default("CONNECTED")
+
+  @@unique([provider, scopeType, scopeId])
+  @@index([scopeType, scopeId])
+  @@map("ai_provider_credentials")
+}
+
+model AIModelSetting {
+  id          String   @id @default(cuid())
+  workspaceId String
+  modelId     String
+  enabled     Boolean  @default(true)
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workspaceId, modelId])
+  @@index([workspaceId])
+  @@map("ai_model_settings")
+}

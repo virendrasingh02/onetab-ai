@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import {
   applySuggestion,
   filterCommands,
@@ -103,6 +104,8 @@ describe('stripMentions', () => {
 
 describe('filtering', () => {
   it('matches mentions on handle or label', () => {
+    expect(filterMentions('nemotron').map((m) => m.handle)).toEqual(['nemotron']);
+    expect(filterMentions('nvidia').map((m) => m.handle)).toEqual(['nemotron']);
     expect(filterMentions('anth').map((m) => m.handle)).toEqual(['anthropic']);
     expect(filterMentions('claude').map((m) => m.handle)).toEqual(['anthropic']);
   });
