@@ -2,8 +2,43 @@ import { cn } from '@org/utils';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import type { ComponentProps, ReactNode } from 'react';
 
-export const TooltipProvider = TooltipPrimitive.Provider;
-export const Tooltip = TooltipPrimitive.Root;
+export interface TooltipProviderProps
+  extends ComponentProps<typeof TooltipPrimitive.Provider> {}
+
+export function TooltipProvider({
+  delayDuration = 150,
+  skipDelayDuration = 100,
+  disableHoverableContent = true,
+  children,
+  ...props
+}: TooltipProviderProps) {
+  return (
+    <TooltipPrimitive.Provider
+      delayDuration={delayDuration}
+      skipDelayDuration={skipDelayDuration}
+      disableHoverableContent={disableHoverableContent}
+      {...props}
+    >
+      {children}
+    </TooltipPrimitive.Provider>
+  );
+}
+
+export interface TooltipProps
+  extends ComponentProps<typeof TooltipPrimitive.Root> {}
+
+export function Tooltip({
+  disableHoverableContent = true,
+  ...props
+}: TooltipProps) {
+  return (
+    <TooltipPrimitive.Root
+      disableHoverableContent={disableHoverableContent}
+      {...props}
+    />
+  );
+}
+
 export const TooltipTrigger = TooltipPrimitive.Trigger;
 
 export interface TooltipContentProps extends ComponentProps<
@@ -30,7 +65,7 @@ export function TooltipContent({
         className={cn(
           'z-(--z-tooltip) origin-(--radix-tooltip-content-transform-origin)',
           'max-w-72 px-2 py-1 font-normal w-fit rounded-popup border border-border bg-popover text-[11px] text-popover-foreground shadow-elevated',
-          'animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
+          'animate-in fade-in-0 zoom-in-95 duration-100 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:duration-75',
           className,
         )}
         {...props}
@@ -136,6 +171,7 @@ export interface HintProps extends Omit<
   /** Keyboard shortcut rendered alongside the label (e.g. "G then U", "Ctrl+K"). */
   shortcut?: ReactNode;
   delayDuration?: number;
+  disableHoverableContent?: boolean;
   showArrow?: boolean;
 }
 
@@ -148,12 +184,16 @@ export function Hint({
   children,
   shortcut,
   side = 'top',
-  delayDuration = 300,
+  delayDuration = 150,
+  disableHoverableContent = true,
   showArrow = false,
   ...props
 }: HintProps) {
   return (
-    <Tooltip delayDuration={delayDuration}>
+    <Tooltip
+      delayDuration={delayDuration}
+      disableHoverableContent={disableHoverableContent}
+    >
       <TooltipTrigger asChild>{children}</TooltipTrigger>
       <TooltipContent side={side} showArrow={showArrow} {...props}>
         {shortcut ? (

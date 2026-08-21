@@ -70,7 +70,7 @@ export function Providers({ children }: { children: ReactNode }) {
             */}
             <DesktopProvider>
               <MatrixProvider>
-                <TooltipProvider delayDuration={300}>
+                <TooltipProvider>
                   <DesktopChrome>{children}</DesktopChrome>
                   <Toaster />
                 </TooltipProvider>

@@ -201,7 +201,7 @@ export function AppShell() {
   );
 
   return (
-    <TooltipProvider delayDuration={300}>
+    <TooltipProvider>
       <div className="flex h-full flex-col overflow-hidden bg-background font-sans text-foreground">
         {/* Top Header Bar spanning full width */}
         <AppHeader
