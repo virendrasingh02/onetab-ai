@@ -238,7 +238,7 @@ export function Section({
           <CollapsibleTrigger
             className={cn(
               'group/trigger gap-1 flex items-center rounded-md',
-              'font-semibold tracking-wider text-[11px] text-foreground/75 uppercase',
+              'font-semibold tracking-wide text-[11px] text-foreground/75 uppercase',
               'transition-colors duration-(--duration-fast) hover:text-foreground',
               'cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring',
             )}
