@@ -1,19 +1,15 @@
 import type { CardComponentNode } from '@org/types';
-import { Button } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   ChevronDown,
   ChevronRight,
   Copy,
-  Folder,
   Layers,
   Lock,
-  Square,
   Trash2,
-  Type,
   Unlock,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 export interface ComponentTreeProps {
   rootNode: CardComponentNode;

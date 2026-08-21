@@ -35,7 +35,7 @@ export class ModelResolverService {
   resolve(params: ResolveModelParams = {}): ModelResolutionResult {
     let provider: AIProvider | undefined = params.requestedProvider;
     let model: string | undefined = params.requestedModel;
-    let source: ModelResolutionResult['source'] = 'explicit';
+    let source: ModelResolutionResult['source'];
 
     // 1. Explicit request
     if (model && model !== 'auto') {

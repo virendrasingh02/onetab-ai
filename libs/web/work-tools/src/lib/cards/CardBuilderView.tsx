@@ -4,63 +4,25 @@ import {
 } from '@org/chat-ui';
 import type {
   CardActionDefinition,
-  CardCategory,
   CardComponentNode,
   CardComponentStyle,
-  CardDataSchema,
   CardDefinition,
   CardVisibilityCondition,
 } from '@org/types';
-import {
-  Badge,
-  Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-  toast,
-} from '@org/ui';
+import { Badge, Button, Input, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   ArrowLeft,
-  Check,
   CheckCircle2,
-  Code,
-  Copy,
-  Database,
-  Eye,
   FolderTree,
   Laptop,
-  Layers,
   LayoutGrid,
-  Lock,
-  Moon,
-  MousePointer,
   Play,
-  Plus,
   Save,
-  Send,
   Smartphone,
-  Sparkles,
-  Sun,
   Tablet,
-  Terminal,
-  Trash2,
-  Undo2,
-  Unlock,
-  Zap,
 } from 'lucide-react';
-import React, { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ActionsEditor } from './ActionsEditor.js';
 import { ComponentPalette } from './ComponentPalette.js';
@@ -216,7 +178,6 @@ export function CardBuilderView() {
   const [leftTab, setLeftTab] = useState<'palette' | 'tree'>('palette');
   const [rightTab, setRightTab] = useState<'props' | 'schema' | 'sample' | 'actions' | 'json'>('props');
   const [breakpoint, setBreakpoint] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
-  const [themeMode, setThemeMode] = useState<'light' | 'dark'>('dark');
   const [isTestMode, setIsTestMode] = useState(false);
   const [actionLogs, setActionLogs] = useState<ActionLogEntry[]>([]);
 

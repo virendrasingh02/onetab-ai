@@ -2,9 +2,8 @@ import {
   UniversalCardRenderer,
   useCardRegistryStore,
 } from '@org/chat-ui';
-import type { CardCategory, CardDefinition } from '@org/types';
+import type { CardDefinition } from '@org/types';
 import {
-  Badge,
   Button,
   Dialog,
   DialogContent,
@@ -25,36 +24,23 @@ import {
   SelectValue,
   toast,
 } from '@org/ui';
-import { cn } from '@org/utils';
 import {
-  ArrowUpRight,
   Building2,
-  CheckCircle2,
   Copy,
   Download,
   Edit,
-  ExternalLink,
   Eye,
-  FileCode,
-  FileSpreadsheet,
-  FileText,
-  Filter,
   GitPullRequest,
-  HelpCircle,
-  ImageIcon,
   LayoutGrid,
   MoreHorizontal,
   Plus,
   Search,
   ShieldAlert,
   Sparkles,
-  Tag,
-  Terminal,
   Trash2,
   Upload,
-  Zap,
 } from 'lucide-react';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 export function CardRegistryView() {

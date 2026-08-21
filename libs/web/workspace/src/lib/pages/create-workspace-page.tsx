@@ -33,13 +33,11 @@ import {
   AlertTriangle,
   ArrowLeft,
   Building2,
-  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   FileSpreadsheet,
   ImagePlus,
-  Loader2,
   Plus,
   Sparkles,
   Trash2,
@@ -51,7 +49,10 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
-import { useCreateWorkspaceFlow, useSlugSuggestion } from '../use-workspaces.js';
+import {
+  useCreateWorkspaceFlow,
+  useSlugSuggestion,
+} from '../use-workspaces.js';
 
 function GoogleIcon({ className = 'h-4 w-4' }: { className?: string }) {
   return (
@@ -108,8 +109,6 @@ export function CreateWorkspacePage() {
   const [inviteEmailInput, setInviteEmailInput] = useState('');
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
-  const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
-  const [googleConnected, setGoogleConnected] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<CreateWorkspaceInput>({
@@ -209,33 +208,20 @@ export function CreateWorkspacePage() {
     setInviteError(null);
   };
 
-  const handleConnectGoogle = async () => {
-    setIsConnectingGoogle(true);
+  /*
+   * There is no Google OAuth flow (no authorize URL, no callback, no token
+   * exchange) anywhere in the codebase. This used to fake an 800ms "connect",
+   * then invent `team@<slug>.com` / `engineering@<slug>.com` / … addresses
+   * out of the workspace slug and report them as a real directory sync —
+   * fabricated invite emails presented as if they came from the customer's
+   * own Google Workspace. Until OAuth exists, clicking this only says so; it
+   * adds no emails and never flips `googleConnected`.
+   */
+  const handleConnectGoogle = () => {
     setInviteError(null);
-    setImportStatus(null);
-    try {
-      // Simulate Google Workspace connection and directory import
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      const cleanSlug = slug ? slug.replace(/[^a-z0-9]/gi, '') : 'company';
-      const sampleDomain = `${cleanSlug || 'company'}.com`;
-      const googleDirectory = [
-        `team@${sampleDomain}`,
-        `engineering@${sampleDomain}`,
-        `design@${sampleDomain}`,
-        `marketing@${sampleDomain}`,
-      ];
-      const count = handleAddEmails(googleDirectory);
-      setGoogleConnected(true);
-      setImportStatus(
-        `Connected to Google Workspace and synced ${count} team directory email${
-          count > 1 ? 's' : ''
-        }.`,
-      );
-    } catch {
-      setInviteError('Failed to connect to Google Workspace.');
-    } finally {
-      setIsConnectingGoogle(false);
-    }
+    setImportStatus(
+      'Google Workspace sync isn’t connected yet — no directory emails were added. Use the CSV/Excel import or add addresses manually for now.',
+    );
   };
 
   const handleFileUpload = (file: File | undefined) => {
@@ -255,14 +241,17 @@ export function CreateWorkspacePage() {
           text = new TextDecoder('utf-8', { fatal: false }).decode(uint8);
         }
         // Extract all email patterns from CSV, TXT, TSV, or XLSX binary dump
-        const emailMatches = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi) || [];
+        const emailMatches =
+          text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi) || [];
         if (emailMatches.length === 0) {
           setInviteError(`No valid email addresses found in "${file.name}".`);
           return;
         }
         const count = handleAddEmails(emailMatches);
         if (count > 0) {
-          setImportStatus(`Imported ${count} email address${count > 1 ? 'es' : ''} from "${file.name}".`);
+          setImportStatus(
+            `Imported ${count} email address${count > 1 ? 'es' : ''} from "${file.name}".`,
+          );
         }
       } catch {
         setInviteError(`Failed to parse "${file.name}".`);
@@ -306,10 +295,10 @@ export function CreateWorkspacePage() {
   // is held back so the user actually sees why.
   if (result && result.warnings.length > 0) {
     return (
-      <div className="min-h-full bg-background text-foreground flex items-center justify-center p-6">
-        <Card className="bg-surface/80 border-border backdrop-blur shadow-2xl max-w-lg w-full">
+      <div className="p-6 flex min-h-full items-center justify-center bg-background text-foreground">
+        <Card className="backdrop-blur shadow-2xl max-w-lg w-full border-border bg-surface/80">
           <CardHeader>
-            <CardTitle className="text-lg text-foreground flex items-center gap-2">
+            <CardTitle className="text-lg gap-2 flex items-center text-foreground">
               <CheckCircle2 className="h-5 w-5 text-success" />
               {result.workspace.name} is ready
             </CardTitle>
@@ -322,7 +311,7 @@ export function CreateWorkspacePage() {
               {result.warnings.map((warning) => (
                 <li
                   key={warning}
-                  className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs text-foreground"
+                  className="gap-2 p-3 text-xs flex items-start rounded-lg border border-warning/40 bg-warning/10 text-foreground"
                 >
                   <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
                   {warning}
@@ -331,7 +320,7 @@ export function CreateWorkspacePage() {
             </ul>
             <Button
               type="button"
-              className="w-full bg-primary text-white"
+              className="text-white w-full bg-primary"
               onClick={() => navigate(`/w/${result.workspace.slug}`)}
             >
               Go to workspace <ChevronRight className="h-4 w-4 ml-1" />
@@ -346,8 +335,8 @@ export function CreateWorkspacePage() {
   const StepIcon = step.icon;
 
   return (
-    <div className="min-h-full bg-background text-foreground flex flex-col justify-between selection:bg-primary selection:text-white">
-      <main className="max-w-6xl w-full mx-auto px-4 py-8 flex-1 flex flex-col justify-center">
+    <div className="selection:text-white flex min-h-full flex-col justify-between bg-background text-foreground selection:bg-primary">
+      <main className="max-w-6xl px-4 py-8 mx-auto flex w-full flex-1 flex-col justify-center">
         {/* Top Back Navigation */}
         <div className="mb-6">
           <Button
@@ -361,23 +350,23 @@ export function CreateWorkspacePage() {
                 navigate(-1);
               }
             }}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground -ml-2 px-3"
+            className="gap-2 -ml-2 px-3 flex items-center text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
             <span className="text-sm font-medium">Back</span>
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="lg:grid-cols-12 gap-8 grid grid-cols-1 items-start">
           {/* Form Side */}
           <div className="lg:col-span-7">
-            <Card className="bg-surface/80 border-border backdrop-blur shadow-2xl">
+            <Card className="backdrop-blur shadow-2xl border-border bg-surface/80">
               <CardHeader className="pb-4">
-                <CardTitle className="text-xl text-foreground flex items-center gap-2">
+                <CardTitle className="text-xl gap-2 flex items-center text-foreground">
                   <StepIcon className="h-5 w-5 text-primary" />
                   {step.label}
                 </CardTitle>
-                <CardDescription className="text-muted-foreground text-sm">
+                <CardDescription className="text-sm text-muted-foreground">
                   {step.description}
                 </CardDescription>
               </CardHeader>
@@ -396,21 +385,26 @@ export function CreateWorkspacePage() {
                     className="space-y-6"
                     noValidate
                   >
-                    <FormError error={formErrorMessage(createWorkspace.error)} />
+                    <FormError
+                      error={formErrorMessage(createWorkspace.error)}
+                    />
 
                     {/* STEP 1: IDENTITY + LOGO */}
                     {currentStep === 1 && (
                       <div className="space-y-5">
                         {/* Logo uploader */}
                         <div>
-                          <label className="text-sm font-medium text-foreground block mb-2">
-                            Workspace Logo <span className="text-subtle font-normal">(Optional)</span>
+                          <label className="text-sm font-medium mb-2 block text-foreground">
+                            Workspace Logo{' '}
+                            <span className="font-normal text-subtle">
+                              (Optional)
+                            </span>
                           </label>
-                          <div className="flex items-center gap-4 bg-background p-4 rounded-xl border border-border">
+                          <div className="gap-4 p-4 flex items-center rounded-xl border border-border bg-background">
                             <button
                               type="button"
                               onClick={() => logoInputRef.current?.click()}
-                              className="relative h-16 w-16 shrink-0 rounded-2xl overflow-hidden border border-border-strong bg-surface-raised flex items-center justify-center transition-transform hover:scale-105"
+                              className="h-16 w-16 relative flex shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-surface-raised transition-transform hover:scale-105"
                               aria-label="Upload workspace logo"
                             >
                               {logoPreview ? (
@@ -425,13 +419,13 @@ export function CreateWorkspacePage() {
                             </button>
 
                             <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2">
+                              <div className="gap-2 flex flex-wrap items-center">
                                 <Button
                                   type="button"
                                   size="sm"
                                   variant="outline"
                                   onClick={() => logoInputRef.current?.click()}
-                                  className="bg-surface-raised text-foreground hover:bg-selected border-border-strong"
+                                  className="border-border-strong bg-surface-raised text-foreground hover:bg-selected"
                                 >
                                   <ImagePlus className="h-4 w-4 mr-1" />
                                   {logoFile ? 'Replace' : 'Upload image'}
@@ -448,13 +442,15 @@ export function CreateWorkspacePage() {
                                   </Button>
                                 )}
                               </div>
-                              <p className="text-xs text-muted-foreground mt-1.5 truncate">
+                              <p className="text-xs mt-1.5 truncate text-muted-foreground">
                                 {logoFile
                                   ? logoFile.name
                                   : 'PNG, JPEG, WebP or GIF · 256×256 px · up to 2 MB'}
                               </p>
                               {logoError && (
-                                <p className="text-xs text-destructive mt-1">{logoError}</p>
+                                <p className="text-xs mt-1 text-destructive">
+                                  {logoError}
+                                </p>
                               )}
                             </div>
                           </div>
@@ -475,12 +471,14 @@ export function CreateWorkspacePage() {
                           name="name"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-foreground">Workspace Name</FormLabel>
+                              <FormLabel className="text-foreground">
+                                Workspace Name
+                              </FormLabel>
                               <FormControl>
                                 <Input
                                   {...field}
                                   placeholder="e.g. Acme Corp, Design System Team"
-                                  className="bg-background border-border text-foreground focus:border-primary"
+                                  className="border-border bg-background text-foreground focus:border-primary"
                                   autoFocus
                                 />
                               </FormControl>
@@ -494,22 +492,27 @@ export function CreateWorkspacePage() {
                           name="slug"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-foreground">Workspace URL Slug</FormLabel>
+                              <FormLabel className="text-foreground">
+                                Workspace URL Slug
+                              </FormLabel>
                               <FormControl>
                                 <div className="relative">
                                   <Input
                                     {...field}
                                     placeholder="acme-corp"
-                                    className="bg-background border-border text-foreground pl-3 pr-24 focus:border-primary font-mono text-sm"
+                                    className="pl-3 pr-24 text-sm border-border bg-background font-mono text-foreground focus:border-primary"
                                   />
-                                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-mono px-2 py-0.5 rounded bg-surface-raised text-muted-foreground border border-border-strong">
+                                  <span className="right-3 text-xs px-2 py-0.5 rounded absolute top-1/2 -translate-y-1/2 border border-border-strong bg-surface-raised font-mono text-muted-foreground">
                                     .onetab.ai
                                   </span>
                                 </div>
                               </FormControl>
-                              <FormDescription className="text-xs text-muted-foreground flex items-center gap-1.5 pt-1">
-                                <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
-                                Your workspace will be hosted at: <code className="text-primary font-mono">onetab.ai/w/{field.value || 'your-slug'}</code>
+                              <FormDescription className="text-xs gap-1.5 pt-1 flex items-center text-muted-foreground">
+                                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />
+                                Your workspace will be hosted at:{' '}
+                                <code className="font-mono text-primary">
+                                  onetab.ai/w/{field.value || 'your-slug'}
+                                </code>
                               </FormDescription>
                               <FormMessage />
                             </FormItem>
@@ -523,56 +526,47 @@ export function CreateWorkspacePage() {
                       <div className="space-y-6">
                         {/* Quick Import Sources */}
                         <div>
-                          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-2.5">
+                          <label className="text-xs font-semibold tracking-wider mb-2.5 block text-muted-foreground uppercase">
                             Quick Import &amp; Integrations
                           </label>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="sm:grid-cols-2 gap-3 grid grid-cols-1">
                             {/* Google Workspace */}
-                            <div className="flex flex-col justify-between p-3.5 rounded-xl border border-border bg-background hover:border-border-strong transition-colors">
-                              <div className="flex items-start gap-2.5 mb-3">
-                                <div className="p-2 rounded-lg bg-surface-raised border border-border-strong shrink-0">
+                            <div className="p-3.5 flex flex-col justify-between rounded-xl border border-border bg-background transition-colors hover:border-border-strong">
+                              <div className="gap-2.5 mb-3 flex items-start">
+                                <div className="p-2 shrink-0 rounded-lg border border-border-strong bg-surface-raised">
                                   <GoogleIcon className="h-4 w-4" />
                                 </div>
                                 <div>
-                                  <h4 className="text-xs font-semibold text-foreground">Google Workspace</h4>
-                                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                                    Sync directory &amp; team groups
+                                  <h4 className="text-xs font-semibold text-foreground">
+                                    Google Workspace
+                                  </h4>
+                                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                                    Coming soon — no OAuth flow yet
                                   </p>
                                 </div>
                               </div>
                               <Button
                                 type="button"
                                 size="sm"
-                                variant={googleConnected ? 'outline' : 'secondary'}
-                                onClick={() => void handleConnectGoogle()}
-                                disabled={isConnectingGoogle}
-                                className="w-full text-xs font-medium h-8"
+                                variant="secondary"
+                                onClick={handleConnectGoogle}
+                                className="text-xs font-medium h-8 w-full"
                               >
-                                {isConnectingGoogle ? (
-                                  <>
-                                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                                    Connecting...
-                                  </>
-                                ) : googleConnected ? (
-                                  <>
-                                    <Check className="h-3.5 w-3.5 mr-1.5 text-success" />
-                                    Synced
-                                  </>
-                                ) : (
-                                  'Connect Google Suite'
-                                )}
+                                Connect Google Workspace
                               </Button>
                             </div>
 
                             {/* CSV / Excel / File Import */}
-                            <div className="flex flex-col justify-between p-3.5 rounded-xl border border-border bg-background hover:border-border-strong transition-colors">
-                              <div className="flex items-start gap-2.5 mb-3">
-                                <div className="p-2 rounded-lg bg-surface-raised border border-border-strong shrink-0">
+                            <div className="p-3.5 flex flex-col justify-between rounded-xl border border-border bg-background transition-colors hover:border-border-strong">
+                              <div className="gap-2.5 mb-3 flex items-start">
+                                <div className="p-2 shrink-0 rounded-lg border border-border-strong bg-surface-raised">
                                   <FileSpreadsheet className="h-4 w-4 text-primary" />
                                 </div>
                                 <div>
-                                  <h4 className="text-xs font-semibold text-foreground">CSV or Excel File</h4>
-                                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                                  <h4 className="text-xs font-semibold text-foreground">
+                                    CSV or Excel File
+                                  </h4>
+                                  <p className="mt-0.5 text-[11px] text-muted-foreground">
                                     .csv, .xlsx, .xls, .tsv, or .txt
                                   </p>
                                 </div>
@@ -582,7 +576,7 @@ export function CreateWorkspacePage() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => fileInputRef.current?.click()}
-                                className="w-full text-xs font-medium h-8 border-border-strong bg-surface-raised hover:bg-selected"
+                                className="text-xs font-medium h-8 w-full border-border-strong bg-surface-raised hover:bg-selected"
                               >
                                 <Upload className="h-3.5 w-3.5 mr-1.5" />
                                 Import File
@@ -595,16 +589,18 @@ export function CreateWorkspacePage() {
                             type="file"
                             accept=".csv,.xlsx,.xls,.tsv,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                             className="hidden"
-                            onChange={(e) => handleFileUpload(e.target.files?.[0])}
+                            onChange={(e) =>
+                              handleFileUpload(e.target.files?.[0])
+                            }
                           />
                         </div>
 
                         {/* Direct Email / Bulk Paste */}
                         <div className="space-y-3 pt-1">
-                          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+                          <label className="text-xs font-semibold tracking-wider block text-muted-foreground uppercase">
                             Or Add Manually (Single or Bulk Paste)
                           </label>
-                          <div className="flex items-center gap-2">
+                          <div className="gap-2 flex items-center">
                             <Input
                               type="text"
                               value={inviteEmailInput}
@@ -619,27 +615,27 @@ export function CreateWorkspacePage() {
                                 }
                               }}
                               placeholder="colleague@company.com, team@company.com..."
-                              className="bg-background border-border text-foreground text-xs focus:border-primary"
+                              className="text-xs border-border bg-background text-foreground focus:border-primary"
                             />
                             <Button
                               type="button"
                               onClick={handleAddInvite}
                               size="sm"
-                              className="bg-primary hover:bg-primary text-white shrink-0"
+                              className="text-white shrink-0 bg-primary hover:bg-primary"
                             >
                               <Plus className="h-4 w-4 mr-1" /> Add
                             </Button>
                           </div>
 
                           {inviteError && (
-                            <p className="text-xs text-destructive flex items-center gap-1.5">
+                            <p className="text-xs gap-1.5 flex items-center text-destructive">
                               <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                               {inviteError}
                             </p>
                           )}
 
                           {importStatus && (
-                            <p className="text-xs text-success flex items-center gap-1.5">
+                            <p className="text-xs gap-1.5 flex items-center text-success">
                               <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                               {importStatus}
                             </p>
@@ -648,13 +644,13 @@ export function CreateWorkspacePage() {
                           {invitedEmails.length > 0 && (
                             <div className="space-y-2 pt-2">
                               <div className="flex items-center justify-between">
-                                <p className="text-xs text-muted-foreground font-medium">
+                                <p className="text-xs font-medium text-muted-foreground">
                                   Invites to be sent ({invitedEmails.length}):
                                 </p>
                                 <button
                                   type="button"
                                   onClick={handleClearAllInvites}
-                                  className="text-[11px] text-muted-foreground hover:text-destructive transition-colors"
+                                  className="text-[11px] text-muted-foreground transition-colors hover:text-destructive"
                                 >
                                   Clear all
                                 </button>
@@ -666,13 +662,13 @@ export function CreateWorkspacePage() {
                                 {invitedEmails.map((email) => (
                                   <span
                                     key={email}
-                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs bg-surface border border-border text-foreground"
+                                    className="gap-1.5 px-2.5 py-1 text-xs inline-flex items-center rounded-md border border-border bg-surface text-foreground"
                                   >
                                     {email}
                                     <button
                                       type="button"
                                       onClick={() => handleRemoveInvite(email)}
-                                      className="hover:text-destructive text-subtle ml-0.5"
+                                      className="ml-0.5 text-subtle hover:text-destructive"
                                       aria-label={`Remove ${email}`}
                                     >
                                       <X className="h-3 w-3" />
@@ -685,14 +681,15 @@ export function CreateWorkspacePage() {
                         </div>
 
                         <p className="text-xs text-muted-foreground">
-                          Everyone invited joins as a <strong>member</strong>. You can invite
-                          more people, or change roles, from workspace settings at any time.
+                          Everyone invited joins as a <strong>member</strong>.
+                          You can invite more people, or change roles, from
+                          workspace settings at any time.
                         </p>
                       </div>
                     )}
 
                     {/* Step Navigation Bar */}
-                    <div className="pt-4 border-t border-border flex items-center justify-between gap-3">
+                    <div className="pt-4 gap-3 flex items-center justify-between border-t border-border">
                       {currentStep > 1 ? (
                         <Button
                           type="button"
@@ -704,7 +701,11 @@ export function CreateWorkspacePage() {
                           <ChevronLeft className="h-4 w-4 mr-1" /> Back
                         </Button>
                       ) : (
-                        <Button asChild variant="ghost" className="text-muted-foreground hover:text-foreground">
+                        <Button
+                          asChild
+                          variant="ghost"
+                          className="text-muted-foreground hover:text-foreground"
+                        >
                           <Link to="/">Cancel</Link>
                         </Button>
                       )}
@@ -712,12 +713,12 @@ export function CreateWorkspacePage() {
                       {currentStep === 1 ? (
                         <Button
                           type="submit"
-                          className="bg-primary hover:bg-primary text-white font-medium shadow-lg shadow-primary/30"
+                          className="text-white font-medium bg-primary shadow-lg shadow-primary/30 hover:bg-primary"
                         >
                           Continue <ChevronRight className="h-4 w-4 ml-1" />
                         </Button>
                       ) : (
-                        <div className="flex items-center gap-2">
+                        <div className="gap-2 flex items-center">
                           <Button
                             type="button"
                             variant="ghost"
@@ -730,7 +731,7 @@ export function CreateWorkspacePage() {
                           <Button
                             type="submit"
                             loading={isBusy}
-                            className="bg-gradient-to-r from-primary to-primary-hover hover:from-primary hover:to-primary-hover text-white font-semibold shadow-xl shadow-primary/25 px-6"
+                            className="text-white font-semibold shadow-xl px-6 bg-gradient-to-r from-primary to-primary-hover shadow-primary/25 hover:from-primary hover:to-primary-hover"
                           >
                             <Sparkles className="h-4 w-4 mr-2" />
                             {invitedEmails.length > 0
@@ -747,23 +748,23 @@ export function CreateWorkspacePage() {
           </div>
 
           {/* Live Preview Side Panel */}
-          <div className="lg:col-span-5 hidden lg:block sticky top-24">
-            <Card className="bg-surface/60 border-border backdrop-blur shadow-xl overflow-hidden">
-              <div className="bg-background/80 px-4 py-3 border-b border-border flex items-center justify-between">
-                <div className="flex items-center gap-2">
+          <div className="lg:col-span-5 lg:block top-24 sticky hidden">
+            <Card className="backdrop-blur shadow-xl overflow-hidden border-border bg-surface/60">
+              <div className="px-4 py-3 flex items-center justify-between border-b border-border bg-background/80">
+                <div className="gap-2 flex items-center">
                   <div className="h-2.5 w-2.5 rounded-full bg-destructive/80" />
                   <div className="h-2.5 w-2.5 rounded-full bg-warning/80" />
                   <div className="h-2.5 w-2.5 rounded-full bg-success/80" />
                 </div>
-                <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1">
+                <span className="gap-1 flex items-center font-mono text-[11px] text-muted-foreground">
                   <Wand2 className="h-3 w-3 text-primary" /> Live Preview
                 </span>
               </div>
 
               <CardContent className="p-4 space-y-4">
                 {/* Preview: workspace header, drawn from the form state above. */}
-                <div className="p-3 rounded-xl bg-background border border-border flex items-center justify-between">
-                  <div className="flex items-center gap-3 min-w-0">
+                <div className="p-3 flex items-center justify-between rounded-xl border border-border bg-background">
+                  <div className="gap-3 min-w-0 flex items-center">
                     <WorkspaceAvatar
                       name={name || 'Your Workspace'}
                       src={logoPreview}
@@ -771,43 +772,52 @@ export function CreateWorkspacePage() {
                       size="lg"
                     />
                     <div className="min-w-0">
-                      <h4 className="font-semibold text-foreground text-sm truncate max-w-[140px]">
+                      <h4 className="font-semibold text-sm max-w-[140px] truncate text-foreground">
                         {name || 'Your Workspace'}
                       </h4>
-                      <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[140px]">
+                      <p className="max-w-[140px] truncate font-mono text-[10px] text-muted-foreground">
                         {slug ? `onetab.ai/w/${slug}` : 'onetab.ai/w/...'}
                       </p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-[10px] border-primary/40 text-primary bg-primary/10">
+                  <Badge
+                    variant="outline"
+                    className="border-primary/40 bg-primary/10 text-[10px] text-primary"
+                  >
                     Active
                   </Badge>
                 </div>
 
                 {/* Preview: the people this workspace will start with. */}
-                <div className="space-y-2 bg-background/40 p-3 rounded-xl border border-border/60">
-                  <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+                <div className="space-y-2 p-3 rounded-xl border border-border/60 bg-background/40">
+                  <div className="font-medium flex items-center justify-between text-[11px] text-muted-foreground">
                     <span>TEAM MEMBERS ({invitedEmails.length + 1})</span>
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="gap-2 flex flex-wrap items-center">
                     <Avatar className="h-7 w-7 border border-primary">
-                      <AvatarFallback className="bg-primary text-white text-xs font-bold">YOU</AvatarFallback>
+                      <AvatarFallback className="text-white text-xs font-bold bg-primary">
+                        YOU
+                      </AvatarFallback>
                     </Avatar>
                     {invitedEmails.slice(0, 4).map((email) => (
-                      <Avatar key={email} className="h-7 w-7 border border-border-strong">
-                        <AvatarFallback className="bg-surface-raised text-secondary-foreground text-[10px] font-bold">
+                      <Avatar
+                        key={email}
+                        className="h-7 w-7 border border-border-strong"
+                      >
+                        <AvatarFallback className="font-bold bg-surface-raised text-[10px] text-secondary-foreground">
                           {initials(email)}
                         </AvatarFallback>
                       </Avatar>
                     ))}
                     {invitedEmails.length > 4 && (
-                      <span className="h-7 w-7 rounded-full bg-surface-raised text-muted-foreground text-[10px] font-bold flex items-center justify-center border border-border-strong">
+                      <span className="h-7 w-7 font-bold flex items-center justify-center rounded-full border border-border-strong bg-surface-raised text-[10px] text-muted-foreground">
                         +{invitedEmails.length - 4}
                       </span>
                     )}
                   </div>
                   <p className="text-[10px] text-subtle">
-                    Your workspace starts with a <span className="font-mono">#general</span> channel.
+                    Your workspace starts with a{' '}
+                    <span className="font-mono">#general</span> channel.
                   </p>
                 </div>
               </CardContent>
@@ -817,8 +827,9 @@ export function CreateWorkspacePage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border/60 bg-background py-4 px-6 text-center text-xs text-subtle">
-        OneTab AI Workspace Onboarding &bull; Crafting collaboration spaces in seconds
+      <footer className="py-4 px-6 text-xs border-t border-border/60 bg-background text-center text-subtle">
+        OneTab AI Workspace Onboarding &bull; Crafting collaboration spaces in
+        seconds
       </footer>
     </div>
   );

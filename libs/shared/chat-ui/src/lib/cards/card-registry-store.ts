@@ -1,4 +1,4 @@
-import type { CardDefinition, CardStatus } from '@org/types';
+import type { CardDefinition } from '@org/types';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 

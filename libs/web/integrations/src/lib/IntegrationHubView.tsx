@@ -56,21 +56,22 @@ export type AppCategory =
   | 'Internal Apps'
   | 'Other';
 
-const CATEGORY_META: Record<
-  AppCategory,
-  { icon: LucideIcon; accent: Accent }
-> = {
-  Analytics: { icon: BarChart3, accent: 'blue' },
-  'Customer Support & Communication': { icon: Headphones, accent: 'violet' },
-  Design: { icon: Palette, accent: 'pink' },
-  'Developer Tools': { icon: Share2, accent: 'amber' },
-  'Productivity & Project Management': { icon: FolderKanban, accent: 'green' },
-  'HR & Team Culture': { icon: Users, accent: 'cyan' },
-  'Sales & Marketing': { icon: Layout, accent: 'rose' },
-  Finance: { icon: DollarSign, accent: 'green' },
-  'Internal Apps': { icon: Webhook, accent: 'teal' },
-  Other: { icon: Webhook, accent: 'violet' },
-};
+const CATEGORY_META: Record<AppCategory, { icon: LucideIcon; accent: Accent }> =
+  {
+    Analytics: { icon: BarChart3, accent: 'blue' },
+    'Customer Support & Communication': { icon: Headphones, accent: 'violet' },
+    Design: { icon: Palette, accent: 'pink' },
+    'Developer Tools': { icon: Share2, accent: 'amber' },
+    'Productivity & Project Management': {
+      icon: FolderKanban,
+      accent: 'green',
+    },
+    'HR & Team Culture': { icon: Users, accent: 'cyan' },
+    'Sales & Marketing': { icon: Layout, accent: 'rose' },
+    Finance: { icon: DollarSign, accent: 'green' },
+    'Internal Apps': { icon: Webhook, accent: 'teal' },
+    Other: { icon: Webhook, accent: 'violet' },
+  };
 
 const APP_LOGOS: Record<string, string> = {
   github: 'https://cdn.simpleicons.org/github',
@@ -103,13 +104,15 @@ const integrationsList: IntegrationCard[] = [
     id: 'github',
     name: 'GitHub',
     category: 'Developer Tools',
-    description: 'PR code reviews, issue sync, and commit webhooks directly in channels.',
+    description:
+      'PR code reviews, issue sync, and commit webhooks directly in channels.',
   },
   {
     id: 'gitlab',
     name: 'GitLab',
     category: 'Developer Tools',
-    description: 'Merge request checks and CI/CD pipeline deployment notifications.',
+    description:
+      'Merge request checks and CI/CD pipeline deployment notifications.',
   },
   {
     id: 'jira',
@@ -127,31 +130,36 @@ const integrationsList: IntegrationCard[] = [
     id: 'figma',
     name: 'Figma',
     category: 'Design',
-    description: 'Design file embeds, live cursor feedback, and canvas updates.',
+    description:
+      'Design file embeds, live cursor feedback, and canvas updates.',
   },
   {
     id: 'gdrive',
     name: 'Google Drive',
     category: 'Productivity & Project Management',
-    description: 'Embed files, preview docs, and search attachments across rooms.',
+    description:
+      'Embed files, preview docs, and search attachments across rooms.',
   },
   {
     id: 'gcal',
     name: 'Google Calendar',
     category: 'Productivity & Project Management',
-    description: 'Auto-schedule meetings, sync availability, and event reminders.',
+    description:
+      'Auto-schedule meetings, sync availability, and event reminders.',
   },
   {
     id: 'outlook',
     name: 'Microsoft Outlook',
     category: 'Productivity & Project Management',
-    description: 'Sync Outlook calendar invitations, availability, and meeting join links.',
+    description:
+      'Sync Outlook calendar invitations, availability, and meeting join links.',
   },
   {
     id: 'zendesk',
     name: 'Zendesk',
     category: 'Customer Support & Communication',
-    description: 'Customer support ticket routing, triage, and reply notifications.',
+    description:
+      'Customer support ticket routing, triage, and reply notifications.',
   },
   {
     id: 'intercom',
@@ -163,19 +171,22 @@ const integrationsList: IntegrationCard[] = [
     id: 'mixpanel',
     name: 'Mixpanel',
     category: 'Analytics',
-    description: 'Product analytics, event tracking reports, and metrics summaries.',
+    description:
+      'Product analytics, event tracking reports, and metrics summaries.',
   },
   {
     id: 'datadog',
     name: 'Datadog',
     category: 'Analytics',
-    description: 'Real-time infrastructure monitoring, alerts, and incident tracking.',
+    description:
+      'Real-time infrastructure monitoring, alerts, and incident tracking.',
   },
   {
     id: 'stripe',
     name: 'Stripe',
     category: 'Finance',
-    description: 'Payment alerts, subscription milestones, and invoice webhooks.',
+    description:
+      'Payment alerts, subscription milestones, and invoice webhooks.',
   },
   {
     id: 'quickbooks',
@@ -187,25 +198,29 @@ const integrationsList: IntegrationCard[] = [
     id: 'bamboohr',
     name: 'BambooHR',
     category: 'HR & Team Culture',
-    description: 'Team birthday reminders, PTO approvals, and onboarding workflows.',
+    description:
+      'Team birthday reminders, PTO approvals, and onboarding workflows.',
   },
   {
     id: 'hubspot',
     name: 'HubSpot',
     category: 'Sales & Marketing',
-    description: 'CRM deal stage tracking, contact leads, and sales pipeline alerts.',
+    description:
+      'CRM deal stage tracking, contact leads, and sales pipeline alerts.',
   },
   {
     id: 'discord',
     name: 'Discord Bridge',
     category: 'Other',
-    description: 'Bridge Discord channels and post automated cross-platform updates.',
+    description:
+      'Bridge Discord channels and post automated cross-platform updates.',
   },
   {
     id: 'webhooks',
     name: 'Custom Webhooks Hub',
     category: 'Internal Apps',
-    description: 'Incoming and outgoing custom REST webhooks for internal tools.',
+    description:
+      'Incoming and outgoing custom REST webhooks for internal tools.',
     isInternal: true,
   },
 ];
@@ -216,7 +231,9 @@ export function IntegrationHubView() {
   const { connect, disconnect } = useIntegrationMutations(workspaceId);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState<'All' | AppCategory>('All');
+  const [selectedFilter, setSelectedFilter] = useState<'All' | AppCategory>(
+    'All',
+  );
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
   /*
@@ -250,33 +267,35 @@ export function IntegrationHubView() {
   });
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="min-h-0 flex flex-1 flex-col">
       {/* Channel-style Header */}
       <div className="border-b border-border bg-background">
-        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="flex min-w-0 items-center gap-1.5">
-              <Share2 className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-              <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
-                App Directory
+        <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
+          <div className="min-w-0 gap-2 flex items-center">
+            <div className="min-w-0 gap-1.5 flex items-center">
+              <Share2
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
+                Apps
               </h2>
-              <Badge variant="neutral" className="text-[11px] px-1.5 py-0 h-4.5">
+              {/* <Badge
+                variant="neutral"
+                className="px-1.5 py-0 h-4.5 text-[11px]"
+              >
                 {connectedProviders.size} of {integrationsList.length} connected
-              </Badge>
+              </Badge> */}
             </div>
 
-            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
-
-            <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
-              Discover, install, and manage connected apps and integrations
-            </p>
+            {/* <div className="h-4 mx-1 sm:block hidden w-px bg-border" /> */}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             <SearchInput
               value={searchQuery}
               onValueChange={setSearchQuery}
-              placeholder="Search apps…"
+              placeholder="Search apps..."
               className="h-7 text-xs"
               wrapperClassName="w-36 sm:w-56"
             />
@@ -284,220 +303,234 @@ export function IntegrationHubView() {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-        <div className="mx-auto max-w-7xl">
-
-      {/* Featured AI Banner Card */}
-      {!bannerDismissed ? (
-        <div className="relative mb-6 overflow-hidden rounded-2xl border border-border bg-surface-inset p-5 shadow-lg">
-          <button
-            type="button"
-            onClick={() => setBannerDismissed(true)}
-            className="absolute top-3 right-3 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-          >
-            <X className="size-4" />
-          </button>
-
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div className="space-y-2 max-w-xl">
-              <div className="flex items-center gap-2 text-xs font-bold text-primary-text uppercase tracking-wider">
-                <Sparkles className="size-4 text-warning-text" />
-                <span>AI-Powered Integrations</span>
-              </div>
-              <h3 className="text-lg font-extrabold text-foreground tracking-tight">
-                One-click access to AI tools in OneTab
-              </h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                A new app messaging experience makes having conversations with AI-powered agents and assistants a snap. Install apps with an assistant or agent, and put them to work today.
-              </p>
-              <div className="pt-1">
-                <Button size="sm" className="bg-success hover:bg-success/90 text-success-foreground font-semibold rounded-lg px-4 py-1.5 shadow-sm">
-                  Browse agents
-                </Button>
-              </div>
-            </div>
-
-            {/* Thumbnail Badge Grid */}
-            <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface p-3 shadow-inner">
-              {['🤖', '⚡', '📊', '💬', '📂'].map((icon, idx) => (
-                <div
-                  key={idx}
-                  className="flex size-10 items-center justify-center rounded-xl bg-surface-inset text-lg shadow-sm border border-border"
-                >
-                  {icon}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Filter Dropdown & App Counter Header */}
-      <div className="mb-4 flex items-center justify-between">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="flex items-center gap-2 rounded-xl border border-border bg-surface-inset px-3.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface hover:text-foreground shadow-sm"
-            >
-              <span>
-                {selectedFilter === 'All' ? 'All app types' : selectedFilter}
-              </span>
-              <ChevronDown className="size-3.5 text-muted-foreground" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="start"
-            side="bottom"
-            sideOffset={4}
-            className="w-72 max-h-80 overflow-y-auto scrollbar-subtle border-border bg-surface-inset p-1.5 text-foreground shadow-2xl"
-          >
-            <DropdownMenuItem
-              onSelect={() => setSelectedFilter('All')}
-              className="flex items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold hover:bg-accent cursor-pointer"
-            >
-              <span>All app types</span>
-              {selectedFilter === 'All' ? (
-                <Check className="size-4 text-info-text" />
-              ) : null}
-            </DropdownMenuItem>
-
-            <DropdownMenuItem
-              onSelect={() => setSelectedFilter('Internal Apps')}
-              className="flex items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold hover:bg-accent cursor-pointer"
-            >
-              <span>Internal Apps</span>
-              {selectedFilter === 'Internal Apps' ? (
-                <Check className="size-4 text-info-text" />
-              ) : null}
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator className="my-1.5 bg-border" />
-
-            <DropdownMenuLabel className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              Categories
-            </DropdownMenuLabel>
-
-            {(
-              [
-                'Analytics',
-                'Customer Support & Communication',
-                'Design',
-                'Developer Tools',
-                'Productivity & Project Management',
-                'HR & Team Culture',
-                'Sales & Marketing',
-                'Finance',
-                'Other',
-              ] as AppCategory[]
-            ).map((category) => (
-              <DropdownMenuItem
-                key={category}
-                onSelect={() => setSelectedFilter(category)}
-                className="flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium hover:bg-accent cursor-pointer"
+      <div className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto">
+          {/* Featured AI Banner Card */}
+          {!bannerDismissed ? (
+            <div className="mb-6 p-5 relative overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-lg">
+              <button
+                type="button"
+                onClick={() => setBannerDismissed(true)}
+                className="top-3 right-3 p-1 absolute rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
-                <span>{category}</span>
-                {selectedFilter === category ? (
-                  <Check className="size-4 text-info-text" />
-                ) : null}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                <X className="size-4" />
+              </button>
 
-        <p className="text-xs font-bold text-muted-foreground tracking-wide">
-          {filteredCards.length} {filteredCards.length === 1 ? 'app' : 'apps'} in workspace
-        </p>
-      </div>
+              <div className="md:flex-row md:items-center gap-4 flex flex-col items-start justify-between">
+                <div className="space-y-2 max-w-xl">
+                  <div className="gap-2 text-xs font-bold tracking-wider flex items-center text-primary-text uppercase">
+                    <Sparkles className="size-4 text-warning-text" />
+                    <span>AI-Powered Integrations</span>
+                  </div>
+                  <h3 className="text-lg font-extrabold tracking-tight text-foreground">
+                    One-click access to AI tools in OneTab
+                  </h3>
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    A new app messaging experience makes having conversations
+                    with AI-powered agents and assistants a snap. Install apps
+                    with an assistant or agent, and put them to work today.
+                  </p>
+                  <div className="pt-1">
+                    <Button
+                      size="sm"
+                      className="font-semibold px-4 py-1.5 rounded-lg bg-success text-success-foreground shadow-sm hover:bg-success/90"
+                    >
+                      Browse agents
+                    </Button>
+                  </div>
+                </div>
 
-      {/* App Cards Grid */}
-      {filteredCards.length > 0 ? (
-        <ul className="gap-4 md:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">
-          {filteredCards.map((card) => {
-            const meta = CATEGORY_META[card.category] || CATEGORY_META['Other'];
-            const Icon = meta.icon;
-            const isConnected = connectedProviders.has(card.id.toUpperCase());
-            const logoUrl = APP_LOGOS[card.id.toLowerCase()];
+                {/* Thumbnail Badge Grid */}
+                <div className="gap-2 p-3 shadow-inner flex items-center rounded-2xl border border-border bg-surface">
+                  {['🤖', '⚡', '📊', '💬', '📂'].map((icon, idx) => (
+                    <div
+                      key={idx}
+                      className="size-10 text-lg flex items-center justify-center rounded-xl border border-border bg-surface-inset shadow-sm"
+                    >
+                      {icon}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
 
-            return (
-              <li key={card.id}>
-                <Card className="p-5 h-full flex flex-col justify-between border-border bg-surface-inset transition-all hover:border-primary hover:shadow-md">
-                  <div>
-                    <div className="mb-3 flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-3">
-                        <span
-                          aria-hidden
-                          className={cn(
-                            'size-10 flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-foreground shadow-xs p-2',
-                          )}
-                        >
-                          {logoUrl ? (
-                            <img
-                              src={logoUrl}
-                              alt={card.name}
-                              className="size-full object-contain dark:brightness-110"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <Icon className="size-5 text-primary-text" />
-                          )}
-                        </span>
-                        <div className="min-w-0">
-                          <h2 className="text-sm font-extrabold truncate text-foreground">
-                            {card.name}
-                          </h2>
-                          <p className="text-[11px] text-muted-foreground truncate font-medium">
-                            {card.category}
-                          </p>
+          {/* Filter Dropdown & App Counter Header */}
+          <div className="mb-4 flex items-center justify-between">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="gap-2 px-3.5 py-1.5 text-xs font-semibold flex items-center rounded-xl border border-border bg-surface-inset text-foreground shadow-sm transition-colors hover:bg-surface hover:text-foreground"
+                >
+                  <span>
+                    {selectedFilter === 'All'
+                      ? 'All app types'
+                      : selectedFilter}
+                  </span>
+                  <ChevronDown className="size-3.5 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                side="bottom"
+                sideOffset={4}
+                className="w-72 max-h-80 scrollbar-subtle p-1.5 shadow-2xl overflow-y-auto border-border bg-surface-inset text-foreground"
+              >
+                <DropdownMenuItem
+                  onSelect={() => setSelectedFilter('All')}
+                  className="px-3 py-2 text-xs font-semibold flex cursor-pointer items-center justify-between rounded-lg hover:bg-accent"
+                >
+                  <span>All app types</span>
+                  {selectedFilter === 'All' ? (
+                    <Check className="size-4 text-info-text" />
+                  ) : null}
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onSelect={() => setSelectedFilter('Internal Apps')}
+                  className="px-3 py-2 text-xs font-semibold flex cursor-pointer items-center justify-between rounded-lg hover:bg-accent"
+                >
+                  <span>Internal Apps</span>
+                  {selectedFilter === 'Internal Apps' ? (
+                    <Check className="size-4 text-info-text" />
+                  ) : null}
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator className="my-1.5 bg-border" />
+
+                <DropdownMenuLabel className="px-3 py-1 font-bold tracking-wider text-[10px] text-muted-foreground uppercase">
+                  Categories
+                </DropdownMenuLabel>
+
+                {(
+                  [
+                    'Analytics',
+                    'Customer Support & Communication',
+                    'Design',
+                    'Developer Tools',
+                    'Productivity & Project Management',
+                    'HR & Team Culture',
+                    'Sales & Marketing',
+                    'Finance',
+                    'Other',
+                  ] as AppCategory[]
+                ).map((category) => (
+                  <DropdownMenuItem
+                    key={category}
+                    onSelect={() => setSelectedFilter(category)}
+                    className="px-3 py-2 text-xs font-medium flex cursor-pointer items-center justify-between rounded-lg hover:bg-accent"
+                  >
+                    <span>{category}</span>
+                    {selectedFilter === category ? (
+                      <Check className="size-4 text-info-text" />
+                    ) : null}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <p className="text-xs font-bold tracking-wide text-muted-foreground">
+              {filteredCards.length}{' '}
+              {filteredCards.length === 1 ? 'app' : 'apps'} in workspace
+            </p>
+          </div>
+
+          {/* App Cards Grid */}
+          {filteredCards.length > 0 ? (
+            <ul className="gap-4 md:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">
+              {filteredCards.map((card) => {
+                const meta =
+                  CATEGORY_META[card.category] || CATEGORY_META['Other'];
+                const Icon = meta.icon;
+                const isConnected = connectedProviders.has(
+                  card.id.toUpperCase(),
+                );
+                const logoUrl = APP_LOGOS[card.id.toLowerCase()];
+
+                return (
+                  <li key={card.id}>
+                    <Card className="p-5 flex h-full flex-col justify-between border-border bg-surface-inset transition-all hover:border-primary hover:shadow-md">
+                      <div>
+                        <div className="mb-3 gap-2 flex items-start justify-between">
+                          <div className="gap-3 flex items-center">
+                            <span
+                              aria-hidden
+                              className={cn(
+                                'size-10 p-2 flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface text-foreground shadow-xs',
+                              )}
+                            >
+                              {logoUrl ? (
+                                <img
+                                  src={logoUrl}
+                                  alt={card.name}
+                                  className="size-full object-contain dark:brightness-110"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <Icon className="size-5 text-primary-text" />
+                              )}
+                            </span>
+                            <div className="min-w-0">
+                              <h2 className="text-sm font-extrabold truncate text-foreground">
+                                {card.name}
+                              </h2>
+                              <p className="font-medium truncate text-[11px] text-muted-foreground">
+                                {card.category}
+                              </p>
+                            </div>
+                          </div>
+
+                          {card.isInternal ? (
+                            <Badge
+                              variant="neutral"
+                              className="border-primary/40 bg-primary/20 text-[10px] text-primary-text"
+                            >
+                              Internal
+                            </Badge>
+                          ) : null}
                         </div>
+
+                        <p className="mb-4 text-xs leading-relaxed line-clamp-3 text-muted-foreground">
+                          {card.description}
+                        </p>
                       </div>
 
-                      {card.isInternal ? (
-                        <Badge variant="neutral" className="bg-primary/20 text-primary-text border-primary/40 text-[10px]">
-                          Internal
-                        </Badge>
-                      ) : null}
-                    </div>
-
-                    <p className="mb-4 text-xs leading-relaxed text-muted-foreground line-clamp-3">
-                      {card.description}
-                    </p>
-                  </div>
-
-                  <Button
-                    variant={isConnected ? 'outline' : 'primary'}
-                    size="sm"
-                    className={cn(
-                      'w-full font-semibold rounded-lg transition-colors',
-                      isConnected
-                        ? 'border-border bg-surface text-foreground hover:bg-accent'
-                        : 'bg-primary text-primary-foreground hover:bg-primary-hover',
-                    )}
-                    onClick={() => toggleConnection(card)}
-                    leadingIcon={
-                      isConnected ? (
-                        <Check className="text-success-text size-4" />
-                      ) : (
-                        <ExternalLink className="size-4" />
-                      )
-                    }
-                  >
-                    {isConnected ? 'Connected' : 'Connect'}
-                    <span className="sr-only"> — {card.name}</span>
-                  </Button>
-                </Card>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <div className="py-12 text-center border border-dashed border-border rounded-2xl bg-surface-inset">
-          <p className="text-sm font-bold text-foreground">No apps found</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Try adjusting your search query or selecting a different app category.
-          </p>
-        </div>
-      )}
+                      <Button
+                        variant={isConnected ? 'outline' : 'primary'}
+                        size="sm"
+                        className={cn(
+                          'font-semibold w-full rounded-lg transition-colors',
+                          isConnected
+                            ? 'border-border bg-surface text-foreground hover:bg-accent'
+                            : 'bg-primary text-primary-foreground hover:bg-primary-hover',
+                        )}
+                        onClick={() => toggleConnection(card)}
+                        leadingIcon={
+                          isConnected ? (
+                            <Check className="size-4 text-success-text" />
+                          ) : (
+                            <ExternalLink className="size-4" />
+                          )
+                        }
+                      >
+                        {isConnected ? 'Connected' : 'Connect'}
+                        <span className="sr-only"> — {card.name}</span>
+                      </Button>
+                    </Card>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div className="py-12 rounded-2xl border border-dashed border-border bg-surface-inset text-center">
+              <p className="text-sm font-bold text-foreground">No apps found</p>
+              <p className="text-xs mt-1 text-muted-foreground">
+                Try adjusting your search query or selecting a different app
+                category.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

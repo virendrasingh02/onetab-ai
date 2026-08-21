@@ -1,6 +1,10 @@
 import { workToolsApi } from '@org/api-client';
 import { ConnectionBanner, executeStructuredAction } from '@org/chat-ui';
-import type { Message, StructuredMessageAction } from '@org/matrix-client';
+import type {
+  Message,
+  StructuredChatMessage,
+  StructuredMessageAction,
+} from '@org/matrix-client';
 import { Button, EmptyState, LoadingState, toast, useRightPanelStore } from '@org/ui';
 import { MessageSquareOff } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
@@ -267,7 +271,7 @@ export function ChatPanel({
         data,
       };
       await client.sendStructuredMessage(roomId, cardMessage, {
-        fallbackText: `[Universal Card: ${cardId} (v${version})]`,
+        fallbackBody: `[Universal Card: ${cardId} (v${version})]`,
       });
     },
     [client, roomId],

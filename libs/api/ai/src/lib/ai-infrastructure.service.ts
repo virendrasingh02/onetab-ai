@@ -2,6 +2,7 @@ import {
   Injectable,
   Logger,
   OnModuleInit,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import type {
   AIChatMessage,
@@ -12,7 +13,10 @@ import type {
   AIStreamEvent,
   ProviderConnectionTestResult,
 } from '@org/types';
-import { NEMOTRON_MODEL_ID, NVIDIA_BASE_URL_DEFAULT } from './adapters/nvidia.adapter.js';
+import {
+  NEMOTRON_MODEL_ID,
+  NVIDIA_BASE_URL_DEFAULT,
+} from './adapters/nvidia.adapter.js';
 import { ModelRegistryService } from './model-registry.service.js';
 import { ModelResolverService } from './model-resolver.service.js';
 import { ProviderRegistryService } from './provider-registry.service.js';
@@ -77,7 +81,14 @@ export const AI_MODEL_REGISTRY: AIModelMetadata[] = [
     name: 'OpenAI GPT-4o',
     enabled: true,
     default: false,
-    capabilities: ['chat', 'coding', 'agent', 'tool_calling', 'vision', 'streaming'],
+    capabilities: [
+      'chat',
+      'coding',
+      'agent',
+      'tool_calling',
+      'vision',
+      'streaming',
+    ],
   },
   {
     id: 'claude-sonnet',
@@ -133,13 +144,13 @@ export class AIInfrastructureService implements OnModuleInit {
   constructor(
     private readonly providerRegistry: ProviderRegistryService,
     private readonly modelRegistry: ModelRegistryService,
-    private readonly modelResolver: ModelResolverService
+    private readonly modelResolver: ModelResolverService,
   ) {}
 
   onModuleInit(): void {
     const defaultResolution = this.modelResolver.resolve();
     this.logger.log(
-      `AIInfrastructureService (AI Gateway) initialized. Default: [${defaultResolution.provider}/${defaultResolution.model}]`
+      `AIInfrastructureService (AI Gateway) initialized. Default: [${defaultResolution.provider}/${defaultResolution.model}]`,
     );
   }
 
@@ -148,7 +159,7 @@ export class AIInfrastructureService implements OnModuleInit {
    */
   resolveProviderAndModel(
     requestedProvider?: AIProvider,
-    requestedModel?: string
+    requestedModel?: string,
   ): { provider: AIProvider; model: string } {
     const resolved = this.modelResolver.resolve({
       requestedProvider,
@@ -170,7 +181,7 @@ export class AIInfrastructureService implements OnModuleInit {
 
   async testProviderConnection(
     provider: AIProvider,
-    model?: string
+    model?: string,
   ): Promise<ProviderConnectionTestResult> {
     return this.providerRegistry.testConnection(provider, model);
   }
@@ -189,14 +200,14 @@ export class AIInfrastructureService implements OnModuleInit {
     const adapter = this.providerRegistry.getAdapter(provider);
 
     this.logger.log(
-      `AI Gateway executing chat turn [Provider: ${provider}, Model: ${model}, Messages: ${options.messages.length}]`
+      `AI Gateway executing chat turn [Provider: ${provider}, Model: ${model}, Messages: ${options.messages.length}]`,
     );
 
     // Validate capability if tools are requested
     if (options.tools && options.tools.length > 0) {
       if (!this.modelRegistry.supports(model, 'toolCalling')) {
         this.logger.warn(
-          `Model ${model} does not officially advertise toolCalling, delegating to provider adapter capability.`
+          `Model ${model} does not officially advertise toolCalling, delegating to provider adapter capability.`,
         );
       }
     }
@@ -221,7 +232,7 @@ export class AIInfrastructureService implements OnModuleInit {
       };
     } catch (err: unknown) {
       this.logger.error(
-        `AI Gateway turn failed with provider '${provider}': ${err instanceof Error ? err.message : String(err)}`
+        `AI Gateway turn failed with provider '${provider}': ${err instanceof Error ? err.message : String(err)}`,
       );
       throw err;
     }
@@ -231,7 +242,7 @@ export class AIInfrastructureService implements OnModuleInit {
    * Central AI Gateway execution for streaming responses.
    */
   async *streamChat(
-    options: ChatCompletionOptions
+    options: ChatCompletionOptions,
   ): AsyncGenerator<AIStreamEvent, void, unknown> {
     const resolution = this.modelResolver.resolve({
       requestedProvider: options.provider,
@@ -243,7 +254,7 @@ export class AIInfrastructureService implements OnModuleInit {
     const adapter = this.providerRegistry.getAdapter(provider);
 
     this.logger.log(
-      `AI Gateway streaming chat turn [Provider: ${provider}, Model: ${model}]`
+      `AI Gateway streaming chat turn [Provider: ${provider}, Model: ${model}]`,
     );
 
     yield* adapter.stream({
@@ -259,122 +270,157 @@ export class AIInfrastructureService implements OnModuleInit {
     });
   }
 
+  /**
+   * No provider adapter implements image generation yet (every model in
+   * {@link AI_MODEL_REGISTRY} declares `imageGeneration: false`). This used
+   * to silently return the same hardcoded Unsplash stock photo for every
+   * prompt and log it as if it had generated something. Failing loudly here
+   * is deliberate: a caller that ignores the error and renders `imageUrl`
+   * anyway is a bug to catch, not a stock photo to hide behind.
+   */
   async generateImage(
     prompt: string,
-    provider = 'openai'
+    provider = 'openai',
   ): Promise<{ imageUrl: string }> {
-    this.logger.log(`Generating image for prompt: '${prompt}' via ${provider}`);
-    return {
-      imageUrl: `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80`,
-    };
+    this.logger.warn(
+      `Image generation requested for prompt '${prompt}' via ${provider}, but no adapter implements it yet.`,
+    );
+    throw new ServiceUnavailableException(
+      'Image generation is not implemented yet. No configured provider can generate images.',
+    );
   }
 
+  /**
+   * On a gateway failure this used to swallow the error and return
+   * `[Translated to ${targetLanguage}]: ${text}` — the original text with a
+   * label on it, presented as a translation. That is indistinguishable from
+   * a real (if lazy) translation and strictly worse than an error: a caller
+   * who does not read the target language has no way to know it never
+   * happened. Provider failures now propagate.
+   */
   async translateText(
     text: string,
-    targetLanguage: string
+    targetLanguage: string,
   ): Promise<{ translatedText: string }> {
     this.logger.log(`Translating text to ${targetLanguage}`);
 
-    try {
-      const res = await this.chat({
-        messages: [
-          {
-            role: 'system',
-            content: `You are an expert translator. Translate the given text accurately to ${targetLanguage}. Output ONLY the translated text without commentary or preamble.`,
-          },
-          { role: 'user', content: text },
-        ],
-      });
-      if (res.message.content) {
-        return { translatedText: res.message.content };
-      }
-    } catch (err) {
-      this.logger.warn(
-        `Translation via AI gateway failed, using fallback: ${String(err)}`
+    const res = await this.chat({
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert translator. Translate the given text accurately to ${targetLanguage}. Output ONLY the translated text without commentary or preamble.`,
+        },
+        { role: 'user', content: text },
+      ],
+    });
+    if (!res.message.content) {
+      throw new ServiceUnavailableException(
+        'Translation failed: the AI provider returned an empty response.',
       );
     }
-
-    return {
-      translatedText: `[Translated to ${targetLanguage}]: ${text}`,
-    };
+    return { translatedText: res.message.content };
   }
 
+  /**
+   * Same reasoning as {@link translateText}: the previous fallback was a
+   * fixed two-bullet summary ("Next sprint deployment confirmed and unified
+   * multi-provider AI platform activated") returned for every thread
+   * regardless of content whenever the real call failed. Provider failures
+   * now propagate instead of being replaced with fabricated output.
+   */
   async summarizeThread(messagesText: string): Promise<{ summary: string }> {
     this.logger.log(`Summarizing thread of length ${messagesText.length}`);
 
-    try {
-      const res = await this.chat({
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are an executive AI assistant. Summarize the following thread concisely with key discussion points, decisions made, and assigned action items.',
-          },
-          { role: 'user', content: messagesText },
-        ],
-      });
-      if (res.message.content) {
-        return { summary: res.message.content };
-      }
-    } catch (err) {
-      this.logger.warn(
-        `Summarization via AI gateway failed, using fallback: ${String(err)}`
+    const res = await this.chat({
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are an executive AI assistant. Summarize the following thread concisely with key discussion points, decisions made, and assigned action items.',
+        },
+        { role: 'user', content: messagesText },
+      ],
+    });
+    if (!res.message.content) {
+      throw new ServiceUnavailableException(
+        'Summarization failed: the AI provider returned an empty response.',
       );
     }
-
-    return {
-      summary: `• Executive Summary: Key discussion items processed and action points assigned.\n• Main Decisions: Next sprint deployment confirmed and unified multi-provider AI platform activated.`,
-    };
+    return { summary: res.message.content };
   }
 
+  /**
+   * `AIChatMessage.content` is a plain string (see `libs/shared/types`),
+   * so there is no multimodal message path to send `imageUrl` to a
+   * vision-capable model even though several adapters advertise
+   * `vision: true`. This used to return the same fixed sentence — "Detected
+   * dashboard interface components, status metrics, and navigation
+   * elements." — for every image, never having looked at any of them.
+   * Failing loudly instead of pretending to have seen the image.
+   */
   async analyzeVision(
     imageUrl: string,
-    prompt?: string
+    prompt?: string,
   ): Promise<{ analysis: string }> {
-    this.logger.log(`Analyzing image at ${imageUrl}`);
-    return {
-      analysis: `Vision Analysis (${prompt ?? 'Analyze UI/Diagram'}): Detected dashboard interface components, status metrics, and navigation elements.`,
-    };
+    this.logger.warn(
+      `Vision analysis requested for ${imageUrl} (prompt: ${prompt ?? 'none'}), but no adapter has a multimodal message path yet.`,
+    );
+    throw new ServiceUnavailableException(
+      'Image analysis is not implemented yet. No configured provider can analyze images.',
+    );
   }
 
+  /**
+   * The old fallback — `new Array(384).fill(0).map(() => Math.random())` —
+   * is the most damaging fabrication in this file: RAG search compares
+   * query vectors against document vectors by cosine similarity, and
+   * `Math.random()` vectors are indistinguishable from real embeddings at
+   * the type level while carrying zero semantic meaning. Every `queryRAG`
+   * call built on this would return confident-looking nonsense instead of
+   * failing. Now it throws when no embedding-capable provider is
+   * configured, so RAG fails loudly upstream instead of silently degrading
+   * to noise.
+   */
   async generateEmbedding(
     text: string,
-    _model = 'nomic-embed-text'
+    _model = 'nomic-embed-text',
   ): Promise<number[]> {
     this.logger.log(`Generating embedding for text of length ${text.length}`);
     const openaiAdapter = this.providerRegistry.getAdapter('openai');
-    if (openaiAdapter && openaiAdapter.isConfigured() && openaiAdapter.generateEmbeddings) {
-      try {
-        const embeddings = await openaiAdapter.generateEmbeddings([text]);
-        if (embeddings[0] && embeddings[0].length > 0) {
-          return embeddings[0];
-        }
-      } catch {
-        // fallback
+    if (
+      openaiAdapter &&
+      openaiAdapter.isConfigured() &&
+      openaiAdapter.generateEmbeddings
+    ) {
+      const embeddings = await openaiAdapter.generateEmbeddings([text]);
+      if (embeddings[0] && embeddings[0].length > 0) {
+        return embeddings[0];
       }
     }
 
     const cohereAdapter = this.providerRegistry.getAdapter('cohere');
-    if (cohereAdapter && cohereAdapter.isConfigured() && cohereAdapter.generateEmbeddings) {
-      try {
-        const embeddings = await cohereAdapter.generateEmbeddings([text]);
-        if (embeddings[0] && embeddings[0].length > 0) {
-          return embeddings[0];
-        }
-      } catch {
-        // fallback
+    if (
+      cohereAdapter &&
+      cohereAdapter.isConfigured() &&
+      cohereAdapter.generateEmbeddings
+    ) {
+      const embeddings = await cohereAdapter.generateEmbeddings([text]);
+      if (embeddings[0] && embeddings[0].length > 0) {
+        return embeddings[0];
       }
     }
 
-    return new Array(384).fill(0).map(() => Math.random());
+    throw new ServiceUnavailableException(
+      'No embedding-capable provider is configured (checked OpenAI, Cohere). Embeddings cannot be generated.',
+    );
   }
 
   async upsertVector(
     collectionName: string,
-    embedding: VectorEmbedding
+    embedding: VectorEmbedding,
   ): Promise<void> {
     this.logger.log(
-      `Upserting vector ${embedding.id} into Qdrant collection '${collectionName}'`
+      `Upserting vector ${embedding.id} into Qdrant collection '${collectionName}'`,
     );
   }
 
@@ -385,11 +431,13 @@ export class AIInfrastructureService implements OnModuleInit {
     collectionName: string,
     vector: number[],
     filter: VectorFilter,
-    limit = 10
-  ): Promise<Array<{ id: string; score: number; payload?: Record<string, unknown> }>> {
+    limit = 10,
+  ): Promise<
+    Array<{ id: string; score: number; payload?: Record<string, unknown> }>
+  > {
     this.logger.log(
       `Searching Qdrant collection '${collectionName}' for workspace ${filter.workspaceId} ` +
-        `with vector size ${vector.length}, limit ${limit}`
+        `with vector size ${vector.length}, limit ${limit}`,
     );
     return [];
   }
@@ -410,11 +458,11 @@ export class AIInfrastructureService implements OnModuleInit {
     workspaceId: string,
     documentId: string,
     text: string,
-    metadata: Record<string, unknown> = {}
+    metadata: Record<string, unknown> = {},
   ): Promise<void> {
     const chunks = this.chunkDocument(text);
     this.logger.log(
-      `Ingesting document ${documentId} for workspace ${workspaceId} with ${chunks.length} chunks into RAG pipeline`
+      `Ingesting document ${documentId} for workspace ${workspaceId} with ${chunks.length} chunks into RAG pipeline`,
     );
 
     for (let index = 0; index < chunks.length; index++) {
@@ -437,14 +485,14 @@ export class AIInfrastructureService implements OnModuleInit {
   async queryRAG(
     workspaceId: string,
     queryText: string,
-    limit = 5
+    limit = 5,
   ): Promise<RAGQueryResult[]> {
     const queryVector = await this.generateEmbedding(queryText);
     const rawResults = await this.searchVector(
       'workspace_docs',
       queryVector,
       { workspaceId },
-      limit
+      limit,
     );
     return rawResults.map((res) => ({
       text: (res.payload?.['text'] as string) ?? '',

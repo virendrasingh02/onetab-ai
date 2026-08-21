@@ -1,9 +1,8 @@
 import type { Accent } from '@org/design-system';
-import { accentClasses, Button, Card, Page, PageHeader } from '@org/ui';
+import { accentClasses, Badge, Button, Card, Page, PageHeader } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  ArrowRight,
-  CheckCircle,
+  AlertTriangle,
   Download,
   FileText,
   HardDrive,
@@ -11,7 +10,6 @@ import {
   UploadCloud,
   type LucideIcon,
 } from 'lucide-react';
-import { useState } from 'react';
 
 interface ImportSource {
   id: string;
@@ -79,13 +77,37 @@ const EXPORTS: ExportOption[] = [
   },
 ];
 
-export function SlackNotionImportView({ embedded = false }: { embedded?: boolean } = {}) {
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-
+export function SlackNotionImportView({
+  embedded = false,
+}: { embedded?: boolean } = {}) {
+  /*
+   * Neither side of this screen is wired to anything real. The "import"
+   * buttons never read a Slack/Notion export — the API behind them (when
+   * called at all) takes a channel list straight from the request body and
+   * marks the job COMPLETED before any work happens. Export has no backend
+   * at all: no ExportJob, no packaging, no download. This used to show a
+   * green "Import started… populating in the background" / "Download link
+   * will be ready shortly" toast on click with nothing behind it — the
+   * clearest case in the app of a success message for something that never
+   * ran. Until the real pipelines exist, every action here is disabled and
+   * says so instead of pretending to work.
+   */
   const content = (
     <div className="space-y-8">
+      <div className="gap-2.5 p-4 text-xs flex items-start rounded-xl border border-accent-amber/30 bg-accent-amber/10 text-foreground">
+        <AlertTriangle
+          className="size-4 mt-0.5 shrink-0 text-accent-amber"
+          aria-hidden
+        />
+        <p>
+          Import and export aren&apos;t built yet — there is no Slack/Notion
+          parser and no export pipeline behind this screen. The buttons below
+          are disabled so nothing here can be mistaken for a real transfer.
+        </p>
+      </div>
+
       <div>
-        <h2 className="mb-3 text-sm font-semibold text-foreground uppercase tracking-wider text-subtle">
+        <h2 className="mb-3 text-sm font-semibold tracking-wider text-foreground text-subtle uppercase">
           Import Data
         </h2>
         <ul className="gap-6 md:grid-cols-2 grid grid-cols-1">
@@ -105,13 +127,21 @@ export function SlackNotionImportView({ embedded = false }: { embedded?: boolean
                       >
                         <Icon className="size-5" />
                       </span>
-                      <div className="min-w-0">
-                        <h3 className="text-sm font-semibold text-foreground">
-                          {source.name}
-                        </h3>
-                        <p className="text-xs text-muted-foreground">
-                          {source.format}
-                        </p>
+                      <div className="min-w-0 gap-2 flex items-center">
+                        <div>
+                          <h3 className="text-sm font-semibold text-foreground">
+                            {source.name}
+                          </h3>
+                          <p className="text-xs text-muted-foreground">
+                            {source.format}
+                          </p>
+                        </div>
+                        <Badge
+                          variant="neutral"
+                          className="shrink-0 text-[10px]"
+                        >
+                          Coming soon
+                        </Badge>
                       </div>
                     </div>
                     <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
@@ -122,12 +152,8 @@ export function SlackNotionImportView({ embedded = false }: { embedded?: boolean
                   <Button
                     className="w-full"
                     size="sm"
-                    onClick={() =>
-                      setStatusMessage(
-                        `Import started for ${source.name}. Data is populating in the background.`,
-                      )
-                    }
-                    trailingIcon={<ArrowRight />}
+                    disabled
+                    title="Not implemented yet"
                   >
                     {source.cta}
                   </Button>
@@ -139,7 +165,7 @@ export function SlackNotionImportView({ embedded = false }: { embedded?: boolean
       </div>
 
       <div>
-        <h2 className="mb-3 text-sm font-semibold text-foreground uppercase tracking-wider text-subtle">
+        <h2 className="mb-3 text-sm font-semibold tracking-wider text-foreground text-subtle uppercase">
           Export Data
         </h2>
         <ul className="gap-6 md:grid-cols-2 grid grid-cols-1">
@@ -159,13 +185,21 @@ export function SlackNotionImportView({ embedded = false }: { embedded?: boolean
                       >
                         <Icon className="size-5" />
                       </span>
-                      <div className="min-w-0">
-                        <h3 className="text-sm font-semibold text-foreground">
-                          {exp.name}
-                        </h3>
-                        <p className="text-xs text-muted-foreground">
-                          {exp.format}
-                        </p>
+                      <div className="min-w-0 gap-2 flex items-center">
+                        <div>
+                          <h3 className="text-sm font-semibold text-foreground">
+                            {exp.name}
+                          </h3>
+                          <p className="text-xs text-muted-foreground">
+                            {exp.format}
+                          </p>
+                        </div>
+                        <Badge
+                          variant="neutral"
+                          className="shrink-0 text-[10px]"
+                        >
+                          Coming soon
+                        </Badge>
                       </div>
                     </div>
                     <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
@@ -177,11 +211,8 @@ export function SlackNotionImportView({ embedded = false }: { embedded?: boolean
                     variant="outline"
                     className="w-full"
                     size="sm"
-                    onClick={() =>
-                      setStatusMessage(
-                        `Export request created for ${exp.name}. Download link will be ready shortly.`,
-                      )
-                    }
+                    disabled
+                    title="Not implemented yet"
                     trailingIcon={<Download />}
                   >
                     {exp.cta}
@@ -191,15 +222,6 @@ export function SlackNotionImportView({ embedded = false }: { embedded?: boolean
             );
           })}
         </ul>
-      </div>
-
-      <div role="status" aria-live="polite">
-        {statusMessage ? (
-          <p className="mt-6 gap-3 p-4 text-sm flex items-center rounded-xl border border-success/40 bg-success/10 text-success-text">
-            <CheckCircle className="size-5 shrink-0" aria-hidden />
-            {statusMessage}
-          </p>
-        ) : null}
       </div>
     </div>
   );
@@ -212,7 +234,7 @@ export function SlackNotionImportView({ embedded = false }: { embedded?: boolean
     <Page>
       <PageHeader
         title="Import & Export"
-        description="Import channels and documents from Slack & Notion, or export your workspace data."
+        description="Import channels and documents from Slack & Notion, or export your workspace data — both coming soon."
         icon={<UploadCloud />}
         accent="cyan"
       />

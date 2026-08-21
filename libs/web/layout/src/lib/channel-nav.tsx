@@ -535,114 +535,111 @@ export function ChannelNav({
 
   return (
     <div className="min-h-0 flex h-full flex-col">
-      {/* Sticky Sidebar Navigation Header */}
-      <div className="px-3 pt-3 pb-2 backdrop-blur-md z-10 shrink-0 border-b border-border/40 bg-surface-muted/95">
-        <nav aria-label="Primary navigation" className="space-y-0.5">
-          {coreLinks.map((entry) => (
-            <NavRow
-              key={entry.label}
-              entry={entry}
-              workspaceSlug={workspaceSlug}
-            />
-          ))}
-
-          {pinnedSecondaryLinks.map((entry) => (
-            <NavRow
-              key={entry.label}
-              entry={entry}
-              workspaceSlug={workspaceSlug}
-              onTogglePin={() => toggleNavPinned(entry.path)}
-            />
-          ))}
-
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-              <button
-                className={navActionClass()}
-                aria-label="More destinations"
-              >
-                <MoreHorizontal className={navIconClass(0)} aria-hidden />
-                <span className="flex-1 truncate">More</span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="start"
-              side="bottom"
-              sideOffset={4}
-              className="w-56 p-1.5"
-            >
-              <DropdownMenuLabel className="px-2.5 py-1 font-medium tracking-wide text-[11px] text-subtle uppercase">
-                More destinations
-              </DropdownMenuLabel>
-              <div className="space-y-0.5 my-1">
-                {MORE_DESTINATIONS.map((entry) => {
-                  const Icon = entry.icon;
-                  const isPinned = isNavPinned(entry.path);
-                  return (
-                    <div
-                      key={entry.path}
-                      className="group/more-row gap-1.5 px-2 py-1.5 text-xs flex items-center justify-between rounded-md text-muted-foreground hover:bg-surface-raised hover:text-foreground"
-                    >
-                      <NavLink
-                        to={`/w/${workspaceSlug}/${entry.path}`}
-                        className={({ isActive }) =>
-                          cn(
-                            'gap-2 flex flex-1 items-center outline-none',
-                            isActive && 'font-semibold text-foreground',
-                          )
-                        }
-                      >
-                        <Icon className="size-4 shrink-0" aria-hidden />
-                        <span className="truncate">{entry.label}</span>
-                      </NavLink>
-                      <Hint
-                        side="right"
-                        label={
-                          isPinned ? 'Unpin from sidebar' : 'Pin to sidebar'
-                        }
-                      >
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            toggleNavPinned(entry.path);
-                          }}
-                          aria-label={
-                            isPinned
-                              ? `Unpin ${entry.label}`
-                              : `Pin ${entry.label}`
-                          }
-                          className={cn(
-                            'size-6 flex items-center justify-center rounded-md transition-all',
-                            isPinned
-                              ? 'bg-accent/80 text-foreground opacity-100'
-                              : 'text-muted-foreground opacity-0 group-focus-within/more-row:opacity-100 group-hover/more-row:opacity-100 hover:bg-accent hover:text-foreground',
-                          )}
-                        >
-                          <Pin
-                            className={cn(
-                              'size-3.5',
-                              isPinned &&
-                                'rotate-45 fill-current text-foreground',
-                            )}
-                          />
-                        </button>
-                      </Hint>
-                    </div>
-                  );
-                })}
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </nav>
-      </div>
-
       <ScrollArea
-        className="min-h-0 px-3 pt-1 pb-3 flex-1"
+        className="min-h-0 px-3 pt-3 pb-3 flex-1"
         contentClassName="px-3 pt-2 pb-6"
       >
         <div className="space-y-4">
+          <nav aria-label="Primary navigation" className="space-y-0.5 pb-2">
+            {coreLinks.map((entry) => (
+              <NavRow
+                key={entry.label}
+                entry={entry}
+                workspaceSlug={workspaceSlug}
+              />
+            ))}
+
+            {pinnedSecondaryLinks.map((entry) => (
+              <NavRow
+                key={entry.label}
+                entry={entry}
+                workspaceSlug={workspaceSlug}
+                onTogglePin={() => toggleNavPinned(entry.path)}
+              />
+            ))}
+
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className={navActionClass()}
+                  aria-label="More destinations"
+                >
+                  <MoreHorizontal className={navIconClass(0)} aria-hidden />
+                  <span className="flex-1 truncate">More</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                side="bottom"
+                sideOffset={4}
+                className="w-56 p-1.5"
+              >
+                <DropdownMenuLabel className="px-2.5 py-1 font-medium tracking-wide text-[11px] text-subtle uppercase">
+                  More destinations
+                </DropdownMenuLabel>
+                <div className="space-y-0.5 my-1">
+                  {MORE_DESTINATIONS.map((entry) => {
+                    const Icon = entry.icon;
+                    const isPinned = isNavPinned(entry.path);
+                    return (
+                      <div
+                        key={entry.path}
+                        className="group/more-row gap-1.5 px-2 py-1.5 text-xs flex items-center justify-between rounded-md text-muted-foreground hover:bg-surface-raised hover:text-foreground"
+                      >
+                        <NavLink
+                          to={`/w/${workspaceSlug}/${entry.path}`}
+                          className={({ isActive }) =>
+                            cn(
+                              'gap-2 flex flex-1 items-center outline-none',
+                              isActive && 'font-semibold text-foreground',
+                            )
+                          }
+                        >
+                          <Icon className="size-4 shrink-0" aria-hidden />
+                          <span className="truncate">{entry.label}</span>
+                        </NavLink>
+                        <Hint
+                          side="right"
+                          label={
+                            isPinned ? 'Unpin from sidebar' : 'Pin to sidebar'
+                          }
+                        >
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              toggleNavPinned(entry.path);
+                            }}
+                            aria-label={
+                              isPinned
+                                ? `Unpin ${entry.label}`
+                                : `Pin ${entry.label}`
+                            }
+                            className={cn(
+                              'size-6 flex items-center justify-center rounded-md transition-all',
+                              isPinned
+                                ? 'bg-accent/80 text-foreground opacity-100'
+                                : 'text-muted-foreground opacity-0 group-focus-within/more-row:opacity-100 group-hover/more-row:opacity-100 hover:bg-accent hover:text-foreground',
+                            )}
+                          >
+                            <Pin
+                              className={cn(
+                                'size-3.5',
+                                isPinned &&
+                                  'rotate-45 fill-current text-foreground',
+                              )}
+                            />
+                          </button>
+                        </Hint>
+                      </div>
+                    );
+                  })}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </nav>
+
           <div>
             <Section
               title="Starred"

@@ -1,7 +1,7 @@
 import type { CardDefinition } from '@org/types';
 import { Button, toast } from '@org/ui';
-import { Check, Copy, RefreshCw } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import { Check, Copy } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export interface JsonSourceEditorProps {
   card: CardDefinition;

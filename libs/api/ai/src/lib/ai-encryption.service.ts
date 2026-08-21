@@ -33,7 +33,7 @@ export class AIEncryptionService {
       return `${iv.toString('hex')}:${authTag}:${encrypted}`;
     } catch (err) {
       this.logger.error(`Failed to encrypt AI credential: ${err instanceof Error ? err.message : String(err)}`);
-      throw new Error('Credential encryption failed');
+      throw new Error('Credential encryption failed', { cause: err });
     }
   }
 
@@ -63,7 +63,7 @@ export class AIEncryptionService {
       return decrypted;
     } catch (err) {
       this.logger.error(`Failed to decrypt AI credential: ${err instanceof Error ? err.message : String(err)}`);
-      throw new Error('Credential decryption failed');
+      throw new Error('Credential decryption failed', { cause: err });
     }
   }
 

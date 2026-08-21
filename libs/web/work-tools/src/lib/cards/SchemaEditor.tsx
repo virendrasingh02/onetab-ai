@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from '@org/ui';
 import { Plus, Trash2 } from 'lucide-react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 export interface SchemaEditorProps {
   schema: CardDataSchema;

@@ -77,7 +77,7 @@ export function formatDuration(durationMs?: number): string {
 export function AgentMessageCard({
   message,
   event,
-  isOwn = false,
+  isOwn: _isOwn = false,
   isHighlighted = false,
   onAction,
   onRetry,

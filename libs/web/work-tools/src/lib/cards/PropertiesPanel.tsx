@@ -7,8 +7,6 @@ import type {
 } from '@org/types';
 import {
   Badge,
-  Button,
-  Checkbox,
   Input,
   Label,
   Select,
@@ -22,19 +20,14 @@ import {
   TabsTrigger,
 } from '@org/ui';
 import {
-  Code,
-  Copy,
   Eye,
-  Layers,
-  Layout,
   Lock,
   MousePointer,
   Paintbrush,
-  Sparkles,
   Type,
   Unlock,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 export interface PropertiesPanelProps {
   selectedNode: CardComponentNode | null;

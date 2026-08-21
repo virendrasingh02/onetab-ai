@@ -1,43 +1,26 @@
 import type { CardComponentNode, CardComponentType } from '@org/types';
-import { Badge } from '@org/ui';
 import { cn } from '@org/utils';
 import {
-  AlertCircle,
   AlertTriangle,
   AlignLeft,
-  Calendar,
   CheckSquare,
-  ChevronDown,
-  Clock,
-  Code,
   CreditCard,
-  ExternalLink,
-  FileCode,
-  FileSpreadsheet,
-  FileText,
   FormInput,
   Grid,
   Heading,
   Image,
   Layers,
   Layout,
-  List,
-  Mail,
-  Maximize2,
   Minus,
   MousePointer,
-  Package,
   Plus,
-  Radio,
   Sliders,
-  Sparkles,
   Square,
-  Table,
   Tag,
   Type,
   User,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 export interface PaletteItem {
   type: CardComponentType;

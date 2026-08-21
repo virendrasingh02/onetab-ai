@@ -185,6 +185,7 @@ export function ChatSurface({
   onSchedule,
   onAction,
   onRetryAgent,
+  onSendCard,
 }: ChatSurfaceProps) {
   const [panel, setPanel] = useState<SidePanel>('none');
   const [threadRootId, setThreadRootId] = useState<string | null>(null);
@@ -699,7 +700,7 @@ export function ChatSurface({
             onAttach={onAttach ? (files) => void onAttach(files) : undefined}
             placeholder={editing ? 'Edit your message…' : `Message ${title}`}
             onSchedule={onSchedule}
-            onSendCard={props.onSendCard}
+            onSendCard={onSendCard}
             contextSlot={
               editing ? (
                 <div className="mb-2 gap-2 px-2 py-1 text-xs flex items-center rounded-md bg-muted">

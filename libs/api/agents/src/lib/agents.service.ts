@@ -19,7 +19,7 @@ export class AgentsService {
     private readonly prisma: PrismaService,
     private readonly aiService: AIInfrastructureService,
     private readonly credentialService: AICredentialService,
-    private readonly mcpRegistry: MCPToolRegistryService
+    private readonly mcpRegistry: MCPToolRegistryService,
   ) {}
 
   async getAgents(workspaceId: string) {
@@ -54,8 +54,12 @@ export class AgentsService {
         description: data.description,
         avatarUrl: data.avatarUrl,
         systemPrompt: data.systemPrompt ?? 'You are an autonomous AI employee.',
-        provider: data.provider ?? (process.env['AI_DEFAULT_PROVIDER'] || 'nvidia'),
-        model: data.model ?? (process.env['AI_DEFAULT_MODEL'] || 'nvidia/nemotron-3-super-120b-a12b'),
+        provider:
+          data.provider ?? (process.env['AI_DEFAULT_PROVIDER'] || 'nvidia'),
+        model:
+          data.model ??
+          (process.env['AI_DEFAULT_MODEL'] ||
+            'nvidia/nemotron-3-super-120b-a12b'),
         tools: JSON.stringify(data.tools ?? ['search_docs', 'create_task']),
         // Set when deploying a catalogue template, so the card can tell a
         // pre-built agent from one built by hand.
@@ -122,33 +126,63 @@ export class AgentsService {
       workspaceId,
     });
 
-    const chatResult = await this.aiService.chat({
-      provider,
-      model: agent.model || undefined,
-      apiKey: cred.apiKey,
-      baseUrl: cred.baseUrl,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: promptText },
-      ],
-    });
+    /*
+     * `toolCalls: JSON.stringify(availableTools)` used to record every tool
+     * the agent *could* call as if it had called them — and `tools:
+     * availableTools` was never even passed to `aiService.chat`, so the
+     * model had no way to call any of them. `tokensUsed: 140` was a literal.
+     * `status: 'SUCCESS'` was written unconditionally after a call that can
+     * throw, so a failed run left no execution log at all. This now records
+     * what actually happened: the tool calls the model itself returned (none
+     * yet, since tool execution isn't wired up — see `MCPToolRegistryService`),
+     * the real token count from the provider, and a `FAILED` row with the
+     * real error on failure instead of silently dropping the run.
+     */
+    try {
+      const chatResult = await this.aiService.chat({
+        provider,
+        model: agent.model || undefined,
+        apiKey: cred.apiKey,
+        baseUrl: cred.baseUrl,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: promptText },
+        ],
+      });
 
-    const executionLog = await this.prisma.agentExecutionLog.create({
-      data: {
-        agentId: agent.id,
-        status: 'SUCCESS',
-        promptText,
-        outputResult: chatResult.message.content,
-        toolCalls: JSON.stringify(availableTools),
-        tokensUsed: 140,
-      },
-    });
+      const executionLog = await this.prisma.agentExecutionLog.create({
+        data: {
+          agentId: agent.id,
+          status: 'SUCCESS',
+          promptText,
+          outputResult: chatResult.message.content,
+          toolCalls: JSON.stringify(chatResult.message.toolCalls ?? []),
+          tokensUsed: chatResult.usage?.totalTokens ?? 0,
+        },
+      });
 
-    return {
-      agentName: agent.name,
-      result: chatResult.message.content,
-      logId: executionLog.id,
-    };
+      return {
+        agentName: agent.name,
+        result: chatResult.message.content,
+        logId: executionLog.id,
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(
+        `Agent '${agent.name}' (${agent.id}) execution failed: ${message}`,
+      );
+      await this.prisma.agentExecutionLog.create({
+        data: {
+          agentId: agent.id,
+          status: 'FAILED',
+          promptText,
+          outputResult: message,
+          toolCalls: '[]',
+          tokensUsed: 0,
+        },
+      });
+      throw err;
+    }
   }
 
   async getExecutionLogs(workspaceId: string, agentId: string) {

@@ -1,6 +1,6 @@
 import { Badge, Button } from '@org/ui';
 import { CheckCircle2, ChevronDown, ChevronUp, Clock, Terminal, Trash2, XCircle } from 'lucide-react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 export interface ActionLogEntry {
   id: string;

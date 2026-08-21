@@ -1,4 +1,3 @@
-import type { CardDataField, CardDefinition } from '@org/types';
 import {
   Badge,
   Button,
@@ -20,14 +19,10 @@ import {
 import { cn } from '@org/utils';
 import {
   Building2,
-  CheckCircle2,
   ChevronRight,
-  Eye,
   FileText,
   GitPullRequest,
-  Layers,
   LayoutGrid,
-  Plus,
   Search,
   Send,
   ShieldAlert,

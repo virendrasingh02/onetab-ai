@@ -12,10 +12,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
   Input,
   Label,
   Select,
@@ -23,11 +19,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Skeleton,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
   toast,
   UserAvatar,
 } from '@org/ui';
@@ -35,20 +26,15 @@ import { cn } from '@org/utils';
 import {
   AlertCircle,
   AlertTriangle,
-  ArrowRight,
-  ArrowUpRight,
   Building2,
   Calendar,
   Check,
   CheckCircle2,
   CheckSquare,
-  ChevronDown,
   Clock,
   Code2,
-  Copy,
   Download,
   ExternalLink,
-  Eye,
   FileCode,
   FileSpreadsheet,
   FileText,
@@ -58,10 +44,7 @@ import {
   ImageIcon,
   Info,
   Layers,
-  Link2,
-  Loader2,
   Mail,
-  MoreHorizontal,
   Phone,
   Plus,
   RefreshCw,
@@ -73,7 +56,7 @@ import {
   Workflow,
   XCircle,
 } from 'lucide-react';
-import React, { memo, useMemo, useState } from 'react';
+import React, { memo, useState } from 'react';
 import { MarkdownMessage } from '../markdown-message.js';
 import { evaluateCondition, evaluateTemplate } from './card-evaluator.js';
 import { useCardRegistryStore } from './card-registry-store.js';
@@ -145,8 +128,6 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
     ...data,
   }));
 
-  const [activeTab, setActiveTab] = useState<string>('0');
-  const [accordionOpen, setAccordionOpen] = useState<Record<string, boolean>>({});
   const [confirmationAction, setConfirmationAction] = useState<CardActionDefinition | null>(null);
 
   // Sync data updates from parent
@@ -457,7 +438,7 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
 
         return (
           <div key={node.id} className="space-y-1 my-1">
-            {props['label'] && (
+            {Boolean(props['label']) && (
               <Label className="text-xs font-semibold text-foreground">
                 {evaluateTemplate(props['label'], localData, context)}
               </Label>
@@ -479,7 +460,7 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
 
         return (
           <div key={node.id} className="space-y-1 my-1">
-            {props['label'] && (
+            {Boolean(props['label']) && (
               <Label className="text-xs font-semibold text-foreground">
                 {evaluateTemplate(props['label'], localData, context)}
               </Label>
@@ -536,7 +517,7 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
 
         return (
           <div key={node.id} className="my-2 space-y-1">
-            {props['label'] && (
+            {Boolean(props['label']) && (
               <div className="flex justify-between text-[11px] font-semibold text-muted-foreground">
                 <span>{evaluateTemplate(props['label'], localData, context)}</span>
                 <span>{pct.toFixed(0)}%</span>

@@ -4,8 +4,6 @@ import {
   type ChannelAIAgent,
   type ChannelConnectedApp,
   type ChannelBotMessage,
-  PRESET_AI_AGENTS,
-  PRESET_CHANNEL_APPS,
 } from './types/channel-agents-apps.js';
 
 function createInitialMessages(channelId: string): ChannelBotMessage[] {
@@ -19,7 +17,7 @@ function createInitialMessages(channelId: string): ChannelBotMessage[] {
       senderName: 'OneTab Copilot',
       senderHandle: '@copilot',
       senderAvatarSeed: 'copilot',
-      badgeLabel: 'AI AGENT',
+      badgeLabel: 'AI AGENT · SAMPLE',
       badgeVariant: 'primary',
       model: 'Gemini 2.5 Pro',
       timestamp: now - 1000 * 60 * 42,
@@ -72,20 +70,33 @@ function createInitialMessages(channelId: string): ChannelBotMessage[] {
       senderName: 'GitHub',
       senderHandle: '@github-app',
       senderAvatarSeed: 'github',
-      badgeLabel: 'APP',
+      badgeLabel: 'APP · SAMPLE',
       badgeVariant: 'violet',
       timestamp: now - 1000 * 60 * 25,
       content: 'New Pull Request submitted for review in `onetab-ai/core`:',
       embedCard: {
         type: 'github_pr',
-        title: '#248 feat(channels): AI Agents & Apps interactive view and message feed',
+        title:
+          '#248 feat(channels): AI Agents & Apps interactive view and message feed',
         url: 'https://github.com/onetab-ai/onetab-ai/pull/248',
         accentColor: '#3b82f6',
         fields: [
           { label: 'Author', value: 'virendra02', inline: true },
-          { label: 'Branch', value: 'feat/ai-agents-view → main', inline: true },
-          { label: 'Status', value: '● CI Tests Passing (14/14)', inline: true },
-          { label: 'Changes', value: '+420 lines · -18 lines (4 files)', inline: true },
+          {
+            label: 'Branch',
+            value: 'feat/ai-agents-view → main',
+            inline: true,
+          },
+          {
+            label: 'Status',
+            value: '● CI Tests Passing (14/14)',
+            inline: true,
+          },
+          {
+            label: 'Changes',
+            value: '+420 lines · -18 lines (4 files)',
+            inline: true,
+          },
         ],
         footer: 'GitHub Actions · Deployed preview at pr-248.onetab.dev',
       },
@@ -111,7 +122,7 @@ function createInitialMessages(channelId: string): ChannelBotMessage[] {
       senderName: 'Code Reviewer AI',
       senderHandle: '@codereview',
       senderAvatarSeed: 'codereview',
-      badgeLabel: 'AI AGENT',
+      badgeLabel: 'AI AGENT · SAMPLE',
       badgeVariant: 'success',
       model: 'Claude 3.7 Sonnet',
       timestamp: now - 1000 * 60 * 18,
@@ -159,7 +170,7 @@ function createInitialMessages(channelId: string): ChannelBotMessage[] {
       senderName: 'Linear',
       senderHandle: '@linear-bot',
       senderAvatarSeed: 'linear',
-      badgeLabel: 'APP',
+      badgeLabel: 'APP · SAMPLE',
       badgeVariant: 'violet',
       timestamp: now - 1000 * 60 * 8,
       content: 'Issue status moved to **In Progress**:',
@@ -198,18 +209,28 @@ function createInitialMessages(channelId: string): ChannelBotMessage[] {
       senderName: 'Sentry Error Monitor',
       senderHandle: '@sentry-bot',
       senderAvatarSeed: 'sentry',
-      badgeLabel: 'MONITORING',
+      badgeLabel: 'MONITORING · SAMPLE',
       badgeVariant: 'warning',
       timestamp: now - 1000 * 60 * 3,
-      content: '🚨 **Production Warning**: Unhandled rejection caught in gateway listener:',
+      content:
+        '🚨 **Production Warning**: Unhandled rejection caught in gateway listener:',
       embedCard: {
         type: 'sentry_alert',
-        title: 'TypeError: Cannot read properties of undefined (reading "connectionToken")',
+        title:
+          'TypeError: Cannot read properties of undefined (reading "connectionToken")',
         url: 'https://sentry.io',
         accentColor: '#ef4444',
         fields: [
-          { label: 'Culprit', value: 'libs/api/gateway/src/lib/socket.ts:84', inline: false },
-          { label: 'Impact', value: '12 events · 3 users affected in us-east', inline: true },
+          {
+            label: 'Culprit',
+            value: 'libs/api/gateway/src/lib/socket.ts:84',
+            inline: false,
+          },
+          {
+            label: 'Impact',
+            value: '12 events · 3 users affected in us-east',
+            inline: true,
+          },
           { label: 'Environment', value: 'production', inline: true },
         ],
         footer: 'Sentry Alerts · Auto-routed to #channel on-call',
@@ -247,16 +268,19 @@ export function useChannelAgentsAndApps(
       const stored = localStorage.getItem(agentsStorageKey);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {
       // ignore
     }
-    // Default initial agents for this channel
-    return PRESET_AI_AGENTS.slice(0, 3).map((a, i) => ({
-      ...a,
-      addedAt: Date.now() - (i + 1) * 86400000,
-    }));
+    /*
+     * Empty, not pre-seeded. Auto-populating 3 agents with `status: 'active'`
+     * made every new channel look like it already had live AI agents running
+     * before anyone added one. `PRESET_AI_AGENTS` is a catalog to pick from
+     * (see AddAgentDialog / `add-app-dialog.tsx`'s counterpart), not a
+     * default install list.
+     */
+    return [];
   });
 
   // 2. Apps state
@@ -266,16 +290,18 @@ export function useChannelAgentsAndApps(
       const stored = localStorage.getItem(appsStorageKey);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {
       // ignore
     }
-    // Default initial apps for this channel
-    return PRESET_CHANNEL_APPS.slice(0, 3).map((app, i) => ({
-      ...app,
-      addedAt: Date.now() - (i + 1) * 86400000,
-    }));
+    /*
+     * Empty, not pre-seeded — see the matching note on `agents` above.
+     * Auto-populating GitHub/Linear/Sentry as `status: 'connected'` with
+     * fabricated `eventsCount` numbers presented real-looking integration
+     * activity that had never actually happened.
+     */
+    return [];
   });
 
   // 3. Bot/Agent Messages stream for this channel
@@ -477,11 +503,7 @@ export function useChannelAgentsAndApps(
 
   // Send a test interactive message from an added agent or app
   const sendTestMessage = useCallback(
-    (
-      senderType: 'agent' | 'app',
-      senderId: string,
-      customPrompt?: string,
-    ) => {
+    (senderType: 'agent' | 'app', senderId: string, customPrompt?: string) => {
       const agent = agents.find((a) => a.id === senderId);
       const app = apps.find((a) => a.id === senderId);
 
@@ -495,47 +517,24 @@ export function useChannelAgentsAndApps(
           senderName: agent.name,
           senderHandle: agent.handle,
           senderAvatarSeed: agent.avatarSeed,
-          badgeLabel: 'AI AGENT',
+          badgeLabel: 'DEMO — NOT A REAL RUN',
           badgeVariant: 'primary',
           model: agent.model,
           timestamp: Date.now(),
           replyToHandle: '@you',
-          content: `Here is the real-time execution result for **"${prompt}"**:
-
-- **Status**: Completed with 0 warnings.
-- **Context**: 3 active PRs, 5 open Linear tickets, and 0 critical blockers.
-- **Action**: All automated CI checks passed. Next scheduled release is **v2.8.0** tomorrow morning.`,
+          content: `**[Sample preview — this agent did not actually run]**\n\nThis is placeholder text showing what a response to **"${prompt}"** could look like once agent execution is wired up. Nothing above was generated by ${agent.name} or any AI model.`,
           reasoning: {
-            summary: `Executed prompt via ${agent.model}`,
-            details: `Parsed prompt parameters, fetched channel telemetry, and generated structured response in 280ms.`,
-            durationMs: 280,
+            summary: `Sample preview — ${agent.name} was not invoked`,
+            details:
+              'No prompt was sent, no tools ran, and no model was called. This card only demonstrates the message layout.',
+            durationMs: 0,
           },
-          toolsExecuted: [
-            {
-              name: `agent.execute("${prompt}")`,
-              status: 'success',
-              output: 'Processed successfully',
-            },
-          ],
-          actions: [
-            {
-              id: 'act-ack',
-              label: 'Pin Summary to Channel',
-              variant: 'primary',
-            },
-            {
-              id: 'act-share',
-              label: 'Share with Team',
-              variant: 'outline',
-            },
-          ],
-          feedback: {
-            helpful: true,
-            reactionCount: 1,
-          },
+          actions: [],
         };
         setMessages((prev) => [newMsg, ...prev]);
-        toast.success(`Generated test message from ${agent.name}`);
+        toast.info(
+          `Inserted a sample preview card for ${agent.name} — no agent actually ran.`,
+        );
       } else if (senderType === 'app' && app) {
         const newMsg: ChannelBotMessage = {
           id: `msg-app-test-${Date.now()}`,
@@ -545,31 +544,16 @@ export function useChannelAgentsAndApps(
           senderName: app.name,
           senderHandle: app.botHandle,
           senderAvatarSeed: app.icon,
-          badgeLabel: 'APP EVENT',
+          badgeLabel: 'DEMO — NOT A REAL EVENT',
           badgeVariant: 'violet',
           timestamp: Date.now(),
-          content: `Simulated webhook event received from **${app.name}**:`,
-          embedCard: {
-            type: 'github_pr',
-            title: `[${app.name.toUpperCase()}] Real-time synchronization event triggered`,
-            accentColor: '#10b981',
-            fields: [
-              { label: 'Event', value: app.events[0] || 'custom.webhook', inline: true },
-              { label: 'Delivered', value: 'Just now (Latency: 42ms)', inline: true },
-              { label: 'Payload Status', value: '200 OK · Validated HMAC signature', inline: false },
-            ],
-            footer: `${app.name} Integration · Event #${Math.floor(Math.random() * 9000 + 1000)}`,
-          },
-          actions: [
-            {
-              id: 'act-view-log',
-              label: 'View Raw Webhook Payload',
-              variant: 'primary',
-            },
-          ],
+          content: `**[Sample preview — no webhook was received]** This card shows what a **${app.name}** event notification could look like once this integration sends real webhooks. It is not connected to ${app.name}.`,
+          actions: [],
         };
         setMessages((prev) => [newMsg, ...prev]);
-        toast.success(`Triggered test event from ${app.name}`);
+        toast.info(
+          `Inserted a sample preview card for ${app.name} — no webhook was actually received.`,
+        );
       }
     },
     [agents, apps, chKey],
@@ -583,7 +567,9 @@ export function useChannelAgentsAndApps(
   const resetToSample = useCallback(() => {
     const fresh = createInitialMessages(chKey);
     setMessages(fresh);
-    toast.success('Reset messages to realistic demo feed');
+    toast.info(
+      'Loaded sample preview cards — none of this content is real agent or app activity.',
+    );
   }, [chKey]);
 
   return {

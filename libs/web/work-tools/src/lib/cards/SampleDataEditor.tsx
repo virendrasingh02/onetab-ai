@@ -1,6 +1,6 @@
 import { Button, toast } from '@org/ui';
-import { Check, Copy, RefreshCw } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import { Check } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export interface SampleDataEditorProps {
   sampleData: Record<string, unknown>;
