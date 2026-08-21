@@ -43,9 +43,24 @@ import { UserProfileCard } from './user-profile-card.js';
 const QUICK_REACTIONS = ['👍', '❤️', '🔥'];
 
 const PICKER_REACTIONS = [
-  '👍', '👎', '❤️', '🎉', '😄', '😮',
-  '😢', '🙏', '🔥', '👀', '✅', '🚀',
-  '💯', '🤔', '👏', '🐛', '📌', '☕',
+  '👍',
+  '👎',
+  '❤️',
+  '🎉',
+  '😄',
+  '😮',
+  '😢',
+  '🙏',
+  '🔥',
+  '👀',
+  '✅',
+  '🚀',
+  '💯',
+  '🤔',
+  '👏',
+  '🐛',
+  '📌',
+  '☕',
 ];
 
 export interface ChatBubbleProps {
@@ -142,8 +157,12 @@ export function ChatBubble({
     );
   }
 
-  const gifMatch = message.body ? /^!\[(.*?)\]\((https?:\/\/.*?)\)$/.exec(message.body.trim()) : null;
-  const isMentioned = message.body ? /@(here|channel|everyone|\w+)/.test(message.body) : false;
+  const gifMatch = message.body
+    ? /^!\[(.*?)\]\((https?:\/\/.*?)\)$/.exec(message.body.trim())
+    : null;
+  const isMentioned = message.body
+    ? /@(here|channel|everyone|\w+)/.test(message.body)
+    : false;
 
   const isAgent =
     message.senderId.startsWith('agent-') ||
@@ -169,17 +188,17 @@ export function ChatBubble({
     (isAgent ? (
       <Badge
         variant="primary"
-        className="text-[9px] py-0 h-4 uppercase font-bold tracking-wider gap-0.5"
+        className="py-0 h-4 font-bold tracking-wider gap-0.5 text-[9px] uppercase"
       >
-        <Bot className="size-2.5 inline-block mr-0.5" />
+        <Bot className="size-2.5 mr-0.5 inline-block" />
         <span>AI AGENT</span>
       </Badge>
     ) : isApp ? (
       <Badge
         variant="neutral"
-        className="text-[9px] py-0 h-4 uppercase font-bold tracking-wider bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20 gap-0.5"
+        className="py-0 h-4 font-bold tracking-wider bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20 gap-0.5 text-[9px] uppercase"
       >
-        <Blocks className="size-2.5 inline-block mr-0.5" />
+        <Blocks className="size-2.5 mr-0.5 inline-block" />
         <span>APP</span>
       </Badge>
     ) : null);
@@ -188,7 +207,7 @@ export function ChatBubble({
     <article
       data-message-id={message.id}
       className={cn(
-        'group/message relative flex gap-4 px-4 transition-colors',
+        'group/message gap-4 px-4 relative flex transition-colors',
         'hover:bg-accent',
         isGrouped ? 'py-0.5' : 'pt-2.5 pb-0.5',
         isPinned && 'border-l-2 border-l-warning',
@@ -201,7 +220,7 @@ export function ChatBubble({
           <Hint label={formatFullTimestamp(message.timestamp)}>
             <time
               dateTime={new Date(message.timestamp).toISOString()}
-              className="mt-1 hidden text-[10px] text-muted-foreground tabular-nums group-hover/message:block cursor-pointer hover:underline"
+              className="mt-1 hidden cursor-pointer text-[10px] text-muted-foreground tabular-nums group-hover/message:block hover:underline"
             >
               {new Date(message.timestamp).toLocaleTimeString(undefined, {
                 hour: '2-digit',
@@ -224,9 +243,9 @@ export function ChatBubble({
               seed={message.senderId}
               size="md"
               className={cn(
-                'size-10 rounded-full hover:opacity-90 cursor-pointer shadow-xs transition-transform hover:scale-105',
+                'size-10 cursor-pointer rounded-full shadow-xs transition-transform hover:scale-105 hover:opacity-90',
                 isAgent && 'ring-2 ring-primary/40',
-                isApp && 'ring-2 ring-violet-500/40',
+                isApp && 'ring-violet-500/40 ring-2',
               )}
             />
           </UserProfileCard>
@@ -236,20 +255,20 @@ export function ChatBubble({
       {/* Main Content Area */}
       <div className="min-w-0 flex-1">
         {isPinned && !isGrouped ? (
-          <p className="mb-1 flex items-center gap-1 text-[11px] font-semibold text-warning-text">
+          <p className="mb-1 gap-1 font-semibold flex items-center text-[11px] text-warning-text">
             <Pin className="size-3" aria-hidden />
             Pinned to this channel
           </p>
         ) : null}
 
         {!isGrouped ? (
-          <header className="flex items-baseline gap-2">
+          <header className="gap-2 flex items-baseline">
             <UserProfileCard
               userId={message.senderId}
               name={message.senderName}
               avatarUrl={message.senderAvatarUrl}
             >
-              <span className="text-sm font-bold text-foreground hover:underline cursor-pointer tracking-wide">
+              <span className="text-sm font-bold tracking-wide cursor-pointer text-foreground hover:underline">
                 {message.senderName}
               </span>
             </UserProfileCard>
@@ -261,7 +280,7 @@ export function ChatBubble({
             <Hint label={formatFullTimestamp(message.timestamp)}>
               <time
                 dateTime={new Date(message.timestamp).toISOString()}
-                className="text-[11px] font-medium text-muted-foreground cursor-pointer hover:underline"
+                className="font-medium cursor-pointer text-[11px] text-muted-foreground hover:underline"
               >
                 {Date.now() - message.timestamp < 60_000
                   ? 'Just now'
@@ -286,7 +305,7 @@ export function ChatBubble({
         ) : null}
 
         {message.decryptionError ? (
-          <p className="flex items-center gap-1.5 py-0.5 text-sm italic text-warning-text">
+          <p className="gap-1.5 py-0.5 text-sm flex items-center text-warning-text italic">
             <AlertTriangle className="size-3.5 shrink-0 text-warning-text" />
             {message.decryptionError}
           </p>
@@ -313,20 +332,20 @@ export function ChatBubble({
 
         {/* Discord Reactions Row */}
         {message.reactions.length > 0 ? (
-          <ul className="mt-1.5 flex flex-wrap gap-1">
+          <ul className="mt-1.5 gap-1 flex flex-wrap">
             {message.reactions.map((reaction) => (
               <li key={reaction.key}>
                 <button
                   onClick={() => onReact?.(reaction.key)}
                   aria-pressed={reaction.reactedByMe}
                   className={cn(
-                    'flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-semibold transition-colors',
+                    'gap-1.5 px-2 py-0.5 text-xs font-semibold flex items-center rounded-md border transition-colors',
                     reaction.reactedByMe
-                      /* `primary-foreground` is the deep green that rides the
+                      ? /* `primary-foreground` is the deep green that rides the
                          solid mint fill; over a 15% tint it would vanish in
                          dark mode, so the tinted chip keeps body-text ink and
                          lets the border carry the "you reacted" signal. */
-                      ? 'border-primary bg-primary/15 text-foreground shadow-xs'
+                        'border-primary bg-primary/15 text-foreground shadow-xs'
                       : 'border-border bg-surface text-muted-foreground hover:bg-accent hover:text-foreground',
                   )}
                 >
@@ -341,7 +360,7 @@ export function ChatBubble({
                 <ReactionPicker onSelect={onReact}>
                   <button
                     aria-label="Add a reaction"
-                    className="flex items-center rounded-md border border-border bg-surface px-1.5 py-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    className="px-1.5 py-0.5 flex items-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
                     <Smile className="size-3.5" aria-hidden />
                   </button>
@@ -355,10 +374,10 @@ export function ChatBubble({
         {threadReplyCount && threadReplyCount > 0 ? (
           <button
             onClick={onOpenThread}
-            className="mt-1.5 flex items-center gap-2 rounded-md bg-surface px-2.5 py-1 text-xs font-semibold text-info-text transition-colors hover:bg-accent hover:underline"
+            className="mt-1.5 gap-2 px-2.5 py-1 text-xs font-semibold flex items-center rounded-md bg-surface text-info-text transition-colors hover:bg-accent hover:underline"
           >
             {threadParticipants && threadParticipants.length > 0 ? (
-              <span className="flex items-center -space-x-1.5">
+              <span className="-space-x-1.5 flex items-center">
                 {threadParticipants.slice(0, 3).map((participant) => (
                   <UserAvatar
                     key={participant.userId}
@@ -394,7 +413,7 @@ export function ChatBubble({
       {/* Floating Hover Toolbar */}
       <div
         className={cn(
-          'absolute -top-3.5 right-4 z-20 hidden items-center rounded-lg border border-border bg-surface-raised p-0.5 shadow-lg',
+          '-top-3.5 right-4 p-0.5 absolute z-20 hidden items-center rounded-lg border border-border bg-surface-raised shadow-lg',
           'group-focus-within/message:flex group-hover/message:flex',
         )}
       >
@@ -404,7 +423,7 @@ export function ChatBubble({
                 <button
                   onClick={() => onReact(emoji)}
                   aria-label={`React with ${emoji}`}
-                  className="flex size-7 items-center justify-center rounded-md text-sm transition-colors hover:bg-accent"
+                  className="size-7 text-sm flex items-center justify-center rounded-md transition-colors hover:bg-accent"
                 >
                   <span aria-hidden>{emoji}</span>
                 </button>
@@ -416,7 +435,7 @@ export function ChatBubble({
           <ReactionPicker onSelect={onReact}>
             <button
               aria-label="Add a reaction"
-              className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <Smile className="size-4" />
             </button>
@@ -427,7 +446,7 @@ export function ChatBubble({
           <button
             aria-label="Reply in thread"
             onClick={onOpenThread ?? onReply}
-            className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <Reply className="size-4" />
           </button>
@@ -440,7 +459,7 @@ export function ChatBubble({
               aria-pressed={isSaved}
               onClick={onToggleSave}
               className={cn(
-                'flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+                'size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
                 isSaved && 'text-primary-text',
               )}
             >
@@ -453,31 +472,50 @@ export function ChatBubble({
           <DropdownMenuTrigger asChild>
             <button
               aria-label="More actions"
-              className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <MoreHorizontal className="size-4" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52 bg-surface text-foreground border-border">
-            <DropdownMenuItem onSelect={() => onOpenThread?.()} className="hover:bg-accent">
+          <DropdownMenuContent
+            align="end"
+            className="w-52 border-border bg-surface text-foreground"
+          >
+            <DropdownMenuItem
+              onSelect={() => onOpenThread?.()}
+              className="hover:bg-accent"
+            >
               <Reply className="mr-2 size-4" />
               Reply in thread
             </DropdownMenuItem>
             {onForward ? (
-              <DropdownMenuItem onSelect={() => onForward()} className="hover:bg-accent">
+              <DropdownMenuItem
+                onSelect={() => onForward()}
+                className="hover:bg-accent"
+              >
                 <Forward className="mr-2 size-4" />
                 Forward message
               </DropdownMenuItem>
             ) : null}
             {onToggleSave ? (
-              <DropdownMenuItem onSelect={() => onToggleSave()} className="hover:bg-accent">
+              <DropdownMenuItem
+                onSelect={() => onToggleSave()}
+                className="hover:bg-accent"
+              >
                 <Bookmark className="mr-2 size-4" />
                 {isSaved ? 'Remove from saved' : 'Save for later'}
               </DropdownMenuItem>
             ) : null}
             {onTogglePin ? (
-              <DropdownMenuItem onSelect={() => onTogglePin()} className="hover:bg-accent cursor-pointer">
-                {isPinned ? <PinOff className="mr-2 size-4" /> : <Pin className="mr-2 size-4" />}
+              <DropdownMenuItem
+                onSelect={() => onTogglePin()}
+                className="cursor-pointer hover:bg-accent"
+              >
+                {isPinned ? (
+                  <PinOff className="mr-2 size-4" />
+                ) : (
+                  <Pin className="mr-2 size-4" />
+                )}
                 {isPinned ? 'Unpin from channel' : 'Pin to channel'}
               </DropdownMenuItem>
             ) : null}
@@ -485,19 +523,28 @@ export function ChatBubble({
             <DropdownMenuSeparator className="bg-border" />
 
             {onCreateTask ? (
-              <DropdownMenuItem onSelect={() => onCreateTask()} className="hover:bg-accent cursor-pointer">
+              <DropdownMenuItem
+                onSelect={() => onCreateTask()}
+                className="cursor-pointer hover:bg-accent"
+              >
                 <CheckSquare className="mr-2 size-4 text-emerald-500" />
                 Create task from message
               </DropdownMenuItem>
             ) : null}
             {onCreateDoc ? (
-              <DropdownMenuItem onSelect={() => onCreateDoc()} className="hover:bg-accent cursor-pointer">
+              <DropdownMenuItem
+                onSelect={() => onCreateDoc()}
+                className="cursor-pointer hover:bg-accent"
+              >
                 <FileText className="mr-2 size-4 text-blue-500" />
                 Create document from message
               </DropdownMenuItem>
             ) : null}
             {onAskAI ? (
-              <DropdownMenuItem onSelect={() => onAskAI()} className="hover:bg-accent cursor-pointer">
+              <DropdownMenuItem
+                onSelect={() => onAskAI()}
+                className="cursor-pointer hover:bg-accent"
+              >
                 <Bot className="mr-2 size-4 text-primary" />
                 Ask AI about message
               </DropdownMenuItem>
@@ -506,13 +553,19 @@ export function ChatBubble({
             <DropdownMenuSeparator className="bg-border" />
 
             {onCopyText ? (
-              <DropdownMenuItem onSelect={() => onCopyText()} className="hover:bg-accent">
+              <DropdownMenuItem
+                onSelect={() => onCopyText()}
+                className="hover:bg-accent"
+              >
                 <Copy className="mr-2 size-4" />
                 Copy text
               </DropdownMenuItem>
             ) : null}
             {onCopyLink ? (
-              <DropdownMenuItem onSelect={() => onCopyLink()} className="hover:bg-accent">
+              <DropdownMenuItem
+                onSelect={() => onCopyLink()}
+                className="hover:bg-accent"
+              >
                 <Link2 className="mr-2 size-4" />
                 Copy link to message
               </DropdownMenuItem>
@@ -521,7 +574,10 @@ export function ChatBubble({
             {isOwn ? (
               <>
                 <DropdownMenuSeparator className="bg-border" />
-                <DropdownMenuItem onSelect={() => onEdit?.()} className="hover:bg-accent">
+                <DropdownMenuItem
+                  onSelect={() => onEdit?.()}
+                  className="hover:bg-accent"
+                >
                   <Pencil className="mr-2 size-4" />
                   Edit message
                 </DropdownMenuItem>
@@ -552,17 +608,20 @@ export function ReactionPicker({
   return (
     <Popover>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent align="end" className="w-auto border-border bg-surface p-2 text-foreground">
-        <p className="mb-1 px-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+      <PopoverContent
+        align="end"
+        className="p-2 w-auto border-border bg-surface text-foreground"
+      >
+        <p className="mb-1 px-1 font-bold tracking-wider text-[10px] text-muted-foreground uppercase">
           React
         </p>
-        <div className="grid grid-cols-6 gap-0.5">
+        <div className="gap-0.5 grid grid-cols-6">
           {PICKER_REACTIONS.map((emoji) => (
             <button
               key={emoji}
               onClick={() => onSelect(emoji)}
               aria-label={`React with ${emoji}`}
-              className="flex size-8 items-center justify-center rounded text-lg transition-transform hover:scale-125 hover:bg-accent"
+              className="size-8 rounded text-lg flex items-center justify-center transition-transform hover:scale-125 hover:bg-accent"
             >
               <span aria-hidden>{emoji}</span>
             </button>
@@ -575,7 +634,10 @@ export function ReactionPicker({
 
 export interface DateSeparatorProps {
   timestamp: number;
-  onJumpToDate?: (target: 'today' | 'yesterday' | 'last_week' | 'last_month' | 'beginning' | string) => void;
+  onJumpToDate?: (
+    target:
+      'today' | 'yesterday' | 'last_week' | 'last_month' | 'beginning' | string,
+  ) => void;
 }
 
 export function DateSeparator({ timestamp, onJumpToDate }: DateSeparatorProps) {
@@ -598,7 +660,7 @@ export function DateSeparator({ timestamp, onJumpToDate }: DateSeparatorProps) {
           });
 
   return (
-    <div className="sticky top-0 z-10 my-2 flex items-center gap-3 px-4 py-1">
+    <div className="top-0 my-2 gap-3 px-4 py-1 sticky z-10 flex items-center">
       <span className="h-px flex-1 bg-border" aria-hidden />
 
       {/* Date Dropdown Trigger Button */}
@@ -606,44 +668,47 @@ export function DateSeparator({ timestamp, onJumpToDate }: DateSeparatorProps) {
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3.5 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-accent hover:text-foreground shadow-sm"
+            className="gap-1.5 px-4 py-1.5 text-xs font-semibold flex items-center rounded-full border border-border bg-surface text-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <span>{label}</span>
             <ChevronDown className="size-3 text-muted-foreground" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="center" className="w-56 border-border bg-surface-inset p-1.5 text-foreground shadow-2xl">
-          <DropdownMenuLabel className="px-2 py-1 text-[11px] font-bold text-muted-foreground">
+        <DropdownMenuContent
+          align="center"
+          className="w-56 p-1.5 shadow-2xl border-border bg-surface-inset text-foreground"
+        >
+          <DropdownMenuLabel className="px-2 py-1 font-bold text-[11px] text-muted-foreground">
             Jump to...
           </DropdownMenuLabel>
 
           <DropdownMenuItem
             onSelect={() => onJumpToDate?.('today')}
-            className="rounded-md px-2.5 py-1.5 text-xs font-medium hover:bg-accent cursor-pointer"
+            className="px-2.5 py-1.5 text-xs font-medium cursor-pointer rounded-md hover:bg-accent"
           >
             Today
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => onJumpToDate?.('yesterday')}
-            className="rounded-md px-2.5 py-1.5 text-xs font-medium hover:bg-accent cursor-pointer"
+            className="px-2.5 py-1.5 text-xs font-medium cursor-pointer rounded-md hover:bg-accent"
           >
             Yesterday
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => onJumpToDate?.('last_week')}
-            className="rounded-md px-2.5 py-1.5 text-xs font-medium hover:bg-accent cursor-pointer"
+            className="px-2.5 py-1.5 text-xs font-medium cursor-pointer rounded-md hover:bg-accent"
           >
             Last week
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => onJumpToDate?.('last_month')}
-            className="rounded-md px-2.5 py-1.5 text-xs font-medium hover:bg-accent cursor-pointer"
+            className="px-2.5 py-1.5 text-xs font-medium cursor-pointer rounded-md hover:bg-accent"
           >
             Last month
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => onJumpToDate?.('beginning')}
-            className="rounded-md px-2.5 py-1.5 text-xs font-medium hover:bg-accent cursor-pointer"
+            className="px-2.5 py-1.5 text-xs font-medium cursor-pointer rounded-md hover:bg-accent"
           >
             The very beginning
           </DropdownMenuItem>
@@ -655,14 +720,19 @@ export function DateSeparator({ timestamp, onJumpToDate }: DateSeparatorProps) {
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-primary-text hover:bg-primary/20 transition-colors"
+                  className="gap-2 px-2 py-1.5 text-xs font-medium flex w-full items-center rounded-md text-primary-text transition-colors hover:bg-primary/20"
                 >
                   <CalendarIcon className="size-3.5" />
                   <span>Jump to a specific date</span>
                 </button>
               </PopoverTrigger>
-              <PopoverContent align="center" className="w-auto border-border bg-surface p-3 text-foreground">
-                <p className="mb-2 text-xs font-bold text-muted-foreground">Select date</p>
+              <PopoverContent
+                align="center"
+                className="p-3 w-auto border-border bg-surface text-foreground"
+              >
+                <p className="mb-2 text-xs font-bold text-muted-foreground">
+                  Select date
+                </p>
                 <DatePicker
                   value={customDate}
                   onChange={(d) => {

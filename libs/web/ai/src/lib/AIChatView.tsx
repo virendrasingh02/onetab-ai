@@ -14,6 +14,7 @@ import {
   Check,
   Copy,
   Headphones,
+  Home,
   Info,
   MoreHorizontal,
   RotateCcw,
@@ -43,11 +44,16 @@ export function AIChatView() {
   /* `block: 'nearest'` keeps the scroll inside the transcript. Without it the
      nearest scrollable ancestor — the shell's `main` — is dragged along too. */
   useEffect(() => {
-    streamEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    streamEndRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+    });
   }, [chat.messages, chat.isThinking]);
 
   const handleCopy = () => {
-    const transcript = chat.messages.map((m) => `${m.role}: ${m.content}`).join('\n\n');
+    const transcript = chat.messages
+      .map((m) => `${m.role}: ${m.content}`)
+      .join('\n\n');
     navigator.clipboard.writeText(transcript || window.location.href);
     setCopied(true);
     toast.success('Copied to clipboard');
@@ -56,7 +62,9 @@ export function AIChatView() {
 
   const handleToggleFavorite = () => {
     setIsFavorite(!isFavorite);
-    toast.success(!isFavorite ? 'Added to favorites' : 'Removed from favorites');
+    toast.success(
+      !isFavorite ? 'Added to favorites' : 'Removed from favorites',
+    );
   };
 
   const composer = (
@@ -84,14 +92,11 @@ export function AIChatView() {
       gutters, notification bar), always guessed low, and pushed the composer
       below the fold instead of pinning it to the bottom of the column.
     */
-    <div className="flex min-h-0 w-full flex-1 flex-col items-center text-foreground">
+    <div className="min-h-0 flex w-full flex-1 flex-col items-center text-foreground">
       {chat.isEmpty ? (
         /* Landing: headline and composer centred in the column together. */
         <div className="max-w-2xl gap-6 px-4 animate-in fade-in flex w-full flex-1 flex-col items-center justify-center duration-(--duration-slow)">
           <div className="space-y-2 text-center">
-            <span className="size-10 mx-auto flex items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <Sparkles className="size-5" aria-hidden />
-            </span>
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
               Your AI Copilot
             </h1>
@@ -107,55 +112,15 @@ export function AIChatView() {
         </div>
       ) : (
         <>
-          <header className="max-w-3xl gap-3 px-4 py-2.5 mb-2 flex w-full shrink-0 items-center justify-between border-b border-border">
-            <div className="gap-2 min-w-0 flex items-center">
-              <span className="size-7 shrink-0 flex items-center justify-center rounded-full bg-primary text-primary-foreground">
-                <Sparkles className="size-3.5" aria-hidden />
+          <header className="gap-3 px-4 py-2.5 mb-2 flex w-full shrink-0 items-center justify-between border-b border-border bg-background/95">
+            <div className="gap-0.5 min-w-0 flex items-center">
+              <span className="size-7 flex shrink-0 items-center justify-center">
+                <Home className="size-3.5" aria-hidden />
               </span>
-              <span className="font-semibold text-sm truncate">
-                AI Assistant
-              </span>
+              <span className="font-semibold text-sm truncate">Home</span>
             </div>
 
-            <div className="flex items-center gap-1">
-              {/* 1. Fav icon */}
-              <Hint
-                label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-              >
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-pressed={isFavorite}
-                  aria-label={
-                    isFavorite ? 'Remove from favorites' : 'Add to favorites'
-                  }
-                  onClick={handleToggleFavorite}
-                  className={isFavorite ? 'text-warning' : undefined}
-                >
-                  <Star
-                    className={cn(
-                      'size-4',
-                      isFavorite && 'fill-current text-accent-amber',
-                    )}
-                  />
-                </Button>
-              </Hint>
-
-              {/* 2. Huddle icon */}
-              <Hint label="Start a voice huddle with AI">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Start a voice huddle"
-                  onClick={() => {
-                    toast.info('Starting voice copilot huddle…');
-                  }}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <Headphones className="size-4" />
-                </Button>
-              </Hint>
-
+            <div className="gap-1 flex items-center">
               {/* 3. 3-dot dropdown menu */}
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
@@ -169,7 +134,10 @@ export function AIChatView() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" side="bottom" className="w-60">
-                  <DropdownMenuItem onClick={handleCopy} className="justify-between">
+                  <DropdownMenuItem
+                    onClick={handleCopy}
+                    className="justify-between"
+                  >
                     <div className="gap-2.5 flex items-center">
                       {copied ? (
                         <Check className="size-4 text-success-text" />
@@ -180,7 +148,10 @@ export function AIChatView() {
                     </div>
                   </DropdownMenuItem>
 
-                  <DropdownMenuItem onClick={chat.reset} className="justify-between">
+                  <DropdownMenuItem
+                    onClick={chat.reset}
+                    className="justify-between"
+                  >
                     <div className="gap-2.5 flex items-center">
                       <RotateCcw className="size-4" />
                       <span>Sync &amp; Clear context</span>
@@ -189,7 +160,9 @@ export function AIChatView() {
 
                   <DropdownMenuItem
                     onClick={() => {
-                      toast.info(`Active Model: ${chat.modelLabel} · Context: Workspace Index`);
+                      toast.info(
+                        `Active Model: ${chat.modelLabel} · Context: Workspace Index`,
+                      );
                     }}
                     className="gap-2.5"
                   >
@@ -199,7 +172,10 @@ export function AIChatView() {
 
                   <DropdownMenuSeparator />
 
-                  <DropdownMenuItem onClick={handleToggleFavorite} className="gap-2.5">
+                  <DropdownMenuItem
+                    onClick={handleToggleFavorite}
+                    className="gap-2.5"
+                  >
                     <Star
                       className={cn(
                         'size-4',

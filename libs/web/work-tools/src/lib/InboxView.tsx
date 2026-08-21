@@ -188,34 +188,36 @@ export function InboxView() {
   }, [tasks.data, user]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="min-h-0 flex flex-1 flex-col">
       {/* Channel-style Header */}
-      <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/95 backdrop-blur-md">
-        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="flex min-w-0 items-center gap-1.5">
-              <Inbox className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-              <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+      <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
+        <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
+          <div className="min-w-0 gap-2 flex items-center">
+            <div className="min-w-0 gap-1.5 flex items-center">
+              <Inbox
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
                 Inbox
               </h2>
-              <Badge
+              {/* <Badge
                 variant={newCount > 0 ? 'primary' : 'neutral'}
-                className="text-[11px] px-1.5 py-0 h-4.5"
+                className="px-1.5 py-0 h-4.5 text-[11px]"
               >
                 {newCount > 0 ? `${newCount} new` : 'Caught up'}
-              </Badge>
+              </Badge> */}
             </div>
-
-            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
-
-            <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
-              Notifications, unreads and assigned tasks
-            </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             {newCount > 0 ? (
-              <Button variant="outline" size="sm" onClick={markAllRead} className="h-7 text-xs">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={markAllRead}
+                className="h-7 text-xs"
+              >
                 Mark all read
               </Button>
             ) : null}
@@ -225,33 +227,50 @@ export function InboxView() {
         {/* Tab Navigation directly below header */}
         <div className="px-3 sm:px-6 border-t border-border/40 bg-surface-muted/30">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="h-9 bg-transparent border-b-0 p-0 gap-4">
+            <TabsList className="h-9 p-0 gap-4 border-b-0 bg-transparent">
               <TabsTrigger
                 value="notifications"
-                className="h-8 gap-1.5 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+                className="h-8 gap-1.5 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
               >
                 <Bell className="size-3.5" />
                 <span>Notifications</span>
-                {newCount > 0 ? <Badge variant="count" className="text-[10px] px-1 py-0 h-3.5">{newCount}</Badge> : null}
+                {newCount > 0 ? (
+                  <Badge
+                    variant="count"
+                    className="px-1 py-0 h-3.5 text-[10px]"
+                  >
+                    {newCount}
+                  </Badge>
+                ) : null}
               </TabsTrigger>
               <TabsTrigger
                 value="unreads"
-                className="h-8 gap-1.5 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+                className="h-8 gap-1.5 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
               >
                 <MessageSquare className="size-3.5" />
                 <span>Unread channels</span>
                 {unreadChannels.length > 0 ? (
-                  <Badge variant="neutral" className="text-[10px] px-1 py-0 h-3.5">{unreadChannels.length}</Badge>
+                  <Badge
+                    variant="neutral"
+                    className="px-1 py-0 h-3.5 text-[10px]"
+                  >
+                    {unreadChannels.length}
+                  </Badge>
                 ) : null}
               </TabsTrigger>
               <TabsTrigger
                 value="tasks"
-                className="h-8 gap-1.5 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+                className="h-8 gap-1.5 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
               >
                 <CheckSquare className="size-3.5" />
                 <span>Assigned to you</span>
                 {myTasks.length > 0 ? (
-                  <Badge variant="neutral" className="text-[10px] px-1 py-0 h-3.5">{myTasks.length}</Badge>
+                  <Badge
+                    variant="neutral"
+                    className="px-1 py-0 h-3.5 text-[10px]"
+                  >
+                    {myTasks.length}
+                  </Badge>
                 ) : null}
               </TabsTrigger>
             </TabsList>
@@ -259,214 +278,222 @@ export function InboxView() {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-6">
-        <div className="mx-auto max-w-5xl">
+      <div className="min-h-0 p-3 sm:p-6 flex-1 overflow-y-auto">
+        <div className="max-w-5xl mx-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsContent value="notifications" className="space-y-3 mt-0">
-          {feed.isLoading ? (
-            <SkeletonList rows={5} withAvatar />
-          ) : feed.isError ? (
-            <EmptyState
-              icon={<TriangleAlert />}
-              title="Could not load activity"
-              description="Something went wrong fetching this workspace's feed."
-              action={
-                <Button variant="outline" onClick={() => void feed.refetch()}>
-                  Try again
-                </Button>
-              }
-            />
-          ) : !feed.data?.length ? (
-            <EmptyState
-              icon={<Bell />}
-              title="You are all caught up!"
-              description="No workspace activity yet."
-            />
-          ) : (
-            <ul className="space-y-2.5">
-              {feed.data.map((item) => {
-                const Icon =
-                  KIND_ICON[item.kind as keyof typeof KIND_ICON] ?? Bell;
-                const isUnread =
-                  !seenThreshold ||
-                  Date.parse(item.occurredAt) > Date.parse(seenThreshold);
-
-                return (
-                  <li key={item.id}>
-                    <Card
-                      className={cn(
-                        'p-4 transition-colors duration-(--duration-fast) flex items-start justify-between gap-4',
-                        isUnread
-                          ? 'bg-selected/40 border-primary/30'
-                          : 'bg-surface',
-                      )}
+              {feed.isLoading ? (
+                <SkeletonList rows={5} withAvatar />
+              ) : feed.isError ? (
+                <EmptyState
+                  icon={<TriangleAlert />}
+                  title="Could not load activity"
+                  description="Something went wrong fetching this workspace's feed."
+                  action={
+                    <Button
+                      variant="outline"
+                      onClick={() => void feed.refetch()}
                     >
-                      <div className="flex items-start gap-3 min-w-0">
-                        <span
+                      Try again
+                    </Button>
+                  }
+                />
+              ) : !feed.data?.length ? (
+                <EmptyState
+                  icon={<Bell />}
+                  title="You are all caught up!"
+                  description="No workspace activity yet."
+                />
+              ) : (
+                <ul className="space-y-2.5">
+                  {feed.data.map((item) => {
+                    const Icon =
+                      KIND_ICON[item.kind as keyof typeof KIND_ICON] ?? Bell;
+                    const isUnread =
+                      !seenThreshold ||
+                      Date.parse(item.occurredAt) > Date.parse(seenThreshold);
+
+                    return (
+                      <li key={item.id}>
+                        <Card
                           className={cn(
-                            'p-2 rounded-lg shrink-0 mt-0.5',
-                            KIND_TONE[item.kind] ??
-                              'bg-muted text-muted-foreground',
+                            'p-4 gap-4 flex items-start justify-between transition-colors duration-(--duration-fast)',
+                            isUnread
+                              ? 'border-primary/30 bg-selected/40'
+                              : 'bg-surface',
                           )}
-                          aria-hidden
                         >
-                          <Icon className="size-4" />
-                        </span>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-xs font-semibold text-foreground truncate">
-                              {headline(item)}
-                            </h4>
-                            {isUnread ? <Badge variant="primary">New</Badge> : null}
-                          </div>
-                          {item.channel ? (
-                            <Link
-                              to={`/w/${slug}/c/${item.channel.slug}`}
-                              className="mt-1 gap-1 text-xs text-muted-foreground inline-flex items-center hover:text-foreground"
+                          <div className="gap-3 min-w-0 flex items-start">
+                            <span
+                              className={cn(
+                                'p-2 mt-0.5 shrink-0 rounded-lg',
+                                KIND_TONE[item.kind] ??
+                                  'bg-muted text-muted-foreground',
+                              )}
+                              aria-hidden
                             >
-                              <Hash className="size-3" aria-hidden />
-                              {item.channel.name}
-                            </Link>
-                          ) : null}
-                          <span className="mt-1.5 block text-[10px] text-subtle font-mono">
-                            {formatRelative(item.occurredAt)}
-                          </span>
-                        </div>
-                      </div>
-                    </Card>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </TabsContent>
-
-        <TabsContent value="unreads" className="mt-4 space-y-3">
-          {channels.isLoading || feed.isLoading ? (
-            <SkeletonList rows={4} />
-          ) : unreadChannels.length === 0 ? (
-            <EmptyState
-              icon={<MessageSquare />}
-              title="No unread channels"
-              description="Every channel you have joined is up to date."
-            />
-          ) : (
-            <ul className="space-y-2.5">
-              {unreadChannels.map(({ channel, unread, latest }) => (
-                <li key={channel.id}>
-                  <Card className="p-4 bg-surface hover:border-border-strong transition-colors">
-                    <Link
-                      to={`/w/${slug}/c/${channel.slug}`}
-                      className="flex items-center justify-between gap-4"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-primary">
-                            #{channel.name}
-                          </span>
-                          <Badge variant="count">{unread}</Badge>
-                        </div>
-                        {latest ? (
-                          <p className="mt-1 text-xs text-muted-foreground truncate">
-                            Latest from{' '}
-                            {latest.user?.displayName ??
-                              latest.user?.name ??
-                              'a teammate'}
-                          </p>
-                        ) : null}
-                      </div>
-                      {latest ? (
-                        <span className="text-[10px] text-subtle font-mono ml-4 shrink-0">
-                          {formatRelative(latest.occurredAt)}
-                        </span>
-                      ) : null}
-                    </Link>
-                  </Card>
-                </li>
-              ))}
-            </ul>
-          )}
-        </TabsContent>
-
-        <TabsContent value="tasks" className="mt-4 space-y-3">
-          {tasks.isLoading ? (
-            <SkeletonList rows={4} />
-          ) : myTasks.length === 0 ? (
-            <EmptyState
-              icon={<CheckSquare />}
-              title="Nothing assigned to you"
-              description="Tasks assigned to you across every project will show up here."
-              action={
-                <Button asChild size="sm" variant="outline">
-                  <Link to={`/w/${slug}/tasks`}>Open the board</Link>
-                </Button>
-              }
-            />
-          ) : (
-            <ul className="space-y-2.5">
-              {myTasks.map((task) => {
-                const isOverdue =
-                  !!task.dueDate && Date.parse(task.dueDate) < Date.now();
-
-                return (
-                  <li key={task.id}>
-                    <Card className="p-4 bg-surface hover:border-border-strong transition-colors flex items-center justify-between gap-4">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-xs font-semibold text-foreground truncate">
-                            {task.title}
-                          </h4>
-                          <Badge variant="neutral" className="capitalize">
-                            {task.status.toLowerCase().replace(/_/g, ' ')}
-                          </Badge>
-                        </div>
-                        <p className="mt-1 text-xs text-muted-foreground truncate">
-                          {task.project ? (
-                            <span className="inline-flex items-center gap-1 align-middle">
-                              <ProjectGlyph
-                                icon={task.project.icon}
-                                iconColor={task.project.iconColor}
-                                color={task.project.color}
-                                size="xs"
-                              />
-                              {task.project.name}
+                              <Icon className="size-4" />
                             </span>
-                          ) : (
-                            'No project'
-                          )}
-                          {task.dueDate ? (
-                            <>
-                              {' · '}
-                              <span
-                                className={cn(
-                                  isOverdue && 'font-medium text-destructive',
-                                )}
-                              >
-                                Due {formatDate(task.dueDate)}
+                            <div className="min-w-0">
+                              <div className="gap-2 flex items-center">
+                                <h4 className="text-xs font-semibold truncate text-foreground">
+                                  {headline(item)}
+                                </h4>
+                                {isUnread ? (
+                                  <Badge variant="primary">New</Badge>
+                                ) : null}
+                              </div>
+                              {item.channel ? (
+                                <Link
+                                  to={`/w/${slug}/c/${item.channel.slug}`}
+                                  className="mt-1 gap-1 text-xs inline-flex items-center text-muted-foreground hover:text-foreground"
+                                >
+                                  <Hash className="size-3" aria-hidden />
+                                  {item.channel.name}
+                                </Link>
+                              ) : null}
+                              <span className="mt-1.5 block font-mono text-[10px] text-subtle">
+                                {formatRelative(item.occurredAt)}
                               </span>
-                            </>
+                            </div>
+                          </div>
+                        </Card>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </TabsContent>
+
+            <TabsContent value="unreads" className="mt-4 space-y-3">
+              {channels.isLoading || feed.isLoading ? (
+                <SkeletonList rows={4} />
+              ) : unreadChannels.length === 0 ? (
+                <EmptyState
+                  icon={<MessageSquare />}
+                  title="No unread channels"
+                  description="Every channel you have joined is up to date."
+                />
+              ) : (
+                <ul className="space-y-2.5">
+                  {unreadChannels.map(({ channel, unread, latest }) => (
+                    <li key={channel.id}>
+                      <Card className="p-4 bg-surface transition-colors hover:border-border-strong">
+                        <Link
+                          to={`/w/${slug}/c/${channel.slug}`}
+                          className="gap-4 flex items-center justify-between"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="gap-2 flex items-center">
+                              <span className="text-xs font-semibold text-primary">
+                                #{channel.name}
+                              </span>
+                              <Badge variant="count">{unread}</Badge>
+                            </div>
+                            {latest ? (
+                              <p className="mt-1 text-xs truncate text-muted-foreground">
+                                Latest from{' '}
+                                {latest.user?.displayName ??
+                                  latest.user?.name ??
+                                  'a teammate'}
+                              </p>
+                            ) : null}
+                          </div>
+                          {latest ? (
+                            <span className="ml-4 shrink-0 font-mono text-[10px] text-subtle">
+                              {formatRelative(latest.occurredAt)}
+                            </span>
                           ) : null}
-                        </p>
-                      </div>
-                      {task.assignee ? (
-                        <UserAvatar
-                          name={task.assignee.displayName ?? task.assignee.name}
-                          src={task.assignee.avatarUrl}
-                          seed={task.assignee.id}
-                          size="xs"
-                          className="shrink-0"
-                        />
-                      ) : null}
-                    </Card>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </TabsContent>
-      </Tabs>
+                        </Link>
+                      </Card>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </TabsContent>
+
+            <TabsContent value="tasks" className="mt-4 space-y-3">
+              {tasks.isLoading ? (
+                <SkeletonList rows={4} />
+              ) : myTasks.length === 0 ? (
+                <EmptyState
+                  icon={<CheckSquare />}
+                  title="Nothing assigned to you"
+                  description="Tasks assigned to you across every project will show up here."
+                  action={
+                    <Button asChild size="sm" variant="outline">
+                      <Link to={`/w/${slug}/tasks`}>Open the board</Link>
+                    </Button>
+                  }
+                />
+              ) : (
+                <ul className="space-y-2.5">
+                  {myTasks.map((task) => {
+                    const isOverdue =
+                      !!task.dueDate && Date.parse(task.dueDate) < Date.now();
+
+                    return (
+                      <li key={task.id}>
+                        <Card className="p-4 gap-4 flex items-center justify-between bg-surface transition-colors hover:border-border-strong">
+                          <div className="min-w-0 flex-1">
+                            <div className="gap-2 flex items-center">
+                              <h4 className="text-xs font-semibold truncate text-foreground">
+                                {task.title}
+                              </h4>
+                              <Badge variant="neutral" className="capitalize">
+                                {task.status.toLowerCase().replace(/_/g, ' ')}
+                              </Badge>
+                            </div>
+                            <p className="mt-1 text-xs truncate text-muted-foreground">
+                              {task.project ? (
+                                <span className="gap-1 inline-flex items-center align-middle">
+                                  <ProjectGlyph
+                                    icon={task.project.icon}
+                                    iconColor={task.project.iconColor}
+                                    color={task.project.color}
+                                    size="xs"
+                                  />
+                                  {task.project.name}
+                                </span>
+                              ) : (
+                                'No project'
+                              )}
+                              {task.dueDate ? (
+                                <>
+                                  {' · '}
+                                  <span
+                                    className={cn(
+                                      isOverdue &&
+                                        'font-medium text-destructive',
+                                    )}
+                                  >
+                                    Due {formatDate(task.dueDate)}
+                                  </span>
+                                </>
+                              ) : null}
+                            </p>
+                          </div>
+                          {task.assignee ? (
+                            <UserAvatar
+                              name={
+                                task.assignee.displayName ?? task.assignee.name
+                              }
+                              src={task.assignee.avatarUrl}
+                              seed={task.assignee.id}
+                              size="xs"
+                              className="shrink-0"
+                            />
+                          ) : null}
+                        </Card>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
   );
 }

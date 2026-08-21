@@ -121,7 +121,8 @@ export const PROJECT_TEMPLATES: Array<{
   {
     id: 'sprint',
     name: 'Agile Sprint',
-    description: 'Sprint planning, backlog grooming, active execution and retrospective',
+    description:
+      'Sprint planning, backlog grooming, active execution and retrospective',
     icon: 'Zap',
     tasks: [
       {
@@ -134,13 +135,15 @@ export const PROJECT_TEMPLATES: Array<{
         title: 'Feature Development - Core MVP',
         status: TaskStatus.IN_PROGRESS,
         priority: 'URGENT',
-        description: 'Implement primary user stories, endpoints, and schema updates.',
+        description:
+          'Implement primary user stories, endpoints, and schema updates.',
       },
       {
         title: 'Code Review & Automated Test Suite',
         status: TaskStatus.TODO,
         priority: 'HIGH',
-        description: 'Ensure unit and integration tests pass with full coverage.',
+        description:
+          'Ensure unit and integration tests pass with full coverage.',
       },
       {
         title: 'Staging Deployment & Verification',
@@ -159,7 +162,8 @@ export const PROJECT_TEMPLATES: Array<{
   {
     id: 'launch',
     name: 'Product Launch',
-    description: 'Go-to-market plan, product UI/UX specs, QA and release checklist',
+    description:
+      'Go-to-market plan, product UI/UX specs, QA and release checklist',
     icon: 'Rocket',
     tasks: [
       {
@@ -191,7 +195,8 @@ export const PROJECT_TEMPLATES: Array<{
   {
     id: 'bug_tracker',
     name: 'Bug & Incident Tracker',
-    description: 'Triage incoming defects, reproduction, hotfix, and verification',
+    description:
+      'Triage incoming defects, reproduction, hotfix, and verification',
     icon: 'Bug',
     tasks: [
       {
@@ -210,7 +215,8 @@ export const PROJECT_TEMPLATES: Array<{
         title: 'Implement Bug Fix & Add Regression Test',
         status: TaskStatus.BACKLOG,
         priority: 'HIGH',
-        description: 'Ensure bug is resolved without breaking existing features.',
+        description:
+          'Ensure bug is resolved without breaking existing features.',
       },
     ],
   },
@@ -259,15 +265,18 @@ export function AsanaProjectManager() {
     [membersQuery.data],
   );
 
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
+    null,
+  );
   const [viewMode, setViewMode] = useState<ProjectViewMode>('board');
 
   // The URL is the source of truth for which project is open, so a link into a
   // board survives a reload and the back button moves between projects.
   const projectParam = searchParams.get('project');
   const activeProject: ProjectDetail | undefined =
-    projects.find((project) => project.id === (projectParam ?? selectedProjectId)) ??
-    projects[0];
+    projects.find(
+      (project) => project.id === (projectParam ?? selectedProjectId),
+    ) ?? projects[0];
 
   useEffect(() => {
     const openNewProject = searchParams.get('newProject') === 'true';
@@ -446,7 +455,9 @@ export function AsanaProjectManager() {
       });
 
       // Seed starter tasks if template selected
-      const selectedTpl = PROJECT_TEMPLATES.find((t) => t.id === draft.template);
+      const selectedTpl = PROJECT_TEMPLATES.find(
+        (t) => t.id === draft.template,
+      );
       if (selectedTpl && selectedTpl.tasks.length > 0 && workspaceId) {
         try {
           await Promise.all(
@@ -650,7 +661,7 @@ export function AsanaProjectManager() {
 
   if (viewMode === 'projects') {
     return (
-      <div className="flex min-h-0 w-full flex-1 flex-col bg-background text-foreground">
+      <div className="min-h-0 flex w-full flex-1 flex-col bg-background text-foreground">
         <ProjectGallery
           projects={projects}
           tasks={allTasks.data ?? []}
@@ -669,7 +680,7 @@ export function AsanaProjectManager() {
 
   if (!projectsQuery.isLoading && projects.length === 0) {
     return (
-      <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center bg-background">
+      <div className="min-h-0 flex w-full flex-1 flex-col items-center justify-center bg-background">
         <EmptyState
           icon={<FolderKanban />}
           title="No projects yet"
@@ -695,10 +706,10 @@ export function AsanaProjectManager() {
   }
 
   return (
-    <div className="flex flex-col h-full w-full bg-background text-foreground overflow-hidden">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-background text-foreground">
       {/* Top Header */}
-      <header className="relative flex flex-wrap items-center justify-between border-b border-border/50 bg-card/60 px-6 py-3.5 gap-4">
-        <div className="flex items-center gap-2.5">
+      <header className="px-6 py-3.5 gap-4 relative flex flex-wrap items-center justify-between border-b border-border/50 bg-card/60">
+        <div className="gap-2.5 flex items-center">
           {/*
             On a board there is a project to write to, so the header marker is
             the picker itself and a change saves on selection — unlike the
@@ -713,7 +724,7 @@ export function AsanaProjectManager() {
                 <button
                   type="button"
                   aria-label={`Change icon for ${activeProject.name}`}
-                  className="flex size-7 items-center justify-center rounded-md transition-colors hover:bg-muted"
+                  className="size-7 flex items-center justify-center rounded-md transition-colors hover:bg-muted"
                 >
                   <ProjectGlyph
                     icon={activeProject.icon}
@@ -728,7 +739,7 @@ export function AsanaProjectManager() {
             <ProjectGlyph size="md" />
           )}
 
-          <h1 className="text-xl font-bold tracking-tight text-foreground">
+          <h1 className="text-base font-semibold tracking-tight text-foreground">
             {activeProject?.name ?? 'Projects'}
           </h1>
 
@@ -743,7 +754,7 @@ export function AsanaProjectManager() {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  className="p-1 cursor-pointer rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   title="Project options"
                 >
                   <MoreHorizontal className="size-4" />
@@ -777,17 +788,17 @@ export function AsanaProjectManager() {
         </div>
 
         {/* Right Action Bar */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="gap-2 flex flex-wrap items-center">
           {/* Linear Command Palette Trigger */}
           <button
             type="button"
             onClick={() => setIsCommandMenuOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 h-8 rounded-md text-xs font-medium border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+            className="gap-1.5 px-2.5 h-8 text-xs font-medium flex cursor-pointer items-center rounded-md border border-border/60 bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             title="Open Command Palette (⌘K)"
           >
             <Command className="size-3.5 text-muted-foreground" />
-            <span className="hidden sm:inline">Search</span>
-            <kbd className="hidden sm:inline-flex items-center rounded border border-border bg-muted/60 px-1 text-[10px] font-mono font-medium">
+            <span className="sm:inline hidden">Search</span>
+            <kbd className="sm:inline-flex rounded px-1 font-medium hidden items-center border border-border bg-muted/60 font-mono text-[10px]">
               ⌘K
             </kbd>
           </button>
@@ -795,14 +806,14 @@ export function AsanaProjectManager() {
           <button
             type="button"
             onClick={() => setIsShortcutsOpen(true)}
-            className="flex items-center justify-center size-8 rounded-md border border-border/60 bg-surface text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+            className="size-8 flex cursor-pointer items-center justify-center rounded-md border border-border/60 bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             title="Keyboard Shortcuts (?)"
           >
             <Keyboard className="size-3.5" />
           </button>
 
-          <div className="relative w-36 sm:w-48">
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
+          <div className="w-36 sm:w-48 relative">
+            <Search className="w-3.5 h-3.5 left-2.5 top-2.5 absolute text-muted-foreground" />
             <Input
               placeholder="Filter tasks..."
               value={filter.query}
@@ -815,7 +826,9 @@ export function AsanaProjectManager() {
 
           <div className="relative">
             <Button
-              variant={isFilterMenuOpen || filterCount > 0 ? 'secondary' : 'outline'}
+              variant={
+                isFilterMenuOpen || filterCount > 0 ? 'secondary' : 'outline'
+              }
               size="sm"
               onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
               className="gap-1.5 text-xs h-8 font-medium cursor-pointer"
@@ -845,9 +858,9 @@ export function AsanaProjectManager() {
               type="button"
               onClick={() => setIsViewDisplayOpen(!isViewDisplayOpen)}
               className={cn(
-                'flex items-center gap-1.5 px-3 h-8 rounded-md text-xs font-medium border border-border/60 hover:bg-accent transition-colors cursor-pointer',
+                'gap-1.5 px-3 h-8 text-xs font-medium flex cursor-pointer items-center rounded-md border border-border/60 transition-colors hover:bg-accent',
                 isViewDisplayOpen &&
-                  'bg-accent border-primary/50 text-foreground font-semibold',
+                  'font-semibold border-primary/50 bg-accent text-foreground',
               )}
               title="Switch view"
             >
@@ -1023,21 +1036,21 @@ function ProjectDialog({
       <DialogContent className="sm:max-w-[460px]">
         <form onSubmit={onSubmit}>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base font-bold">
+            <DialogTitle className="gap-2 text-base font-bold flex items-center">
               {icon}
               {title}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="flex flex-col gap-4 py-4">
-            <div className="flex items-end gap-3">
+          <div className="gap-4 py-4 flex flex-col">
+            <div className="gap-3 flex items-end">
               {/*
                 The icon sits beside the name because it is part of naming the
                 project. It saves with the form rather than on selection — the
                 project may not exist yet, and on edit the rest of the dialog is
                 still a draft the user can abandon.
               */}
-              <div className="flex flex-col gap-1.5">
+              <div className="gap-1.5 flex flex-col">
                 <label className="text-xs font-semibold">Icon</label>
                 <IconPicker
                   editor={iconEditor}
@@ -1047,7 +1060,7 @@ function ProjectDialog({
                     <button
                       type="button"
                       aria-label="Choose project icon"
-                      className="flex size-9 items-center justify-center rounded-md border border-border bg-surface-raised transition-colors hover:border-border-strong"
+                      className="size-9 flex items-center justify-center rounded-md border border-border bg-surface-raised transition-colors hover:border-border-strong"
                     >
                       <ProjectGlyph
                         icon={draft.icon}
@@ -1060,7 +1073,7 @@ function ProjectDialog({
                 />
               </div>
 
-              <div className="flex flex-1 flex-col gap-1.5">
+              <div className="gap-1.5 flex flex-1 flex-col">
                 <label className="text-xs font-semibold" htmlFor="project-name">
                   Project name
                 </label>
@@ -1087,9 +1100,11 @@ function ProjectDialog({
             </div>
 
             {!showStatus ? (
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold">Starter Template</label>
-                <div className="grid grid-cols-2 gap-2">
+              <div className="gap-2 flex flex-col">
+                <label className="text-xs font-semibold">
+                  Starter Template
+                </label>
+                <div className="gap-2 grid grid-cols-2">
                   {PROJECT_TEMPLATES.map((tpl) => {
                     const isSelected = (draft.template ?? 'blank') === tpl.id;
                     return (
@@ -1100,7 +1115,7 @@ function ProjectDialog({
                           setDraft((prev) => ({ ...prev, template: tpl.id }))
                         }
                         className={cn(
-                          'flex flex-col items-start p-2.5 rounded-lg border text-left transition-colors cursor-pointer',
+                          'p-2.5 flex cursor-pointer flex-col items-start rounded-lg border text-left transition-colors',
                           isSelected
                             ? 'border-primary bg-primary/10 ring-1 ring-primary'
                             : 'border-border bg-surface hover:bg-accent/60',
@@ -1109,7 +1124,7 @@ function ProjectDialog({
                         <span className="text-xs font-semibold text-foreground">
                           {tpl.name}
                         </span>
-                        <span className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">
+                        <span className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground">
                           {tpl.description}
                         </span>
                       </button>
@@ -1120,7 +1135,7 @@ function ProjectDialog({
             ) : null}
 
             {!showStatus ? (
-              <div className="flex flex-col gap-1.5">
+              <div className="gap-1.5 flex flex-col">
                 <label className="text-xs font-semibold" htmlFor="project-slug">
                   URL
                 </label>
@@ -1134,14 +1149,14 @@ function ProjectDialog({
                   className="text-xs font-mono"
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  Lowercase letters, numbers and hyphens. Left blank, it is taken
-                  from the name.
+                  Lowercase letters, numbers and hyphens. Left blank, it is
+                  taken from the name.
                 </p>
               </div>
             ) : null}
 
             {showStatus ? (
-              <div className="flex flex-col gap-1.5">
+              <div className="gap-1.5 flex flex-col">
                 <label className="text-xs font-semibold">Status</label>
                 <Select
                   value={draft.status}
@@ -1166,9 +1181,9 @@ function ProjectDialog({
               </div>
             ) : null}
 
-            <div className="flex flex-col gap-1.5">
+            <div className="gap-1.5 flex flex-col">
               <label className="text-xs font-semibold">Colour</label>
-              <div className="flex items-center gap-1.5">
+              <div className="gap-1.5 flex items-center">
                 {PROJECT_COLORS.map((option) => (
                   <button
                     key={option.hex}
@@ -1183,7 +1198,7 @@ function ProjectDialog({
                     className={cn(
                       'size-6 rounded-full transition-transform',
                       draft.color === option.hex
-                        ? 'ring-2 ring-ring ring-offset-2 ring-offset-background scale-110'
+                        ? 'scale-110 ring-2 ring-ring ring-offset-2 ring-offset-background'
                         : 'hover:scale-105',
                     )}
                   />
@@ -1191,7 +1206,7 @@ function ProjectDialog({
               </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
+            <div className="gap-1.5 flex flex-col">
               <label
                 className="text-xs font-semibold"
                 htmlFor="project-description"
@@ -1212,7 +1227,7 @@ function ProjectDialog({
 
             {error ? (
               <p className="gap-1.5 text-xs flex items-start text-destructive">
-                <TriangleAlert className="size-3.5 shrink-0 mt-0.5" />
+                <TriangleAlert className="size-3.5 mt-0.5 shrink-0" />
                 {error instanceof Error
                   ? error.message
                   : 'The project could not be saved.'}
@@ -1264,7 +1279,7 @@ function ImportSummaryDialog({
         <div className="space-y-3 py-2 text-xs">
           {progress.failed > 0 ? (
             <p className="gap-1.5 flex items-start text-destructive">
-              <TriangleAlert className="size-3.5 shrink-0 mt-0.5" />
+              <TriangleAlert className="size-3.5 mt-0.5 shrink-0" />
               {progress.failed} task{progress.failed === 1 ? '' : 's'} could not
               be created.
             </p>
@@ -1274,7 +1289,10 @@ function ImportSummaryDialog({
             <ul className="space-y-1.5 text-muted-foreground">
               {progress.warnings.map((warning) => (
                 <li key={warning} className="gap-1.5 flex items-start">
-                  <span aria-hidden className="mt-1.5 size-1 rounded-full bg-current" />
+                  <span
+                    aria-hidden
+                    className="mt-1.5 size-1 rounded-full bg-current"
+                  />
                   {warning}
                 </li>
               ))}

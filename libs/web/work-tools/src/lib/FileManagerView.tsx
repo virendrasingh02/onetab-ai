@@ -93,7 +93,7 @@ function FileTypeBadge({ mimeType }: { mimeType: string }) {
   return (
     <div
       className={cn(
-        'relative flex size-9 shrink-0 items-center justify-center rounded-lg border select-none',
+        'size-9 relative flex shrink-0 items-center justify-center rounded-lg border select-none',
         KIND_STYLE[kind],
       )}
     >
@@ -171,29 +171,35 @@ export function FileManagerView() {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="min-h-0 flex flex-1 flex-col">
       {/* Channel-style Header */}
       <div className="border-b border-border bg-background">
-        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="flex min-w-0 items-center gap-1.5">
-              <FolderOpen className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-              <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+        <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
+          <div className="min-w-0 gap-2 flex items-center">
+            <div className="min-w-0 gap-1.5 flex items-center">
+              <FolderOpen
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
                 All Files
               </h2>
-              <Badge variant="neutral" className="text-[11px] px-1.5 py-0 h-4.5">
+              <Badge
+                variant="neutral"
+                className="px-1.5 py-0 h-4.5 text-[11px]"
+              >
                 {uploads.data?.length ?? 0} files
               </Badge>
             </div>
 
-            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
+            {/* <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
 
             <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
               Everything uploaded to this workspace by you and teammates
-            </p>
+            </p> */}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             <SearchInput
               value={searchQuery}
               onValueChange={setSearchQuery}
@@ -213,173 +219,178 @@ export function FileManagerView() {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-        <div className="mx-auto max-w-5xl space-y-4">
+      <div className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto">
+        <div className="max-w-5xl space-y-4 mx-auto">
+          <div className="sm:flex-row sm:items-center gap-3 pt-1 flex flex-col justify-between">
+            <SegmentedControl
+              aria-label="Filter files by who uploaded them"
+              value={activeTab}
+              onChange={setActiveTab}
+              options={OWNER_TABS}
+              className="no-scrollbar max-w-full self-start overflow-x-auto"
+            />
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-        <SegmentedControl
-          aria-label="Filter files by who uploaded them"
-          value={activeTab}
-          onChange={setActiveTab}
-          options={OWNER_TABS}
-          className="max-w-full self-start overflow-x-auto no-scrollbar"
-        />
+            <div className="gap-2 sm:self-auto flex items-center self-end">
+              {/* File Types Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="gap-1.5 px-3 py-1.5 text-xs font-medium flex items-center rounded-md border border-border bg-surface text-foreground transition-colors hover:bg-accent"
+                    aria-label="Filter file types"
+                  >
+                    <SlidersHorizontal className="size-3.5 text-accent-cyan" />
+                    <span>
+                      {selectedKind === 'all'
+                        ? 'All types'
+                        : KIND_LABEL[selectedKind]}
+                    </span>
+                    <ChevronDown className="size-3 text-subtle" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44 text-xs">
+                  <DropdownMenuLabel>Filter by type</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => setSelectedKind('all')}>
+                    <span>All types</span>
+                    {selectedKind === 'all' ? (
+                      <Check className="size-3.5 ml-auto text-primary" />
+                    ) : null}
+                  </DropdownMenuItem>
+                  {(Object.keys(KIND_LABEL) as FileKind[]).map((kind) => (
+                    <DropdownMenuItem
+                      key={kind}
+                      onSelect={() => setSelectedKind(kind)}
+                    >
+                      <span>{KIND_LABEL[kind]}</span>
+                      {selectedKind === kind ? (
+                        <Check className="size-3.5 ml-auto text-primary" />
+                      ) : null}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto">
-          {/* File Types Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-surface text-xs font-medium text-foreground hover:bg-accent transition-colors"
-                aria-label="Filter file types"
-              >
-                <SlidersHorizontal className="size-3.5 text-accent-cyan" />
-                <span>
-                  {selectedKind === 'all' ? 'All types' : KIND_LABEL[selectedKind]}
-                </span>
-                <ChevronDown className="size-3 text-subtle" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44 text-xs">
-              <DropdownMenuLabel>Filter by type</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => setSelectedKind('all')}>
-                <span>All types</span>
-                {selectedKind === 'all' ? (
-                  <Check className="ml-auto size-3.5 text-primary" />
-                ) : null}
-              </DropdownMenuItem>
-              {(Object.keys(KIND_LABEL) as FileKind[]).map((kind) => (
-                <DropdownMenuItem
-                  key={kind}
-                  onSelect={() => setSelectedKind(kind)}
-                >
-                  <span>{KIND_LABEL[kind]}</span>
-                  {selectedKind === kind ? (
-                    <Check className="ml-auto size-3.5 text-primary" />
-                  ) : null}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Sort Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-surface text-xs font-medium text-foreground hover:bg-accent transition-colors"
-                aria-label="Sort options"
-              >
-                <span>
-                  {sortBy === 'recent'
-                    ? 'Newest first'
-                    : sortBy === 'name'
-                      ? 'Name (A-Z)'
-                      : 'Largest first'}
-                </span>
-                <ChevronDown className="size-3 text-subtle" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40 text-xs">
-              <DropdownMenuItem onSelect={() => setSortBy('recent')}>
-                <span>Newest first</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setSortBy('name')}>
-                <span>Name (A-Z)</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setSortBy('size')}>
-                <span>Largest first</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      {/* 4. Main Files List Container */}
-      <div className="rounded-card border border-border bg-surface/60 overflow-hidden shadow-2xs divide-y divide-border/60">
-        {uploads.isLoading ? (
-          <div className="p-4">
-            <SkeletonList rows={6} withAvatar />
+              {/* Sort Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="gap-1.5 px-3 py-1.5 text-xs font-medium flex items-center rounded-md border border-border bg-surface text-foreground transition-colors hover:bg-accent"
+                    aria-label="Sort options"
+                  >
+                    <span>
+                      {sortBy === 'recent'
+                        ? 'Newest first'
+                        : sortBy === 'name'
+                          ? 'Name (A-Z)'
+                          : 'Largest first'}
+                    </span>
+                    <ChevronDown className="size-3 text-subtle" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40 text-xs">
+                  <DropdownMenuItem onSelect={() => setSortBy('recent')}>
+                    <span>Newest first</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setSortBy('name')}>
+                    <span>Name (A-Z)</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setSortBy('size')}>
+                    <span>Largest first</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-        ) : uploads.isError ? (
-          <div className="p-8 text-center">
-            <EmptyState
-              size="sm"
-              icon={<TriangleAlert />}
-              title="Could not load files"
-              description="Something went wrong fetching this workspace's files."
-              action={
-                <Button
+
+          {/* 4. Main Files List Container */}
+          <div className="shadow-2xs divide-y divide-border/60 overflow-hidden rounded-card border border-border bg-surface/60">
+            {uploads.isLoading ? (
+              <div className="p-4">
+                <SkeletonList rows={6} withAvatar />
+              </div>
+            ) : uploads.isError ? (
+              <div className="p-8 text-center">
+                <EmptyState
                   size="sm"
-                  variant="outline"
-                  onClick={() => void uploads.refetch()}
-                >
-                  Try again
-                </Button>
-              }
-            />
+                  icon={<TriangleAlert />}
+                  title="Could not load files"
+                  description="Something went wrong fetching this workspace's files."
+                  action={
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void uploads.refetch()}
+                    >
+                      Try again
+                    </Button>
+                  }
+                />
+              </div>
+            ) : visibleFiles.length === 0 ? (
+              <div className="p-8 text-center">
+                <EmptyState
+                  size="sm"
+                  icon={<HardDrive />}
+                  title={
+                    uploads.data?.length
+                      ? 'No files match your search'
+                      : 'No files yet'
+                  }
+                  description={
+                    uploads.data?.length
+                      ? 'Try adjusting your filter pills or search query.'
+                      : 'Upload a file to share it with the workspace.'
+                  }
+                  action={
+                    uploads.data?.length ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={resetFilters}
+                      >
+                        Reset filters
+                      </Button>
+                    ) : (
+                      <Button size="sm" onClick={() => setIsUploadOpen(true)}>
+                        Upload a file
+                      </Button>
+                    )
+                  }
+                />
+              </div>
+            ) : (
+              visibleFiles.map((file) => (
+                <FileRow
+                  key={file.id}
+                  file={file}
+                  isOwner={file.uploader.id === user?.id}
+                  isDownloading={
+                    download.isPending && download.variables?.id === file.id
+                  }
+                  isDeleting={remove.isPending && remove.variables === file.id}
+                  onDownload={() => download.mutate(file)}
+                  onDelete={() => confirmDelete(file.filename, file.id)}
+                />
+              ))
+            )}
           </div>
-        ) : visibleFiles.length === 0 ? (
-          <div className="p-8 text-center">
-            <EmptyState
-              size="sm"
-              icon={<HardDrive />}
-              title={
-                uploads.data?.length
-                  ? 'No files match your search'
-                  : 'No files yet'
-              }
-              description={
-                uploads.data?.length
-                  ? 'Try adjusting your filter pills or search query.'
-                  : 'Upload a file to share it with the workspace.'
-              }
-              action={
-                uploads.data?.length ? (
-                  <Button size="sm" variant="outline" onClick={resetFilters}>
-                    Reset filters
-                  </Button>
-                ) : (
-                  <Button size="sm" onClick={() => setIsUploadOpen(true)}>
-                    Upload a file
-                  </Button>
-                )
-              }
-            />
-          </div>
-        ) : (
-          visibleFiles.map((file) => (
-            <FileRow
-              key={file.id}
-              file={file}
-              isOwner={file.uploader.id === user?.id}
-              isDownloading={
-                download.isPending && download.variables?.id === file.id
-              }
-              isDeleting={remove.isPending && remove.variables === file.id}
-              onDownload={() => download.mutate(file)}
-              onDelete={() => confirmDelete(file.filename, file.id)}
-            />
-          ))
-        )}
-      </div>
 
-      {/* Upload Dialog */}
-      <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
-        <DialogContent className="sm:max-w-md text-xs">
-          <DialogHeader>
-            <DialogTitle className="text-sm font-semibold">
-              Upload files
-            </DialogTitle>
-          </DialogHeader>
-          <FileDropzone
-            workspaceId={workspaceId}
-            label="Add files to this workspace"
-          />
-        </DialogContent>
-      </Dialog>
+          {/* Upload Dialog */}
+          <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+            <DialogContent className="sm:max-w-md text-xs">
+              <DialogHeader>
+                <DialogTitle className="text-sm font-semibold">
+                  Upload files
+                </DialogTitle>
+              </DialogHeader>
+              <FileDropzone
+                workspaceId={workspaceId}
+                label="Add files to this workspace"
+              />
+            </DialogContent>
+          </Dialog>
 
-        {prompts.dialog}
+          {prompts.dialog}
         </div>
       </div>
     </div>
@@ -406,18 +417,18 @@ function FileRow({
   return (
     <div
       className={cn(
-        'group flex items-center justify-between gap-3 p-3 sm:px-4 transition-colors hover:bg-accent/40',
+        'group gap-3 p-3 sm:px-4 flex items-center justify-between transition-colors hover:bg-accent/40',
         isDeleting && 'opacity-50',
       )}
     >
-      <div className="flex items-center gap-3 min-w-0 flex-1">
+      <div className="gap-3 min-w-0 flex flex-1 items-center">
         <FileTypeBadge mimeType={file.mimeType} />
 
         <div className="min-w-0 flex-1">
-          <h3 className="text-xs sm:text-sm font-medium text-foreground truncate">
+          <h3 className="text-xs sm:text-sm font-medium truncate text-foreground">
             {file.filename}
           </h3>
-          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground truncate mt-0.5">
+          <div className="gap-1.5 mt-0.5 flex items-center truncate text-[11px] text-muted-foreground">
             <span className="truncate">
               {isOwner ? `${uploaderName} (you)` : uploaderName}
             </span>
@@ -429,13 +440,13 @@ function FileRow({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+      <div className="gap-2 sm:gap-3 flex shrink-0 items-center">
         <UserAvatar
           name={uploaderName}
           src={file.uploader.avatarUrl}
           seed={file.uploader.id}
           size="xs"
-          className="hidden ring-2 ring-background sm:block"
+          className="sm:block hidden ring-2 ring-background"
         />
 
         <Hint label="Download file">
@@ -443,7 +454,7 @@ function FileRow({
             onClick={onDownload}
             disabled={isDownloading}
             aria-label={`Download ${file.filename}`}
-            className="flex size-7 items-center justify-center rounded-md text-subtle transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+            className="size-7 flex items-center justify-center rounded-md text-subtle transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
           >
             <Download className="size-3.5" />
           </button>
@@ -452,7 +463,7 @@ function FileRow({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="flex size-7 items-center justify-center rounded-md text-subtle transition-colors hover:bg-accent hover:text-foreground"
+              className="size-7 flex items-center justify-center rounded-md text-subtle transition-colors hover:bg-accent hover:text-foreground"
               aria-label={`More options for ${file.filename}`}
             >
               <MoreVertical className="size-3.5" />

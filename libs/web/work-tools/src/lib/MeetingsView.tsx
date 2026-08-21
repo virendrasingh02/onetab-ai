@@ -21,7 +21,10 @@ import {
   UserAvatar,
 } from '@org/ui';
 import { cn, formatDateTime } from '@org/utils';
-import { useIntegrationMutations, useIntegrations } from '@org/web-integrations';
+import {
+  useIntegrationMutations,
+  useIntegrations,
+} from '@org/web-integrations';
 import {
   CalendarClock,
   Check,
@@ -134,7 +137,10 @@ const MEETING_APP_CATALOG: MeetingApp[] = [
 
 /** Every provider code the catalogue answers to. */
 const CATALOG_CODES = new Set(
-  MEETING_APP_CATALOG.flatMap((app) => [app.provider as string, ...(app.aliases ?? [])]),
+  MEETING_APP_CATALOG.flatMap((app) => [
+    app.provider as string,
+    ...(app.aliases ?? []),
+  ]),
 );
 
 /**
@@ -216,10 +222,10 @@ function MeetingAppCard({
   return (
     <Card className="p-5 flex flex-col justify-between">
       <div>
-        <div className="flex items-center gap-3 mb-3">
+        <div className="gap-3 mb-3 flex items-center">
           <span
             className={cn(
-              'size-10 flex items-center justify-center rounded-lg font-bold text-sm',
+              'size-10 font-bold text-sm flex items-center justify-center rounded-lg',
               accentClasses[app.accent].soft,
             )}
             aria-hidden
@@ -227,7 +233,9 @@ function MeetingAppCard({
             {app.name.charAt(0)}
           </span>
           <div>
-            <h4 className="text-sm font-semibold text-foreground">{app.name}</h4>
+            <h4 className="text-sm font-semibold text-foreground">
+              {app.name}
+            </h4>
             <p className="text-xs text-muted-foreground">
               {isInbuilt
                 ? 'Built-in native'
@@ -237,7 +245,7 @@ function MeetingAppCard({
             </p>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+        <p className="text-xs leading-relaxed mb-4 text-muted-foreground">
           {app.blurb}
         </p>
       </div>
@@ -253,7 +261,9 @@ function MeetingAppCard({
           className="w-full"
           loading={busy}
           onClick={onToggle}
-          leadingIcon={connected ? <Check className="text-success" /> : <Plus />}
+          leadingIcon={
+            connected ? <Check className="text-success" /> : <Plus />
+          }
         >
           {connected ? 'Disconnect' : 'Connect app'}
         </Button>
@@ -346,7 +356,8 @@ export function MeetingsView() {
     () =>
       [...connectedProviders]
         .filter(
-          (code) => !CATALOG_CODES.has(code) && MEETING_PROVIDER_HINT.test(code),
+          (code) =>
+            !CATALOG_CODES.has(code) && MEETING_PROVIDER_HINT.test(code),
         )
         .sort()
         .map((code) => ({
@@ -371,30 +382,38 @@ export function MeetingsView() {
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="min-h-0 flex flex-1 flex-col">
       {/* Channel-style Header */}
       <div className="border-b border-border bg-background">
-        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="flex min-w-0 items-center gap-1.5">
-              <Video className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-              <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+        <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
+          <div className="min-w-0 gap-2 flex items-center">
+            <div className="min-w-0 gap-1.5 flex items-center">
+              <Video
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
                 Meetings & Huddles
               </h2>
-              <Badge variant="neutral" className="text-[11px] px-1.5 py-0 h-4.5">
+              {/* <Badge variant="neutral" className="text-[11px] px-1.5 py-0 h-4.5">
                 {liveMeetings.length > 0 ? `${liveMeetings.length} live` : `${meetings.length} scheduled`}
-              </Badge>
+              </Badge> */}
             </div>
 
-            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
+            {/* <div className="h-4 mx-1 sm:block hidden w-px bg-border" />
 
-            <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
+            <p className="min-w-0 text-xs sm:block hidden max-w-[48ch] truncate text-muted-foreground">
               Workspace calendar meetings and native Matrix video/audio huddles
-            </p>
+            </p> */}
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button size="sm" className="h-7 text-xs gap-1" leadingIcon={<Plus className="size-3.5" />} disabled>
+          <div className="gap-2 flex items-center">
+            <Button
+              size="sm"
+              className="h-7 text-xs gap-1"
+              leadingIcon={<Plus className="size-3.5" />}
+              disabled
+            >
               Schedule meeting
             </Button>
           </div>
@@ -403,249 +422,293 @@ export function MeetingsView() {
         {/* Tab Navigation */}
         <div className="px-3 sm:px-6 border-t border-border/40 bg-surface-muted/30">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="h-9 bg-transparent border-b-0 p-0 gap-4">
+            <TabsList className="h-9 p-0 gap-4 border-b-0 bg-transparent">
               <TabsTrigger
                 value="all"
-                className="h-8 gap-1.5 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+                className="h-8 gap-1.5 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
               >
                 <Video className="size-3.5" />
                 <span>All meetings</span>
-                <Badge variant="neutral" className="text-[10px] px-1 py-0 h-3.5">{meetings.length}</Badge>
+                <Badge
+                  variant="neutral"
+                  className="px-1 py-0 h-3.5 text-[10px]"
+                >
+                  {meetings.length}
+                </Badge>
               </TabsTrigger>
               <TabsTrigger
                 value="live"
-                className="h-8 gap-1.5 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+                className="h-8 gap-1.5 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
               >
                 <Radio className="size-3.5 text-accent-teal" />
                 <span>Happening now</span>
-                <Badge variant="neutral" className="text-[10px] px-1 py-0 h-3.5">{liveMeetings.length}</Badge>
+                <Badge
+                  variant="neutral"
+                  className="px-1 py-0 h-3.5 text-[10px]"
+                >
+                  {liveMeetings.length}
+                </Badge>
               </TabsTrigger>
               <TabsTrigger
                 value="linked"
-                className="h-8 gap-1.5 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+                className="h-8 gap-1.5 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
               >
                 <Link2 className="size-3.5 text-accent-blue" />
                 <span>With a join link</span>
-                <Badge variant="neutral" className="text-[10px] px-1 py-0 h-3.5">{linkedMeetings.length}</Badge>
+                <Badge
+                  variant="neutral"
+                  className="px-1 py-0 h-3.5 text-[10px]"
+                >
+                  {linkedMeetings.length}
+                </Badge>
               </TabsTrigger>
               <TabsTrigger
                 value="apps-hub"
-                className="h-8 gap-1.5 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+                className="h-8 gap-1.5 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
               >
                 <Share2 className="size-3.5" />
                 <span>Meeting apps</span>
-                <Badge variant="neutral" className="text-[10px] px-1 py-0 h-3.5">{activeApps.length}</Badge>
+                <Badge
+                  variant="neutral"
+                  className="px-1 py-0 h-3.5 text-[10px]"
+                >
+                  {activeApps.length}
+                </Badge>
               </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-        <div className="mx-auto max-w-6xl space-y-6">
+      <div className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto">
+        <div className="max-w-6xl space-y-6 mx-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-
-        {/*
+            {/*
           One body shared by the three list tabs: they differ only in which
           events they show, and `visibleMeetings` has already applied that.
         */}
-        {(['all', 'live', 'linked'] as const).map((tab) => (
-          <TabsContent key={tab} value={tab} className="mt-4 space-y-4">
-          {events.isLoading ? (
-            <Panel>
-              <SkeletonList rows={4} />
-            </Panel>
-          ) : events.isError ? (
-            <Panel>
-              <EmptyState
-                icon={<TriangleAlert />}
-                title="Could not load meetings"
-                description="Something went wrong fetching the workspace calendar."
-                action={
-                  <Button variant="outline" onClick={() => void events.refetch()}>
-                    Try again
-                  </Button>
-                }
-              />
-            </Panel>
-          ) : visibleMeetings.length === 0 ? (
-            <Panel>
-              <EmptyState
-                icon={<CalendarClock />}
-                title="No meetings scheduled"
-                description={`Nothing on the calendar in the next ${HORIZON_DAYS} days.`}
-              />
-            </Panel>
-          ) : (
-            <div className="gap-4 grid sm:grid-cols-2 xl:grid-cols-3">
-              {visibleMeetings.map((event) => {
-                const joinUrl = joinUrlOf(event);
-                const live = isLive(event);
-
-                return (
-                  <Panel key={event.id} className="flex flex-col justify-between">
-                    <div>
-                      <div className="gap-2 flex items-start justify-between">
-                        <div className="min-w-0">
-                          <h3 className="text-sm font-semibold truncate text-foreground">
-                            {event.title}
-                          </h3>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {formatDateTime(event.startAt)} ·{' '}
-                            {durationLabel(event)}
-                          </p>
-                        </div>
-
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`Actions for ${event.title}`}
-                            >
-                              <MoreHorizontal className="size-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuItem
-                              onSelect={() =>
-                                void handleCreateDocFromMeeting(event)
-                              }
-                            >
-                              <FileText className="size-4 text-accent-blue" aria-hidden />
-                              Create meeting notes doc
-                            </DropdownMenuItem>
-                            {joinUrl ? (
-                              <DropdownMenuItem
-                                onSelect={() => {
-                                  void navigator.clipboard.writeText(joinUrl);
-                                }}
-                              >
-                                <Link2 className="size-4" aria-hidden />
-                                Copy join link
-                              </DropdownMenuItem>
-                            ) : null}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onSelect={() => remove.mutate(event.id)}
-                            >
-                              <Trash2 className="size-4" aria-hidden />
-                              Cancel meeting
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-
-                      {event.description ? (
-                        <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
-                          {event.description}
-                        </p>
-                      ) : null}
-
-                      <div className="mt-3 gap-2 flex flex-wrap items-center">
-                        {live ? (
-                          <Badge variant="destructive" className="animate-pulse">
-                            Live now
-                          </Badge>
-                        ) : (
-                          <Badge variant="neutral">Scheduled</Badge>
-                        )}
-                        <span className="gap-1.5 text-xs text-muted-foreground flex items-center">
-                          <UserAvatar
-                            name={
-                              event.organizer.displayName ?? event.organizer.name
-                            }
-                            src={event.organizer.avatarUrl}
-                            seed={event.organizer.id}
-                            size="xs"
-                          />
-                          Hosted by{' '}
-                          {event.organizer.displayName ?? event.organizer.name}
-                        </span>
-                      </div>
-                    </div>
-
-                    {joinUrl ? (
-                      <Button
-                        asChild
-                        className="mt-4 w-full"
-                        variant={live ? 'primary' : 'outline'}
-                      >
-                        <a href={joinUrl} target="_blank" rel="noreferrer">
-                          <ExternalLink className="size-4" aria-hidden />
-                          {live ? 'Join now' : 'Open meeting link'}
-                        </a>
-                      </Button>
-                    ) : (
-                      <p className="mt-4 text-center text-xs text-subtle">
-                        No join link on this event
-                      </p>
-                    )}
+            {(['all', 'live', 'linked'] as const).map((tab) => (
+              <TabsContent key={tab} value={tab} className="mt-4 space-y-4">
+                {events.isLoading ? (
+                  <Panel>
+                    <SkeletonList rows={4} />
                   </Panel>
-                );
-              })}
-            </div>
-          )}
-          </TabsContent>
-        ))}
+                ) : events.isError ? (
+                  <Panel>
+                    <EmptyState
+                      icon={<TriangleAlert />}
+                      title="Could not load meetings"
+                      description="Something went wrong fetching the workspace calendar."
+                      action={
+                        <Button
+                          variant="outline"
+                          onClick={() => void events.refetch()}
+                        >
+                          Try again
+                        </Button>
+                      }
+                    />
+                  </Panel>
+                ) : visibleMeetings.length === 0 ? (
+                  <Panel>
+                    <EmptyState
+                      icon={<CalendarClock />}
+                      title="No meetings scheduled"
+                      description={`Nothing on the calendar in the next ${HORIZON_DAYS} days.`}
+                    />
+                  </Panel>
+                ) : (
+                  <div className="gap-4 sm:grid-cols-2 xl:grid-cols-3 grid">
+                    {visibleMeetings.map((event) => {
+                      const joinUrl = joinUrlOf(event);
+                      const live = isLive(event);
 
-        <TabsContent value="apps-hub" className="mt-4 space-y-6">
-          <section className="space-y-3">
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">
-                Active in this workspace
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                The inbuilt huddle is always on. Everything else here is a
-                meeting or calendar app someone connected.
-              </p>
-            </div>
-            <div className="gap-4 grid md:grid-cols-2 xl:grid-cols-3">
-              {activeApps.map((app) => (
-                <MeetingAppCard
-                  key={app.id}
-                  app={app}
-                  connected
-                  busy={
-                    disconnect.isPending && disconnect.variables === app.provider
-                  }
-                  onToggle={() => disconnect.mutate(app.provider as string)}
-                />
-              ))}
-            </div>
-          </section>
+                      return (
+                        <Panel
+                          key={event.id}
+                          className="flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="gap-2 flex items-start justify-between">
+                              <div className="min-w-0">
+                                <h3 className="text-sm font-semibold truncate text-foreground">
+                                  {event.title}
+                                </h3>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  {formatDateTime(event.startAt)} ·{' '}
+                                  {durationLabel(event)}
+                                </p>
+                              </div>
 
-          {availableApps.length > 0 ? (
-            <section className="space-y-3">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">
-                  Available to connect
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Link one and its meetings show up on this page straight away.
-                </p>
-              </div>
-              <div className="gap-4 grid md:grid-cols-2 xl:grid-cols-3">
-                {availableApps.map((app) => (
-                  <MeetingAppCard
-                    key={app.id}
-                    app={app}
-                    connected={false}
-                    busy={
-                      connect.isPending &&
-                      connect.variables?.provider === app.provider
-                    }
-                    onToggle={() =>
-                      connect.mutate({ provider: app.provider as string })
-                    }
-                  />
-                ))}
-              </div>
-            </section>
-          ) : null}
-        </TabsContent>
-      </Tabs>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    aria-label={`Actions for ${event.title}`}
+                                  >
+                                    <MoreHorizontal className="size-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                  align="end"
+                                  className="w-56"
+                                >
+                                  <DropdownMenuItem
+                                    onSelect={() =>
+                                      void handleCreateDocFromMeeting(event)
+                                    }
+                                  >
+                                    <FileText
+                                      className="size-4 text-accent-blue"
+                                      aria-hidden
+                                    />
+                                    Create meeting notes doc
+                                  </DropdownMenuItem>
+                                  {joinUrl ? (
+                                    <DropdownMenuItem
+                                      onSelect={() => {
+                                        void navigator.clipboard.writeText(
+                                          joinUrl,
+                                        );
+                                      }}
+                                    >
+                                      <Link2 className="size-4" aria-hidden />
+                                      Copy join link
+                                    </DropdownMenuItem>
+                                  ) : null}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    variant="destructive"
+                                    onSelect={() => remove.mutate(event.id)}
+                                  >
+                                    <Trash2 className="size-4" aria-hidden />
+                                    Cancel meeting
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+
+                            {event.description ? (
+                              <p className="mt-2 text-xs line-clamp-2 text-muted-foreground">
+                                {event.description}
+                              </p>
+                            ) : null}
+
+                            <div className="mt-3 gap-2 flex flex-wrap items-center">
+                              {live ? (
+                                <Badge
+                                  variant="destructive"
+                                  className="animate-pulse"
+                                >
+                                  Live now
+                                </Badge>
+                              ) : (
+                                <Badge variant="neutral">Scheduled</Badge>
+                              )}
+                              <span className="gap-1.5 text-xs flex items-center text-muted-foreground">
+                                <UserAvatar
+                                  name={
+                                    event.organizer.displayName ??
+                                    event.organizer.name
+                                  }
+                                  src={event.organizer.avatarUrl}
+                                  seed={event.organizer.id}
+                                  size="xs"
+                                />
+                                Hosted by{' '}
+                                {event.organizer.displayName ??
+                                  event.organizer.name}
+                              </span>
+                            </div>
+                          </div>
+
+                          {joinUrl ? (
+                            <Button
+                              asChild
+                              className="mt-4 w-full"
+                              variant={live ? 'primary' : 'outline'}
+                            >
+                              <a
+                                href={joinUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <ExternalLink className="size-4" aria-hidden />
+                                {live ? 'Join now' : 'Open meeting link'}
+                              </a>
+                            </Button>
+                          ) : (
+                            <p className="mt-4 text-xs text-center text-subtle">
+                              No join link on this event
+                            </p>
+                          )}
+                        </Panel>
+                      );
+                    })}
+                  </div>
+                )}
+              </TabsContent>
+            ))}
+
+            <TabsContent value="apps-hub" className="mt-4 space-y-6">
+              <section className="space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Active in this workspace
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    The inbuilt huddle is always on. Everything else here is a
+                    meeting or calendar app someone connected.
+                  </p>
+                </div>
+                <div className="gap-4 md:grid-cols-2 xl:grid-cols-3 grid">
+                  {activeApps.map((app) => (
+                    <MeetingAppCard
+                      key={app.id}
+                      app={app}
+                      connected
+                      busy={
+                        disconnect.isPending &&
+                        disconnect.variables === app.provider
+                      }
+                      onToggle={() => disconnect.mutate(app.provider as string)}
+                    />
+                  ))}
+                </div>
+              </section>
+
+              {availableApps.length > 0 ? (
+                <section className="space-y-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">
+                      Available to connect
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Link one and its meetings show up on this page straight
+                      away.
+                    </p>
+                  </div>
+                  <div className="gap-4 md:grid-cols-2 xl:grid-cols-3 grid">
+                    {availableApps.map((app) => (
+                      <MeetingAppCard
+                        key={app.id}
+                        app={app}
+                        connected={false}
+                        busy={
+                          connect.isPending &&
+                          connect.variables?.provider === app.provider
+                        }
+                        onToggle={() =>
+                          connect.mutate({ provider: app.provider as string })
+                        }
+                      />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>

@@ -66,8 +66,8 @@ function ThreadList({
 
         return (
           <li key={thread.id}>
-            <Card className="p-4 bg-surface hover:border-border-strong transition-colors flex items-start justify-between gap-4 group">
-              <div className="flex items-start gap-3 min-w-0 flex-1">
+            <Card className="p-4 gap-4 group flex items-start justify-between bg-surface transition-colors hover:border-border-strong">
+              <div className="gap-3 min-w-0 flex flex-1 items-start">
                 <UserAvatar
                   name={thread.authorName}
                   src={thread.root?.senderAvatarUrl}
@@ -81,7 +81,7 @@ function ThreadList({
                     </span>
                     <Link
                       to={channelLink}
-                      className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                      className="gap-1 font-medium inline-flex items-center text-[11px] text-muted-foreground hover:text-foreground"
                     >
                       <Badge
                         variant="outline"
@@ -92,12 +92,12 @@ function ThreadList({
                       </Badge>
                     </Link>
                     {thread.hasUnread ? (
-                      <Badge variant="primary" className="text-[10px] py-0 h-4">
+                      <Badge variant="primary" className="py-0 h-4 text-[10px]">
                         Unread
                       </Badge>
                     ) : null}
                     {thread.lastReplyAt ? (
-                      <span className="text-[11px] text-muted-foreground font-mono">
+                      <span className="font-mono text-[11px] text-muted-foreground">
                         · last reply{' '}
                         {formatRelative(
                           new Date(thread.lastReplyAt).toISOString(),
@@ -106,10 +106,10 @@ function ThreadList({
                     ) : null}
                   </div>
 
-                  <p className="mt-2 text-xs sm:text-sm font-medium line-clamp-2 text-foreground leading-relaxed">
+                  <p className="mt-2 text-xs sm:text-sm font-medium leading-relaxed line-clamp-2 text-foreground">
                     {thread.title}
                   </p>
-                  <p className="mt-1.5 text-[10px] text-subtle font-mono">
+                  <p className="mt-1.5 font-mono text-[10px] text-subtle">
                     {thread.replyCount}{' '}
                     {thread.replyCount === 1 ? 'reply' : 'replies'} in
                     conversation
@@ -161,7 +161,7 @@ export function ThreadsView() {
   return (
     <div className="min-h-0 flex flex-1 flex-col">
       {/* Channel-style Header (Inbox & Saved style) */}
-      <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/95 backdrop-blur-md">
+      <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
         <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
           <div className="min-w-0 gap-2 flex items-center">
             <div className="min-w-0 gap-1.5 flex items-center">
@@ -172,19 +172,19 @@ export function ThreadsView() {
               <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
                 Threads
               </h2>
-              <Badge
+              {/* <Badge
                 variant={threads.length > 0 ? 'primary' : 'neutral'}
                 className="px-1.5 py-0 h-4.5 text-[11px]"
               >
                 {threads.length > 0 ? `${threads.length} threads` : '0 threads'}
-              </Badge>
+              </Badge> */}
             </div>
 
-            <div className="h-4 mx-1 sm:block hidden w-px bg-border" />
+            {/* <div className="h-4 mx-1 sm:block hidden w-px bg-border" />
 
             <p className="min-w-0 text-xs sm:block hidden max-w-[48ch] truncate text-muted-foreground">
               Follow-up conversations from every channel you are in
-            </p>
+            </p> */}
           </div>
 
           <div className="gap-2 flex items-center">

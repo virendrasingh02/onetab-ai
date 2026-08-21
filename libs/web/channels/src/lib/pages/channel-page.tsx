@@ -710,7 +710,7 @@ export function ChannelPage() {
         onValueChange={setActiveTab}
         className="min-h-0 flex flex-1 flex-col"
       >
-        <div className="px-3 sm:px-6 pt-2 gap-1 flex items-center border-b border-border bg-background">
+        <div className="px-3 sm:px-6 py-1 gap-1 flex items-center border-b border-border bg-background">
           <TabsList className="scrollbar-none overflow-x-auto">
             <TabsTrigger value="chat" className="gap-1.5">
               <MessageSquare className="size-4" /> Messages
