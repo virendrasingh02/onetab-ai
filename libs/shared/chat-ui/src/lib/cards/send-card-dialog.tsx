@@ -39,7 +39,20 @@ export interface SendCardDialogProps {
 }
 
 export function SendCardDialog({ open, onOpenChange, onSendCard }: SendCardDialogProps) {
-  const cards = useCardRegistryStore((s) => Object.values(s.cards).filter((c) => c.status !== 'archived'));
+  /*
+   * Selected as the raw map, not `Object.values(...).filter(...)` inline: a
+   * zustand selector's result is compared by reference, and building a new
+   * array on every call — even when `s.cards` hasn't changed — never
+   * compares equal to the last one. That forces another render, which calls
+   * the selector again, which builds another new array: an infinite loop.
+   * Deriving the filtered list with `useMemo` below keeps it array-shaped
+   * only when `cardsById` itself actually changes.
+   */
+  const cardsById = useCardRegistryStore((s) => s.cards);
+  const cards = useMemo(
+    () => Object.values(cardsById).filter((c) => c.status !== 'archived'),
+    [cardsById],
+  );
   const [selectedCardId, setSelectedCardId] = useState<string>(cards[0]?.cardId || 'crm-lead');
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');

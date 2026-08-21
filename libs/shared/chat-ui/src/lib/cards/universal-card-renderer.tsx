@@ -74,6 +74,16 @@ export interface UniversalCardRendererProps {
   isInteractive?: boolean;
 }
 
+/*
+ * A stable reference for the "no data passed" case. `data = {}` as a default
+ * parameter looks equivalent but isn't: a default expression re-evaluates on
+ * every call, so an omitted `data` prop would hand the effect below a brand
+ * new object on every render — including the render its own `setLocalData`
+ * causes — which never lets the `[data]` dependency see two equal values in a
+ * row. That is an unconditional infinite render loop, not just a wasted one.
+ */
+const EMPTY_CARD_DATA: Record<string, unknown> = {};
+
 // Icon helper map
 const ICON_MAP: Record<string, React.ElementType> = {
   Building2,
@@ -112,7 +122,7 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
   cardId,
   version,
   cardDefinition,
-  data = {},
+  data = EMPTY_CARD_DATA,
   context,
   isHighlighted = false,
   onAction,
@@ -132,7 +142,22 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
 
   // Sync data updates from parent
   React.useEffect(() => {
-    setLocalData((prev) => ({ ...prev, ...data }));
+    if (data === EMPTY_CARD_DATA) return;
+    setLocalData((prev) => {
+      const merged = { ...prev, ...data };
+      // Bail out when nothing actually changed: an unconditional setState
+      // here would re-render every time the caller passes a fresh-but-equal
+      // `data` object (e.g. an inline literal), and that re-render is exactly
+      // what feeds the next "changed" `data` back into this effect.
+      const keys = Object.keys(merged);
+      if (
+        keys.length === Object.keys(prev).length &&
+        keys.every((key) => merged[key] === prev[key])
+      ) {
+        return prev;
+      }
+      return merged;
+    });
   }, [data]);
 
   const handleFieldUpdate = (fieldName: string, value: unknown) => {
