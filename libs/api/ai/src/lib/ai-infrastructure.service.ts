@@ -31,6 +31,8 @@ export interface ChatCompletionOptions {
   structuredOutput?: Record<string, unknown>;
   provider?: AIProvider;
   signal?: AbortSignal;
+  apiKey?: string;
+  baseUrl?: string;
 }
 
 export interface VectorEmbedding {
@@ -208,6 +210,8 @@ export class AIInfrastructureService implements OnModuleInit {
         tools: options.tools,
         structuredOutput: options.structuredOutput,
         signal: options.signal,
+        apiKey: options.apiKey,
+        baseUrl: options.baseUrl,
       });
 
       return {
@@ -250,6 +254,8 @@ export class AIInfrastructureService implements OnModuleInit {
       tools: options.tools,
       structuredOutput: options.structuredOutput,
       signal: options.signal,
+      apiKey: options.apiKey,
+      baseUrl: options.baseUrl,
     });
   }
 

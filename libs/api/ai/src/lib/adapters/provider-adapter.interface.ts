@@ -16,6 +16,8 @@ export interface ChatExecutionOptions {
   tools?: Array<Record<string, unknown>>;
   structuredOutput?: Record<string, unknown>;
   signal?: AbortSignal;
+  apiKey?: string;
+  baseUrl?: string;
 }
 
 export interface ProviderValidationResult {

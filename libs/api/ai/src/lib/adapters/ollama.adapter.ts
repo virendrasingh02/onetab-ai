@@ -68,7 +68,12 @@ export class OllamaAdapter extends BaseProviderAdapter {
   }
 
   async chat(options: ChatExecutionOptions): Promise<AIChatResponse> {
-    const endpoint = `${this.baseUrl}/api/chat`;
+    const baseUrl = (
+      options.baseUrl?.trim() ||
+      this.baseUrl ||
+      'http://localhost:11434'
+    ).replace(/\/+$/, '');
+    const endpoint = `${baseUrl}/api/chat`;
     const requestPayload = {
       model: options.model,
       messages: options.messages.map((m) => ({

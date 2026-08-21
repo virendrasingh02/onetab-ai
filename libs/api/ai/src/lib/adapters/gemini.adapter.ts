@@ -133,8 +133,14 @@ export class GeminiAdapter extends BaseProviderAdapter {
   }
 
   async chat(options: ChatExecutionOptions): Promise<AIChatResponse> {
-    const configCheck = this.validateConfig();
-    if (!configCheck.valid) {
+    const apiKey = options.apiKey?.trim() || this.apiKey;
+    const baseUrl = (
+      options.baseUrl?.trim() ||
+      this.baseUrl ||
+      'https://generativelanguage.googleapis.com/v1beta'
+    ).replace(/\/+$/, '');
+
+    if (!apiKey) {
       throw new UnauthorizedException({
         statusCode: HttpStatus.UNAUTHORIZED,
         error: 'AI_PROVIDER_AUTH_ERROR',
@@ -151,7 +157,7 @@ export class GeminiAdapter extends BaseProviderAdapter {
       parts: [{ text: m.content }],
     }));
 
-    const endpoint = `${this.baseUrl}/models/${options.model}:generateContent?key=${this.apiKey}`;
+    const endpoint = `${baseUrl}/models/${options.model}:generateContent?key=${apiKey}`;
     const requestPayload: Record<string, unknown> = {
       contents,
       ...(systemPrompt
@@ -237,8 +243,14 @@ export class GeminiAdapter extends BaseProviderAdapter {
   async *stream(
     options: ChatExecutionOptions
   ): AsyncGenerator<AIStreamEvent, void, unknown> {
-    const configCheck = this.validateConfig();
-    if (!configCheck.valid) {
+    const apiKey = options.apiKey?.trim() || this.apiKey;
+    const baseUrl = (
+      options.baseUrl?.trim() ||
+      this.baseUrl ||
+      'https://generativelanguage.googleapis.com/v1beta'
+    ).replace(/\/+$/, '');
+
+    if (!apiKey) {
       yield {
         type: 'error',
         error: {
@@ -264,7 +276,7 @@ export class GeminiAdapter extends BaseProviderAdapter {
       parts: [{ text: m.content }],
     }));
 
-    const endpoint = `${this.baseUrl}/models/${options.model}:streamGenerateContent?alt=sse&key=${this.apiKey}`;
+    const endpoint = `${baseUrl}/models/${options.model}:streamGenerateContent?alt=sse&key=${apiKey}`;
     const requestPayload: Record<string, unknown> = {
       contents,
       ...(systemPrompt

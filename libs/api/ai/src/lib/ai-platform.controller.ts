@@ -144,8 +144,9 @@ export class AIPlatformController {
   }
 
   @Post('chat')
-  chat(
-    @WorkspaceId() _workspaceId: string,
+  async chat(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser() user: AuthenticatedUser | undefined,
     @Body()
     body: {
       messages: ChatMessage[];
@@ -158,12 +159,22 @@ export class AIPlatformController {
       structuredOutput?: Record<string, unknown>;
     }
   ) {
-    return this.aiService.chat(body);
+    const provider = body.provider || 'nvidia';
+    const cred = await this.credentialService.resolveCredential(provider, {
+      workspaceId,
+      userId: user?.id,
+    });
+    return this.aiService.chat({
+      ...body,
+      apiKey: cred.apiKey,
+      baseUrl: cred.baseUrl,
+    });
   }
 
   @Post('stream')
   async stream(
-    @WorkspaceId() _workspaceId: string,
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser() user: AuthenticatedUser | undefined,
     @Body()
     body: {
       messages: ChatMessage[];
@@ -182,7 +193,16 @@ export class AIPlatformController {
     res.setHeader('X-Accel-Buffering', 'no');
 
     try {
-      for await (const event of this.aiService.streamChat(body)) {
+      const provider = body.provider || 'nvidia';
+      const cred = await this.credentialService.resolveCredential(provider, {
+        workspaceId,
+        userId: user?.id,
+      });
+      for await (const event of this.aiService.streamChat({
+        ...body,
+        apiKey: cred.apiKey,
+        baseUrl: cred.baseUrl,
+      })) {
         res.write(`data: ${JSON.stringify(event)}\n\n`);
       }
     } catch (err: unknown) {

@@ -130,8 +130,14 @@ export class CohereAdapter extends BaseProviderAdapter {
   }
 
   async chat(options: ChatExecutionOptions): Promise<AIChatResponse> {
-    const configCheck = this.validateConfig();
-    if (!configCheck.valid) {
+    const apiKey = options.apiKey?.trim() || this.apiKey;
+    const baseUrl = (
+      options.baseUrl?.trim() ||
+      this.baseUrl ||
+      'https://api.cohere.com/v2'
+    ).replace(/\/+$/, '');
+
+    if (!apiKey) {
       throw new UnauthorizedException({
         statusCode: HttpStatus.UNAUTHORIZED,
         error: 'AI_PROVIDER_AUTH_ERROR',
@@ -139,7 +145,7 @@ export class CohereAdapter extends BaseProviderAdapter {
       });
     }
 
-    const endpoint = `${this.baseUrl}/chat`;
+    const endpoint = `${baseUrl}/chat`;
     const messages = options.messages.map((m) => ({
       role: m.role === 'assistant' ? 'assistant' : m.role === 'system' ? 'system' : 'user',
       content: m.content,
@@ -163,7 +169,7 @@ export class CohereAdapter extends BaseProviderAdapter {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify(requestPayload),
         signal: controller.signal,

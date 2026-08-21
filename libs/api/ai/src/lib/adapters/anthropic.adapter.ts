@@ -133,8 +133,14 @@ export class AnthropicAdapter extends BaseProviderAdapter {
   }
 
   async chat(options: ChatExecutionOptions): Promise<AIChatResponse> {
-    const configCheck = this.validateConfig();
-    if (!configCheck.valid) {
+    const apiKey = options.apiKey?.trim() || this.apiKey;
+    const baseUrl = (
+      options.baseUrl?.trim() ||
+      this.baseUrl ||
+      'https://api.anthropic.com/v1'
+    ).replace(/\/+$/, '');
+
+    if (!apiKey) {
       throw new UnauthorizedException({
         statusCode: HttpStatus.UNAUTHORIZED,
         error: 'AI_PROVIDER_AUTH_ERROR',
@@ -152,7 +158,7 @@ export class AnthropicAdapter extends BaseProviderAdapter {
       modelId = 'claude-3-5-sonnet-20241022';
     }
 
-    const endpoint = `${this.baseUrl}/messages`;
+    const endpoint = `${baseUrl}/messages`;
     const requestPayload: Record<string, unknown> = {
       model: modelId,
       max_tokens: options.maxTokens ?? 4096,
@@ -184,7 +190,7 @@ export class AnthropicAdapter extends BaseProviderAdapter {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': this.apiKey as string,
+          'x-api-key': apiKey,
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify(requestPayload),
@@ -266,8 +272,14 @@ export class AnthropicAdapter extends BaseProviderAdapter {
   async *stream(
     options: ChatExecutionOptions
   ): AsyncGenerator<AIStreamEvent, void, unknown> {
-    const configCheck = this.validateConfig();
-    if (!configCheck.valid) {
+    const apiKey = options.apiKey?.trim() || this.apiKey;
+    const baseUrl = (
+      options.baseUrl?.trim() ||
+      this.baseUrl ||
+      'https://api.anthropic.com/v1'
+    ).replace(/\/+$/, '');
+
+    if (!apiKey) {
       yield {
         type: 'error',
         error: {
@@ -293,7 +305,7 @@ export class AnthropicAdapter extends BaseProviderAdapter {
     const systemPrompt = systemMessages.map((m) => m.content).join('\n\n');
     const nonSystemMessages = options.messages.filter((m) => m.role !== 'system');
 
-    const endpoint = `${this.baseUrl}/messages`;
+    const endpoint = `${baseUrl}/messages`;
     const requestPayload: Record<string, unknown> = {
       model: modelId,
       max_tokens: options.maxTokens ?? 4096,
@@ -310,7 +322,7 @@ export class AnthropicAdapter extends BaseProviderAdapter {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': this.apiKey as string,
+          'x-api-key': apiKey,
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify(requestPayload),

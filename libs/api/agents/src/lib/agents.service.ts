@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@org/database';
-import { AIInfrastructureService } from '@org/api-ai';
+import { AICredentialService, AIInfrastructureService } from '@org/api-ai';
+import type { AIProvider } from '@org/types';
 import { MCPToolRegistryService } from './mcp-tool-registry.service.js';
 
 /**
@@ -17,6 +18,7 @@ export class AgentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AIInfrastructureService,
+    private readonly credentialService: AICredentialService,
     private readonly mcpRegistry: MCPToolRegistryService
   ) {}
 
@@ -115,9 +117,16 @@ export class AgentsService {
     const availableTools = this.mcpRegistry.getToolDefinitions();
     const systemPrompt = `${agent.systemPrompt}\n\nWorkspace ID: ${workspaceId}\n\nYou have access to the following workspace tools:\n${availableTools.map((t) => `- ${t.name}: ${t.description}`).join('\n')}`;
 
+    const provider = (agent.provider as AIProvider) || 'nvidia';
+    const cred = await this.credentialService.resolveCredential(provider, {
+      workspaceId,
+    });
+
     const chatResult = await this.aiService.chat({
-      provider: (agent.provider as any) || undefined,
+      provider,
       model: agent.model || undefined,
+      apiKey: cred.apiKey,
+      baseUrl: cred.baseUrl,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: promptText },

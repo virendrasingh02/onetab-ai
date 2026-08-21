@@ -132,8 +132,14 @@ export class OpenRouterAdapter extends BaseProviderAdapter {
   }
 
   async chat(options: ChatExecutionOptions): Promise<AIChatResponse> {
-    const configCheck = this.validateConfig();
-    if (!configCheck.valid) {
+    const apiKey = options.apiKey?.trim() || this.apiKey;
+    const baseUrl = (
+      options.baseUrl?.trim() ||
+      this.baseUrl ||
+      'https://openrouter.ai/api/v1'
+    ).replace(/\/+$/, '');
+
+    if (!apiKey) {
       throw new UnauthorizedException({
         statusCode: HttpStatus.UNAUTHORIZED,
         error: 'AI_PROVIDER_AUTH_ERROR',
@@ -141,7 +147,7 @@ export class OpenRouterAdapter extends BaseProviderAdapter {
       });
     }
 
-    const endpoint = `${this.baseUrl}/chat/completions`;
+    const endpoint = `${baseUrl}/chat/completions`;
     const requestPayload: Record<string, unknown> = {
       model: options.model,
       messages: options.messages.map((m) => ({
@@ -170,7 +176,7 @@ export class OpenRouterAdapter extends BaseProviderAdapter {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
           'HTTP-Referer': 'https://onetab.ai',
           'X-Title': 'OneTab AI',
         },
@@ -238,8 +244,14 @@ export class OpenRouterAdapter extends BaseProviderAdapter {
   async *stream(
     options: ChatExecutionOptions
   ): AsyncGenerator<AIStreamEvent, void, unknown> {
-    const configCheck = this.validateConfig();
-    if (!configCheck.valid) {
+    const apiKey = options.apiKey?.trim() || this.apiKey;
+    const baseUrl = (
+      options.baseUrl?.trim() ||
+      this.baseUrl ||
+      'https://openrouter.ai/api/v1'
+    ).replace(/\/+$/, '');
+
+    if (!apiKey) {
       yield {
         type: 'error',
         error: {
@@ -256,7 +268,7 @@ export class OpenRouterAdapter extends BaseProviderAdapter {
       model: options.model,
     };
 
-    const endpoint = `${this.baseUrl}/chat/completions`;
+    const endpoint = `${baseUrl}/chat/completions`;
     const requestPayload: Record<string, unknown> = {
       model: options.model,
       messages: options.messages.map((m) => ({
@@ -275,7 +287,7 @@ export class OpenRouterAdapter extends BaseProviderAdapter {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
           'HTTP-Referer': 'https://onetab.ai',
           'X-Title': 'OneTab AI',
         },

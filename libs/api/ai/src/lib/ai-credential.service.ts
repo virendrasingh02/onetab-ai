@@ -567,6 +567,8 @@ export class AICredentialService {
         messages: [{ role: 'user', content: 'Ping' }],
         maxTokens: 5,
         temperature: 0.1,
+        apiKey: cred.apiKey,
+        baseUrl: cred.baseUrl,
       });
 
       const latencyMs = Date.now() - startTime;

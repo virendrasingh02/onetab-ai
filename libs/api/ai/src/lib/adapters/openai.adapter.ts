@@ -159,8 +159,14 @@ export class OpenAIAdapter extends BaseProviderAdapter {
   }
 
   async chat(options: ChatExecutionOptions): Promise<AIChatResponse> {
-    const configCheck = this.validateConfig();
-    if (!configCheck.valid) {
+    const apiKey = options.apiKey?.trim() || this.apiKey;
+    const baseUrl = (
+      options.baseUrl?.trim() ||
+      this.baseUrl ||
+      'https://api.openai.com/v1'
+    ).replace(/\/+$/, '');
+
+    if (!apiKey) {
       throw new UnauthorizedException({
         statusCode: HttpStatus.UNAUTHORIZED,
         error: 'AI_PROVIDER_AUTH_ERROR',
@@ -168,7 +174,7 @@ export class OpenAIAdapter extends BaseProviderAdapter {
       });
     }
 
-    const endpoint = `${this.baseUrl}/chat/completions`;
+    const endpoint = `${baseUrl}/chat/completions`;
     const isOModel = options.model.startsWith('o1') || options.model.startsWith('o3');
 
     const requestPayload: Record<string, unknown> = {
@@ -210,7 +216,7 @@ export class OpenAIAdapter extends BaseProviderAdapter {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify(requestPayload),
         signal: controller.signal,
@@ -276,8 +282,14 @@ export class OpenAIAdapter extends BaseProviderAdapter {
   async *stream(
     options: ChatExecutionOptions
   ): AsyncGenerator<AIStreamEvent, void, unknown> {
-    const configCheck = this.validateConfig();
-    if (!configCheck.valid) {
+    const apiKey = options.apiKey?.trim() || this.apiKey;
+    const baseUrl = (
+      options.baseUrl?.trim() ||
+      this.baseUrl ||
+      'https://api.openai.com/v1'
+    ).replace(/\/+$/, '');
+
+    if (!apiKey) {
       yield {
         type: 'error',
         error: {
@@ -294,7 +306,7 @@ export class OpenAIAdapter extends BaseProviderAdapter {
       model: options.model,
     };
 
-    const endpoint = `${this.baseUrl}/chat/completions`;
+    const endpoint = `${baseUrl}/chat/completions`;
     const requestPayload: Record<string, unknown> = {
       model: options.model,
       messages: options.messages.map((m) => ({
@@ -317,7 +329,7 @@ export class OpenAIAdapter extends BaseProviderAdapter {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify(requestPayload),
         signal: options.signal,
