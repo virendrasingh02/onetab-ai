@@ -47,6 +47,7 @@ import {
   type Thread,
   type Timeline,
   type VerificationRequestSummary,
+  type StructuredChatMessage,
 } from './types.js';
 
 export interface MatrixClientOptions {
@@ -370,7 +371,14 @@ export class OneTabMatrixClient {
     sdk.on(RoomEvent.Timeline, (event, room, toStartOfTimeline) => {
       // Backfill is delivered through pagination, not the live stream.
       if (toStartOfTimeline || !room) return;
-      if (event.getType() !== 'm.room.message') return;
+      const type = event.getType();
+      if (
+        type !== 'm.room.message' &&
+        !type.startsWith('mie.') &&
+        !type.startsWith('org.onetab.')
+      ) {
+        return;
+      }
 
       const message = toMessage(sdk, event, room);
       if (message) {
@@ -611,7 +619,14 @@ export class OneTabMatrixClient {
 
     const messages = timeline
       .getEvents()
-      .filter((event) => event.getType() === 'm.room.message')
+      .filter((event) => {
+        const type = event.getType();
+        return (
+          type === 'm.room.message' ||
+          type.startsWith('mie.') ||
+          type.startsWith('org.onetab.')
+        );
+      })
       .map((event) => toMessage(sdk, event, room))
       .filter((message): message is Message => message !== null);
 
@@ -646,7 +661,14 @@ export class OneTabMatrixClient {
 
     return {
       messages: added
-        .filter((event) => event.getType() === 'm.room.message')
+        .filter((event) => {
+          const type = event.getType();
+          return (
+            type === 'm.room.message' ||
+            type.startsWith('mie.') ||
+            type.startsWith('org.onetab.')
+          );
+        })
         .map((event) => toMessage(sdk, event, room))
         .filter((message): message is Message => message !== null),
       paginationToken: timeline.getPaginationToken(Direction.Backward),
@@ -655,6 +677,106 @@ export class OneTabMatrixClient {
   }
 
   // --- messages ------------------------------------------------------------
+
+  /**
+   * Sends a structured application message (AI Agent response, App card, Approval, Form, Workflow, etc.)
+   */
+  async sendStructuredMessage(
+    roomId: RoomId,
+    structuredEvent: StructuredChatMessage,
+    options: {
+      threadRootId?: EventId;
+      replyToId?: EventId;
+      fallbackBody?: string;
+    } = {},
+  ): Promise<string> {
+    const sdk = this.require();
+    const transactionId = `m.${Date.now()}.${Math.random().toString(36).slice(2)}`;
+    const fallbackBody =
+      options.fallbackBody ||
+      (structuredEvent.type === 'mie.ai.agent'
+        ? structuredEvent.responseText ||
+          structuredEvent.summary ||
+          'AI Agent Response'
+        : structuredEvent.type === 'mie.app.response'
+          ? structuredEvent.title || 'App Response'
+          : structuredEvent.type === 'mie.approval'
+            ? `Approval Required: ${structuredEvent.title}`
+            : structuredEvent.type === 'mie.form'
+              ? `Form: ${structuredEvent.title}`
+              : structuredEvent.type === 'mie.workflow'
+                ? `Workflow: ${structuredEvent.title}`
+                : 'Application Message');
+
+    const content: Record<string, unknown> = {
+      msgtype: structuredEvent.type,
+      body: fallbackBody,
+      mie_event: structuredEvent,
+      [structuredEvent.type]: structuredEvent,
+      'org.onetab.structured_event': structuredEvent,
+      ...(options.replyToId
+        ? {
+            'm.relates_to': {
+              'm.in_reply_to': { event_id: options.replyToId },
+            },
+          }
+        : {}),
+    };
+
+    await withRetry(() =>
+      sdk.sendMessage(
+        roomId,
+        options.threadRootId ?? null,
+        content as never,
+        transactionId,
+      ),
+    );
+
+    return transactionId;
+  }
+
+  /**
+   * Updates an existing structured message in place (e.g. agent execution status running -> completed, approval pending -> approved, form submission).
+   */
+  async updateStructuredMessage(
+    roomId: RoomId,
+    eventId: EventId,
+    structuredEvent: StructuredChatMessage,
+    options: {
+      fallbackBody?: string;
+    } = {},
+  ): Promise<void> {
+    const sdk = this.require();
+    const fallbackBody =
+      options.fallbackBody ||
+      (structuredEvent.type === 'mie.ai.agent'
+        ? structuredEvent.responseText ||
+          structuredEvent.summary ||
+          'AI Agent Response'
+        : structuredEvent.type === 'mie.app.response'
+          ? structuredEvent.title || 'App Response'
+          : structuredEvent.type === 'mie.approval'
+            ? `Approval [${structuredEvent.status}]: ${structuredEvent.title}`
+            : 'Application Message');
+
+    await withRetry(() =>
+      sdk.sendMessage(roomId, {
+        msgtype: structuredEvent.type,
+        body: `* ${fallbackBody}`,
+        mie_event: structuredEvent,
+        [structuredEvent.type]: structuredEvent,
+        'org.onetab.structured_event': structuredEvent,
+        'm.new_content': {
+          msgtype: structuredEvent.type,
+          body: fallbackBody,
+          mie_event: structuredEvent,
+          [structuredEvent.type]: structuredEvent,
+          'org.onetab.structured_event': structuredEvent,
+        },
+        'm.relates_to': { rel_type: 'm.replace', event_id: eventId },
+      } as never),
+    );
+  }
 
   /**
    * Sends a text message.

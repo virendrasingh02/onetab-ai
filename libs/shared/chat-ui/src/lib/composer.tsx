@@ -14,6 +14,8 @@ import {
   ChevronDown,
   Clock,
   Film,
+  LayoutGrid,
+  Paperclip,
   Plus,
   Send,
   Slash,
@@ -21,6 +23,7 @@ import {
   Video,
 } from 'lucide-react';
 import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { SendCardDialog } from './cards/send-card-dialog.js';
 import { DiscordEmojiGifPicker } from './discord-emoji-gif-picker.js';
 import {
   LexicalComposerInput,
@@ -157,6 +160,7 @@ export interface ComposerProps {
   onSchedule?: (body: string, when: string) => void;
   onStartHuddle?: () => void;
   onRecordClip?: () => void;
+  onSendCard?: (cardId: string, version: number, data: Record<string, unknown>) => void | Promise<void>;
 }
 
 /**
@@ -181,11 +185,13 @@ export function Composer({
   slashCommands = DEFAULT_SLASH_COMMANDS,
   onSchedule,
   onStartHuddle,
+  onSendCard,
 }: ComposerProps) {
   const [pickerState, setPickerState] = useState<{
     open: boolean;
     tab: 'emoji' | 'gif';
   }>({ open: false, tab: 'emoji' });
+  const [sendCardOpen, setSendCardOpen] = useState(false);
 
   const lexicalRef = useRef<LexicalEditorRef | null>(null);
   const fileInputId = useId();
@@ -264,6 +270,16 @@ export function Composer({
                 event.target.value = '';
               }}
             />
+
+            <Hint label="Send Universal Card">
+              <button
+                type="button"
+                onClick={() => setSendCardOpen(true)}
+                className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              >
+                <LayoutGrid className="size-4 text-primary" />
+              </button>
+            </Hint>
 
             <span className="mx-1 h-4 w-px bg-accent/50" />
 
@@ -413,6 +429,19 @@ export function Composer({
           emoji · markdown as you type
         </span>
       </div>
+
+      <SendCardDialog
+        open={sendCardOpen}
+        onOpenChange={setSendCardOpen}
+        onSendCard={async (cardId, version, data) => {
+          if (onSendCard) {
+            await onSendCard(cardId, version, data);
+          } else {
+            // Text fallback if onSendCard not directly attached
+            await onSend(`Sent card: ${cardId} (v${version})`);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import {
   AttachmentRenderer,
-  ChatBubble,
   ChatHeader,
   ChatLayout,
   ChannelWelcome,
@@ -9,12 +8,13 @@ import {
   HuddleBar,
   MemberList,
   MessageList,
+  MessageRenderer,
   PinnedPanel,
   ThreadListPanel,
   ThreadPanel,
   TypingIndicator,
 } from '@org/chat-ui';
-import type { Message, PresenceState, RoomMember } from '@org/matrix-client';
+import type { Message, PresenceState, RoomMember, StructuredMessageAction } from '@org/matrix-client';
 import {
   Badge,
   Button,
@@ -138,6 +138,12 @@ export interface ChatSurfaceProps {
   onCreateDoc?: (message: Message) => void;
   onAskAI?: (message: Message) => void;
   onSchedule?: (body: string, when: string) => void;
+  onAction?: (
+    message: Message,
+    action: StructuredMessageAction,
+  ) => void | Promise<void>;
+  onRetryAgent?: (message: Message) => void | Promise<void>;
+  onSendCard?: (cardId: string, version: number, data: Record<string, unknown>) => void | Promise<void>;
 }
 
 export function ChatSurface({
@@ -177,6 +183,8 @@ export function ChatSurface({
   onCreateDoc,
   onAskAI,
   onSchedule,
+  onAction,
+  onRetryAgent,
 }: ChatSurfaceProps) {
   const [panel, setPanel] = useState<SidePanel>('none');
   const [threadRootId, setThreadRootId] = useState<string | null>(null);
@@ -300,7 +308,7 @@ export function ChatSurface({
       const replies = repliesByRoot.get(message.id) ?? [];
 
       return (
-        <ChatBubble
+        <MessageRenderer
           message={message}
           isOwn={message.senderId === myUserId}
           isGrouped={grouped}
@@ -321,7 +329,7 @@ export function ChatSurface({
           }
           onReact={
             onReact
-              ? (key) =>
+              ? (key: string) =>
                   void onReact(
                     message.id,
                     key,
@@ -350,6 +358,15 @@ export function ChatSurface({
           }
           onAskAI={
             onAskAI ? () => onAskAI(message) : undefined
+          }
+          onAction={
+            onAction
+              ? (action: StructuredMessageAction) =>
+                  void onAction(message, action)
+              : undefined
+          }
+          onRetry={
+            onRetryAgent ? () => void onRetryAgent(message) : undefined
           }
           onCopyText={() => void navigator.clipboard?.writeText(message.body)}
           onCopyLink={() =>
@@ -384,6 +401,8 @@ export function ChatSurface({
       onCreateTask,
       onCreateDoc,
       onAskAI,
+      onAction,
+      onRetryAgent,
     ],
   );
 
@@ -680,6 +699,7 @@ export function ChatSurface({
             onAttach={onAttach ? (files) => void onAttach(files) : undefined}
             placeholder={editing ? 'Edit your message…' : `Message ${title}`}
             onSchedule={onSchedule}
+            onSendCard={props.onSendCard}
             contextSlot={
               editing ? (
                 <div className="mb-2 gap-2 px-2 py-1 text-xs flex items-center rounded-md bg-muted">

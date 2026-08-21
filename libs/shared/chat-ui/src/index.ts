@@ -138,3 +138,95 @@ export {
   type AIMessageProps,
   type AITranscriptMessage,
 } from './lib/ai-message.js';
+
+/* --- Rich Message Cards --- */
+export {
+  MessageRenderer,
+  type MessageRendererProps,
+} from './lib/cards/message-renderer.js';
+
+export {
+  AgentMessageCard,
+  formatDuration,
+  type AgentMessageCardProps,
+} from './lib/cards/agent-message-card.js';
+
+export {
+  AppResponseCard,
+  type AppResponseCardProps,
+} from './lib/cards/app-response-card.js';
+
+export {
+  appCardRegistry,
+  type CustomAppCardRenderer,
+} from './lib/cards/app-card-registry.js';
+
+export {
+  ApprovalCard,
+  type ApprovalCardProps,
+} from './lib/cards/approval-card.js';
+
+export {
+  FormCard,
+  type FormCardProps,
+} from './lib/cards/form-card.js';
+
+export {
+  WorkflowCard,
+  type WorkflowCardProps,
+} from './lib/cards/workflow-card.js';
+
+export {
+  FileResponseCard,
+  type FileResponseCardProps,
+} from './lib/cards/file-response-card.js';
+
+export {
+  SystemMessageCard,
+  type SystemMessageCardProps,
+} from './lib/cards/system-message-card.js';
+
+export {
+  UniversalCardRenderer,
+  type UniversalCardRendererProps,
+} from './lib/cards/universal-card-renderer.js';
+
+export {
+  SendCardDialog,
+  type SendCardDialogProps,
+} from './lib/cards/send-card-dialog.js';
+
+export {
+  useCardRegistryStore,
+  SYSTEM_CARD_TEMPLATES,
+  type CardRegistryState,
+} from './lib/cards/card-registry-store.js';
+
+export {
+  evaluateTemplate,
+  evaluateCondition,
+  applyFilter,
+  getNestedValue,
+} from './lib/cards/card-evaluator.js';
+
+export {
+  CardSettingsDialog,
+  type CardSettingsDialogProps,
+} from './lib/cards/card-settings-dialog.js';
+
+export {
+  useAICardPreferencesStore,
+  DEFAULT_AI_CARD_PREFERENCES,
+  type AICardPreferences,
+  type AICardPreferencesState,
+  type CardDensity,
+} from './lib/cards/card-preferences-store.js';
+
+export {
+  executeStructuredAction,
+  isActionSensitive,
+  type ActionExecutionContext,
+  type ActionExecutionResult,
+  type ActionHandlerFn,
+} from './lib/cards/action-handler.js';
+

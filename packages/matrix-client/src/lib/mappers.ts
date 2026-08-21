@@ -5,16 +5,18 @@ import type {
   Room as SdkRoom,
   RoomMember as SdkRoomMember,
 } from 'matrix-js-sdk';
-import type {
-  Attachment,
-  Message,
-  MessageKind,
-  Presence,
-  PresenceState,
-  Reaction,
-  Room,
-  RoomKind,
-  RoomMember,
+import {
+  validateStructuredEvent,
+  type Attachment,
+  type Message,
+  type MessageKind,
+  type Presence,
+  type PresenceState,
+  type Reaction,
+  type Room,
+  type RoomKind,
+  type RoomMember,
+  type StructuredChatMessage,
 } from './types.js';
 
 /**
@@ -167,6 +169,79 @@ export function toReactions(
   }));
 }
 
+export function extractStructuredEvent(
+  event: MatrixEvent,
+  content: MessageContentShape,
+): StructuredChatMessage | undefined {
+  const eventType =
+    typeof event?.getType === 'function'
+      ? event.getType()
+      : typeof (event as any)?.type === 'string'
+        ? (event as any).type
+        : '';
+
+  // 1. Event type itself is structured (e.g. mie.ai.agent, mie.app.response, etc.)
+  if (eventType.startsWith('mie.') || eventType.startsWith('org.onetab.')) {
+    const validated = validateStructuredEvent({
+      ...content,
+      type: eventType,
+    });
+    if (validated.valid && validated.event) return validated.event;
+  }
+
+  // 2. Embedded inside content object
+  const anyContent = content as Record<string, unknown>;
+  const nested =
+    anyContent['mie_event'] ||
+    anyContent['mie.ai.agent'] ||
+    anyContent['org.onetab.ai.agent'] ||
+    anyContent['mie.app.response'] ||
+    anyContent['mie.approval'] ||
+    anyContent['mie.form'] ||
+    anyContent['mie.workflow'] ||
+    anyContent['structuredEvent'];
+
+  if (nested && typeof nested === 'object') {
+    const validated = validateStructuredEvent(nested);
+    if (validated.valid && validated.event) return validated.event;
+  }
+
+  // 3. Custom msgtype (e.g. msgtype: "org.onetab.ai.agent" or "mie.app.response")
+  if (
+    content.msgtype &&
+    (content.msgtype.startsWith('mie.') ||
+      content.msgtype.startsWith('org.onetab.'))
+  ) {
+    const validated = validateStructuredEvent(content);
+    if (validated.valid && validated.event) return validated.event;
+  }
+
+  // 4. JSON body if plain text starts with structured JSON
+  if (
+    content.body &&
+    typeof content.body === 'string' &&
+    content.body.trim().startsWith('{') &&
+    content.body.includes('"type"')
+  ) {
+    try {
+      const parsed = JSON.parse(content.body.trim());
+      if (
+        parsed &&
+        typeof parsed === 'object' &&
+        typeof parsed.type === 'string' &&
+        (parsed.type.startsWith('mie.') || parsed.type.startsWith('org.onetab.'))
+      ) {
+        const validated = validateStructuredEvent(parsed);
+        if (validated.valid && validated.event) return validated.event;
+      }
+    } catch {
+      // Not valid JSON, ignore
+    }
+  }
+
+  return undefined;
+}
+
 export function toMessage(
   client: SdkClient,
   event: MatrixEvent,
@@ -219,6 +294,7 @@ export function toMessage(
     decryptionError: decryptionFailed
       ? 'This message could not be decrypted. The sender may not have shared keys with this device.'
       : undefined,
+    structuredEvent: extractStructuredEvent(event, content),
   };
 }
 

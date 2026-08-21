@@ -17,7 +17,20 @@
     "tags": [
       "type:ui",
       "scope:shared"
-    ]
+    ],
+    "targets": {
+      "test": {
+        "executor": "nx:run-commands",
+        "cache": true,
+        "outputs": [
+          "{projectRoot}/test-output/vitest/coverage"
+        ],
+        "options": {
+          "command": "vitest run --passWithNoTests",
+          "cwd": "libs/shared/chat-ui"
+        }
+      }
+    }
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.9",

@@ -115,5 +115,7 @@ export type {
 } from './lib/ai.js';
 
 export * from './lib/chat.js';
+export * from './lib/card-schema.js';
+export * from './lib/structured-event-validator.js';
 export * from './lib/analytics.js';
 export * from './lib/marketplace.js';

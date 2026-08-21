@@ -7,6 +7,8 @@
  * enforced by `matrix-client.spec.ts`.
  */
 
+import type { CardMessageContent } from './card-schema.js';
+
 export type RoomId = string;
 export type EventId = string;
 export type MatrixUserId = string;
@@ -143,7 +145,297 @@ export interface Message {
   isEncrypted: boolean;
   /** Set when decryption failed — render a placeholder, not an empty bubble. */
   decryptionError?: string;
+  /** Optional structured application event (AI Agent card, App card, Approval, Form, Workflow, etc.) */
+  structuredEvent?: StructuredChatMessage;
 }
+
+// --- structured chat events (AI Agents, Apps, Approvals, Forms, Workflows) ---
+
+export type AgentExecutionState =
+  | 'queued'
+  | 'starting'
+  | 'running'
+  | 'waiting'
+  | 'waiting_for_approval'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'paused';
+
+export interface AgentToolExecution {
+  id?: string;
+  name: string;
+  status: 'queued' | 'running' | 'success' | 'failed';
+  durationMs?: number;
+  input?: unknown;
+  output?: unknown;
+  error?: string;
+  retriable?: boolean;
+}
+
+export interface MessageSource {
+  id?: string;
+  title: string;
+  url: string;
+  domain?: string;
+  description?: string;
+  type?: 'web' | 'doc' | 'knowledge_base' | 'app_record' | 'other';
+  faviconUrl?: string;
+}
+
+export interface GeneratedFile {
+  id?: string;
+  name: string;
+  url: string;
+  mimeType: string;
+  size?: number;
+  previewUrl?: string;
+  codeSnippet?: {
+    language: string;
+    code: string;
+    isDiff?: boolean;
+    filename?: string;
+  };
+}
+
+export interface StructuredMessageAction {
+  id: string;
+  label: string;
+  variant?:
+    | 'default'
+    | 'primary'
+    | 'destructive'
+    | 'outline'
+    | 'secondary'
+    | 'ghost';
+  icon?: string;
+  actionType?: string;
+  payload?: Record<string, unknown>;
+  url?: string;
+  requiresConfirmation?: boolean;
+  confirmationTitle?: string;
+  confirmationMessage?: string;
+  disabled?: boolean;
+  loading?: boolean;
+}
+
+export interface AIAgentMessageContent {
+  type: 'mie.ai.agent';
+  version?: string;
+  agentId: string;
+  executionId?: string;
+  status: AgentExecutionState;
+  title?: string;
+  agentName?: string;
+  agentHandle?: string;
+  agentAvatarSeed?: string;
+  agentAvatarUrl?: string;
+  agentRole?: string;
+  agentDescription?: string;
+  workspaceId?: string;
+  teamName?: string;
+  model?: string;
+  durationMs?: number;
+  startedAt?: number;
+  completedAt?: number;
+  summary?: string;
+  responseText?: string;
+  reasoning?: {
+    summary?: string;
+    details?: string;
+    durationMs?: number;
+  };
+  keyFindings?: string[];
+  actionsTaken?: string[];
+  tools?: AgentToolExecution[];
+  sources?: MessageSource[];
+  files?: GeneratedFile[];
+  suggestedActions?: StructuredMessageAction[];
+  actions?: StructuredMessageAction[];
+  errorMessage?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface AppResponseMessageContent {
+  type: 'mie.app.response';
+  version?: string;
+  appId: string;
+  appName: string;
+  appIcon?: string;
+  category?:
+    | 'developer'
+    | 'productivity'
+    | 'monitoring'
+    | 'collaboration'
+    | 'crm'
+    | 'custom';
+  eventType: string;
+  cardType?:
+    | 'data'
+    | 'notification'
+    | 'task'
+    | 'calendar'
+    | 'contact'
+    | 'file'
+    | 'activity'
+    | 'github'
+    | 'linear'
+    | 'crm'
+    | 'sentry'
+    | 'jira'
+    | 'custom';
+  title: string;
+  subtitle?: string;
+  url?: string;
+  accentColor?: string;
+  badge?: {
+    label: string;
+    variant?:
+      | 'primary'
+      | 'neutral'
+      | 'success'
+      | 'warning'
+      | 'destructive'
+      | 'violet';
+  };
+  fields?: Array<{
+    label: string;
+    value: string | number | boolean;
+    inline?: boolean;
+    badge?: string;
+  }>;
+  data?: Record<string, unknown>;
+  actions?: StructuredMessageAction[];
+  footer?: string;
+  timestamp?: number;
+}
+
+export interface ApprovalMessageContent {
+  type: 'mie.approval';
+  version?: string;
+  approvalId: string;
+  title: string;
+  description: string;
+  agentId?: string;
+  agentName?: string;
+  status: 'pending' | 'approved' | 'rejected' | 'expired' | 'cancelled';
+  riskLevel?: 'low' | 'medium' | 'high' | 'critical';
+  sideEffects?: string[];
+  proposedAction?: string;
+  diffPreview?: {
+    language?: string;
+    filename?: string;
+    diff: string;
+  };
+  approverId?: string;
+  approverName?: string;
+  decidedAt?: number;
+  expiresAt?: number;
+  payload?: Record<string, unknown>;
+  actions?: StructuredMessageAction[];
+}
+
+export interface FormFieldDefinition {
+  id: string;
+  name: string;
+  label: string;
+  type:
+    | 'text'
+    | 'email'
+    | 'number'
+    | 'select'
+    | 'multiselect'
+    | 'checkbox'
+    | 'radio'
+    | 'date'
+    | 'time'
+    | 'file'
+    | 'user';
+  placeholder?: string;
+  required?: boolean;
+  defaultValue?: unknown;
+  options?: Array<{ label: string; value: string; description?: string }>;
+  validation?: {
+    min?: number;
+    max?: number;
+    pattern?: string;
+    message?: string;
+  };
+}
+
+export interface FormMessageContent {
+  type: 'mie.form';
+  version?: string;
+  formId: string;
+  title: string;
+  description?: string;
+  fields: FormFieldDefinition[];
+  submitLabel?: string;
+  cancelLabel?: string;
+  status?: 'idle' | 'submitting' | 'submitted' | 'disabled' | 'error';
+  submittedValues?: Record<string, unknown>;
+  submittedAt?: number;
+  submittedBy?: string;
+}
+
+export interface FileMessageContent {
+  type: 'mie.file';
+  version?: string;
+  fileId?: string;
+  title?: string;
+  description?: string;
+  files: GeneratedFile[];
+}
+
+export interface WorkflowStep {
+  id: string;
+  name: string;
+  agentId?: string;
+  agentName?: string;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+  durationMs?: number;
+  input?: unknown;
+  output?: unknown;
+  error?: string;
+  logs?: string[];
+}
+
+export interface WorkflowMessageContent {
+  type: 'mie.workflow';
+  version?: string;
+  workflowId: string;
+  title: string;
+  description?: string;
+  currentStepIndex: number;
+  totalSteps?: number;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused';
+  steps: WorkflowStep[];
+  durationMs?: number;
+  startedAt?: number;
+  completedAt?: number;
+  actions?: StructuredMessageAction[];
+}
+
+export interface SystemMessageContent {
+  type: 'mie.system';
+  version?: string;
+  severity: 'info' | 'success' | 'warning' | 'error';
+  title: string;
+  details?: string;
+  code?: string;
+  timestamp?: number;
+  actions?: StructuredMessageAction[];
+}
+
+export type StructuredChatMessage =
+  | AIAgentMessageContent
+  | AppResponseMessageContent
+  | ApprovalMessageContent
+  | FormMessageContent
+  | FileMessageContent
+  | WorkflowMessageContent
+  | SystemMessageContent
+  | CardMessageContent;
 
 export interface Thread {
   rootId: EventId;

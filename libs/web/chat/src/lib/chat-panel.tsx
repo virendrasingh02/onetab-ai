@@ -1,6 +1,6 @@
 import { workToolsApi } from '@org/api-client';
-import { ConnectionBanner } from '@org/chat-ui';
-import type { Message } from '@org/matrix-client';
+import { ConnectionBanner, executeStructuredAction } from '@org/chat-ui';
+import type { Message, StructuredMessageAction } from '@org/matrix-client';
 import { Button, EmptyState, LoadingState, toast, useRightPanelStore } from '@org/ui';
 import { MessageSquareOff } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
@@ -173,6 +173,122 @@ export function ChatPanel({
     [onAskAI],
   );
 
+  const handleAction = useCallback(
+    async (message: Message, action: StructuredMessageAction) => {
+      if (!client || !roomId) return;
+
+      // Handle approval actions directly
+      if (action.actionType === 'approval.approved' || action.id === 'approve') {
+        if (message.structuredEvent?.type === 'mie.approval') {
+          const updatedApproval = {
+            ...message.structuredEvent,
+            status: 'approved' as const,
+            approverId: client.getSession()?.userId,
+            decidedAt: Date.now(),
+          };
+          await client.updateStructuredMessage(roomId, message.id, updatedApproval);
+          toast.success('Action approved and state updated.');
+          return;
+        }
+      }
+
+      if (action.actionType === 'approval.rejected' || action.id === 'reject') {
+        if (message.structuredEvent?.type === 'mie.approval') {
+          const updatedApproval = {
+            ...message.structuredEvent,
+            status: 'rejected' as const,
+            approverId: client.getSession()?.userId,
+            decidedAt: Date.now(),
+          };
+          await client.updateStructuredMessage(roomId, message.id, updatedApproval);
+          toast.info('Action rejected.');
+          return;
+        }
+      }
+
+      // Handle form submission
+      if (action.id === 'submit_form' && action.payload) {
+        if (message.structuredEvent?.type === 'mie.form') {
+          const updatedForm = {
+            ...message.structuredEvent,
+            status: 'submitted' as const,
+            submittedValues: action.payload,
+            submittedAt: Date.now(),
+            submittedBy: client.getSession()?.userId,
+          };
+          await client.updateStructuredMessage(roomId, message.id, updatedForm);
+          toast.success('Form response recorded.');
+          return;
+        }
+      }
+
+      // Handle universal card in-place action updates
+      if (message.structuredEvent?.type === 'mie.card') {
+        if (action.actionType === 'update_record' || action.id === 'toggle_done') {
+          const prevData = message.structuredEvent.data || {};
+          const isCompleted = Boolean(prevData['completed']);
+          const updatedCard = {
+            ...message.structuredEvent,
+            data: {
+              ...prevData,
+              completed: !isCompleted,
+            },
+            actionResults: {
+              ...(message.structuredEvent.actionResults || {}),
+              [action.id]: {
+                executedAt: Date.now(),
+                executedBy: client.getSession()?.userId,
+                success: true,
+              },
+            },
+          };
+          await client.updateStructuredMessage(roomId, message.id, updatedCard);
+          toast.success('Card updated.');
+          return;
+        }
+      }
+
+      await executeStructuredAction(action, {
+        roomId,
+        messageId: message.id,
+        senderId: message.senderId,
+      });
+    },
+    [client, roomId],
+  );
+
+  const handleSendCard = useCallback(
+    async (cardId: string, version: number, data: Record<string, unknown>) => {
+      if (!client || !roomId) return;
+      const cardMessage: StructuredChatMessage = {
+        type: 'mie.card',
+        cardId,
+        version,
+        data,
+      };
+      await client.sendStructuredMessage(roomId, cardMessage, {
+        fallbackText: `[Universal Card: ${cardId} (v${version})]`,
+      });
+    },
+    [client, roomId],
+  );
+
+  const handleRetryAgent = useCallback(
+    async (message: Message) => {
+      if (!client || !roomId) return;
+      if (message.structuredEvent?.type === 'mie.ai.agent') {
+        const runningEvent = {
+          ...message.structuredEvent,
+          status: 'running' as const,
+          errorMessage: undefined,
+        };
+        await client.updateStructuredMessage(roomId, message.id, runningEvent);
+        toast.info('Re-running agent execution…');
+      }
+    },
+    [client, roomId],
+  );
+
   if (!enabled) {
     return (
       <EmptyState
@@ -237,6 +353,9 @@ export function ChatPanel({
       onCreateTask={handleCreateTask}
       onCreateDoc={handleCreateDoc}
       onAskAI={handleAskAI}
+      onAction={handleAction}
+      onRetryAgent={handleRetryAgent}
+      onSendCard={handleSendCard}
     />
   );
 }

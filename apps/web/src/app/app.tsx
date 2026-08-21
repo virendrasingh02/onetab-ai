@@ -119,6 +119,12 @@ const MeetingsView = lazy(() =>
 const WhiteboardCanvas = lazy(() =>
   import('@org/web-work-tools').then((m) => ({ default: m.WhiteboardCanvas })),
 );
+const CardRegistryView = lazy(() =>
+  import('@org/web-work-tools').then((m) => ({ default: m.CardRegistryView })),
+);
+const CardBuilderView = lazy(() =>
+  import('@org/web-work-tools').then((m) => ({ default: m.CardBuilderView })),
+);
 const AIChatView = lazy(() =>
   import('@org/web-ai').then((m) => ({ default: m.AIChatView })),
 );
@@ -279,6 +285,9 @@ export function App() {
             <Route path="apps" element={<AppChatView />} />
             <Route path="apps/chat" element={<AppChatView />} />
             <Route path="apps/:appId/chat" element={<AppChatView />} />
+            <Route path="cards" element={<CardRegistryView />} />
+            <Route path="cards/builder" element={<CardBuilderView />} />
+            <Route path="cards/:cardId/builder" element={<CardBuilderView />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>

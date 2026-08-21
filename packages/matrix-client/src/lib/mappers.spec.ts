@@ -30,6 +30,7 @@ interface FakeEventInput {
   id?: string;
   roomId?: string;
   sender?: string;
+  type?: string;
   content: Record<string, unknown>;
   ts?: number;
   redacted?: boolean;
@@ -43,6 +44,7 @@ function fakeEvent(input: FakeEventInput): MatrixEvent {
     getId: () => input.id ?? '$evt1',
     getRoomId: () => input.roomId ?? '!room:example.org',
     getSender: () => input.sender ?? '@alice:example.org',
+    getType: () => input.type ?? 'm.room.message',
     getContent: () => input.content,
     getTs: () => input.ts ?? 1_700_000_000_000,
     isRedacted: () => input.redacted ?? false,
@@ -245,6 +247,49 @@ describe('toMessage', () => {
     } as unknown as MatrixEvent;
 
     expect(toMessage(client, orphan, room)).toBeNull();
+  });
+
+  it('maps custom AI agent structured events to domain model', () => {
+    const agentEvent = fakeEvent({
+      type: 'mie.ai.agent.v1',
+      content: {
+        agentId: 'agent-research',
+        status: 'completed',
+        agentName: 'Research Agent',
+        summary: 'Synthesized findings from 12 sources',
+        tools: [{ name: 'web_search', status: 'success', durationMs: 320 }],
+        sources: [{ title: 'Doc A', url: 'https://docs.example.com' }],
+      },
+    });
+
+    const msg = toMessage(client, agentEvent, room);
+    expect(msg).not.toBeNull();
+    expect(msg?.structuredEvent).toBeDefined();
+    expect(msg?.structuredEvent?.type).toBe('mie.ai.agent');
+    expect((msg?.structuredEvent as any).agentId).toBe('agent-research');
+    expect((msg?.structuredEvent as any).status).toBe('completed');
+  });
+
+  it('maps embedded app response structured events to domain model', () => {
+    const appEvent = fakeEvent({
+      content: {
+        msgtype: 'm.text',
+        body: 'New GitHub PR created',
+        mie_event: {
+          type: 'mie.app.response',
+          appId: 'github',
+          appName: 'GitHub',
+          title: '#123 Feature branch',
+          fields: [{ label: 'Author', value: 'alice', inline: true }],
+        },
+      },
+    });
+
+    const msg = toMessage(client, appEvent, room);
+    expect(msg).not.toBeNull();
+    expect(msg?.structuredEvent).toBeDefined();
+    expect(msg?.structuredEvent?.type).toBe('mie.app.response');
+    expect((msg?.structuredEvent as any).appId).toBe('github');
   });
 });
 

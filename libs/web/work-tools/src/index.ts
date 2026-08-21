@@ -115,3 +115,5 @@ export { ActivityTimelineView } from './lib/ActivityTimelineView.js';
 export { MeetingsView } from './lib/MeetingsView.js';
 export { InboxView } from './lib/InboxView.js';
 export { ScheduleView } from './lib/ScheduleView.js';
+export { CardRegistryView } from './lib/cards/CardRegistryView.js';
+export { CardBuilderView } from './lib/cards/CardBuilderView.js';

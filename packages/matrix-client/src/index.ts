@@ -72,3 +72,22 @@ export type {
 } from './lib/types.js';
 
 export { isRetryable, toMatrixError, withRetry } from './lib/errors.js';
+
+export type {
+  StructuredChatMessage,
+  AIAgentMessageContent,
+  AppResponseMessageContent,
+  ApprovalMessageContent,
+  FormMessageContent,
+  FileMessageContent,
+  WorkflowMessageContent,
+  SystemMessageContent,
+  AgentExecutionState,
+  AgentToolExecution,
+  MessageSource,
+  GeneratedFile,
+  StructuredMessageAction,
+  FormFieldDefinition,
+  WorkflowStep,
+} from '@org/types';
+
