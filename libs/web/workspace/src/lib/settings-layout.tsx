@@ -59,7 +59,9 @@ export function SettingsLayout({
   const { workspace, workspaceId } = useCurrentWorkspace();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSection, setSelectedSection] = useState<'all' | 'workspace' | 'account'>('all');
+  const [selectedSection, setSelectedSection] = useState<
+    'all' | 'workspace' | 'account'
+  >('all');
 
   const backUrl = workspaceSlug ? `/w/${workspaceSlug}` : '/';
 
@@ -94,8 +96,17 @@ export function SettingsLayout({
         { id: 'general', label: 'General Settings', icon: Building2 },
         { id: 'members', label: 'Members & Directory', icon: Users },
         { id: 'invitations', label: 'Workspace Invitations', icon: UserPlus },
-        { id: 'analytics', label: 'Company Analytics & Usage', icon: BarChart3 },
-        { id: 'billing', label: 'Plans & Billing', icon: CreditCard, badge: 'PRO' },
+        {
+          id: 'analytics',
+          label: 'Company Analytics & Usage',
+          icon: BarChart3,
+        },
+        {
+          id: 'billing',
+          label: 'Plans & Billing',
+          icon: CreditCard,
+          badge: 'PRO',
+        },
       ],
     },
     {
@@ -141,9 +152,7 @@ export function SettingsLayout({
     {
       section: 'workspace',
       title: 'Security & Danger Zone',
-      items: [
-        { id: 'danger', label: 'Danger Zone', icon: AlertTriangle },
-      ],
+      items: [{ id: 'danger', label: 'Danger Zone', icon: AlertTriangle }],
     },
   ];
 
@@ -154,42 +163,45 @@ export function SettingsLayout({
   return (
     <div className="gap-1.5 p-1.5 flex h-screen w-screen flex-col overflow-hidden bg-background font-sans text-foreground">
       {/* Main Settings Card Box */}
-      <div className="flex h-full w-full flex-1 flex-col min-h-0 rounded-xl border border-border bg-card text-card-foreground shadow-xs overflow-hidden">
+      <div className="min-h-0 flex h-full w-full flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xs">
         {/* Top Header Bar */}
-        <header className="h-12 border-b border-border/70 bg-surface/60 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2.5 text-xs">
+        <header className="h-12 backdrop-blur-md px-4 sm:px-6 flex shrink-0 items-center justify-between border-b border-border/70 bg-surface/60">
+          <div className="gap-2.5 text-xs flex items-center">
             <Link
               to={backUrl}
-              className="inline-flex items-center gap-1.5 font-medium text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-lg hover:bg-accent/60"
+              className="gap-1.5 font-medium px-2 py-1 inline-flex items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
             >
               <ArrowLeft className="size-3.5" />
               <span>Back</span>
             </Link>
             <span className="text-muted-foreground/50">/</span>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-foreground">Settings</span>
+            <div className="gap-2 flex items-center">
+              <span className="font-semibold text-foreground">Settings</span>
               <span className="text-muted-foreground/50">/</span>
-              <span className="font-semibold text-primary capitalize px-2 py-0.5 rounded-md bg-primary/10">
+              <span className="font-medium px-2 py-0.5 rounded-md bg-primary/10 text-primary capitalize">
                 {activeTab.replace('-', ' ')}
               </span>
             </div>
             {workspace?.name ? (
-              <Badge variant="neutral" className="hidden sm:inline-flex text-[10px] font-normal text-muted-foreground">
+              <Badge
+                variant="neutral"
+                className="sm:inline-flex font-normal hidden text-[10px] text-muted-foreground"
+              >
                 {workspace.name}
               </Badge>
             ) : null}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             <Link to={backUrl}>
               <Button
                 variant="ghost"
                 size="sm"
                 aria-label="Close settings"
-                className="h-8 gap-1.5 px-2.5 rounded-lg text-muted-foreground hover:text-foreground text-xs"
+                className="h-8 gap-1.5 px-2.5 text-xs rounded-lg text-muted-foreground hover:text-foreground"
               >
                 <span>Close</span>
-                <kbd className="hidden sm:inline-block rounded border border-border bg-surface-inset px-1 text-[10px] font-medium text-muted-foreground">
+                <kbd className="sm:inline-block rounded px-1 font-medium hidden border border-border bg-surface-inset text-[10px] text-muted-foreground">
                   Esc
                 </kbd>
                 <X className="size-3.5" />
@@ -199,11 +211,11 @@ export function SettingsLayout({
         </header>
 
         {/* Inner Content Area: Sidebar + Scrollable Main Content */}
-        <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div className="min-h-0 flex flex-1 overflow-hidden">
           {/* Left Dedicated Settings Sidebar */}
-          <aside className="w-64 sm:w-72 shrink-0 border-r border-border bg-surface-muted/50 flex flex-col h-full select-none">
+          <aside className="w-64 sm:w-72 flex h-full shrink-0 flex-col border-r border-border bg-surface-muted/50 select-none">
             {/* Search & Section Filter Pills */}
-            <div className="p-3 border-b border-border space-y-2.5">
+            <div className="p-3 space-y-2.5">
               <div className="relative">
                 <Input
                   type="text"
@@ -211,50 +223,16 @@ export function SettingsLayout({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   leadingIcon={<Search className="size-4" />}
-                  className="h-8 text-xs bg-surface-inset border-border placeholder:text-muted-foreground rounded-lg"
+                  className="h-8 text-xs rounded-lg border-border bg-surface-inset placeholder:text-muted-foreground"
                 />
-              </div>
-
-              {/* Section Filter Pills */}
-              <div className="grid grid-cols-3 gap-1 bg-surface-inset p-0.5 rounded-lg border border-border/60">
-                <button
-                  type="button"
-                  onClick={() => setSelectedSection('all')}
-                  className={`py-1 text-[11px] font-semibold rounded-md transition-all text-center ${
-                    selectedSection === 'all'
-                      ? 'bg-surface text-foreground shadow-2xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedSection('workspace')}
-                  className={`py-1 text-[11px] font-semibold rounded-md transition-all text-center truncate px-1 ${
-                    selectedSection === 'workspace'
-                      ? 'bg-surface text-foreground shadow-2xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Workspace
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedSection('account')}
-                  className={`py-1 text-[11px] font-semibold rounded-md transition-all text-center truncate px-1 ${
-                    selectedSection === 'account'
-                      ? 'bg-surface text-foreground shadow-2xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Account
-                </button>
               </div>
             </div>
 
             {/* Scrollable Nav Items */}
-            <ScrollArea className="min-h-0 flex-1" contentClassName="p-2.5 space-y-4">
+            <ScrollArea
+              className="min-h-0 py-3 px-3 flex-1"
+              contentClassName="p-2.5 space-y-4"
+            >
               {visibleGroups.map((group) => {
                 const filteredItems = group.items.filter((item) =>
                   item.label.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -264,7 +242,7 @@ export function SettingsLayout({
 
                 return (
                   <div key={group.title} className="space-y-1">
-                    <div className="px-2.5 py-1 text-[10.5px] font-bold text-muted-foreground uppercase tracking-wider">
+                    <div className="px-2.5 py-1 font-bold tracking-wider text-[10.5px] text-muted-foreground uppercase">
                       {group.title}
                     </div>
                     {filteredItems.map((item) => {
@@ -283,20 +261,27 @@ export function SettingsLayout({
                             }
                           }}
                           className={cn(
-                            'w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all text-left',
+                            'px-2.5 py-1.5 font-medium flex w-full items-center justify-between rounded-xl text-left text-[13px] transition-all',
                             isActive
-                              ? 'bg-accent text-foreground font-semibold shadow-2xs'
-                              : 'text-muted-foreground hover:text-foreground hover:bg-accent/50',
+                              ? 'font-semibold shadow-2xs bg-accent text-foreground'
+                              : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
                           )}
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <Icon className={cn('size-4 shrink-0', isActive ? 'text-primary' : 'text-muted-foreground')} />
+                          <div className="gap-2.5 min-w-0 flex items-center">
+                            <Icon
+                              className={cn(
+                                'size-4 shrink-0',
+                                isActive
+                                  ? 'text-primary'
+                                  : 'text-muted-foreground',
+                              )}
+                            />
                             <span className="truncate">{item.label}</span>
                           </div>
                           {item.badge ? (
                             <Badge
                               variant="neutral"
-                              className="text-[10px] px-1.5 py-0 font-semibold"
+                              className="px-1.5 py-0 font-semibold text-[10px]"
                             >
                               {item.badge}
                             </Badge>
@@ -311,9 +296,12 @@ export function SettingsLayout({
           </aside>
 
           {/* Main Settings Content Area */}
-          <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-surface-inset/20">
-            <ScrollArea className="min-h-0 flex-1" contentClassName="p-6 md:p-10">
-              <div className="max-w-4xl mx-auto space-y-8">{children}</div>
+          <main className="min-h-0 flex flex-1 flex-col overflow-hidden bg-surface-inset/20">
+            <ScrollArea
+              className="min-h-0 flex-1"
+              contentClassName="p-6 md:p-10"
+            >
+              <div className="max-w-4xl space-y-8 mx-auto">{children}</div>
             </ScrollArea>
           </main>
         </div>
@@ -324,4 +312,3 @@ export function SettingsLayout({
     </div>
   );
 }
-

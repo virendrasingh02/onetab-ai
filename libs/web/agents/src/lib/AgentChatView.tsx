@@ -29,7 +29,6 @@ import {
   Check,
   ChevronRight,
   Copy,
-  Headphones,
   MoreHorizontal,
   RefreshCw,
   Send,
@@ -328,22 +327,7 @@ function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
               </Button>
             </Hint>
 
-            {/* 2. Huddle icon */}
-            <Hint label="Start a voice huddle with agent">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Start voice huddle"
-                onClick={() => {
-                  toast.info(`Starting voice session with @${agent.name}…`);
-                }}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Headphones className="size-4" />
-              </Button>
-            </Hint>
-
-            {/* 3. 3-dot dropdown menu */}
+            {/* 2. 3-dot dropdown menu */}
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button

@@ -31,7 +31,6 @@ import {
   Check,
   ChevronRight,
   Copy,
-  Headphones,
   Mail,
   MessageSquare,
   MessageSquareOff,
@@ -186,6 +185,7 @@ function DirectRoom({
       subtitle={presence === 'ONLINE' ? 'Online' : 'Direct message'}
       headerActionsSlot={headerActionsSlot}
       showMembers={false}
+      showEncryptedBadge={false}
     />
   );
 }
@@ -360,22 +360,7 @@ function DirectMessageHeader({
               </Button>
             </Hint>
 
-            {/* 2. Huddle icon */}
-            <Hint label="Start a huddle">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Start a huddle"
-                onClick={() => {
-                  toast.info('Starting direct huddle…');
-                }}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Headphones className="size-4" />
-              </Button>
-            </Hint>
-
-            {/* 3. 3-dot dropdown menu */}
+            {/* 2. 3-dot dropdown menu */}
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button

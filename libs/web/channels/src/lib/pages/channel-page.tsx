@@ -43,7 +43,6 @@ import {
   FileText,
   FolderOpen,
   Hash,
-  Headphones,
   Image as ImageIcon,
   Info,
   LayoutTemplate,
@@ -104,7 +103,6 @@ function ChannelHeader({
   channel,
   members = [],
   onAddBookmark,
-  onStartHuddle,
   onOpenDetails,
   onOpenMembers,
   onOpenPins,
@@ -114,8 +112,6 @@ function ChannelHeader({
   channel: ChannelSummary;
   members?: ChannelMember[];
   onAddBookmark?: () => void;
-  /** Starts a huddle in the channel. */
-  onStartHuddle?: () => void;
   /** Reveals the channel's details in the right rail. */
   onOpenDetails: () => void;
   /** Reveals the channel's members tab in the right rail. */
@@ -232,20 +228,7 @@ function ChannelHeader({
               </Button>
             </Hint>
 
-            {/* 2. Huddle icon */}
-            <Hint label="Start a huddle">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Start a huddle"
-                onClick={onStartHuddle}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Headphones className="size-4" />
-              </Button>
-            </Hint>
-
-            {/* 3. 3-dot dropdown menu */}
+            {/* 2. 3-dot dropdown menu */}
             {channel.membership ? (
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
@@ -618,7 +601,6 @@ export function ChannelPage() {
         channel={channel}
         members={members.data ?? []}
         onAddBookmark={() => setAddBookmarkOpen(true)}
-        onStartHuddle={() => setHuddleRequest((n) => n + 1)}
         onOpenDetails={() => {
           setDetailsTab('about');
           setDetailsPanelOpen(true);

@@ -31,6 +31,12 @@ export interface ChatPanelProps {
   headerMenuSlot?: HTMLElement | null;
   /** Off for direct messages, which have a fixed roster of two. */
   showMembers?: boolean;
+  /**
+   * Off for direct messages: Matrix DM rooms are encrypted by default, but
+   * that is a transport detail, not something a DM's header should call out
+   * the way a channel's would.
+   */
+  showEncryptedBadge?: boolean;
   /** Channel metadata for the welcome block. See `ChatSurface`. */
   welcome?: ChatSurfaceWelcome;
   /** Starts a huddle when it changes. See `ChatSurface`. */
@@ -54,6 +60,7 @@ export function ChatPanel({
   headerActionsSlot,
   headerMenuSlot,
   showMembers = true,
+  showEncryptedBadge = true,
   welcome,
   huddleRequest,
   onCreateTask,
@@ -332,7 +339,9 @@ export function ChatPanel({
       showMembers={showMembers}
       welcome={welcome}
       huddleRequest={huddleRequest}
-      isEncrypted={client.getRoom(roomId)?.isEncrypted ?? false}
+      isEncrypted={
+        showEncryptedBadge && (client.getRoom(roomId)?.isEncrypted ?? false)
+      }
       banner={<ConnectionBanner status={status} />}
       myUserId={client.getSession()?.userId}
       messages={room.messages}

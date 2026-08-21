@@ -26,7 +26,6 @@ import {
   Check,
   ChevronRight,
   Copy,
-  Headphones,
   MoreHorizontal,
   RefreshCw,
   Settings,
@@ -562,22 +561,7 @@ function AppMessageHeader({ app }: { app: AppModelItem }) {
               </Button>
             </Hint>
 
-            {/* 2. Huddle icon */}
-            <Hint label="Start a huddle">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Start huddle"
-                onClick={() => {
-                  toast.info(`Starting huddle for ${app.name}…`);
-                }}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <Headphones className="size-4" />
-              </Button>
-            </Hint>
-
-            {/* 3. 3-dot dropdown menu */}
+            {/* 2. 3-dot dropdown menu */}
             <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button
