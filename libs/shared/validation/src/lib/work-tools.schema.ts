@@ -55,6 +55,24 @@ export const createProjectSchema = z.object({
   ...iconPatchShape,
 });
 
+/**
+ * The board's columns, left to right.
+ *
+ * Every status exactly once: the set is the enum, so a list that repeats one or
+ * drops another is not a reorder — it is a column going missing, which the
+ * board has no way to get back.
+ */
+export const columnOrderSchema = z
+  .array(z.enum(TaskStatus))
+  .refine(
+    (order) => new Set(order).size === order.length,
+    'A status can only appear once in the column order',
+  )
+  .refine(
+    (order) => order.length === Object.keys(TaskStatus).length,
+    'The column order must list every status',
+  );
+
 export const updateProjectSchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
   description: optionalText(500),
@@ -65,6 +83,18 @@ export const updateProjectSchema = z.object({
   status: z.enum(ProjectStatus).optional(),
   startDate: isoDate.nullable().optional(),
   targetDate: isoDate.nullable().optional(),
+  columnOrder: columnOrderSchema.optional(),
+  /**
+   * The stem of the project's ticket ids. Letters and digits only so an id like
+   * `WEB-42` stays greppable, and unique per workspace — the API rejects a
+   * prefix another project has already taken.
+   */
+  ticketPrefix: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9]{2,10}$/, 'Use 2–10 letters or digits, such as WEB')
+    .optional(),
   ...iconPatchShape,
 });
 

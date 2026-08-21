@@ -7,7 +7,11 @@ import {
 } from '@org/types';
 import type { CreateTaskInput, UpdateTaskInput } from '@org/validation';
 import { useCallback, useMemo } from 'react';
-import { useTaskMutations, useTasks } from '../use-work-tools.js';
+import {
+  useProjectMutations,
+  useTaskMutations,
+  useTasks,
+} from '../use-work-tools.js';
 import type {
   BoardMember,
   BoardState,
@@ -20,9 +24,10 @@ import type {
 /**
  * The board, over the tasks API.
  *
- * Columns come from `TASK_STATUS_ORDER` rather than from data: the server owns
- * the status set, so there is nothing to persist about a column and no action
- * that can add, rename or reorder one.
+ * The column *set* comes from `TASK_STATUS_ORDER` rather than from data: the
+ * server owns the status enum, so there is no action that can add, rename or
+ * delete a column. Their left-to-right *order* is the project's `columnOrder`,
+ * so dragging a column is an `updateProject`.
  */
 
 export const STATUS_TITLES: Record<TaskStatus, string> = {
@@ -106,12 +111,41 @@ function renumber(cards: KanbanCard[]): number[] {
 
 /* ----------------------------------------------------------- projection --- */
 
+/**
+ * The columns a project draws, left to right.
+ *
+ * `columnOrder` is the project's, but it is not trusted to be complete: a
+ * status added to the enum after the project was last saved would otherwise
+ * vanish from the board along with every task in it. Anything missing is
+ * appended in enum order, and anything unrecognised is dropped.
+ */
+export function columnsFor(project: ProjectDetail | undefined): TaskStatus[] {
+  const known = new Set(TASK_STATUS_ORDER);
+  const seen = new Set<TaskStatus>();
+  const ordered: TaskStatus[] = [];
+
+  for (const status of project?.columnOrder ?? []) {
+    if (!known.has(status) || seen.has(status)) continue;
+    seen.add(status);
+    ordered.push(status);
+  }
+  for (const status of TASK_STATUS_ORDER) {
+    if (!seen.has(status)) ordered.push(status);
+  }
+  return ordered;
+}
+
 export function taskToCard(
   task: Task,
   milestoneTitles: ReadonlyMap<string, string>,
+  ticketPrefix?: string | null,
 ): KanbanCard {
   return {
     id: task.id,
+    ticketId:
+      ticketPrefix && task.ticketNumber !== null
+        ? `${ticketPrefix}-${task.ticketNumber}`
+        : undefined,
     title: task.title,
     description: task.description ?? '',
     memberIds: task.assigneeId ? [task.assigneeId] : [],
@@ -164,13 +198,13 @@ export function buildBoard({
     byStatus.get(task.status)?.push(task);
   }
 
-  const lists: KanbanList[] = TASK_STATUS_ORDER.map((status) => ({
+  const lists: KanbanList[] = columnsFor(project).map((status) => ({
     id: status,
     title: STATUS_TITLES[status],
     cards: (byStatus.get(status) ?? [])
       .slice()
       .sort((a, b) => a.orderIndex - b.orderIndex)
-      .map((task) => taskToCard(task, milestoneTitles)),
+      .map((task) => taskToCard(task, milestoneTitles, project?.ticketPrefix)),
   }));
 
   return {
@@ -187,13 +221,15 @@ export function buildBoard({
  * What the board can ask of the server.
  *
  * A narrower set than the local reducer had: there is no `list/add`,
- * `list/rename`, `list/remove` or `list/move` because the columns are the
- * `TaskStatus` enum, and no label or checklist actions because the API has
- * nowhere to keep them. Comments are their own resource — the card dialog
- * fetches and posts them directly.
+ * `list/rename` or `list/remove` because the columns are the `TaskStatus` enum,
+ * and no label or checklist actions because the API has nowhere to keep them.
+ * Comments are their own resource — the card dialog fetches and posts them
+ * directly.
  */
 export type BoardAction =
   | { type: 'card/add'; listId: TaskStatus; title: string; edge?: 'top' | 'bottom' }
+  /** A column dragged to a new place in the row; `toIndex` is over all columns. */
+  | { type: 'list/move'; listId: TaskStatus; toIndex: number }
   | { type: 'card/update'; cardId: string; patch: CardPatch }
   | { type: 'card/remove'; cardId: string }
   | { type: 'card/copy'; cardId: string }
@@ -294,6 +330,7 @@ export function useServerBoard({
   const projectId = project?.id;
   const tasks = useTasks(workspaceId, projectId);
   const mutations = useTaskMutations(workspaceId, projectId);
+  const projectMutations = useProjectMutations(workspaceId);
 
   const board = useMemo(
     () =>
@@ -384,6 +421,25 @@ export function useServerBoard({
           } else {
             mutations.create.mutate(input);
           }
+          return;
+        }
+
+        case 'list/move': {
+          if (!projectId) return;
+
+          const order = board.lists.map((list) => list.id);
+          const from = order.indexOf(action.listId);
+          if (from === -1) return;
+
+          const rest = order.filter((status) => status !== action.listId);
+          const at = Math.min(Math.max(action.toIndex, 0), rest.length);
+          rest.splice(at, 0, action.listId);
+          if (rest.every((status, index) => status === order[index])) return;
+
+          projectMutations.update.mutate({
+            projectId,
+            input: { columnOrder: rest },
+          });
           return;
         }
 
@@ -484,7 +540,7 @@ export function useServerBoard({
           return;
       }
     },
-    [board.lists, mutations, placement, projectId],
+    [board.lists, mutations, placement, projectId, projectMutations],
   );
 
   return {

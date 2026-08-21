@@ -45,6 +45,16 @@ export interface Project extends IconSelection {
   status: ProjectStatus;
   startDate: IsoDateString | null;
   targetDate: IsoDateString | null;
+  /**
+   * The board's columns, left to right.
+   *
+   * The set is fixed — it is `TaskStatus` — so only the order belongs to the
+   * project. A status missing from the list is drawn after the ones that are in
+   * it, in enum order, so a new column can never go unseen.
+   */
+  columnOrder: TaskStatus[];
+  /** Uppercase stem of this project's ticket ids, e.g. `WEB` in `WEB-42`. */
+  ticketPrefix: string | null;
   createdAt: IsoDateString;
   updatedAt: IsoDateString;
 }
@@ -83,6 +93,12 @@ export interface Task {
   dueDate: IsoDateString | null;
   /** Position within its status column. Lower sorts first. */
   orderIndex: number;
+  /**
+   * This task's number within its project. With the project's `ticketPrefix` it
+   * makes the card's human-readable id. Null for a task filed outside any
+   * project, which has no prefix to hang a number off.
+   */
+  ticketNumber: number | null;
   createdAt: IsoDateString;
   updatedAt: IsoDateString;
   assignee: PublicUser | null;

@@ -114,6 +114,8 @@ export function useProjectMutations(workspaceId: string | undefined) {
     onSuccess: invalidate,
   });
 
+  const projectsKey = queryKeys.workTools.projects(workspaceId ?? '');
+
   const update = useMutation({
     mutationFn: ({
       projectId,
@@ -122,7 +124,32 @@ export function useProjectMutations(workspaceId: string | undefined) {
       projectId: string;
       input: UpdateProjectInput;
     }) => workToolsApi.updateProject(workspaceId as string, projectId, input),
-    onSuccess: invalidate,
+
+    /**
+     * Applied optimistically, for the same reason the task move is: dragging a
+     * column rewrites `columnOrder`, and a column that springs back to where it
+     * was while the request is in flight reads as a failed drag.
+     */
+    onMutate: async ({ projectId, input }) => {
+      await queryClient.cancelQueries({ queryKey: projectsKey });
+      const previous = queryClient.getQueryData<ProjectDetail[]>(projectsKey);
+
+      queryClient.setQueryData<ProjectDetail[]>(projectsKey, (current) =>
+        current?.map((project) =>
+          project.id === projectId ? { ...project, ...input } : project,
+        ),
+      );
+
+      return { previous };
+    },
+
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(projectsKey, context.previous);
+      }
+    },
+
+    onSettled: invalidate,
   });
 
   const remove = useMutation({

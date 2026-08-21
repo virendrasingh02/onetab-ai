@@ -20,7 +20,6 @@ import {
   Pencil,
   Trash2,
 } from 'lucide-react';
-import type { DragEvent } from 'react';
 import { parseDay } from './card-meta.js';
 import { useKanbanCustomStore } from './kanban-custom-store.js';
 import {
@@ -30,6 +29,7 @@ import {
 import { KanbanLeadPicker } from './KanbanLeadPicker.js';
 import { KanbanStatusPicker } from './KanbanStatusPicker.js';
 import type { BoardMember, KanbanCard, KanbanList } from './types.js';
+import type { DragHandlers } from './use-board-drag.js';
 
 export interface KanbanCardTileProps {
   card: KanbanCard;
@@ -37,17 +37,18 @@ export interface KanbanCardTileProps {
   lists: Array<Pick<KanbanList, 'id' | 'title'>>;
   listId: TaskStatus | string;
   /**
-   * True once this card has been picked up. The tile collapses out of the
-   * layout so the drop placeholder can take its place, exactly one card tall.
+   * True once this card has been picked up. The tile leaves the layout — the
+   * ghost under the pointer is standing in for it — and the gap it opens is
+   * held by the column's placeholder instead.
    */
-  lifted: boolean;
+  dragging: boolean;
+  /** Press and key handlers from the board's drag engine. */
+  drag: DragHandlers;
   onOpen: () => void;
   onCopy: () => void;
   onDelete: () => void;
   onMoveToList: (toListId: TaskStatus) => void;
   onAssigneeChange?: (memberId: string | null) => void;
-  onDragStart: (event: DragEvent<HTMLLIElement>) => void;
-  onDragEnd: () => void;
 }
 
 function formatCardDate(dateStr?: string): string | null {
@@ -78,14 +79,13 @@ export function KanbanCardTile({
   members,
   lists,
   listId,
-  lifted,
+  dragging,
+  drag,
   onOpen,
   onCopy,
   onDelete,
   onMoveToList,
   onAssigneeChange,
-  onDragStart,
-  onDragEnd,
 }: KanbanCardTileProps) {
   const customStore = useKanbanCustomStore();
   const cardCustomProps = customStore.getCardProperties(card.id);
@@ -100,15 +100,20 @@ export function KanbanCardTile({
   return (
     <li
       data-kanban-card={card.id}
-      draggable
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
+      hidden={dragging}
+      tabIndex={0}
+      aria-roledescription="Draggable card"
+      aria-describedby="kanban-drag-help"
+      aria-keyshortcuts="Space"
+      onPointerDown={drag.onPointerDown}
+      onKeyDown={drag.onKeyDown}
       className={cn(
         'group/card p-3 relative cursor-grab list-none rounded-xl border border-border/60 bg-card text-card-foreground',
         'shadow-xs transition-all duration-(--duration-fast)',
+        'touch-manipulation select-none',
         'hover:border-border-strong hover:shadow-md hover:bg-surface-raised',
+        'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30 focus-visible:outline-none',
         'has-[:focus-visible]:border-ring has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/30',
-        lifted && 'hidden',
       )}
     >
       {/* Top Row: [Orange Cube] [Title]  ... [Pulse] [StatusIcon] [More] [Avatar] */}
@@ -124,7 +129,8 @@ export function KanbanCardTile({
           </button>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
+        {/* Every control here owns its own press, so none of them start a drag. */}
+        <div data-no-drag className="flex items-center gap-1 shrink-0">
           {/* Activity pulse badge */}
           <ActivityPulseBadge />
 
@@ -249,9 +255,16 @@ export function KanbanCardTile({
       {/* Row 3: Ticket ID & Issues count */}
       <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground/75 font-medium">
         <span>{card.commentCount} issues</span>
-        <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-muted/70 text-muted-foreground font-semibold">
-          {cardCustomProps.ticketId}
-        </span>
+        {/*
+          The server's id, `${project.ticketPrefix}-${task.ticketNumber}`. The
+          local store's copy is only a fallback for a task filed outside any
+          project, which has no prefix to pair a number with.
+        */}
+        {card.ticketId ?? cardCustomProps.ticketId ? (
+          <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-muted/70 text-muted-foreground font-semibold">
+            {card.ticketId ?? cardCustomProps.ticketId}
+          </span>
+        ) : null}
       </div>
     </li>
   );

@@ -1,14 +1,7 @@
 import type { TaskStatus } from '@org/types';
 import { Input, SkeletonList } from '@org/ui';
 import { Sparkles, X } from 'lucide-react';
-import {
-  Fragment,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  type DragEvent,
-} from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   countActiveFilters,
   EMPTY_FILTER,
@@ -20,6 +13,7 @@ import { KanbanListColumn } from './kanban/KanbanListColumn.js';
 import { LinearFilterMenu } from './kanban/LinearFilterMenu.js';
 import type { BoardAction } from './kanban/server-board.js';
 import type { BoardState, KanbanCard } from './kanban/types.js';
+import { useBoardDrag, type DragSlot } from './kanban/use-board-drag.js';
 
 export type {
   BoardMember,
@@ -28,11 +22,6 @@ export type {
   KanbanList,
   Priority,
 } from './kanban/types.js';
-
-const EDGE_ZONE = 96;
-const EDGE_SPEED = 22;
-
-type DragState = { cardId: string; height: number };
 
 export interface KanbanBoardProps {
   workspaceId: string | undefined;
@@ -93,13 +82,6 @@ export function KanbanBoard({
   const [aiPromptInput, setAiPromptInput] = useState('');
   const [openCardId, setOpenCardId] = useState<string | null>(null);
 
-  const [drag, setDrag] = useState<DragState | null>(null);
-  const [liftedCardId, setLiftedCardId] = useState<string | null>(null);
-  const [cardDrop, setCardDrop] = useState<{
-    listId: TaskStatus;
-    index: number;
-  } | null>(null);
-
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   const visibleByList = useMemo(() => {
@@ -115,88 +97,57 @@ export function KanbanBoard({
 
   const filterCount = useMemo(() => countActiveFilters(filter), [filter]);
 
-  const clearDrag = useCallback(() => {
-    setDrag(null);
-    setLiftedCardId(null);
-    setCardDrop(null);
-  }, []);
-
-  const handleCardDragStart = useCallback(
-    (event: DragEvent<HTMLLIElement>, card: KanbanCard) => {
-      event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', card.id);
-      setDrag({
-        cardId: card.id,
-        height: event.currentTarget.getBoundingClientRect().height,
-      });
-
-      for (const [listId, cards] of visibleByList) {
-        const at = cards.findIndex((entry) => entry.id === card.id);
-        if (at !== -1) {
-          setCardDrop({ listId, index: at });
-          break;
-        }
-      }
-
-      requestAnimationFrame(() => setLiftedCardId(card.id));
-    },
-    [visibleByList],
+  const dragColumns = useMemo(
+    () =>
+      board.lists.map((list) => ({
+        listId: list.id,
+        title: list.title,
+        count: visibleByList.get(list.id)?.length ?? 0,
+      })),
+    [board.lists, visibleByList],
   );
 
-  const handleCardDragOver = useCallback((listId: TaskStatus, index: number) => {
-    setCardDrop((current) =>
-      current && current.listId === listId && current.index === index
-        ? current
-        : { listId, index },
-    );
-  }, []);
-
-  const handleCardDrop = useCallback(
-    (toListId: TaskStatus, visualIndex: number) => {
-      if (!drag) return;
-
-      const list = board.lists.find((entry) => entry.id === toListId);
+  const handleDrop = useCallback(
+    (cardId: string, slot: DragSlot) => {
+      const list = board.lists.find((entry) => entry.id === slot.listId);
       if (!list) return;
 
       /*
-       * The drop index is counted over *visible* cards, but the position the
-       * server is given has to be an index into the whole column — so the
-       * visible card at that slot is used as an anchor into the real list.
+       * The slot is counted over *visible* cards, but the position the server is
+       * given has to be an index into the whole column — so the visible card at
+       * that slot is used as an anchor into the real list.
        */
-      const visible = (visibleByList.get(toListId) ?? []).filter(
-        (card) => card.id !== drag.cardId,
+      const visible = (visibleByList.get(slot.listId) ?? []).filter(
+        (card) => card.id !== cardId,
       );
-      const remaining = list.cards.filter((card) => card.id !== drag.cardId);
+      const remaining = list.cards.filter((card) => card.id !== cardId);
 
       let toIndex = remaining.length;
-      if (visualIndex < visible.length) {
+      if (slot.index < visible.length) {
         const anchor = remaining.findIndex(
-          (card) => card.id === visible[visualIndex].id,
+          (card) => card.id === visible[slot.index].id,
         );
         if (anchor !== -1) toIndex = anchor;
       }
 
-      dispatch({ type: 'card/move', cardId: drag.cardId, toListId, toIndex });
-      clearDrag();
+      dispatch({ type: 'card/move', cardId, toListId: slot.listId, toIndex });
     },
-    [board.lists, clearDrag, dispatch, drag, visibleByList],
+    [board.lists, dispatch, visibleByList],
   );
 
-  /** Auto-scrolls the column row while a card is held near either edge. */
-  const handleBoardDragOver = (event: DragEvent<HTMLDivElement>) => {
-    if (!drag) return;
-    event.preventDefault();
+  const handleColumnDrop = useCallback(
+    (listId: TaskStatus, toIndex: number) => {
+      dispatch({ type: 'list/move', listId, toIndex });
+    },
+    [dispatch],
+  );
 
-    const scroller = scrollerRef.current;
-    if (!scroller) return;
-
-    const rect = scroller.getBoundingClientRect();
-    if (event.clientX < rect.left + EDGE_ZONE) {
-      scroller.scrollLeft -= EDGE_SPEED;
-    } else if (event.clientX > rect.right - EDGE_ZONE) {
-      scroller.scrollLeft += EDGE_SPEED;
-    }
-  };
+  const drag = useBoardDrag({
+    columns: dragColumns,
+    scrollerRef,
+    onDrop: handleDrop,
+    onColumnDrop: handleColumnDrop,
+  });
 
   return (
     <div className="group/board min-h-128 px-4 sm:px-6 py-4 sm:py-6 flex h-full flex-col overflow-hidden text-foreground">
@@ -352,36 +303,49 @@ export function KanbanBoard({
       ) : (
         <div
           ref={scrollerRef}
-          onDragOver={handleBoardDragOver}
-          className="no-scrollbar flex flex-1 items-start gap-4 overflow-x-auto pb-4"
+          className="no-scrollbar relative flex flex-1 items-start gap-4 overflow-x-auto pb-4"
         >
-          {board.lists.map((list) => (
-            <Fragment key={list.id}>
-              <KanbanListColumn
-                list={list}
-                lists={board.lists}
-                members={board.members}
-                visibleCards={visibleByList.get(list.id) ?? []}
-                hiddenCount={
-                  list.cards.length - (visibleByList.get(list.id) ?? []).length
-                }
-                dispatch={dispatch}
-                draggingCardId={drag?.cardId}
-                liftedCardId={liftedCardId ?? undefined}
-                dropIndex={
-                  cardDrop?.listId === list.id ? cardDrop.index : undefined
-                }
-                dropHeight={drag?.height ?? 0}
-                onOpenCard={setOpenCardId}
-                onCardDragStart={handleCardDragStart}
-                onCardDragEnd={clearDrag}
-                onCardDragOver={handleCardDragOver}
-                onCardDrop={handleCardDrop}
-              />
-            </Fragment>
+          {board.lists.map((list, index) => (
+            <KanbanListColumn
+              key={list.id}
+              list={list}
+              lists={board.lists}
+              members={board.members}
+              visibleCards={visibleByList.get(list.id) ?? []}
+              hiddenCount={
+                list.cards.length - (visibleByList.get(list.id) ?? []).length
+              }
+              dispatch={dispatch}
+              drag={drag}
+              index={index}
+              onOpenCard={setOpenCardId}
+            />
           ))}
+
+          {/*
+            The gap a lifted column is holding open, the row's counterpart to
+            the one each column keeps for cards. Out of flow, so the flex row
+            never sees it, and positioned against the scroller — which means it
+            scrolls with the columns rather than floating over them.
+          */}
+          <div
+            data-kanban-column-placeholder
+            aria-hidden
+            hidden
+            className="pointer-events-none absolute left-0 top-0 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5"
+          />
         </div>
       )}
+
+      {/* Keyboard dragging: the instructions each tile points at, and what the
+          card just did, for anyone who cannot see the placeholder move. */}
+      <p id="kanban-drag-help" className="sr-only">
+        Press space to pick this up, the arrow keys to move it, space again to
+        drop it, and escape to cancel.
+      </p>
+      <p aria-live="assertive" role="status" className="sr-only">
+        {drag.announcement}
+      </p>
 
       {/* Card Details Dialog */}
       {openCardId ? (

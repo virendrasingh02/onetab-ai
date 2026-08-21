@@ -1,4 +1,3 @@
-import { type TaskStatus } from '@org/types';
 import {
   Button,
   DropdownMenu,
@@ -23,19 +22,12 @@ import {
   Plus,
   X,
 } from 'lucide-react';
-import {
-  Fragment,
-  useEffect,
-  useRef,
-  useState,
-  type DragEvent,
-  type KeyboardEvent,
-  type Ref,
-} from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type Ref } from 'react';
 import { KanbanCardTile } from './KanbanCardTile.js';
 import { StatusIcon } from './kanban-icons.js';
 import type { BoardAction } from './server-board.js';
 import type { BoardMember, KanbanCard, KanbanList, SortKey } from './types.js';
+import type { BoardDrag } from './use-board-drag.js';
 
 const SORT_OPTIONS: Array<{ key: SortKey; label: string }> = [
   { key: 'due', label: 'Due date' },
@@ -54,23 +46,12 @@ export interface KanbanListColumnProps {
   hiddenCount: number;
   dispatch: (action: BoardAction) => void;
 
-  /** Id of the card currently being dragged, board-wide. */
-  draggingCardId?: string;
-  /**
-   * Same card, but only once the browser has taken its drag image — that is
-   * the frame it becomes safe to collapse the original out of the layout.
-   */
-  liftedCardId?: string;
-  /** Placeholder position, counted over the cards that are *not* being dragged. */
-  dropIndex?: number;
-  /** Height of the lifted card, so the placeholder matches its footprint. */
-  dropHeight: number;
+  /** The board's drag engine — this column registers itself with it. */
+  drag: BoardDrag;
+  /** This column's place in the row, which is what a column drag rewrites. */
+  index: number;
 
   onOpenCard: (cardId: string) => void;
-  onCardDragStart: (event: DragEvent<HTMLLIElement>, card: KanbanCard) => void;
-  onCardDragEnd: () => void;
-  onCardDragOver: (listId: TaskStatus, visualIndex: number) => void;
-  onCardDrop: (listId: TaskStatus, visualIndex: number) => void;
 }
 
 export function KanbanListColumn({
@@ -80,22 +61,27 @@ export function KanbanListColumn({
   visibleCards,
   hiddenCount,
   dispatch,
-  draggingCardId,
-  liftedCardId,
-  dropIndex,
-  dropHeight,
+  drag,
+  index,
   onOpenCard,
-  onCardDragStart,
-  onCardDragEnd,
-  onCardDragOver,
-  onCardDrop,
 }: KanbanListColumnProps) {
   const sectionRef = useRef<HTMLElement>(null);
-  /** The `<ul>` — queried for card tiles when resolving a drop index. */
+  /** The `<ul>` — the drag engine measures the tiles inside it. */
   const cardsRef = useRef<HTMLUListElement>(null);
   /** The element that scrolls, for pinning a freshly added card into view. */
   const cardsScrollRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+
+  const { registerColumn } = drag;
+  useEffect(() => {
+    const section = sectionRef.current;
+    const viewport = cardsScrollRef.current;
+    const cards = cardsRef.current;
+    if (!section || !viewport || !cards) return;
+
+    registerColumn(list.id, { section, viewport, list: cards });
+    return () => registerColumn(list.id, null);
+  }, [list.id, registerColumn]);
 
   const [composer, setComposer] = useState<'top' | 'bottom' | null>(null);
   const [draft, setDraft] = useState('');
@@ -142,73 +128,39 @@ export function KanbanListColumn({
     }
   };
 
-  /**
-   * Insertion point for the lifted card: the first visible card whose vertical
-   * midpoint sits below the pointer. The dragged card is skipped so the index
-   * is already relative to the list without it.
-   */
-  const resolveVisualIndex = (clientY: number): number => {
-    const container = cardsRef.current;
-    if (!container) return visibleCards.length;
-
-    const tiles = Array.from(
-      container.querySelectorAll<HTMLElement>('[data-kanban-card]'),
-    ).filter((tile) => tile.dataset.kanbanCard !== draggingCardId);
-
-    for (let i = 0; i < tiles.length; i += 1) {
-      const rect = tiles[i].getBoundingClientRect();
-      if (clientY < rect.top + rect.height / 2) return i;
-    }
-    return tiles.length;
-  };
-
-  const handleDragOver = (event: DragEvent<HTMLElement>) => {
-    if (!draggingCardId) return;
-    // Claiming the drag here is what makes the column a valid drop target.
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-    onCardDragOver(list.id, resolveVisualIndex(event.clientY));
-  };
-
-  const handleDrop = (event: DragEvent<HTMLElement>) => {
-    if (!draggingCardId) return;
-    event.preventDefault();
-    onCardDrop(list.id, resolveVisualIndex(event.clientY));
-  };
-
   const otherLists = lists.filter((other) => other.id !== list.id);
-  const placeholder =
-    draggingCardId && dropIndex !== undefined ? dropIndex : undefined;
-
-  const renderPlaceholder = (key: string) => (
-    <li
-      key={key}
-      aria-hidden
-      style={{ height: dropHeight }}
-      className="rounded-lg border-2 border-dashed border-primary/40 bg-primary/5"
-    />
-  );
-
-  /** Cards still sitting in the list, i.e. everything except the lifted one. */
-  let stationary = 0;
-  const stationaryCount = visibleCards.filter(
-    (card) => card.id !== liftedCardId,
-  ).length;
+  const columnDrag = drag.getColumnHandlers(list.id, index);
 
   return (
     <section
       ref={sectionRef}
       data-kanban-list={list.id}
       aria-label={list.title}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
+      hidden={drag.activeListId === list.id}
       className={cn(
         'sm:w-72 flex max-h-full w-[82vw] shrink-0 flex-col rounded-xl border bg-surface-muted',
         'transition-[box-shadow] duration-(--duration-fast)',
-        placeholder !== undefined && 'ring-2 ring-primary/25',
+        // Set by the drag engine on whichever column is under the pointer.
+        'data-drop-target:ring-2 data-drop-target:ring-primary/25',
       )}
     >
-      <header className="gap-1.5 px-3 py-2 flex items-center justify-between rounded-t-xl border-b border-border/40 bg-surface/40">
+      {/*
+        The header is the column's drag handle — the body belongs to the cards,
+        which have a drag of their own. The buttons inside it opt out.
+      */}
+      <header
+        tabIndex={0}
+        aria-roledescription="Draggable column"
+        aria-describedby="kanban-drag-help"
+        aria-keyshortcuts="Space"
+        onPointerDown={columnDrag.onPointerDown}
+        onKeyDown={columnDrag.onKeyDown}
+        className={cn(
+          'gap-1.5 px-3 py-2 flex items-center justify-between rounded-t-xl border-b border-border/40 bg-surface/40',
+          'cursor-grab touch-manipulation select-none',
+          'focus-visible:ring-[3px] focus-visible:ring-ring/30 focus-visible:outline-none',
+        )}
+      >
         <div className="gap-2 min-w-0 flex flex-1 items-center">
           <StatusIcon status={list.id} />
 
@@ -221,7 +173,7 @@ export function KanbanListColumn({
           </span>
         </div>
 
-        <div className="gap-0.5 flex shrink-0 items-center">
+        <div data-no-drag className="gap-0.5 flex shrink-0 items-center">
           <Button
             variant="ghost"
             size="icon-sm"
@@ -341,69 +293,72 @@ export function KanbanListColumn({
         viewportRef={cardsScrollRef}
         contentClassName="px-2 pb-1"
       >
-        <ul ref={cardsRef} className="min-h-6 space-y-2">
-          {stationaryCount === 0 && placeholder === undefined ? (
-            <li className="px-2 py-6 text-xs text-center text-muted-foreground">
+        {/* `relative`: the drop placeholder is positioned against this list. */}
+        <ul ref={cardsRef} className="relative min-h-6 space-y-2">
+          {/*
+            Keyed off the unfiltered count rather than off what is on screen: a
+            card in the air still belongs to this column, and letting the empty
+            state appear underneath the placeholder mid-drag would only flicker.
+          */}
+          {visibleCards.length === 0 ? (
+            <li
+              data-kanban-empty
+              className="px-2 py-6 text-xs text-center text-muted-foreground"
+            >
               {hiddenCount > 0
                 ? `${hiddenCount} card${hiddenCount === 1 ? '' : 's'} hidden by filters`
                 : 'Drop a card here'}
             </li>
           ) : null}
 
-          {visibleCards.map((card) => {
-            // The lifted card keeps its slot in the DOM — collapsing it instead
-            // of unmounting it is what keeps `dragend` firing — but it is skipped
-            // when counting, so the placeholder lands on the real insertion point.
-            const lifted = card.id === liftedCardId;
-            const placeholderHere =
-              placeholder !== undefined &&
-              !lifted &&
-              stationary === placeholder;
-            if (!lifted) stationary += 1;
+          {visibleCards.map((card, index) => (
+            <KanbanCardTile
+              key={card.id}
+              card={card}
+              members={members}
+              lists={lists}
+              listId={list.id}
+              dragging={card.id === drag.activeCardId}
+              drag={drag.getCardHandlers(card.id, list.id, index)}
+              onOpen={() => onOpenCard(card.id)}
+              onCopy={() => dispatch({ type: 'card/copy', cardId: card.id })}
+              onDelete={() => dispatch({ type: 'card/remove', cardId: card.id })}
+              onMoveToList={(toListId) =>
+                dispatch({
+                  type: 'card/move',
+                  cardId: card.id,
+                  toListId,
+                  toIndex: Number.MAX_SAFE_INTEGER,
+                })
+              }
+              onAssigneeChange={(memberId) =>
+                dispatch({
+                  type: 'card/update',
+                  cardId: card.id,
+                  patch: { memberIds: memberId ? [memberId] : [] },
+                })
+              }
+            />
+          ))}
 
-            return (
-              <Fragment key={card.id}>
-                {placeholderHere ? renderPlaceholder(`ph-${card.id}`) : null}
-                <KanbanCardTile
-                  card={card}
-                  members={members}
-                  lists={lists}
-                  listId={list.id}
-                  lifted={lifted}
-                  onOpen={() => onOpenCard(card.id)}
-                  onCopy={() =>
-                    dispatch({ type: 'card/copy', cardId: card.id })
-                  }
-                  onDelete={() =>
-                    dispatch({ type: 'card/remove', cardId: card.id })
-                  }
-                  onMoveToList={(toListId) =>
-                    dispatch({
-                      type: 'card/move',
-                      cardId: card.id,
-                      toListId,
-                      toIndex: Number.MAX_SAFE_INTEGER,
-                    })
-                  }
-                  onAssigneeChange={(memberId) =>
-                    dispatch({
-                      type: 'card/update',
-                      cardId: card.id,
-                      patch: { memberIds: memberId ? [memberId] : [] },
-                    })
-                  }
-                  onDragStart={(event) => onCardDragStart(event, card)}
-                  onDragEnd={onCardDragEnd}
-                />
-              </Fragment>
-            );
-          })}
+          {/*
+            The gap the lifted card is holding open.
 
-          {placeholder !== undefined && placeholder >= stationary
-            ? renderPlaceholder('ph-end')
-            : null}
+            One element per column, mounted for the whole drag and moved with a
+            transform, so sliding it from slot to slot is something CSS can
+            animate — inserting and removing a node between the tiles could not
+            be. Out of flow, so where it sits among its siblings does not matter;
+            `mt-0!` opts it out of the list's `space-y-2`, which would otherwise
+            offset it from the slot it is meant to be marking.
+          */}
+          <li
+            data-kanban-placeholder
+            aria-hidden
+            hidden
+            className="pointer-events-none absolute inset-x-0 top-0 mt-0! rounded-xl border-2 border-dashed border-primary/40 bg-primary/5"
+          />
 
-          {hiddenCount > 0 && stationaryCount > 0 ? (
+          {hiddenCount > 0 && visibleCards.length > 0 ? (
             <li className="pt-1 pb-1 text-center text-[11px] text-muted-foreground">
               {hiddenCount} hidden by filters
             </li>

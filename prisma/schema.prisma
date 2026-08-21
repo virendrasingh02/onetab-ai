@@ -370,6 +370,16 @@ model Project {
   status      ProjectStatus @default(ACTIVE)
   startDate   DateTime?
   targetDate  DateTime?
+  /// The board's columns, left to right. The set is fixed — it is `TaskStatus`
+  /// — so only the order is the project's to own, and a status missing from
+  /// this list is appended in enum order rather than hidden.
+  columnOrder TaskStatus[]  @default([])
+  /// Uppercase stem of this project's ticket ids, derived from `name` when the
+  /// project is created and unique across the workspace.
+  ticketPrefix String?
+  /// The last ticket number handed out. Numbers are never reused, so deleting a
+  /// task does not free its id for the next one.
+  ticketSeq   Int           @default(0)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   milestones  Milestone[]
@@ -378,6 +388,7 @@ model Project {
   tasks       Task[]
 
   @@unique([workspaceId, slug])
+  @@unique([workspaceId, ticketPrefix])
   @@index([workspaceId, status])
   @@map("projects")
 }
@@ -428,6 +439,10 @@ model Task {
   priority    TaskPriority  @default(MEDIUM)
   dueDate     DateTime?
   orderIndex  Int           @default(0)
+  /// This task's number within its project. With the project's `ticketPrefix`
+  /// it forms the card's human-readable id, e.g. `WEB-42`. Null only for a task
+  /// filed outside any project, which has no prefix to hang a number off.
+  ticketNumber Int?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   comments    TaskComment[]
@@ -437,6 +452,7 @@ model Task {
   sprint      Sprint?       @relation(fields: [sprintId], references: [id])
   workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
+  @@unique([projectId, ticketNumber])
   @@index([workspaceId, status])
   @@index([projectId, status])
   @@index([sprintId])

@@ -3,10 +3,12 @@ import type { TaskStatus } from '@org/types';
 /**
  * The board's view of the tasks API.
  *
- * Columns are the `TaskStatus` values, in `TASK_STATUS_ORDER` — the server owns
- * the column set, so a list has no identity of its own beyond its status and
- * cannot be renamed, reordered or deleted. Order *within* a column is
- * `Task.orderIndex`, which is why a drag is a `moveTask` and not a splice.
+ * Columns are the `TaskStatus` values — the server owns the column set, so a
+ * list has no identity of its own beyond its status and cannot be renamed or
+ * deleted. It *can* be reordered: the left-to-right order is the project's
+ * `columnOrder`, so dragging a column rewrites that array. Order *within* a
+ * column is `Task.orderIndex`, which is why a card drag is a `moveTask` and not
+ * a splice.
  *
  * Everything here is something the API can store. Exports from other trackers
  * carry more (labels, checklists, several assignees per card); that lives in
@@ -25,6 +27,12 @@ export interface BoardMember {
 export interface KanbanCard {
   /** The task id. */
   id: string;
+  /**
+   * The card's human-readable id, `${project.ticketPrefix}-${task.ticketNumber}`
+   * — `WEB-42`. Absent only for a task filed outside any project, which has no
+   * prefix to pair a number with.
+   */
+  ticketId?: string;
   title: string;
   description: string;
   /**
