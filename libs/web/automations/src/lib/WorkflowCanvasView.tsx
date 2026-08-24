@@ -352,12 +352,12 @@ export function WorkflowCanvasView() {
               </div>
             </div>
 
-            <span className="lg:inline-block text-xs max-w-md ml-1 pl-2.5 hidden truncate border-l border-border/80 text-muted-foreground">
+            {/* <span className="lg:inline-block text-xs max-w-md ml-1 pl-2.5 hidden truncate border-l border-border/80 text-muted-foreground">
               Design interactive automation graphs with custom triggers, AI
               agents, conditions, and API nodes. Executing conditions and
               outgoing API/webhook actions for real is not built yet — saving
               stores the graph so it is there when that lands.
-            </span>
+            </span> */}
           </div>
 
           <div className="gap-2 flex items-center">
@@ -383,7 +383,7 @@ export function WorkflowCanvasView() {
               }
               onClick={handleSave}
             >
-              {isSaving ? 'Saving…' : isSaved ? 'Saved' : 'Save Graph'}
+              {isSaving ? 'Saving…' : isSaved ? 'Saved' : 'Save'}
             </Button>
           </div>
         </div>
@@ -402,9 +402,9 @@ export function WorkflowCanvasView() {
       </div>
 
       {/* Canvas workspace */}
-      <div className="min-h-0 p-3 sm:p-4 gap-3 flex flex-1 flex-col">
+      <div className="min-h-0 p-3 sm:p-4 gap-1 flex flex-1 flex-col">
         {/* Top Controls & Node Addition Toolbar */}
-        <Card className="p-3 mb-3 gap-3 flex flex-wrap items-center justify-between border-border bg-surface">
+        <Card className="bottom-3 p-3 mb-3 gap-3 absolute z-50 flex flex-wrap items-center justify-between border-border bg-surface">
           <div className="gap-2 flex items-center">
             <span className="text-xs font-semibold tracking-wider text-foreground text-subtle uppercase">
               Add Node:
@@ -467,11 +467,7 @@ export function WorkflowCanvasView() {
             </Button>
           </div>
 
-          <div className="gap-2 flex items-center">
-            <Badge variant="neutral" className="gap-1 font-mono text-[11px]">
-              <Radio className="size-3 text-accent-green" />
-              <span>ReactFlow Powered Engine</span>
-            </Badge>
+          <div className="gap-2 right-3 left-3 bottom-3 absolute z-0 flex items-center">
             <Badge variant="outline" className="font-mono text-[11px]">
               {nodes.length} Nodes · {edges.length} Connections
             </Badge>

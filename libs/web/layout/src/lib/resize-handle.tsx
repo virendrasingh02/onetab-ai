@@ -98,7 +98,7 @@ export function ResizeHandle({
         className={cn(
           /* `bg-card`, not `bg-background`: the gutter this pill floats in *is*
              `background`, so the fill has to step off it to be visible. */
-          'h-7 w-3.5 shadow-xs absolute flex items-center justify-center rounded-full border border-border bg-card transition-opacity duration-150',
+          'h-7 w-3 absolute flex items-center justify-center rounded-full border border-border bg-card shadow-xs transition-opacity duration-150',
           isResizing
             ? 'border-primary text-primary opacity-100'
             : 'text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100',
