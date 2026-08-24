@@ -18,6 +18,14 @@
     "react-router-dom": "^6.30.3"
   },
   "nx": {
-    "tags": ["type:feature", "scope:web"]
+    "tags": ["type:feature", "scope:web"],
+    "targets": {
+      "test": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "vitest run --config libs/web/desktop/vitest.config.mts"
+        }
+      }
+    }
   }
 }

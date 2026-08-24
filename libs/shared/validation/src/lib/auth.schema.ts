@@ -87,8 +87,21 @@ export const changePasswordSchema = z
     path: ['confirmPassword'],
   });
 
+export const desktopAuthorizeSchema = z.object({
+  state: z.string().min(8, 'State must be at least 8 characters').max(256),
+  codeChallenge: z.string().min(32, 'Code challenge must be at least 32 characters').max(128),
+});
+
+export const desktopExchangeSchema = z.object({
+  code: z.string().min(16, 'Authorization code is required').max(128),
+  codeVerifier: z.string().min(32, 'Code verifier must be at least 32 characters').max(128),
+  state: z.string().min(8, 'State is required').max(256),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type DesktopAuthorizeInput = z.infer<typeof desktopAuthorizeSchema>;
+export type DesktopExchangeInput = z.infer<typeof desktopExchangeSchema>;

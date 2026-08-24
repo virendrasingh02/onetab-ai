@@ -1,4 +1,5 @@
 import {
+  DesktopAuthCallbackPage,
   ForgotPasswordPage,
   LoginPage,
   ProtectedRoute,
@@ -192,7 +193,8 @@ export function App() {
   return (
     <Suspense fallback={<LoadingState fullPage label="Loading your workspace…" />}>
       <Routes>
-        {/* --- public ---------------------------------------------------- */}
+        {/* --- public & callback routes -------------------------------- */}
+        <Route path="/auth/callback" element={<DesktopAuthCallbackPage />} />
         <Route element={<PublicOnlyRoute />}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -205,8 +207,10 @@ export function App() {
           <Route path="/invite/:token" element={<AcceptInvitationPage />} />
           <Route path="/workspaces/new" element={<CreateWorkspacePage />} />
 
-          {/* Bare "/" resolves to the user's first workspace. */}
+          {/* Bare "/" and "/open" resolve to the user's first workspace. */}
           <Route path="/" element={<WorkspaceRedirect />} />
+          <Route path="/open" element={<WorkspaceRedirect />} />
+          <Route path="/settings" element={<WorkspaceRedirect />} />
 
           {/* --- Separate Standalone Settings Routes --- */}
           <Route

@@ -24,3 +24,4 @@ export { LoginPage } from './lib/pages/login-page.js';
 export { RegisterPage } from './lib/pages/register-page.js';
 export { ForgotPasswordPage } from './lib/pages/forgot-password-page.js';
 export { ResetPasswordPage } from './lib/pages/reset-password-page.js';
+export { DesktopAuthCallbackPage } from './lib/pages/desktop-auth-callback-page.js';

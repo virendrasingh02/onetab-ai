@@ -5,7 +5,6 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  Hint,
   ScrollArea,
   toast,
 } from '@org/ui';
@@ -13,12 +12,10 @@ import { cn } from '@org/utils';
 import {
   Check,
   Copy,
-  Headphones,
   Home,
   Info,
   MoreHorizontal,
   RotateCcw,
-  Sparkles,
   Star,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';

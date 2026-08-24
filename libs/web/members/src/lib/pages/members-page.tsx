@@ -34,7 +34,7 @@ const ROLE_BADGE: Record<string, 'primary' | 'info' | 'neutral'> = {
 };
 
 export function MembersPage() {
-  const { slug, workspace, workspaceId } = useCurrentWorkspace();
+  const { slug, workspaceId } = useCurrentWorkspace();
   const members = useMembers(workspaceId);
   const { updateRole, remove } = useMemberMutations(workspaceId);
   const currentUser = useCurrentUser();

@@ -99,6 +99,8 @@ import type {
   CreateTaskInput,
   CreateWhiteboardInput,
   CreateWorkspaceInput,
+  DesktopAuthorizeInput,
+  DesktopExchangeInput,
   ForgotPasswordInput,
   IconPatch,
   InviteMembersInput,
@@ -146,6 +148,16 @@ export const authApi = {
 
   resetPassword: (input: ResetPasswordInput) =>
     request<void>(http.post('/auth/reset-password', input)),
+
+  authorizeDesktop: (input: DesktopAuthorizeInput) =>
+    request<{ code: string; state: string }>(
+      http.post('/auth/desktop/authorize', input),
+    ),
+
+  exchangeDesktopCode: (input: DesktopExchangeInput) =>
+    request<AuthResponse & { refreshToken: string }>(
+      http.post('/auth/desktop/exchange', input),
+    ),
 };
 
 /**

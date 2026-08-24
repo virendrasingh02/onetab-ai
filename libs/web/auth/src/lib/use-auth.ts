@@ -12,6 +12,8 @@ import type {
   RegisterInput,
   ResetPasswordInput,
 } from '@org/validation';
+import { getDesktopApi } from '@org/web-desktop';
+import type { CurrentUser } from '@org/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -33,13 +35,8 @@ const BOOTSTRAP_BACKOFF_MS = [400, 1_200, 3_000];
 /**
  * Restores the session on a cold load.
  *
- * Only the API decides whether the session is still real: it is asked to trade
- * the refresh cookie for a token, and a 401 there is what makes the cached
- * profile in localStorage worthless. An API that cannot be *reached* has
- * decided nothing, so it is retried and, failing that, the cached identity is
- * restored — every request still carries a token the server validates, so the
- * worst case is a shell that 401s into this same path rather than a user who
- * was signed out by a dropped connection.
+ * Checks Electron desktop bridge for persisted safeStorage credentials first,
+ * then falls back to httpOnly cookie refresh exchange.
  */
 export function useSessionBootstrap(): void {
   const setSession = useAuthStore((state) => state.setSession);
@@ -54,15 +51,31 @@ export function useSessionBootstrap(): void {
     async function restore() {
       setStatus('authenticating');
 
+      // 1. In Electron shell, inspect desktop safeStorage session first
+      const desktopApi = getDesktopApi();
+      if (desktopApi) {
+        try {
+          const desktopSession = await desktopApi.auth.getSession();
+          if (desktopSession?.user && desktopSession.accessToken) {
+            setAccessToken(desktopSession.accessToken);
+            setSession(desktopSession.user as unknown as CurrentUser, desktopSession.accessToken);
+            try {
+              const me = await authApi.me();
+              if (!cancelled) setSession(me, desktopSession.accessToken);
+            } catch {
+              // Retain active session
+            }
+            return;
+          }
+        } catch {
+          // Continue to cookie exchange
+        }
+      }
+
+      // 2. Standard cookie refresh loop
       for (let attempt = 0; ; attempt += 1) {
         try {
           const tokens = await authApi.refresh();
-          /*
-           * Before `me()`, not after: that call used to go out under the stale
-           * token from the last session, 401, and trigger a second rotation
-           * through the interceptor — two cookie rotations per page load, each
-           * one a chance to collide with another tab.
-           */
           setAccessToken(tokens.accessToken);
 
           const me = await authApi.me();
@@ -91,13 +104,30 @@ export function useSessionBootstrap(): void {
     }
 
     restore();
+
+    // Subscribe to live auth session updates from browser login / deep link
+    const desktopApi = getDesktopApi();
+    const unsubscribeDesktop = desktopApi?.auth.onSessionChange((sess) => {
+      if (sess?.user && sess.accessToken) {
+        setAccessToken(sess.accessToken);
+        setSession(sess.user as unknown as CurrentUser, sess.accessToken);
+        if (
+          window.location.pathname.startsWith('/login') ||
+          window.location.pathname.startsWith('/auth/callback')
+        ) {
+          navigate('/', { replace: true });
+        }
+      }
+    });
+
     return () => {
       cancelled = true;
+      unsubscribeDesktop?.();
     };
     // `user` is the cached identity read once at store creation; re-running this
     // when it changes would re-bootstrap on every profile edit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setSession, setStatus, clear]);
+  }, [setSession, setStatus, clear, navigate]);
 
   // A refresh failure mid-session must drop the user back to sign-in.
   useEffect(() => {

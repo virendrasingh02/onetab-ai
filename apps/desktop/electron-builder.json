@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
   "appId": "ai.onetab.desktop",
   "productName": "OneTab AI",
-  "copyright": "Copyright © OneTab AI",
+  "copyright": "Copyright © OneTab AI Inc.",
   "directories": {
     "output": "apps/desktop/release",
     "buildResources": "apps/desktop/resources"
@@ -12,8 +12,8 @@
     "name": "onetab-ai",
     "productName": "OneTab AI",
     "version": "0.0.1",
-    "description": "OneTab AI desktop app",
-    "author": "OneTab AI",
+    "description": "OneTab AI desktop application",
+    "author": "OneTab AI Inc.",
     "main": "apps/desktop/dist/main.js"
   },
   "files": [
@@ -52,8 +52,8 @@
   "asar": true,
   "protocols": [
     {
-      "name": "OneTab AI",
-      "schemes": ["onetab"]
+      "name": "OneTab AI Protocol",
+      "schemes": ["onetab", "mie"]
     }
   ],
   "win": {
@@ -81,7 +81,7 @@
     "icon": "apps/desktop/resources/icon.png",
     "desktop": {
       "entry": {
-        "MimeType": "x-scheme-handler/onetab;"
+        "MimeType": "x-scheme-handler/onetab;x-scheme-handler/mie;"
       }
     }
   }

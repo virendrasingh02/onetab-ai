@@ -2,13 +2,16 @@ import { app, dialog, globalShortcut, nativeTheme, session } from 'electron';
 import { appendFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { IPC_EVENT, type DesktopCommand } from './shared/ipc.js';
+import { loadSecureSession } from './main/auth.js';
 import {
   deepLinkFromArgv,
   dispatchDeepLink,
   flushPendingDeepLink,
   registerProtocol,
+  setApiUrlForDeepLinks,
 } from './main/deep-link.js';
 import { registerIpcHandlers } from './main/ipc.js';
+import { logger } from './main/logger.js';
 import { installAppMenu } from './main/menu.js';
 import { startStaticServer, type StaticServer } from './main/static-server.js';
 import { createTray, destroyTray } from './main/tray.js';
@@ -27,6 +30,7 @@ let staticServer: StaticServer | null = null;
  * `app.quit()` here is the cheapest possible exit for the losing process.
  */
 if (!app.requestSingleInstanceLock()) {
+  logger.info('App', 'Another instance is already running. Handing off and quitting second instance.');
   app.quit();
 }
 
@@ -35,20 +39,16 @@ if (!app.requestSingleInstanceLock()) {
  * Windows uses to attribute toast notifications and group taskbar windows; the
  * name is what appears in the About panel, in notification banners, and — since
  * it decides `app.getPath('userData')` — where preferences and window state
- * live. Without it an unpackaged run stores them under "Electron".
+ * live.
  */
 app.setAppUserModelId('ai.onetab.desktop');
 app.setName('OneTab AI');
 
 /**
  * Where the renderer comes from.
- *
- * Dev points at the Vite server so HMR works. Packaged builds serve the bundle
- * from an internal localhost server — see `static-server.ts` for why `file://`
- * is not an option here.
  */
 async function resolveAppUrl(): Promise<string> {
-  const override = process.env['WEB_APP_URL'];
+  const override = process.env['WEB_APP_URL'] || process.env['VITE_WEB_APP_URL'];
   if (override) return override;
   if (isDev) return 'http://localhost:4200';
 
@@ -82,10 +82,6 @@ function resolveResourcesDir(): string {
 
 /**
  * Renderer permission requests.
- *
- * Electron grants everything by default, which means any script in the page can
- * silently take the camera. Only the capabilities the product actually uses are
- * allowed, and only from our own origin.
  */
 function applySessionPolicy(appOrigin: string): void {
   const allowed = new Set(['notifications', 'clipboard-sanitized-write', 'fullscreen']);
@@ -112,29 +108,17 @@ function sendCommand(command: DesktopCommand): void {
 }
 
 function registerGlobalShortcuts(): void {
-  // A single system-wide accelerator: too many and the app starts stealing
-  // shortcuts from whatever the user is actually working in.
   const accelerator = process.platform === 'darwin' ? 'Cmd+Shift+Space' : 'Ctrl+Shift+Space';
   const registered = globalShortcut.register(accelerator, () => sendCommand('open-search'));
 
   if (!registered) {
-    // Another app already owns it — not fatal, the in-app Cmd+K still works.
-    console.warn(`[desktop] Global shortcut ${accelerator} is unavailable.`);
+    logger.warn('App', `Global shortcut ${accelerator} is unavailable.`);
   }
 }
 
-/**
- * Startup failures have to be *visible*.
- *
- * A packaged Windows/macOS build has no console attached, so a throw out of
- * `bootstrap()` used to end the process with no window and nothing written
- * anywhere — indistinguishable from the app silently refusing to launch. The
- * dialog says why, and the log file survives long enough to be pasted into a
- * bug report.
- */
 function reportFatal(error: unknown): void {
   const detail = error instanceof Error ? (error.stack ?? error.message) : String(error);
-  console.error('[desktop] Failed to start:', detail);
+  logger.error('App', 'Failed to start desktop app', detail);
 
   try {
     appendFileSync(
@@ -142,27 +126,25 @@ function reportFatal(error: unknown): void {
       `${new Date().toISOString()}\n${detail}\n\n`,
     );
   } catch {
-    // The log is a convenience; losing it is never a reason to fail louder.
+    // ignore logging failure
   }
 
   dialog.showErrorBox('OneTab AI could not start', detail);
 }
 
 async function bootstrap(): Promise<void> {
+  logger.info('App', `Starting OneTab AI Desktop (Platform: ${process.platform}, Dev: ${isDev})`);
+
   const appUrl = await resolveAppUrl();
+  const apiUrl = process.env['VITE_API_URL'] || 'http://localhost:3000/api/v1';
+  setApiUrlForDeepLinks(apiUrl);
+
   const preloadPath = join(here, 'preload.js');
 
   applySessionPolicy(appUrl);
-  registerIpcHandlers(isDev);
+  registerIpcHandlers(isDev, appUrl);
   installAppMenu(isDev);
 
-  /*
-   * Match the renderer's default before it has mounted. Electron starts on
-   * `system`, so on a dark desktop the menus, native scrollbars and title bar
-   * came up dark around a light app until `DesktopProvider` pushed the real
-   * theme — which it then does, including switching this back to `system` for
-   * anyone who chose that.
-   */
   nativeTheme.themeSource = 'light';
 
   const window = createMainWindow({ appUrl, preloadPath });
@@ -171,14 +153,16 @@ async function bootstrap(): Promise<void> {
     showMainWindow();
     flushPendingDeepLink();
     window.webContents.send(IPC_EVENT.onlineStatus, true);
+
+    // If an authenticated session was previously saved in OS safeStorage, deliver it
+    const storedSession = loadSecureSession();
+    if (storedSession) {
+      logger.info('App', 'Delivering restored secure session to renderer');
+      window.webContents.send(IPC_EVENT.authSessionChanged, storedSession);
+    }
   });
 
   if (isDev) {
-    /*
-     * `nx serve @org/desktop` usually wins the race against Vite's first
-     * compile, so the first load lands on a connection error. Retrying quietly
-     * is friendlier than making the developer restart Electron by hand.
-     */
     let attempts = 0;
     window.webContents.on('did-fail-load', (_event, _code, _description, url, isMainFrame) => {
       if (!isMainFrame || url !== appUrl || attempts >= 60) return;
@@ -222,8 +206,6 @@ app.whenReady().then(() => {
     app.quit();
   });
 
-  // macOS keeps the process alive after the last window closes; clicking the
-  // dock icon is how the user asks for it back.
   app.on('activate', () => {
     if (getMainWindow()) showMainWindow();
     else void bootstrap();

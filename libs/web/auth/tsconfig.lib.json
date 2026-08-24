@@ -20,6 +20,9 @@
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
+      "path": "../desktop/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/validation/tsconfig.lib.json"
     },
     {

@@ -59,7 +59,7 @@ export function SettingsLayout({
   const { workspace, workspaceId } = useCurrentWorkspace();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSection, setSelectedSection] = useState<
+  const [selectedSection] = useState<
     'all' | 'workspace' | 'account'
   >('all');
 

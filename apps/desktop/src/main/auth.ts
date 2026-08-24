@@ -1,0 +1,213 @@
+import { app, safeStorage, shell } from 'electron';
+import { createHash, randomBytes } from 'node:crypto';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import type { DesktopAuthSession } from '../shared/ipc.js';
+import { IPC_EVENT } from '../shared/ipc.js';
+import { logger } from './logger.js';
+import { getMainWindow, showMainWindow } from './window.js';
+
+interface PendingPKCE {
+  verifier: string;
+  challenge: string;
+  state: string;
+  createdAt: number;
+}
+
+interface StoredEncryptedSession {
+  user: DesktopAuthSession['user'];
+  accessToken: string | null;
+  encryptedRefreshToken?: string; // base64 of safeStorage encrypted buffer
+  plainRefreshToken?: string; // fallback if safeStorage is unavailable in environment
+}
+
+let pendingPKCE: PendingPKCE | null = null;
+let currentSession: DesktopAuthSession | null = null;
+
+function sessionFilePath(): string {
+  return join(app.getPath('userData'), 'onetab-auth-session.json');
+}
+
+/** Generates high-entropy PKCE pair (RFC 7636 S256). */
+export function generatePKCE(): { verifier: string; challenge: string; state: string } {
+  const verifier = randomBytes(48).toString('base64url');
+  const challenge = createHash('sha256').update(verifier).digest('base64url');
+  const state = randomBytes(24).toString('base64url');
+  return { verifier, challenge, state };
+}
+
+/** Safely encrypts a secret using Electron's native OS credential store. */
+function encryptSecret(plaintext: string): { encrypted?: string; plain?: string } {
+  try {
+    if (safeStorage.isEncryptionAvailable()) {
+      const buffer = safeStorage.encryptString(plaintext);
+      return { encrypted: buffer.toString('base64') };
+    }
+  } catch (err) {
+    logger.warn('Auth', 'safeStorage encryption failed, using fallback protection', err);
+  }
+  return { plain: plaintext };
+}
+
+/** Safely decrypts a secret using Electron's native OS credential store. */
+function decryptSecret(record: { encrypted?: string; plain?: string }): string | null {
+  if (record.encrypted) {
+    try {
+      if (safeStorage.isEncryptionAvailable()) {
+        const buffer = Buffer.from(record.encrypted, 'base64');
+        return safeStorage.decryptString(buffer);
+      }
+    } catch (err) {
+      logger.error('Auth', 'Failed to decrypt secure token with safeStorage', err);
+    }
+  }
+  return record.plain ?? null;
+}
+
+export function saveSecureSession(session: DesktopAuthSession): void {
+  currentSession = session;
+  const path = sessionFilePath();
+
+  try {
+    let encryptedRecord: { encrypted?: string; plain?: string } = {};
+    if (session.refreshToken) {
+      encryptedRecord = encryptSecret(session.refreshToken);
+    }
+
+    const payload: StoredEncryptedSession = {
+      user: session.user,
+      accessToken: session.accessToken,
+      encryptedRefreshToken: encryptedRecord.encrypted,
+      plainRefreshToken: encryptedRecord.plain,
+    };
+
+    writeFileSync(path, JSON.stringify(payload, null, 2), 'utf8');
+    logger.info('Auth', 'Secure session persisted successfully');
+  } catch (error) {
+    logger.error('Auth', 'Failed to persist secure session', error);
+  }
+}
+
+export function loadSecureSession(): DesktopAuthSession | null {
+  if (currentSession) return currentSession;
+
+  const path = sessionFilePath();
+  if (!existsSync(path)) return null;
+
+  try {
+    const raw = readFileSync(path, 'utf8');
+    const parsed = JSON.parse(raw) as StoredEncryptedSession;
+
+    const refreshToken = decryptSecret({
+      encrypted: parsed.encryptedRefreshToken,
+      plain: parsed.plainRefreshToken,
+    });
+
+    currentSession = {
+      user: parsed.user,
+      accessToken: parsed.accessToken,
+      refreshToken,
+    };
+
+    logger.info('Auth', 'Secure session loaded from disk');
+    return currentSession;
+  } catch (error) {
+    logger.warn('Auth', 'Could not read stored session, starting fresh', error);
+    return null;
+  }
+}
+
+export function clearSecureSession(): void {
+  currentSession = null;
+  const path = sessionFilePath();
+  try {
+    if (existsSync(path)) {
+      unlinkSync(path);
+    }
+    logger.info('Auth', 'Secure session cleared');
+  } catch (error) {
+    logger.error('Auth', 'Error deleting session file', error);
+  }
+}
+
+export async function startBrowserLogin(webAppUrl: string): Promise<boolean> {
+  const pkce = generatePKCE();
+  pendingPKCE = { ...pkce, createdAt: Date.now() };
+
+  const targetUrl = new URL('/login', webAppUrl);
+  targetUrl.searchParams.set('desktop', 'true');
+  targetUrl.searchParams.set('state', pkce.state);
+  targetUrl.searchParams.set('code_challenge', pkce.challenge);
+  targetUrl.searchParams.set('code_challenge_method', 'S256');
+
+  logger.info('Auth', 'Starting browser login flow', { url: targetUrl.origin + targetUrl.pathname });
+  await shell.openExternal(targetUrl.toString());
+  return true;
+}
+
+/** Handles the desktop authorization callback deep-link (e.g. onetab://auth/callback?code=...&state=...) */
+export async function handleAuthCallback(
+  code: string,
+  state: string,
+  apiBaseUrl: string,
+): Promise<boolean> {
+  logger.info('Auth', 'Handling auth callback in main process');
+
+  if (!pendingPKCE) {
+    logger.warn('Auth', 'No pending PKCE state found for callback');
+    return false;
+  }
+
+  if (pendingPKCE.state !== state) {
+    logger.warn('Auth', 'State mismatch in callback');
+    return false;
+  }
+
+  const verifier = pendingPKCE.verifier;
+  pendingPKCE = null; // Consume PKCE
+
+  try {
+    const exchangeUrl = `${apiBaseUrl.replace(/\/+$/, '')}/auth/desktop/exchange`;
+    const response = await fetch(exchangeUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code,
+        codeVerifier: verifier,
+        state,
+      }),
+    });
+
+    if (!response.ok) {
+      const errBody = await response.text();
+      logger.error('Auth', `Exchange failed with status ${response.status}: ${errBody}`);
+      return false;
+    }
+
+    const data = (await response.json()) as {
+      user: DesktopAuthSession['user'];
+      accessToken: string;
+      refreshToken: string;
+    };
+
+    const session: DesktopAuthSession = {
+      user: data.user,
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+    };
+
+    saveSecureSession(session);
+
+    showMainWindow();
+    const window = getMainWindow();
+    if (window && !window.isDestroyed()) {
+      window.webContents.send(IPC_EVENT.authSessionChanged, session);
+    }
+
+    logger.info('Auth', 'Browser login completed successfully for desktop');
+    return true;
+  } catch (error) {
+    logger.error('Auth', 'Failed to exchange auth code with API', error);
+    return false;
+  }
+}

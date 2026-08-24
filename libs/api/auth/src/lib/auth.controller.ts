@@ -14,11 +14,15 @@ import { CurrentUser, Public, zodBody } from '@org/api-common';
 import type { AuthenticatedUser } from '@org/api-common';
 import {
   changePasswordSchema,
+  desktopAuthorizeSchema,
+  desktopExchangeSchema,
   forgotPasswordSchema,
   loginSchema,
   registerSchema,
   resetPasswordSchema,
   type ChangePasswordInput,
+  type DesktopAuthorizeInput,
+  type DesktopExchangeInput,
   type ForgotPasswordInput,
   type LoginInput,
   type RegisterInput,
@@ -26,6 +30,7 @@ import {
 } from '@org/validation';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
+import { DesktopAuthService } from './desktop-auth.service.js';
 import type { IssuedSession } from './token.service.js';
 
 const REFRESH_COOKIE = 'onetab_rt';
@@ -34,6 +39,7 @@ const REFRESH_COOKIE = 'onetab_rt';
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
+    private readonly desktopAuth: DesktopAuthService,
     private readonly config: ConfigService,
   ) {}
 
@@ -166,5 +172,40 @@ export class AuthController {
     await this.auth.changePassword(userId, body);
     // Every session was revoked, so the current cookie is now dead too.
     this.clearRefreshCookie(response);
+  }
+
+  /**
+   * Browser-based PKCE authorization initiation for desktop app.
+   * Called by an authenticated user in their browser when completing the desktop login handoff.
+   */
+  @Post('desktop/authorize')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async desktopAuthorize(
+    @CurrentUser('id') userId: string,
+    @Body(zodBody(desktopAuthorizeSchema)) body: DesktopAuthorizeInput,
+  ) {
+    return this.desktopAuth.generateCode(userId, body);
+  }
+
+  /**
+   * Authorization code exchange for desktop app using PKCE S256 verification.
+   * Public endpoint called directly by the desktop main process.
+   */
+  @Public()
+  @Post('desktop/exchange')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 15, ttl: 60_000 } })
+  async desktopExchange(
+    @Body(zodBody(desktopExchangeSchema)) body: DesktopExchangeInput,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const { user, session } = await this.desktopAuth.exchangeCode(
+      body,
+      this.contextOf(request),
+    );
+    this.setRefreshCookie(response, session);
+    return { user, ...session.tokens, refreshToken: session.refreshToken };
   }
 }

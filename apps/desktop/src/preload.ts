@@ -3,9 +3,13 @@ import type {
   IPC as IpcContract,
   IPC_EVENT as IpcEventContract,
   DesktopAppInfo,
+  DesktopAppMetadata,
+  DesktopAuthSession,
+  DesktopCapabilities,
   DesktopCommand,
   DesktopDeepLink,
   DesktopDownloadRequest,
+  DesktopHandoffRequest,
   DesktopNotificationRequest,
   DesktopOpenFilesRequest,
   DesktopPickedFile,
@@ -18,20 +22,13 @@ import type {
 /**
  * The only surface the renderer sees.
  *
- * Nothing here hands out an `ipcRenderer` handle or lets the page choose its own
- * channel — every entry is a named, typed call, so the attack surface is exactly
- * this list. The mirrored renderer-side type lives in `@org/web-desktop`.
- *
- * The window runs with `sandbox: true`, where a preload script may only
- * `require('electron')` and a few built-ins — a relative import of the contract
- * module would throw at load. So the channel names are repeated here as literals
- * and pinned to the contract with `satisfies`: rename a channel in `ipc.ts` and
- * this file fails to compile. Everything else is imported with `import type`,
- * which erases entirely.
+ * Every entry is a named, typed call, pinned against IPC constants.
+ * The mirrored renderer-side type lives in `@org/web-desktop`.
  */
-
 const IPC = {
   appInfo: 'onetab:app-info',
+  getAppMetadata: 'onetab:app/metadata',
+  getCapabilities: 'onetab:capabilities/get',
   windowState: 'onetab:window-state',
   windowMinimize: 'onetab:window/minimize',
   windowToggleMaximize: 'onetab:window/toggle-maximize',
@@ -51,8 +48,13 @@ const IPC = {
   setPreference: 'onetab:prefs/set',
   setThemeSource: 'onetab:theme/set-source',
   checkForUpdates: 'onetab:updates/check',
+  downloadUpdate: 'onetab:updates/download',
   installUpdate: 'onetab:updates/install',
   relaunch: 'onetab:relaunch',
+  authStartBrowserLogin: 'onetab:auth/start-browser-login',
+  authGetSession: 'onetab:auth/get-session',
+  authClearSession: 'onetab:auth/clear-session',
+  openAppOrWeb: 'onetab:shell/open-app-or-web',
 } as const satisfies typeof IpcContract;
 
 const IPC_EVENT = {
@@ -63,11 +65,12 @@ const IPC_EVENT = {
   notificationActivated: 'onetab:event/notification-activated',
   command: 'onetab:event/command',
   onlineStatus: 'onetab:event/online-status',
+  authSessionChanged: 'onetab:event/auth-session',
+  capabilitiesChanged: 'onetab:event/capabilities-changed',
 } as const satisfies typeof IpcEventContract;
 
 type Unsubscribe = () => void;
 
-/** Wraps `ipcRenderer.on` so callers get a disposer instead of leaking listeners. */
 function subscribe<T>(channel: string, handler: (payload: T) => void): Unsubscribe {
   const listener = (_event: IpcRendererEvent, payload: T) => handler(payload);
   ipcRenderer.on(channel, listener);
@@ -79,6 +82,21 @@ const api = {
   isDesktop: true as const,
 
   getAppInfo: (): Promise<DesktopAppInfo> => ipcRenderer.invoke(IPC.appInfo),
+  getAppMetadata: (): Promise<DesktopAppMetadata> => ipcRenderer.invoke(IPC.getAppMetadata),
+
+  capabilities: {
+    get: (): Promise<DesktopCapabilities> => ipcRenderer.invoke(IPC.getCapabilities),
+    onChange: (handler: (caps: DesktopCapabilities) => void): Unsubscribe =>
+      subscribe(IPC_EVENT.capabilitiesChanged, handler),
+  },
+
+  auth: {
+    startBrowserLogin: (): Promise<boolean> => ipcRenderer.invoke(IPC.authStartBrowserLogin),
+    getSession: (): Promise<DesktopAuthSession | null> => ipcRenderer.invoke(IPC.authGetSession),
+    clearSession: (): Promise<void> => ipcRenderer.invoke(IPC.authClearSession),
+    onSessionChange: (handler: (session: DesktopAuthSession) => void): Unsubscribe =>
+      subscribe(IPC_EVENT.authSessionChanged, handler),
+  },
 
   window: {
     getState: (): Promise<DesktopWindowState> => ipcRenderer.invoke(IPC.windowState),
@@ -105,6 +123,11 @@ const api = {
     openExternal: (url: string): Promise<boolean> => ipcRenderer.invoke(IPC.openExternal, url),
     showItemInFolder: (path: string): Promise<void> =>
       ipcRenderer.invoke(IPC.showItemInFolder, path),
+  },
+
+  handoff: {
+    openAppOrWeb: (request: DesktopHandoffRequest): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.openAppOrWeb, request),
   },
 
   files: {
@@ -137,6 +160,7 @@ const api = {
 
   updates: {
     check: (): Promise<DesktopUpdateStatus> => ipcRenderer.invoke(IPC.checkForUpdates),
+    download: (): Promise<boolean> => ipcRenderer.invoke(IPC.downloadUpdate),
     install: (): Promise<boolean> => ipcRenderer.invoke(IPC.installUpdate),
     onStatus: (handler: (status: DesktopUpdateStatus) => void): Unsubscribe =>
       subscribe(IPC_EVENT.updateStatus, handler),

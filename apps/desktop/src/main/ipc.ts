@@ -15,7 +15,10 @@ import {
   IPC_EVENT,
   MAX_INLINE_FILE_BYTES,
   type DesktopAppInfo,
+  type DesktopAppMetadata,
+  type DesktopCapabilities,
   type DesktopDownloadRequest,
+  type DesktopHandoffRequest,
   type DesktopNotificationRequest,
   type DesktopOpenFilesRequest,
   type DesktopPickedFile,
@@ -23,7 +26,10 @@ import {
   type DesktopSaveFileRequest,
   type DesktopSaveResult,
 } from '../shared/ipc.js';
-import { checkForUpdates, installUpdate } from './updater.js';
+import { clearSecureSession, loadSecureSession, startBrowserLogin } from './auth.js';
+import { detectDesktopCapabilities } from './capabilities.js';
+import { logger } from './logger.js';
+import { checkForUpdates, downloadUpdate, installUpdate } from './updater.js';
 import { getPreference, setPreference } from './store.js';
 import { refreshTrayMenu, setTrayBadge } from './tray.js';
 import {
@@ -54,12 +60,6 @@ function guessMimeType(path: string): string {
   return MIME_BY_EXTENSION[extname(path).toLowerCase()] ?? 'application/octet-stream';
 }
 
-/**
- * Only messages coming from our own renderer are honoured.
- *
- * Without this an injected iframe or a compromised third-party frame could
- * invoke the same handlers — `ipcMain.handle` does not scope by frame.
- */
 function fromMainWindow(event: IpcMainInvokeEvent): boolean {
   const window = getMainWindow();
   return !!window && event.sender.id === window.webContents.id;
@@ -70,6 +70,7 @@ function guard<TArgs extends unknown[], TResult>(
 ) {
   return (event: IpcMainInvokeEvent, ...args: TArgs): TResult => {
     if (!fromMainWindow(event)) {
+      logger.warn('IPC', 'Rejected an IPC call from an unexpected frame');
       throw new Error('Rejected an IPC call from an unexpected frame.');
     }
     return handler(event, ...args);
@@ -85,14 +86,12 @@ async function readPickedFile(path: string): Promise<DesktopPickedFile> {
     name: basename(path),
     size: info.size,
     mimeType: guessMimeType(path),
-    // Large files are not base64-inlined: the string alone would be ~1.37× the
-    // file and has to cross the IPC boundary as a single copied buffer.
     data: oversized || info.isDirectory() ? undefined : (await readFile(path)).toString('base64'),
     truncated: oversized,
   };
 }
 
-export function registerIpcHandlers(isDev: boolean): void {
+export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
   ipcMain.handle(
     IPC.appInfo,
     guard((): DesktopAppInfo => ({
@@ -107,6 +106,52 @@ export function registerIpcHandlers(isDev: boolean): void {
       titleBarInset: TITLE_BAR_INSET,
       locale: app.getLocale(),
     })),
+  );
+
+  ipcMain.handle(
+    IPC.getAppMetadata,
+    guard((): DesktopAppMetadata => ({
+      name: 'onetab-ai',
+      productName: 'OneTab AI',
+      version: app.getVersion() || '0.0.1',
+      build: process.env['BUILD_ID'] || '2026.08.1-prod',
+      publisher: 'OneTab AI Inc.',
+      copyright: 'Copyright © OneTab AI Inc. All rights reserved.',
+      website: 'https://onetab.ai',
+      supportUrl: 'https://onetab.ai/support',
+      privacyUrl: 'https://onetab.ai/privacy',
+      termsUrl: 'https://onetab.ai/terms',
+      license: 'MIT / Proprietary Enterprise',
+      description: 'OneTab AI — Unified Collaborative Workspace & AI Agents Platform',
+    })),
+  );
+
+  ipcMain.handle(
+    IPC.getCapabilities,
+    guard((): DesktopCapabilities => detectDesktopCapabilities()),
+  );
+
+  /* --- authentication --------------------------------------------------- */
+
+  ipcMain.handle(
+    IPC.authStartBrowserLogin,
+    guard(async () => {
+      return startBrowserLogin(webAppUrl);
+    }),
+  );
+
+  ipcMain.handle(
+    IPC.authGetSession,
+    guard(() => {
+      return loadSecureSession();
+    }),
+  );
+
+  ipcMain.handle(
+    IPC.authClearSession,
+    guard(() => {
+      clearSecureSession();
+    }),
   );
 
   /* --- window controls -------------------------------------------------- */
@@ -174,8 +219,6 @@ export function registerIpcHandlers(isDev: boolean): void {
     IPC.setBadgeCount,
     guard((_event, count: number) => {
       const value = Number.isFinite(count) ? Math.max(0, Math.trunc(count)) : 0;
-      // Windows has no dock badge; the taskbar overlay would need an icon per
-      // count, so the tray tooltip carries the number there instead.
       if (process.platform !== 'win32') app.setBadgeCount(value);
       setTrayBadge(value);
     }),
@@ -185,21 +228,27 @@ export function registerIpcHandlers(isDev: boolean): void {
     IPC.flashFrame,
     guard((_event, value: boolean) => {
       const window = getMainWindow();
-      // Flashing a window the user is already looking at is pure noise.
       if (window && !window.isFocused()) window.flashFrame(value);
     }),
   );
 
-  /* --- shell ------------------------------------------------------------ */
+  /* --- shell & handoff -------------------------------------------------- */
 
   ipcMain.handle(
     IPC.openExternal,
     guard(async (_event, url: string) => {
-      // `shell.openExternal` will happily hand `file:` or a custom scheme to the
-      // OS, which is a remote-code-execution vector if the URL came from a
-      // message body.
       if (!/^https?:\/\//i.test(url) && !/^mailto:/i.test(url)) return false;
       await shell.openExternal(url);
+      return true;
+    }),
+  );
+
+  ipcMain.handle(
+    IPC.openAppOrWeb,
+    guard(async (_event, request: DesktopHandoffRequest) => {
+      const targetUrl = request.fallbackUrl || `${webAppUrl}${request.route}`;
+      if (!/^https?:\/\//i.test(targetUrl)) return false;
+      await shell.openExternal(targetUrl);
       return true;
     }),
   );
@@ -255,8 +304,6 @@ export function registerIpcHandlers(isDev: boolean): void {
     guard(async (_event, request: DesktopDownloadRequest) => {
       const window = getMainWindow();
       if (!window || !/^https?:\/\//i.test(request.url)) return false;
-      // Routed through the session so the download inherits the renderer's
-      // cookies — signed file URLs are usually auth-scoped.
       window.webContents.downloadURL(request.url);
       return true;
     }),
@@ -294,8 +341,6 @@ export function registerIpcHandlers(isDev: boolean): void {
   ipcMain.handle(
     IPC.setThemeSource,
     guard((_event, source: 'system' | 'light' | 'dark') => {
-      // Keeps native chrome — menus, scrollbars, the title bar overlay — on the
-      // same theme the web UI just switched to.
       nativeTheme.themeSource = source;
     }),
   );
@@ -305,6 +350,10 @@ export function registerIpcHandlers(isDev: boolean): void {
   ipcMain.handle(
     IPC.checkForUpdates,
     guard(() => checkForUpdates(isDev)),
+  );
+  ipcMain.handle(
+    IPC.downloadUpdate,
+    guard(() => downloadUpdate()),
   );
   ipcMain.handle(
     IPC.installUpdate,

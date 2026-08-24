@@ -1,33 +1,55 @@
 import { describe, expect, it, vi } from 'vitest';
 
-// `deep-link.ts` pulls in `app` at module scope, and `window.ts` behind it —
-// neither loads without an Electron runtime.
 vi.mock('electron', () => ({
-  app: { setAsDefaultProtocolClient: vi.fn() },
+  app: { setAsDefaultProtocolClient: vi.fn(), getPath: vi.fn(() => '/mock/userData') },
   BrowserWindow: class {},
   screen: {},
-  shell: {},
+  shell: { openExternal: vi.fn() },
 }));
 
-const { deepLinkFromArgv, parseDeepLink } = await import('./deep-link.js');
+const { deepLinkFromArgv, parseDeepLink, isSupportedProtocol } = await import('./deep-link.js');
+
+describe('isSupportedProtocol', () => {
+  it('accepts onetab and mie protocols', () => {
+    expect(isSupportedProtocol('onetab://open')).toBe(true);
+    expect(isSupportedProtocol('mie://chat/123')).toBe(true);
+  });
+
+  it('rejects unsupported protocols', () => {
+    expect(isSupportedProtocol('https://example.com')).toBe(false);
+    expect(isSupportedProtocol('file:///etc/passwd')).toBe(false);
+    expect(isSupportedProtocol('javascript:alert(1)')).toBe(false);
+  });
+});
 
 describe('parseDeepLink', () => {
   it.each([
-    // The OS is inconsistent about how many slashes survive, and the first
-    // segment lands in `hostname` rather than `pathname` either way.
     ['onetab://w/acme/inbox', '/w/acme/inbox'],
     ['onetab:///w/acme/inbox', '/w/acme/inbox'],
     ['onetab://inbox', '/inbox'],
     ['onetab://invite/abc123', '/invite/abc123'],
     ['onetab://w/acme/search?q=hello', '/w/acme/search?q=hello'],
     ['onetab://w/acme/docs#section-2', '/w/acme/docs#section-2'],
+    ['mie://open', '/open'],
+    ['mie://chat/123', '/chat/123'],
+    ['mie://agent/coder-456', '/agent/coder-456'],
+    ['mie://workflow/wf-789', '/workflow/wf-789'],
+    ['mie://notification/notif-101', '/notification/notif-101'],
+    ['mie://settings', '/settings'],
+    ['onetab://auth/callback?code=abc123xyz&state=state_nonce', '/auth/callback?code=abc123xyz&state=state_nonce'],
   ])('maps %s to %s', (raw, route) => {
-    expect(parseDeepLink(raw)?.route).toBe(route);
+    const link = parseDeepLink(raw);
+    expect(link?.route).toBe(route);
+  });
+
+  it('extracts query parameters properly', () => {
+    const link = parseDeepLink('onetab://auth/callback?code=secret_code_123&state=my_nonce_state');
+    expect(link).not.toBeNull();
+    expect(link?.params?.['code']).toBe('secret_code_123');
+    expect(link?.params?.['state']).toBe('my_nonce_state');
   });
 
   it.each([
-    // Anything not on our scheme must not reach the router: these arrive from
-    // the OS and are attacker-supplied as far as the app is concerned.
     'https://evil.example/x',
     'file:///etc/passwd',
     'onetabx://w/acme',
@@ -39,13 +61,19 @@ describe('parseDeepLink', () => {
 });
 
 describe('deepLinkFromArgv', () => {
-  it('finds the link Windows and Linux append to argv', () => {
+  it('finds onetab:// link in argv', () => {
     expect(deepLinkFromArgv(['electron.exe', '.', 'onetab://w/acme/inbox'])).toBe(
       'onetab://w/acme/inbox',
     );
   });
 
-  it('returns undefined for an ordinary launch', () => {
+  it('finds mie:// link in argv', () => {
+    expect(deepLinkFromArgv(['electron.exe', '.', 'mie://agent/coder-1'])).toBe(
+      'mie://agent/coder-1',
+    );
+  });
+
+  it('returns undefined for an ordinary launch without deep links', () => {
     expect(deepLinkFromArgv(['electron.exe', '--enable-logging'])).toBeUndefined();
   });
 });

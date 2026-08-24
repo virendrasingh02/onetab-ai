@@ -1,47 +1,98 @@
 import { app } from 'electron';
-import { DEEP_LINK_PROTOCOL, IPC_EVENT, type DesktopDeepLink } from '../shared/ipc.js';
+import {
+  DEEP_LINK_PROTOCOLS,
+  IPC_EVENT,
+  type DesktopDeepLink,
+} from '../shared/ipc.js';
+import { handleAuthCallback } from './auth.js';
+import { logger } from './logger.js';
 import { getMainWindow, showMainWindow } from './window.js';
 
-/**
- * Deep links that arrive before the renderer is ready. The OS can launch the
- * app *with* a link, which happens long before `did-finish-load`, so the last
- * one is held here and replayed once the window exists.
- */
 let pending: DesktopDeepLink | null = null;
+let configuredApiUrl: string = 'http://localhost:3000/api/v1';
 
-/** `onetab://w/acme/inbox` and `onetab:///w/acme/inbox` both mean `/w/acme/inbox`. */
+export function setApiUrlForDeepLinks(url: string): void {
+  configuredApiUrl = url;
+}
+
+/**
+ * Validates protocol against allowed schemes (`onetab://` and `mie://`).
+ */
+export function isSupportedProtocol(raw: string): boolean {
+  for (const protocol of DEEP_LINK_PROTOCOLS) {
+    if (raw.startsWith(`${protocol}://`)) return true;
+  }
+  return false;
+}
+
+/**
+ * Parses and sanitizes a custom protocol deep-link URL into a valid in-app route.
+ */
 export function parseDeepLink(raw: string): DesktopDeepLink | null {
-  if (!raw.startsWith(`${DEEP_LINK_PROTOCOL}://`)) return null;
+  if (!raw || !isSupportedProtocol(raw)) return null;
 
   try {
     const url = new URL(raw);
-    const path = `${url.hostname}${url.pathname}`.replace(/^\/+/, '');
+    const host = url.hostname;
+    const pathname = url.pathname;
+
+    let cleanPath = `${host}${pathname}`.replace(/^\/+/, '');
+
+    // Normalize well-known short links:
+    // mie://chat/123 -> /chat/123 or /w/default/chat/123
+    // mie://agent/123 -> /agents/123/chat
+    // onetab://auth/callback -> /auth/callback
+    const params: Record<string, string> = {};
+    for (const [k, v] of url.searchParams.entries()) {
+      params[k] = v;
+    }
+
+    const route = `/${cleanPath}${url.search}${url.hash}`;
+
     return {
-      route: `/${path}${url.search}${url.hash}`,
+      route,
       raw,
+      params,
     };
-  } catch {
+  } catch (error) {
+    logger.warn('DeepLink', 'Failed to parse malformed deep link', { raw, error });
     return null;
   }
 }
 
 export function registerProtocol(): void {
-  if (process.defaultApp) {
-    // In `electron .` dev runs the executable is Electron itself, so the OS
-    // needs the script path too or it will launch a bare Electron shell.
-    const script = process.argv[1];
-    if (script) {
-      app.setAsDefaultProtocolClient(DEEP_LINK_PROTOCOL, process.execPath, [script]);
+  for (const protocol of DEEP_LINK_PROTOCOLS) {
+    if (process.defaultApp) {
+      const script = process.argv[1];
+      if (script) {
+        app.setAsDefaultProtocolClient(protocol, process.execPath, [script]);
+      }
+    } else {
+      app.setAsDefaultProtocolClient(protocol);
     }
-  } else {
-    app.setAsDefaultProtocolClient(DEEP_LINK_PROTOCOL);
   }
+  logger.info('DeepLink', `Registered custom protocols: ${DEEP_LINK_PROTOCOLS.join(', ')}`);
 }
 
-export function dispatchDeepLink(raw: string | undefined | null): void {
+export async function dispatchDeepLink(raw: string | undefined | null): Promise<void> {
   if (!raw) return;
   const link = parseDeepLink(raw);
   if (!link) return;
+
+  logger.info('DeepLink', `Dispatching deep link: ${link.route}`);
+
+  // Special handling for auth callback
+  if (link.route.startsWith('/auth/callback') && link.params?.['code'] && link.params?.['state']) {
+    const handled = await handleAuthCallback(
+      link.params['code'],
+      link.params['state'],
+      configuredApiUrl,
+    );
+    if (handled) {
+      // Do not navigate renderer to raw auth callback query; the auth session change event will route to workspace
+      return;
+    }
+  }
 
   const window = getMainWindow();
   if (!window || window.webContents.isLoading()) {
@@ -53,14 +104,17 @@ export function dispatchDeepLink(raw: string | undefined | null): void {
   window.webContents.send(IPC_EVENT.deepLink, link);
 }
 
-/** Windows and Linux pass the link as an argv entry rather than an event. */
+/** Windows and Linux pass deep link in argv. */
 export function deepLinkFromArgv(argv: string[]): string | undefined {
-  return argv.find((arg) => arg.startsWith(`${DEEP_LINK_PROTOCOL}://`));
+  return argv.find((arg) => isSupportedProtocol(arg));
 }
 
 export function flushPendingDeepLink(): void {
   if (!pending) return;
   const link = pending;
   pending = null;
-  getMainWindow()?.webContents.send(IPC_EVENT.deepLink, link);
+  const window = getMainWindow();
+  if (window && !window.isDestroyed()) {
+    window.webContents.send(IPC_EVENT.deepLink, link);
+  }
 }

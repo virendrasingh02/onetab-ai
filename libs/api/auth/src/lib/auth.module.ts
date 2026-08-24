@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
+import { DesktopAuthService } from './desktop-auth.service.js';
 import { JwtAuthGuard, WorkspaceRoleGuard } from './guards.js';
 import { JwtStrategy } from './jwt.strategy.js';
 import { TokenService } from './token.service.js';
@@ -19,11 +20,12 @@ import { TokenService } from './token.service.js';
   controllers: [AuthController],
   providers: [
     AuthService,
+    DesktopAuthService,
     TokenService,
     JwtStrategy,
     JwtAuthGuard,
     WorkspaceRoleGuard,
   ],
-  exports: [AuthService, TokenService, JwtAuthGuard, WorkspaceRoleGuard],
+  exports: [AuthService, DesktopAuthService, TokenService, JwtAuthGuard, WorkspaceRoleGuard],
 })
 export class AuthModule {}

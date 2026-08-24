@@ -25,11 +25,14 @@ export function ProtectedRoute() {
   return <Outlet />;
 }
 
-/** Inverse gate: keeps signed-in users off /login and /register. */
+/** Inverse gate: keeps signed-in users off /login and /register, unless performing a desktop handoff. */
 export function PublicOnlyRoute() {
   const status = useAuthStore((state) => state.status);
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const isDesktopHandoff = searchParams.get('desktop') === 'true';
 
-  if (status === 'authenticated') {
+  if (status === 'authenticated' && !isDesktopHandoff) {
     return <Navigate to="/" replace />;
   }
 

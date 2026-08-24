@@ -22,6 +22,38 @@ export interface DesktopAppInfo {
   locale: string;
 }
 
+export interface DesktopAppMetadata {
+  name: string;
+  productName: string;
+  version: string;
+  build: string;
+  publisher: string;
+  copyright: string;
+  website: string;
+  supportUrl: string;
+  privacyUrl: string;
+  termsUrl: string;
+  license: string;
+  description: string;
+}
+
+export interface DesktopCapabilities {
+  isDesktop: boolean;
+  platform: DesktopPlatform | 'web';
+  architecture: string;
+  authentication: boolean;
+  notifications: boolean;
+  deepLinks: boolean;
+  appUpdates: boolean;
+  autoLaunch: boolean;
+  filesystem: boolean;
+  clipboard: boolean;
+  screenshots: boolean;
+  windowControls: boolean;
+  supportedFeatures: string[];
+  unsupportedFeatures: string[];
+}
+
 export interface DesktopWindowState {
   isMaximized: boolean;
   isMinimized: boolean;
@@ -36,6 +68,7 @@ export interface DesktopNotificationRequest {
   silent?: boolean;
   /** In-app route opened when the OS notification is clicked. */
   route?: string;
+  icon?: string;
 }
 
 export interface DesktopOpenFilesRequest {
@@ -69,10 +102,11 @@ export interface DesktopSaveResult {
 export type DesktopUpdateStatus =
   | { state: 'idle' }
   | { state: 'checking' }
-  | { state: 'available'; version: string }
+  | { state: 'available'; version: string; releaseNotes?: string }
   | { state: 'downloading'; percent: number }
   | { state: 'ready'; version: string }
   | { state: 'not-available' }
+  | { state: 'unsupported' }
   | { state: 'error'; message: string };
 
 export type DesktopCommand =
@@ -86,6 +120,24 @@ export type DesktopCommand =
 export interface DesktopDeepLink {
   route: string;
   raw: string;
+  params?: Record<string, string>;
+}
+
+export interface DesktopAuthSession {
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    displayName?: string | null;
+    avatarUrl?: string | null;
+  } | null;
+  accessToken: string | null;
+  refreshToken?: string | null;
+}
+
+export interface DesktopHandoffRequest {
+  route: string;
+  fallbackUrl?: string;
 }
 
 type Unsubscribe = () => void;
@@ -93,6 +145,17 @@ type Unsubscribe = () => void;
 export interface OneTabDesktopApi {
   isDesktop: true;
   getAppInfo: () => Promise<DesktopAppInfo>;
+  getAppMetadata: () => Promise<DesktopAppMetadata>;
+  capabilities: {
+    get: () => Promise<DesktopCapabilities>;
+    onChange: (handler: (caps: DesktopCapabilities) => void) => Unsubscribe;
+  };
+  auth: {
+    startBrowserLogin: () => Promise<boolean>;
+    getSession: () => Promise<DesktopAuthSession | null>;
+    clearSession: () => Promise<void>;
+    onSessionChange: (handler: (session: DesktopAuthSession) => void) => Unsubscribe;
+  };
   window: {
     getState: () => Promise<DesktopWindowState>;
     minimize: () => Promise<void>;
@@ -112,6 +175,9 @@ export interface OneTabDesktopApi {
   shell: {
     openExternal: (url: string) => Promise<boolean>;
     showItemInFolder: (path: string) => Promise<void>;
+  };
+  handoff: {
+    openAppOrWeb: (request: DesktopHandoffRequest) => Promise<boolean>;
   };
   files: {
     open: (request?: DesktopOpenFilesRequest) => Promise<DesktopPickedFile[]>;
@@ -134,6 +200,7 @@ export interface OneTabDesktopApi {
   };
   updates: {
     check: () => Promise<DesktopUpdateStatus>;
+    download: () => Promise<boolean>;
     install: () => Promise<boolean>;
     onStatus: (handler: (status: DesktopUpdateStatus) => void) => Unsubscribe;
   };
@@ -158,10 +225,6 @@ export function getDesktopApi(): OneTabDesktopApi | null {
 
 /**
  * Whether this build is running inside the Electron shell.
- *
- * Read once at module load: the preload runs strictly before any renderer
- * script, so the answer cannot change during the session, and treating it as a
- * constant keeps it usable outside React.
  */
 export const isDesktop: boolean = getDesktopApi() !== null;
 
@@ -169,10 +232,6 @@ export const isDesktop: boolean = getDesktopApi() !== null;
 
 /**
  * Opens a URL outside the app.
- *
- * In Electron `window.open` is denied by the navigation policy (an in-app
- * browser window with no chrome is a phishing surface), so links have to go
- * through the shell. On the web this is just `window.open`.
  */
 export async function openExternal(url: string): Promise<boolean> {
   const api = getDesktopApi();
@@ -191,7 +250,6 @@ export async function copyText(text: string): Promise<boolean> {
   }
 
   try {
-    // Requires a secure context; plain-http staging origins do not have it.
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
@@ -201,10 +259,6 @@ export async function copyText(text: string): Promise<boolean> {
 
 /**
  * Shows a notification through whichever channel is available.
- *
- * Desktop notifications survive the window being hidden or minimised and can
- * carry a route to open on click; the web `Notification` API only fires while
- * a tab is alive and needs an explicit permission grant.
  */
 export async function notify(request: DesktopNotificationRequest): Promise<boolean> {
   const api = getDesktopApi();
@@ -219,7 +273,11 @@ export async function notify(request: DesktopNotificationRequest): Promise<boole
         : Notification.permission;
 
     if (permission !== 'granted') return false;
-    new Notification(request.title, { body: request.body, silent: request.silent });
+    new Notification(request.title, {
+      body: request.body,
+      silent: request.silent,
+      icon: request.icon,
+    });
     return true;
   } catch {
     return false;
@@ -234,7 +292,6 @@ export async function setBadgeCount(count: number): Promise<void> {
     return;
   }
 
-  // The Badging API only works for installed PWAs, so failures are expected.
   const badging = navigator as Navigator & {
     setAppBadge?: (count?: number) => Promise<void>;
     clearAppBadge?: () => Promise<void>;
@@ -243,16 +300,12 @@ export async function setBadgeCount(count: number): Promise<void> {
     if (count > 0) await badging.setAppBadge?.(count);
     else await badging.clearAppBadge?.();
   } catch {
-    // Not supported here — the in-app badge still renders.
+    // ignore
   }
 }
 
 /**
- * Saves a blob to disk.
- *
- * Electron gets a real "Save as…" dialog and writes the file itself; the web
- * falls back to an anchor download, which lands wherever the browser is
- * configured to put downloads with no say from the user.
+ * Saves a blob to disk with native save dialog on desktop or anchor download in web.
  */
 export async function saveFile(
   filename: string,
@@ -270,7 +323,6 @@ export async function saveFile(
   anchor.href = url;
   anchor.download = filename;
   anchor.click();
-  // Revoking synchronously can cancel the download in Safari and Firefox.
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
   return { canceled: false };
 }
@@ -278,8 +330,6 @@ export async function saveFile(
 function toBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = '';
-  // Chunked because `String.fromCharCode(...bytes)` blows the argument limit
-  // somewhere around 100 kB.
   const CHUNK = 0x8000;
   for (let i = 0; i < bytes.length; i += CHUNK) {
     binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
@@ -288,9 +338,7 @@ function toBase64(buffer: ArrayBuffer): string {
 }
 
 /**
- * Picks files with the native dialog when available, falling back to a hidden
- * `<input type="file">`. Both paths return real `File` objects, so callers —
- * including `useFileUpload` — need no branching.
+ * Picks files with the native dialog when available, falling back to a hidden `<input type="file">`.
  */
 export async function pickFiles(options: {
   accept?: string;
@@ -305,8 +353,6 @@ export async function pickFiles(options: {
       filters: options.filters,
     });
 
-    // Entries without `data` are directories or files past the inline cap;
-    // there is no `File` to build for those.
     return picked.flatMap((entry) => {
       if (entry.data === undefined) return [];
       const binary = atob(entry.data);
@@ -324,8 +370,6 @@ export async function pickFiles(options: {
     input.addEventListener('change', () => resolve(Array.from(input.files ?? [])), {
       once: true,
     });
-    // Cancelling the dialog fires no `change` event in most browsers; `cancel`
-    // is the newer signal and keeps the promise from hanging forever.
     input.addEventListener('cancel', () => resolve([]), { once: true });
     input.click();
   });

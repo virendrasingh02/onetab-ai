@@ -10,10 +10,15 @@ import {
   type ReactNode,
 } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { DEFAULT_APP_METADATA } from './app-metadata.js';
+import { WEB_DEFAULT_CAPABILITIES } from './capabilities.js';
 import {
   getDesktopApi,
   isDesktop,
   type DesktopAppInfo,
+  type DesktopAppMetadata,
+  type DesktopAuthSession,
+  type DesktopCapabilities,
   type DesktopCommand,
   type DesktopUpdateStatus,
   type DesktopWindowState,
@@ -22,15 +27,21 @@ import {
 interface DesktopContextValue {
   isDesktop: boolean;
   appInfo: DesktopAppInfo | null;
+  appMetadata: DesktopAppMetadata;
+  capabilities: DesktopCapabilities;
   windowState: DesktopWindowState;
   updateStatus: DesktopUpdateStatus;
+  authSession: DesktopAuthSession | null;
   /** Registers a handler for a menu/tray/shortcut command. Returns a disposer. */
   onCommand: (command: DesktopCommand, handler: () => void) => () => void;
   minimize: () => void;
   toggleMaximize: () => void;
   close: () => void;
   checkForUpdates: () => Promise<void>;
+  downloadUpdate: () => Promise<void>;
   installUpdate: () => Promise<void>;
+  startBrowserLogin: () => Promise<boolean>;
+  clearAuthSession: () => Promise<void>;
 }
 
 const WEB_WINDOW_STATE: DesktopWindowState = {
@@ -45,22 +56,20 @@ const DesktopContext = createContext<DesktopContextValue | null>(null);
 /**
  * Bridges the Electron shell into the React tree.
  *
- * Must sit inside the router: deep links and clicked notifications resolve to
- * in-app routes, and routing them is the whole point of the connection. In a
- * browser every effect below short-circuits and the provider costs one context.
+ * Sits inside the router: deep links and clicked notifications resolve to
+ * in-app routes, and routing them is the whole point of the connection.
  */
 export function DesktopProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { resolvedTheme, theme } = useTheme();
 
   const [appInfo, setAppInfo] = useState<DesktopAppInfo | null>(null);
+  const [appMetadata, setAppMetadata] = useState<DesktopAppMetadata>(DEFAULT_APP_METADATA);
+  const [capabilities, setCapabilities] = useState<DesktopCapabilities>(WEB_DEFAULT_CAPABILITIES);
   const [windowState, setWindowState] = useState<DesktopWindowState>(WEB_WINDOW_STATE);
   const [updateStatus, setUpdateStatus] = useState<DesktopUpdateStatus>({ state: 'idle' });
+  const [authSession, setAuthSession] = useState<DesktopAuthSession | null>(null);
 
-  /*
-   * Command subscribers live in a ref, not state: menu items fire from outside
-   * React and re-rendering the whole tree to add a listener would be wasteful.
-   */
   const handlers = useRef(new Map<DesktopCommand, Set<() => void>>());
 
   const onCommand = useCallback((command: DesktopCommand, handler: () => void) => {
@@ -72,7 +81,7 @@ export function DesktopProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Static shell facts: version, platform, whether we own the title bar.
+  // Initialize facts from desktop bridge
   useEffect(() => {
     const api = getDesktopApi();
     if (!api) return;
@@ -81,8 +90,17 @@ export function DesktopProvider({ children }: { children: ReactNode }) {
     void api.getAppInfo().then((info) => {
       if (active) setAppInfo(info);
     });
+    void api.getAppMetadata().then((meta) => {
+      if (active && meta) setAppMetadata(meta);
+    });
+    void api.capabilities.get().then((caps) => {
+      if (active && caps) setCapabilities(caps);
+    });
     void api.window.getState().then((state) => {
       if (active) setWindowState(state);
+    });
+    void api.auth.getSession().then((sess) => {
+      if (active && sess) setAuthSession(sess);
     });
 
     return () => {
@@ -93,17 +111,22 @@ export function DesktopProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const api = getDesktopApi();
     if (!api) return;
-    return api.window.onStateChange(setWindowState);
-  }, []);
-
-  // Deep links (`onetab://w/acme/inbox`) and clicked notifications both resolve
-  // to an in-app route.
-  useEffect(() => {
-    const api = getDesktopApi();
-    if (!api) return;
 
     const disposers = [
-      api.onDeepLink((link) => navigate(link.route)),
+      api.window.onStateChange(setWindowState),
+      api.capabilities.onChange(setCapabilities),
+      api.auth.onSessionChange((sess) => {
+        setAuthSession(sess);
+        if (sess?.user) {
+          // If in login or callback view, navigate to home on successful authentication
+          if (window.location.pathname.startsWith('/login') || window.location.pathname.startsWith('/auth/callback')) {
+            navigate('/', { replace: true });
+          }
+        }
+      }),
+      api.onDeepLink((link) => {
+        if (link.route) navigate(link.route);
+      }),
       api.notifications.onActivated((payload) => {
         if (payload.route) navigate(payload.route);
       }),
@@ -118,11 +141,6 @@ export function DesktopProvider({ children }: { children: ReactNode }) {
     };
   }, [navigate]);
 
-  /*
-   * Native chrome — context menus, scrollbars, the window frame — is drawn by
-   * the OS and does not read our CSS, so it has to be told about theme changes
-   * separately or the app looks half-converted after a toggle.
-   */
   useEffect(() => {
     const api = getDesktopApi();
     if (!api) return;
@@ -139,59 +157,90 @@ export function DesktopProvider({ children }: { children: ReactNode }) {
     setUpdateStatus(await api.updates.check());
   }, []);
 
+  const downloadUpdate = useCallback(async () => {
+    const api = getDesktopApi();
+    if (!api) return;
+    await api.updates.download();
+  }, []);
+
   const installUpdate = useCallback(async () => {
     await getDesktopApi()?.updates.install();
+  }, []);
+
+  const startBrowserLogin = useCallback(async () => {
+    const api = getDesktopApi();
+    if (!api) return false;
+    return api.auth.startBrowserLogin();
+  }, []);
+
+  const clearAuthSession = useCallback(async () => {
+    const api = getDesktopApi();
+    if (!api) return;
+    await api.auth.clearSession();
+    setAuthSession(null);
   }, []);
 
   const value = useMemo<DesktopContextValue>(
     () => ({
       isDesktop,
       appInfo,
+      appMetadata,
+      capabilities,
       windowState,
       updateStatus,
+      authSession,
       onCommand,
       minimize,
       toggleMaximize,
       close,
       checkForUpdates,
+      downloadUpdate,
       installUpdate,
+      startBrowserLogin,
+      clearAuthSession,
     }),
     [
       appInfo,
+      appMetadata,
+      capabilities,
       windowState,
       updateStatus,
+      authSession,
       onCommand,
       minimize,
       toggleMaximize,
       close,
       checkForUpdates,
+      downloadUpdate,
       installUpdate,
+      startBrowserLogin,
+      clearAuthSession,
     ],
   );
 
   return <DesktopContext value={value}>{children}</DesktopContext>;
 }
 
-/**
- * Desktop state and actions.
- *
- * Safe to call outside `DesktopProvider` — it returns an inert web-shaped
- * value rather than throwing, so shared components can use it unconditionally.
- */
 export function useDesktop(): DesktopContextValue {
   const context = use(DesktopContext);
   return (
     context ?? {
       isDesktop: false,
       appInfo: null,
+      appMetadata: DEFAULT_APP_METADATA,
+      capabilities: WEB_DEFAULT_CAPABILITIES,
       windowState: WEB_WINDOW_STATE,
       updateStatus: { state: 'idle' },
+      authSession: null,
       onCommand: () => () => undefined,
       minimize: () => undefined,
       toggleMaximize: () => undefined,
       close: () => undefined,
       checkForUpdates: async () => undefined,
+      downloadUpdate: async () => undefined,
       installUpdate: async () => undefined,
+      startBrowserLogin: async () => false,
+      clearAuthSession: async () => undefined,
     }
   );
 }
