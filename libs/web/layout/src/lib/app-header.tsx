@@ -15,7 +15,13 @@ import {
 import type { ActivityIndicator } from '@org/notifications';
 import { useLogout } from '@org/auth';
 import { cn } from '@org/utils';
-import { isDesktop, openDesktopApp, openExternal, useDesktop } from '@org/web-desktop';
+import {
+  DesktopUpdateIndicator,
+  isDesktop,
+  openDesktopApp,
+  openExternal,
+  useDesktop,
+} from '@org/web-desktop';
 import {
   ChevronLeft,
   ChevronRight,
@@ -43,6 +49,15 @@ export interface AppHeaderProps {
   unreadNotifications?: number;
   /** Unread state per workspace id, for the switcher's dots. */
   workspaceActivity?: Record<string, ActivityIndicator>;
+  /**
+   * Extra controls anchored to the two identity landmarks in the header
+   * rather than left to float in the middle: `leftActions` render just
+   * before the workspace switcher, `actions` (the right-side set) just
+   * before the profile menu. A caller with something to add picks a side by
+   * what it relates to — workspace-level chrome to the left, account-level
+   * chrome to the right — instead of inventing a third position.
+   */
+  leftActions?: React.ReactNode;
   actions?: React.ReactNode;
 }
 
@@ -56,6 +71,7 @@ export function AppHeader({
   sidebarOpen = true,
   unreadNotifications: _unreadNotifications = 0,
   workspaceActivity,
+  leftActions,
   actions,
 }: AppHeaderProps) {
   const logout = useLogout();
@@ -97,6 +113,8 @@ export function AppHeader({
         beside it never shifts.
       */}
       <div className="group/left min-w-0 gap-1.5 sm:gap-2 flex flex-1 items-center">
+        {leftActions}
+
         {currentWorkspace && workspaces ? (
           <div className="max-w-44 sm:max-w-56 min-w-0 flex items-center">
             <WorkspaceMenu
@@ -177,10 +195,8 @@ export function AppHeader({
         </button>
       </div>
 
-      {/* Right Section: Actions, Utilities, Ask AI Button and Profile Avatar */}
+      {/* Right Section: Utilities, Ask AI Button, Update Nudge, Actions and Profile Avatar */}
       <div className="gap-1 sm:gap-1.5 flex flex-1 shrink-0 items-center justify-end">
-        {actions}
-
         {/* Status Pill (Slack style) */}
         {user.statusText || user.statusEmoji ? (
           <Hint
@@ -244,6 +260,13 @@ export function AppHeader({
             <span className="sm:inline hidden">Ask AI</span>
           </Button>
         </Hint>
+
+        {/* Update nudge — no-op outside the desktop shell */}
+        <DesktopUpdateIndicator />
+
+        {/* Caller-supplied actions anchor here, right against the profile
+            menu they sit beside. */}
+        {actions}
 
         {/* Profile Avatar Dropdown */}
         <DropdownMenu>

@@ -19,9 +19,16 @@ const NO_DRAG: CSSProperties = { WebkitAppRegion: 'no-drag' } as CSSProperties;
  * buttons are ours to draw. macOS still renders its traffic lights, so there
  * only the drag strip and a left inset are needed.
  *
+ * Deliberately no app name/title text: the workspace name and every action a
+ * user can take already live one row down in `AppHeader`, so a center label
+ * here would only repeat chrome the app has elsewhere. What is left is a bare
+ * drag strip — window controls stay pinned to the corner a user expects them
+ * in (the OS convention `DesktopTitleBar` mirrors), rather than drifting down
+ * toward content-level UI like the profile menu.
+ *
  * Rendered by `AppShell`; returns `null` in a browser.
  */
-export function DesktopTitleBar({ title }: { title?: string }) {
+export function DesktopTitleBar() {
   const { isDesktop, appInfo, windowState, minimize, toggleMaximize, close } = useDesktop();
 
   // Full screen hides the OS chrome entirely; keeping our strip would leave a
@@ -38,9 +45,9 @@ export function DesktopTitleBar({ title }: { title?: string }) {
     >
       {isMac ? <div style={{ width: appInfo.titleBarInset }} aria-hidden /> : null}
 
-      <span className="min-w-0 flex-1 truncate text-center text-[11px] font-medium text-subtle">
-        {title ?? 'OneTab AI'}
-      </span>
+      {/* Empty drag surface where a center title used to sit — keeps the
+          strip grabbable across its full width without labelling it. */}
+      <div className="min-w-0 flex-1" aria-hidden />
 
       {isMac ? null : (
         // Every interactive child must opt out of the drag region or the click

@@ -148,14 +148,21 @@ Import it from anywhere in the web app — it is safe in the browser.
 import {
   isDesktop, openExternal, copyText, notify, saveFile, pickFiles,
   useDesktop, useDesktopCommand, useDesktopBadge, useDesktopPreference,
-  DesktopChrome, DesktopTitleBar, DesktopUpdateBanner, DesktopSettingsCard,
+  DesktopChrome, DesktopTitleBar, DesktopUpdateIndicator, DesktopSettingsCard,
   PlatformNotice,
 } from '@org/web-desktop';
 ```
 
-- `DesktopChrome` wraps the whole app in `providers.tsx`: title bar, update
-  strip, then routed content. It renders in the browser too (with both bars
-  `null`) so screens size themselves identically on both platforms.
+- `DesktopChrome` wraps the whole app in `providers.tsx`: a bare title-bar
+  drag strip (no app name — the workspace name and every action already live
+  in `AppHeader`), then routed content. It renders in the browser too (with
+  the title bar `null`) so screens size themselves identically on both
+  platforms.
+- `DesktopUpdateIndicator` is the app-update control: a compact nudge that
+  `AppHeader` docks next to the profile menu, not a banner claiming a row of
+  its own. It renders nothing outside the `downloading`/`available`/`ready`/
+  `error` states; `DesktopSettingsCard` carries the full detail (version,
+  manual "Check for updates").
 - `useDesktopCommand('open-search', fn)` receives menu items, tray items and the
   global `Ctrl/Cmd+Shift+Space` shortcut. `AppShell` wires the six current ones.
 - `PlatformNotice` states a capability gap in the UI instead of leaving a control
