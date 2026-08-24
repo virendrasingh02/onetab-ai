@@ -16,10 +16,15 @@ import type { ActivityIndicator } from '@org/notifications';
 import { useLogout } from '@org/auth';
 import { cn } from '@org/utils';
 import {
+  DesktopTitleBarInset,
   DesktopUpdateIndicator,
+  DesktopWindowControls,
+  DRAG,
   isDesktop,
+  NO_DRAG,
   openDesktopApp,
   openExternal,
+  useClaimsWindowChrome,
   useDesktop,
 } from '@org/web-desktop';
 import {
@@ -76,7 +81,13 @@ export function AppHeader({
 }: AppHeaderProps) {
   const logout = useLogout();
   const navigate = useNavigate();
-  const { appInfo } = useDesktop();
+  const { appInfo, toggleMaximize } = useDesktop();
+
+  // This row draws the window's own drag strip and minimise/maximise/close
+  // controls (see the section markup below) instead of leaving that to the
+  // fallback `DesktopTitleBar`, so it tells that fallback to stand down for
+  // as long as it's on screen — otherwise a workspace would show both.
+  useClaimsWindowChrome();
 
   const isApple = appInfo
     ? appInfo.platform === 'darwin'
@@ -102,21 +113,32 @@ export function AppHeader({
   };
 
   return (
-    <header className="h-11 gap-2 px-2.5 sm:gap-3 sm:px-4 flex shrink-0 items-center select-none">
+    <header
+      style={DRAG}
+      onDoubleClick={toggleMaximize}
+      className="h-11 gap-2 px-2.5 sm:gap-3 sm:px-4 flex shrink-0 items-center select-none"
+    >
       {/*
-        Left Section: Workspace Switcher and then Sidebar Toggle.
+        Left Section: macOS traffic-light inset, Workspace Switcher, then
+        Sidebar Toggle.
 
         The toggle is chrome, not a destination — it only appears while the
         pointer is over this corner (or while it holds focus, so it stays
         reachable by keyboard). `shrink-0` and a fixed size keep it out of the
         layout's way: it fades rather than collapsing, so the workspace name
         beside it never shifts.
+
+        This row is the window's drag strip (see `style={DRAG}` above), so
+        every interactive child below opts back out with `NO_DRAG` — a click
+        would otherwise be swallowed by the window move handler.
       */}
       <div className="group/left min-w-0 gap-1.5 sm:gap-2 flex flex-1 items-center">
-        {leftActions}
+        <DesktopTitleBarInset />
+
+        {leftActions ? <div style={NO_DRAG}>{leftActions}</div> : null}
 
         {currentWorkspace && workspaces ? (
-          <div className="max-w-44 sm:max-w-56 min-w-0 flex items-center">
+          <div style={NO_DRAG} className="max-w-44 sm:max-w-56 min-w-0 flex items-center">
             <WorkspaceMenu
               workspaces={workspaces}
               current={currentWorkspace}
@@ -133,6 +155,7 @@ export function AppHeader({
               onClick={onToggleSidebar}
               aria-label="Toggle sidebar"
               aria-expanded={sidebarOpen}
+              style={NO_DRAG}
               className={cn(
                 'size-7 p-0 shrink-0 cursor-pointer text-muted-foreground hover:text-foreground',
                 'opacity-0 transition-opacity duration-(--duration-fast) ease-standard',
@@ -146,7 +169,7 @@ export function AppHeader({
       </div>
 
       {/* Center Section: Both < > Arrows and Search Bar Centered Together */}
-      <div className="gap-1.5 sm:gap-2 flex shrink-0 items-center justify-center">
+      <div style={NO_DRAG} className="gap-1.5 sm:gap-2 flex shrink-0 items-center justify-center">
         <div className="gap-0.5 sm:flex hidden items-center">
           <Hint label="Go back">
             <Button
@@ -209,6 +232,7 @@ export function AppHeader({
             <button
               type="button"
               onClick={openStatusModal}
+              style={NO_DRAG}
               className="h-7 max-w-40 gap-1.5 px-2 md:flex text-xs font-medium hidden cursor-pointer items-center rounded-full border border-primary/30 bg-primary/10 text-foreground transition-colors hover:bg-primary/20"
             >
               <span className="text-sm">{user.statusEmoji || '💬'}</span>
@@ -226,6 +250,7 @@ export function AppHeader({
             size="icon-sm"
             onClick={onOpenSearch}
             aria-label="Search"
+            style={NO_DRAG}
             className="sm:hidden size-7 p-0 flex text-muted-foreground hover:text-foreground"
           >
             <Search className="size-4" />
@@ -237,6 +262,7 @@ export function AppHeader({
           <Button
             variant="ghost"
             size="sm"
+            style={NO_DRAG}
             className="gap-1 sm:flex hidden cursor-pointer"
             onClick={() => void openExternal('https://github.com/onetab-ai')}
           >
@@ -254,6 +280,7 @@ export function AppHeader({
             onClick={handleToggleAssistant}
             aria-pressed={isAssistantActive}
             aria-label={isAssistantActive ? 'Close AI assistant' : 'Ask AI'}
+            style={NO_DRAG}
             className="gap-1 px-2 text-xs font-medium sm:gap-1.5 sm:px-3 h-7 cursor-pointer"
           >
             <Sparkles className="size-3.5" />
@@ -262,17 +289,20 @@ export function AppHeader({
         </Hint>
 
         {/* Update nudge — no-op outside the desktop shell */}
-        <DesktopUpdateIndicator />
+        <div style={NO_DRAG}>
+          <DesktopUpdateIndicator />
+        </div>
 
         {/* Caller-supplied actions anchor here, right against the profile
             menu they sit beside. */}
-        {actions}
+        {actions ? <div style={NO_DRAG}>{actions}</div> : null}
 
         {/* Profile Avatar Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
+              style={NO_DRAG}
               className="ml-1 cursor-pointer rounded-full transition-transform outline-none hover:scale-105 focus-visible:ring-1 focus-visible:ring-ring"
               aria-label="Account menu"
             >
@@ -460,6 +490,11 @@ export function AppHeader({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Windows/Linux window controls — the corner a user expects them
+            in, one step past the profile menu they now sit beside instead
+            of a separate strip above. No-op on macOS and in the browser. */}
+        <DesktopWindowControls />
       </div>
     </header>
   );

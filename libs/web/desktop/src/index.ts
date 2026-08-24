@@ -63,9 +63,13 @@ export { useDesktopPreference } from './lib/use-desktop-preference.js';
 
 export { DesktopChrome } from './lib/desktop-chrome.js';
 export { DesktopTitleBar } from './lib/desktop-title-bar.js';
+export { DesktopTitleBarInset } from './lib/desktop-title-bar-inset.js';
+export { DesktopWindowControls } from './lib/desktop-window-controls.js';
 export { DesktopUpdateIndicator } from './lib/desktop-update-indicator.js';
 export { DesktopSettingsCard } from './lib/desktop-settings-card.js';
 export { PlatformNotice, type PlatformNoticeProps } from './lib/platform-notice.js';
+export { DRAG, NO_DRAG } from './lib/drag-region.js';
+export { useClaimsWindowChrome } from './lib/window-chrome-store.js';
 
 // --- capability/feature/policy layer (@org/platform-backed) ---------------
 export { toPlatformSnapshot } from './lib/platform-snapshot.js';
