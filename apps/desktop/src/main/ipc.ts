@@ -32,7 +32,7 @@ import {
   refreshSecureSession,
   startBrowserLogin,
 } from './auth.js';
-import { detectDesktopCapabilities } from './capabilities.js';
+import { detectDesktopCapabilities, detectDistribution, isMasBuild } from './capabilities.js';
 import { logger } from './logger.js';
 import { checkForUpdates, downloadUpdate, installUpdate } from './updater.js';
 import { getPreference, setPreference } from './store.js';
@@ -106,7 +106,8 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
       platform: process.platform as DesktopPlatform,
       arch: process.arch,
       isPackaged: app.isPackaged,
-      isMas: Boolean(process.mas || process.env['IS_MAS'] || process.env['APP_STORE']),
+      isMas: isMasBuild(),
+      distribution: detectDistribution(),
       usesCustomTitleBar: USES_CUSTOM_TITLE_BAR,
       titleBarInset: TITLE_BAR_INSET,
       locale: app.getLocale(),

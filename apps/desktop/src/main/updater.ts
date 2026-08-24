@@ -1,5 +1,6 @@
 import { app } from 'electron';
 import { IPC_EVENT, type DesktopUpdateStatus } from '../shared/ipc.js';
+import { isMasBuild, isWindowsStoreBuild } from './capabilities.js';
 import { logger } from './logger.js';
 import { getMainWindow, markQuitting } from './window.js';
 
@@ -66,7 +67,10 @@ export function getUpdateStatus(): DesktopUpdateStatus {
   return lastStatus;
 }
 
-const isMas = Boolean(process.mas || process.env['IS_MAS'] || process.env['APP_STORE']);
+/** Store-managed builds must not offer a self-updater; the store's own mechanism owns this. */
+function isStoreManaged(): boolean {
+  return isMasBuild() || isWindowsStoreBuild();
+}
 
 export async function checkForUpdates(isDev: boolean): Promise<DesktopUpdateStatus> {
   if (isDev) {
@@ -74,7 +78,7 @@ export async function checkForUpdates(isDev: boolean): Promise<DesktopUpdateStat
     return lastStatus;
   }
 
-  if (!app.isPackaged || isMas) {
+  if (!app.isPackaged || isStoreManaged()) {
     publish({ state: 'unsupported' });
     return lastStatus;
   }
@@ -109,7 +113,7 @@ export async function downloadUpdate(): Promise<boolean> {
 }
 
 export function installUpdate(): boolean {
-  if (isMas) return false;
+  if (isStoreManaged()) return false;
   const updater = loadAutoUpdater();
   if (!updater || lastStatus.state !== 'ready') return false;
 
@@ -121,7 +125,7 @@ export function installUpdate(): boolean {
 
 /** Kicks off a check shortly after launch, then once a day. */
 export function scheduleUpdateChecks(isDev: boolean): void {
-  if (isDev || !app.isPackaged || isMas) return;
+  if (isDev || !app.isPackaged || isStoreManaged()) return;
 
   const check = () => void checkForUpdates(isDev);
   setTimeout(check, 15_000);

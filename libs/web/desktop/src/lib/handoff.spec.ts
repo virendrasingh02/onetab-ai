@@ -1,22 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { FEATURE_MATRIX } from './feature-matrix.js';
 import { DEFAULT_APP_METADATA } from './app-metadata.js';
 import { isMobileDevice, openDesktopApp } from './handoff.js';
 
-describe('FEATURE_MATRIX', () => {
-  it('defines all required platform features and fallbacks', () => {
-    expect(FEATURE_MATRIX.browserAuth).toBeDefined();
-    expect(FEATURE_MATRIX.deepLinks).toBeDefined();
-    expect(FEATURE_MATRIX.nativeNotifications).toBeDefined();
-    expect(FEATURE_MATRIX.appUpdates).toBeDefined();
-    expect(FEATURE_MATRIX.safeStorage).toBeDefined();
-    expect(FEATURE_MATRIX.singleInstance).toBeDefined();
-
-    expect(FEATURE_MATRIX.deepLinks.desktop).toBe(true);
-    expect(FEATURE_MATRIX.deepLinks.web).toBe(false);
-    expect(FEATURE_MATRIX.deepLinks.fallback).not.toBeNull();
-  });
-});
+// The old FEATURE_MATRIX (a static, unread platform/web boolean table) lived
+// here and was tested here. It's gone — `FEATURE_REGISTRY` in `@org/platform`
+// replaces it with the same feature ids plus the state machine
+// `evaluateFeature` needs; its own tests live in
+// `libs/shared/platform/src/lib/feature-manager.spec.ts`.
 
 describe('DEFAULT_APP_METADATA', () => {
   it('contains valid publisher and application metadata', () => {

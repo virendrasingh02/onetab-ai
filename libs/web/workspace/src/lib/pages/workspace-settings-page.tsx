@@ -81,7 +81,7 @@ import {
 import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { DesktopSettingsCard, notify } from '@org/web-desktop';
+import { DesktopSettingsCard, PlatformDiagnosticsLink, notify } from '@org/web-desktop';
 import { useNotificationPermissionBar } from '@org/notifications';
 import {
   useCurrentWorkspace,
@@ -531,6 +531,14 @@ export function WorkspaceSettingsPage({
           </div>
 
           <DesktopSettingsCard />
+
+          {/*
+            DesktopSettingsCard renders null on the web build (it's entirely
+            desktop preferences), so a web-mode developer would otherwise have
+            no path to the diagnostics screen at all — this renders
+            independently of it and self-hides via import.meta.env.PROD.
+          */}
+          <PlatformDiagnosticsLink />
         </div>
       )}
 

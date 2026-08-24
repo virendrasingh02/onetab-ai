@@ -56,6 +56,14 @@ export const IPC_EVENT = {
 
 export type DesktopPlatform = 'win32' | 'darwin' | 'linux';
 
+/**
+ * Who controls updates, review, and payments for this build. `'direct'`
+ * covers both a Windows .exe and a notarized macOS DMG/ZIP — pair it with
+ * `DesktopPlatform` to tell those apart, the same way `@org/platform`'s
+ * `resolvePolicy(platform, distribution)` does on the renderer side.
+ */
+export type DesktopDistribution = 'direct' | 'microsoft-store' | 'mac-app-store';
+
 export interface DesktopAppInfo {
   version: string;
   electronVersion: string;
@@ -65,6 +73,7 @@ export interface DesktopAppInfo {
   isPackaged: boolean;
   /** True when running inside a Mac App Store build where self-updates are forbidden. */
   isMas: boolean;
+  distribution: DesktopDistribution;
   /** True when the OS draws no frame and the renderer owns the title bar. */
   usesCustomTitleBar: boolean;
   /** Reserved inset (px) for macOS traffic lights so content can offset. */
@@ -90,6 +99,7 @@ export interface DesktopAppMetadata {
 export interface DesktopCapabilities {
   isDesktop: true;
   platform: DesktopPlatform;
+  distribution: DesktopDistribution;
   architecture: string;
   authentication: boolean;
   notifications: boolean;

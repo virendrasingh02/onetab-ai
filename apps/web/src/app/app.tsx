@@ -17,6 +17,15 @@ import { Button, EmptyState, LoadingState } from '@org/ui';
  * too. Splitting them would only add a chunk boundary with nothing behind it.
  */
 import { DirectMessagesView, SavedView, ThreadsView } from '@org/web-chat';
+/*
+ * `@org/web-desktop` is already in the main chunk too — `Providers` mounts its
+ * `DesktopProvider`/`DesktopChrome` on every render (see providers.tsx) — so
+ * this is static for the same reason `@org/web-chat` above is; lazy-loading
+ * one export of an already-bundled library only adds a chunk boundary with
+ * nothing behind it, and trips `@nx/enforce-module-boundaries`' check against
+ * importing the same library both ways.
+ */
+import { PlatformDiagnosticsPage } from '@org/web-desktop';
 import { lazy, Suspense } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 
@@ -210,6 +219,14 @@ export function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/invite/:token" element={<AcceptInvitationPage />} />
           <Route path="/workspaces/new" element={<CreateWorkspacePage />} />
+
+          {/*
+            Never routable in a production build — not just unlinked. See
+            PlatformDiagnosticsLink, the only thing that points here.
+          */}
+          {import.meta.env.DEV && (
+            <Route path="/dev/platform-diagnostics" element={<PlatformDiagnosticsPage />} />
+          )}
 
           {/* Bare "/" and "/open" resolve to the user's first workspace. */}
           <Route path="/" element={<WorkspaceRedirect />} />

@@ -21,6 +21,7 @@ export {
   type DesktopCapabilities,
   type DesktopCommand,
   type DesktopDeepLink,
+  type DesktopDistribution,
   type DesktopHandoffRequest,
   type DesktopNotificationRequest,
   type DesktopOpenFilesRequest,
@@ -42,7 +43,6 @@ export {
 } from './lib/capabilities.js';
 
 export { FeatureGate, type FeatureGateProps } from './lib/feature-gate.js';
-export { FEATURE_MATRIX, type FeatureMatrixItem } from './lib/feature-matrix.js';
 export { DEFAULT_APP_METADATA, getAppMetadata, useAppMetadata } from './lib/app-metadata.js';
 export {
   isMobileDevice,
@@ -66,3 +66,18 @@ export { DesktopTitleBar } from './lib/desktop-title-bar.js';
 export { DesktopUpdateBanner } from './lib/desktop-update-banner.js';
 export { DesktopSettingsCard } from './lib/desktop-settings-card.js';
 export { PlatformNotice, type PlatformNoticeProps } from './lib/platform-notice.js';
+
+// --- capability/feature/policy layer (@org/platform-backed) ---------------
+export { toPlatformSnapshot } from './lib/platform-snapshot.js';
+export {
+  featureManager,
+  useAllFeatures,
+  useCapability,
+  useDistribution,
+  useFeature,
+  usePlatform,
+  usePlatformSnapshot,
+} from './lib/use-feature.js';
+export { FeatureRoute, FeatureUnavailableNotice, type FeatureRouteProps } from './lib/feature-route.js';
+export { PlatformDiagnosticsPage } from './lib/platform-diagnostics-page.js';
+export { PlatformDiagnosticsLink } from './lib/platform-diagnostics-link.js';

@@ -168,6 +168,60 @@ Adding a capability means touching three files, in this order:
 `libs/web/desktop/src/lib/desktop-api.ts`. The preload pins its channel names to
 the contract with `satisfies`, so a rename that misses a file fails to compile.
 
+## Capability, feature & policy layer (`@org/platform`)
+
+`DesktopCapabilities` (above) answers "what can this runtime do". A second
+question — "should this feature be shown, and if not, what happens instead" —
+is answered by `@org/platform` (`libs/shared/platform`), a small,
+Electron-agnostic engine, plus the hooks in `@org/web-desktop` that feed it a
+live snapshot. See `DESKTOP_STORE_COMPLIANCE_AUDIT.md` for the audit this was
+built from and what it deliberately does not cover yet (Store packaging,
+signing, a remote config backend).
+
+```tsx
+import { useFeature, FeatureRoute, featureManager } from '@org/web-desktop';
+
+const update = useFeature('appUpdates');
+if (update.state === 'STORE_RESTRICTED') {
+  // update.reason: "Updates are managed by the store this build was installed from."
+}
+
+// Outside the component tree (menu handlers, route loaders):
+featureManager.evaluate('deepLinks'); // → { state: 'AVAILABLE' | ..., reason, fallback }
+```
+
+- **`FEATURE_REGISTRY`** (`@org/platform`) declares what each feature needs —
+  `platforms`, `requiredCapabilities`, `permissionCapabilities`, an optional
+  `requiredPlan` (inert; there is no real billing backend — see the audit
+  doc §5), and a `degrade` strategy (`hidden` | `disabled` | `web_only` |
+  `external`) for when a required capability is missing.
+- **`evaluate(id, snapshot)`** resolves one of ten `FeatureState` values —
+  `AVAILABLE`, `DISABLED`, `HIDDEN`, `WEB_ONLY`, `EXTERNAL`,
+  `REQUIRES_PERMISSION`, `REQUIRES_PLAN`, `STORE_RESTRICTED`,
+  `OS_UNSUPPORTED`, `COMING_SOON` — checked in a fixed precedence documented
+  on `evaluateFeature` in `libs/shared/platform/src/lib/feature-manager.ts`.
+- **`policies/{apple-direct,apple-app-store,microsoft-direct,microsoft-store,
+  linux,web}.ts`** are the only place a Store/platform restriction is allowed
+  to live — never inline in a component. `resolvePolicy(platform,
+  distribution)` pairs the two because `'direct'` means something different
+  on Windows than on macOS.
+- **`useFeature`/`useAllFeatures`/`usePlatform`/`useDistribution`/
+  `useCapability`** (`@org/web-desktop`) recompute from
+  `toPlatformSnapshot(useCapabilities())` on every capability change.
+  `featureManager.evaluate`/`evaluateAll` are the same thing outside React.
+- **`FeatureRoute`** wraps a route: `HIDDEN`/`OS_UNSUPPORTED` redirects home,
+  a `WEB_ONLY` state with a web fallback redirects there, anything else
+  unavailable renders the reason instead of the route's children.
+- **Settings → Platform & Features** (inside `DesktopSettingsCard`) groups
+  every user-facing feature into Available / Limited / Web-only from
+  `useAllFeatures()` — nothing hardcoded per platform.
+- **`/dev/platform-diagnostics`** (linked only by `PlatformDiagnosticsLink`,
+  both gated on `import.meta.env.DEV`) dumps platform, runtime, distribution,
+  every capability, and every feature's resolved state and reason.
+
+Adding a new feature means adding one entry to `FEATURE_REGISTRY` — never a
+new `if (isWindows)`/`if (isMacAppStore)` check at the call site.
+
 ## Security posture
 
 - `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`,

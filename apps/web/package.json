@@ -18,6 +18,11 @@
           "command": "vitest run --passWithNoTests",
           "cwd": "apps/web"
         }
+      },
+      "build": {
+        "options": {
+          "env": { "NODE_ENV": "production" }
+        }
       }
     }
   },

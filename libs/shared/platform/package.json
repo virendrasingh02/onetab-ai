@@ -1,5 +1,5 @@
 {
-  "name": "@org/web-desktop",
+  "name": "@org/platform",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -13,18 +13,13 @@
     },
     "./package.json": "./package.json"
   },
-  "dependencies": {
-    "@org/platform": "0.0.1",
-    "lucide-react": "^1.28.0",
-    "react-router-dom": "^6.30.3"
-  },
   "nx": {
-    "tags": ["type:feature", "scope:web"],
+    "tags": ["type:util", "scope:shared"],
     "targets": {
       "test": {
         "executor": "nx:run-commands",
         "options": {
-          "command": "vitest run --config libs/web/desktop/vitest.config.mts"
+          "command": "vitest run --config libs/shared/platform/vitest.config.mts"
         }
       }
     }

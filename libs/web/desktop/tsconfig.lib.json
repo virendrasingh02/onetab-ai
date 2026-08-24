@@ -27,6 +27,9 @@
     },
     {
       "path": "../../shared/design-system/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/platform/tsconfig.lib.json"
     }
   ],
   "exclude": [

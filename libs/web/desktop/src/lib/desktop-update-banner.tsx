@@ -13,8 +13,10 @@ import { useDesktop } from './desktop-provider.js';
  */
 export function DesktopUpdateBanner() {
   const { isDesktop, appInfo, updateStatus, installUpdate, checkForUpdates } = useDesktop();
+  const isStoreManaged =
+    appInfo?.distribution === 'mac-app-store' || appInfo?.distribution === 'microsoft-store';
 
-  if (!isDesktop || appInfo?.isMas) return null;
+  if (!isDesktop || isStoreManaged) return null;
 
   if (updateStatus.state === 'downloading') {
     return (

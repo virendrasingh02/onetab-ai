@@ -27,6 +27,7 @@ let cachedCapabilities: DesktopCapabilities = isDesktop
       ...WEB_DEFAULT_CAPABILITIES,
       isDesktop: true,
       platform: 'win32', // default before async query
+      distribution: 'direct', // default before async query — the most permissive guess, corrected within one tick
       deepLinks: true,
       windowControls: true,
       filesystem: true,

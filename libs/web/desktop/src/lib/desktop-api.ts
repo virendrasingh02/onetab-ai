@@ -9,6 +9,16 @@
 
 export type DesktopPlatform = 'win32' | 'darwin' | 'linux';
 
+/**
+ * Mirrors `DesktopDistribution` in `apps/desktop/src/shared/ipc.ts` — kept as
+ * a second, independent declaration rather than a shared import for the same
+ * reason `DesktopPlatform` above is: the web app must build with zero
+ * knowledge of the desktop app, and the desktop app's main process
+ * deliberately imports nothing outside `electron`/Node built-ins (see
+ * docs/desktop-app.md, "Packaging notes").
+ */
+export type DesktopDistribution = 'direct' | 'microsoft-store' | 'mac-app-store';
+
 export interface DesktopAppInfo {
   version: string;
   electronVersion: string;
@@ -17,6 +27,7 @@ export interface DesktopAppInfo {
   arch: string;
   isPackaged: boolean;
   isMas?: boolean;
+  distribution: DesktopDistribution;
   usesCustomTitleBar: boolean;
   titleBarInset: number;
   locale: string;
@@ -40,6 +51,8 @@ export interface DesktopAppMetadata {
 export interface DesktopCapabilities {
   isDesktop: boolean;
   platform: DesktopPlatform | 'web';
+  /** Meaningful only when `isDesktop` is true; a web session has no distribution channel. */
+  distribution?: DesktopDistribution;
   architecture: string;
   authentication: boolean;
   notifications: boolean;
