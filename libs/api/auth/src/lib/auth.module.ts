@@ -5,6 +5,7 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { DesktopAuthService } from './desktop-auth.service.js';
+import { DeviceAuthService } from './device-auth.service.js';
 import { JwtAuthGuard, WorkspaceRoleGuard } from './guards.js';
 import { JwtStrategy } from './jwt.strategy.js';
 import { TokenService } from './token.service.js';
@@ -13,19 +14,25 @@ import { TokenService } from './token.service.js';
   imports: [
     ConfigModule,
     PassportModule.register({ defaultStrategy: 'jwt', session: false }),
-    // Secrets are passed per-call in TokenService so access and refresh
-    // concerns stay independent; no global signing secret is registered here.
     JwtModule.register({}),
   ],
   controllers: [AuthController],
   providers: [
     AuthService,
     DesktopAuthService,
+    DeviceAuthService,
     TokenService,
     JwtStrategy,
     JwtAuthGuard,
     WorkspaceRoleGuard,
   ],
-  exports: [AuthService, DesktopAuthService, TokenService, JwtAuthGuard, WorkspaceRoleGuard],
+  exports: [
+    AuthService,
+    DesktopAuthService,
+    DeviceAuthService,
+    TokenService,
+    JwtAuthGuard,
+    WorkspaceRoleGuard,
+  ],
 })
 export class AuthModule {}

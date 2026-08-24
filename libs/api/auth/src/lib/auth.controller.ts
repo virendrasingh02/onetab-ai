@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Query,
   Req,
   Res,
 } from '@nestjs/common';
@@ -13,24 +14,35 @@ import { Throttle } from '@nestjs/throttler';
 import { CurrentUser, Public, zodBody } from '@org/api-common';
 import type { AuthenticatedUser } from '@org/api-common';
 import {
+  approveDeviceAuthSchema,
   changePasswordSchema,
+  createDeviceAuthSchema,
   desktopAuthorizeSchema,
   desktopExchangeSchema,
+  exchangeDeviceAuthSchema,
   forgotPasswordSchema,
   loginSchema,
+  pollDeviceAuthSchema,
   registerSchema,
+  rejectDeviceAuthSchema,
   resetPasswordSchema,
+  type ApproveDeviceAuthInput,
   type ChangePasswordInput,
+  type CreateDeviceAuthInput,
   type DesktopAuthorizeInput,
   type DesktopExchangeInput,
+  type ExchangeDeviceAuthInput,
   type ForgotPasswordInput,
   type LoginInput,
+  type PollDeviceAuthInput,
   type RegisterInput,
+  type RejectDeviceAuthInput,
   type ResetPasswordInput,
 } from '@org/validation';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
 import { DesktopAuthService } from './desktop-auth.service.js';
+import { DeviceAuthService } from './device-auth.service.js';
 import type { IssuedSession } from './token.service.js';
 
 const REFRESH_COOKIE = 'onetab_rt';
@@ -40,41 +52,44 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly desktopAuth: DesktopAuthService,
+    private readonly deviceAuth: DeviceAuthService,
     private readonly config: ConfigService,
   ) {}
 
-  /**
-   * The refresh token is set as an httpOnly cookie and never returned in a
-   * body, so XSS cannot read it. The short-lived access token stays in memory
-   * on the client.
-   */
+  private contextOf(request: Request) {
+    return {
+      ipAddress: request.ip ?? request.socket?.remoteAddress,
+      userAgent: request.headers['user-agent'],
+    };
+  }
+
   private setRefreshCookie(response: Response, session: IssuedSession): void {
-    const isProduction = this.config.get('NODE_ENV') === 'production';
+    const isProduction = this.config.get<string>('NODE_ENV') === 'production';
+
     response.cookie(REFRESH_COOKIE, session.refreshToken, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? 'none' : 'lax',
-      expires: session.refreshExpiresAt,
+      sameSite: isProduction ? 'strict' : 'lax',
       path: '/api/v1/auth',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
     });
   }
 
   private clearRefreshCookie(response: Response): void {
-    response.clearCookie(REFRESH_COOKIE, { path: '/api/v1/auth' });
-  }
+    const isProduction = this.config.get<string>('NODE_ENV') === 'production';
 
-  private contextOf(request: Request) {
-    return {
-      userAgent: request.get('user-agent') ?? undefined,
-      ipAddress: request.ip,
-    };
+    response.clearCookie(REFRESH_COOKIE, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'strict' : 'lax',
+      path: '/api/v1/auth',
+    });
   }
 
   @Public()
   @Post('register')
-  // 10/min per IP: enough headroom for a shared corporate NAT (and for the e2e
-  // suite) while still throttling automated signup abuse.
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.CREATED)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   async register(
     @Body(zodBody(registerSchema)) body: RegisterInput,
     @Req() request: Request,
@@ -108,14 +123,13 @@ export class AuthController {
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   async refresh(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const session = await this.auth.refresh(
-      request.cookies?.[REFRESH_COOKIE],
-      this.contextOf(request),
-    );
+    const token = request.cookies?.[REFRESH_COOKIE];
+    const session = await this.auth.refresh(token, this.contextOf(request));
     this.setRefreshCookie(response, session);
     return session.tokens;
   }
@@ -123,11 +137,21 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout(
-    @CurrentUser('id') userId: string,
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
-    await this.auth.logout(request.cookies?.[REFRESH_COOKIE], userId);
+    const token = request.cookies?.[REFRESH_COOKIE];
+    await this.auth.logout(token);
+    this.clearRefreshCookie(response);
+  }
+
+  @Post('logout-all')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async logoutAll(
+    @CurrentUser('id') userId: string,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<void> {
+    await this.auth.logoutAll(userId);
     this.clearRefreshCookie(response);
   }
 
@@ -138,14 +162,13 @@ export class AuthController {
 
   @Public()
   @Post('forgot-password')
-  @HttpCode(HttpStatus.ACCEPTED)
-  @Throttle({ default: { limit: 3, ttl: 300_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   async forgotPassword(
     @Body(zodBody(forgotPasswordSchema)) body: ForgotPasswordInput,
   ) {
     const result = await this.auth.forgotPassword(body);
     return {
-      // Deliberately identical whether or not the account exists.
       message:
         'If an account exists for that address, a reset link is on its way.',
       ...result,
@@ -170,13 +193,11 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
     await this.auth.changePassword(userId, body);
-    // Every session was revoked, so the current cookie is now dead too.
     this.clearRefreshCookie(response);
   }
 
   /**
    * Browser-based PKCE authorization initiation for desktop app.
-   * Called by an authenticated user in their browser when completing the desktop login handoff.
    */
   @Post('desktop/authorize')
   @HttpCode(HttpStatus.OK)
@@ -190,7 +211,6 @@ export class AuthController {
 
   /**
    * Authorization code exchange for desktop app using PKCE S256 verification.
-   * Public endpoint called directly by the desktop main process.
    */
   @Public()
   @Post('desktop/exchange')
@@ -202,6 +222,97 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const { user, session } = await this.desktopAuth.exchangeCode(
+      body,
+      this.contextOf(request),
+    );
+    this.setRefreshCookie(response, session);
+    return { user, ...session.tokens, refreshToken: session.refreshToken };
+  }
+
+  /* --- mobile device authorization endpoints ----------------------------- */
+
+  /**
+   * Desktop client creates a device authorization request (QR & Pairing Code).
+   */
+  @Public()
+  @Post('device/create')
+  @HttpCode(HttpStatus.CREATED)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async createDeviceRequest(
+    @Body(zodBody(createDeviceAuthSchema)) body: CreateDeviceAuthInput,
+    @Req() request: Request,
+  ) {
+    const webAppUrl =
+      this.config.get<string>('WEB_APP_URL') ||
+      this.config.get<string>('VITE_WEB_APP_URL') ||
+      'http://localhost:4200';
+    return this.deviceAuth.createRequest(body, this.contextOf(request), webAppUrl);
+  }
+
+  /**
+   * Public endpoint to get sanitized device info by requestId or userCode.
+   */
+  @Public()
+  @Get('device/info')
+  @HttpCode(HttpStatus.OK)
+  async getDeviceInfo(
+    @Query('requestId') requestId?: string,
+    @Query('code') code?: string,
+  ) {
+    return this.deviceAuth.getInfo(requestId, code);
+  }
+
+  /**
+   * Authenticated mobile user approves the device authorization request.
+   */
+  @Post('device/approve')
+  @HttpCode(HttpStatus.OK)
+  async approveDevice(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(zodBody(approveDeviceAuthSchema)) body: ApproveDeviceAuthInput,
+  ) {
+    const fullUser = await this.auth.me(user.id);
+    return this.deviceAuth.approve(fullUser, body.requestId, body.code);
+  }
+
+  /**
+   * Mobile user rejects/cancels the device authorization request.
+   */
+  @Public()
+  @Post('device/reject')
+  @HttpCode(HttpStatus.OK)
+  async rejectDevice(
+    @Body(zodBody(rejectDeviceAuthSchema)) body: RejectDeviceAuthInput,
+  ) {
+    return this.deviceAuth.reject(body.requestId, body.code);
+  }
+
+  /**
+   * Desktop client polls the status of its active request.
+   */
+  @Public()
+  @Post('device/status')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 120, ttl: 60_000 } })
+  async pollDeviceStatus(
+    @Body(zodBody(pollDeviceAuthSchema)) body: PollDeviceAuthInput,
+  ) {
+    return this.deviceAuth.pollStatus(body);
+  }
+
+  /**
+   * Desktop client exchanges approved request + secretToken for session tokens.
+   */
+  @Public()
+  @Post('device/exchange')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 15, ttl: 60_000 } })
+  async exchangeDevice(
+    @Body(zodBody(exchangeDeviceAuthSchema)) body: ExchangeDeviceAuthInput,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const { user, session } = await this.deviceAuth.exchange(
       body,
       this.contextOf(request),
     );

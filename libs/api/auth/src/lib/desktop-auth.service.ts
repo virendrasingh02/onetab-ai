@@ -83,7 +83,7 @@ export class DesktopAuthService {
 
     if (pending.state !== input.state) {
       throw new BadRequestException({
-        code: ApiErrorCode.VALIDATION_ERROR,
+        code: ApiErrorCode.VALIDATION_FAILED,
         message: 'State mismatch in desktop authentication callback.',
       });
     }

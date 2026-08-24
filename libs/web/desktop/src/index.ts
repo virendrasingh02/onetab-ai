@@ -45,11 +45,15 @@ export { FeatureGate, type FeatureGateProps } from './lib/feature-gate.js';
 export { FEATURE_MATRIX, type FeatureMatrixItem } from './lib/feature-matrix.js';
 export { DEFAULT_APP_METADATA, getAppMetadata, useAppMetadata } from './lib/app-metadata.js';
 export {
+  isMobileDevice,
   openAppOrWeb,
+  openDesktopApp,
   openDesktopOrFallback,
   openInBrowser,
+  useIsMobile,
   type DesktopDetectionOptions,
   type OpenAppOrWebOptions,
+  type OpenDesktopAppOptions,
 } from './lib/handoff.js';
 
 export { DesktopProvider, useDesktop } from './lib/desktop-provider.js';

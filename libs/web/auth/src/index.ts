@@ -25,3 +25,5 @@ export { RegisterPage } from './lib/pages/register-page.js';
 export { ForgotPasswordPage } from './lib/pages/forgot-password-page.js';
 export { ResetPasswordPage } from './lib/pages/reset-password-page.js';
 export { DesktopAuthCallbackPage } from './lib/pages/desktop-auth-callback-page.js';
+export { MobileDeviceConfirmPage } from './lib/pages/mobile-device-confirm-page.js';
+export { MobileDevicePairPage } from './lib/pages/mobile-device-pair-page.js';

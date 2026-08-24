@@ -133,6 +133,19 @@ export class AuthService {
     }
   }
 
+  /** Revokes every refresh token for a user, ending all of their sessions. */
+  async logoutAll(userId: string): Promise<void> {
+    await this.tokens.revokeAllForUser(userId);
+    try {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { presence: 'OFFLINE', lastSeenAt: new Date() },
+      });
+    } catch {
+      // ignore
+    }
+  }
+
   async refresh(
     refreshToken: string | undefined,
     context: SessionContext = {},

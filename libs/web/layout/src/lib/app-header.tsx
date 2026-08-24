@@ -15,11 +15,12 @@ import {
 import type { ActivityIndicator } from '@org/notifications';
 import { useLogout } from '@org/auth';
 import { cn } from '@org/utils';
-import { openExternal, useDesktop } from '@org/web-desktop';
+import { isDesktop, openDesktopApp, openExternal, useDesktop } from '@org/web-desktop';
 import {
   ChevronLeft,
   ChevronRight,
   HelpCircle,
+  Laptop,
   PanelLeft,
   Search,
   Smile,
@@ -397,6 +398,20 @@ export function AppHeader({
             </DropdownMenuItem>
 
             <DropdownMenuSeparator className="my-1 border-border/60" />
+
+            {/* Open Desktop App */}
+            {!isDesktop && (
+              <DropdownMenuItem
+                onClick={() => void openDesktopApp({ route: 'open' })}
+                className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60 justify-between text-primary"
+              >
+                <span className="flex items-center gap-2">
+                  <Laptop className="size-3.5" />
+                  <span>Open Desktop App</span>
+                </span>
+                <span className="text-[10px] text-muted-foreground uppercase font-mono">App</span>
+              </DropdownMenuItem>
+            )}
 
             {/* Downloads */}
             <DropdownMenuItem

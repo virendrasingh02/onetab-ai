@@ -35,12 +35,7 @@ export const loginSchema = z.object({
     .min(1, 'Email or username is required')
     .max(255)
     .toLowerCase(),
-  // Deliberately not `passwordSchema`: an existing password that predates a
-  // policy change must still be able to sign in.
   password: z.string().min(1, 'Password is required'),
-  // Plain boolean rather than `.default(false)`: a default makes the schema's
-  // input and output types diverge, which React Hook Form's generics surface
-  // as an unassignable `control`. The form supplies the initial value instead.
   rememberMe: z.boolean(),
 });
 
@@ -98,6 +93,46 @@ export const desktopExchangeSchema = z.object({
   state: z.string().min(8, 'State is required').max(256),
 });
 
+/* --- mobile device authorization schemas --------------------------------- */
+
+export const createDeviceAuthSchema = z.object({
+  clientName: z.string().max(100).optional(),
+  platform: z.string().max(50).optional(),
+  os: z.string().max(50).optional(),
+  browser: z.string().max(50).optional(),
+});
+
+export const deviceInfoQuerySchema = z.object({
+  requestId: z.string().min(8).max(128).optional(),
+  code: z.string().min(4).max(32).optional(),
+}).refine((data) => Boolean(data.requestId || data.code), {
+  message: 'Either requestId or code is required',
+});
+
+export const approveDeviceAuthSchema = z.object({
+  requestId: z.string().min(8).max(128).optional(),
+  code: z.string().min(4).max(32).optional(),
+}).refine((data) => Boolean(data.requestId || data.code), {
+  message: 'Either requestId or code is required',
+});
+
+export const rejectDeviceAuthSchema = z.object({
+  requestId: z.string().min(8).max(128).optional(),
+  code: z.string().min(4).max(32).optional(),
+}).refine((data) => Boolean(data.requestId || data.code), {
+  message: 'Either requestId or code is required',
+});
+
+export const exchangeDeviceAuthSchema = z.object({
+  requestId: z.string().min(8).max(128),
+  secretToken: z.string().min(16).max(128),
+});
+
+export const pollDeviceAuthSchema = z.object({
+  requestId: z.string().min(8).max(128),
+  secretToken: z.string().min(16).max(128),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
@@ -105,3 +140,35 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type DesktopAuthorizeInput = z.infer<typeof desktopAuthorizeSchema>;
 export type DesktopExchangeInput = z.infer<typeof desktopExchangeSchema>;
+
+export type CreateDeviceAuthInput = z.infer<typeof createDeviceAuthSchema>;
+export type DeviceInfoQueryInput = z.infer<typeof deviceInfoQuerySchema>;
+export type ApproveDeviceAuthInput = z.infer<typeof approveDeviceAuthSchema>;
+export type RejectDeviceAuthInput = z.infer<typeof rejectDeviceAuthSchema>;
+export type ExchangeDeviceAuthInput = z.infer<typeof exchangeDeviceAuthSchema>;
+export type PollDeviceAuthInput = z.infer<typeof pollDeviceAuthSchema>;
+
+export interface DeviceAuthInfoResponse {
+  requestId: string;
+  userCode: string;
+  deviceInfo: {
+    clientName: string;
+    platform: string;
+    os: string;
+    browser: string;
+    ip?: string;
+    location?: string;
+  };
+  status: 'pending' | 'approved' | 'rejected' | 'expired' | 'consumed';
+  expiresAt: string;
+}
+
+export interface CreateDeviceAuthResponse {
+  requestId: string;
+  userCode: string;
+  secretToken: string;
+  verificationUrl: string;
+  deepLinkUrl: string;
+  expiresAt: string;
+  expiresInSeconds: number;
+}

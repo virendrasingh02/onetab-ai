@@ -538,3 +538,8 @@ export {
   type BlockType,
 } from './lib/components/block-registry.js';
 
+export {
+  QRCode,
+  type QRCodeProps,
+} from './lib/components/qr-code.js';
+

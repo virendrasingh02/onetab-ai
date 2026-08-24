@@ -101,12 +101,19 @@ import type {
   CreateWorkspaceInput,
   DesktopAuthorizeInput,
   DesktopExchangeInput,
+  ApproveDeviceAuthInput,
+  CreateDeviceAuthInput,
+  CreateDeviceAuthResponse,
+  DeviceAuthInfoResponse,
+  ExchangeDeviceAuthInput,
   ForgotPasswordInput,
   IconPatch,
   InviteMembersInput,
   LoginInput,
   MoveTaskInput,
+  PollDeviceAuthInput,
   RegisterInput,
+  RejectDeviceAuthInput,
   ResetPasswordInput,
   UpdateCalendarEventInput,
   UpdateChannelInput,
@@ -157,6 +164,36 @@ export const authApi = {
   exchangeDesktopCode: (input: DesktopExchangeInput) =>
     request<AuthResponse & { refreshToken: string }>(
       http.post('/auth/desktop/exchange', input),
+    ),
+
+  createDeviceAuth: (input: CreateDeviceAuthInput) =>
+    request<CreateDeviceAuthResponse>(
+      http.post('/auth/device/create', input),
+    ),
+
+  getDeviceAuthInfo: (params: { requestId?: string; code?: string }) =>
+    request<DeviceAuthInfoResponse>(
+      http.get('/auth/device/info', { params }),
+    ),
+
+  approveDeviceAuth: (input: ApproveDeviceAuthInput) =>
+    request<{ success: boolean; status: string }>(
+      http.post('/auth/device/approve', input),
+    ),
+
+  rejectDeviceAuth: (input: RejectDeviceAuthInput) =>
+    request<{ success: boolean }>(
+      http.post('/auth/device/reject', input),
+    ),
+
+  exchangeDeviceAuth: (input: ExchangeDeviceAuthInput) =>
+    request<AuthResponse & { refreshToken: string }>(
+      http.post('/auth/device/exchange', input),
+    ),
+
+  pollDeviceAuthStatus: (input: PollDeviceAuthInput) =>
+    request<{ status: 'pending' | 'approved' | 'rejected' | 'expired' | 'consumed' }>(
+      http.post('/auth/device/status', input),
     ),
 };
 

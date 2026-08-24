@@ -2,6 +2,8 @@ import {
   DesktopAuthCallbackPage,
   ForgotPasswordPage,
   LoginPage,
+  MobileDeviceConfirmPage,
+  MobileDevicePairPage,
   ProtectedRoute,
   PublicOnlyRoute,
   RegisterPage,
@@ -195,6 +197,8 @@ export function App() {
       <Routes>
         {/* --- public & callback routes -------------------------------- */}
         <Route path="/auth/callback" element={<DesktopAuthCallbackPage />} />
+        <Route path="/auth/device" element={<MobileDeviceConfirmPage />} />
+        <Route path="/auth/pair" element={<MobileDevicePairPage />} />
         <Route element={<PublicOnlyRoute />}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />

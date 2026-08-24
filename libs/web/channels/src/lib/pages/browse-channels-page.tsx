@@ -48,11 +48,11 @@ export function BrowseChannelsPage() {
               </Badge>
             </div>
 
-            <div className="h-4 mx-1 sm:block hidden w-px bg-border" />
+            {/* <div className="h-4 mx-1 sm:block hidden w-px bg-border" />
 
             <p className="min-w-0 text-xs sm:block hidden max-w-[48ch] truncate text-muted-foreground">
               Discover and join public or private channels in this workspace
-            </p>
+            </p> */}
           </div>
 
           <div className="gap-2 flex items-center">
