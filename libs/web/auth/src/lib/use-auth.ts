@@ -243,7 +243,18 @@ export function useLogout() {
     mutationFn: () => authApi.logout(),
     // Runs on success *and* failure: a server-side logout error must not strand
     // the user in a half-signed-in state.
-    onSettled: () => {
+    onSettled: async () => {
+      // The desktop shell keeps its own encrypted session (access + refresh
+      // token) in the main process — see the bootstrap's desktop branch above.
+      // `authApi.logout()` only clears the browser's httpOnly cookie, which
+      // that stored session never relied on, so without this the next cold
+      // start (or window recreation) finds it still valid and silently signs
+      // the user back in, making logout look like it never took effect.
+      try {
+        await getDesktopApi()?.auth.clearSession();
+      } catch {
+        // Best-effort: local state is cleared below regardless.
+      }
       clear();
       queryClient.clear();
       navigate('/login', { replace: true });
