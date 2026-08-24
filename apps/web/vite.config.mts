@@ -22,6 +22,23 @@ const TUNNEL_HOSTS = [
   '.cfargotunnel.com',
 ];
 
+/**
+ * A tunnel forwards exactly one local port, so the API has to be reachable
+ * through that same port for a single tunnel URL to work end to end. This
+ * proxies `/api/*` server-side to the locally running Nest API, which also
+ * sidesteps CORS entirely — the browser only ever sees the tunnel origin.
+ *
+ * Pairs with `VITE_API_URL=/api/v1` in `apps/web/.env.local`: the client
+ * calls a same-origin relative path instead of `http://localhost:3000`,
+ * which would resolve to the *visitor's* machine over a shared tunnel.
+ */
+const API_PROXY = {
+  '/api': {
+    target: 'http://localhost:3000',
+    changeOrigin: true,
+  },
+};
+
 export default defineConfig(() => ({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/web',
@@ -30,6 +47,7 @@ export default defineConfig(() => ({
     strictPort: true,
     host: 'localhost',
     allowedHosts: TUNNEL_HOSTS,
+    proxy: API_PROXY,
   },
   preview: {
     port: 4200,
@@ -38,8 +56,27 @@ export default defineConfig(() => ({
     // A shared preview build is reached through the same tunnel hostnames the
     // dev server uses, and preview enforces `allowedHosts` just as strictly.
     allowedHosts: TUNNEL_HOSTS,
+    proxy: API_PROXY,
   },
   resolve: {
+    /*
+     * Every @org lib is an npm-workspace symlink, e.g. node_modules/@org/auth
+     * pointing at libs/web/auth. With the default preserveSymlinks=false,
+     * Vite resolves each lib's own imports relative to its real path under
+     * libs/, while apps/web's imports resolve relative to apps/web/. Both
+     * walk back up to the same root node_modules, but Rolldown keyed some of
+     * what they found there as distinct instances: react-router's
+     * NavigationContext and TanStack Query's QueryClientContext each came
+     * back duplicated in production builds, so a component nested correctly
+     * inside BrowserRouter/QueryClientProvider still read a null context from
+     * the other copy (useNavigate() may be used only in the context of a
+     * Router component; No QueryClient set) — a bug dev mode never showed,
+     * since it never bundles. preserveSymlinks=true makes every lib resolve
+     * relative to its symlinked path instead, which lines the two views back
+     * up. See the node_modules check in manualChunks below for the half of
+     * this that keeps chunking working.
+     */
+    preserveSymlinks: true,
     dedupe: ['react', 'react-dom'],
     alias: {
       react: path.resolve(import.meta.dirname, '../../node_modules/react'),
@@ -88,9 +125,21 @@ export default defineConfig(() => ({
          * of `manualChunks` — the object form throws at config time.
          */
         manualChunks(id: string) {
-          if (!id.includes('node_modules')) return;
+          // `@org/*` libs are npm-workspace symlinks that `preserveSymlinks`
+          // (above) resolves through `node_modules/@org/*` — they're this
+          // app's own source, not a vendor dependency, so they still get
+          // automatic per-route chunking instead of being swept into a
+          // vendor bucket wholesale.
           if (
-            /[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(
+            !id.includes('node_modules') ||
+            /[\\/]node_modules[\\/]@org[\\/]/.test(id)
+          )
+            return;
+          if (
+            // `@remix-run/router` is react-router-dom's own router/history
+            // engine, published as a separate package it depends on — not
+            // matched by the `react-router` patterns above it.
+            /[\\/](react|react-dom|react-router|react-router-dom|@remix-run|scheduler)[\\/]/.test(
               id,
             )
           )

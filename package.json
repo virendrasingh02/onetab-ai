@@ -13,6 +13,8 @@
     "desktop:package": "nx package @org/desktop",
     "dev:admin": "nx serve @org/admin",
     "dev:api": "nx serve @org/api",
+    "tunnel": "cloudflared tunnel --url http://localhost:4200",
+    "preview:tunnel": "concurrently -k -n api,web,tunnel -c blue,green,magenta \"nx run @org/api:serve\" \"nx run @org/web:preview\" \"npm run tunnel\"",
     "build": "nx run-many -t build",
     "test": "nx run-many -t test",
     "test:watch": "nx run-many -t test -- --watch",
