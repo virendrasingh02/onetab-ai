@@ -46,32 +46,56 @@ export function MatrixProvider({ children }: { children: ReactNode }) {
     let disposed = false;
     let instance: OneTabMatrixClient | null = null;
     let unsubscribe: (() => void) | undefined;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let failureCount = 0;
+
+    /**
+     * A failed attempt still has to mark `token` as handled, or the 1 s poll
+     * below re-fires `syncConnection` every tick forever — which, when the
+     * failure is a 401, means hammering `/auth/refresh` fast enough to trip
+     * its rate limit and take authenticated requests down app-wide, not just
+     * chat. Backing off (capped at 30 s) still lets a transient failure heal
+     * once the token rotates or the homeserver comes back.
+     */
+    function scheduleRetry(token: string) {
+      failureCount += 1;
+      const delay = Math.min(1000 * 2 ** failureCount, 30_000);
+      clearTimeout(retryTimer);
+      retryTimer = setTimeout(() => {
+        if (!disposed && connectingForToken.current === token) {
+          connectingForToken.current = null;
+        }
+      }, delay);
+    }
 
     async function syncConnection() {
-      try {
-        const token = getAccessToken();
-        if (!token) {
-          if (instance) {
-            instance.stop();
-            instance = null;
-            setClient(null);
-            setStatus({ state: 'disconnected' });
-          }
-          connectingForToken.current = null;
-          setEnabled(false);
-          return;
+      const token = getAccessToken();
+      if (!token) {
+        if (instance) {
+          instance.stop();
+          instance = null;
+          setClient(null);
+          setStatus({ state: 'disconnected' });
         }
+        connectingForToken.current = null;
+        setEnabled(false);
+        return;
+      }
 
+      // Marked *before* any awaits so a failure still claims this token —
+      // otherwise the interval below sees no change and retries immediately.
+      if (connectingForToken.current === token) return;
+      connectingForToken.current = token;
+
+      try {
         const config = await matrixApi.config();
 
         if (!config.enabled || !config.homeserverUrl || disposed) {
           setEnabled(false);
+          failureCount = 0;
           return;
         }
         setEnabled(true);
-
-        if (connectingForToken.current === token) return;
-        connectingForToken.current = token;
 
         instance = createMatrixClient({
           homeserverUrl: config.homeserverUrl,
@@ -103,7 +127,11 @@ export function MatrixProvider({ children }: { children: ReactNode }) {
           });
         }
 
-        if (!disposed) setClient(instance);
+        if (!disposed) {
+          setClient(instance);
+          setError(null);
+          failureCount = 0;
+        }
       } catch (caught) {
         if (!disposed) {
           setEnabled(false);
@@ -113,6 +141,7 @@ export function MatrixProvider({ children }: { children: ReactNode }) {
               : 'Could not connect to chat.',
           );
           setStatus({ state: 'error' });
+          scheduleRetry(token);
         }
       }
     }
@@ -129,6 +158,7 @@ export function MatrixProvider({ children }: { children: ReactNode }) {
     return () => {
       disposed = true;
       clearInterval(interval);
+      clearTimeout(retryTimer);
       unsubscribe?.();
       instance?.stop();
     };

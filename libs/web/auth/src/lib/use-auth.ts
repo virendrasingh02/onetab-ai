@@ -3,7 +3,9 @@ import {
   authApi,
   getAccessToken,
   queryKeys,
+  SessionRejectedError,
   setAccessToken,
+  setRefreshTokenProvider,
   setSessionExpiredHandler,
 } from '@org/api-client';
 import type {
@@ -24,6 +26,40 @@ const isSessionRejection = (error: unknown): boolean =>
   error instanceof ApiError && (error.status === 401 || error.status === 403);
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/*
+ * The default token refresh reads an httpOnly cookie that only a browser
+ * which completed the login request ever has. A desktop session is
+ * established by the Electron main process's own `fetch` — no cookie jar
+ * shared with the renderer — so it can never satisfy that path. Registering
+ * this here, at module scope, means it is wired before the first request of
+ * the session (including the bootstrap below) rather than racing a
+ * component's mount effect.
+ */
+const desktopApiForRefresh = getDesktopApi();
+if (desktopApiForRefresh) {
+  setRefreshTokenProvider(async () => {
+    let session;
+    try {
+      session = await desktopApiForRefresh.auth.refreshSession();
+    } catch (error) {
+      // The IPC call only ever rejects for a definitive refusal — an
+      // expired/revoked refresh token (see `refreshSecureSession` in the
+      // main process); anything else resolves `null` instead. A rejection
+      // here always means "sign out," never "try again."
+      throw new SessionRejectedError(
+        error instanceof Error ? error.message : 'Desktop session refresh was rejected.',
+      );
+    }
+    if (!session?.accessToken) {
+      // Transient failure (offline, API restarting): a plain Error, not
+      // `SessionRejectedError`, so the caller leaves the session untouched
+      // instead of signing out for a blip.
+      throw new Error('Desktop session refresh is temporarily unavailable.');
+    }
+    return session.accessToken;
+  });
+}
 
 /*
  * A cold load races the API: under `dev:all` the browser is usually up first,
@@ -61,11 +97,43 @@ export function useSessionBootstrap(): void {
             setSession(desktopSession.user as unknown as CurrentUser, desktopSession.accessToken);
             try {
               const me = await authApi.me();
-              if (!cancelled) setSession(me, desktopSession.accessToken);
+              // `me()` may have silently gone through the axios interceptor's
+              // own refresh-and-retry (it shares this same desktop refresh
+              // path) and rotated the live token in the process. Re-reading
+              // it here rather than trusting the pre-call `desktopSession`
+              // value matters: saving the stale one back over the fresh one
+              // would immediately 401 the next request and restart the whole
+              // refresh dance — see the matrix-provider backoff, which relies
+              // on the token staying put once a sync attempt has run.
+              if (!cancelled) setSession(me, getAccessToken() ?? desktopSession.accessToken);
+              return;
             } catch {
-              // Retain active session
+              // The stored access token is a JWT with a short TTL (minutes);
+              // any cold start more than that after the last launch finds it
+              // already expired. The desktop's own refresh token — never a
+              // browser cookie the generic path below could use — is the only
+              // way to recover it without forcing a fresh login every time.
+              try {
+                const refreshed = await desktopApi.auth.refreshSession();
+                if (refreshed?.user && refreshed.accessToken) {
+                  setAccessToken(refreshed.accessToken);
+                  const me = await authApi.me();
+                  if (!cancelled) setSession(me, getAccessToken() ?? refreshed.accessToken);
+                  return;
+                }
+                // Transient failure (offline, API restarting): keep the
+                // cached identity showing rather than bounce to /login for a
+                // blip, matching the cookie path's "unreachable" fallback.
+                if (user) {
+                  if (!cancelled) setSession(user, getAccessToken() ?? desktopSession.accessToken);
+                  return;
+                }
+              } catch {
+                // Refresh token itself was refused — desktop has no cookie
+                // fallback that could succeed either, so fall through and let
+                // step 2 settle the session into `clear()`.
+              }
             }
-            return;
           }
         } catch {
           // Continue to cookie exchange

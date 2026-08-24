@@ -61,6 +61,31 @@ export function setSessionExpiredHandler(handler: (() => void) | null): void {
   onSessionExpired = handler;
 }
 
+/**
+ * Thrown by a {@link RefreshTokenProvider} to mean "the API definitively
+ * refused this refresh" — as opposed to a network hiccup, which should leave
+ * the session alone and let the caller's own retry try again later.
+ */
+export class SessionRejectedError extends Error {}
+
+/**
+ * Overrides how a spent access token gets renewed.
+ *
+ * The default renews via the httpOnly refresh cookie, which only exists in a
+ * browser that actually completed the cookie-setting login request. A desktop
+ * session is established by the Electron main process's own `fetch` — a
+ * separate network stack with no cookie jar shared with the renderer — so it
+ * has no such cookie to send. The desktop shell registers a provider here
+ * that instead asks the main process to refresh via the refresh token it
+ * persisted to disk.
+ */
+type RefreshTokenProvider = () => Promise<string>;
+let refreshTokenProvider: RefreshTokenProvider | null = null;
+
+export function setRefreshTokenProvider(provider: RefreshTokenProvider | null): void {
+  refreshTokenProvider = provider;
+}
+
 const configuredBaseURL =
   (import.meta.env?.['VITE_API_URL'] as string | undefined) ??
   'http://localhost:3000/api/v1';
@@ -205,6 +230,12 @@ async function refreshAccessToken(usedToken: string | null): Promise<string> {
       return current;
     }
 
+    if (refreshTokenProvider) {
+      const token = await refreshTokenProvider();
+      setAccessToken(token);
+      return token;
+    }
+
     const response = await axios.post<AuthTokens>(
       `${await resolveBaseURL()}/auth/refresh`,
       {},
@@ -227,6 +258,7 @@ async function refreshAccessToken(usedToken: string | null): Promise<string> {
  * those as expiry is what signed people out for a blip in the network.
  */
 function isSessionRejection(error: unknown): boolean {
+  if (error instanceof SessionRejectedError) return true;
   if (!axios.isAxiosError(error)) return false;
   const status = error.response?.status;
   return status === 401 || status === 403;

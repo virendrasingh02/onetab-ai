@@ -26,7 +26,12 @@ import {
   type DesktopSaveFileRequest,
   type DesktopSaveResult,
 } from '../shared/ipc.js';
-import { clearSecureSession, loadSecureSession, startBrowserLogin } from './auth.js';
+import {
+  clearSecureSession,
+  loadSecureSession,
+  refreshSecureSession,
+  startBrowserLogin,
+} from './auth.js';
 import { detectDesktopCapabilities } from './capabilities.js';
 import { logger } from './logger.js';
 import { checkForUpdates, downloadUpdate, installUpdate } from './updater.js';
@@ -153,6 +158,12 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
       clearSecureSession();
     }),
   );
+
+  // Not wrapped in a try/catch: `refreshSecureSession` throws only on a
+  // definitive rejection (expired/revoked refresh token), and that throw is
+  // meant to propagate — `ipcRenderer.invoke` turns it into a rejected
+  // promise, which is the renderer's signal to sign out rather than retry.
+  ipcMain.handle(IPC.authRefreshSession, guard(() => refreshSecureSession()));
 
   /* --- window controls -------------------------------------------------- */
 

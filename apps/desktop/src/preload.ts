@@ -54,6 +54,7 @@ const IPC = {
   authStartBrowserLogin: 'onetab:auth/start-browser-login',
   authGetSession: 'onetab:auth/get-session',
   authClearSession: 'onetab:auth/clear-session',
+  authRefreshSession: 'onetab:auth/refresh-session',
   openAppOrWeb: 'onetab:shell/open-app-or-web',
 } as const satisfies typeof IpcContract;
 
@@ -94,6 +95,8 @@ const api = {
     startBrowserLogin: (): Promise<boolean> => ipcRenderer.invoke(IPC.authStartBrowserLogin),
     getSession: (): Promise<DesktopAuthSession | null> => ipcRenderer.invoke(IPC.authGetSession),
     clearSession: (): Promise<void> => ipcRenderer.invoke(IPC.authClearSession),
+    refreshSession: (): Promise<DesktopAuthSession | null> =>
+      ipcRenderer.invoke(IPC.authRefreshSession),
     onSessionChange: (handler: (session: DesktopAuthSession) => void): Unsubscribe =>
       subscribe(IPC_EVENT.authSessionChanged, handler),
   },

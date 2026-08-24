@@ -37,6 +37,7 @@ export const IPC = {
   authStartBrowserLogin: 'onetab:auth/start-browser-login',
   authGetSession: 'onetab:auth/get-session',
   authClearSession: 'onetab:auth/clear-session',
+  authRefreshSession: 'onetab:auth/refresh-session',
   openAppOrWeb: 'onetab:shell/open-app-or-web',
 } as const;
 

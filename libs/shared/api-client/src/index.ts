@@ -4,7 +4,9 @@ export {
   http,
   request,
   resolveMediaUrl,
+  SessionRejectedError,
   setAccessToken,
+  setRefreshTokenProvider,
   setSessionExpiredHandler,
   toApiError,
 } from './lib/http.js';

@@ -154,6 +154,14 @@ export interface OneTabDesktopApi {
     startBrowserLogin: () => Promise<boolean>;
     getSession: () => Promise<DesktopAuthSession | null>;
     clearSession: () => Promise<void>;
+    /**
+     * Renews the stored session via the desktop's own stored refresh token.
+     * Resolves `null` for a transient failure (network, API restarting) —
+     * the caller should leave the session alone and try again later — and
+     * only for that; a definitive rejection (expired/revoked refresh token)
+     * rejects the promise instead, which is the signal to sign out.
+     */
+    refreshSession: () => Promise<DesktopAuthSession | null>;
     onSessionChange: (handler: (session: DesktopAuthSession) => void) => Unsubscribe;
   };
   window: {

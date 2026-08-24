@@ -2,7 +2,7 @@ import { app, dialog, globalShortcut, nativeTheme, session } from 'electron';
 import { appendFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { IPC_EVENT, type DesktopCommand } from './shared/ipc.js';
-import { loadSecureSession } from './main/auth.js';
+import { loadSecureSession, setApiUrlForAuth } from './main/auth.js';
 import {
   deepLinkFromArgv,
   dispatchDeepLink,
@@ -138,6 +138,7 @@ async function bootstrap(): Promise<void> {
   const appUrl = await resolveAppUrl();
   const apiUrl = process.env['VITE_API_URL'] || 'http://localhost:3000/api/v1';
   setApiUrlForDeepLinks(apiUrl);
+  setApiUrlForAuth(apiUrl);
 
   const preloadPath = join(here, 'preload.js');
 
