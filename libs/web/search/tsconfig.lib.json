@@ -26,10 +26,19 @@
   ],
   "references": [
     {
+      "path": "../upload/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/utils/tsconfig.lib.json"
     },
     {
+      "path": "../../shared/ui/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/types/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/media-preview/tsconfig.lib.json"
     },
     {
       "path": "../../shared/api-client/tsconfig.lib.json"

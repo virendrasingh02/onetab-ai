@@ -5,7 +5,6 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { MessageSquare } from 'lucide-react';
 import {
   useCallback,
-  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -13,6 +12,7 @@ import {
 } from 'react';
 import { UnreadDivider } from './channel-extras.js';
 import { DateSeparator } from './chat-bubble.js';
+import { getScrollPosition, setScrollPosition } from './scroll-position-store.js';
 
 /** Consecutive messages from one sender within this window are grouped. */
 const GROUPING_WINDOW_MS = 5 * 60_000;
@@ -72,6 +72,14 @@ export function buildRows(
 }
 
 export interface MessageListProps {
+  /**
+   * Identity of the conversation being shown — a room id, typically. Drives
+   * this list's scroll-position memory: switching to a new value restores
+   * that conversation's last known position (or lands at the bottom, for one
+   * with no memory yet) instead of leaving the scroll where the previous
+   * conversation left it. Left unset, no position is remembered or restored.
+   */
+  conversationId?: string | null;
   messages: Message[];
   isLoading?: boolean;
   isLoadingOlder?: boolean;
@@ -106,6 +114,7 @@ export interface MessageListProps {
  *    user is reading does not jump away from under them.
  */
 export function MessageList({
+  conversationId,
   messages,
   isLoading = false,
   isLoadingOlder = false,
@@ -128,6 +137,12 @@ export function MessageList({
   const wasAtBottom = useRef(true);
   const previousScrollHeight = useRef(0);
   const previousCount = useRef(messages.length);
+  /**
+   * The conversation the scroll container is currently positioned for — lets
+   * a conversation *switch* be told apart from this same conversation simply
+   * getting more messages, in the effect below.
+   */
+  const previousConversationId = useRef(conversationId);
 
   const virtualizer = useVirtualizer({
     count: rows.length,
@@ -151,13 +166,50 @@ export function MessageList({
     if (!element) return;
 
     wasAtBottom.current = isAtBottom();
+    if (conversationId) setScrollPosition(conversationId, element.scrollTop);
 
     // Trigger backfill before the user actually hits the top.
     if (element.scrollTop < 200 && hasMore && !isLoadingOlder) {
       previousScrollHeight.current = element.scrollHeight;
       onLoadOlder?.();
     }
-  }, [hasMore, isLoadingOlder, isAtBottom, onLoadOlder]);
+  }, [hasMore, isLoadingOlder, isAtBottom, onLoadOlder, conversationId]);
+
+  /*
+   * Switching conversations: land back on the reader's last known position in
+   * the one being opened, or at the bottom for one with no memory yet — never
+   * wherever the *previous* conversation happened to leave the scrollbar.
+   * Runs before paint, so the jump is never visible, and resets the
+   * content-growth bookkeeping below so the switch itself is never mistaken
+   * there for messages arriving in a conversation that was already open.
+   */
+  useLayoutEffect(() => {
+    const switchedConversation =
+      previousConversationId.current !== conversationId;
+    previousConversationId.current = conversationId;
+    previousCount.current = messages.length;
+    previousScrollHeight.current = 0;
+
+    if (!switchedConversation) return;
+
+    const element = scrollRef.current;
+    if (!element) return;
+
+    const saved = conversationId ? getScrollPosition(conversationId) : undefined;
+    if (saved !== undefined) {
+      element.scrollTop = saved;
+      wasAtBottom.current =
+        element.scrollHeight - saved - element.clientHeight < 80;
+    } else {
+      // No memory of this conversation: either it is brand new, or it was
+      // never scrolled up from the bottom — either way, the bottom is where
+      // it should open.
+      element.scrollTop = element.scrollHeight;
+      wasAtBottom.current = true;
+    }
+    // Only the identity should retrigger this — see the note above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
 
   // Runs before paint, so neither correction is ever visible as a flicker.
   useLayoutEffect(() => {
@@ -179,16 +231,6 @@ export function MessageList({
       element.scrollTop = element.scrollHeight;
     }
   }, [messages.length]);
-
-  // Land at the newest message on first load.
-  useEffect(() => {
-    const element = scrollRef.current;
-    if (element && !isLoading && messages.length > 0) {
-      element.scrollTop = element.scrollHeight;
-    }
-    // Only on the transition out of loading, not on every new message.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading]);
 
   if (error) {
     return (
@@ -235,6 +277,20 @@ export function MessageList({
       {isLoadingOlder ? (
         <div className="py-3 flex justify-center">
           <Spinner label="Loading earlier messages" />
+        </div>
+      ) : null}
+
+      {/*
+        The conversation is still being opened — its room resolved but no
+        messages read from it yet. An empty, motionless timeline here would
+        read as broken on a slow connection (see the acceptance test for it);
+        this keeps the same scroll container in place and says so instead,
+        rather than the host falling back to unmounting the whole surface for
+        a full-page spinner (see `ChatPanel`).
+      */}
+      {isLoading && rows.length === 0 ? (
+        <div className="flex flex-1 items-center justify-center py-16">
+          <Spinner label="Loading messages…" />
         </div>
       ) : null}
 

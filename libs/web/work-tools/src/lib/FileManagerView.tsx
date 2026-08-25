@@ -1,4 +1,5 @@
 import { useCurrentUser } from '@org/auth';
+import { useMediaPreview } from '@org/media-preview';
 import type { Upload } from '@org/types';
 import {
   Badge,
@@ -23,11 +24,17 @@ import {
   type SegmentedOption,
 } from '@org/ui';
 import { cn, formatBytes, formatRelative } from '@org/utils';
-import { FileDropzone, useUploadMutations, useUploads } from '@org/web-upload';
+import {
+  FileDropzone,
+  useUploadMediaAdapter,
+  useUploadMutations,
+  useUploads,
+} from '@org/web-upload';
 import {
   Check,
   ChevronDown,
   Download,
+  Eye,
   FileArchive,
   FileJson,
   FileText,
@@ -116,6 +123,8 @@ export function FileManagerView() {
   const { workspaceId } = useCurrentWorkspace();
   const uploads = useUploads(workspaceId);
   const { remove, download } = useUploadMutations(workspaceId);
+  const { toMediaItem } = useUploadMediaAdapter(workspaceId);
+  const { openPreview } = useMediaPreview();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<OwnerTab>('all');
@@ -370,6 +379,12 @@ export function FileManagerView() {
                   isDeleting={remove.isPending && remove.variables === file.id}
                   onDownload={() => download.mutate(file)}
                   onDelete={() => confirmDelete(file.filename, file.id)}
+                  onPreview={() =>
+                    openPreview(
+                      visibleFiles.map(toMediaItem),
+                      visibleFiles.indexOf(file),
+                    )
+                  }
                 />
               ))
             )}
@@ -404,6 +419,7 @@ function FileRow({
   isDeleting,
   onDownload,
   onDelete,
+  onPreview,
 }: {
   file: Upload;
   isOwner: boolean;
@@ -411,6 +427,7 @@ function FileRow({
   isDeleting: boolean;
   onDownload: () => void;
   onDelete: () => void;
+  onPreview: () => void;
 }) {
   const uploaderName = file.uploader.displayName ?? file.uploader.name;
 
@@ -421,7 +438,12 @@ function FileRow({
         isDeleting && 'opacity-50',
       )}
     >
-      <div className="gap-3 min-w-0 flex flex-1 items-center">
+      <button
+        type="button"
+        onClick={onPreview}
+        aria-label={`Preview ${file.filename}`}
+        className="gap-3 min-w-0 flex flex-1 items-center text-left focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none rounded-md"
+      >
         <FileTypeBadge mimeType={file.mimeType} />
 
         <div className="min-w-0 flex-1">
@@ -438,7 +460,7 @@ function FileRow({
             <span>{formatBytes(file.size)}</span>
           </div>
         </div>
-      </div>
+      </button>
 
       <div className="gap-2 sm:gap-3 flex shrink-0 items-center">
         <UserAvatar
@@ -448,6 +470,16 @@ function FileRow({
           size="xs"
           className="sm:block hidden ring-2 ring-background"
         />
+
+        <Hint label="Preview">
+          <button
+            onClick={onPreview}
+            aria-label={`Preview ${file.filename}`}
+            className="size-7 hidden sm:flex items-center justify-center rounded-md text-subtle transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <Eye className="size-3.5" />
+          </button>
+        </Hint>
 
         <Hint label="Download file">
           <button
@@ -470,6 +502,10 @@ function FileRow({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44 text-xs">
+            <DropdownMenuItem onSelect={onPreview}>
+              <Eye className="size-3.5 mr-2" />
+              <span>Preview</span>
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={onDownload}>
               <Download className="size-3.5 mr-2" />
               <span>Download</span>

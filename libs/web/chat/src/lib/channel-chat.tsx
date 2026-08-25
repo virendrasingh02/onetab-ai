@@ -1,4 +1,4 @@
-import { ErrorState, LoadingState } from '@org/ui';
+import { ErrorState } from '@org/ui';
 import { ChatPanel } from './chat-panel.js';
 import type { ChatSurfaceWelcome } from './chat-surface.js';
 import { useMatrix } from './matrix-provider.js';
@@ -64,7 +64,7 @@ export function ChannelChat({
   huddleRequest,
 }: ChannelChatProps) {
   const { enabled } = useMatrix();
-  const { roomId, isLoading, error } = useChannelRoom(channelId);
+  const { roomId, error } = useChannelRoom(channelId);
 
   // `ChatPanel` renders the "chat is not configured" state itself.
   if (!enabled) {
@@ -87,10 +87,16 @@ export function ChannelChat({
     );
   }
 
-  if (isLoading || !roomId) {
-    return <LoadingState label="Opening conversation…" />;
-  }
-
+  /*
+   * `roomId` is null while it is still being resolved for `channelId` — on
+   * every channel switch, not just the first visit. `ChatPanel` is rendered
+   * through that rather than being swapped for a `LoadingState` here: the
+   * header, composer and layout it draws are already fully known from the
+   * props above even though the room is not yet, so replacing the whole
+   * conversation for that gap would unmount and remount chrome that had
+   * nothing to do with what was actually loading. `ChatPanel` shows the wait
+   * inline instead — see its `isConnecting`.
+   */
   return (
     <ChatPanel
       roomId={roomId}

@@ -5,7 +5,7 @@ import type {
   StructuredChatMessage,
   StructuredMessageAction,
 } from '@org/matrix-client';
-import { Button, EmptyState, LoadingState, toast, useRightPanelStore } from '@org/ui';
+import { Button, EmptyState, toast, useRightPanelStore } from '@org/ui';
 import { MessageSquareOff } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { ChatSurface, type ChatSurfaceWelcome } from './chat-surface.js';
@@ -327,8 +327,17 @@ export function ChatPanel({
     );
   }
 
-  if (!client || !roomId)
-    return <LoadingState fullPage label="Connecting to chat…" />;
+  /*
+   * True while the room this `roomId` should resolve to is still being
+   * provisioned — the gap between opening a channel/DM and its Matrix room
+   * being known. `ChatSurface` renders through this rather than being
+   * replaced by a full-page loader: the header, composer and layout are
+   * already known (`title`, `subtitle`, …) even though the room is not, so
+   * unmounting the whole surface for it would tear down and rebuild chrome
+   * that had nothing to wait for. `MessageList` shows the wait inline. See
+   * `ChannelChat` for the matching change one level up.
+   */
+  const isConnecting = !client || !roomId;
 
   return (
     <ChatSurface
@@ -340,14 +349,18 @@ export function ChatPanel({
       welcome={welcome}
       huddleRequest={huddleRequest}
       isEncrypted={
-        showEncryptedBadge && (client.getRoom(roomId)?.isEncrypted ?? false)
+        showEncryptedBadge &&
+        !!client &&
+        !!roomId &&
+        (client.getRoom(roomId)?.isEncrypted ?? false)
       }
       banner={<ConnectionBanner status={status} />}
-      myUserId={client.getSession()?.userId}
-      messages={room.messages}
-      members={room.members}
-      typingNames={room.typingNames}
-      isLoading={room.isLoading}
+      myUserId={client?.getSession()?.userId}
+      conversationId={roomId}
+      messages={isConnecting ? [] : room.messages}
+      members={isConnecting ? [] : room.members}
+      typingNames={isConnecting ? [] : room.typingNames}
+      isLoading={isConnecting || room.isLoading}
       isLoadingOlder={room.isLoadingOlder}
       hasMore={room.hasMore}
       error={room.error}

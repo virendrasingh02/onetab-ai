@@ -8,7 +8,12 @@ import type {
   CreatePinInput,
   UpdateChannelInput,
 } from '@org/validation';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export function useChannels(
@@ -109,16 +114,48 @@ export function resolveDefaultChannel(
   return channels.find((c) => !c.isArchived) ?? channels[0];
 }
 
+/**
+ * A channel's full detail, for the page that owns one channel at a time.
+ *
+ * Switching between channels changes this query's key, and the naive result —
+ * `data` going back to `undefined` until the new one resolves — is what made
+ * the channel page unmount its entire viewport (header, tabs, conversation) on
+ * every switch: see `ChannelPage`. Two things prevent that:
+ *
+ *  - `initialData` seeds the new key from the channel list already sitting in
+ *    the cache (the sidebar fetched it to render itself), so opening a channel
+ *    reachable from the sidebar never shows a loading state at all — the
+ *    detail query still runs in the background to pick up anything the list's
+ *    lighter shape left out.
+ *  - `placeholderData: keepPreviousData` covers the rest: a channel that is
+ *    *not* in the cached list (a fresh invite link, an unjoined channel opened
+ *    from search) keeps showing whatever was on screen until the new channel's
+ *    data actually arrives, rather than blanking the page in between.
+ */
 export function useChannel(
   workspaceId: string | undefined,
   slug: string | undefined,
 ) {
+  const queryClient = useQueryClient();
+
   return useQuery({
     queryKey: queryKeys.channels.detail(workspaceId ?? '', slug ?? ''),
     queryFn: () => channelApi.bySlug(workspaceId as string, slug as string),
     enabled: !!workspaceId && !!slug,
     // A missing or forbidden channel is a 404 either way; retrying cannot help.
     retry: false,
+    initialData: () => {
+      if (!workspaceId || !slug) return undefined;
+      const list = queryClient.getQueryData<ChannelSummary[]>(
+        queryKeys.channels.list(workspaceId, false),
+      );
+      return list?.find((channel) => channel.slug === slug);
+    },
+    initialDataUpdatedAt: () =>
+      queryClient.getQueryState(
+        queryKeys.channels.list(workspaceId ?? '', false),
+      )?.dataUpdatedAt,
+    placeholderData: keepPreviousData,
   });
 }
 

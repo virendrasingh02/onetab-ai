@@ -15,6 +15,7 @@ import {
   TypingIndicator,
 } from '@org/chat-ui';
 import type { Message, PresenceState, RoomMember, StructuredMessageAction } from '@org/matrix-client';
+import { attachmentToMediaItem, useMediaPreview } from '@org/media-preview';
 import {
   Badge,
   Button,
@@ -62,6 +63,16 @@ export interface ChatSurfaceProps {
   isEncrypted?: boolean;
   banner?: ReactNode;
   myUserId?: string;
+
+  /**
+   * Identity of the room/channel currently bound to this surface — the
+   * Matrix room id, typically. Lets the surface (and the message list inside
+   * it) tell a conversation *switch* apart from this same conversation simply
+   * getting new messages, which is what makes scroll-position memory and the
+   * message-identity state reset below possible without remounting anything.
+   * Left unset while the room is still being resolved.
+   */
+  conversationId?: string | null;
 
   messages: Message[];
   members: RoomMember[];
@@ -152,6 +163,7 @@ export function ChatSurface({
   isEncrypted = false,
   banner,
   myUserId,
+  conversationId,
   messages,
   members,
   typingNames,
@@ -187,6 +199,7 @@ export function ChatSurface({
   onRetryAgent,
   onSendCard,
 }: ChatSurfaceProps) {
+  const { openPreview } = useMediaPreview();
   const [panel, setPanel] = useState<SidePanel>('none');
   const [threadRootId, setThreadRootId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Message | null>(null);
@@ -199,6 +212,31 @@ export function ChatSurface({
   useEffect(() => {
     if (huddleRequest > 0) setHuddleJoined(true);
   }, [huddleRequest]);
+
+  /*
+   * This surface used to be torn down and rebuilt on every conversation
+   * switch — its host unmounted the whole tree while the next room loaded —
+   * which reset all of this state for free. Now that the switch happens in
+   * place (see `ChatPanel`), state tied to a specific message or room has to
+   * be let go explicitly here, or it would carry over pointing at content
+   * that no longer belongs to what's on screen: an editor left open on a
+   * message from the old room, a "you're in a huddle" indicator for a call
+   * already left behind. Which side panel is open (members, search, pinned)
+   * is a UI preference, not tied to any one message, so it is left alone —
+   * carrying it forward, now showing the new room's own data, is the point.
+   */
+  useEffect(() => {
+    setThreadRootId(null);
+    setEditing(null);
+    setHighlightId(null);
+    setSearchQuery('');
+    setHuddleJoined(false);
+    setHuddleMuted(false);
+    // An open single-thread view has nothing left to show once its root
+    // message is gone with it — fall back to the thread list rather than
+    // close the panel outright.
+    setPanel((current) => (current === 'thread' ? 'threads' : current));
+  }, [conversationId]);
 
   const byId = useMemo(
     () => new Map(messages.map((message) => [message.id, message])),
@@ -376,12 +414,21 @@ export function ChatSurface({
             )
           }
           attachmentSlot={
-            message.attachment ? (
-              <AttachmentRenderer
-                attachment={message.attachment}
-                kind={message.kind}
-              />
-            ) : null
+            (() => {
+              const attachment = message.attachment;
+              if (!attachment) return null;
+              return (
+                <AttachmentRenderer
+                  attachment={attachment}
+                  kind={message.kind}
+                  onOpenImage={() =>
+                    openPreview([
+                      attachmentToMediaItem(attachment, message.kind, message.id),
+                    ])
+                  }
+                />
+              );
+            })()
           }
         />
       );
@@ -404,6 +451,7 @@ export function ChatSurface({
       onAskAI,
       onAction,
       onRetryAgent,
+      openPreview,
     ],
   );
 
@@ -664,6 +712,7 @@ export function ChatSurface({
           inside another gave the timeline two scrollbars. */}
         <div className="min-h-0 flex flex-1 flex-col">
           <MessageList
+            conversationId={conversationId}
             messages={rootMessages}
             isLoading={isLoading}
             isLoadingOlder={isLoadingOlder}

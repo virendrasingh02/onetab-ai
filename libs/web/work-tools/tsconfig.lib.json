@@ -41,6 +41,9 @@
       "path": "../notifications/tsconfig.lib.json"
     },
     {
+      "path": "../../shared/media-preview/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/design-system/tsconfig.lib.json"
     },
     {

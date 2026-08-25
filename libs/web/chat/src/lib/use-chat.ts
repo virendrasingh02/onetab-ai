@@ -1,5 +1,5 @@
 import type { Message, Presence, RoomId, RoomMember } from '@org/matrix-client';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMatrix } from './matrix-provider.js';
 
 interface ChatState {
@@ -12,6 +12,50 @@ interface ChatState {
   error: string | null;
 }
 
+/** Reads a room's current timeline and roster synchronously from the client. */
+function loadRoomState(
+  client: ReturnType<typeof useMatrix>['client'],
+  roomId: RoomId | undefined,
+): ChatState {
+  if (!client || !roomId) {
+    // `roomId` unset while its room is still resolving (a channel or DM being
+    // opened) is "loading"; unset because there is simply no room to show
+    // (chat disabled, nothing selected) is not.
+    return {
+      messages: [],
+      members: [],
+      typingUserIds: [],
+      isLoading: !!roomId,
+      isLoadingOlder: false,
+      hasMore: false,
+      error: null,
+    };
+  }
+
+  try {
+    const timeline = client.getTimeline(roomId);
+    return {
+      messages: timeline.messages,
+      members: client.getMembers(roomId),
+      typingUserIds: [],
+      isLoading: false,
+      isLoadingOlder: false,
+      hasMore: timeline.hasMore,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      messages: [],
+      members: [],
+      typingUserIds: [],
+      isLoading: false,
+      isLoadingOlder: false,
+      hasMore: false,
+      error: error instanceof Error ? error.message : 'Failed to load.',
+    };
+  }
+}
+
 /**
  * Live view of one room.
  *
@@ -21,54 +65,24 @@ interface ChatState {
  */
 export function useRoom(roomId: RoomId | undefined) {
   const { client } = useMatrix();
-  const [state, setState] = useState<ChatState>({
-    messages: [],
-    members: [],
-    typingUserIds: [],
-    isLoading: true,
-    isLoadingOlder: false,
-    hasMore: false,
-    error: null,
-  });
+  const [state, setState] = useState<ChatState>(() =>
+    loadRoomState(client, roomId),
+  );
 
-  // Initial load whenever the room changes.
-  useEffect(() => {
-    if (!client || !roomId) {
-      setState((current) => ({ ...current, isLoading: !!roomId }));
-      return;
-    }
-
-    let cancelled = false;
-    setState((current) => ({ ...current, isLoading: true, error: null }));
-
-    try {
-      const timeline = client.getTimeline(roomId);
-      const members = client.getMembers(roomId);
-      if (cancelled) return;
-
-      setState({
-        messages: timeline.messages,
-        members,
-        typingUserIds: [],
-        isLoading: false,
-        isLoadingOlder: false,
-        hasMore: timeline.hasMore,
-        error: null,
-      });
-    } catch (error) {
-      if (!cancelled) {
-        setState((current) => ({
-          ...current,
-          isLoading: false,
-          error: error instanceof Error ? error.message : 'Failed to load.',
-        }));
-      }
-    }
-
-    return () => {
-      cancelled = true;
-    };
-  }, [client, roomId]);
+  /*
+   * Resets `state` the moment `roomId` (or the client) changes, during render
+   * rather than in an effect. An effect would commit and paint the *previous*
+   * room's messages under the new room's header first and only correct it a
+   * tick later — a one-frame flash of the wrong conversation on every switch.
+   * This is React's documented pattern for resetting state when a prop
+   * changes without needing to remount the component around a `key`, which is
+   * what made that flash unavoidable here before: see `ChatPanel`.
+   */
+  const bound = useRef({ client, roomId });
+  if (bound.current.client !== client || bound.current.roomId !== roomId) {
+    bound.current = { client, roomId };
+    setState(loadRoomState(client, roomId));
+  }
 
   // Live updates.
   useEffect(() => {

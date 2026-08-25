@@ -33,6 +33,7 @@
     }
   },
   "dependencies": {
+    "@org/media-preview": "*",
     "@tanstack/react-virtual": "^3.14.9",
     "lucide-react": "^1.28.0"
   }

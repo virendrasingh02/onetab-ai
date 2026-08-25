@@ -1,0 +1,54 @@
+/*
+ * Layout contract pdf.js's `TextLayer` class expects from its container —
+ * adapted from pdf.js's own `web/pdf_viewer.css` (`.textLayer`), under our
+ * own class name since we render text layers ourselves via the standalone
+ * `TextLayer` API rather than pdf.js's full `PDFPageView`/viewer bundle.
+ * `TextLayer` sets `--font-height`/`--scale-x`/`--rotate`/position inline
+ * per span; this stylesheet only defines how those are consumed.
+ */
+.pdf-text-layer {
+  --total-scale-factor: 1;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  text-align: initial;
+  transform-origin: 0 0;
+}
+
+.pdf-text-layer span,
+.pdf-text-layer br {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  user-select: text;
+}
+
+.pdf-text-layer > :not(.markedContent),
+.pdf-text-layer .markedContent span:not(.markedContent) {
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+
+.pdf-text-layer .markedContent {
+  display: contents;
+}
+
+.pdf-text-layer span[role='img'] {
+  user-select: none;
+  cursor: default;
+}
+
+/* Search-match highlight, applied by pdf-page-canvas.tsx. */
+.pdf-text-layer .media-preview-pdf-match {
+  background: color-mix(in srgb, var(--warning) 45%, transparent);
+  border-radius: 2px;
+}

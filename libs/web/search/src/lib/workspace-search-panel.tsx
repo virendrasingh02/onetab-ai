@@ -29,6 +29,7 @@ export function WorkspaceSearchPanel({
 
   return (
     <WorkspaceSearchResults
+      workspaceId={workspaceId}
       workspaceSlug={workspaceSlug}
       results={results.data}
       query={query}

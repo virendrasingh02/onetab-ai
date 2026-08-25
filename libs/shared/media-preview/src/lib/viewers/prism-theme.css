@@ -1,0 +1,59 @@
+/*
+ * Token colors for the text/code viewer, mapped onto this app's own design
+ * tokens (`theme.css`) instead of one of Prism's stock themes — they already
+ * flip with `.dark`, so there is nothing theme-specific to redeclare here.
+ */
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+.token.string,
+.token.attr-value,
+.token.char {
+  color: var(--success);
+}
+
+.token.keyword,
+.token.selector,
+.token.at-rule,
+.token.important {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.token.function,
+.token.class-name {
+  color: var(--warning);
+}
+
+.token.number,
+.token.boolean,
+.token.constant,
+.token.symbol {
+  color: var(--accent-blue, var(--primary));
+}
+
+.token.tag,
+.token.attr-name,
+.token.property {
+  color: var(--destructive);
+}
+
+.token.operator,
+.token.punctuation,
+.token.entity {
+  color: var(--muted-foreground);
+}
+
+.token.deleted {
+  color: var(--destructive);
+}
+
+.token.inserted {
+  color: var(--success);
+}

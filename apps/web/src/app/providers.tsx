@@ -1,6 +1,7 @@
 import { ApiError } from '@org/api-client';
 import { store } from '@org/common';
 import { ThemeProvider } from '@org/design-system';
+import { MediaPreviewProvider } from '@org/media-preview';
 import { ErrorBoundary, Toaster, TooltipProvider, toast } from '@org/ui';
 import { MatrixProvider } from '@org/web-chat';
 import { DesktopChrome, DesktopProvider } from '@org/web-desktop';
@@ -71,7 +72,9 @@ export function Providers({ children }: { children: ReactNode }) {
             <DesktopProvider>
               <MatrixProvider>
                 <TooltipProvider>
-                  <DesktopChrome>{children}</DesktopChrome>
+                  <MediaPreviewProvider>
+                    <DesktopChrome>{children}</DesktopChrome>
+                  </MediaPreviewProvider>
                   <Toaster />
                 </TooltipProvider>
               </MatrixProvider>

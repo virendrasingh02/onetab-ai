@@ -17,6 +17,7 @@
     "@org/api-client": "*",
     "@org/auth": "*",
     "@org/design-system": "*",
+    "@org/media-preview": "*",
     "@org/notifications": "*",
     "@org/types": "*",
     "@org/ui": "*",

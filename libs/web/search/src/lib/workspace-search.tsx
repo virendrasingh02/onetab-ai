@@ -1,7 +1,11 @@
+import { useMediaPreview } from '@org/media-preview';
 import type { SearchCategory, SearchResultItem } from '@org/types';
 import { cn } from '@org/utils';
+import { Hint } from '@org/ui';
+import { useUploadMediaAdapter } from '@org/web-upload';
 import {
   CheckSquare,
+  Eye,
   FileText,
   FolderKanban,
   Hash,
@@ -41,6 +45,9 @@ const CATEGORY_ICON: Record<SearchCategory, ComponentType<{ className?: string }
 };
 
 export interface WorkspaceSearchResultsProps {
+  /** Only needed to preview `files`-category results (an authenticated
+   * blob fetch) — every other category just navigates via `href`. */
+  workspaceId?: string;
   workspaceSlug: string;
   results: SearchResultItem[] | undefined;
   query: string;
@@ -61,6 +68,7 @@ export interface WorkspaceSearchResultsProps {
  * `use-search.ts` beside this file.
  */
 export function WorkspaceSearchResults({
+  workspaceId,
   workspaceSlug,
   results,
   query,
@@ -71,6 +79,8 @@ export function WorkspaceSearchResults({
   onCategoryChange,
   onNavigate,
 }: WorkspaceSearchResultsProps) {
+  const { openPreview } = useMediaPreview();
+  const { toMediaItem } = useUploadMediaAdapter(workspaceId);
   const trimmed = query.trim();
 
   if (trimmed.length < MIN_QUERY_LENGTH) {
@@ -137,26 +147,57 @@ export function WorkspaceSearchResults({
                   {CATEGORY_LABEL[category]}
                 </p>
                 <ul>
-                  {items.map((item) => (
-                    <li key={`${item.category}-${item.id}`}>
-                      <Link
-                        // `href` is workspace-relative, so the prefix is added here.
-                        to={`/w/${workspaceSlug}/${item.href ?? ''}`}
-                        onClick={onNavigate}
-                        className={rowClass}
-                      >
-                        <Icon className="size-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-                        <span className="min-w-0 flex-1">
-                          <span className="truncate block">{item.title}</span>
-                          {item.snippet ? (
-                            <span className="truncate block text-xs text-muted-foreground">
-                              {item.snippet}
-                            </span>
-                          ) : null}
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
+                  {items.map((item) => {
+                    const metadata = item.metadata as
+                      | { mimeType?: string; size?: number }
+                      | undefined;
+                    const fileMimeType =
+                      category === 'files' ? metadata?.mimeType : undefined;
+                    const fileSize = metadata?.size ?? 0;
+
+                    return (
+                      <li key={`${item.category}-${item.id}`} className="flex items-center">
+                        <Link
+                          // `href` is workspace-relative, so the prefix is added here.
+                          to={`/w/${workspaceSlug}/${item.href ?? ''}`}
+                          onClick={onNavigate}
+                          className={cn(rowClass, 'flex-1')}
+                        >
+                          <Icon className="size-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+                          <span className="min-w-0 flex-1">
+                            <span className="truncate block">{item.title}</span>
+                            {item.snippet ? (
+                              <span className="truncate block text-xs text-muted-foreground">
+                                {item.snippet}
+                              </span>
+                            ) : null}
+                          </span>
+                        </Link>
+
+                        {fileMimeType ? (
+                          <Hint label="Preview">
+                            <button
+                              type="button"
+                              aria-label={`Preview ${item.title}`}
+                              onClick={() =>
+                                openPreview([
+                                  toMediaItem({
+                                    id: item.id,
+                                    filename: item.title,
+                                    mimeType: fileMimeType,
+                                    size: fileSize,
+                                  }),
+                                ])
+                              }
+                              className="size-7 mr-1 shrink-0 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                            >
+                              <Eye className="size-3.5" />
+                            </button>
+                          </Hint>
+                        ) : null}
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
             );

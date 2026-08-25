@@ -112,6 +112,9 @@
       "path": "./libs/shared/chat-ui"
     },
     {
+      "path": "./libs/shared/media-preview"
+    },
+    {
       "path": "./libs/api/matrix"
     },
     {

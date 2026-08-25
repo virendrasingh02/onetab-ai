@@ -71,10 +71,12 @@ export function DirectMessagesView() {
 /**
  * One person's conversation.
  *
- * Keyed on the peer in `DirectMessagesView`'s caller by way of the URL: landing
- * on a different `?user=` remounts this component, so switching people tears
- * down the old room's subscriptions instead of leaving them attached to a stale
- * timeline.
+ * Not remounted when `?user=` changes to a different peer: `useDirectRoom` and
+ * `useRoom` both react to the id changing on their own — subscribing to the
+ * new room and detaching from the old one is already what their effects'
+ * cleanup does — so forcing a remount around it would only tear down and
+ * rebuild the header, composer and layout for no correctness reason, which is
+ * exactly the flicker switching people used to cause. See `ChatPanel`.
  */
 function DirectConversation({ peerId }: { peerId: string }) {
   const { workspaceId } = useCurrentWorkspace();
@@ -133,7 +135,6 @@ function DirectConversation({ peerId }: { peerId: string }) {
         />
       ) : (
         <DirectRoom
-          key={member.user.id}
           peerId={member.user.id}
           name={name}
           presence={member.user.presence}
@@ -159,7 +160,7 @@ function DirectRoom({
   presence?: string | null;
   headerActionsSlot: HTMLElement | null;
 }) {
-  const { roomId, isLoading, error } = useDirectRoom(peerId);
+  const { roomId, error } = useDirectRoom(peerId);
 
   if (error) {
     return (
@@ -170,10 +171,12 @@ function DirectRoom({
     );
   }
 
-  if (isLoading || !roomId) {
-    return <LoadingState label={`Opening your conversation with ${name}…`} />;
-  }
-
+  /*
+   * `roomId` is null on every switch to a peer whose room has not been
+   * resolved yet, not only the first. `ChatPanel` renders through that
+   * instead of being swapped out for a `LoadingState` here — see the note by
+   * `DirectRoom`'s caller, and `ChatPanel`'s `isConnecting`.
+   */
   return (
     <ChatPanel
       roomId={roomId}

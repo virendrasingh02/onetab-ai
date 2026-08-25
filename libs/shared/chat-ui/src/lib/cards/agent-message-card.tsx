@@ -1,3 +1,4 @@
+import { generatedFileToMediaItem, useMediaPreview } from '@org/media-preview';
 import type {
   AIAgentMessageContent,
   Message,
@@ -86,9 +87,9 @@ export function AgentMessageCard({
   isSaved = false,
 }: AgentMessageCardProps) {
   const prefs = useAICardPreferencesStore();
+  const { openPreview } = useMediaPreview();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [debugModalOpen, setDebugModalOpen] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   // Progressive disclosure section states
   const [toolsExpanded, setToolsExpanded] = useState(!prefs.collapseToolCalls);
@@ -279,6 +280,11 @@ export function AgentMessageCard({
       </article>
     );
   }
+
+  // Captured once as a local so the non-optional type survives into the
+  // `onClick` closures below — `event.files` itself loses that narrowing
+  // across a nested function boundary.
+  const files = event.files ?? [];
 
   // Standard (Comfortable) & Expanded Card Rendering
   return (
@@ -827,13 +833,13 @@ export function AgentMessageCard({
       )}
 
       {/* 11. GENERATED FILES & CODE OUTPUT */}
-      {event.files && event.files.length > 0 && (
+      {files.length > 0 && (
         <div className="mt-3.5 space-y-2">
           <span className="text-[11px] font-bold text-foreground block uppercase tracking-wider">
             Generated Outputs &amp; Files
           </span>
           <div className="grid sm:grid-cols-2 gap-2">
-            {event.files.map((file, idx) => {
+            {files.map((file, idx) => {
               const isImage = file.mimeType.startsWith('image/');
               return (
                 <div
@@ -861,16 +867,16 @@ export function AgentMessageCard({
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {isImage && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setPreviewImage(file.url)}
-                        className="h-7 text-xs px-2"
-                      >
-                        Preview
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        openPreview(files.map(generatedFileToMediaItem), idx)
+                      }
+                      className="h-7 text-xs px-2"
+                    >
+                      Preview
+                    </Button>
                     <a
                       href={file.url}
                       download={file.name}
@@ -937,19 +943,6 @@ export function AgentMessageCard({
             <div>Latency: {formatDuration(event.durationMs)}</div>
           </div>
         </div>
-      )}
-
-      {/* Image Preview Lightbox */}
-      {previewImage && (
-        <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
-          <DialogContent className="max-w-2xl bg-surface p-2 border-border">
-            <img
-              src={previewImage}
-              alt="Generated preview"
-              className="w-full rounded-lg max-h-[80vh] object-contain"
-            />
-          </DialogContent>
-        </Dialog>
       )}
 
       {/* Raw Event Debug Modal */}

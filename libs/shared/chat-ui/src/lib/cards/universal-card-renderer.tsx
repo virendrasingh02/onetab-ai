@@ -1,3 +1,4 @@
+import { useMediaPreview } from '@org/media-preview';
 import type {
   CardActionDefinition,
   CardComponentNode,
@@ -132,6 +133,7 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
 }: UniversalCardRendererProps) {
   const registryCard = useCardRegistryStore((s) => (cardId ? s.getCard(cardId, version) : undefined));
   const card = cardDefinition || registryCard;
+  const { openPreview } = useMediaPreview();
 
   const [localData, setLocalData] = useState<Record<string, unknown>>(() => ({
     ...(card?.sampleData || {}),
@@ -559,13 +561,24 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
         const src = evaluateTemplate(props['src'], localData, context);
         const alt = evaluateTemplate(props['alt'], localData, context) || 'Card image';
         return (
-          <img
+          <button
             key={node.id}
-            src={src}
-            alt={alt}
-            style={inlineStyle}
-            className="rounded-xl object-cover border border-border/60 max-h-64 w-full"
-          />
+            type="button"
+            onClick={() =>
+              openPreview([
+                { id: node.id, name: alt, mimeType: 'image/*', category: 'image', url: src },
+              ])
+            }
+            className="block w-full cursor-zoom-in text-left"
+            aria-label={`Open ${alt}`}
+          >
+            <img
+              src={src}
+              alt={alt}
+              style={inlineStyle}
+              className="rounded-xl object-cover border border-border/60 max-h-64 w-full pointer-events-none"
+            />
+          </button>
         );
       }
 

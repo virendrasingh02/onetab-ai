@@ -1,9 +1,6 @@
+import { generatedFileToMediaItem, useMediaPreview } from '@org/media-preview';
 import type { FileMessageContent, GeneratedFile, Message } from '@org/types';
-import {
-  Button,
-  Dialog,
-  DialogContent,
-} from '@org/ui';
+import { Button } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   Download,
@@ -13,7 +10,6 @@ import {
   FileText,
   ImageIcon,
 } from 'lucide-react';
-import { useState } from 'react';
 
 export interface FileResponseCardProps {
   message: Message;
@@ -26,7 +22,7 @@ export function FileResponseCard({
   event,
   isHighlighted = false,
 }: FileResponseCardProps) {
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const { openPreview } = useMediaPreview();
 
   const getFileIcon = (file: GeneratedFile) => {
     if (file.mimeType.startsWith('image/')) return <ImageIcon className="size-4 text-emerald-500" />;
@@ -55,61 +51,49 @@ export function FileResponseCard({
       </header>
 
       <div className="mt-3 space-y-2">
-        {event.files.map((file, idx) => {
-          const isImage = file.mimeType.startsWith('image/');
-
-          return (
-            <div
-              key={idx}
-              className="p-3 rounded-xl border border-border bg-surface-raised flex items-center justify-between gap-3 text-xs"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="size-9 rounded-lg bg-surface flex items-center justify-center shrink-0 border border-border/60">
-                  {getFileIcon(file)}
-                </div>
-                <div className="min-w-0">
-                  <span className="font-bold text-foreground truncate block">{file.name}</span>
-                  <span className="text-[10px] text-muted-foreground block">
-                    {file.mimeType} {file.size ? `· ${(file.size / 1024).toFixed(1)} KB` : ''}
-                  </span>
-                </div>
+        {event.files.map((file, idx) => (
+          <div
+            key={idx}
+            className="p-3 rounded-xl border border-border bg-surface-raised flex items-center justify-between gap-3 text-xs"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="size-9 rounded-lg bg-surface flex items-center justify-center shrink-0 border border-border/60">
+                {getFileIcon(file)}
               </div>
-
-              <div className="flex items-center gap-1.5 shrink-0">
-                {isImage && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setLightboxUrl(file.url)}
-                    className="h-7 text-xs px-2"
-                  >
-                    <Eye className="size-3.5 mr-1" />
-                    <span>View</span>
-                  </Button>
-                )}
-                <a
-                  href={file.url}
-                  download={file.name}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-border bg-surface text-xs font-semibold text-foreground hover:bg-accent transition-colors shadow-2xs"
-                >
-                  <Download className="size-3" />
-                  <span>Download</span>
-                </a>
+              <div className="min-w-0">
+                <span className="font-bold text-foreground truncate block">{file.name}</span>
+                <span className="text-[10px] text-muted-foreground block">
+                  {file.mimeType} {file.size ? `· ${(file.size / 1024).toFixed(1)} KB` : ''}
+                </span>
               </div>
             </div>
-          );
-        })}
-      </div>
 
-      {lightboxUrl && (
-        <Dialog open={!!lightboxUrl} onOpenChange={() => setLightboxUrl(null)}>
-          <DialogContent className="max-w-2xl bg-surface p-2 border-border">
-            <img src={lightboxUrl} alt="Preview" className="w-full rounded-lg max-h-[80vh] object-contain" />
-          </DialogContent>
-        </Dialog>
-      )}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  openPreview(event.files.map(generatedFileToMediaItem), idx)
+                }
+                className="h-7 text-xs px-2"
+              >
+                <Eye className="size-3.5 mr-1" />
+                <span>Preview</span>
+              </Button>
+              <a
+                href={file.url}
+                download={file.name}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-border bg-surface text-xs font-semibold text-foreground hover:bg-accent transition-colors shadow-2xs"
+              >
+                <Download className="size-3" />
+                <span>Download</span>
+              </a>
+            </div>
+          </div>
+        ))}
+      </div>
     </article>
   );
 }

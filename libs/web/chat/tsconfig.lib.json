@@ -52,6 +52,9 @@
       "path": "../members/tsconfig.lib.json"
     },
     {
+      "path": "../../shared/media-preview/tsconfig.lib.json"
+    },
+    {
       "path": "../auth/tsconfig.lib.json"
     }
   ]
