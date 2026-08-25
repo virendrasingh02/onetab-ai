@@ -87,9 +87,21 @@ export interface MessageListProps {
   error?: string | null;
   onRetry?: () => void;
   onLoadOlder?: () => void;
-  renderMessage: (message: Message, grouped: boolean) => ReactNode;
+  renderMessage: (
+    message: Message,
+    grouped: boolean,
+    density?: 'comfy' | 'compact',
+  ) => ReactNode;
   /** Draws the "new messages" line above this message. */
   unreadBeforeId?: string | null;
+  /**
+   * Message layout density.
+   */
+  density?: 'comfy' | 'compact';
+  /**
+   * Where to position scroll when opening a conversation.
+   */
+  openPosition?: 'last-read' | 'newest';
   /**
    * Rendered at the very top of the timeline — the channel's welcome block.
    *
@@ -124,6 +136,8 @@ export function MessageList({
   onLoadOlder,
   renderMessage,
   unreadBeforeId,
+  density = 'comfy',
+  openPosition = 'last-read',
   introSlot,
   className,
 }: MessageListProps) {
@@ -195,21 +209,38 @@ export function MessageList({
     const element = scrollRef.current;
     if (!element) return;
 
+    if (openPosition === 'newest') {
+      element.scrollTop = element.scrollHeight;
+      wasAtBottom.current = true;
+      return;
+    }
+
+    // 'last-read' mode:
+    if (unreadBeforeId) {
+      const unreadIndex = rows.findIndex(
+        (r) =>
+          r.kind === 'unread' ||
+          (r.kind === 'message' && r.message.id === unreadBeforeId),
+      );
+      if (unreadIndex >= 0) {
+        virtualizer.scrollToIndex(unreadIndex, { align: 'start' });
+        wasAtBottom.current = false;
+        return;
+      }
+    }
+
     const saved = conversationId ? getScrollPosition(conversationId) : undefined;
     if (saved !== undefined) {
       element.scrollTop = saved;
       wasAtBottom.current =
         element.scrollHeight - saved - element.clientHeight < 80;
     } else {
-      // No memory of this conversation: either it is brand new, or it was
-      // never scrolled up from the bottom — either way, the bottom is where
-      // it should open.
       element.scrollTop = element.scrollHeight;
       wasAtBottom.current = true;
     }
     // Only the identity should retrigger this — see the note above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId]);
+  }, [conversationId, openPosition]);
 
   // Runs before paint, so neither correction is ever visible as a flicker.
   useLayoutEffect(() => {
@@ -265,7 +296,11 @@ export function MessageList({
      * scrolls — `viewportRef`, not the root.
      */
     <ScrollArea
-      className={cn('min-h-0 flex-1', className)}
+      className={cn(
+        'min-h-0 flex-1',
+        density === 'compact' ? 'chat-density-compact' : 'chat-density-comfy',
+        className,
+      )}
       viewportRef={scrollRef}
       viewportProps={{
         onScroll: handleScroll,
@@ -320,7 +355,7 @@ export function MessageList({
               ) : row.kind === 'unread' ? (
                 <UnreadDivider />
               ) : (
-                renderMessage(row.message, row.grouped)
+                renderMessage(row.message, row.grouped, density)
               )}
             </div>
           );

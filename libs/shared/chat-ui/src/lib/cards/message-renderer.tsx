@@ -24,6 +24,7 @@ export interface MessageRendererProps {
   isPinned?: boolean;
   isSaved?: boolean;
   isHighlighted?: boolean;
+  density?: 'comfy' | 'compact';
   mentionNames?: string[];
   threadReplyCount?: number;
   threadParticipants?: RoomMember[];

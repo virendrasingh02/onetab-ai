@@ -1,5 +1,41 @@
 import type { IsoDateString } from './entities.js';
 
+export type MessageDensity = 'comfy' | 'compact';
+export type OpenChatPosition = 'last-read' | 'newest';
+export type NotificationPosition =
+  | 'bottom-right'
+  | 'top-right'
+  | 'bottom-left'
+  | 'top-left';
+export type NotificationSize = 'comfy' | 'compact';
+export type NotificationDismissDuration =
+  | 3000
+  | 5000
+  | 10000
+  | 15000
+  | 30000
+  | null;
+
+export interface ChatPreferences {
+  messageDensity: MessageDensity;
+  openPosition: OpenChatPosition;
+  readReceipts: boolean;
+}
+
+export interface NotificationDisplayPreferences {
+  showContentPreview: boolean;
+  showDuringCalls: boolean;
+  flashTaskbar: boolean;
+  dismissDuration: NotificationDismissDuration;
+  position: NotificationPosition;
+  size: NotificationSize;
+}
+
+export interface UserPreferences {
+  chat: ChatPreferences;
+  notifications: NotificationDisplayPreferences;
+}
+
 export interface NotificationPreference {
   /** Null until the user saves — reads return schema defaults, not a row. */
   id: string | null;

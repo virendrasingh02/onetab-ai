@@ -43,6 +43,12 @@
     "zustand": "^5.0.14",
     "@org/icons": "*",
     "@org/notifications": "*",
-    "@org/analytics-ui": "*"
+    "@org/analytics-ui": "*",
+    "@org/common": "*",
+    "@org/design-system": "*",
+    "@org/ui": "*",
+    "@org/utils": "*",
+    "@org/types": "*",
+    "@org/validation": "*"
   }
 }

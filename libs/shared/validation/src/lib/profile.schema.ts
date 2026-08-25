@@ -47,6 +47,61 @@ export const uploadRequestSchema = z.object({
   channelId: z.string().nullable().optional(),
 });
 
+export const chatPreferencesSchema = z.object({
+  messageDensity: z.enum(['comfy', 'compact']).default('comfy'),
+  openPosition: z.enum(['last-read', 'newest']).default('last-read'),
+  readReceipts: z.boolean().default(true),
+});
+
+export const notificationDisplayPreferencesSchema = z.object({
+  showContentPreview: z.boolean().default(true),
+  showDuringCalls: z.boolean().default(true),
+  flashTaskbar: z.boolean().default(true),
+  dismissDuration: z
+    .union([
+      z.literal(3000),
+      z.literal(5000),
+      z.literal(10000),
+      z.literal(15000),
+      z.literal(30000),
+      z.null(),
+    ])
+    .default(5000),
+  position: z
+    .enum(['bottom-right', 'top-right', 'bottom-left', 'top-left'])
+    .default('bottom-right'),
+  size: z.enum(['comfy', 'compact']).default('comfy'),
+});
+
+export const userPreferencesSchema = z.object({
+  chat: chatPreferencesSchema.default({
+    messageDensity: 'comfy',
+    openPosition: 'last-read',
+    readReceipts: true,
+  }),
+  notifications: notificationDisplayPreferencesSchema.default({
+    showContentPreview: true,
+    showDuringCalls: true,
+    flashTaskbar: true,
+    dismissDuration: 5000,
+    position: 'bottom-right',
+    size: 'comfy',
+  }),
+});
+
+export const updateUserPreferencesSchema = z.object({
+  chat: chatPreferencesSchema.partial().optional(),
+  notifications: notificationDisplayPreferencesSchema.partial().optional(),
+});
+
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type UpdateStatusInput = z.infer<typeof updateStatusSchema>;
 export type UploadRequestInput = z.infer<typeof uploadRequestSchema>;
+export type ChatPreferencesInput = z.infer<typeof chatPreferencesSchema>;
+export type NotificationDisplayPreferencesInput = z.infer<
+  typeof notificationDisplayPreferencesSchema
+>;
+export type UserPreferencesInput = z.infer<typeof userPreferencesSchema>;
+export type UpdateUserPreferencesInput = z.infer<
+  typeof updateUserPreferencesSchema
+>;

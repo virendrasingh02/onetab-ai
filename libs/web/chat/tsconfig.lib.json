@@ -28,6 +28,9 @@
   ],
   "references": [
     {
+      "path": "../../shared/common/tsconfig.lib.json"
+    },
+    {
       "path": "../../../packages/matrix-client/tsconfig.lib.json"
     },
     {

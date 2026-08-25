@@ -89,6 +89,7 @@ export interface ChatBubbleProps {
   threadParticipants?: RoomMember[];
   lastReplyAt?: number;
   isHighlighted?: boolean;
+  density?: 'comfy' | 'compact';
   /**
    * Display names that render as mention chips. Without them only single-word
    * `@handles` are recognised, which cuts a name like "Ana Ruiz" in half.
@@ -145,17 +146,23 @@ export function ChatBubble({
   threadParticipants,
   lastReplyAt,
   isHighlighted = false,
+  density = 'comfy',
   mentionNames,
 }: ChatBubbleProps) {
   if (message.isRedacted) {
     return (
-      <div className="px-4 py-1 pl-14">
-        <p className="text-xs text-muted-foreground italic">
-          This message was deleted.
-        </p>
+      <div
+        className={cn(
+          'py-1 italic text-muted-foreground text-xs',
+          density === 'compact' ? 'px-3 pl-11' : 'px-4 pl-14',
+        )}
+      >
+        <p>This message was deleted.</p>
       </div>
     );
   }
+
+  const isCompact = density === 'compact';
 
   const gifMatch = message.body
     ? /^!\[(.*?)\]\((https?:\/\/.*?)\)$/.exec(message.body.trim())
@@ -207,20 +214,30 @@ export function ChatBubble({
     <article
       data-message-id={message.id}
       className={cn(
-        'group/message gap-4 px-4 relative flex transition-colors',
-        'hover:bg-accent',
-        isGrouped ? 'py-0.5' : 'pt-2.5 pb-0.5',
+        'group/message relative flex transition-colors hover:bg-accent',
+        isCompact
+          ? cn(
+              'chat-density-compact gap-2.5 px-3',
+              isGrouped ? 'py-0' : 'pt-1 pb-0.5',
+            )
+          : cn(
+              'chat-density-comfy gap-4 px-4',
+              isGrouped ? 'py-0.5' : 'pt-2.5 pb-0.5',
+            ),
         isPinned && 'border-l-2 border-l-warning',
         (isHighlighted || isMentioned) && 'border-l-2 border-l-primary',
       )}
     >
       {/* Avatar / Left Column with Profile Popover & Modal */}
-      <div className="w-10 shrink-0">
+      <div className={cn(isCompact ? 'w-8' : 'w-10', 'shrink-0')}>
         {isGrouped ? (
           <Hint label={formatFullTimestamp(message.timestamp)}>
             <time
               dateTime={new Date(message.timestamp).toISOString()}
-              className="mt-1 hidden cursor-pointer text-[10px] text-muted-foreground tabular-nums group-hover/message:block hover:underline"
+              className={cn(
+                'hidden cursor-pointer text-muted-foreground tabular-nums group-hover/message:block hover:underline',
+                isCompact ? 'mt-0.5 text-[9px]' : 'mt-1 text-[10px]',
+              )}
             >
               {new Date(message.timestamp).toLocaleTimeString(undefined, {
                 hour: '2-digit',
@@ -241,9 +258,10 @@ export function ChatBubble({
               name={message.senderName}
               src={message.senderAvatarUrl}
               seed={message.senderId}
-              size="md"
+              size={isCompact ? 'sm' : 'md'}
               className={cn(
-                'size-10 cursor-pointer rounded-full shadow-xs transition-transform hover:scale-105 hover:opacity-90',
+                isCompact ? 'size-8' : 'size-10',
+                'cursor-pointer rounded-full shadow-xs transition-transform hover:scale-105 hover:opacity-90',
                 isAgent && 'ring-2 ring-primary/40',
                 isApp && 'ring-violet-500/40 ring-2',
               )}

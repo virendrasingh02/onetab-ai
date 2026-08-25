@@ -1,3 +1,4 @@
+import { useMessageDensity, useOpenChatPosition } from '@org/common';
 import {
   AttachmentRenderer,
   ChatHeader,
@@ -199,6 +200,8 @@ export function ChatSurface({
   onRetryAgent,
   onSendCard,
 }: ChatSurfaceProps) {
+  const messageDensity = useMessageDensity();
+  const openPosition = useOpenChatPosition();
   const { openPreview } = useMediaPreview();
   const [panel, setPanel] = useState<SidePanel>('none');
   const [threadRootId, setThreadRootId] = useState<string | null>(null);
@@ -351,6 +354,7 @@ export function ChatSurface({
           message={message}
           isOwn={message.senderId === myUserId}
           isGrouped={grouped}
+          density={messageDensity}
           isHighlighted={message.id === highlightId}
           mentionNames={mentionNames}
           isPinned={pinnedIds.includes(message.id)}
@@ -719,6 +723,8 @@ export function ChatSurface({
             hasMore={hasMore}
             error={error}
             unreadBeforeId={firstUnreadId}
+            density={messageDensity}
+            openPosition={openPosition}
             onLoadOlder={onLoadOlder}
             renderMessage={renderMessage}
             introSlot={

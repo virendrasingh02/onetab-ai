@@ -2,8 +2,9 @@ import { cn } from '@org/utils';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
 import type { ComponentProps, ReactNode } from 'react';
 
-export interface TooltipProviderProps
-  extends ComponentProps<typeof TooltipPrimitive.Provider> {}
+export type TooltipProviderProps = ComponentProps<
+  typeof TooltipPrimitive.Provider
+>;
 
 export function TooltipProvider({
   delayDuration = 150,
@@ -24,8 +25,7 @@ export function TooltipProvider({
   );
 }
 
-export interface TooltipProps
-  extends ComponentProps<typeof TooltipPrimitive.Root> {}
+export type TooltipProps = ComponentProps<typeof TooltipPrimitive.Root>;
 
 export function Tooltip({
   disableHoverableContent = true,

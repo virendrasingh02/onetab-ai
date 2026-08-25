@@ -272,6 +272,23 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
     }),
   );
 
+  ipcMain.handle(
+    IPC.openSystemSettings,
+    guard(async (_event, setting: string) => {
+      if (process.platform === 'win32') {
+        if (setting === 'taskbar') {
+          await shell.openExternal('ms-settings:taskbar');
+          return true;
+        }
+        if (setting === 'notifications') {
+          await shell.openExternal('ms-settings:notifications');
+          return true;
+        }
+      }
+      return false;
+    }),
+  );
+
   /* --- files ------------------------------------------------------------ */
 
   ipcMain.handle(

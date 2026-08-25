@@ -95,10 +95,18 @@ export type {
 
 export type {
   ActivityFeedItem,
+  ChatPreferences,
+  MessageDensity,
+  NotificationDismissDuration,
+  NotificationDisplayPreferences,
+  NotificationPosition,
   NotificationPreference,
+  NotificationSize,
+  OpenChatPosition,
   PushDevice,
   SearchCategory,
   SearchResultItem,
+  UserPreferences,
 } from './lib/notifications.js';
 
 export type {

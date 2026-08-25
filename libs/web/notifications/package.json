@@ -16,6 +16,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.7.1",
     "@org/api-client": "*",
+    "@org/common": "*",
     "@org/types": "*",
     "@org/ui": "*",
     "@org/utils": "*",

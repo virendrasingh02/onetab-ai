@@ -76,6 +76,7 @@ import type {
   TaskComment,
   Upload,
   UserAnalytics,
+  UserPreferences,
   UpdateModelSettingsInput,
   Whiteboard,
   WorkDocument,
@@ -124,6 +125,7 @@ import type {
   UpdatePromptTemplateInput,
   UpdateStatusInput,
   UpdateTaskInput,
+  UpdateUserPreferencesInput,
   UpdateWhiteboardInput,
   UpdateWorkspaceInput,
 } from '@org/validation';
@@ -446,6 +448,12 @@ export const invitationApi = {
 };
 
 export const userApi = {
+  preferences: () =>
+    request<UserPreferences>(http.get('/users/me/preferences')),
+
+  updatePreferences: (input: UpdateUserPreferencesInput) =>
+    request<UserPreferences>(http.patch('/users/me/preferences', input)),
+
   updateProfile: (input: UpdateProfileInput) =>
     request<CurrentUser>(http.patch('/users/me', input)),
 

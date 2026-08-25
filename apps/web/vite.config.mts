@@ -102,7 +102,17 @@ export default defineConfig(() => ({
   ],
   optimizeDeps: {
     // Pre-bundling react and matrix-js-sdk ensures single React instance across packages.
-    include: ['react', 'react-dom', 'matrix-js-sdk'],
+    // prismjs is here for a different reason: its language-grammar files
+    // (`prismjs/components/prism-*.js`) are plain scripts that assume a
+    // `Prism` global already exists — they carry no import of their own.
+    // Left to be dependency-optimized lazily on demand (the composer's
+    // `@lexical/code-prism` and the media preview's text viewer both pull
+    // these in independently), Vite can pre-bundle a component file as its
+    // own isolated chunk before the core's global-setting side effect has
+    // actually run, throwing "Prism is not defined". Including the core here
+    // makes it part of the same eager, dev-server-startup pre-bundle pass as
+    // everything else in this list, closing that ordering gap.
+    include: ['react', 'react-dom', 'matrix-js-sdk', 'prismjs'],
     exclude: ['@matrix-org/matrix-sdk-crypto-wasm'],
   },
   build: {

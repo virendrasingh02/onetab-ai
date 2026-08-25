@@ -1,8 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PUBLIC_USER_SELECT, toPublicUser } from '@org/api-common';
 import { PrismaService } from '@org/database';
-import type { CurrentUser, PublicUser } from '@org/types';
-import type { UpdateProfileInput, UpdateStatusInput } from '@org/validation';
+import type { CurrentUser, PublicUser, UserPreferences } from '@org/types';
+import type {
+  UpdateProfileInput,
+  UpdateStatusInput,
+  UpdateUserPreferencesInput,
+} from '@org/validation';
 
 @Injectable()
 export class UserService {
@@ -162,5 +166,67 @@ export class UserService {
     });
 
     return members.map((row) => toPublicUser(row.user));
+  }
+
+  async getPreferences(userId: string): Promise<UserPreferences> {
+    const settings = await this.prisma.chatSettings.findUnique({
+      where: { userId },
+    });
+
+    const density =
+      settings?.density === 'compact' ? 'compact' : 'comfy';
+    const readReceipts = settings?.showReadReceipts ?? true;
+
+    return {
+      chat: {
+        messageDensity: density,
+        openPosition: 'last-read',
+        readReceipts,
+      },
+      notifications: {
+        showContentPreview: true,
+        showDuringCalls: true,
+        flashTaskbar: true,
+        dismissDuration: 5000,
+        position: 'bottom-right',
+        size: 'comfy',
+      },
+    };
+  }
+
+  async updatePreferences(
+    userId: string,
+    input: UpdateUserPreferencesInput,
+  ): Promise<UserPreferences> {
+    const current = await this.getPreferences(userId);
+
+    const updated: UserPreferences = {
+      chat: {
+        ...current.chat,
+        ...(input.chat ?? {}),
+      },
+      notifications: {
+        ...current.notifications,
+        ...(input.notifications ?? {}),
+      },
+    };
+
+    const densityForDb =
+      updated.chat.messageDensity === 'compact' ? 'compact' : 'comfortable';
+
+    await this.prisma.chatSettings.upsert({
+      where: { userId },
+      create: {
+        userId,
+        density: densityForDb,
+        showReadReceipts: updated.chat.readReceipts,
+      },
+      update: {
+        density: densityForDb,
+        showReadReceipts: updated.chat.readReceipts,
+      },
+    });
+
+    return updated;
   }
 }

@@ -1,3 +1,4 @@
+import { useReadReceipts } from '@org/common';
 import type { Message, Presence, RoomId, RoomMember } from '@org/matrix-client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMatrix } from './matrix-provider.js';
@@ -135,6 +136,16 @@ export function useRoom(roomId: RoomId | undefined) {
       }
     });
   }, [client, roomId]);
+
+  const readReceiptsEnabled = useReadReceipts();
+
+  useEffect(() => {
+    if (!client || !roomId || !readReceiptsEnabled) return;
+    const latest = state.messages[state.messages.length - 1];
+    if (latest && !latest.isPending) {
+      void client.markRead(roomId, latest.id);
+    }
+  }, [client, roomId, readReceiptsEnabled, state.messages]);
 
   const loadOlder = useCallback(async () => {
     if (!client || !roomId) return;

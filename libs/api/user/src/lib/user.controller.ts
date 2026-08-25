@@ -12,14 +12,30 @@ import { CurrentUser, WorkspaceId, zodBody } from '@org/api-common';
 import {
   updateProfileSchema,
   updateStatusSchema,
+  updateUserPreferencesSchema,
   type UpdateProfileInput,
   type UpdateStatusInput,
+  type UpdateUserPreferencesInput,
 } from '@org/validation';
 import { UserService } from './user.service.js';
 
 @Controller({ path: 'users', version: '1' })
 export class UserController {
   constructor(private readonly users: UserService) {}
+
+  @Get('me/preferences')
+  getPreferences(@CurrentUser('id') userId: string) {
+    return this.users.getPreferences(userId);
+  }
+
+  @Patch('me/preferences')
+  updatePreferences(
+    @CurrentUser('id') userId: string,
+    @Body(zodBody(updateUserPreferencesSchema))
+    body: UpdateUserPreferencesInput,
+  ) {
+    return this.users.updatePreferences(userId, body);
+  }
 
   @Patch('me')
   updateProfile(

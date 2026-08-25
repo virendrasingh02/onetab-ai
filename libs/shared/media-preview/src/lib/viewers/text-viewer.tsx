@@ -2,6 +2,15 @@ import { Button, ErrorState, LoadingState, ScrollArea, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import { Copy, WrapText } from 'lucide-react';
 import Prism from 'prismjs';
+
+// Prism's own component files are plain scripts written for a `<script>`-tag
+// world — each one (see e.g. `prism-markup.js`) references a bare `Prism`
+// identifier with no import of its own, assuming it's already a global. ESM
+// gives us no such global by default, so every one of them throws
+// "Prism is not defined" the moment it's imported unless we make one here,
+// before any of them load.
+(globalThis as { Prism?: typeof Prism }).Prism = Prism;
+
 // A small, dependency-safe curated set of grammars — loaded in the order
 // Prism's own components require (markup before jsx/markdown, javascript
 // before typescript/jsx, ...). This whole module is only ever reached via

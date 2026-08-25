@@ -123,7 +123,7 @@ export function BlockRenderer({ block }: { block: PageBlockConfig }) {
         </div>
       );
 
-    case 'code-sample':
+    case 'code-sample': {
       const codeSnippet = block.data?.code ?? '// Example code';
       return (
         <div className="rounded-card border border-border bg-surface-raised overflow-hidden shadow-xs">
@@ -147,6 +147,7 @@ export function BlockRenderer({ block }: { block: PageBlockConfig }) {
           </pre>
         </div>
       );
+    }
 
     case 'cta':
       return (

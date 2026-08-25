@@ -39,6 +39,7 @@ export const IPC = {
   authClearSession: 'onetab:auth/clear-session',
   authRefreshSession: 'onetab:auth/refresh-session',
   openAppOrWeb: 'onetab:shell/open-app-or-web',
+  openSystemSettings: 'onetab:shell/open-system-settings',
 } as const;
 
 /** Main → renderer, fire and forget. */

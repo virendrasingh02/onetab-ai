@@ -82,6 +82,7 @@ export function SettingsLayout({
       title: 'Account Settings',
       items: [
         { id: 'preferences', label: 'Preferences & Theme', icon: Sliders },
+        { id: 'chat', label: 'Chat & Messaging', icon: MessageSquare },
         { id: 'profile', label: 'Profile & Details', icon: User },
         { id: 'timezone-region', label: 'Time Zone & Region', icon: Globe },
         { id: 'focus-status', label: 'Status & Focus Mode', icon: Target },

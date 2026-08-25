@@ -95,3 +95,25 @@ export function useDesktopCapability(feature: keyof DesktopCapabilities | string
   const capabilities = useCapabilities();
   return isFeatureAvailable(feature, capabilities);
 }
+
+export function supportsTaskbarFlash(
+  capabilities: DesktopCapabilities = cachedCapabilities,
+): boolean {
+  return capabilities.isDesktop && capabilities.platform === 'win32';
+}
+
+export function supportsSystemSettings(
+  capabilities: DesktopCapabilities = cachedCapabilities,
+): boolean {
+  return capabilities.isDesktop && capabilities.platform === 'win32';
+}
+
+export function useTaskbarFlashSupported(): boolean {
+  const capabilities = useCapabilities();
+  return supportsTaskbarFlash(capabilities);
+}
+
+export function useSystemSettingsSupported(): boolean {
+  const capabilities = useCapabilities();
+  return supportsSystemSettings(capabilities);
+}

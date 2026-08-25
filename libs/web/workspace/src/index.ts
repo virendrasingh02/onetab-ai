@@ -25,6 +25,8 @@ export { UpgradePlanBanner } from './lib/components/upgrade-plan-banner.js';
 export { WorkspaceMembersSettings } from './lib/components/workspace-members-settings.js';
 export { WorkspaceBillingSettings } from './lib/components/workspace-billing-settings.js';
 export { WorkspaceCompanyAnalytics } from './lib/components/workspace-company-analytics.js';
+export { ChatSettingsPanel } from './lib/components/chat-settings-panel.js';
+export { NotificationDisplaySettingsPanel } from './lib/components/notification-display-settings-panel.js';
 export { SettingsLayout } from './lib/settings-layout.js';
 export {
   useWorkspaceStore,

@@ -1,5 +1,5 @@
 import { ApiError } from '@org/api-client';
-import { store } from '@org/common';
+import { store, useNotificationDisplayPreferences } from '@org/common';
 import { ThemeProvider } from '@org/design-system';
 import { MediaPreviewProvider } from '@org/media-preview';
 import { ErrorBoundary, Toaster, TooltipProvider, toast } from '@org/ui';
@@ -8,6 +8,17 @@ import { DesktopChrome, DesktopProvider } from '@org/web-desktop';
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { Provider } from 'react-redux';
+
+function AppToaster() {
+  const { notifications } = useNotificationDisplayPreferences();
+  return (
+    <Toaster
+      position={notifications.position}
+      size={notifications.size}
+      duration={notifications.dismissDuration}
+    />
+  );
+}
 
 /**
  * Application-wide providers.
@@ -75,7 +86,7 @@ export function Providers({ children }: { children: ReactNode }) {
                   <MediaPreviewProvider>
                     <DesktopChrome>{children}</DesktopChrome>
                   </MediaPreviewProvider>
-                  <Toaster />
+                  <AppToaster />
                 </TooltipProvider>
               </MatrixProvider>
             </DesktopProvider>

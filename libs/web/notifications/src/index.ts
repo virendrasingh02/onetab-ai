@@ -20,3 +20,16 @@ export {
   type ActivityIndicator,
   type NotificationUnread,
 } from './lib/use-notifications.js';
+
+export {
+  notificationService,
+  type NotificationPayload,
+  type NotificationResult,
+} from './lib/notification-service.js';
+
+export {
+  setActiveCallState,
+  isCallOrMeetingActive,
+  subscribeActiveCallState,
+} from './lib/active-call-detector.js';
+

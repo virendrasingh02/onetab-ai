@@ -9,7 +9,7 @@ import { logger } from './logger.js';
 import { getMainWindow, showMainWindow } from './window.js';
 
 let pending: DesktopDeepLink | null = null;
-let configuredApiUrl: string = 'http://localhost:3000/api/v1';
+let configuredApiUrl = 'http://localhost:3000/api/v1';
 
 export function setApiUrlForDeepLinks(url: string): void {
   configuredApiUrl = url;
@@ -36,7 +36,7 @@ export function parseDeepLink(raw: string): DesktopDeepLink | null {
     const host = url.hostname;
     const pathname = url.pathname;
 
-    let cleanPath = `${host}${pathname}`.replace(/^\/+/, '');
+    const cleanPath = `${host}${pathname}`.replace(/^\/+/, '');
 
     // Normalize well-known short links:
     // mie://chat/123 -> /chat/123 or /w/default/chat/123

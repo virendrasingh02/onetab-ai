@@ -40,18 +40,18 @@ export interface AIAgentCardProps extends ComponentProps<'div'> {
 }
 
 export function AIAgentCard({
-  id,
+  id: _id,
   name,
   description,
   status = 'online',
   avatarUrl,
   icon,
   model = 'GPT-4o',
-  provider = 'OpenAI',
+  provider: _provider = 'OpenAI',
   capabilities = [],
   tools = [],
   runsCount,
-  tokensUsed,
+  tokensUsed: _tokensUsed,
   avgLatency,
   variant = 'card',
   onRun,

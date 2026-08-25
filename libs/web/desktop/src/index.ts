@@ -8,10 +8,12 @@
 
 export {
   copyText,
+  flashFrame,
   getDesktopApi,
   isDesktop,
   notify,
   openExternal,
+  openSystemSettings,
   pickFiles,
   saveFile,
   setBadgeCount,
@@ -37,8 +39,12 @@ export {
 export {
   desktop,
   isFeatureAvailable,
+  supportsSystemSettings,
+  supportsTaskbarFlash,
   useCapabilities,
   useDesktopCapability,
+  useSystemSettingsSupported,
+  useTaskbarFlashSupported,
   WEB_DEFAULT_CAPABILITIES,
 } from './lib/capabilities.js';
 

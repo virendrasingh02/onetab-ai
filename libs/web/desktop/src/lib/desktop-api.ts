@@ -196,6 +196,7 @@ export interface OneTabDesktopApi {
   shell: {
     openExternal: (url: string) => Promise<boolean>;
     showItemInFolder: (path: string) => Promise<void>;
+    openSystemSettings?: (setting: string) => Promise<boolean>;
   };
   handoff: {
     openAppOrWeb: (request: DesktopHandoffRequest) => Promise<boolean>;
@@ -323,6 +324,27 @@ export async function setBadgeCount(count: number): Promise<void> {
   } catch {
     // ignore
   }
+}
+
+/**
+ * Flashes the application window / taskbar frame on desktop; no-op in browser.
+ */
+export async function flashFrame(value: boolean): Promise<void> {
+  const api = getDesktopApi();
+  if (api) {
+    await api.notifications.flashFrame(value);
+  }
+}
+
+/**
+ * Opens system settings page (e.g. "taskbar") if supported by OS / desktop shell.
+ */
+export async function openSystemSettings(setting: string): Promise<boolean> {
+  const api = getDesktopApi();
+  if (api && api.shell && typeof api.shell.openSystemSettings === 'function') {
+    return api.shell.openSystemSettings(setting);
+  }
+  return false;
 }
 
 /**

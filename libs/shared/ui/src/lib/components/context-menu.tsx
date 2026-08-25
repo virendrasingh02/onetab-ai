@@ -93,7 +93,7 @@ export function ContextMenuTrigger({
   );
 }
 
-export interface ContextMenuContentProps extends ComponentProps<'div'> {}
+export type ContextMenuContentProps = ComponentProps<'div'>;
 
 export function ContextMenuContent({ className, children, ...props }: ContextMenuContentProps) {
   const context = useContext(ContextMenuContext);

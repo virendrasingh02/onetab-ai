@@ -143,7 +143,7 @@ export function AccordionTrigger({
   );
 }
 
-export interface AccordionContentProps extends ComponentProps<'div'> {}
+export type AccordionContentProps = ComponentProps<'div'>;
 
 export function AccordionContent({
   className,

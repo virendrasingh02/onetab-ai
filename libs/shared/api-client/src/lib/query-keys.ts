@@ -9,6 +9,9 @@ export const queryKeys = {
   auth: {
     me: () => ['auth', 'me'] as const,
   },
+  user: {
+    preferences: () => ['user', 'preferences'] as const,
+  },
   workspaces: {
     all: () => ['workspaces'] as const,
     list: () => ['workspaces', 'list'] as const,

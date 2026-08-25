@@ -126,6 +126,8 @@ const api = {
     openExternal: (url: string): Promise<boolean> => ipcRenderer.invoke(IPC.openExternal, url),
     showItemInFolder: (path: string): Promise<void> =>
       ipcRenderer.invoke(IPC.showItemInFolder, path),
+    openSystemSettings: (setting: string): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.openSystemSettings, setting),
   },
 
   handoff: {

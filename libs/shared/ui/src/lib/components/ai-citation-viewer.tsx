@@ -20,7 +20,7 @@ export interface AICitationViewerProps extends ComponentProps<'div'> {
   inline?: boolean;
 }
 
-export function AICitationViewer({ citations, inline = false, className, ...props }: AICitationViewerProps) {
+export function AICitationViewer({ citations, inline: _inline = false, className, ...props }: AICitationViewerProps) {
   if (citations.length === 0) return null;
 
   return (

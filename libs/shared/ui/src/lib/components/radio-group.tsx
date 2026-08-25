@@ -28,7 +28,7 @@ export interface RadioGroupProps extends Omit<ComponentProps<'div'>, 'onChange'>
 export function RadioGroup({
   name: explicitName,
   value,
-  defaultValue,
+  defaultValue: _defaultValue,
   onValueChange,
   disabled = false,
   orientation = 'vertical',

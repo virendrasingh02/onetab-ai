@@ -95,6 +95,8 @@ import { WorkspaceBillingSettings } from '../components/workspace-billing-settin
 import { WorkspaceCompanyAnalytics } from '../components/workspace-company-analytics.js';
 import { UpgradePlanBanner } from '../components/upgrade-plan-banner.js';
 import { AIProvidersSettings } from '../components/ai-providers-settings.js';
+import { ChatSettingsPanel } from '../components/chat-settings-panel.js';
+import { NotificationDisplaySettingsPanel } from '../components/notification-display-settings-panel.js';
 
 /**
  * Panels this page renders but does not own.
@@ -1439,13 +1441,18 @@ export function WorkspaceSettingsPage({
         </div>
       )}
 
+      {/* ---------------- SECTION: CHAT & MESSAGING ---------------- */}
+      {currentTab === 'chat' && <ChatSettingsPanel />}
+
       {/* ---------------- SECTION 3: NOTIFICATIONS ---------------- */}
       {currentTab === 'notifications' && (
-        <div className="space-y-8">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Notifications & Alerts</h1>
+        <div className="space-y-10">
+          <NotificationDisplaySettingsPanel workspaceId={workspaceId} />
+
+          <div className="border-t border-border/70 pt-6">
+            <h2 className="text-lg font-bold tracking-tight text-foreground">Delivery Channels & Permissions</h2>
             <p className="text-xs text-muted-foreground mt-1">
-              Configure alert triggers, notification delivery channels, bottom prompt status, and desktop notifications.
+              Configure browser permissions, triggers, and workspace notification routing.
             </p>
           </div>
 
