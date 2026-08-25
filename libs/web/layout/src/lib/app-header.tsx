@@ -138,10 +138,11 @@ export function AppHeader({
         {leftActions ? <div style={NO_DRAG}>{leftActions}</div> : null}
 
         {currentWorkspace && workspaces ? (
-          <div style={NO_DRAG} className="max-w-44 sm:max-w-56 min-w-0 flex items-center">
+          <div style={NO_DRAG} className="max-w-52 sm:max-w-64 min-w-0 flex items-center">
             <WorkspaceMenu
               workspaces={workspaces}
               current={currentWorkspace}
+              userEmail={user.email}
               workspaceActivity={workspaceActivity}
             />
           </div>

@@ -33,8 +33,8 @@ export interface GroupedChannels {
 /**
  * Splits channels into the sidebar's sections.
  *
- * Ordering is stable and alphabetical inside each group so the sidebar does
- * not reshuffle as unrelated data refreshes.
+ * #general is pinned to the top of the joined channels list (Slack-style),
+ * followed by alphabetical order for other channels.
  */
 export function useGroupedChannels(
   channels: ChannelSummary[] | undefined,
@@ -54,15 +54,59 @@ export function useGroupedChannels(
       else result.available.push(channel);
     }
 
-    const byName = (a: ChannelSummary, b: ChannelSummary) =>
-      a.name.localeCompare(b.name);
-    result.favorites.sort(byName);
-    result.joined.sort(byName);
-    result.available.sort(byName);
-    result.archived.sort(byName);
+    const byPriorityAndName = (a: ChannelSummary, b: ChannelSummary) => {
+      const isGeneralA = a.slug === 'general' || a.name === 'general';
+      const isGeneralB = b.slug === 'general' || b.name === 'general';
+      if (isGeneralA && !isGeneralB) return -1;
+      if (!isGeneralA && isGeneralB) return 1;
+      return a.name.localeCompare(b.name);
+    };
+
+    result.favorites.sort(byPriorityAndName);
+    result.joined.sort(byPriorityAndName);
+    result.available.sort(byPriorityAndName);
+    result.archived.sort(byPriorityAndName);
 
     return result;
   }, [channels]);
+}
+
+/**
+ * Resolves the default channel according to priority:
+ * 1. User's last selected channel in this workspace
+ * 2. Workspace General channel (`#general`)
+ * 3. Legacy Public channel (`#public`) if general not found
+ * 4. First joined channel
+ * 5. First available channel
+ * 6. undefined
+ */
+export function resolveDefaultChannel(
+  channels: ChannelSummary[] | undefined,
+  preferredSlug?: string | null,
+): ChannelSummary | undefined {
+  if (!channels || channels.length === 0) return undefined;
+
+  if (preferredSlug) {
+    const preferred = channels.find(
+      (c) => c.slug === preferredSlug && !c.isArchived,
+    );
+    if (preferred) return preferred;
+  }
+
+  const general = channels.find(
+    (c) => (c.slug === 'general' || c.name === 'general') && !c.isArchived,
+  );
+  if (general) return general;
+
+  const publicChannel = channels.find(
+    (c) => (c.slug === 'public' || c.name === 'public') && !c.isArchived,
+  );
+  if (publicChannel) return publicChannel;
+
+  const joined = channels.find((c) => c.membership && !c.isArchived);
+  if (joined) return joined;
+
+  return channels.find((c) => !c.isArchived) ?? channels[0];
 }
 
 export function useChannel(

@@ -1,5 +1,9 @@
 import { EmptyState, Button, ErrorState, LoadingState } from '@org/ui';
 import { useWorkspaces } from '../use-workspaces.js';
+import {
+  getPersistedActiveWorkspaceId,
+  getPersistedActiveWorkspaceSlug,
+} from '../workspace.store.js';
 import { Building2 } from 'lucide-react';
 import { Navigate, useNavigate } from 'react-router-dom';
 
@@ -33,8 +37,16 @@ export function WorkspaceRedirect() {
     );
   }
 
-  const first = workspaces.data?.[0];
-  if (first) return <Navigate to={`/w/${first.slug}`} replace />;
+  const allWorkspaces = workspaces.data ?? [];
+  const persistedId = getPersistedActiveWorkspaceId();
+  const persistedSlug = getPersistedActiveWorkspaceSlug();
+
+  const target =
+    allWorkspaces.find((w) => w.id === persistedId) ||
+    allWorkspaces.find((w) => w.slug === persistedSlug) ||
+    allWorkspaces[0];
+
+  if (target) return <Navigate to={`/w/${target.slug}`} replace />;
 
   return (
     <div className="p-6 grid min-h-full place-items-center">

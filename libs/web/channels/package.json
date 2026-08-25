@@ -16,7 +16,20 @@
     "tags": [
       "type:feature",
       "scope:web"
-    ]
+    ],
+    "targets": {
+      "test": {
+        "executor": "nx:run-commands",
+        "cache": true,
+        "outputs": [
+          "{projectRoot}/test-output/vitest/coverage"
+        ],
+        "options": {
+          "command": "vitest run --passWithNoTests",
+          "cwd": "libs/web/channels"
+        }
+      }
+    }
   },
   "type": "module",
   "dependencies": {

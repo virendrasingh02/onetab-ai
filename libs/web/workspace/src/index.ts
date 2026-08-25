@@ -26,4 +26,14 @@ export { WorkspaceMembersSettings } from './lib/components/workspace-members-set
 export { WorkspaceBillingSettings } from './lib/components/workspace-billing-settings.js';
 export { WorkspaceCompanyAnalytics } from './lib/components/workspace-company-analytics.js';
 export { SettingsLayout } from './lib/settings-layout.js';
+export {
+  useWorkspaceStore,
+  getPersistedActiveWorkspaceId,
+  persistActiveWorkspaceId,
+  getPersistedActiveWorkspaceSlug,
+  persistActiveWorkspaceSlug,
+  getPersistedLastChannel,
+  persistLastChannel,
+  type WorkspaceState,
+} from './lib/workspace.store.js';
 

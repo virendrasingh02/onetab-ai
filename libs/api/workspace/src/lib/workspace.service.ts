@@ -53,6 +53,7 @@ export class WorkspaceService {
       where: { userId },
       orderBy: { joinedAt: 'asc' },
       include: {
+        user: { select: { email: true } },
         workspace: {
           include: {
             _count: { select: { members: true, channels: true } },
@@ -67,6 +68,8 @@ export class WorkspaceService {
       permissions: permissionsForRole(membership.role as WorkspaceRole),
       memberCount: membership.workspace._count.members,
       channelCount: membership.workspace._count.channels,
+      email: membership.email ?? membership.user.email,
+      membershipStatus: membership.status as MembershipStatus,
     }));
   }
 
@@ -75,7 +78,15 @@ export class WorkspaceService {
       where: { slug },
       include: {
         _count: { select: { members: true, channels: true } },
-        members: { where: { userId }, select: { role: true } },
+        members: {
+          where: { userId },
+          select: {
+            role: true,
+            status: true,
+            email: true,
+            user: { select: { email: true } },
+          },
+        },
       },
     });
 
@@ -84,13 +95,16 @@ export class WorkspaceService {
       throw new NotFoundException('Workspace not found.');
     }
 
-    const role = workspace.members[0].role as WorkspaceRole;
+    const member = workspace.members[0];
+    const role = member.role as WorkspaceRole;
     return {
       ...toWorkspace(workspace),
       role,
       permissions: permissionsForRole(role),
       memberCount: workspace._count.members,
       channelCount: workspace._count.channels,
+      email: member.email ?? member.user?.email ?? null,
+      membershipStatus: member.status as MembershipStatus,
     };
   }
 
@@ -115,6 +129,11 @@ export class WorkspaceService {
       });
     }
 
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
+
     const workspace = await this.prisma.workspace.create({
       data: {
         name: input.name,
@@ -123,7 +142,7 @@ export class WorkspaceService {
         icon: input.icon ?? null,
         iconColor: input.iconColor ?? null,
         ownerId: userId,
-        members: { create: { userId, role: WorkspaceRole.OWNER } },
+        members: { create: { userId, role: WorkspaceRole.OWNER, email: user?.email ?? null } },
         channels: {
           create: {
             name: 'general',
@@ -143,6 +162,8 @@ export class WorkspaceService {
       permissions: permissionsForRole(WorkspaceRole.OWNER),
       memberCount: workspace._count.members,
       channelCount: workspace._count.channels,
+      email: user?.email ?? null,
+      membershipStatus: 'ACTIVE' as MembershipStatus,
     };
   }
 

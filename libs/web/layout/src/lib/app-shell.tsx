@@ -30,12 +30,19 @@ import {
   useWorkspaceActivity,
 } from '@org/notifications';
 import { WorkspaceSearchPanel } from '@org/web-search';
-import { useCurrentWorkspace, useWorkspaces } from '@org/web-workspace';
+import {
+  useCurrentWorkspace,
+  useWorkspaces,
+  useWorkspaceStore,
+  type WorkspaceState,
+} from '@org/web-workspace';
 import { Building2 } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { AddAccountDialog } from './add-account-dialog.js';
 import { AppHeader } from './app-header.js';
 import { ChannelNav } from './channel-nav.js';
+import { ManageAccountsDialog } from './manage-accounts-dialog.js';
 import { ResizeHandle } from './resize-handle.js';
 import { RightPanel } from './right-panel.js';
 import { useResizableLayout } from './use-resizable-layout.js';
@@ -72,6 +79,13 @@ export function AppShell() {
   const setRightPanelOpen = useRightPanelStore((s) => s.setOpen);
   /* Not `setOpen(false)`: a hosted panel's owner has to hear about the close. */
   const dismissRightPanel = useRightPanelStore((s) => s.dismiss);
+
+  const isManageAccountsOpen = useWorkspaceStore((s: WorkspaceState) => s.isManageAccountsOpen);
+  const setManageAccountsOpen = useWorkspaceStore(
+    (s: WorkspaceState) => s.setManageAccountsOpen,
+  );
+  const isAddAccountOpen = useWorkspaceStore((s: WorkspaceState) => s.isAddAccountOpen);
+  const setAddAccountOpen = useWorkspaceStore((s: WorkspaceState) => s.setAddAccountOpen);
 
   const workspacesQuery = useWorkspaces();
   const { slug, workspace, workspaceId, isLoading } = useCurrentWorkspace();
@@ -336,6 +350,7 @@ export function AppShell() {
               <WorkspaceMenu
                 workspaces={workspaces}
                 current={workspace}
+                userEmail={user.email}
                 onToggleSidebar={closeSidebar}
               />
             </div>
@@ -378,6 +393,20 @@ export function AppShell() {
         <CreateChannelDialog
           open={createChannelOpen}
           onOpenChange={setCreateChannelOpen}
+        />
+
+        <ManageAccountsDialog
+          open={isManageAccountsOpen}
+          onOpenChange={setManageAccountsOpen}
+          workspaces={workspaces}
+          currentWorkspace={workspace}
+          userEmail={user.email}
+          onAddAccount={() => setAddAccountOpen(true)}
+        />
+
+        <AddAccountDialog
+          open={isAddAccountOpen}
+          onOpenChange={setAddAccountOpen}
         />
 
         {/*

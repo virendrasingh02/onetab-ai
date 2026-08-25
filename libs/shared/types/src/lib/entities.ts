@@ -84,6 +84,10 @@ export interface WorkspaceSummary extends Workspace {
   permissions: readonly WorkspacePermission[];
   memberCount: number;
   channelCount: number;
+  /** The email address associated with the viewer's membership in this workspace. */
+  email?: string | null;
+  /** The viewer's membership status in this workspace. */
+  membershipStatus?: MembershipStatus;
 }
 
 export interface WorkspaceMember {
@@ -93,6 +97,8 @@ export interface WorkspaceMember {
   status: MembershipStatus;
   joinedAt: IsoDateString;
   user: PublicUser;
+  /** The workspace-specific email address for this member, if configured. */
+  email?: string | null;
 }
 
 export interface Channel {

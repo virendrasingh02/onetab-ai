@@ -37,7 +37,7 @@ export class MemberService {
     const members = await this.prisma.workspaceMember.findMany({
       where: { workspaceId },
       orderBy: [{ joinedAt: 'asc' }],
-      include: { user: { select: PUBLIC_USER_SELECT } },
+      include: { user: { select: { ...PUBLIC_USER_SELECT, email: true } } },
     });
 
     return members.map((member) => ({
@@ -47,6 +47,7 @@ export class MemberService {
       status: member.status as MembershipStatus,
       joinedAt: member.joinedAt.toISOString(),
       user: toPublicUser(member.user),
+      email: member.email ?? member.user?.email ?? null,
     }));
   }
 
@@ -250,8 +251,11 @@ export class MemberService {
   /**
    * Accepts an invitation for the signed-in user.
    *
-   * The invited address must match the account's, so a forwarded link cannot
-   * be redeemed by someone else.
+   * The token itself is the secret — whoever holds the link redeems it — so
+   * the signed-in account's email no longer has to match the invited address.
+   * That is what lets someone join a workspace under a second email without a
+   * second account: the invited address is stored on the membership as its
+   * workspace-specific email rather than being checked against the user.
    */
   async acceptInvitation(
     token: string,
@@ -273,16 +277,6 @@ export class MemberService {
       throw new BadRequestException('This invitation has expired.');
     }
 
-    const user = await this.prisma.user.findUniqueOrThrow({
-      where: { id: userId },
-      select: { email: true },
-    });
-    if (user.email !== invitation.email) {
-      throw new ForbiddenException(
-        `This invitation was sent to ${invitation.email}.`,
-      );
-    }
-
     await this.prisma.$transaction([
       this.prisma.workspaceMember.upsert({
         where: {
@@ -292,8 +286,11 @@ export class MemberService {
           workspaceId: invitation.workspaceId,
           userId,
           role: invitation.role,
+          email: invitation.email,
         },
-        update: {},
+        update: {
+          email: invitation.email,
+        },
       }),
       this.prisma.invitation.update({
         where: { id: invitation.id },

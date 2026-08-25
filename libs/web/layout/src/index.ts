@@ -11,6 +11,14 @@ export {
   type WorkspaceMenuProps,
 } from './lib/workspace-switcher.js';
 export {
+  ManageAccountsDialog,
+  type ManageAccountsDialogProps,
+} from './lib/manage-accounts-dialog.js';
+export {
+  AddAccountDialog,
+  type AddAccountDialogProps,
+} from './lib/add-account-dialog.js';
+export {
   useResizableLayout,
   DEFAULT_LAYOUT_BOUNDS,
   type LayoutBounds,

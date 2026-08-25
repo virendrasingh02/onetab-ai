@@ -14,6 +14,7 @@ export {
   useMakeChannelPrivate,
   usePinMutations,
   useUpdateChannel,
+  resolveDefaultChannel,
   type GroupedChannels,
 } from './lib/use-channels.js';
 

@@ -109,6 +109,8 @@ model WorkspaceMember {
   workspaceId String
   userId      String
   role        WorkspaceRole    @default(MEMBER)
+  /// Optional workspace-specific email address. Falls back to user.email when null.
+  email       String?
   /// SUSPENDED keeps the row — and so the role and history — while refusing
   /// access, which is what letting someone back in later needs.
   status      MembershipStatus @default(ACTIVE)

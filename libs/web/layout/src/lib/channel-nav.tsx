@@ -29,6 +29,7 @@ import {
   useProjectMutations,
   useProjects,
 } from '@org/web-work-tools';
+import { persistLastChannel } from '@org/web-workspace';
 import {
   Activity,
   Bell,
@@ -472,6 +473,13 @@ export function ChannelNav({
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [startNewChat]);
+
+  useEffect(() => {
+    const match = location.pathname.match(/\/w\/[^/]+\/c\/([^/]+)/);
+    if (match && match[1] && workspaceId) {
+      persistLastChannel(workspaceId, match[1]);
+    }
+  }, [location.pathname, workspaceId]);
 
   // Starred items across all sections
   const starredProjects = useMemo(

@@ -1,0 +1,95 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi } from 'vitest';
+import { WorkspaceRole, WorkspaceStatus, type WorkspaceSummary } from '@org/types';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
+import { ManageAccountsDialog } from './manage-accounts-dialog.js';
+
+const mockWorkspaces: WorkspaceSummary[] = [
+  {
+    id: 'ws-1',
+    name: 'Mie Team',
+    slug: 'mie-team',
+    email: 'virendra@mie.ai',
+    description: null,
+    avatarUrl: null,
+    icon: null,
+    iconColor: null,
+    ownerId: 'user-1',
+    status: WorkspaceStatus.ACTIVE,
+    archivedAt: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    role: WorkspaceRole.OWNER,
+    permissions: [],
+    memberCount: 12,
+    channelCount: 5,
+  },
+  {
+    id: 'ws-2',
+    name: 'Acme Corp',
+    slug: 'acme',
+    email: 'virendra@acme.com',
+    description: null,
+    avatarUrl: null,
+    icon: null,
+    iconColor: null,
+    ownerId: 'user-2',
+    status: WorkspaceStatus.ACTIVE,
+    archivedAt: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    role: WorkspaceRole.MEMBER,
+    permissions: [],
+    memberCount: 85,
+    channelCount: 20,
+  },
+];
+
+describe('ManageAccountsDialog', () => {
+  it('renders all connected workspaces with distinct emails and active badges', () => {
+    render(
+      <MemoryRouter>
+        <ManageAccountsDialog
+          open={true}
+          onOpenChange={vi.fn()}
+          workspaces={mockWorkspaces}
+          currentWorkspace={mockWorkspaces[0]}
+          userEmail="virendra@gmail.com"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Manage Workspaces & Accounts')).toBeInTheDocument();
+    expect(screen.getByText('Mie Team')).toBeInTheDocument();
+    expect(screen.getByText('virendra@mie.ai')).toBeInTheDocument();
+    expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+    expect(screen.getByText('virendra@acme.com')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
+  });
+
+  it('triggers onSwitchWorkspace when switch button is clicked', async () => {
+    const user = userEvent.setup();
+    const onSwitchWorkspace = vi.fn();
+    const onOpenChange = vi.fn();
+
+    render(
+      <MemoryRouter>
+        <ManageAccountsDialog
+          open={true}
+          onOpenChange={onOpenChange}
+          workspaces={mockWorkspaces}
+          currentWorkspace={mockWorkspaces[0]}
+          onSwitchWorkspace={onSwitchWorkspace}
+        />
+      </MemoryRouter>,
+    );
+
+    const switchBtn = screen.getByRole('button', { name: 'Switch' });
+    await user.click(switchBtn);
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(onSwitchWorkspace).toHaveBeenCalledWith(mockWorkspaces[1]);
+  });
+});

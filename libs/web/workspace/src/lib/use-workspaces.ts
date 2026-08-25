@@ -1,11 +1,13 @@
 import { invitationApi, queryKeys, workspaceApi } from '@org/api-client';
-import { WorkspaceRole, type WorkspaceSummary } from '@org/types';
+import { WorkspaceRole, type WorkspacePermission, type WorkspaceSummary } from '@org/types';
 import type {
   CreateWorkspaceInput,
   UpdateWorkspaceInput,
 } from '@org/validation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useWorkspaceStore } from './workspace.store.js';
 
 /**
  * Every workspace the signed-in user belongs to. Powers the switcher.
@@ -44,16 +46,29 @@ export function useCurrentWorkspace(): {
   slug: string | undefined;
   workspace: WorkspaceSummary | undefined;
   workspaceId: string | undefined;
+  activeMembershipEmail: string | undefined;
+  role: WorkspaceRole | undefined;
+  permissions: readonly WorkspacePermission[] | undefined;
   isLoading: boolean;
   isError: boolean;
 } {
   const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
   const query = useWorkspace(workspaceSlug);
+  const setActiveWorkspace = useWorkspaceStore((s) => s.setActiveWorkspace);
+
+  useEffect(() => {
+    if (query.data) {
+      setActiveWorkspace(query.data);
+    }
+  }, [query.data, setActiveWorkspace]);
 
   return {
     slug: workspaceSlug,
     workspace: query.data,
     workspaceId: query.data?.id,
+    activeMembershipEmail: query.data?.email ?? undefined,
+    role: query.data?.role,
+    permissions: query.data?.permissions,
     isLoading: query.isLoading,
     isError: query.isError,
   };
