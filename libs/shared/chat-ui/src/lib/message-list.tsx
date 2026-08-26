@@ -1,13 +1,14 @@
 import type { Message } from '@org/types';
-import { EmptyState, ErrorState, ScrollArea, Spinner } from '@org/ui';
+import { Button, EmptyState, ErrorState, ScrollArea, Spinner } from '@org/ui';
 import { cn } from '@org/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { MessageSquare } from 'lucide-react';
+import { ArrowDown, MessageSquare } from 'lucide-react';
 import {
   useCallback,
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
   type ReactNode,
 } from 'react';
 import { UnreadDivider } from './channel-extras.js';
@@ -142,6 +143,8 @@ export function MessageList({
   className,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [newMessagesCount, setNewMessagesCount] = useState(0);
+
   const rows = useMemo(
     () => buildRows(messages, unreadBeforeId),
     [messages, unreadBeforeId],
@@ -161,8 +164,6 @@ export function MessageList({
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
-    // A message row is ~64px; the virtualizer measures the real height after
-    // mount, so this only has to be close.
     estimateSize: () => 64,
     overscan: 8,
     getItemKey: (index) => rows[index]?.key ?? index,
@@ -175,11 +176,23 @@ export function MessageList({
     return element.scrollHeight - element.scrollTop - element.clientHeight < 80;
   }, []);
 
+  const scrollToBottom = useCallback(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' });
+    wasAtBottom.current = true;
+    setNewMessagesCount(0);
+  }, []);
+
   const handleScroll = useCallback(() => {
     const element = scrollRef.current;
     if (!element) return;
 
-    wasAtBottom.current = isAtBottom();
+    const atBottom = isAtBottom();
+    wasAtBottom.current = atBottom;
+    if (atBottom) {
+      setNewMessagesCount(0);
+    }
     if (conversationId) setScrollPosition(conversationId, element.scrollTop);
 
     // Trigger backfill before the user actually hits the top.
@@ -193,9 +206,6 @@ export function MessageList({
    * Switching conversations: land back on the reader's last known position in
    * the one being opened, or at the bottom for one with no memory yet — never
    * wherever the *previous* conversation happened to leave the scrollbar.
-   * Runs before paint, so the jump is never visible, and resets the
-   * content-growth bookkeeping below so the switch itself is never mistaken
-   * there for messages arriving in a conversation that was already open.
    */
   useLayoutEffect(() => {
     const switchedConversation =
@@ -205,6 +215,8 @@ export function MessageList({
     previousScrollHeight.current = 0;
 
     if (!switchedConversation) return;
+
+    setNewMessagesCount(0);
 
     const element = scrollRef.current;
     if (!element) return;
@@ -238,16 +250,15 @@ export function MessageList({
       element.scrollTop = element.scrollHeight;
       wasAtBottom.current = true;
     }
-    // Only the identity should retrigger this — see the note above.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, openPosition]);
+  }, [conversationId, openPosition, unreadBeforeId, rows, virtualizer]);
 
   // Runs before paint, so neither correction is ever visible as a flicker.
   useLayoutEffect(() => {
     const element = scrollRef.current;
     if (!element) return;
 
-    const grew = messages.length > previousCount.current;
+    const diff = messages.length - previousCount.current;
+    const grew = diff > 0;
     previousCount.current = messages.length;
 
     if (previousScrollHeight.current && grew) {
@@ -260,6 +271,9 @@ export function MessageList({
 
     if (wasAtBottom.current && grew) {
       element.scrollTop = element.scrollHeight;
+    } else if (!wasAtBottom.current && grew) {
+      // User is reading older messages and new messages arrived
+      setNewMessagesCount((prev) => prev + diff);
     }
   }, [messages.length]);
 
@@ -290,77 +304,94 @@ export function MessageList({
   }
 
   return (
-    /*
-     * The virtualiser, the load-older backfill and the pin-to-bottom logic all
-     * read `scrollRef`, so it has to land on the element SimpleBar actually
-     * scrolls — `viewportRef`, not the root.
-     */
-    <ScrollArea
-      className={cn(
-        'min-h-0 flex-1',
-        density === 'compact' ? 'chat-density-compact' : 'chat-density-comfy',
-        className,
-      )}
-      viewportRef={scrollRef}
-      viewportProps={{
-        onScroll: handleScroll,
-        role: 'log',
-        'aria-label': 'Messages',
-        'aria-live': 'polite',
-      }}
-    >
-      {isLoadingOlder ? (
-        <div className="py-3 flex justify-center">
-          <Spinner label="Loading earlier messages" />
+    <div className="relative min-h-0 flex flex-1 flex-col overflow-hidden">
+      <ScrollArea
+        className={cn(
+          'min-h-0 flex-1',
+          density === 'compact' ? 'chat-density-compact' : 'chat-density-comfy',
+          className,
+        )}
+        viewportRef={scrollRef}
+        viewportProps={{
+          onScroll: handleScroll,
+          role: 'log',
+          'aria-label': 'Messages',
+          'aria-live': 'polite',
+        }}
+      >
+        {isLoadingOlder ? (
+          <div className="py-3 flex justify-center">
+            <Spinner label="Loading earlier messages" />
+          </div>
+        ) : null}
+
+        {/*
+          The conversation is still being opened — its room resolved but no
+          messages read from it yet. An empty, motionless timeline here would
+          read as broken on a slow connection (see the acceptance test for it);
+          this keeps the same scroll container in place and says so instead,
+          rather than the host falling back to unmounting the whole surface for
+          a full-page spinner (see `ChatPanel`).
+        */}
+        {isLoading && rows.length === 0 ? (
+          <div className="flex flex-1 items-center justify-center py-16">
+            <Spinner label="Loading messages…" />
+          </div>
+        ) : null}
+
+        {/* Only once the history is exhausted is this actually the beginning. */}
+        {introSlot && !hasMore && !isLoadingOlder ? introSlot : null}
+
+        <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+          {virtualizer.getVirtualItems().map((virtualRow) => {
+            const row = rows[virtualRow.index];
+            if (!row) return null;
+
+            return (
+              <div
+                key={virtualRow.key}
+                ref={virtualizer.measureElement}
+                data-index={virtualRow.index}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
+              >
+                {row.kind === 'separator' ? (
+                  <DateSeparator timestamp={row.timestamp} />
+                ) : row.kind === 'unread' ? (
+                  <UnreadDivider />
+                ) : (
+                  renderMessage(row.message, row.grouped, density)
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </ScrollArea>
+
+      {/* Floating Slack-style Jump to Bottom Indicator */}
+      {newMessagesCount > 0 ? (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={scrollToBottom}
+            className="rounded-full shadow-md gap-1.5 px-3.5 py-1 h-8 text-xs font-semibold"
+            aria-label={`Jump to ${newMessagesCount} new messages`}
+          >
+            <ArrowDown className="size-3.5" />
+            <span>
+              {newMessagesCount === 1
+                ? '1 new message'
+                : `${newMessagesCount} new messages`}
+            </span>
+          </Button>
         </div>
       ) : null}
-
-      {/*
-        The conversation is still being opened — its room resolved but no
-        messages read from it yet. An empty, motionless timeline here would
-        read as broken on a slow connection (see the acceptance test for it);
-        this keeps the same scroll container in place and says so instead,
-        rather than the host falling back to unmounting the whole surface for
-        a full-page spinner (see `ChatPanel`).
-      */}
-      {isLoading && rows.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center py-16">
-          <Spinner label="Loading messages…" />
-        </div>
-      ) : null}
-
-      {/* Only once the history is exhausted is this actually the beginning. */}
-      {introSlot && !hasMore && !isLoadingOlder ? introSlot : null}
-
-      <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
-        {virtualizer.getVirtualItems().map((virtualRow) => {
-          const row = rows[virtualRow.index];
-          if (!row) return null;
-
-          return (
-            <div
-              key={virtualRow.key}
-              ref={virtualizer.measureElement}
-              data-index={virtualRow.index}
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                transform: `translateY(${virtualRow.start}px)`,
-              }}
-            >
-              {row.kind === 'separator' ? (
-                <DateSeparator timestamp={row.timestamp} />
-              ) : row.kind === 'unread' ? (
-                <UnreadDivider />
-              ) : (
-                renderMessage(row.message, row.grouped, density)
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </ScrollArea>
+    </div>
   );
 }

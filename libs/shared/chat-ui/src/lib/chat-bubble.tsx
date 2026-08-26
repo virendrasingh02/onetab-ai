@@ -35,6 +35,7 @@ import {
   Reply,
   Smile,
   Trash2,
+  UserCheck,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { MarkdownMessage } from './markdown-message.js';
@@ -83,6 +84,7 @@ export interface ChatBubbleProps {
   onCopyLink?: () => void;
   onCopyText?: () => void;
   onForward?: () => void;
+  onAssignToMe?: () => void;
   onCreateTask?: () => void;
   onCreateDoc?: () => void;
   onAskAI?: () => void;
@@ -140,6 +142,7 @@ export function ChatBubble({
   onCopyLink,
   onCopyText,
   onForward,
+  onAssignToMe,
   onCreateTask,
   onCreateDoc,
   onAskAI,
@@ -539,6 +542,16 @@ export function ChatBubble({
             ) : null}
 
             <DropdownMenuSeparator className="bg-border" />
+
+            {onAssignToMe ? (
+              <DropdownMenuItem
+                onSelect={() => onAssignToMe()}
+                className="cursor-pointer hover:bg-accent"
+              >
+                <UserCheck className="mr-2 size-4 text-primary" />
+                Assign to me
+              </DropdownMenuItem>
+            ) : null}
 
             {onCreateTask ? (
               <DropdownMenuItem

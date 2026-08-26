@@ -32,6 +32,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useDraftsStore } from './drafts-store.js';
 import { SendCardDialog } from './cards/send-card-dialog.js';
 import { DiscordEmojiGifPicker } from './discord-emoji-gif-picker.js';
 import {
@@ -233,6 +234,7 @@ export interface ComposerProps {
   onSend: (body: string) => void | Promise<void>;
   onTyping?: (isTyping: boolean) => void;
   onAttach?: (files: FileList) => void;
+  conversationId?: string | null;
   members?: RoomMember[];
   agentMentions?: MentionCandidate[];
   appMentions?: MentionCandidate[];
@@ -251,6 +253,7 @@ export interface ComposerProps {
     version: number,
     data: Record<string, unknown>,
   ) => void | Promise<void>;
+  className?: string;
 }
 
 /**
@@ -265,6 +268,7 @@ export function Composer({
   onSend,
   onTyping,
   onAttach,
+  conversationId,
   members = [],
   agentMentions,
   appMentions,
@@ -276,6 +280,7 @@ export function Composer({
   onSchedule,
   onStartHuddle,
   onSendCard,
+  className,
 }: ComposerProps) {
   const [pickerState, setPickerState] = useState<{
     open: boolean;
@@ -292,8 +297,30 @@ export function Composer({
   const [attachments, setAttachments] = useState<StagedAttachment[]>([]);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
 
+  const getDraft = useDraftsStore((s) => s.getDraft);
+  const setDraft = useDraftsStore((s) => s.setDraft);
+  const clearDraft = useDraftsStore((s) => s.clearDraft);
+
+  const initialDraft = useMemo(
+    () => (conversationId ? getDraft(conversationId) : ''),
+    [conversationId, getDraft],
+  );
+
   const lexicalRef = useRef<LexicalEditorRef | null>(null);
   const fileInputId = useId();
+
+  // Sync draft when conversationId changes
+  const prevConversationId = useRef(conversationId);
+  useEffect(() => {
+    if (prevConversationId.current !== conversationId) {
+      prevConversationId.current = conversationId;
+      const draft = conversationId ? getDraft(conversationId) : '';
+      if (lexicalRef.current) {
+        lexicalRef.current.setMarkdown(draft);
+        setHasContent(draft.trim().length > 0);
+      }
+    }
+  }, [conversationId, getDraft]);
 
   // Object URLs are only good for as long as the tab is open — revoke each
   // one when its chip goes away, and sweep whatever's left on unmount so a
@@ -345,7 +372,12 @@ export function Composer({
 
   const handleTyping = (isTyping: boolean) => {
     onTyping?.(isTyping);
-    setHasContent(!(lexicalRef.current?.isEmpty() ?? true));
+    const content = lexicalRef.current?.getMarkdown() ?? '';
+    const notEmpty = content.trim().length > 0;
+    setHasContent(notEmpty);
+    if (conversationId) {
+      setDraft(conversationId, content);
+    }
   };
 
   /* The editor's own send only fires with text in hand — attachments ride
@@ -353,9 +385,12 @@ export function Composer({
   const handleComposerSend = useCallback(
     (body: string) => {
       flushAttachments();
+      if (conversationId) {
+        clearDraft(conversationId);
+      }
       if (body) return onSend(body);
     },
-    [flushAttachments, onSend],
+    [flushAttachments, onSend, conversationId, clearDraft],
   );
 
   const canSend = hasContent || attachments.length > 0;
@@ -381,7 +416,12 @@ export function Composer({
   };
 
   return (
-    <div className="bottom-0 p-4 sticky z-20 shrink-0 border-t border-border bg-background">
+    <div
+      className={cn(
+        'bottom-0 p-3 sm:p-4 sticky z-20 shrink-0 bg-background',
+        className,
+      )}
+    >
       {contextSlot}
 
       {pickerState.open ? (
@@ -436,6 +476,7 @@ export function Composer({
 
         <LexicalComposerInput
           placeholder={placeholder}
+          initialMarkdown={initialDraft}
           onSend={handleComposerSend}
           onTyping={handleTyping}
           disabled={disabled}

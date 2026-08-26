@@ -15,7 +15,12 @@ import {
   ThreadPanel,
   TypingIndicator,
 } from '@org/chat-ui';
-import type { Message, PresenceState, RoomMember, StructuredMessageAction } from '@org/matrix-client';
+import type {
+  Message,
+  PresenceState,
+  RoomMember,
+  StructuredMessageAction,
+} from '@org/matrix-client';
 import { attachmentToMediaItem, useMediaPreview } from '@org/media-preview';
 import {
   Badge,
@@ -56,7 +61,8 @@ export interface ChatSurfaceWelcome {
  * A user profile is no longer one of these: it opens in the shell's right rail
  * through `useRightPanelStore`, so it outlives switching conversations.
  */
-type SidePanel = 'none' | 'members' | 'thread' | 'threads' | 'search' | 'pinned';
+type SidePanel =
+  'none' | 'members' | 'thread' | 'threads' | 'search' | 'pinned';
 
 export interface ChatSurfaceProps {
   title: string;
@@ -146,6 +152,7 @@ export interface ChatSurfaceProps {
   onAttach?: (files: FileList, threadRootId?: string) => void | Promise<void>;
   onTogglePin?: (eventId: string) => void;
   onToggleSave?: (eventId: string) => void;
+  onAssignToMe?: (message: Message) => void;
   onCreateTask?: (message: Message) => void;
   onCreateDoc?: (message: Message) => void;
   onAskAI?: (message: Message) => void;
@@ -155,7 +162,11 @@ export interface ChatSurfaceProps {
     action: StructuredMessageAction,
   ) => void | Promise<void>;
   onRetryAgent?: (message: Message) => void | Promise<void>;
-  onSendCard?: (cardId: string, version: number, data: Record<string, unknown>) => void | Promise<void>;
+  onSendCard?: (
+    cardId: string,
+    version: number,
+    data: Record<string, unknown>,
+  ) => void | Promise<void>;
 }
 
 export function ChatSurface({
@@ -192,6 +203,7 @@ export function ChatSurface({
   onAttach,
   onTogglePin,
   onToggleSave,
+  onAssignToMe,
   onCreateTask,
   onCreateDoc,
   onAskAI,
@@ -393,47 +405,38 @@ export function ChatSurface({
           onToggleSave={
             onToggleSave ? () => onToggleSave(message.id) : undefined
           }
-          onCreateTask={
-            onCreateTask ? () => onCreateTask(message) : undefined
-          }
-          onCreateDoc={
-            onCreateDoc ? () => onCreateDoc(message) : undefined
-          }
-          onAskAI={
-            onAskAI ? () => onAskAI(message) : undefined
-          }
+          onAssignToMe={onAssignToMe ? () => onAssignToMe(message) : undefined}
+          onCreateTask={onCreateTask ? () => onCreateTask(message) : undefined}
+          onCreateDoc={onCreateDoc ? () => onCreateDoc(message) : undefined}
+          onAskAI={onAskAI ? () => onAskAI(message) : undefined}
           onAction={
             onAction
               ? (action: StructuredMessageAction) =>
                   void onAction(message, action)
               : undefined
           }
-          onRetry={
-            onRetryAgent ? () => void onRetryAgent(message) : undefined
-          }
+          onRetry={onRetryAgent ? () => void onRetryAgent(message) : undefined}
           onCopyText={() => void navigator.clipboard?.writeText(message.body)}
           onCopyLink={() =>
             void navigator.clipboard?.writeText(
               `${window.location.origin}${window.location.pathname}#${message.id}`,
             )
           }
-          attachmentSlot={
-            (() => {
-              const attachment = message.attachment;
-              if (!attachment) return null;
-              return (
-                <AttachmentRenderer
-                  attachment={attachment}
-                  kind={message.kind}
-                  onOpenImage={() =>
-                    openPreview([
-                      attachmentToMediaItem(attachment, message.kind, message.id),
-                    ])
-                  }
-                />
-              );
-            })()
-          }
+          attachmentSlot={(() => {
+            const attachment = message.attachment;
+            if (!attachment) return null;
+            return (
+              <AttachmentRenderer
+                attachment={attachment}
+                kind={message.kind}
+                onOpen={() =>
+                  openPreview([
+                    attachmentToMediaItem(attachment, message.kind, message.id),
+                  ])
+                }
+              />
+            );
+          })()}
         />
       );
     },
@@ -450,6 +453,7 @@ export function ChatSurface({
       onDelete,
       onTogglePin,
       onToggleSave,
+      onAssignToMe,
       onCreateTask,
       onCreateDoc,
       onAskAI,
@@ -686,6 +690,11 @@ export function ChatSurface({
                   ))}
                   composerSlot={
                     <Composer
+                      conversationId={
+                        conversationId
+                          ? `${conversationId}-thread-${threadRoot.id}`
+                          : null
+                      }
                       members={members}
                       showFormatting={false}
                       placeholder="Reply in thread…"
@@ -747,9 +756,10 @@ export function ChatSurface({
           />
         </div>
 
-        <div className="bottom-0 sticky z-20 w-full shrink-0 border-t border-border/50 bg-surface-raised">
+        <div className="bottom-0 sticky z-20 w-full shrink-0 bg-background">
           <TypingIndicator names={typingNames} />
           <Composer
+            conversationId={conversationId}
             members={members}
             onTyping={onTyping}
             onAttach={onAttach ? (files) => void onAttach(files) : undefined}

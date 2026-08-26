@@ -22,6 +22,10 @@ export {
 } from './lib/user-profile-card.js';
 
 export { Composer, type ComposerProps } from './lib/composer.js';
+export {
+  useDraftsStore,
+  type ConversationDraft,
+} from './lib/drafts-store.js';
 
 export {
   DEFAULT_SLASH_COMMANDS,
@@ -94,10 +98,13 @@ export {
   AttachmentCard,
   AttachmentRenderer,
   ImagePreview,
+  MediaPreview,
+  PdfPreviewCard,
   VideoPreview,
   VoiceMessage,
   type AttachmentCardProps,
   type ImagePreviewProps,
+  type MediaPreviewProps,
   type VoiceMessageProps,
 } from './lib/attachments.js';
 
@@ -229,4 +236,3 @@ export {
   type ActionExecutionResult,
   type ActionHandlerFn,
 } from './lib/cards/action-handler.js';
-

@@ -39,6 +39,7 @@ export interface MessageRendererProps {
   onCopyLink?: () => void;
   onCopyText?: () => void;
   onForward?: () => void;
+  onAssignToMe?: () => void;
   onCreateTask?: () => void;
   onCreateDoc?: () => void;
   onAskAI?: () => void;

@@ -38,7 +38,6 @@ import { HashtagPlugin } from '@lexical/react/LexicalHashtagPlugin';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import {
   HorizontalRuleNode,
-  INSERT_HORIZONTAL_RULE_COMMAND,
 } from '@lexical/react/LexicalHorizontalRuleNode';
 import { HorizontalRulePlugin } from '@lexical/react/LexicalHorizontalRulePlugin';
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
@@ -72,8 +71,6 @@ import {
   $isElementNode,
   $isRangeSelection,
   $isTextNode,
-  CAN_REDO_COMMAND,
-  CAN_UNDO_COMMAND,
   COMMAND_PRIORITY_CRITICAL,
   COMMAND_PRIORITY_HIGH,
   COMMAND_PRIORITY_NORMAL,
@@ -81,9 +78,7 @@ import {
   IS_APPLE,
   KEY_DOWN_COMMAND,
   KEY_ENTER_COMMAND,
-  REDO_COMMAND,
   SELECTION_CHANGE_COMMAND,
-  UNDO_COMMAND,
 } from 'lexical';
 import {
   AtSign,
@@ -92,23 +87,16 @@ import {
   Bot,
   Check,
   Code,
-  Heading1,
-  Heading2,
-  Heading3,
   Italic,
   Link2,
   Link2Off,
   List,
   ListOrdered,
-  ListTodo,
-  Minus,
   Quote,
-  Redo2,
   Slash,
   Smile,
   SquareCode,
   Strikethrough,
-  Undo2,
 } from 'lucide-react';
 import { Badge } from '@org/ui';
 import {
@@ -213,6 +201,7 @@ export interface LexicalComposerInputProps {
   onTyping?: (isTyping: boolean) => void;
   disabled?: boolean;
   autoFocus?: boolean;
+  initialMarkdown?: string;
   showToolbar?: boolean;
   /**
    * Staged images/files are waiting to go out with this message. Lets Enter
@@ -1055,8 +1044,6 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
   });
   const [blockType, setBlockType] = useState<BlockType>('paragraph');
   const [isLink, setIsLink] = useState(false);
-  const [canUndo, setCanUndo] = useState(false);
-  const [canRedo, setCanRedo] = useState(false);
   const [linkDraft, setLinkDraft] = useState<string | null>(null);
   const linkInputRef = useRef<HTMLInputElement>(null);
 
@@ -1105,22 +1092,6 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
         SELECTION_CHANGE_COMMAND,
         () => {
           syncToolbar();
-          return false;
-        },
-        COMMAND_PRIORITY_CRITICAL,
-      ),
-      editor.registerCommand(
-        CAN_UNDO_COMMAND,
-        (payload) => {
-          setCanUndo(payload);
-          return false;
-        },
-        COMMAND_PRIORITY_CRITICAL,
-      ),
-      editor.registerCommand(
-        CAN_REDO_COMMAND,
-        (payload) => {
-          setCanRedo(payload);
           return false;
         },
         COMMAND_PRIORITY_CRITICAL,
@@ -1387,6 +1358,7 @@ export function LexicalComposerInput({
   onTyping,
   disabled = false,
   autoFocus = false,
+  initialMarkdown,
   showToolbar = true,
   hasPendingAttachments = false,
   members = [],
@@ -1402,8 +1374,18 @@ export function LexicalComposerInput({
       theme: EDITOR_THEME,
       onError: (error: Error) => console.error('Lexical error:', error),
       nodes: EDITOR_NODES,
+      editorState: initialMarkdown
+        ? () => {
+            $convertFromMarkdownString(
+              initialMarkdown,
+              CHAT_TRANSFORMERS,
+              undefined,
+              true,
+            );
+          }
+        : undefined,
     }),
-    [],
+    [initialMarkdown],
   );
 
   const handleMentionOpenChange = useCallback(

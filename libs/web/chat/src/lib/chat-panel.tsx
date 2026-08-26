@@ -114,6 +114,33 @@ export function ChatPanel({
     [room.messages, roomId, title, savedIds, setSaved],
   );
 
+  const handleAssignToMe = useCallback(
+    async (message: Message) => {
+      if (!workspaceId) {
+        toast.error('Workspace context required');
+        return;
+      }
+      const myUserId = client?.getSession()?.userId;
+      try {
+        const snippet =
+          message.body.slice(0, 60).replace(/\n/g, ' ') || 'New Task';
+        await workToolsApi.createTask(workspaceId, {
+          title: snippet,
+          description: `Created from message in #${title} by ${message.senderName}:\n\n${message.body}`,
+          status: 'TODO',
+          priority: 'MEDIUM',
+          assigneeId: myUserId ?? undefined,
+        });
+        toast.success('Task assigned to you', {
+          description: `"${snippet}" created and assigned to you.`,
+        });
+      } catch {
+        toast.error('Failed to assign task');
+      }
+    },
+    [workspaceId, client, title],
+  );
+
   const handleCreateTask = useCallback(
     async (message: Message) => {
       if (onCreateTask) {
@@ -376,6 +403,7 @@ export function ChatPanel({
       onAttach={actions.attach}
       onTogglePin={togglePin}
       onToggleSave={toggleSave}
+      onAssignToMe={handleAssignToMe}
       onCreateTask={handleCreateTask}
       onCreateDoc={handleCreateDoc}
       onAskAI={handleAskAI}

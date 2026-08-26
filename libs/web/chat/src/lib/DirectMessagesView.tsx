@@ -160,6 +160,7 @@ function DirectRoom({
   presence?: string | null;
   headerActionsSlot: HTMLElement | null;
 }) {
+  const { workspaceId } = useCurrentWorkspace();
   const { roomId, error } = useDirectRoom(peerId);
 
   if (error) {
@@ -182,6 +183,7 @@ function DirectRoom({
       roomId={roomId}
       title={name}
       subtitle={presence === 'ONLINE' ? 'Online' : 'Direct message'}
+      workspaceId={workspaceId}
       headerActionsSlot={headerActionsSlot}
       showMembers={false}
       showEncryptedBadge={false}
