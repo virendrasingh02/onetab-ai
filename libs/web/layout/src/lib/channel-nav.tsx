@@ -15,11 +15,17 @@ import {
   type PromptDialog,
 } from '@org/ui';
 import type { ActivityIndicator } from '@org/notifications';
+import { useMarkChannelUnread } from '@org/notifications';
 import type { ChannelSummary } from '@org/types';
 import { cn } from '@org/utils';
 import { useAgents, useAgentMutations } from '@org/web-agents';
 import { useWorkflows, useWorkflowMutations } from '@org/web-automations';
-import { useChannelPreferences, useGroupedChannels } from '@org/web-channels';
+import {
+  useArchiveChannel,
+  useChannelPreferences,
+  useGroupedChannels,
+  useUpdateChannel,
+} from '@org/web-channels';
 import {
   useIntegrations,
   useIntegrationMutations,
@@ -32,7 +38,7 @@ import {
 import { persistLastChannel } from '@org/web-workspace';
 import {
   Activity,
-  Bell,
+  Archive,
   BellOff,
   Bookmark,
   Check,
@@ -52,7 +58,6 @@ import {
   Plus,
   Share2,
   Star,
-  Trash2,
   Users,
   Video,
 } from 'lucide-react';
@@ -129,6 +134,7 @@ function titleCaseProvider(provider: string): string {
 
 function ChannelRow({
   channel,
+  workspaceId,
   workspaceSlug,
   activity,
   onToggleFavorite,
@@ -136,6 +142,7 @@ function ChannelRow({
   prompts,
 }: {
   channel: ChannelSummary;
+  workspaceId: string;
   workspaceSlug: string;
   activity?: ActivityIndicator;
   onToggleFavorite: (channel: ChannelSummary) => void;
@@ -144,6 +151,9 @@ function ChannelRow({
 }) {
   const [unreadState, setUnreadState] = useState(false);
   const unreadTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const updateChannel = useUpdateChannel(workspaceId);
+  const archiveChannel = useArchiveChannel(workspaceId);
+  const markChannelUnread = useMarkChannelUnread(workspaceId);
 
   const isFavorite = channel.membership?.isFavorite ?? false;
   const isMuted = channel.membership?.isMuted ?? false;
@@ -166,17 +176,15 @@ function ChannelRow({
   const { copied, copy: handleCopyLink } = useCopyLink(channelUrl);
   /* "Share" copies the same link; it only differs in the confirmation it shows. */
   const { copied: shared, copy: handleShare } = useCopyLink(channelUrl);
-  const { copied: emailCopied, copy: handleEmailChannel } = useCopyLink(
-    `${channel.slug}-${workspaceSlug}@onetab.ai`,
-  );
 
   useEffect(() => () => clearTimeout(unreadTimer.current), []);
 
   const handleMarkUnread = useCallback(() => {
+    markChannelUnread(channel.id);
     setUnreadState(true);
     clearTimeout(unreadTimer.current);
     unreadTimer.current = setTimeout(() => setUnreadState(false), 2000);
-  }, []);
+  }, [channel.id, markChannelUnread]);
 
   const handleRename = useCallback(async () => {
     const name = await prompts.promptText({
@@ -185,19 +193,21 @@ function ChannelRow({
       defaultValue: channel.name,
       confirmLabel: 'Rename',
     });
-    if (!name) return;
-  }, [channel.name, prompts]);
+    if (!name || name === channel.name) return;
+    updateChannel.mutate({ channelId: channel.id, input: { name } });
+  }, [channel.id, channel.name, prompts, updateChannel]);
 
-  const handleDeleteChannel = useCallback(async () => {
+  const handleArchiveChannel = useCallback(async () => {
     const confirmed = await prompts.confirmAction({
-      title: `Delete #${channel.name}?`,
+      title: `Archive #${channel.name}?`,
       description:
-        'Are you sure you want to delete this channel? All messages and attachments will be removed.',
-      confirmLabel: 'Delete Channel',
+        'The channel will be hidden from the sidebar and marked read-only. Its history is kept, and a workspace admin can unarchive it later.',
+      confirmLabel: 'Archive Channel',
       destructive: true,
     });
     if (!confirmed) return;
-  }, [channel.name, prompts]);
+    archiveChannel.mutate({ channelId: channel.id, archived: true });
+  }, [archiveChannel, channel.id, channel.name, prompts]);
 
   return (
     <li className="group/row relative">
@@ -304,28 +314,6 @@ function ChannelRow({
               <DropdownMenuSeparator />
 
               <DropdownMenuItem
-                onSelect={handleEmailChannel}
-                className="gap-2.5"
-              >
-                {emailCopied ? (
-                  <Check className="size-4 text-success-text" />
-                ) : (
-                  <Mail className="size-4" />
-                )}
-                <span>
-                  {emailCopied ? 'Email address copied!' : 'Email to Channel'}
-                </span>
-              </DropdownMenuItem>
-
-              <DropdownMenuItem
-                onSelect={() => onToggleMute(channel)}
-                className="gap-2.5"
-              >
-                <Bell className="size-4" />
-                <span>Notification settings</span>
-              </DropdownMenuItem>
-
-              <DropdownMenuItem
                 onSelect={() => onToggleMute(channel)}
                 description="Follow this Channel in the future to show it in your sidebar again."
               >
@@ -347,12 +335,12 @@ function ChannelRow({
               <DropdownMenuSeparator />
 
               <DropdownMenuItem
-                onSelect={handleDeleteChannel}
+                onSelect={handleArchiveChannel}
                 variant="destructive"
                 className="gap-2.5"
               >
-                <Trash2 className="size-4" />
-                <span>Delete Channel</span>
+                <Archive className="size-4" />
+                <span>Archive Channel</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -535,6 +523,7 @@ export function ChannelNav({
   }
 
   const rowProps = {
+    workspaceId,
     workspaceSlug,
     onToggleFavorite: toggleFavorite,
     onToggleMute: toggleMute,
@@ -776,6 +765,7 @@ export function ChannelNav({
                     key={`starred-app-${app.provider}`}
                     app={{
                       id: app.provider,
+                      resourceId: app.id,
                       name: titleCaseProvider(app.provider),
                       icon: PROVIDER_ICON[app.provider] ?? 'Plug',
                       detail: 'Connected',
@@ -795,8 +785,9 @@ export function ChannelNav({
                         destructive: true,
                       });
                       if (!confirmed) return;
-                      integrationMutations.disconnect.mutate(app.provider);
+                      integrationMutations.disconnect.mutate(app.id);
                     }}
+                    onSync={() => integrationMutations.sync.mutateAsync(app.id)}
                     depth={1}
                   />
                 );
@@ -814,6 +805,7 @@ export function ChannelNav({
                       name: workflow.name,
                       icon: TRIGGER_ICON[workflow.triggerType] ?? 'Zap',
                       detail: workflow.triggerType,
+                      isActive: workflow.isActive,
                     }}
                     workspaceSlug={workspaceSlug}
                     isSelected={isSelected}
@@ -832,6 +824,18 @@ export function ChannelNav({
                       if (!confirmed) return;
                       workflowMutations.remove.mutate(workflow.id);
                     }}
+                    onRun={() =>
+                      workflowMutations.trigger.mutateAsync({
+                        workflowId: workflow.id,
+                        payload: {},
+                      })
+                    }
+                    onToggleActive={() =>
+                      workflowMutations.update.mutate({
+                        workflowId: workflow.id,
+                        input: { isActive: !workflow.isActive },
+                      })
+                    }
                     depth={1}
                   />
                 );

@@ -33,6 +33,12 @@ export interface CustomSlackChannelItem {
   name: string;
 }
 
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
 export interface CustomCardProperties {
   ticketId?: string;
   startDate?: string;
@@ -42,6 +48,8 @@ export interface CustomCardProperties {
   labels?: string[];
   leadId?: string;
   memberIds?: string[];
+  checklist?: ChecklistItem[];
+  isStarred?: boolean;
 }
 
 export interface KanbanCustomState {

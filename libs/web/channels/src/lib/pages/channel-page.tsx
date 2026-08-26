@@ -1045,10 +1045,11 @@ export function ChannelPage() {
               <div>
                 <h3 className="text-sm font-semibold gap-2 flex items-center text-foreground">
                   <Bookmark className="size-4 text-primary" />
-                  <span>Channel Bookmarks</span>
+                  <span>My Bookmarks</span>
                 </h3>
                 <p className="text-xs mt-0.5 text-muted-foreground">
-                  Pinned links, documents, and resources for #{channel.name}
+                  Links and resources you've saved from #{channel.name} —
+                  only visible to you, on this device.
                 </p>
               </div>
               <Button
@@ -1065,7 +1066,7 @@ export function ChannelPage() {
               <EmptyState
                 icon={<Bookmark />}
                 title="No bookmarks yet"
-                description="Pin important links, spreadsheets, Figma designs, and docs to this channel."
+                description="Save links, spreadsheets, Figma designs, and docs from this channel for quick access. Only you can see them, on this device."
                 action={
                   <Button
                     variant="outline"

@@ -490,6 +490,8 @@ export function AddAgentToChannelDialog({
               </DialogTitle>
               <DialogDescription className="text-xs">
                 Select an intelligent AI agent to participate and assist directly in this channel.
+                {' '}Local preview — only visible to you in this browser, not
+                the rest of the channel.
               </DialogDescription>
             </div>
           </div>

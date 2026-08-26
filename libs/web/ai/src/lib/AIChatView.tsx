@@ -1,3 +1,4 @@
+import { useCurrentUser } from '@org/auth';
 import {
   Button,
   DropdownMenu,
@@ -14,14 +15,48 @@ import {
   Copy,
   Home,
   Info,
+  Moon,
   MoreHorizontal,
   RotateCcw,
   Star,
+  Sun,
+  Sunrise,
+  Sunset,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AIComposer } from './ai-composer.js';
 import { AIErrorRow, AIMessage, AIThinkingRow } from '@org/chat-ui';
 import { useAIConversation } from './use-ai-conversation.js';
+
+/**
+ * Greeting word, icon, and the boundaries between them — all by wall-clock
+ * hour, since there's no weather data anywhere in this app to back a real
+ * forecast icon.
+ */
+const DAYPARTS = [
+  { untilHour: 5, label: 'Good evening', Icon: Moon },
+  { untilHour: 12, label: 'Good morning', Icon: Sunrise },
+  { untilHour: 17, label: 'Good afternoon', Icon: Sun },
+  { untilHour: 21, label: 'Good evening', Icon: Sunset },
+  { untilHour: 24, label: 'Good evening', Icon: Moon },
+] as const;
+
+function useDaypartClock() {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    // A minute is as fine-grained as the display gets (it shows HH:mm), so
+    // there is nothing to gain from ticking more often than that.
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const daypart =
+    DAYPARTS.find((part) => now.getHours() < part.untilHour) ??
+    DAYPARTS[DAYPARTS.length - 1];
+
+  return { now, greeting: daypart.label, Icon: daypart.Icon };
+}
 
 /**
  * The full-page AI surface.
@@ -33,8 +68,12 @@ import { useAIConversation } from './use-ai-conversation.js';
  */
 export function AIChatView() {
   const chat = useAIConversation();
+  const user = useCurrentUser();
+  const { now, greeting, Icon: DaypartIcon } = useDaypartClock();
   const [isFavorite, setIsFavorite] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const firstName = (user?.displayName ?? user?.name ?? '').split(' ')[0];
 
   const streamEndRef = useRef<HTMLDivElement>(null);
 
@@ -95,13 +134,22 @@ export function AIChatView() {
         <div className="max-w-2xl gap-6 px-4 animate-in fade-in flex w-full flex-1 flex-col items-center justify-center duration-(--duration-slow)">
           <div className="space-y-2 text-center">
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
-              Your AI Copilot
+              {firstName ? `${greeting}, ${firstName}` : greeting}
             </h1>
-            <p className="text-sm text-muted-foreground">
-              Ask about your workspace, or start with{' '}
-              <span className="font-mono text-primary">@</span> to pick a model
-              and <span className="font-mono text-primary">/</span> for a
-              command.
+            <p className="gap-1.5 text-sm flex items-center justify-center text-muted-foreground">
+              <DaypartIcon className="size-3.5" aria-hidden />
+              <span>
+                {now.toLocaleDateString(undefined, {
+                  weekday: 'long',
+                  month: 'short',
+                  day: 'numeric',
+                })}
+                {' · '}
+                {now.toLocaleTimeString(undefined, {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
             </p>
           </div>
 

@@ -18,7 +18,6 @@ import {
 } from '@org/web-integrations';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
-  Bell,
   Bot,
   Check,
   ChevronRight,
@@ -54,6 +53,14 @@ export interface ResourceItemData {
   name: string;
   icon?: string;
   detail?: string;
+  /**
+   * The record's real backend id, when it differs from `id`. Apps route on
+   * the provider slug (`id`), but mutations need the actual `ExternalIntegration`
+   * row id — without this they'd disconnect/sync a row that doesn't exist.
+   */
+  resourceId?: string;
+  /** Workflows only: whether the automation is currently enabled server-side. */
+  isActive?: boolean;
 }
 
 export const APP_LOGOS: Record<string, string> = {
@@ -171,7 +178,6 @@ export function AgentNavRow({
   depth?: NavDepth;
 }) {
   const navigate = useNavigate();
-  const [muted, setMuted] = useState(false);
   const { copied, copy } = useCopyLink(
     `${window.location.origin}/w/${workspaceSlug}/agents/chat?id=${agent.id}`,
   );
@@ -183,7 +189,7 @@ export function AgentNavRow({
         className={({ isActive }) =>
           navRowClass(isSelected || isActive, {
             depth,
-            extra: cn('pr-14', muted && 'text-muted-foreground'),
+            extra: 'pr-14',
           })
         }
         title={agent.detail ? `${agent.name} — ${agent.detail}` : agent.name}
@@ -280,16 +286,6 @@ export function AgentNavRow({
               <span>Agent settings & tools</span>
             </DropdownMenuItem>
 
-            <DropdownMenuItem
-              onSelect={() => setMuted((prev) => !prev)}
-              className="gap-2.5"
-            >
-              <Bell className="size-4" />
-              <span>
-                {muted ? 'Unmute notifications' : 'Mute notifications'}
-              </span>
-            </DropdownMenuItem>
-
             {onDelete ? (
               <>
                 <DropdownMenuSeparator />
@@ -317,6 +313,7 @@ export function AppNavRow({
   isFavorite,
   onToggleFavorite,
   onDisconnect,
+  onSync,
   depth = 1,
 }: {
   app: ResourceItemData;
@@ -325,10 +322,12 @@ export function AppNavRow({
   isFavorite: boolean;
   onToggleFavorite: () => void;
   onDisconnect?: () => void;
+  onSync?: () => Promise<unknown>;
   depth?: NavDepth;
 }) {
   const navigate = useNavigate();
   const [synced, setSynced] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const syncTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const { copied, copy } = useCopyLink(
     `${window.location.origin}/w/${workspaceSlug}/integrations?app=${app.id}`,
@@ -336,11 +335,20 @@ export function AppNavRow({
 
   useEffect(() => () => clearTimeout(syncTimer.current), []);
 
-  const handleSync = useCallback(() => {
-    setSynced(true);
-    clearTimeout(syncTimer.current);
-    syncTimer.current = setTimeout(() => setSynced(false), 2000);
-  }, []);
+  const handleSync = useCallback(async () => {
+    if (!onSync || syncing) return;
+    setSyncing(true);
+    try {
+      await onSync();
+      setSynced(true);
+      clearTimeout(syncTimer.current);
+      syncTimer.current = setTimeout(() => setSynced(false), 2000);
+    } catch {
+      // The mutation surfaces its own error toast.
+    } finally {
+      setSyncing(false);
+    }
+  }, [onSync, syncing]);
 
   return (
     <li className="group/row relative">
@@ -389,14 +397,26 @@ export function AppNavRow({
               <DropdownMenuShortcut>C</DropdownMenuShortcut>
             </DropdownMenuItem>
 
-            <DropdownMenuItem onSelect={handleSync} className="gap-2.5">
-              {synced ? (
-                <Check className="size-4 text-success-text" />
-              ) : (
-                <RefreshCw className="size-4" />
-              )}
-              <span>{synced ? 'Synced successfully!' : 'Sync connection'}</span>
-            </DropdownMenuItem>
+            {onSync ? (
+              <DropdownMenuItem
+                onSelect={handleSync}
+                disabled={syncing}
+                className="gap-2.5"
+              >
+                {synced ? (
+                  <Check className="size-4 text-success-text" />
+                ) : (
+                  <RefreshCw className={cn('size-4', syncing && 'animate-spin')} />
+                )}
+                <span>
+                  {synced
+                    ? 'Synced successfully!'
+                    : syncing
+                      ? 'Syncing…'
+                      : 'Sync connection'}
+                </span>
+              </DropdownMenuItem>
+            ) : null}
 
             <DropdownMenuSeparator />
 
@@ -455,6 +475,8 @@ export function WorkflowNavRow({
   isFavorite,
   onToggleFavorite,
   onDelete,
+  onRun,
+  onToggleActive,
   depth = 1,
 }: {
   workflow: ResourceItemData;
@@ -463,23 +485,35 @@ export function WorkflowNavRow({
   isFavorite: boolean;
   onToggleFavorite: () => void;
   onDelete?: () => void;
+  onRun?: () => Promise<unknown>;
+  onToggleActive?: () => void;
   depth?: NavDepth;
 }) {
   const navigate = useNavigate();
   const [triggered, setTriggered] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
+  const [running, setRunning] = useState(false);
   const runTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const { copied, copy } = useCopyLink(
     `${window.location.origin}/w/${workspaceSlug}/automations?workflow=${workflow.id}`,
   );
+  const isActive = workflow.isActive ?? true;
 
   useEffect(() => () => clearTimeout(runTimer.current), []);
 
-  const handleRunWorkflow = useCallback(() => {
-    setTriggered(true);
-    clearTimeout(runTimer.current);
-    runTimer.current = setTimeout(() => setTriggered(false), 2000);
-  }, []);
+  const handleRunWorkflow = useCallback(async () => {
+    if (!onRun || running) return;
+    setRunning(true);
+    try {
+      await onRun();
+      setTriggered(true);
+      clearTimeout(runTimer.current);
+      runTimer.current = setTimeout(() => setTriggered(false), 2000);
+    } catch {
+      // The mutation surfaces its own error toast.
+    } finally {
+      setRunning(false);
+    }
+  }, [onRun, running]);
 
   return (
     <li className="group/row relative">
@@ -521,16 +555,26 @@ export function WorkflowNavRow({
               <span>Edit workflow</span>
             </DropdownMenuItem>
 
-            <DropdownMenuItem onSelect={handleRunWorkflow} className="gap-2.5">
-              {triggered ? (
-                <Check className="size-4 text-success-text" />
-              ) : (
-                <Play className="size-4" />
-              )}
-              <span>
-                {triggered ? 'Workflow triggered!' : 'Run workflow now'}
-              </span>
-            </DropdownMenuItem>
+            {onRun ? (
+              <DropdownMenuItem
+                onSelect={handleRunWorkflow}
+                disabled={running}
+                className="gap-2.5"
+              >
+                {triggered ? (
+                  <Check className="size-4 text-success-text" />
+                ) : (
+                  <Play className="size-4" />
+                )}
+                <span>
+                  {triggered
+                    ? 'Workflow triggered!'
+                    : running
+                      ? 'Triggering…'
+                      : 'Run workflow now'}
+                </span>
+              </DropdownMenuItem>
+            ) : null}
 
             <DropdownMenuItem onSelect={copy} className="justify-between">
               <div className="gap-2.5 flex items-center">
@@ -564,17 +608,16 @@ export function WorkflowNavRow({
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem
-              onSelect={() => setIsPaused((prev) => !prev)}
-              className="gap-2.5"
-            >
-              {isPaused ? (
-                <Play className="size-4" />
-              ) : (
-                <Pause className="size-4" />
-              )}
-              <span>{isPaused ? 'Resume automation' : 'Pause automation'}</span>
-            </DropdownMenuItem>
+            {onToggleActive ? (
+              <DropdownMenuItem onSelect={onToggleActive} className="gap-2.5">
+                {isActive ? (
+                  <Pause className="size-4" />
+                ) : (
+                  <Play className="size-4" />
+                )}
+                <span>{isActive ? 'Pause automation' : 'Resume automation'}</span>
+              </DropdownMenuItem>
+            ) : null}
 
             <DropdownMenuItem
               onSelect={() =>
@@ -621,27 +664,7 @@ export function AgentsSection({
   const mutations = useAgentMutations(workspaceId);
   const { isFavorite, toggleFavorite } = useSidebarFavorites(workspaceId);
 
-  const serverAgents = agents.data ?? [];
-  const agentList =
-    serverAgents.length > 0
-      ? serverAgents
-      : [
-          {
-            id: 'agent-copilot',
-            name: 'OneTab Copilot',
-            role: 'Workspace Assistant & Automation Bot',
-          },
-          {
-            id: 'agent-codereview',
-            name: 'Code Reviewer',
-            role: 'Senior Software Engineer & PR Auditor',
-          },
-          {
-            id: 'agent-triage',
-            name: 'Incident & Bug Triage',
-            role: 'Engineering Reliability & Issue Tracker',
-          },
-        ];
+  const agentList = agents.data ?? [];
 
   const items: ResourceItemData[] = agentList.map((agent) => ({
     id: agent.id,
@@ -735,19 +758,13 @@ export function AppsSection({
   const mutations = useIntegrationMutations(workspaceId);
   const { isFavorite, toggleFavorite } = useSidebarFavorites(workspaceId);
 
-  const serverIntegrations = integrations.data ?? [];
-  const integrationList =
-    serverIntegrations.length > 0
-      ? serverIntegrations.filter((i) => i.status === 'CONNECTED')
-      : [
-          { provider: 'github', status: 'CONNECTED' },
-          { provider: 'linear', status: 'CONNECTED' },
-          { provider: 'sentry', status: 'CONNECTED' },
-          { provider: 'figma', status: 'CONNECTED' },
-        ];
+  const integrationList = (integrations.data ?? []).filter(
+    (i) => i.status === 'CONNECTED',
+  );
 
   const items: ResourceItemData[] = integrationList.map((integration) => ({
     id: integration.provider,
+    resourceId: integration.id,
     name: titleCaseProvider(integration.provider),
     icon: PROVIDER_ICON[integration.provider] ?? 'Plug',
     detail: 'Connected',
@@ -764,7 +781,7 @@ export function AppsSection({
       });
       if (!confirmed) return;
     }
-    mutations.disconnect.mutate(app.id);
+    mutations.disconnect.mutate(app.resourceId ?? app.id);
   };
 
   return (
@@ -809,6 +826,9 @@ export function AppsSection({
             isFavorite={isFavorite('app', item.id)}
             onToggleFavorite={() => toggleFavorite('app', item.id)}
             onDisconnect={() => void handleDisconnect(item)}
+            onSync={() =>
+              mutations.sync.mutateAsync(item.resourceId ?? item.id)
+            }
             depth={1}
           />
         );
@@ -845,6 +865,7 @@ export function WorkflowsSection({
     name: workflow.name,
     icon: TRIGGER_ICON[workflow.triggerType] ?? 'Zap',
     detail: workflow.triggerType,
+    isActive: workflow.isActive,
   }));
 
   const handleDelete = async (workflow: ResourceItemData) => {
@@ -898,6 +919,15 @@ export function WorkflowsSection({
             isFavorite={isFavorite('workflow', item.id)}
             onToggleFavorite={() => toggleFavorite('workflow', item.id)}
             onDelete={() => void handleDelete(item)}
+            onRun={() =>
+              mutations.trigger.mutateAsync({ workflowId: item.id, payload: {} })
+            }
+            onToggleActive={() =>
+              mutations.update.mutate({
+                workflowId: item.id,
+                input: { isActive: !(item.isActive ?? true) },
+              })
+            }
             depth={1}
           />
         );

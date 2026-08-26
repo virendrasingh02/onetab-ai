@@ -10,6 +10,7 @@ export {
 export {
   useChannelActivity,
   useMarkChannelSeen,
+  useMarkChannelUnread,
   useNotificationFeed,
   useNotificationPreferenceMutations,
   useNotificationPreferences,

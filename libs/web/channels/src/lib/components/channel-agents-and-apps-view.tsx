@@ -182,6 +182,13 @@ export function ChannelAgentsAndAppsView({
             <p className="text-xs text-muted-foreground mt-1">
               Autonomous AI coworkers, automated webhook bots, and rich message design previews for #{channel.name}.
             </p>
+            <p className="text-xs text-accent-amber mt-1.5 flex items-center gap-1.5">
+              <AlertTriangle className="size-3.5 shrink-0" />
+              <span>
+                Local preview only — what you add and send here stays in this
+                browser and isn't visible to the rest of #{channel.name}.
+              </span>
+            </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">

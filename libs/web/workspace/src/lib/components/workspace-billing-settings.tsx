@@ -1,3 +1,5 @@
+import { formatBytes, formatNumber } from '@org/analytics-ui';
+import { analyticsApi, queryKeys } from '@org/api-client';
 import {
   Badge,
   Button,
@@ -17,6 +19,7 @@ import {
   Separator,
   Switch,
 } from '@org/ui';
+import { useQuery } from '@tanstack/react-query';
 import {
   Bot,
   Building,
@@ -32,6 +35,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useCurrentWorkspace } from '../use-workspaces.js';
 
 export interface WorkspaceBillingSettingsProps {
   totalMembers?: number;
@@ -62,6 +66,27 @@ export function WorkspaceBillingSettings({
   const [upgradeSuccessMessage, setUpgradeSuccessMessage] = useState<
     string | null
   >(null);
+
+  /*
+   * The two usage cards below need real numbers, not the workspace's own
+   * settings-page query. Called directly against `analyticsApi` rather than
+   * through `@org/web-analytics`'s hooks — that lib depends on this one for
+   * `useCurrentWorkspace`, so importing it back here would be circular.
+   * Mirrors `workspace-company-analytics.tsx`, which hits the same two
+   * endpoints the same way from elsewhere in this lib.
+   */
+  const { workspaceId } = useCurrentWorkspace();
+  const usageDays = 30;
+  const aiUsageQuery = useQuery({
+    queryKey: queryKeys.analytics.aiUsage(workspaceId ?? '', usageDays),
+    queryFn: () => analyticsApi.aiUsage(workspaceId as string, usageDays),
+    enabled: !!workspaceId,
+  });
+  const storageQuery = useQuery({
+    queryKey: queryKeys.analytics.storage(workspaceId ?? '', usageDays),
+    queryFn: () => analyticsApi.storage(workspaceId as string, usageDays),
+    enabled: !!workspaceId,
+  });
 
   const proMonthlyPrice = 12;
   const proAnnualPrice = 10;
@@ -239,7 +264,9 @@ export function WorkspaceBillingSettings({
             </p>
           </div>
 
-          {/* AI Compute */}
+          {/* AI Compute — there is no plan quota to measure against yet (no
+              billing backend), so this shows real usage rather than faking a
+              used-of-limit bar against a number that doesn't exist. */}
           <div className="p-3.5 space-y-2 rounded-xl border border-border bg-surface-inset/40">
             <div className="text-xs flex items-center justify-between">
               <span className="gap-1.5 font-medium flex items-center text-muted-foreground">
@@ -247,19 +274,17 @@ export function WorkspaceBillingSettings({
                 AI Agent Runs
               </span>
               <span className="font-semibold text-foreground">
-                {currentPlan === 'starter' ? '120 / 500' : 'Unlimited'}
+                {aiUsageQuery.data
+                  ? `${formatNumber(aiUsageQuery.data.agentExecutions)} runs`
+                  : aiUsageQuery.isLoading
+                    ? '…'
+                    : '—'}
               </span>
             </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-muted/60">
-              <div
-                className="h-full rounded-full bg-accent-indigo"
-                style={{ width: `${currentPlan === 'starter' ? 24 : 10}%` }}
-              />
-            </div>
             <p className="text-[11px] text-muted-foreground">
-              {currentPlan === 'starter'
-                ? 'Standard GPT-4o mini runs included'
-                : 'High-speed GPT-4o, Claude 3.5 & Gemini Pro'}
+              {aiUsageQuery.data
+                ? `${formatNumber(aiUsageQuery.data.estimatedTokens)} tokens in the last ${usageDays} days`
+                : 'Last 30 days'}
             </p>
           </div>
 
@@ -271,21 +296,23 @@ export function WorkspaceBillingSettings({
                 File & Media Storage
               </span>
               <span className="font-semibold text-foreground">
-                {currentPlan === 'starter'
-                  ? '1.2 GB / 5 GB'
-                  : '1.2 GB / 500 GB'}
+                {storageQuery.data
+                  ? `${formatBytes(storageQuery.data.totalBytes)} / ${formatBytes(storageQuery.data.quotaBytes)}`
+                  : storageQuery.isLoading
+                    ? '…'
+                    : '—'}
               </span>
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-muted/60">
               <div
                 className="h-full rounded-full bg-success"
-                style={{ width: `${currentPlan === 'starter' ? 24 : 3}%` }}
+                style={{ width: `${storageQuery.data?.usedPct ?? 0}%` }}
               />
             </div>
             <p className="text-[11px] text-muted-foreground">
-              {currentPlan === 'starter'
-                ? '5 GB shared workspace file storage'
-                : '500 GB high-speed encrypted cloud storage'}
+              {storageQuery.data
+                ? `${storageQuery.data.usedPct}% of workspace quota consumed`
+                : 'Shared workspace file storage'}
             </p>
           </div>
         </CardContent>

@@ -97,6 +97,8 @@ export function AddAppDialog({
               </DialogTitle>
               <DialogDescription className="text-xs">
                 Connect external apps, issue trackers, and monitoring bots to post live updates.
+                {' '}Local preview — only visible to you in this browser, not
+                the rest of the channel.
               </DialogDescription>
             </div>
           </div>

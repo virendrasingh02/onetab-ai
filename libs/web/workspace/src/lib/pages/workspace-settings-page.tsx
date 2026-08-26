@@ -2205,7 +2205,7 @@ export function WorkspaceSettingsPage({
         <div className="space-y-8">
           <UpgradePlanBanner
             variant="compact"
-            totalMembers={1}
+            totalMembers={workspace?.memberCount ?? 1}
             maxSeats={5}
             currentPlan="starter"
             onUpgradeClick={() => handleTabChange('billing')}

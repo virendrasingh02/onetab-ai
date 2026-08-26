@@ -419,3 +419,23 @@ export function useMarkChannelSeen(workspaceId: string | undefined) {
     [workspaceId],
   );
 }
+
+/**
+ * Stamps a channel as unread again — the inverse of `useMarkChannelSeen`.
+ *
+ * Backdates the channel's marker rather than clearing it: `useChannelActivity`
+ * treats a cutoff of exactly zero (i.e. never stamped) as "don't light up the
+ * whole backlog", so clearing the key here would silently do nothing whenever
+ * the workspace-level marker is already caught up. `1` (one millisecond past
+ * the epoch) is old enough that every real message sorts after it, while still
+ * being a real, non-zero timestamp.
+ */
+export function useMarkChannelUnread(workspaceId: string | undefined) {
+  return useCallback(
+    (channelId: string | undefined) => {
+      if (!workspaceId || !channelId) return;
+      writeSeenAt(workspaceId, new Date(1).toISOString(), channelId);
+    },
+    [workspaceId],
+  );
+}

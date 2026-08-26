@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@org/api-client": "*",
+    "@org/auth": "*",
     "@org/design-system": "*",
     "@org/types": "*",
     "@org/ui": "*",

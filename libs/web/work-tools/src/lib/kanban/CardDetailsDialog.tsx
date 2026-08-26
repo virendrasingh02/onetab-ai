@@ -1,3 +1,4 @@
+import { aiApi } from '@org/api-client';
 import { type TaskStatus } from '@org/types';
 import {
   Button,
@@ -11,10 +12,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Textarea,
+  toast,
   UserAvatar,
   useRightPanelStore,
 } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';
+import { useMutation } from '@tanstack/react-query';
 import {
   AlertTriangle,
   AlignLeft,
@@ -29,10 +32,7 @@ import {
   Clock,
   Copy,
   Expand,
-  FileVideo,
   Filter,
-  GitBranch,
-  Link2,
   ListCheck,
   Maximize2,
   MessageSquare,
@@ -40,7 +40,6 @@ import {
   Paperclip,
   PanelRight,
   Pencil,
-  Play,
   Plus,
   Search,
   Send,
@@ -49,7 +48,6 @@ import {
   Sparkles,
   Star,
   Tag,
-  ThumbsUp,
   Timer,
   Trash2,
   Users,
@@ -64,7 +62,10 @@ import {
   useKanbanCardViewStore,
   type KanbanCardViewMode,
 } from './kanban-card-view-store.js';
-import { useKanbanCustomStore } from './kanban-custom-store.js';
+import {
+  useKanbanCustomStore,
+  type ChecklistItem,
+} from './kanban-custom-store.js';
 import { KanbanLabelPicker } from './KanbanLabelPicker.js';
 import { KanbanLeadPicker } from './KanbanLeadPicker.js';
 import {
@@ -266,17 +267,8 @@ function CardDetailsBody({
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState(card.description);
   const [commentDraft, setCommentDraft] = useState('');
-  const [isStarred, setIsStarred] = useState(false);
-  const [isPlayingVideo, setIsPlayingVideo] = useState(false);
   const [isFieldsOpen, setIsFieldsOpen] = useState(true);
 
-  // Checklists mock state
-  const [checklists, setChecklists] = useState([
-    { id: '1', text: "Complete checklist item 'Again this'.", done: false },
-    { id: '2', text: "Complete checklist item 'sdfbdfbdfb'.", done: true },
-    { id: '3', text: "Complete checklist item 'dfbdfbdf'.", done: false },
-    { id: '4', text: 'Work on subtask and finalize assets.', done: false },
-  ]);
   const [newChecklistText, setNewChecklistText] = useState('');
   const [isAddingChecklist, setIsAddingChecklist] = useState(false);
 
@@ -287,6 +279,19 @@ function CardDetailsBody({
   const customStore = useKanbanCustomStore();
   const cardCustomProps = customStore.getCardProperties(card.id);
   const storeLabels = customStore.labels;
+
+  /*
+   * Checklist and star persist per-card through the same local store the
+   * lead/labels/start-date fields already use — real data, kept in this
+   * browser, rather than throwaway `useState` that reset every time the
+   * dialog reopened.
+   */
+  const checklists = cardCustomProps.checklist ?? [];
+  const setChecklists = (next: ChecklistItem[]) =>
+    customStore.setCardProperties(card.id, { checklist: next });
+  const isStarred = cardCustomProps.isStarred ?? false;
+  const setIsStarred = (next: boolean) =>
+    customStore.setCardProperties(card.id, { isStarred: next });
 
   const currentStatus = listId;
   const currentPriority = card.priority || 'NO_PRIORITY';
@@ -341,12 +346,34 @@ function CardDetailsBody({
     setIsAddingChecklist(false);
   };
 
+  const generateDescription = useMutation({
+    mutationFn: async () => {
+      if (!workspaceId) throw new Error('Workspace context required');
+      const response = await aiApi.chat(workspaceId, {
+        messages: [
+          {
+            role: 'user',
+            content: `Write a concise task description for a ${listTitle} card titled "${card.title}". Include a one- or two-sentence overview followed by a short markdown checklist of acceptance criteria.`,
+          },
+        ],
+      });
+      return response.message.content;
+    },
+    onError: () => {
+      toast.error('Could not generate a description', {
+        description: 'Try again in a moment.',
+      });
+    },
+  });
+
   const handleGenerateWithAI = () => {
-    setDescriptionDraft(
-      (prev) =>
-        `${prev ? prev + '\n\n' : ''}### Overview\nThis task focuses on executing the end-to-end design flow for the application.\n\n### Acceptance Criteria\n- [ ] Clean and cohesive visual hierarchy\n- [ ] Fully responsive on mobile and desktop\n- [ ] Integrated status indicators and activity feed`,
-    );
-    setEditingDescription(true);
+    if (generateDescription.isPending) return;
+    generateDescription.mutate(undefined, {
+      onSuccess: (content) => {
+        setDescriptionDraft((prev) => (prev ? `${prev}\n\n${content}` : content));
+        setEditingDescription(true);
+      },
+    });
   };
 
   /*
@@ -396,25 +423,17 @@ function CardDetailsBody({
                 isPanel ? 'hidden' : 'hidden lg:flex',
               )}
             >
-              <span className="flex items-center gap-1 hover:text-foreground cursor-pointer" title="Subtasks">
-                <GitBranch className="size-3" />
-                <span>3</span>
-              </span>
-              <span className="flex items-center gap-1 hover:text-foreground cursor-pointer" title="Completed checklists">
-                <Check className="size-3 text-accent-green" />
-                <span>2</span>
-              </span>
+              {checklists.length > 0 ? (
+                <span className="flex items-center gap-1 hover:text-foreground cursor-pointer" title="Completed checklist items">
+                  <Check className="size-3 text-accent-green" />
+                  <span>
+                    {checklists.filter((c) => c.done).length}/{checklists.length}
+                  </span>
+                </span>
+              ) : null}
               <span className="flex items-center gap-1 hover:text-foreground cursor-pointer" title="Comments">
                 <MessageSquare className="size-3" />
-                <span>{card.commentCount || 3}</span>
-              </span>
-              <span className="flex items-center gap-1 hover:text-foreground cursor-pointer" title="Dependencies">
-                <Link2 className="size-3" />
-                <span>1</span>
-              </span>
-              <span className="flex items-center gap-1 hover:text-foreground cursor-pointer" title="Mentions">
-                <AtSign className="size-3" />
-                <span>9</span>
+                <span>{comments.data?.length ?? card.commentCount ?? 0}</span>
               </span>
               {currentLead && (
                 <span className="flex items-center gap-1 px-1.5 py-0.2 rounded bg-accent-amber-soft text-accent-amber font-semibold text-[10px]">
@@ -430,14 +449,17 @@ function CardDetailsBody({
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-[11px] text-muted-foreground hidden md:inline-block mr-2">
-            Created {formatDateShort(card.createdAt) || 'Sep 8, 2023'}
-          </span>
+          {formatDateShort(card.createdAt) ? (
+            <span className="text-[11px] text-muted-foreground hidden md:inline-block mr-2">
+              Created {formatDateShort(card.createdAt)}
+            </span>
+          ) : null}
 
           <Button
             variant="outline"
             size="sm"
             onClick={handleGenerateWithAI}
+            loading={generateDescription.isPending}
             className="h-7 text-xs gap-1.5 text-accent-violet border-accent-violet/30 hover:bg-accent-violet-soft font-medium"
           >
             <Sparkles className="size-3.5" />
@@ -557,6 +579,7 @@ function CardDetailsBody({
               size="sm"
               variant="outline"
               onClick={handleGenerateWithAI}
+              loading={generateDescription.isPending}
               className="h-6 text-[11px] bg-surface text-accent-violet border-accent-violet/40 hover:bg-accent-violet-soft font-semibold px-2.5 shrink-0"
             >
               Generate
@@ -811,6 +834,7 @@ function CardDetailsBody({
                     size="sm"
                     variant="subtle"
                     onClick={handleGenerateWithAI}
+                    loading={generateDescription.isPending}
                     className="text-xs text-accent-violet gap-1"
                   >
                     <Sparkles className="size-3" />
@@ -944,7 +968,7 @@ function CardDetailsBody({
               </button>
               <button type="button" className="p-1 rounded hover:bg-muted flex items-center gap-0.5 text-xs">
                 <MessageSquare className="size-3.5" />
-                <span className="text-[10px] font-mono">{card.commentCount || 2}</span>
+                <span className="text-[10px] font-mono">{comments.data?.length ?? card.commentCount ?? 0}</span>
               </button>
               <button type="button" className="p-1 rounded hover:bg-muted" title="Filter activity">
                 <Filter className="size-3.5" />
@@ -954,105 +978,16 @@ function CardDetailsBody({
 
           {/* Activity Stream Scrollable Area */}
           <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 text-xs">
-            {/* Comment Item 1 */}
-            <div className="space-y-1.5 p-3 rounded-xl bg-surface border border-border/60 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="size-5 rounded-full bg-accent-rose text-white font-bold flex items-center justify-center text-[9px]">
-                    VS
-                  </span>
-                  <span className="font-semibold text-foreground text-xs">virendra singh</span>
-                </div>
-                <span className="text-[10px] text-muted-foreground">Jul 16 2024 at 6:49 pm</span>
-              </div>
-              <p className="text-xs text-foreground pl-7">Hello there</p>
-              <div className="flex items-center gap-3 pt-1 pl-7 text-muted-foreground">
-                <button type="button" className="hover:text-foreground flex items-center gap-1 text-[11px]">
-                  <ThumbsUp className="size-3" />
-                </button>
-                <button type="button" className="hover:text-foreground flex items-center gap-1 text-[11px]">
-                  <Smile className="size-3" />
-                </button>
-                <button type="button" className="hover:text-foreground text-[11px] font-medium ml-auto">
-                  Reply
-                </button>
-              </div>
-            </div>
+            {comments.isLoading ? (
+              <p className="text-muted-foreground/70 text-center py-4">
+                Loading comments…
+              </p>
+            ) : (comments.data ?? []).length === 0 ? (
+              <p className="text-muted-foreground/70 text-center py-4">
+                No comments yet. Start the conversation below.
+              </p>
+            ) : null}
 
-            {/* Comment Item 2 with Video / Screen Recording Attachment */}
-            <div className="space-y-2 p-3 rounded-xl bg-surface border border-border/60 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="size-5 rounded-full bg-accent-rose text-white font-bold flex items-center justify-center text-[9px]">
-                    VS
-                  </span>
-                  <span className="font-semibold text-foreground text-xs">virendra singh</span>
-                </div>
-                <span className="text-[10px] text-muted-foreground">Jan 10 2025 at 11:26 am</span>
-              </div>
-
-              {/* Embedded Video Card matching screenshot */}
-              <div className="rounded-xl border border-border overflow-hidden bg-neutral-900 text-white">
-                <div className="p-2 px-3 bg-neutral-800/90 border-b border-neutral-700 flex items-center gap-2 text-[11px] font-medium text-neutral-200">
-                  <FileVideo className="size-3.5 text-primary" />
-                  <span className="truncate">screen-recording-2024-06-18-16:13</span>
-                </div>
-
-                <div className="relative aspect-video flex items-center justify-center bg-black/60 group">
-                  {isPlayingVideo ? (
-                    <div className="text-center p-4">
-                      <p className="text-xs font-medium text-white mb-2">Playing video stream...</p>
-                      <Button size="sm" variant="outline" onClick={() => setIsPlayingVideo(false)} className="h-6 text-xs">
-                        Pause
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="absolute inset-0 bg-neutral-950/40 flex items-center justify-center">
-                        <button
-                          type="button"
-                          onClick={() => setIsPlayingVideo(true)}
-                          className="size-10 rounded-full bg-white/20 backdrop-blur-md hover:bg-white/30 flex items-center justify-center text-white transition-transform group-hover:scale-110 shadow-lg"
-                        >
-                          <Play className="size-5 fill-current ml-0.5" />
-                        </button>
-                      </div>
-                      <div className="absolute bottom-2 inset-x-2 flex items-center justify-between text-[10px] text-neutral-300 bg-neutral-950/70 backdrop-blur-sm px-2 py-1 rounded-md">
-                        <div className="flex items-center gap-2">
-                          <Play className="size-2.5 fill-current" />
-                          <span>00:00 / 00:05</span>
-                        </div>
-                        <div className="flex items-center gap-2 font-mono">
-                          <span>1x</span>
-                          <Maximize2 className="size-2.5" />
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 pt-1 text-muted-foreground">
-                <button type="button" className="hover:text-foreground flex items-center gap-1 text-[11px]">
-                  <ThumbsUp className="size-3" />
-                </button>
-                <button type="button" className="hover:text-foreground flex items-center gap-1 text-[11px]">
-                  <Smile className="size-3" />
-                </button>
-                <button type="button" className="hover:text-foreground text-[11px] font-medium ml-auto">
-                  Reply
-                </button>
-              </div>
-            </div>
-
-            {/* System Audit Log Entry */}
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground/80 py-1">
-              <span className="size-1.5 rounded-full bg-muted-foreground/40 shrink-0" />
-              <span>You removed the due date of 2/23/24</span>
-              <span className="text-[10px] text-muted-foreground/60 ml-auto">Sep 12 2025</span>
-            </div>
-
-            {/* Dynamic fetched comments */}
             {(comments.data ?? []).map((comment) => (
               <div key={comment.id} className="space-y-1.5 p-3 rounded-xl bg-surface border border-border/60 shadow-2xs">
                 <div className="flex items-center justify-between">
