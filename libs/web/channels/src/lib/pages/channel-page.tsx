@@ -183,13 +183,20 @@ function ChannelHeader({
       <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
         <div className="min-w-0 gap-2 flex items-center">
           <div className="min-w-0 gap-1.5 flex items-center">
-            <Icon
-              className="size-4 shrink-0 text-muted-foreground"
-              aria-hidden
-            />
-            <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
-              {channel.name}
-            </h2>
+            <button
+              type="button"
+              onClick={onOpenDetails}
+              className="gap-1.5 p-1 -m-1 flex cursor-pointer items-center rounded-md text-left transition-colors hover:bg-accent/60 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+              aria-label={`View channel details for #${channel.name}`}
+            >
+              <Icon
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
+                {channel.name}
+              </h2>
+            </button>
             {channel.isArchived ? (
               <Badge variant="warning">Archived</Badge>
             ) : null}

@@ -1184,7 +1184,7 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
   }, [editor, linkDraft]);
 
   return (
-    <div className="bg-surface">
+    <div className="bg-surface-removed">
       <div className="gap-0.5 px-2 py-1 flex scrollbar-none items-center overflow-x-auto rounded-[inherit]">
         <ToolButton
           label="Bold (Ctrl+B)"
