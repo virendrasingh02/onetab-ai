@@ -1,4 +1,9 @@
-import { $createCodeNode, $isCodeNode, CodeHighlightNode, CodeNode } from '@lexical/code';
+import {
+  $createCodeNode,
+  $isCodeNode,
+  CodeHighlightNode,
+  CodeNode,
+} from '@lexical/code';
 import { HashtagNode } from '@lexical/hashtag';
 import {
   $isLinkNode,
@@ -340,8 +345,7 @@ function EditorApiPlugin({
     if (!onRegisterRef) return;
 
     onRegisterRef({
-      insertText: (text) =>
-        insertNodesAtCaret(() => [$createTextNode(text)]),
+      insertText: (text) => insertNodesAtCaret(() => [$createTextNode(text)]),
 
       insertMention: (candidate) =>
         insertNodesAtCaret(() => [
@@ -372,7 +376,12 @@ function EditorApiPlugin({
 
       setMarkdown: (markdown) => {
         editor.update(() => {
-          $convertFromMarkdownString(markdown, CHAT_TRANSFORMERS, undefined, true);
+          $convertFromMarkdownString(
+            markdown,
+            CHAT_TRANSFORMERS,
+            undefined,
+            true,
+          );
         });
       },
 
@@ -500,15 +509,15 @@ function MenuShell({
   children: ReactNode;
 }) {
   return (
-    <div className={`absolute bottom-full left-0 z-120 mb-2 ${MENU_CLASS}`}>
-      <div className="flex items-center justify-between border-b border-border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider">
-        <span className="flex items-center gap-1.5 text-primary-text">
+    <div className={`left-0 mb-2 absolute bottom-full z-120 ${MENU_CLASS}`}>
+      <div className="px-3 py-1.5 font-bold tracking-wider flex items-center justify-between border-b border-border text-[10px] uppercase">
+        <span className="gap-1.5 flex items-center text-primary-text">
           {icon}
           <span>{label}</span>
         </span>
         {hint ? <span className="text-subtle">{hint}</span> : null}
       </div>
-      <ul className="max-h-64 overflow-y-auto p-1">{children}</ul>
+      <ul className="max-h-64 p-1 overflow-y-auto">{children}</ul>
     </div>
   );
 }
@@ -527,7 +536,11 @@ function MenuItem({
   children: ReactNode;
 }) {
   return (
-    <li role="option" aria-selected={isSelected} ref={option.setRefElement.bind(option)}>
+    <li
+      role="option"
+      aria-selected={isSelected}
+      ref={option.setRefElement.bind(option)}
+    >
       <button
         type="button"
         tabIndex={-1}
@@ -538,7 +551,7 @@ function MenuItem({
           event.preventDefault();
         }}
         onClick={onSelect}
-        className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors ${
+        className={`gap-2.5 px-2.5 py-1.5 text-xs flex w-full items-center rounded-lg text-left transition-colors ${
           isSelected ? 'bg-accent text-foreground' : 'hover:bg-accent/60'
         }`}
       >
@@ -623,7 +636,10 @@ function MentionsPlugin({
       onOpen={() => onOpenChange(true)}
       onClose={() => onOpenChange(false)}
       onSelectOption={onSelectOption}
-      menuRenderFn={(anchorRef, { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex }) => {
+      menuRenderFn={(
+        anchorRef,
+        { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex },
+      ) => {
         if (!anchorRef.current || options.length === 0) return null;
 
         const groups = options.filter((o) => o.candidate.kind === 'group');
@@ -648,20 +664,20 @@ function MentionsPlugin({
               onSelect={() => selectOptionAndCleanUp(option)}
             >
               {isGroup ? (
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/20 font-bold text-primary-text">
+                <span className="size-6 font-bold flex shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary-text">
                   @
                 </span>
               ) : isAgent ? (
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary border border-primary/20">
+                <span className="size-6 flex shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary">
                   <Bot className="size-3.5" />
                 </span>
               ) : isApp ? (
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20">
+                <span className="size-6 bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20 flex shrink-0 items-center justify-center rounded-full border">
                   <Blocks className="size-3.5" />
                 </span>
               ) : (
                 <span
-                  className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-inset text-[10px] font-bold text-foreground"
+                  className="size-6 font-bold flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-inset text-[10px] text-foreground"
                   aria-hidden
                 >
                   {option.candidate.avatarUrl ? (
@@ -676,19 +692,19 @@ function MentionsPlugin({
                 </span>
               )}
               <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1.5 font-semibold text-foreground">
+                <span className="gap-1.5 font-semibold flex items-center text-foreground">
                   <span className="truncate">@{option.candidate.name}</span>
                   {isAgent ? (
                     <Badge
                       variant="primary"
-                      className="text-[9px] py-0 h-3.5 uppercase font-bold tracking-wider"
+                      className="py-0 h-3.5 font-bold tracking-wider text-[9px] uppercase"
                     >
                       AI AGENT
                     </Badge>
                   ) : isApp ? (
                     <Badge
                       variant="neutral"
-                      className="text-[9px] py-0 h-3.5 uppercase font-bold tracking-wider bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20"
+                      className="py-0 h-3.5 font-bold tracking-wider bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20 text-[9px] uppercase"
                     >
                       APP
                     </Badge>
@@ -711,28 +727,28 @@ function MentionsPlugin({
             icon={<AtSign className="size-3.5" />}
           >
             {groups.length > 0 ? (
-              <li className="px-2 py-1 text-[10px] font-bold uppercase text-subtle">
+              <li className="px-2 py-1 font-bold text-[10px] text-subtle uppercase">
                 Group mentions
               </li>
             ) : null}
             {groups.map(renderOption)}
 
             {agents.length > 0 ? (
-              <li className="mt-1 px-2 py-1 text-[10px] font-bold uppercase text-primary">
+              <li className="mt-1 px-2 py-1 font-bold text-[10px] text-primary uppercase">
                 AI Agents — {agents.length}
               </li>
             ) : null}
             {agents.map(renderOption)}
 
             {apps.length > 0 ? (
-              <li className="mt-1 px-2 py-1 text-[10px] font-bold uppercase text-violet-500">
+              <li className="mt-1 px-2 py-1 font-bold text-violet-500 text-[10px] uppercase">
                 Connected Apps — {apps.length}
               </li>
             ) : null}
             {apps.map(renderOption)}
 
             {people.length > 0 ? (
-              <li className="mt-1 px-2 py-1 text-[10px] font-bold uppercase text-subtle">
+              <li className="mt-1 px-2 py-1 font-bold text-[10px] text-subtle uppercase">
                 People — {people.length}
               </li>
             ) : null}
@@ -820,7 +836,10 @@ function SlashCommandsPlugin({
       onOpen={() => onOpenChange(true)}
       onClose={() => onOpenChange(false)}
       onSelectOption={onSelectOption}
-      menuRenderFn={(anchorRef, { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex }) => {
+      menuRenderFn={(
+        anchorRef,
+        { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex },
+      ) => {
         if (!anchorRef.current || options.length === 0) return null;
 
         return createPortal(
@@ -838,7 +857,7 @@ function SlashCommandsPlugin({
                 onSelect={() => selectOptionAndCleanUp(option)}
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold text-info-text">
+                  <span className="font-semibold block truncate text-info-text">
                     {option.command.name}
                     {option.command.args ? (
                       <span className="ml-1 font-normal text-muted-foreground">
@@ -935,7 +954,10 @@ function EmojiPickerPlugin({
       onOpen={() => onOpenChange(true)}
       onClose={() => onOpenChange(false)}
       onSelectOption={onSelectOption}
-      menuRenderFn={(anchorRef, { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex }) => {
+      menuRenderFn={(
+        anchorRef,
+        { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex },
+      ) => {
         if (!anchorRef.current || options.length === 0) return null;
 
         return createPortal(
@@ -969,15 +991,7 @@ function EmojiPickerPlugin({
 /* -------------------------------------------------------------------------- */
 
 type BlockType =
-  | 'paragraph'
-  | 'h1'
-  | 'h2'
-  | 'h3'
-  | 'quote'
-  | 'code'
-  | 'ul'
-  | 'ol'
-  | 'check';
+  'paragraph' | 'h1' | 'h2' | 'h3' | 'quote' | 'code' | 'ul' | 'ol' | 'check';
 
 const TOOL_BUTTON =
   'flex size-7 shrink-0 items-center justify-center rounded transition-colors';
@@ -1070,7 +1084,9 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
       );
     } else if ($isHeadingNode(element)) {
       const tag = element.getTag();
-      setBlockType(tag === 'h1' || tag === 'h2' || tag === 'h3' ? tag : 'paragraph');
+      setBlockType(
+        tag === 'h1' || tag === 'h2' || tag === 'h3' ? tag : 'paragraph',
+      );
     } else if ($isQuoteNode(element)) {
       setBlockType('quote');
     } else if ($isCodeNode(element)) {
@@ -1168,8 +1184,8 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
   }, [editor, linkDraft]);
 
   return (
-    <div className="border-b border-border bg-surface">
-      <div className="flex items-center gap-0.5 overflow-x-auto px-2 py-1 scrollbar-none">
+    <div className="rounded-[inherit] bg-surface">
+      <div className="gap-0.5 px-2 py-1 flex scrollbar-none items-center overflow-x-auto">
         <ToolButton
           label="Bold (Ctrl+B)"
           isActive={formats.bold}
@@ -1211,10 +1227,14 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
             setLinkDraft((current) => (current === null ? '' : null));
           }}
         >
-          {isLink ? <Link2Off className="size-3.5" /> : <Link2 className="size-3.5" />}
+          {isLink ? (
+            <Link2Off className="size-3.5" />
+          ) : (
+            <Link2 className="size-3.5" />
+          )}
         </ToolButton>
 
-        <Divider />
+        {/* <Divider />
 
         <ToolButton
           label="Heading 1 (# )"
@@ -1236,7 +1256,7 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
           onClick={() => setBlock('h3')}
         >
           <Heading3 className="size-3.5" />
-        </ToolButton>
+        </ToolButton> */}
 
         <Divider />
 
@@ -1254,13 +1274,13 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
         >
           <ListOrdered className="size-3.5" />
         </ToolButton>
-        <ToolButton
+        {/* <ToolButton
           label="Task list (- [ ] )"
           isActive={blockType === 'check'}
           onClick={() => setBlock('check')}
         >
           <ListTodo className="size-3.5" />
-        </ToolButton>
+        </ToolButton> */}
 
         <Divider />
 
@@ -1278,16 +1298,16 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
         >
           <SquareCode className="size-3.5" />
         </ToolButton>
-        <ToolButton
+        {/* <ToolButton
           label="Divider (---)"
           onClick={() =>
             editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)
           }
         >
           <Minus className="size-3.5" />
-        </ToolButton>
+        </ToolButton> */}
 
-        <Divider />
+        {/* <Divider />
 
         <ToolButton
           label="Undo (Ctrl+Z)"
@@ -1302,7 +1322,7 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
           onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
         >
           <Redo2 className="size-3.5" />
-        </ToolButton>
+        </ToolButton> */}
 
         {toolbarSlot ? (
           <>
@@ -1313,7 +1333,7 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
       </div>
 
       {linkDraft !== null ? (
-        <div className="flex items-center gap-1.5 border-t border-border bg-surface-raised px-2 py-1.5">
+        <div className="gap-1.5 px-2 py-1.5 flex items-center border-t border-border bg-surface-raised">
           <Link2 className="size-3.5 shrink-0 text-muted-foreground" />
           <input
             ref={linkInputRef}
@@ -1331,7 +1351,7 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
             }}
             placeholder="Paste or type a link, then press Enter"
             aria-label="Link URL"
-            className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-subtle"
+            className="min-w-0 text-xs flex-1 bg-transparent text-foreground outline-none placeholder:text-subtle"
           />
           <button
             type="button"
@@ -1398,18 +1418,18 @@ export function LexicalComposerInput({
       <div className="relative flex flex-1 flex-col">
         {showToolbar ? <LexicalToolbar toolbarSlot={toolbarSlot} /> : null}
 
-        <div className="relative flex-1 px-3 py-2">
+        <div className="px-3 py-2 relative flex-1">
           <RichTextPlugin
             contentEditable={
               <ContentEditable
                 aria-label="Message composer input"
                 aria-placeholder={placeholder}
                 placeholder={
-                  <div className="pointer-events-none absolute top-2 left-3 text-sm text-subtle">
+                  <div className="top-2 left-3 text-sm pointer-events-none absolute text-subtle">
                     {placeholder}
                   </div>
                 }
-                className="max-h-64 min-h-11 w-full resize-none overflow-y-auto text-sm font-normal text-foreground outline-none"
+                className="max-h-64 min-h-11 text-sm font-normal w-full resize-none overflow-y-auto text-foreground outline-none"
               />
             }
             ErrorBoundary={LexicalErrorBoundary}

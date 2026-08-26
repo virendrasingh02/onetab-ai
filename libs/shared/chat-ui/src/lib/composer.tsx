@@ -381,7 +381,7 @@ export function Composer({
   };
 
   return (
-    <div className="bottom-0 p-5 sticky z-20 shrink-0 border-t border-border bg-background">
+    <div className="bottom-0 p-4 sticky z-20 shrink-0 border-t border-border bg-background">
       {contextSlot}
 
       {pickerState.open ? (

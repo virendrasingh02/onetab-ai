@@ -231,8 +231,8 @@ export function WorkspaceMenu({
                         icon={workspace.icon}
                         iconColor={workspace.iconColor}
                         seed={workspace.id}
-                        size="xs"
-                        className="shrink-0 rounded-md"
+                        size="sm"
+                        className="shrink-0 rounded-sm"
                       />
 
                       {/* Name and email visually grouped */}
