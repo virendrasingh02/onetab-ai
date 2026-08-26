@@ -35,14 +35,26 @@ import { workToolsApi } from '@org/api-client';
 import {
   Command,
   Filter,
+  FolderGit2,
   FolderKanban,
+  GanttChartSquare,
+  Hash,
+  HeartPulse,
+  Inbox,
+  Kanban,
   Keyboard,
+  LayoutDashboard,
+  List,
   MoreHorizontal,
   Pencil,
   Plus,
+  RotateCw,
   Search,
+  Settings,
   SlidersHorizontal,
-  Sparkles,
+  Table,
+  Target,
+  Timeline,
   Trash2,
   TriangleAlert,
 } from 'lucide-react';
@@ -79,11 +91,33 @@ import {
 import { KanbanBoard } from './KanbanBoard.js';
 import {
   useCurrentWorkspace,
+  useCycleMutations,
+  useCycles,
+  useEpicMutations,
+  useEpics,
+  useInitiativeMutations,
+  useInitiatives,
+  useIntakeMutations,
+  useIntakeRequests,
+  useModuleMutations,
+  useModules,
   useProjectMutations,
   useProjects,
+  useProjectUpdateMutations,
+  useProjectUpdates,
+  useTaskMutations,
   useTasks,
+  useTeams,
   useWorkspaceMembers,
 } from './use-work-tools.js';
+import { ProjectSpreadsheetView } from './views/ProjectSpreadsheetView.js';
+import { ProjectGanttView } from './views/ProjectGanttView.js';
+import { CyclesPlanningView } from './views/CyclesPlanningView.js';
+import { ModulesEpicsView } from './views/ModulesEpicsView.js';
+import { InitiativesView } from './views/InitiativesView.js';
+import { IntakeTriageView } from './views/IntakeTriageView.js';
+import { ProjectUpdatesView } from './views/ProjectUpdatesView.js';
+import { ProjectSettingsView } from './views/ProjectSettingsView.js';
 
 export type AsanaViewMode = ProjectViewMode;
 
@@ -223,30 +257,22 @@ export const PROJECT_TEMPLATES: Array<{
 ];
 
 const STATUS_LABELS: Record<ProjectStatus, string> = {
-  PLANNING: 'Planning',
-  ACTIVE: 'Active',
-  ON_HOLD: 'On hold',
-  COMPLETED: 'Completed',
-  ARCHIVED: 'Archived',
+  [ProjectStatus.PLANNING]: 'Planning',
+  [ProjectStatus.ACTIVE]: 'In progress',
+  [ProjectStatus.ON_HOLD]: 'On hold',
+  [ProjectStatus.COMPLETED]: 'Completed',
+  [ProjectStatus.ARCHIVED]: 'Archived',
 };
 
-/** A name as the project's URL segment, which the API requires and validates. */
-function slugify(name: string): string {
-  return name
-    .trim()
+function slugify(text: string): string {
+  return text
     .toLowerCase()
+    .trim()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 48);
 }
 
-/**
- * Projects and their tasks.
- *
- * The single owner of workspace, project selection and board state: the board,
- * list, timeline and dashboard views are all projections of the same tasks
- * query, so nothing here keeps a second copy of it.
- */
 export function AsanaProjectManager() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { workspaceId } = useCurrentWorkspace();
@@ -254,14 +280,22 @@ export function AsanaProjectManager() {
   const membersQuery = useWorkspaceMembers(workspaceId);
   const projectsQuery = useProjects(workspaceId);
   const projectMutations = useProjectMutations(workspaceId);
+  const taskMutations = useTaskMutations(workspaceId);
   const prompts = usePromptDialog();
 
-  /** Every task in the workspace, for the gallery's completion bars. */
-  const allTasks = useTasks(workspaceId);
+  const teamsQuery = useTeams(workspaceId);
+  const initiativesQuery = useInitiatives(workspaceId);
+  const initiativeMutations = useInitiativeMutations(workspaceId);
+  const intakeQuery = useIntakeRequests(workspaceId);
+  const intakeMutations = useIntakeMutations(workspaceId);
 
   const projects = projectsQuery.data ?? [];
   const members = useMemo(
     () => membersFrom(membersQuery.data),
+    [membersQuery.data],
+  );
+  const publicMembers = useMemo(
+    () => (membersQuery.data ?? []).map((m) => m.user),
     [membersQuery.data],
   );
 
@@ -270,18 +304,26 @@ export function AsanaProjectManager() {
   );
   const [viewMode, setViewMode] = useState<ProjectViewMode>('board');
 
-  // The URL is the source of truth for which project is open, so a link into a
-  // board survives a reload and the back button moves between projects.
   const projectParam = searchParams.get('project');
   const activeProject: ProjectDetail | undefined =
     projects.find(
       (project) => project.id === (projectParam ?? selectedProjectId),
     ) ?? projects[0];
 
+  const epicsQuery = useEpics(workspaceId, activeProject?.id);
+  const epicMutations = useEpicMutations(workspaceId);
+  const modulesQuery = useModules(workspaceId, activeProject?.id);
+  const moduleMutations = useModuleMutations(workspaceId);
+  const cyclesQuery = useCycles(workspaceId, activeProject?.id);
+  const cycleMutations = useCycleMutations(workspaceId);
+  const projectUpdatesQuery = useProjectUpdates(workspaceId, activeProject?.id);
+  const projectUpdateMutations = useProjectUpdateMutations(workspaceId);
+
+  const rawTasksQuery = useTasks(workspaceId, activeProject?.id);
+  const projectTasks = rawTasksQuery.data ?? [];
+
   useEffect(() => {
     const openNewProject = searchParams.get('newProject') === 'true';
-    // `?import=true` lets any entry point — the create menu, a link in an
-    // onboarding email — land straight on the importer.
     const openImport = searchParams.get('import') === 'true';
     const showProjects = searchParams.get('view') === 'projects';
     if (!openNewProject && !openImport && !showProjects) return;
@@ -290,13 +332,6 @@ export function AsanaProjectManager() {
     if (openImport) setIsImportOpen(true);
     if (showProjects) setViewMode('projects');
 
-    /*
-     * These three are one-shot commands, not state, so they have to be consumed.
-     * Left in the URL, closing the dialog and clicking the same sidebar link
-     * again produced a byte-identical location — `useSearchParams` memoises on
-     * `location.search`, so the object identity never changed, this effect never
-     * re-ran, and "New project" silently did nothing every time after the first.
-     */
     const next = new URLSearchParams(searchParams);
     next.delete('newProject');
     next.delete('import');
@@ -324,8 +359,6 @@ export function AsanaProjectManager() {
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
-  // Board filter and menu state, shared with the board so the header controls
-  // and the columns agree on one filter.
   const [filter, setFilter] = useState<BoardFilter>(EMPTY_FILTER);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [showAIFilterInput, setShowAIFilterInput] = useState(false);
@@ -344,17 +377,14 @@ export function AsanaProjectManager() {
     });
   }, [board]);
 
-  // Global Linear Keyboard Shortcuts Listener
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      // Don't trigger if user is actively typing in an input or textarea
       const target = e.target as HTMLElement;
       const isInput =
         target.tagName === 'INPUT' ||
         target.tagName === 'TEXTAREA' ||
         target.isContentEditable;
 
-      // Cmd+K / Ctrl+K: Command Menu
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setIsCommandMenuOpen((prev) => !prev);
@@ -363,25 +393,21 @@ export function AsanaProjectManager() {
 
       if (isInput) return;
 
-      // C: Create new task
       if (e.key.toLowerCase() === 'c' && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         handleQuickAddTask();
       }
 
-      // F: Toggle filter menu
       if (e.key.toLowerCase() === 'f' && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         setIsFilterMenuOpen((prev) => !prev);
       }
 
-      // V: Toggle view switcher
       if (e.key.toLowerCase() === 'v' && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         setIsViewDisplayOpen((prev) => !prev);
       }
 
-      // ?: Open shortcuts cheat sheet
       if (e.key === '?' || (e.key === '/' && (e.metaKey || e.ctrlKey))) {
         e.preventDefault();
         setIsShortcutsOpen((prev) => !prev);
@@ -395,7 +421,7 @@ export function AsanaProjectManager() {
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
-  const [importProgress, setImportProgress] = useState<ImportProgress | null>(
+  const [, setImportProgress] = useState<ImportProgress | null>(
     null,
   );
 
@@ -454,161 +480,120 @@ export function AsanaProjectManager() {
         iconColor: draft.iconColor,
       });
 
-      // Seed starter tasks if template selected
-      const selectedTpl = PROJECT_TEMPLATES.find(
-        (t) => t.id === draft.template,
-      );
-      if (selectedTpl && selectedTpl.tasks.length > 0 && workspaceId) {
-        try {
-          await Promise.all(
-            selectedTpl.tasks.map((task) =>
-              workToolsApi.createTask(workspaceId, {
-                projectId: created.id,
-                title: task.title,
-                description: task.description,
-                status: task.status,
-                priority: task.priority,
-              }),
-            ),
-          );
-          toast.success('Project created', {
-            description: `Seeded with ${selectedTpl.name} starter tasks.`,
-          });
-        } catch {
-          toast.success('Project created');
+      if (draft.template && draft.template !== 'blank' && workspaceId) {
+        const tmpl = PROJECT_TEMPLATES.find((t) => t.id === draft.template);
+        if (tmpl && tmpl.tasks.length > 0) {
+          for (const starter of tmpl.tasks) {
+            await workToolsApi.createTask(workspaceId, {
+              projectId: created.id,
+              title: starter.title,
+              status: starter.status,
+              priority: starter.priority as any,
+              description: starter.description,
+            });
+          }
         }
-      } else {
-        toast.success('Project created');
       }
 
       setIsNewProjectOpen(false);
       openProject(created.id);
+      toast.success(`Created project “${created.name}”`);
     } catch {
-      /*
-       * The dialog already renders this through `create.error`, and it stays
-       * open so the draft is not lost. Without the catch the rejection also
-       * escaped as an unhandled one, which puts Vite's error overlay over the
-       * whole app in dev — the failure looked like a crash rather than a
-       * rejected name.
-       */
+      toast.error('Failed to create project');
     }
   };
 
-  const handleEditProject = (event: React.FormEvent) => {
+  const handleUpdateProject = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!activeProject || !draft.name.trim()) return;
+    if (!activeProject) return;
+    const name = draft.name.trim();
+    if (!name) return;
 
-    projectMutations.update.mutate({
-      projectId: activeProject.id,
-      input: {
-        name: draft.name.trim(),
-        description: draft.description.trim() || null,
-        color: draft.color,
-        status: draft.status,
-        icon: draft.icon,
-        iconColor: draft.iconColor,
-      },
-    });
-    setIsEditProjectOpen(false);
+    try {
+      await projectMutations.update.mutateAsync({
+        projectId: activeProject.id,
+        input: {
+          name,
+          description: draft.description.trim() || null,
+          color: draft.color,
+          status: draft.status,
+          icon: draft.icon,
+          iconColor: draft.iconColor,
+        },
+      });
+      setIsEditProjectOpen(false);
+      toast.success(`Updated project “${name}”`);
+    } catch {
+      toast.error('Failed to update project');
+    }
   };
 
-  /*
-   * Deleting a project takes its whole board with it, so the action asks
-   * first — both entry points (the project list row and the board's own
-   * toolbar) went straight to the mutation.
-   */
   const handleDeleteProject = async (projectId: string) => {
-    const project = projects.find((entry) => entry.id === projectId);
+    const proj = projects.find((p) => p.id === projectId);
     const confirmed = await prompts.confirmAction({
-      title: `Delete “${project?.name ?? 'this project'}”?`,
+      title: `Delete “${proj?.name ?? 'project'}”?`,
       description:
-        'The project and every task on its board are deleted for everyone. This cannot be undone.',
+        'This deletes the project and all of its tasks, milestones and comments. This action cannot be undone.',
       confirmLabel: 'Delete project',
       destructive: true,
     });
     if (!confirmed) return;
 
-    projectMutations.remove.mutate(projectId, {
-      onSuccess: () => {
-        if (activeProject?.id !== projectId) return;
-        const next = projects.find((project) => project.id !== projectId);
-        if (next) openProject(next.id);
-        else setViewMode('projects');
-      },
-    });
+    try {
+      await projectMutations.remove.mutateAsync(projectId);
+      if (selectedProjectId === projectId) {
+        const remaining = projects.filter((p) => p.id !== projectId);
+        if (remaining.length > 0) {
+          openProject(remaining[0].id);
+        } else {
+          setSelectedProjectId(null);
+          setSearchParams({});
+        }
+      }
+      toast.success('Project deleted');
+    } catch {
+      toast.error('Failed to delete project');
+    }
   };
 
-  /**
-   * An import becomes real tasks on the target project — labels, checklists and
-   * extra assignees are reported back as warnings rather than silently dropped.
-   */
   const handleImport = async (result: ImportResult) => {
     if (!workspaceId) return;
-
-    let projectId = activeProject?.id;
-    if (result.mode === 'new') {
-      const created = await projectMutations.create.mutateAsync({
-        name: result.name,
-        slug: slugify(result.name) || `import-${Date.now()}`,
-        description: `Imported from ${result.source}.`,
-        color: result.color,
+    try {
+      let targetProjectId = activeProject?.id;
+      if (result.mode === 'new' || !targetProjectId) {
+        const created = await projectMutations.create.mutateAsync({
+          name: result.name,
+          slug: result.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+          color: result.color,
+        });
+        targetProjectId = created.id;
+      }
+      await importTasksInto({
+        workspaceId,
+        projectId: targetProjectId,
+        board: result.board,
+        members: publicMembers,
+        onProgress: setImportProgress,
       });
-      projectId = created.id;
+      setIsImportOpen(false);
+      openProject(targetProjectId);
+      toast.success(`Imported board “${result.name}”`);
+    } catch {
+      toast.error('Failed to import board');
+    } finally {
+      setImportProgress(null);
     }
-    if (!projectId) return;
-
-    const progress = await importTasksInto({
-      workspaceId,
-      projectId,
-      board: result.board,
-      members,
-      onProgress: setImportProgress,
-    });
-
-    setImportProgress(progress);
-    openProject(projectId);
   };
-
-  const handleExportProject = async (projectId: string) => {
-    if (!workspaceId) return;
-    const project = projects.find((entry) => entry.id === projectId);
-    if (!project) return;
-
-    const json = await exportProjectBoard(workspaceId, project);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${project.slug || 'board'}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  if (!workspaceId) {
-    return (
-      <EmptyState
-        icon={<FolderKanban />}
-        title="No workspace selected"
-        description="Open a workspace to see its projects and tasks."
-        className="h-full"
-      />
-    );
-  }
 
   const dialogs = (
     <>
-      <ImportBoardDialog
-        open={isImportOpen}
-        onOpenChange={setIsImportOpen}
-        onImport={handleImport}
-        currentProjectName={activeProject?.name}
-      />
+      {prompts.dialog}
 
       <ProjectDialog
         open={isNewProjectOpen}
         onOpenChange={setIsNewProjectOpen}
-        title="Create project"
-        icon={<Sparkles className="w-4 h-4 text-primary" />}
+        title="Create a project"
+        icon={<FolderKanban className="size-4 text-primary" />}
         submitLabel="Create project"
         draft={draft}
         setDraft={setDraft}
@@ -622,30 +607,34 @@ export function AsanaProjectManager() {
         open={isEditProjectOpen}
         onOpenChange={setIsEditProjectOpen}
         title="Edit project"
-        icon={<Pencil className="w-4 h-4 text-primary" />}
+        icon={<Pencil className="size-4 text-primary" />}
         submitLabel="Save changes"
         draft={draft}
         setDraft={setDraft}
-        showStatus
+        showStatus={true}
         pending={projectMutations.update.isPending}
         error={projectMutations.update.error}
-        onSubmit={handleEditProject}
+        onSubmit={handleUpdateProject}
       />
 
-      {importProgress ? (
-        <ImportSummaryDialog
-          progress={importProgress}
-          onClose={() => setImportProgress(null)}
-        />
-      ) : null}
+      <ImportBoardDialog
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
+        onImport={handleImport}
+        currentProjectName={activeProject?.name}
+      />
 
       <LinearCommandMenu
         isOpen={isCommandMenuOpen}
         onClose={() => setIsCommandMenuOpen(false)}
         lists={board.board.lists}
-        onOpenCard={(id) => setSelectedCardId(id)}
-        onQuickAddTask={handleQuickAddTask}
-        onViewModeChange={setViewMode}
+        onOpenCard={(cardId) => setSelectedCardId(cardId)}
+        onQuickAddTask={(listId) => {
+          if (listId) {
+            handleQuickAddTask();
+          }
+        }}
+        onViewModeChange={(mode) => setViewMode(mode)}
         onOpenFilter={() => setIsFilterMenuOpen(true)}
         onOpenNewProject={openNewProject}
       />
@@ -654,24 +643,33 @@ export function AsanaProjectManager() {
         isOpen={isShortcutsOpen}
         onClose={() => setIsShortcutsOpen(false)}
       />
-
-      {prompts.dialog}
     </>
   );
 
   if (viewMode === 'projects') {
     return (
-      <div className="min-h-0 flex w-full flex-1 flex-col bg-background text-foreground">
+      <div className="flex h-full w-full flex-col overflow-hidden bg-background text-foreground">
         <ProjectGallery
           projects={projects}
-          tasks={allTasks.data ?? []}
+          tasks={projectTasks}
           activeProjectId={activeProject?.id}
-          isLoading={projectsQuery.isLoading}
           onOpenProject={openProject}
-          onDeleteProject={handleDeleteProject}
           onNewProject={openNewProject}
           onImport={() => setIsImportOpen(true)}
-          onExportProject={handleExportProject}
+          onDeleteProject={handleDeleteProject}
+          onExportProject={async (id: string) => {
+            const p = projects.find((x) => x.id === id);
+            if (p && workspaceId) {
+              const fileContent = await exportProjectBoard(workspaceId, p);
+              const blob = new Blob([fileContent], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `${p.slug}-board.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }
+          }}
         />
         {dialogs}
       </div>
@@ -708,13 +706,8 @@ export function AsanaProjectManager() {
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-background text-foreground">
       {/* Top Header */}
-      <header className="px-6 py-3.5 gap-4 relative flex flex-wrap items-center justify-between border-b border-border/50 bg-card/60">
-        <div className="gap-2.5 flex items-center">
-          {/*
-            On a board there is a project to write to, so the header marker is
-            the picker itself and a change saves on selection — unlike the
-            dialogs, which hold the choice until the form is submitted.
-          */}
+      <header className="px-6 py-3 gap-4 relative flex flex-wrap items-center justify-between border-b border-border/50 bg-card/60">
+        <div className="gap-2.5 flex items-center flex-wrap">
           {activeProject ? (
             <ProjectIconPicker
               workspaceId={workspaceId}
@@ -724,7 +717,7 @@ export function AsanaProjectManager() {
                 <button
                   type="button"
                   aria-label={`Change icon for ${activeProject.name}`}
-                  className="size-7 flex items-center justify-center rounded-md transition-colors hover:bg-muted"
+                  className="size-7 flex items-center justify-center rounded-md transition-colors hover:bg-muted cursor-pointer"
                 >
                   <ProjectGlyph
                     icon={activeProject.icon}
@@ -742,6 +735,22 @@ export function AsanaProjectManager() {
           <h1 className="text-base font-semibold tracking-tight text-foreground">
             {activeProject?.name ?? 'Projects'}
           </h1>
+
+          {/* Dynamic Ticket Prefix Badge with Click-to-Copy */}
+          {activeProject?.ticketPrefix && (
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(activeProject.ticketPrefix as string);
+                toast.success(`Copied prefix ${activeProject.ticketPrefix}`);
+              }}
+              className="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/30 px-2 py-0.5 rounded cursor-pointer transition-colors"
+              title="Click to copy ticket prefix"
+            >
+              <Hash className="size-3" />
+              <span>{activeProject.ticketPrefix}</span>
+            </button>
+          )}
 
           {activeProject ? (
             <Badge variant="neutral" className="text-[10px]">
@@ -769,6 +778,13 @@ export function AsanaProjectManager() {
                   Edit project details
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  onClick={() => setViewMode('settings')}
+                  className="text-xs gap-2"
+                >
+                  <Settings className="size-3.5 text-muted-foreground" />
+                  Project settings
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={() => setViewMode('projects')}
                   className="text-xs gap-2"
                 >
@@ -789,7 +805,6 @@ export function AsanaProjectManager() {
 
         {/* Right Action Bar */}
         <div className="gap-2 flex flex-wrap items-center">
-          {/* Linear Command Palette Trigger */}
           <button
             type="button"
             onClick={() => setIsCommandMenuOpen(true)}
@@ -888,13 +903,44 @@ export function AsanaProjectManager() {
         </div>
       </header>
 
-      {/*
-        Main View Area — one of the few plain `overflow` scrollers left rather
-        than a `<ScrollArea>`, so it keeps the styled *native* bar. The board
-        view inside it is `h-full`, which needs this element to have a definite
-        height; SimpleBar's content wrapper is auto-height, so wrapping here
-        would collapse the board to its `min-h` floor.
-      */}
+      {/* Modern View Navigation Bar */}
+      <nav className="px-6 py-1.5 bg-muted/30 border-b border-border/50 flex items-center gap-1 overflow-x-auto scrollbar-none">
+        {[
+          { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
+          { id: 'board', label: 'Board', icon: Kanban },
+          { id: 'list', label: 'List', icon: List },
+          { id: 'spreadsheet', label: 'Table', icon: Table },
+          { id: 'timeline', label: 'Timeline', icon: Timeline },
+          { id: 'gantt', label: 'Gantt', icon: GanttChartSquare },
+          { id: 'cycles', label: 'Cycles', icon: RotateCw },
+          { id: 'modules', label: 'Modules & Epics', icon: FolderGit2 },
+          { id: 'initiatives', label: 'Initiatives', icon: Target },
+          { id: 'intake', label: 'Intake', icon: Inbox },
+          { id: 'updates', label: 'Updates', icon: HeartPulse },
+          { id: 'settings', label: 'Settings', icon: Settings },
+        ].map((v) => {
+          const Icon = v.icon;
+          const isActive = viewMode === v.id;
+          return (
+            <button
+              key={v.id}
+              type="button"
+              onClick={() => setViewMode(v.id as ProjectViewMode)}
+              className={cn(
+                'inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors shrink-0 cursor-pointer',
+                isActive
+                  ? 'bg-card text-foreground font-semibold shadow-xs border border-border/70'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
+              )}
+            >
+              <Icon className={cn('size-3.5', isActive ? 'text-primary' : 'opacity-70')} />
+              <span>{v.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Main View Container */}
       <main className="scrollbar-subtle flex-1 overflow-y-auto bg-background/50">
         {board.isError ? (
           <EmptyState
@@ -904,16 +950,6 @@ export function AsanaProjectManager() {
           />
         ) : (
           <>
-            {viewMode === 'list' && (
-              <ProjectListView
-                board={board.board}
-                dispatch={board.dispatch}
-                onSelectCard={(card) => setSelectedCardId(card.id)}
-                searchQuery={filter.query}
-                isLoading={board.isLoading}
-              />
-            )}
-
             {viewMode === 'board' && (
               <KanbanBoard
                 workspaceId={workspaceId}
@@ -930,10 +966,43 @@ export function AsanaProjectManager() {
               />
             )}
 
+            {viewMode === 'list' && (
+              <ProjectListView
+                board={board.board}
+                dispatch={board.dispatch}
+                onSelectCard={(card) => setSelectedCardId(card.id)}
+                searchQuery={filter.query}
+                isLoading={board.isLoading}
+              />
+            )}
+
+            {viewMode === 'spreadsheet' && (
+              <ProjectSpreadsheetView
+                tasks={projectTasks}
+                members={publicMembers}
+                onSelectTask={(task) => setSelectedCardId(task.id)}
+                onUpdateTask={(taskId, patch) => {
+                  taskMutations.update.mutate({ taskId, input: patch as any });
+                }}
+                onQuickAddTask={handleQuickAddTask}
+                searchQuery={filter.query}
+              />
+            )}
+
             {viewMode === 'timeline' && (
               <ProjectTimelineView
                 board={board.board}
                 onSelectCard={(card) => setSelectedCardId(card.id)}
+                searchQuery={filter.query}
+              />
+            )}
+
+            {viewMode === 'gantt' && (
+              <ProjectGanttView
+                tasks={projectTasks}
+                milestones={activeProject?.milestones}
+                members={publicMembers}
+                onSelectTask={(task) => setSelectedCardId(task.id)}
                 searchQuery={filter.query}
               />
             )}
@@ -950,6 +1019,104 @@ export function AsanaProjectManager() {
                   });
                 }}
                 onSelectCard={(card) => setSelectedCardId(card.id)}
+              />
+            )}
+
+            {viewMode === 'cycles' && (
+              <CyclesPlanningView
+                cycles={cyclesQuery.data || []}
+                tasks={projectTasks}
+                members={publicMembers}
+                onSelectTask={(task) => setSelectedCardId(task.id)}
+                onCreateCycle={(input) => {
+                  cycleMutations.create.mutate({
+                    ...input,
+                    projectId: activeProject?.id,
+                  });
+                }}
+                onUpdateCycleStatus={(cycleId, status) => {
+                  cycleMutations.update.mutate({ cycleId, input: { status } });
+                }}
+                onAssignTaskToCycle={(taskId, cycleId) => {
+                  taskMutations.update.mutate({ taskId, input: { cycleId } });
+                }}
+              />
+            )}
+
+            {viewMode === 'modules' && activeProject && (
+              <ModulesEpicsView
+                projectId={activeProject.id}
+                epics={epicsQuery.data || []}
+                modules={modulesQuery.data || []}
+                tasks={projectTasks}
+                members={publicMembers}
+                onSelectTask={(task) => setSelectedCardId(task.id)}
+                onCreateEpic={(input) => epicMutations.create.mutate(input)}
+                onCreateModule={(input) => moduleMutations.create.mutate(input)}
+              />
+            )}
+
+            {viewMode === 'initiatives' && (
+              <InitiativesView
+                initiatives={initiativesQuery.data || []}
+                projects={projects}
+                members={publicMembers}
+                onSelectProject={openProject}
+                onCreateInitiative={(input) =>
+                  initiativeMutations.create.mutate(input)
+                }
+              />
+            )}
+
+            {viewMode === 'intake' && (
+              <IntakeTriageView
+                intakeRequests={intakeQuery.data || []}
+                projects={projects}
+                members={publicMembers}
+                onConvert={(intakeId, input) => {
+                  intakeMutations.convert.mutate({ intakeId, input });
+                }}
+                onDecline={(intakeId) => {
+                  intakeMutations.decline.mutate(intakeId);
+                }}
+                onCreateIntake={(input) => {
+                  intakeMutations.create.mutate({
+                    ...input,
+                    projectId: activeProject?.id,
+                  });
+                }}
+              />
+            )}
+
+            {viewMode === 'updates' && activeProject && (
+              <ProjectUpdatesView
+                projectId={activeProject.id}
+                projectName={activeProject.name}
+                updates={projectUpdatesQuery.data || []}
+                onPublishUpdate={(input) => {
+                  projectUpdateMutations.create.mutate(input);
+                }}
+              />
+            )}
+
+            {viewMode === 'settings' && activeProject && (
+              <ProjectSettingsView
+                project={activeProject}
+                teams={teamsQuery.data || []}
+                members={publicMembers}
+                onUpdateProject={(patch) => {
+                  projectMutations.update.mutate({
+                    projectId: activeProject.id,
+                    input: patch,
+                  });
+                }}
+                onUpdateIdentifierSettings={(input) => {
+                  projectMutations.updateIdentifierSettings.mutate({
+                    projectId: activeProject.id,
+                    input,
+                  });
+                }}
+                onDeleteProject={() => handleDeleteProject(activeProject.id)}
               />
             )}
           </>
@@ -972,7 +1139,7 @@ export function AsanaProjectManager() {
   );
 }
 
-/* ------------------------------------------------------- project dialog --- */
+export const UnifiedWorkManager = AsanaProjectManager;
 
 interface ProjectDraft {
   name: string;
@@ -993,7 +1160,6 @@ interface ProjectDialogProps {
   submitLabel: string;
   draft: ProjectDraft;
   setDraft: React.Dispatch<React.SetStateAction<ProjectDraft>>;
-  /** The slug is fixed once the project exists, and status only applies then. */
   showStatus: boolean;
   pending: boolean;
   error: unknown;
@@ -1013,12 +1179,6 @@ function ProjectDialog({
   error,
   onSubmit,
 }: ProjectDialogProps) {
-  /*
-   * The picker writes into the draft instead of to the server. `useIconEditor`
-   * takes anything that can report a current icon and persist a new one, and
-   * here "persist" is `setDraft` — so the dialog's Cancel discards the icon
-   * along with everything else the user typed.
-   */
   const iconEditor = useIconEditor(
     useMemo(
       () => ({
@@ -1044,12 +1204,6 @@ function ProjectDialog({
 
           <div className="gap-4 py-4 flex flex-col">
             <div className="gap-3 flex items-end">
-              {/*
-                The icon sits beside the name because it is part of naming the
-                project. It saves with the form rather than on selection — the
-                project may not exist yet, and on edit the rest of the dialog is
-                still a draft the user can abandon.
-              */}
               <div className="gap-1.5 flex flex-col">
                 <label className="text-xs font-semibold">Icon</label>
                 <IconPicker
@@ -1060,7 +1214,7 @@ function ProjectDialog({
                     <button
                       type="button"
                       aria-label="Choose project icon"
-                      className="size-9 flex items-center justify-center rounded-md border border-border bg-surface-raised transition-colors hover:border-border-strong"
+                      className="size-9 flex items-center justify-center rounded-md border border-border bg-surface-raised transition-colors hover:border-border-strong cursor-pointer"
                     >
                       <ProjectGlyph
                         icon={draft.icon}
@@ -1086,8 +1240,6 @@ function ProjectDialog({
                     setDraft((prev) => ({
                       ...prev,
                       name: e.target.value,
-                      // The slug follows the name until it is edited by hand, at
-                      // which point it stops tracking.
                       slug:
                         prev.slug === '' || prev.slug === slugify(prev.name)
                           ? slugify(e.target.value)
@@ -1099,111 +1251,23 @@ function ProjectDialog({
               </div>
             </div>
 
-            {!showStatus ? (
-              <div className="gap-2 flex flex-col">
-                <label className="text-xs font-semibold">
-                  Starter Template
-                </label>
-                <div className="gap-2 grid grid-cols-2">
-                  {PROJECT_TEMPLATES.map((tpl) => {
-                    const isSelected = (draft.template ?? 'blank') === tpl.id;
-                    return (
-                      <button
-                        key={tpl.id}
-                        type="button"
-                        onClick={() =>
-                          setDraft((prev) => ({ ...prev, template: tpl.id }))
-                        }
-                        className={cn(
-                          'p-2.5 flex cursor-pointer flex-col items-start rounded-lg border text-left transition-colors',
-                          isSelected
-                            ? 'border-primary bg-primary/10 ring-1 ring-primary'
-                            : 'border-border bg-surface hover:bg-accent/60',
-                        )}
-                      >
-                        <span className="text-xs font-semibold text-foreground">
-                          {tpl.name}
-                        </span>
-                        <span className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground">
-                          {tpl.description}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-
-            {!showStatus ? (
-              <div className="gap-1.5 flex flex-col">
-                <label className="text-xs font-semibold" htmlFor="project-slug">
-                  URL
-                </label>
-                <Input
-                  id="project-slug"
-                  placeholder={slugify(draft.name) || 'q4-mobile-app-launch'}
-                  value={draft.slug}
-                  onChange={(e) =>
-                    setDraft((prev) => ({ ...prev, slug: e.target.value }))
-                  }
-                  className="text-xs font-mono"
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Lowercase letters, numbers and hyphens. Left blank, it is
-                  taken from the name.
-                </p>
-              </div>
-            ) : null}
-
-            {showStatus ? (
-              <div className="gap-1.5 flex flex-col">
-                <label className="text-xs font-semibold">Status</label>
-                <Select
-                  value={draft.status}
-                  onValueChange={(value) =>
-                    setDraft((prev) => ({
-                      ...prev,
-                      status: value as ProjectStatus,
-                    }))
-                  }
-                >
-                  <SelectTrigger className="text-xs h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PROJECT_STATUSES.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {STATUS_LABELS[status]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : null}
-
             <div className="gap-1.5 flex flex-col">
-              <label className="text-xs font-semibold">Colour</label>
-              <div className="gap-1.5 flex items-center">
-                {PROJECT_COLORS.map((option) => (
-                  <button
-                    key={option.hex}
-                    type="button"
-                    title={option.label}
-                    aria-label={option.label}
-                    aria-pressed={draft.color === option.hex}
-                    onClick={() =>
-                      setDraft((prev) => ({ ...prev, color: option.hex }))
-                    }
-                    style={{ backgroundColor: option.hex }}
-                    className={cn(
-                      'size-6 rounded-full transition-transform',
-                      draft.color === option.hex
-                        ? 'scale-110 ring-2 ring-ring ring-offset-2 ring-offset-background'
-                        : 'hover:scale-105',
-                    )}
-                  />
-                ))}
-              </div>
+              <label className="text-xs font-semibold" htmlFor="project-slug">
+                Project slug
+              </label>
+              <Input
+                id="project-slug"
+                required
+                placeholder="project-slug"
+                value={draft.slug}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    slug: slugify(e.target.value),
+                  }))
+                }
+                className="font-mono text-xs"
+              />
             </div>
 
             <div className="gap-1.5 flex flex-col">
@@ -1216,29 +1280,111 @@ function ProjectDialog({
               <Textarea
                 id="project-description"
                 rows={2}
-                placeholder="Brief description of goals..."
+                placeholder="What is this project delivering?"
                 value={draft.description}
                 onChange={(e) =>
-                  setDraft((prev) => ({ ...prev, description: e.target.value }))
+                  setDraft((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
                 }
                 className="text-xs"
               />
             </div>
 
-            {error ? (
-              <p className="gap-1.5 text-xs flex items-start text-destructive">
-                <TriangleAlert className="size-3.5 mt-0.5 shrink-0" />
-                {error instanceof Error
-                  ? error.message
-                  : 'The project could not be saved.'}
-              </p>
+            {!showStatus && (
+              <div className="gap-2 flex flex-col">
+                <label className="text-xs font-semibold">Starter Template</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {PROJECT_TEMPLATES.map((tmpl) => (
+                    <button
+                      key={tmpl.id}
+                      type="button"
+                      onClick={() =>
+                        setDraft((prev) => ({ ...prev, template: tmpl.id }))
+                      }
+                      className={cn(
+                        'p-2.5 rounded-lg border text-left flex flex-col gap-1 transition-all cursor-pointer',
+                        draft.template === tmpl.id
+                          ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                          : 'border-border/60 hover:bg-muted/40',
+                      )}
+                    >
+                      <span className="font-bold text-xs text-foreground">
+                        {tmpl.name}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground line-clamp-2">
+                        {tmpl.description}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="gap-1.5 flex flex-col">
+              <label className="text-xs font-semibold">Accent color</label>
+              <div className="gap-2 flex flex-wrap">
+                {PROJECT_COLORS.map((opt) => (
+                  <button
+                    key={opt.hex}
+                    type="button"
+                    onClick={() =>
+                      setDraft((prev) => ({
+                        ...prev,
+                        color: opt.hex,
+                        iconColor: prev.iconColor ?? opt.hex,
+                      }))
+                    }
+                    className={cn(
+                      'size-6 cursor-pointer rounded-full transition-transform hover:scale-110',
+                      draft.color === opt.hex
+                        ? 'ring-2 ring-primary ring-offset-2'
+                        : '',
+                    )}
+                    style={{ backgroundColor: opt.hex }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {showStatus ? (
+              <div className="gap-1.5 flex flex-col">
+                <label className="text-xs font-semibold" htmlFor="project-status">
+                  Status
+                </label>
+                <Select
+                  value={draft.status}
+                  onValueChange={(value) =>
+                    setDraft((prev) => ({
+                      ...prev,
+                      status: value as ProjectStatus,
+                    }))
+                  }
+                >
+                  <SelectTrigger id="project-status" className="text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROJECT_STATUSES.map((status) => (
+                      <SelectItem
+                        key={status}
+                        value={status}
+                        className="text-xs"
+                      >
+                        {STATUS_LABELS[status]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             ) : null}
           </div>
 
           <DialogFooter>
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => onOpenChange(false)}
             >
@@ -1247,64 +1393,13 @@ function ProjectDialog({
             <Button
               type="submit"
               size="sm"
-              disabled={pending || !draft.name.trim()}
+              loading={pending}
+              disabled={!draft.name.trim()}
             >
               {submitLabel}
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-/* ------------------------------------------------------ import summary --- */
-
-function ImportSummaryDialog({
-  progress,
-  onClose,
-}: {
-  progress: ImportProgress;
-  onClose: () => void;
-}) {
-  return (
-    <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-sm font-semibold">
-            Imported {progress.created} of {progress.total} tasks
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-3 py-2 text-xs">
-          {progress.failed > 0 ? (
-            <p className="gap-1.5 flex items-start text-destructive">
-              <TriangleAlert className="size-3.5 mt-0.5 shrink-0" />
-              {progress.failed} task{progress.failed === 1 ? '' : 's'} could not
-              be created.
-            </p>
-          ) : null}
-
-          {progress.warnings.length > 0 ? (
-            <ul className="space-y-1.5 text-muted-foreground">
-              {progress.warnings.map((warning) => (
-                <li key={warning} className="gap-1.5 flex items-start">
-                  <span
-                    aria-hidden
-                    className="mt-1.5 size-1 rounded-full bg-current"
-                  />
-                  {warning}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-
-        <DialogFooter>
-          <Button size="sm" onClick={onClose}>
-            Done
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

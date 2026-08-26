@@ -146,6 +146,9 @@ export function taskToCard(
       ticketPrefix && task.ticketNumber !== null
         ? `${ticketPrefix}-${task.ticketNumber}`
         : undefined,
+    identifier: task.identifier,
+    ticketNumber: task.ticketNumber,
+    type: task.type,
     title: task.title,
     description: task.description ?? '',
     memberIds: task.assigneeId ? [task.assigneeId] : [],

@@ -4,21 +4,57 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PUBLIC_USER_SELECT } from '@org/api-common';
-import { Prisma, PrismaService } from '@org/database';
+import {
+  CycleStatus,
+  DocumentKind,
+  IdentifierPrefixMode,
+  IntakeSource,
+  IntakeStatus,
+  Prisma,
+  PrismaService,
+  ProjectHealth,
+  ProjectStatus,
+  RelationType,
+  TaskPriority,
+  TaskStatus,
+  ViewType,
+  WorkItemType,
+} from '@org/database';
 import { TASK_STATUS_ORDER } from '@org/types';
-import type { DocumentKind, TaskStatus } from '@org/types';
+import {
+  formatTicketIdentifier,
+  generateProjectIdentifier,
+  isValidIdentifierPrefix,
+} from '@org/utils';
 import type {
+  ConvertIntakeRequestInput,
   CreateCalendarEventInput,
+  CreateCycleInput,
   CreateDocumentInput,
+  CreateEpicInput,
+  CreateInitiativeInput,
+  CreateIntakeRequestInput,
+  CreateModuleInput,
   CreateProjectInput,
+  CreateProjectUpdateInput,
+  CreateSavedViewInput,
   CreateTaskCommentInput,
   CreateTaskInput,
+  CreateTeamInput,
   CreateWhiteboardInput,
+  CreateWorkItemRelationInput,
   MoveTaskInput,
+  ProjectIdentifierSettingsInput,
   UpdateCalendarEventInput,
+  UpdateCycleInput,
   UpdateDocumentInput,
+  UpdateEpicInput,
+  UpdateInitiativeInput,
+  UpdateModuleInput,
   UpdateProjectInput,
+  UpdateSavedViewInput,
   UpdateTaskInput,
+  UpdateTeamInput,
   UpdateWhiteboardInput,
 } from '@org/validation';
 
@@ -28,116 +64,256 @@ function at(value: string | null | undefined): Date | null | undefined {
   return value === null ? null : new Date(value);
 }
 
-/**
- * Gap left between neighbouring cards in a column.
- *
- * `moveTask` writes the position it is given verbatim — the server does not
- * shuffle siblings — and the schema only accepts non-negative integers, so
- * there are no fractional midpoints to fall back on. Spacing positions out
- * makes the common case, a drop between two cards, one write: the midpoint of
- * the gap. The column is only respaced once a gap has been used up.
- */
+/** Gap left between neighbouring cards in a column. */
 const ORDER_STRIDE = 1024;
 
-/**
- * A ticket stem from a project's name: initials for a multi-word name, the
- * first three letters for a single-word one.
- *
- * Kept in step with the backfill in
- * `20260821060000_kanban_column_order_and_tickets`, which derives the same stem
- * in SQL for projects that predate ticket ids.
- */
-export function ticketStemFrom(name: string): string {
-  const words = name
-    .replace(/[^A-Za-z0-9]+/g, ' ')
-    .split(' ')
-    .filter(Boolean);
-
-  if (words.length === 0) return 'PRJ';
-  const stem =
-    words.length === 1
-      ? words[0].slice(0, 3)
-      : words.slice(0, 4).map((word) => word[0]).join('');
-  return stem.toUpperCase() || 'PRJ';
-}
-
-/**
- * Work-tools persistence.
- *
- * Every method takes `workspaceId` and every query filters on it — including
- * the ones addressing a row by its own id. The id alone is not proof of
- * access: it arrives from the caller, so a row is only reachable if it also
- * belongs to the workspace the guard already authorised.
- */
 @Injectable()
 export class WorkToolsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // --- projects -------------------------------------------------------------
+  // --- teams ----------------------------------------------------------------
 
-  async getProjects(workspaceId: string) {
-    return this.prisma.project.findMany({
+  async getTeams(workspaceId: string) {
+    return this.prisma.team.findMany({
       where: { workspaceId },
       include: {
+        _count: { select: { projects: true, tasks: true, cycles: true } },
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async createTeam(workspaceId: string, input: CreateTeamInput) {
+    const existing = await this.prisma.team.findFirst({
+      where: { workspaceId, key: input.key },
+    });
+    if (existing) {
+      throw new ConflictException(`Team key "${input.key}" already exists`);
+    }
+    return this.prisma.team.create({
+      data: {
+        workspaceId,
+        name: input.name,
+        key: input.key,
+        description: input.description ?? null,
+        color: input.color ?? '#3b82f6',
+        icon: input.icon ?? null,
+        iconColor: input.iconColor ?? null,
+      },
+    });
+  }
+
+  async updateTeam(
+    workspaceId: string,
+    teamId: string,
+    input: UpdateTeamInput,
+  ) {
+    await this.assertTeam(workspaceId, teamId);
+    return this.prisma.team.update({
+      where: { id: teamId },
+      data: {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.key !== undefined ? { key: input.key } : {}),
+        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.color !== undefined ? { color: input.color } : {}),
+        ...(input.icon !== undefined ? { icon: input.icon } : {}),
+        ...(input.iconColor !== undefined ? { iconColor: input.iconColor } : {}),
+      },
+    });
+  }
+
+  async deleteTeam(workspaceId: string, teamId: string): Promise<void> {
+    await this.assertTeam(workspaceId, teamId);
+    await this.prisma.team.delete({ where: { id: teamId } });
+  }
+
+  // --- initiatives ----------------------------------------------------------
+
+  async getInitiatives(workspaceId: string) {
+    return this.prisma.initiative.findMany({
+      where: { workspaceId },
+      include: {
+        owner: { select: PUBLIC_USER_SELECT },
+        projects: {
+          include: {
+            _count: { select: { tasks: true } },
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
+  async createInitiative(workspaceId: string, input: CreateInitiativeInput) {
+    return this.prisma.initiative.create({
+      data: {
+        workspaceId,
+        name: input.name,
+        objective: input.objective ?? null,
+        description: input.description ?? null,
+        ownerId: input.ownerId ?? null,
+        status: (input.status as ProjectStatus) ?? ProjectStatus.ACTIVE,
+        health: (input.health as ProjectHealth) ?? ProjectHealth.HEALTHY,
+        priority: (input.priority as TaskPriority) ?? TaskPriority.MEDIUM,
+        targetDate: at(input.targetDate) ?? null,
+        color: input.color ?? '#8b5cf6',
+        icon: input.icon ?? null,
+        iconColor: input.iconColor ?? null,
+        ...(input.projectIds?.length
+          ? {
+              projects: {
+                connect: input.projectIds.map((id) => ({ id })),
+              },
+            }
+          : {}),
+      },
+      include: {
+        owner: { select: PUBLIC_USER_SELECT },
+        projects: true,
+      },
+    });
+  }
+
+  async updateInitiative(
+    workspaceId: string,
+    initiativeId: string,
+    input: UpdateInitiativeInput,
+  ) {
+    await this.assertInitiative(workspaceId, initiativeId);
+    return this.prisma.initiative.update({
+      where: { id: initiativeId },
+      data: {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.objective !== undefined ? { objective: input.objective } : {}),
+        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.ownerId !== undefined ? { ownerId: input.ownerId } : {}),
+        ...(input.status !== undefined ? { status: input.status as ProjectStatus } : {}),
+        ...(input.health !== undefined ? { health: input.health as ProjectHealth } : {}),
+        ...(input.priority !== undefined ? { priority: input.priority as TaskPriority } : {}),
+        ...(input.targetDate !== undefined ? { targetDate: at(input.targetDate) } : {}),
+        ...(input.color !== undefined ? { color: input.color } : {}),
+        ...(input.icon !== undefined ? { icon: input.icon } : {}),
+        ...(input.iconColor !== undefined ? { iconColor: input.iconColor } : {}),
+        ...(input.projectIds
+          ? {
+              projects: {
+                set: input.projectIds.map((id) => ({ id })),
+              },
+            }
+          : {}),
+      },
+      include: {
+        owner: { select: PUBLIC_USER_SELECT },
+        projects: true,
+      },
+    });
+  }
+
+  async deleteInitiative(workspaceId: string, initiativeId: string): Promise<void> {
+    await this.assertInitiative(workspaceId, initiativeId);
+    await this.prisma.initiative.delete({ where: { id: initiativeId } });
+  }
+
+  // --- projects -------------------------------------------------------------
+
+  async getProjects(workspaceId: string, teamId?: string) {
+    return this.prisma.project.findMany({
+      where: {
+        workspaceId,
+        ...(teamId ? { teamId } : {}),
+      },
+      include: {
+        lead: { select: PUBLIC_USER_SELECT },
+        team: true,
         milestones: { orderBy: { dueDate: 'asc' } },
         sprints: { orderBy: { startDate: 'asc' } },
+        epics: { orderBy: { targetDate: 'asc' } },
+        modules: {
+          include: { lead: { select: PUBLIC_USER_SELECT } },
+          orderBy: { targetDate: 'asc' },
+        },
+        cycles: { orderBy: { startDate: 'asc' } },
         _count: { select: { tasks: true } },
       },
       orderBy: { updatedAt: 'desc' },
     });
   }
 
+  async getProject(workspaceId: string, projectId: string) {
+    await this.assertProject(workspaceId, projectId);
+    return this.prisma.project.findUniqueOrThrow({
+      where: { id: projectId },
+      include: {
+        lead: { select: PUBLIC_USER_SELECT },
+        team: true,
+        initiative: true,
+        milestones: { orderBy: { dueDate: 'asc' } },
+        sprints: { orderBy: { startDate: 'asc' } },
+        epics: { orderBy: { targetDate: 'asc' } },
+        modules: {
+          include: { lead: { select: PUBLIC_USER_SELECT } },
+          orderBy: { targetDate: 'asc' },
+        },
+        cycles: { orderBy: { startDate: 'asc' } },
+        updates: {
+          include: { author: { select: PUBLIC_USER_SELECT } },
+          orderBy: { createdAt: 'desc' },
+        },
+        _count: { select: { tasks: true } },
+      },
+    });
+  }
+
   async createProject(workspaceId: string, input: CreateProjectInput) {
+    if (input.teamId) await this.assertTeam(workspaceId, input.teamId);
+
+    // Existing prefixes in workspace for collision avoidance
+    const existingPrefixes = (
+      await this.prisma.project.findMany({
+        where: { workspaceId },
+        select: { ticketPrefix: true },
+      })
+    ).flatMap((p) => (p.ticketPrefix ? [p.ticketPrefix] : []));
+
+    const finalPrefix = input.ticketPrefix
+      ? input.ticketPrefix.toUpperCase()
+      : generateProjectIdentifier(input.name, existingPrefixes);
+
+    // Check clash
+    const clash = await this.prisma.project.findFirst({
+      where: { workspaceId, ticketPrefix: finalPrefix },
+    });
+    if (clash) {
+      throw new ConflictException(
+        `Ticket prefix "${finalPrefix}" is already in use by project "${clash.name}"`,
+      );
+    }
+
     return this.prisma.project.create({
       data: {
         workspaceId,
         name: input.name,
         slug: input.slug,
         description: input.description ?? null,
-        ...(input.color ? { color: input.color } : {}),
+        color: input.color ?? '#3b82f6',
         icon: input.icon ?? null,
         iconColor: input.iconColor ?? null,
+        teamId: input.teamId ?? null,
+        leadId: input.leadId ?? null,
+        initiativeId: input.initiativeId ?? null,
         startDate: at(input.startDate) ?? null,
         targetDate: at(input.targetDate) ?? null,
         columnOrder: [...TASK_STATUS_ORDER],
-        ticketPrefix: await this.freeTicketPrefix(
-          workspaceId,
-          ticketStemFrom(input.name),
-        ),
+        ticketPrefix: finalPrefix,
+        identifierPrefixMode:
+          (input.identifierPrefixMode as IdentifierPrefixMode) ??
+          IdentifierPrefixMode.AUTO,
+      },
+      include: {
+        lead: { select: PUBLIC_USER_SELECT },
+        team: true,
       },
     });
-  }
-
-  /**
-   * `stem`, or `stem` with a counter appended until the workspace has no
-   * project using it.
-   *
-   * Two projects called "Web App" and "Website" both want `WEB`, and the ticket
-   * id is only useful if it names one board — so the second becomes `WEB2`.
-   */
-  private async freeTicketPrefix(
-    workspaceId: string,
-    stem: string,
-    exceptProjectId?: string,
-  ): Promise<string> {
-    const taken = new Set(
-      (
-        await this.prisma.project.findMany({
-          where: {
-            workspaceId,
-            ticketPrefix: { startsWith: stem },
-            ...(exceptProjectId ? { id: { not: exceptProjectId } } : {}),
-          },
-          select: { ticketPrefix: true },
-        })
-      ).flatMap((project) => (project.ticketPrefix ? [project.ticketPrefix] : [])),
-    );
-
-    if (!taken.has(stem)) return stem;
-    for (let suffix = 2; ; suffix += 1) {
-      const candidate = `${stem}${suffix}`;
-      if (!taken.has(candidate)) return candidate;
-    }
   }
 
   async updateProject(
@@ -145,9 +321,9 @@ export class WorkToolsService {
     projectId: string,
     input: UpdateProjectInput,
   ) {
-    await this.assertProject(workspaceId, projectId);
+    const existing = await this.assertProject(workspaceId, projectId);
 
-    if (input.ticketPrefix !== undefined) {
+    if (input.ticketPrefix !== undefined && input.ticketPrefix !== existing.ticketPrefix) {
       const clash = await this.prisma.project.findFirst({
         where: {
           workspaceId,
@@ -165,31 +341,90 @@ export class WorkToolsService {
 
     const data: Prisma.ProjectUncheckedUpdateInput = {
       ...(input.name !== undefined ? { name: input.name } : {}),
-      // The column order arrives whole — it is a reorder of a fixed set, so
-      // there is no partial write to merge.
-      ...(input.columnOrder !== undefined
-        ? { columnOrder: input.columnOrder }
+      ...(input.columnOrder !== undefined ? { columnOrder: input.columnOrder } : {}),
+      ...(input.ticketPrefix !== undefined ? { ticketPrefix: input.ticketPrefix } : {}),
+      ...(input.identifierPrefixMode !== undefined
+        ? { identifierPrefixMode: input.identifierPrefixMode as IdentifierPrefixMode }
         : {}),
-      ...(input.ticketPrefix !== undefined
-        ? { ticketPrefix: input.ticketPrefix }
-        : {}),
-      ...(input.description !== undefined
-        ? { description: input.description }
-        : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
       ...(input.color !== undefined ? { color: input.color } : {}),
-      // Each icon field is written only when the caller sent it, so changing
-      // the colour alone does not clear the icon and vice versa.
       ...(input.icon !== undefined ? { icon: input.icon } : {}),
       ...(input.iconColor !== undefined ? { iconColor: input.iconColor } : {}),
-      ...(input.status !== undefined ? { status: input.status } : {}),
-      ...(input.startDate !== undefined
-        ? { startDate: at(input.startDate) }
-        : {}),
-      ...(input.targetDate !== undefined
-        ? { targetDate: at(input.targetDate) }
-        : {}),
+      ...(input.status !== undefined ? { status: input.status as ProjectStatus } : {}),
+      ...(input.health !== undefined ? { health: input.health as ProjectHealth } : {}),
+      ...(input.healthScore !== undefined ? { healthScore: input.healthScore } : {}),
+      ...(input.teamId !== undefined ? { teamId: input.teamId } : {}),
+      ...(input.leadId !== undefined ? { leadId: input.leadId } : {}),
+      ...(input.initiativeId !== undefined ? { initiativeId: input.initiativeId } : {}),
+      ...(input.startDate !== undefined ? { startDate: at(input.startDate) } : {}),
+      ...(input.targetDate !== undefined ? { targetDate: at(input.targetDate) } : {}),
     };
-    return this.prisma.project.update({ where: { id: projectId }, data });
+
+    return this.prisma.project.update({
+      where: { id: projectId },
+      data,
+      include: {
+        lead: { select: PUBLIC_USER_SELECT },
+        team: true,
+      },
+    });
+  }
+
+  async updateIdentifierSettings(
+    workspaceId: string,
+    projectId: string,
+    input: ProjectIdentifierSettingsInput,
+    actorId?: string,
+  ) {
+    const project = await this.assertProject(workspaceId, projectId);
+
+    let prefix = project.ticketPrefix;
+
+    if (input.regenerate) {
+      const existingPrefixes = (
+        await this.prisma.project.findMany({
+          where: { workspaceId, id: { not: projectId } },
+          select: { ticketPrefix: true },
+        })
+      ).flatMap((p) => (p.ticketPrefix ? [p.ticketPrefix] : []));
+
+      prefix = generateProjectIdentifier(project.name, existingPrefixes);
+    } else if (input.ticketPrefix) {
+      const upper = input.ticketPrefix.trim().toUpperCase();
+      if (!isValidIdentifierPrefix(upper)) {
+        throw new ConflictException('Invalid ticket prefix format');
+      }
+
+      const clash = await this.prisma.project.findFirst({
+        where: { workspaceId, ticketPrefix: upper, id: { not: projectId } },
+      });
+      if (clash) {
+        throw new ConflictException(`Prefix "${upper}" is already used by "${clash.name}"`);
+      }
+      prefix = upper;
+    }
+
+    const updated = await this.prisma.project.update({
+      where: { id: projectId },
+      data: {
+        ticketPrefix: prefix,
+        ...(input.identifierPrefixMode
+          ? { identifierPrefixMode: input.identifierPrefixMode as IdentifierPrefixMode }
+          : {}),
+      },
+    });
+
+    if (actorId && prefix !== project.ticketPrefix) {
+      await this.logActivity(workspaceId, projectId, actorId, 'PREFIX_CHANGED', {
+        oldPrefix: project.ticketPrefix,
+        newPrefix: prefix,
+      });
+    }
+
+    return {
+      project: updated,
+      preview: formatTicketIdentifier(prefix, updated.ticketSeq + 1),
+    };
   }
 
   async deleteProject(workspaceId: string, projectId: string): Promise<void> {
@@ -197,17 +432,238 @@ export class WorkToolsService {
     await this.prisma.project.delete({ where: { id: projectId } });
   }
 
-  // --- tasks ----------------------------------------------------------------
+  // --- epics & modules & cycles ---------------------------------------------
 
-  async getTasks(workspaceId: string, projectId?: string, status?: TaskStatus) {
+  async getEpics(workspaceId: string, projectId: string) {
+    await this.assertProject(workspaceId, projectId);
+    const epics = await this.prisma.epic.findMany({
+      where: { projectId, workspaceId },
+      include: {
+        tasks: {
+          select: { id: true, status: true, priority: true, title: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return epics.map((epic) => {
+      const total = epic.tasks.length;
+      const completed = epic.tasks.filter((t) => t.status === 'DONE').length;
+      return {
+        ...epic,
+        _count: { workItems: total, completedWorkItems: completed },
+      };
+    });
+  }
+
+  async createEpic(workspaceId: string, input: CreateEpicInput) {
+    await this.assertProject(workspaceId, input.projectId);
+    return this.prisma.epic.create({
+      data: {
+        workspaceId,
+        projectId: input.projectId,
+        name: input.name,
+        description: input.description ?? null,
+        ownerId: input.ownerId ?? null,
+        status: (input.status as ProjectStatus) ?? ProjectStatus.ACTIVE,
+        priority: (input.priority as TaskPriority) ?? TaskPriority.MEDIUM,
+        targetDate: at(input.targetDate) ?? null,
+        color: input.color ?? '#8b5cf6',
+      },
+    });
+  }
+
+  async updateEpic(workspaceId: string, epicId: string, input: UpdateEpicInput) {
+    const epic = await this.prisma.epic.findFirst({
+      where: { id: epicId, workspaceId },
+    });
+    if (!epic) throw new NotFoundException('Epic not found');
+
+    return this.prisma.epic.update({
+      where: { id: epicId },
+      data: {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.ownerId !== undefined ? { ownerId: input.ownerId } : {}),
+        ...(input.status !== undefined ? { status: input.status as ProjectStatus } : {}),
+        ...(input.priority !== undefined ? { priority: input.priority as TaskPriority } : {}),
+        ...(input.targetDate !== undefined ? { targetDate: at(input.targetDate) } : {}),
+        ...(input.color !== undefined ? { color: input.color } : {}),
+      },
+    });
+  }
+
+  async deleteEpic(workspaceId: string, epicId: string): Promise<void> {
+    const epic = await this.prisma.epic.findFirst({
+      where: { id: epicId, workspaceId },
+    });
+    if (!epic) throw new NotFoundException('Epic not found');
+    await this.prisma.epic.delete({ where: { id: epicId } });
+  }
+
+  async getModules(workspaceId: string, projectId: string) {
+    await this.assertProject(workspaceId, projectId);
+    return this.prisma.module.findMany({
+      where: { projectId, workspaceId },
+      include: {
+        lead: { select: PUBLIC_USER_SELECT },
+        _count: { select: { tasks: true } },
+      },
+      orderBy: { targetDate: 'asc' },
+    });
+  }
+
+  async createModule(workspaceId: string, input: CreateModuleInput) {
+    await this.assertProject(workspaceId, input.projectId);
+    return this.prisma.module.create({
+      data: {
+        workspaceId,
+        projectId: input.projectId,
+        name: input.name,
+        description: input.description ?? null,
+        leadId: input.leadId ?? null,
+        startDate: at(input.startDate) ?? null,
+        targetDate: at(input.targetDate) ?? null,
+        status: (input.status as ProjectStatus) ?? ProjectStatus.ACTIVE,
+        color: input.color ?? '#3b82f6',
+      },
+      include: {
+        lead: { select: PUBLIC_USER_SELECT },
+      },
+    });
+  }
+
+  async updateModule(workspaceId: string, moduleId: string, input: UpdateModuleInput) {
+    const mod = await this.prisma.module.findFirst({
+      where: { id: moduleId, workspaceId },
+    });
+    if (!mod) throw new NotFoundException('Module not found');
+
+    return this.prisma.module.update({
+      where: { id: moduleId },
+      data: {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.leadId !== undefined ? { leadId: input.leadId } : {}),
+        ...(input.startDate !== undefined ? { startDate: at(input.startDate) } : {}),
+        ...(input.targetDate !== undefined ? { targetDate: at(input.targetDate) } : {}),
+        ...(input.status !== undefined ? { status: input.status as ProjectStatus } : {}),
+        ...(input.color !== undefined ? { color: input.color } : {}),
+      },
+      include: {
+        lead: { select: PUBLIC_USER_SELECT },
+      },
+    });
+  }
+
+  async deleteModule(workspaceId: string, moduleId: string): Promise<void> {
+    const mod = await this.prisma.module.findFirst({
+      where: { id: moduleId, workspaceId },
+    });
+    if (!mod) throw new NotFoundException('Module not found');
+    await this.prisma.module.delete({ where: { id: moduleId } });
+  }
+
+  async getCycles(workspaceId: string, projectId?: string, teamId?: string) {
+    return this.prisma.cycle.findMany({
+      where: {
+        workspaceId,
+        ...(projectId ? { projectId } : {}),
+        ...(teamId ? { teamId } : {}),
+      },
+      include: {
+        tasks: {
+          select: { id: true, status: true, priority: true, title: true, estimate: true },
+        },
+      },
+      orderBy: { startDate: 'asc' },
+    });
+  }
+
+  async createCycle(workspaceId: string, input: CreateCycleInput) {
+    if (input.projectId) await this.assertProject(workspaceId, input.projectId);
+    if (input.teamId) await this.assertTeam(workspaceId, input.teamId);
+
+    return this.prisma.cycle.create({
+      data: {
+        workspaceId,
+        projectId: input.projectId ?? null,
+        teamId: input.teamId ?? null,
+        name: input.name,
+        description: input.description ?? null,
+        goal: input.goal ?? null,
+        startDate: new Date(input.startDate),
+        endDate: new Date(input.endDate),
+        status: (input.status as CycleStatus) ?? CycleStatus.DRAFT,
+      },
+    });
+  }
+
+  async updateCycle(workspaceId: string, cycleId: string, input: UpdateCycleInput) {
+    const cycle = await this.prisma.cycle.findFirst({
+      where: { id: cycleId, workspaceId },
+    });
+    if (!cycle) throw new NotFoundException('Cycle not found');
+
+    return this.prisma.cycle.update({
+      where: { id: cycleId },
+      data: {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.goal !== undefined ? { goal: input.goal } : {}),
+        ...(input.startDate !== undefined ? { startDate: new Date(input.startDate) } : {}),
+        ...(input.endDate !== undefined ? { endDate: new Date(input.endDate) } : {}),
+        ...(input.status !== undefined ? { status: input.status as CycleStatus } : {}),
+      },
+    });
+  }
+
+  async deleteCycle(workspaceId: string, cycleId: string): Promise<void> {
+    const cycle = await this.prisma.cycle.findFirst({
+      where: { id: cycleId, workspaceId },
+    });
+    if (!cycle) throw new NotFoundException('Cycle not found');
+    await this.prisma.cycle.delete({ where: { id: cycleId } });
+  }
+
+  // --- tasks / universal work items -----------------------------------------
+
+  async getTasks(
+    workspaceId: string,
+    projectId?: string,
+    status?: TaskStatus,
+    options?: {
+      teamId?: string;
+      cycleId?: string;
+      epicId?: string;
+      moduleId?: string;
+      assigneeId?: string;
+      search?: string;
+    },
+  ) {
     return this.prisma.task.findMany({
       where: {
         workspaceId,
         ...(projectId ? { projectId } : {}),
         ...(status ? { status } : {}),
+        ...(options?.teamId ? { teamId: options.teamId } : {}),
+        ...(options?.cycleId ? { cycleId: options.cycleId } : {}),
+        ...(options?.epicId ? { epicId: options.epicId } : {}),
+        ...(options?.moduleId ? { moduleId: options.moduleId } : {}),
+        ...(options?.assigneeId ? { assigneeId: options.assigneeId } : {}),
+        ...(options?.search
+          ? {
+              OR: [
+                { title: { contains: options.search, mode: 'insensitive' } },
+                { identifier: { contains: options.search, mode: 'insensitive' } },
+                { description: { contains: options.search, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
       },
       include: {
         assignee: { select: PUBLIC_USER_SELECT },
+        reporter: { select: PUBLIC_USER_SELECT },
         project: {
           select: {
             id: true,
@@ -216,7 +672,21 @@ export class WorkToolsService {
             color: true,
             icon: true,
             iconColor: true,
+            ticketPrefix: true,
           },
+        },
+        epic: true,
+        module: true,
+        cycle: true,
+        team: true,
+        subItems: {
+          include: { assignee: { select: PUBLIC_USER_SELECT } },
+        },
+        sourceRelations: {
+          include: { target: true },
+        },
+        targetRelations: {
+          include: { source: true },
         },
         _count: { select: { comments: true } },
       },
@@ -224,145 +694,475 @@ export class WorkToolsService {
     });
   }
 
-  async createTask(workspaceId: string, input: CreateTaskInput) {
-    // A task may only be filed under a project in the same workspace.
-    if (input.projectId) await this.assertProject(workspaceId, input.projectId);
+  async getTask(workspaceId: string, taskId: string) {
+    await this.assertTask(workspaceId, taskId);
+    return this.prisma.task.findUniqueOrThrow({
+      where: { id: taskId },
+      include: {
+        assignee: { select: PUBLIC_USER_SELECT },
+        reporter: { select: PUBLIC_USER_SELECT },
+        project: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            color: true,
+            icon: true,
+            iconColor: true,
+            ticketPrefix: true,
+          },
+        },
+        epic: true,
+        module: true,
+        cycle: true,
+        team: true,
+        parent: {
+          include: { assignee: { select: PUBLIC_USER_SELECT } },
+        },
+        subItems: {
+          include: { assignee: { select: PUBLIC_USER_SELECT } },
+          orderBy: { orderIndex: 'asc' },
+        },
+        sourceRelations: {
+          include: { target: true },
+        },
+        targetRelations: {
+          include: { source: true },
+        },
+        comments: {
+          include: { author: { select: PUBLIC_USER_SELECT } },
+          orderBy: { createdAt: 'asc' },
+        },
+        activities: {
+          include: { actor: { select: PUBLIC_USER_SELECT } },
+          orderBy: { createdAt: 'desc' },
+        },
+        _count: { select: { comments: true } },
+      },
+    });
+  }
 
-    const status = input.status ?? 'TODO';
+  async createTask(workspaceId: string, input: CreateTaskInput, actorId?: string) {
+    if (input.projectId) await this.assertProject(workspaceId, input.projectId);
+    if (input.teamId) await this.assertTeam(workspaceId, input.teamId);
+
+    const status = (input.status as TaskStatus) ?? TaskStatus.TODO;
     const projectId = input.projectId ?? null;
 
     return this.prisma.$transaction(async (tx) => {
-      /*
-       * The next ticket number, taken by incrementing the project's counter
-       * inside the transaction — two people adding a card at the same moment
-       * are serialised by the row lock the update takes, so neither can read
-       * the same number as the other. A task with no project has no prefix to
-       * pair a number with, so it goes unnumbered.
-       */
-      const ticketNumber = projectId
-        ? (
-            await tx.project.update({
-              where: { id: projectId },
-              data: { ticketSeq: { increment: 1 } },
-              select: { ticketSeq: true },
-            })
-          ).ticketSeq
-        : null;
+      let ticketNumber: number | null = null;
+      let identifier: string | null = null;
+
+      if (projectId) {
+        const proj = await tx.project.update({
+          where: { id: projectId },
+          data: { ticketSeq: { increment: 1 } },
+          select: { ticketSeq: true, ticketPrefix: true },
+        });
+        ticketNumber = proj.ticketSeq;
+        identifier = formatTicketIdentifier(proj.ticketPrefix, ticketNumber);
+      }
 
       const data: Prisma.TaskUncheckedCreateInput = {
         workspaceId,
         title: input.title,
         description: input.description ?? null,
         status,
-        ...(input.priority ? { priority: input.priority } : {}),
+        priority: (input.priority as TaskPriority) ?? TaskPriority.MEDIUM,
+        type: (input.type as WorkItemType) ?? WorkItemType.TASK,
         projectId,
+        teamId: input.teamId ?? null,
         sprintId: input.sprintId ?? null,
         milestoneId: input.milestoneId ?? null,
+        epicId: input.epicId ?? null,
+        cycleId: input.cycleId ?? null,
+        moduleId: input.moduleId ?? null,
+        parentId: input.parentId ?? null,
         assigneeId: input.assigneeId ?? null,
+        reporterId: input.reporterId ?? actorId ?? null,
+        startDate: at(input.startDate) ?? null,
         dueDate: at(input.dueDate) ?? null,
+        estimate: input.estimate ?? null,
+        labels: input.labels ?? [],
+        customFields: (input.customFields ?? {}) as Prisma.InputJsonValue,
         ticketNumber,
+        identifier,
         orderIndex: await this.topOfColumn(tx, workspaceId, projectId, status),
       };
 
-      return tx.task.create({
+      const task = await tx.task.create({
         data,
-        include: { assignee: { select: PUBLIC_USER_SELECT } },
+        include: {
+          assignee: { select: PUBLIC_USER_SELECT },
+          reporter: { select: PUBLIC_USER_SELECT },
+          project: true,
+        },
       });
-    });
-  }
 
-  /**
-   * A position above every card in a column.
-   *
-   * The old rule was `first - 1`, which walked steadily negative and eventually
-   * fell through the floor `moveTaskSchema` enforces — a card added enough
-   * times could no longer be dropped back where it came from. Halving the gap
-   * above the first card keeps every position non-negative; when that gap is
-   * used up the column is respaced, which is the only case that touches rows
-   * other than the new one.
-   */
-  private async topOfColumn(
-    tx: Prisma.TransactionClient,
-    workspaceId: string,
-    projectId: string | null,
-    status: TaskStatus,
-  ): Promise<number> {
-    const where = { workspaceId, projectId, status };
-    const first = await tx.task.findFirst({
-      where,
-      orderBy: { orderIndex: 'asc' },
-      select: { orderIndex: true },
-    });
+      if (actorId) {
+        await tx.workItemActivity.create({
+          data: {
+            workspaceId,
+            workItemId: task.id,
+            actorId,
+            action: 'CREATED',
+            newValue: task.title,
+          },
+        });
+      }
 
-    if (!first) return ORDER_STRIDE;
-    if (first.orderIndex >= 2) return Math.floor(first.orderIndex / 2);
-
-    const column = await tx.task.findMany({
-      where,
-      orderBy: { orderIndex: 'asc' },
-      select: { id: true },
+      return task;
     });
-    await Promise.all(
-      column.map((task, at) =>
-        tx.task.update({
-          where: { id: task.id },
-          data: { orderIndex: (at + 1) * ORDER_STRIDE },
-        }),
-      ),
-    );
-    return Math.floor(ORDER_STRIDE / 2);
   }
 
   async updateTask(
     workspaceId: string,
     taskId: string,
     input: UpdateTaskInput,
+    actorId?: string,
   ) {
-    await this.assertTask(workspaceId, taskId);
-    if (input.projectId) await this.assertProject(workspaceId, input.projectId);
+    const existing = await this.assertTask(workspaceId, taskId);
 
     const data: Prisma.TaskUncheckedUpdateInput = {
       ...(input.title !== undefined ? { title: input.title } : {}),
-      ...(input.description !== undefined
-        ? { description: input.description }
-        : {}),
-      ...(input.status !== undefined ? { status: input.status } : {}),
-      ...(input.priority !== undefined ? { priority: input.priority } : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.type !== undefined ? { type: input.type as WorkItemType } : {}),
+      ...(input.status !== undefined ? { status: input.status as TaskStatus } : {}),
+      ...(input.priority !== undefined ? { priority: input.priority as TaskPriority } : {}),
       ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
+      ...(input.teamId !== undefined ? { teamId: input.teamId } : {}),
       ...(input.sprintId !== undefined ? { sprintId: input.sprintId } : {}),
-      ...(input.milestoneId !== undefined
-        ? { milestoneId: input.milestoneId }
-        : {}),
-      ...(input.assigneeId !== undefined
-        ? { assigneeId: input.assigneeId }
-        : {}),
+      ...(input.milestoneId !== undefined ? { milestoneId: input.milestoneId } : {}),
+      ...(input.epicId !== undefined ? { epicId: input.epicId } : {}),
+      ...(input.cycleId !== undefined ? { cycleId: input.cycleId } : {}),
+      ...(input.moduleId !== undefined ? { moduleId: input.moduleId } : {}),
+      ...(input.parentId !== undefined ? { parentId: input.parentId } : {}),
+      ...(input.assigneeId !== undefined ? { assigneeId: input.assigneeId } : {}),
+      ...(input.reporterId !== undefined ? { reporterId: input.reporterId } : {}),
+      ...(input.startDate !== undefined ? { startDate: at(input.startDate) } : {}),
       ...(input.dueDate !== undefined ? { dueDate: at(input.dueDate) } : {}),
-      ...(input.orderIndex !== undefined
-        ? { orderIndex: input.orderIndex }
+      ...(input.completedAt !== undefined ? { completedAt: at(input.completedAt) } : {}),
+      ...(input.estimate !== undefined ? { estimate: input.estimate } : {}),
+      ...(input.timeSpent !== undefined ? { timeSpent: input.timeSpent } : {}),
+      ...(input.labels !== undefined ? { labels: input.labels } : {}),
+      ...(input.customFields !== undefined
+        ? { customFields: input.customFields as Prisma.InputJsonValue }
         : {}),
+      ...(input.orderIndex !== undefined ? { orderIndex: input.orderIndex } : {}),
     };
 
-    return this.prisma.task.update({
+    const updated = await this.prisma.task.update({
       where: { id: taskId },
       data,
-      include: { assignee: { select: PUBLIC_USER_SELECT } },
+      include: {
+        assignee: { select: PUBLIC_USER_SELECT },
+        reporter: { select: PUBLIC_USER_SELECT },
+        project: true,
+      },
     });
+
+    if (actorId) {
+      if (input.status && input.status !== existing.status) {
+        await this.logActivity(workspaceId, taskId, actorId, 'STATUS_CHANGED', {
+          oldValue: existing.status,
+          newValue: input.status,
+        });
+      }
+      if (input.priority && input.priority !== existing.priority) {
+        await this.logActivity(workspaceId, taskId, actorId, 'PRIORITY_CHANGED', {
+          oldValue: existing.priority,
+          newValue: input.priority,
+        });
+      }
+      if (input.assigneeId !== undefined && input.assigneeId !== existing.assigneeId) {
+        await this.logActivity(workspaceId, taskId, actorId, 'ASSIGNED', {
+          oldValue: existing.assigneeId,
+          newValue: input.assigneeId,
+        });
+      }
+    }
+
+    return updated;
   }
 
-  /** Board drag-and-drop: new column, new position. */
-  async moveTask(workspaceId: string, taskId: string, input: MoveTaskInput) {
-    await this.assertTask(workspaceId, taskId);
-    return this.prisma.task.update({
+  async moveTask(
+    workspaceId: string,
+    taskId: string,
+    input: MoveTaskInput,
+    actorId?: string,
+  ) {
+    const existing = await this.assertTask(workspaceId, taskId);
+
+    const updated = await this.prisma.task.update({
       where: { id: taskId },
-      data: { status: input.status, orderIndex: input.orderIndex },
-      include: { assignee: { select: PUBLIC_USER_SELECT } },
+      data: {
+        status: input.status,
+        orderIndex: input.orderIndex,
+      },
     });
+
+    if (actorId && input.status !== existing.status) {
+      await this.logActivity(workspaceId, taskId, actorId, 'STATUS_CHANGED', {
+        oldValue: existing.status,
+        newValue: input.status,
+      });
+    }
+
+    return updated;
   }
 
-  async deleteTask(workspaceId: string, taskId: string): Promise<void> {
+  async deleteTask(workspaceId: string, taskId: string, actorId?: string): Promise<void> {
     await this.assertTask(workspaceId, taskId);
+    if (actorId) {
+      await this.logActivity(workspaceId, taskId, actorId, 'DELETED');
+    }
     await this.prisma.task.delete({ where: { id: taskId } });
   }
+
+  // --- relations ------------------------------------------------------------
+
+  async getRelations(workspaceId: string, taskId: string) {
+    await this.assertTask(workspaceId, taskId);
+    return this.prisma.workItemRelation.findMany({
+      where: {
+        workspaceId,
+        OR: [{ sourceId: taskId }, { targetId: taskId }],
+      },
+      include: {
+        source: { select: { id: true, title: true, status: true, identifier: true } },
+        target: { select: { id: true, title: true, status: true, identifier: true } },
+      },
+    });
+  }
+
+  async addRelation(
+    workspaceId: string,
+    input: CreateWorkItemRelationInput,
+    actorId?: string,
+  ) {
+    await this.assertTask(workspaceId, input.sourceId);
+    await this.assertTask(workspaceId, input.targetId);
+
+    const relation = await this.prisma.workItemRelation.create({
+      data: {
+        workspaceId,
+        sourceId: input.sourceId,
+        targetId: input.targetId,
+        type: input.type as RelationType,
+      },
+      include: {
+        source: true,
+        target: true,
+      },
+    });
+
+    if (actorId) {
+      await this.logActivity(workspaceId, input.sourceId, actorId, 'RELATIONS_CHANGED', {
+        relationType: input.type,
+        targetId: input.targetId,
+      });
+    }
+
+    return relation;
+  }
+
+  async deleteRelation(workspaceId: string, relationId: string): Promise<void> {
+    const relation = await this.prisma.workItemRelation.findFirst({
+      where: { id: relationId, workspaceId },
+    });
+    if (!relation) throw new NotFoundException('Relation not found');
+    await this.prisma.workItemRelation.delete({ where: { id: relationId } });
+  }
+
+  // --- saved views ----------------------------------------------------------
+
+  async getSavedViews(workspaceId: string, projectId?: string, teamId?: string) {
+    return this.prisma.savedView.findMany({
+      where: {
+        workspaceId,
+        ...(projectId ? { projectId } : {}),
+        ...(teamId ? { teamId } : {}),
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async createSavedView(
+    workspaceId: string,
+    userId: string | null,
+    input: CreateSavedViewInput,
+  ) {
+    return this.prisma.savedView.create({
+      data: {
+        workspaceId,
+        userId,
+        projectId: input.projectId ?? null,
+        teamId: input.teamId ?? null,
+        name: input.name,
+        type: (input.type as ViewType) ?? ViewType.BOARD,
+        filters: JSON.stringify(input.filters),
+        sorting: input.sorting ? JSON.stringify(input.sorting) : '{}',
+        grouping: input.grouping ? JSON.stringify(input.grouping) : '{}',
+        visibleColumns: input.visibleColumns ?? [],
+        isDefault: input.isDefault ?? false,
+        isShared: input.isShared ?? true,
+      },
+    });
+  }
+
+  async updateSavedView(workspaceId: string, viewId: string, input: UpdateSavedViewInput) {
+    const view = await this.prisma.savedView.findFirst({
+      where: { id: viewId, workspaceId },
+    });
+    if (!view) throw new NotFoundException('Saved view not found');
+
+    return this.prisma.savedView.update({
+      where: { id: viewId },
+      data: {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.type !== undefined ? { type: input.type as ViewType } : {}),
+        ...(input.filters !== undefined ? { filters: JSON.stringify(input.filters) } : {}),
+        ...(input.sorting !== undefined ? { sorting: JSON.stringify(input.sorting) } : {}),
+        ...(input.grouping !== undefined ? { grouping: JSON.stringify(input.grouping) } : {}),
+        ...(input.visibleColumns !== undefined ? { visibleColumns: input.visibleColumns } : {}),
+        ...(input.isDefault !== undefined ? { isDefault: input.isDefault } : {}),
+        ...(input.isShared !== undefined ? { isShared: input.isShared } : {}),
+      },
+    });
+  }
+
+  async deleteSavedView(workspaceId: string, viewId: string): Promise<void> {
+    const view = await this.prisma.savedView.findFirst({
+      where: { id: viewId, workspaceId },
+    });
+    if (!view) throw new NotFoundException('Saved view not found');
+    await this.prisma.savedView.delete({ where: { id: viewId } });
+  }
+
+  // --- intake / triage ------------------------------------------------------
+
+  async getIntakeRequests(workspaceId: string, status?: IntakeStatus) {
+    return this.prisma.intakeRequest.findMany({
+      where: {
+        workspaceId,
+        ...(status ? { status } : {}),
+      },
+      include: {
+        project: { select: { id: true, name: true, slug: true } },
+        team: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async createIntakeRequest(workspaceId: string, input: CreateIntakeRequestInput) {
+    return this.prisma.intakeRequest.create({
+      data: {
+        workspaceId,
+        teamId: input.teamId ?? null,
+        projectId: input.projectId ?? null,
+        title: input.title,
+        description: input.description ?? null,
+        source: (input.source as IntakeSource) ?? IntakeSource.USER,
+        requesterName: input.requesterName ?? null,
+        requesterEmail: input.requesterEmail ?? null,
+        priority: (input.priority as TaskPriority) ?? TaskPriority.MEDIUM,
+        slaDueDate: at(input.slaDueDate) ?? null,
+      },
+    });
+  }
+
+  async convertIntakeRequest(
+    workspaceId: string,
+    intakeId: string,
+    input: ConvertIntakeRequestInput,
+    actorId?: string,
+  ) {
+    const intake = await this.prisma.intakeRequest.findFirst({
+      where: { id: intakeId, workspaceId },
+    });
+    if (!intake) throw new NotFoundException('Intake request not found');
+
+    const createdTask = await this.createTask(
+      workspaceId,
+      {
+        projectId: input.projectId,
+        title: input.title || intake.title,
+        description: intake.description ?? undefined,
+        type: input.type ?? WorkItemType.REQUEST,
+        priority: input.priority ?? (intake.priority as TaskPriority),
+        assigneeId: input.assigneeId,
+        labels: input.labels ?? intake.suggestedLabels,
+      },
+      actorId,
+    );
+
+    await this.prisma.intakeRequest.update({
+      where: { id: intakeId },
+      data: {
+        status: IntakeStatus.CONVERTED,
+        convertedWorkItemId: createdTask.id,
+      },
+    });
+
+    return createdTask;
+  }
+
+  async declineIntakeRequest(workspaceId: string, intakeId: string) {
+    const intake = await this.prisma.intakeRequest.findFirst({
+      where: { id: intakeId, workspaceId },
+    });
+    if (!intake) throw new NotFoundException('Intake request not found');
+
+    return this.prisma.intakeRequest.update({
+      where: { id: intakeId },
+      data: { status: IntakeStatus.DECLINED },
+    });
+  }
+
+  // --- project updates ------------------------------------------------------
+
+  async getProjectUpdates(workspaceId: string, projectId: string) {
+    await this.assertProject(workspaceId, projectId);
+    return this.prisma.projectUpdate.findMany({
+      where: { projectId },
+      include: { author: { select: PUBLIC_USER_SELECT } },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async createProjectUpdate(
+    workspaceId: string,
+    authorId: string,
+    input: CreateProjectUpdateInput,
+  ) {
+    await this.assertProject(workspaceId, input.projectId);
+
+    const update = await this.prisma.projectUpdate.create({
+      data: {
+        projectId: input.projectId,
+        authorId,
+        status: (input.status as ProjectHealth) ?? ProjectHealth.HEALTHY,
+        title: input.title,
+        body: input.body ?? null,
+        completedSummary: input.completedSummary ?? null,
+        inProgressSummary: input.inProgressSummary ?? null,
+        blockersSummary: input.blockersSummary ?? null,
+        nextStepsSummary: input.nextStepsSummary ?? null,
+      },
+      include: { author: { select: PUBLIC_USER_SELECT } },
+    });
+
+    // Update project health
+    await this.prisma.project.update({
+      where: { id: input.projectId },
+      data: { health: (input.status as ProjectHealth) ?? ProjectHealth.HEALTHY },
+    });
+
+    return update;
+  }
+
+  // --- comments, calendar, documents, whiteboards --------------------------
 
   async getTaskComments(workspaceId: string, taskId: string) {
     await this.assertTask(workspaceId, taskId);
@@ -380,23 +1180,39 @@ export class WorkToolsService {
     input: CreateTaskCommentInput,
   ) {
     await this.assertTask(workspaceId, taskId);
-    return this.prisma.taskComment.create({
-      data: { taskId, authorId, content: input.content },
+    const comment = await this.prisma.taskComment.create({
+      data: {
+        taskId,
+        authorId,
+        content: input.content,
+      },
       include: { author: { select: PUBLIC_USER_SELECT } },
     });
+
+    await this.logActivity(workspaceId, taskId, authorId, 'COMMENTED', {
+      commentId: comment.id,
+    });
+
+    return comment;
   }
 
-  // --- calendar -------------------------------------------------------------
+  async deleteTaskComment(
+    workspaceId: string,
+    commentId: string,
+  ): Promise<void> {
+    const comment = await this.prisma.taskComment.findUnique({
+      where: { id: commentId },
+      select: { task: { select: { workspaceId: true } } },
+    });
+    if (!comment || comment.task.workspaceId !== workspaceId) {
+      throw new NotFoundException('Comment not found');
+    }
+    await this.prisma.taskComment.delete({ where: { id: commentId } });
+  }
 
-  async getCalendarEvents(workspaceId: string, from?: string, to?: string) {
+  async getCalendarEvents(workspaceId: string) {
     return this.prisma.calendarEvent.findMany({
-      where: {
-        workspaceId,
-        // Overlap, not containment: an event that straddles the window edge
-        // still belongs on the visible month.
-        ...(from ? { endAt: { gte: new Date(from) } } : {}),
-        ...(to ? { startAt: { lte: new Date(to) } } : {}),
-      },
+      where: { workspaceId },
       include: { organizer: { select: PUBLIC_USER_SELECT } },
       orderBy: { startAt: 'asc' },
     });
@@ -416,7 +1232,7 @@ export class WorkToolsService {
         location: input.location ?? null,
         startAt: new Date(input.startAt),
         endAt: new Date(input.endAt),
-        ...(input.isAllDay !== undefined ? { isAllDay: input.isAllDay } : {}),
+        isAllDay: input.isAllDay ?? false,
       },
       include: { organizer: { select: PUBLIC_USER_SELECT } },
     });
@@ -432,13 +1248,9 @@ export class WorkToolsService {
       where: { id: eventId },
       data: {
         ...(input.title !== undefined ? { title: input.title } : {}),
-        ...(input.description !== undefined
-          ? { description: input.description }
-          : {}),
+        ...(input.description !== undefined ? { description: input.description } : {}),
         ...(input.location !== undefined ? { location: input.location } : {}),
-        ...(input.startAt !== undefined
-          ? { startAt: new Date(input.startAt) }
-          : {}),
+        ...(input.startAt !== undefined ? { startAt: new Date(input.startAt) } : {}),
         ...(input.endAt !== undefined ? { endAt: new Date(input.endAt) } : {}),
         ...(input.isAllDay !== undefined ? { isAllDay: input.isAllDay } : {}),
       },
@@ -446,19 +1258,14 @@ export class WorkToolsService {
     });
   }
 
-  async deleteCalendarEvent(
-    workspaceId: string,
-    eventId: string,
-  ): Promise<void> {
+  async deleteCalendarEvent(workspaceId: string, eventId: string): Promise<void> {
     await this.assertEvent(workspaceId, eventId);
     await this.prisma.calendarEvent.delete({ where: { id: eventId } });
   }
 
-  // --- documents ------------------------------------------------------------
-
-  async getDocuments(workspaceId: string, kind?: DocumentKind) {
+  async getDocuments(workspaceId: string) {
     return this.prisma.workDocument.findMany({
-      where: { workspaceId, ...(kind ? { kind } : {}) },
+      where: { workspaceId },
       include: {
         author: { select: PUBLIC_USER_SELECT },
         children: { select: { id: true, title: true, kind: true } },
@@ -468,15 +1275,14 @@ export class WorkToolsService {
   }
 
   async getDocument(workspaceId: string, docId: string) {
-    const doc = await this.prisma.workDocument.findFirst({
-      where: { id: docId, workspaceId },
+    await this.assertDocument(workspaceId, docId);
+    return this.prisma.workDocument.findUniqueOrThrow({
+      where: { id: docId },
       include: {
         author: { select: PUBLIC_USER_SELECT },
         children: { select: { id: true, title: true, kind: true } },
       },
     });
-    if (!doc) throw new NotFoundException('Document not found.');
-    return doc;
   }
 
   async createDocument(
@@ -484,19 +1290,20 @@ export class WorkToolsService {
     authorId: string,
     input: CreateDocumentInput,
   ) {
-    // Nesting under someone else's workspace would leak the tree across tenants.
     if (input.parentId) await this.assertDocument(workspaceId, input.parentId);
-
     return this.prisma.workDocument.create({
       data: {
         workspaceId,
         authorId,
         title: input.title,
-        ...(input.content !== undefined ? { content: input.content } : {}),
-        ...(input.kind ? { kind: input.kind } : {}),
+        content: input.content ?? '',
+        kind: (input.kind as DocumentKind) ?? DocumentKind.DOC,
         parentId: input.parentId ?? null,
       },
-      include: { author: { select: PUBLIC_USER_SELECT } },
+      include: {
+        author: { select: PUBLIC_USER_SELECT },
+        children: { select: { id: true, title: true, kind: true } },
+      },
     });
   }
 
@@ -506,12 +1313,7 @@ export class WorkToolsService {
     input: UpdateDocumentInput,
   ) {
     await this.assertDocument(workspaceId, docId);
-    if (input.parentId) {
-      if (input.parentId === docId) {
-        throw new NotFoundException('A document cannot be its own parent.');
-      }
-      await this.assertDocument(workspaceId, input.parentId);
-    }
+    if (input.parentId) await this.assertDocument(workspaceId, input.parentId);
 
     return this.prisma.workDocument.update({
       where: { id: docId },
@@ -520,28 +1322,17 @@ export class WorkToolsService {
         ...(input.content !== undefined ? { content: input.content } : {}),
         ...(input.parentId !== undefined ? { parentId: input.parentId } : {}),
       },
-      include: { author: { select: PUBLIC_USER_SELECT } },
+      include: {
+        author: { select: PUBLIC_USER_SELECT },
+        children: { select: { id: true, title: true, kind: true } },
+      },
     });
   }
 
   async deleteDocument(workspaceId: string, docId: string): Promise<void> {
     await this.assertDocument(workspaceId, docId);
-    // Children have no cascade in the schema, so re-parent them to this
-    // document's parent rather than leaving rows pointing at a deleted id.
-    const doc = await this.prisma.workDocument.findUniqueOrThrow({
-      where: { id: docId },
-      select: { parentId: true },
-    });
-    await this.prisma.$transaction([
-      this.prisma.workDocument.updateMany({
-        where: { parentId: docId },
-        data: { parentId: doc.parentId },
-      }),
-      this.prisma.workDocument.delete({ where: { id: docId } }),
-    ]);
+    await this.prisma.workDocument.delete({ where: { id: docId } });
   }
-
-  // --- whiteboards ----------------------------------------------------------
 
   async getWhiteboards(workspaceId: string) {
     return this.prisma.whiteboard.findMany({
@@ -552,12 +1343,11 @@ export class WorkToolsService {
   }
 
   async getWhiteboard(workspaceId: string, whiteboardId: string) {
-    const board = await this.prisma.whiteboard.findFirst({
-      where: { id: whiteboardId, workspaceId },
+    await this.assertWhiteboard(workspaceId, whiteboardId);
+    return this.prisma.whiteboard.findUniqueOrThrow({
+      where: { id: whiteboardId },
       include: { author: { select: PUBLIC_USER_SELECT } },
     });
-    if (!board) throw new NotFoundException('Whiteboard not found.');
-    return board;
   }
 
   async createWhiteboard(
@@ -566,7 +1356,12 @@ export class WorkToolsService {
     input: CreateWhiteboardInput,
   ) {
     return this.prisma.whiteboard.create({
-      data: { workspaceId, authorId, name: input.name },
+      data: {
+        workspaceId,
+        authorId,
+        name: input.name,
+        canvasData: JSON.stringify({ nodes: [], edges: [] }),
+      },
       include: { author: { select: PUBLIC_USER_SELECT } },
     });
   }
@@ -581,64 +1376,110 @@ export class WorkToolsService {
       where: { id: whiteboardId },
       data: {
         ...(input.name !== undefined ? { name: input.name } : {}),
-        ...(input.canvasData !== undefined
-          ? { canvasData: input.canvasData }
-          : {}),
+        ...(input.canvasData !== undefined ? { canvasData: input.canvasData } : {}),
       },
       include: { author: { select: PUBLIC_USER_SELECT } },
     });
   }
 
-  async deleteWhiteboard(
-    workspaceId: string,
-    whiteboardId: string,
-  ): Promise<void> {
+  async deleteWhiteboard(workspaceId: string, whiteboardId: string): Promise<void> {
     await this.assertWhiteboard(workspaceId, whiteboardId);
     await this.prisma.whiteboard.delete({ where: { id: whiteboardId } });
   }
 
-  // --- ownership checks -----------------------------------------------------
-  //
-  // 404 rather than 403 throughout: telling a caller that a row exists but is
-  // someone else's is itself a disclosure, and matches WorkspaceRoleGuard.
+  // --- activity logging & helpers -------------------------------------------
+
+  private async logActivity(
+    workspaceId: string,
+    workItemId: string,
+    actorId: string,
+    action: string,
+    metadata: Record<string, unknown> = {},
+  ) {
+    try {
+      await this.prisma.workItemActivity.create({
+        data: {
+          workspaceId,
+          workItemId,
+          actorId,
+          action,
+          metadata: JSON.stringify(metadata),
+        },
+      });
+    } catch {
+      // Activity logging is non-blocking
+    }
+  }
+
+  private async topOfColumn(
+    tx: Prisma.TransactionClient,
+    workspaceId: string,
+    projectId: string | null,
+    status: TaskStatus,
+  ): Promise<number> {
+    const first = await tx.task.findFirst({
+      where: { workspaceId, projectId, status },
+      orderBy: { orderIndex: 'asc' },
+      select: { orderIndex: true },
+    });
+
+    if (!first) return ORDER_STRIDE;
+    return Math.max(0, Math.floor(first.orderIndex / 2));
+  }
+
+  private async assertTeam(workspaceId: string, teamId: string) {
+    const team = await this.prisma.team.findFirst({
+      where: { id: teamId, workspaceId },
+    });
+    if (!team) throw new NotFoundException('Team not found');
+    return team;
+  }
+
+  private async assertInitiative(workspaceId: string, initiativeId: string) {
+    const init = await this.prisma.initiative.findFirst({
+      where: { id: initiativeId, workspaceId },
+    });
+    if (!init) throw new NotFoundException('Initiative not found');
+    return init;
+  }
 
   private async assertProject(workspaceId: string, projectId: string) {
-    const found = await this.prisma.project.findFirst({
+    const project = await this.prisma.project.findFirst({
       where: { id: projectId, workspaceId },
-      select: { id: true },
     });
-    if (!found) throw new NotFoundException('Project not found.');
+    if (!project) throw new NotFoundException('Project not found');
+    return project;
   }
 
   private async assertTask(workspaceId: string, taskId: string) {
-    const found = await this.prisma.task.findFirst({
+    const task = await this.prisma.task.findFirst({
       where: { id: taskId, workspaceId },
-      select: { id: true },
     });
-    if (!found) throw new NotFoundException('Task not found.');
+    if (!task) throw new NotFoundException('Task not found');
+    return task;
   }
 
   private async assertEvent(workspaceId: string, eventId: string) {
-    const found = await this.prisma.calendarEvent.findFirst({
+    const event = await this.prisma.calendarEvent.findFirst({
       where: { id: eventId, workspaceId },
-      select: { id: true },
     });
-    if (!found) throw new NotFoundException('Event not found.');
+    if (!event) throw new NotFoundException('Event not found');
+    return event;
   }
 
   private async assertDocument(workspaceId: string, docId: string) {
-    const found = await this.prisma.workDocument.findFirst({
+    const doc = await this.prisma.workDocument.findFirst({
       where: { id: docId, workspaceId },
-      select: { id: true },
     });
-    if (!found) throw new NotFoundException('Document not found.');
+    if (!doc) throw new NotFoundException('Document not found');
+    return doc;
   }
 
   private async assertWhiteboard(workspaceId: string, whiteboardId: string) {
-    const found = await this.prisma.whiteboard.findFirst({
+    const board = await this.prisma.whiteboard.findFirst({
       where: { id: whiteboardId, workspaceId },
-      select: { id: true },
     });
-    if (!found) throw new NotFoundException('Whiteboard not found.');
+    if (!board) throw new NotFoundException('Whiteboard not found');
+    return board;
   }
 }

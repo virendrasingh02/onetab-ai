@@ -177,13 +177,35 @@ export const queryKeys = {
   },
   workTools: {
     all: (workspaceId: string) => ['work-tools', workspaceId] as const,
-    projects: (workspaceId: string) =>
-      ['work-tools', workspaceId, 'projects'] as const,
+    teams: (workspaceId: string) =>
+      ['work-tools', workspaceId, 'teams'] as const,
+    initiatives: (workspaceId: string) =>
+      ['work-tools', workspaceId, 'initiatives'] as const,
+    projects: (workspaceId: string, teamId?: string) =>
+      ['work-tools', workspaceId, 'projects', teamId ?? 'all'] as const,
+    project: (workspaceId: string, projectId: string) =>
+      ['work-tools', workspaceId, 'projects', 'detail', projectId] as const,
+    epics: (workspaceId: string, projectId: string) =>
+      ['work-tools', workspaceId, 'projects', projectId, 'epics'] as const,
+    modules: (workspaceId: string, projectId: string) =>
+      ['work-tools', workspaceId, 'projects', projectId, 'modules'] as const,
+    cycles: (workspaceId: string, projectId?: string, teamId?: string) =>
+      ['work-tools', workspaceId, 'cycles', projectId ?? 'all', teamId ?? 'all'] as const,
     /** `projectId` narrows the board; `undefined` is the all-tasks view. */
-    tasks: (workspaceId: string, projectId?: string) =>
-      ['work-tools', workspaceId, 'tasks', projectId ?? 'all'] as const,
+    tasks: (workspaceId: string, projectId?: string, filters?: Record<string, any>) =>
+      ['work-tools', workspaceId, 'tasks', projectId ?? 'all', filters ?? {}] as const,
+    task: (workspaceId: string, taskId: string) =>
+      ['work-tools', workspaceId, 'tasks', 'detail', taskId] as const,
     taskComments: (workspaceId: string, taskId: string) =>
       ['work-tools', workspaceId, 'tasks', taskId, 'comments'] as const,
+    relations: (workspaceId: string, taskId: string) =>
+      ['work-tools', workspaceId, 'tasks', taskId, 'relations'] as const,
+    savedViews: (workspaceId: string, projectId?: string, teamId?: string) =>
+      ['work-tools', workspaceId, 'views', projectId ?? 'all', teamId ?? 'all'] as const,
+    intake: (workspaceId: string, status?: string) =>
+      ['work-tools', workspaceId, 'intake', status ?? 'all'] as const,
+    projectUpdates: (workspaceId: string, projectId: string) =>
+      ['work-tools', workspaceId, 'projects', projectId, 'updates'] as const,
     calendar: (workspaceId: string, from?: string, to?: string) =>
       ['work-tools', workspaceId, 'calendar', from ?? '', to ?? ''] as const,
     documents: (workspaceId: string, kind?: string) =>

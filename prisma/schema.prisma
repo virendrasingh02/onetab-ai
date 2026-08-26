@@ -52,6 +52,12 @@ model User {
   workspaceMembers        WorkspaceMember[]
   ownedWorkspaces         Workspace[]              @relation("WorkspaceOwner")
   integrations            ExternalIntegration[]
+  leadProjects            Project[]                @relation("ProjectLead")
+  ownedInitiatives        Initiative[]
+  leadModules             Module[]
+  createdUpdates          ProjectUpdate[]
+  reportedTasks           Task[]                   @relation("TaskReporter")
+  workItemActivities      WorkItemActivity[]
 
   @@map("users")
 }
@@ -95,6 +101,16 @@ model Workspace {
   promptTemplates          PromptTemplate[]
   recentActivities         RecentActivity[]
   tasks                    Task[]
+  teams                    Team[]
+  initiatives              Initiative[]
+  epics                    Epic[]
+  modules                  Module[]
+  cycles                   Cycle[]
+  workItemRelations        WorkItemRelation[]
+  customFields             WorkItemCustomField[]
+  savedViews               SavedView[]
+  intakeRequests           IntakeRequest[]
+  workItemActivities       WorkItemActivity[]
   uploads                  Upload[]
   whiteboards              Whiteboard[]
   workDocuments            WorkDocument[]
@@ -357,43 +373,164 @@ model RecentActivity {
   @@map("recent_activity")
 }
 
-model Project {
+model Team {
+  id           String                @id @default(cuid())
+  workspaceId  String
+  name         String
+  key          String
+  description  String?
+  icon         String?
+  iconColor    String?
+  color        String?               @default("#3b82f6")
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  workspace    Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projects     Project[]
+  cycles       Cycle[]
+  customFields WorkItemCustomField[]
+  savedViews   SavedView[]
+  intakeRequests IntakeRequest[]
+  tasks        Task[]
+
+  @@unique([workspaceId, key])
+  @@index([workspaceId])
+  @@map("teams")
+}
+
+model Initiative {
   id          String        @id @default(cuid())
   workspaceId String
   name        String
-  slug        String
+  objective   String?
   description String?
-  color       String?       @default("#3b82f6")
-  /// A Lucide icon name, an emoji, or an image URL. Independent of `color`,
-  /// which still tints the board, the progress bars and the task badges — the
-  /// icon replaces the plain swatch wherever one is drawn.
-  icon        String?
-  /// Hex tint for `icon`, and only meaningful when `icon` is a Lucide name.
-  iconColor   String?
+  ownerId     String?
   status      ProjectStatus @default(ACTIVE)
-  startDate   DateTime?
+  health      ProjectHealth @default(HEALTHY)
+  priority    TaskPriority  @default(MEDIUM)
   targetDate  DateTime?
-  /// The board's columns, left to right. The set is fixed — it is `TaskStatus`
-  /// — so only the order is the project's to own, and a status missing from
-  /// this list is appended in enum order rather than hidden.
-  columnOrder TaskStatus[]  @default([])
-  /// Uppercase stem of this project's ticket ids, derived from `name` when the
-  /// project is created and unique across the workspace.
-  ticketPrefix String?
-  /// The last ticket number handed out. Numbers are never reused, so deleting a
-  /// task does not free its id for the next one.
-  ticketSeq   Int           @default(0)
+  color       String?       @default("#8b5cf6")
+  icon        String?
+  iconColor   String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
-  milestones  Milestone[]
   workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  sprints     Sprint[]
-  tasks       Task[]
+  owner       User?         @relation(fields: [ownerId], references: [id])
+  projects    Project[]
+
+  @@index([workspaceId, status])
+  @@map("initiatives")
+}
+
+model Project {
+  id                   String               @id @default(cuid())
+  workspaceId          String
+  teamId               String?
+  leadId               String?
+  initiativeId         String?
+  name                 String
+  slug                 String
+  description          String?
+  color                String?              @default("#3b82f6")
+  icon                 String?
+  iconColor            String?
+  status               ProjectStatus        @default(ACTIVE)
+  health               ProjectHealth        @default(HEALTHY)
+  healthScore          Int?
+  startDate            DateTime?
+  targetDate           DateTime?
+  columnOrder          TaskStatus[]         @default([])
+  ticketPrefix         String?
+  identifierPrefixMode IdentifierPrefixMode @default(AUTO)
+  ticketSeq            Int                  @default(0)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  milestones           Milestone[]
+  workspace            Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  team                 Team?                @relation(fields: [teamId], references: [id])
+  lead                 User?                @relation("ProjectLead", fields: [leadId], references: [id])
+  initiative           Initiative?          @relation(fields: [initiativeId], references: [id])
+  sprints              Sprint[]
+  epics                Epic[]
+  modules              Module[]
+  cycles               Cycle[]
+  customFields         WorkItemCustomField[]
+  savedViews           SavedView[]
+  intakeRequests       IntakeRequest[]
+  updates              ProjectUpdate[]
+  tasks                Task[]
 
   @@unique([workspaceId, slug])
   @@unique([workspaceId, ticketPrefix])
   @@index([workspaceId, status])
+  @@index([teamId])
+  @@index([initiativeId])
   @@map("projects")
+}
+
+model Epic {
+  id          String        @id @default(cuid())
+  projectId   String
+  workspaceId String
+  name        String
+  description String?
+  ownerId     String?
+  status      ProjectStatus @default(ACTIVE)
+  priority    TaskPriority  @default(MEDIUM)
+  targetDate  DateTime?
+  color       String?       @default("#8b5cf6")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+
+  @@index([projectId, status])
+  @@map("epics")
+}
+
+model Module {
+  id          String        @id @default(cuid())
+  projectId   String
+  workspaceId String
+  name        String
+  description String?
+  leadId      String?
+  startDate   DateTime?
+  targetDate  DateTime?
+  status      ProjectStatus @default(ACTIVE)
+  color       String?       @default("#3b82f6")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  lead        User?         @relation(fields: [leadId], references: [id])
+  tasks       Task[]
+
+  @@index([projectId, status])
+  @@map("modules")
+}
+
+model Cycle {
+  id          String      @id @default(cuid())
+  projectId   String?
+  teamId      String?
+  workspaceId String
+  name        String
+  description String?
+  goal        String?
+  startDate   DateTime
+  endDate     DateTime
+  status      CycleStatus @default(DRAFT)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  project     Project?    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  team        Team?       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+
+  @@index([projectId, status])
+  @@index([teamId, status])
+  @@map("cycles")
 }
 
 model Milestone {
@@ -430,35 +567,62 @@ model Sprint {
 }
 
 model Task {
-  id          String        @id @default(cuid())
-  workspaceId String
-  projectId   String?
-  sprintId    String?
-  milestoneId String?
-  assigneeId  String?
-  title       String
-  description String?
-  status      TaskStatus    @default(TODO)
-  priority    TaskPriority  @default(MEDIUM)
-  dueDate     DateTime?
-  orderIndex  Int           @default(0)
-  /// This task's number within its project. With the project's `ticketPrefix`
-  /// it forms the card's human-readable id, e.g. `WEB-42`. Null only for a task
-  /// filed outside any project, which has no prefix to hang a number off.
-  ticketNumber Int?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  comments    TaskComment[]
-  assignee    User?         @relation(fields: [assigneeId], references: [id])
-  milestone   Milestone?    @relation(fields: [milestoneId], references: [id])
-  project     Project?      @relation(fields: [projectId], references: [id])
-  sprint      Sprint?       @relation(fields: [sprintId], references: [id])
-  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id              String             @id @default(cuid())
+  workspaceId     String
+  projectId       String?
+  sprintId        String?
+  milestoneId     String?
+  assigneeId      String?
+  reporterId      String?
+  teamId          String?
+  epicId          String?
+  cycleId         String?
+  moduleId        String?
+  parentId        String?
+  type            WorkItemType       @default(TASK)
+  customTypeId    String?
+  title           String
+  description     String?
+  status          TaskStatus         @default(TODO)
+  priority        TaskPriority       @default(MEDIUM)
+  startDate       DateTime?
+  dueDate         DateTime?
+  completedAt     DateTime?
+  orderIndex      Int                @default(0)
+  ticketNumber    Int?
+  identifier      String?
+  estimate        Float?
+  timeSpent       Int?
+  labels          String[]           @default([])
+  customFields    Json?              @default("{}")
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  comments        TaskComment[]
+  assignee        User?              @relation(fields: [assigneeId], references: [id])
+  reporter        User?              @relation("TaskReporter", fields: [reporterId], references: [id])
+  milestone       Milestone?         @relation(fields: [milestoneId], references: [id])
+  project         Project?           @relation(fields: [projectId], references: [id])
+  team            Team?              @relation(fields: [teamId], references: [id])
+  sprint          Sprint?            @relation(fields: [sprintId], references: [id])
+  epic            Epic?              @relation(fields: [epicId], references: [id])
+  cycle           Cycle?             @relation(fields: [cycleId], references: [id])
+  module          Module?            @relation(fields: [moduleId], references: [id])
+  parent          Task?              @relation("TaskSubItems", fields: [parentId], references: [id])
+  subItems        Task[]             @relation("TaskSubItems")
+  sourceRelations WorkItemRelation[] @relation("RelationSource")
+  targetRelations WorkItemRelation[] @relation("RelationTarget")
+  activities      WorkItemActivity[]
+  workspace       Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, ticketNumber])
   @@index([workspaceId, status])
   @@index([projectId, status])
   @@index([sprintId])
+  @@index([cycleId])
+  @@index([epicId])
+  @@index([moduleId])
+  @@index([parentId])
+  @@index([identifier])
   @@map("tasks")
 }
 
@@ -474,6 +638,136 @@ model TaskComment {
 
   @@index([taskId, createdAt])
   @@map("task_comments")
+}
+
+model WorkItemRelation {
+  id          String       @id @default(cuid())
+  workspaceId String
+  sourceId    String
+  targetId    String
+  type        RelationType
+  createdAt   DateTime     @default(now())
+  source      Task         @relation("RelationSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  target      Task         @relation("RelationTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, targetId, type])
+  @@index([sourceId])
+  @@index([targetId])
+  @@map("work_item_relations")
+}
+
+model WorkItemCustomField {
+  id          String          @id @default(cuid())
+  workspaceId String
+  projectId   String?
+  teamId      String?
+  name        String
+  key         String
+  type        CustomFieldType
+  options     String[]        @default([])
+  required    Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project?        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  team        Team?           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, projectId, key])
+  @@index([workspaceId])
+  @@map("work_item_custom_fields")
+}
+
+model SavedView {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  projectId      String?
+  teamId         String?
+  userId         String?
+  name           String
+  type           ViewType  @default(BOARD)
+  filters        Json      @default("{}")
+  sorting        Json?     @default("{}")
+  grouping       Json?     @default("{}")
+  visibleColumns String[]  @default([])
+  isDefault      Boolean   @default(false)
+  isShared       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project        Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  team           Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, projectId])
+  @@map("saved_views")
+}
+
+model IntakeRequest {
+  id                  String       @id @default(cuid())
+  workspaceId         String
+  teamId              String?
+  projectId           String?
+  title               String
+  description         String?
+  source              IntakeSource @default(USER)
+  requesterName       String?
+  requesterEmail      String?
+  priority            TaskPriority @default(MEDIUM)
+  slaDueDate          DateTime?
+  status              IntakeStatus @default(PENDING)
+  suggestedProjectId  String?
+  suggestedAssigneeId String?
+  suggestedLabels     String[]     @default([])
+  convertedWorkItemId String?
+  aiAnalysis          Json?        @default("{}")
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  workspace           Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  team                Team?        @relation(fields: [teamId], references: [id])
+  project             Project?     @relation(fields: [projectId], references: [id])
+
+  @@index([workspaceId, status])
+  @@map("intake_requests")
+}
+
+model ProjectUpdate {
+  id                String        @id @default(cuid())
+  projectId         String
+  authorId          String
+  status            ProjectHealth @default(HEALTHY)
+  title             String
+  body              String?
+  completedSummary  String?
+  inProgressSummary String?
+  blockersSummary   String?
+  nextStepsSummary  String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  project           Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author            User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+  @@map("project_updates")
+}
+
+model WorkItemActivity {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  workItemId   String
+  actorId      String?
+  action       String
+  fieldChanged String?
+  oldValue     String?
+  newValue     String?
+  metadata     Json?     @default("{}")
+  createdAt    DateTime  @default(now())
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workItem     Task      @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  actor        User?     @relation(fields: [actorId], references: [id])
+
+  @@index([workItemId, createdAt])
+  @@index([workspaceId, createdAt])
+  @@map("work_item_activities")
 }
 
 model CalendarEvent {
@@ -1108,4 +1402,90 @@ model AIModelSetting {
   @@unique([workspaceId, modelId])
   @@index([workspaceId])
   @@map("ai_model_settings")
+}
+
+enum IdentifierPrefixMode {
+  AUTO
+  CUSTOM
+  LOCKED
+}
+
+enum ProjectHealth {
+  HEALTHY
+  AT_RISK
+  OFF_TRACK
+  COMPLETED
+}
+
+enum WorkItemType {
+  TASK
+  BUG
+  FEATURE
+  IMPROVEMENT
+  REQUEST
+  SUPPORT
+  INCIDENT
+  STORY
+  CUSTOM
+}
+
+enum RelationType {
+  BLOCKS
+  BLOCKED_BY
+  RELATED_TO
+  DUPLICATE_OF
+  DUPLICATED_BY
+  PARENT_OF
+  SUB_ITEM_OF
+}
+
+enum CycleStatus {
+  DRAFT
+  UPCOMING
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum CustomFieldType {
+  TEXT
+  NUMBER
+  CURRENCY
+  DATE
+  DATETIME
+  BOOLEAN
+  SELECT
+  MULTI_SELECT
+  USER
+  TEAM
+  URL
+  EMAIL
+  FORMULA
+}
+
+enum ViewType {
+  LIST
+  BOARD
+  CALENDAR
+  TIMELINE
+  GANTT
+  SPREADSHEET
+}
+
+enum IntakeStatus {
+  PENDING
+  TRIAGED
+  CONVERTED
+  DECLINED
+}
+
+enum IntakeSource {
+  USER
+  CUSTOMER
+  SUPPORT
+  INTEGRATION
+  FORM
+  EMAIL
+  SLACK
+  AI_AGENT
 }

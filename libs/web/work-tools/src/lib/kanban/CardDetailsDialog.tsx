@@ -401,10 +401,22 @@ function CardDetailsBody({
               <span>{board.title}</span>
             </span>
             <span>/</span>
+            {/* Dynamic Ticket Identifier with Copy */}
+            <button
+              type="button"
+              onClick={() => {
+                const idStr = card.identifier || `TASK-${card.ticketNumber || card.id.slice(0, 4)}`;
+                navigator.clipboard.writeText(idStr);
+                toast.success(`Copied ${idStr}`);
+              }}
+              className="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/30 px-2 py-0.5 rounded transition-colors cursor-pointer"
+              title="Click to copy ticket identifier"
+            >
+              <span>{card.identifier || `TASK-${card.ticketNumber || card.id.slice(0, 4)}`}</span>
+              <Copy className="size-2.5 opacity-60" />
+            </button>
+            <span>/</span>
             <span className="font-semibold text-primary">{listTitle}</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-muted font-mono font-medium">
-              +1
-            </span>
           </div>
 
           <div className="h-4 w-px bg-border/80 mx-1 hidden sm:block" />
@@ -413,8 +425,7 @@ function CardDetailsBody({
           <div className="flex items-center gap-2 text-xs">
             <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted/80 border border-border/60 text-foreground text-[11px] font-medium">
               <CheckSquare className="size-3 text-primary" />
-              <span>Task</span>
-              <ChevronDown className="size-3 text-muted-foreground ml-0.5" />
+              <span className="capitalize">{card.type ? card.type.toLowerCase() : 'Task'}</span>
             </div>
 
             <div

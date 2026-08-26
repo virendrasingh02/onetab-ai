@@ -8,9 +8,29 @@ export {
   useDocuments,
   useProjectMutations,
   useProjects,
+  useProjectDetail,
   useTaskComments,
   useTaskMutations,
   useTasks,
+  useTaskDetail,
+  useTeams,
+  useTeamMutations,
+  useInitiatives,
+  useInitiativeMutations,
+  useEpics,
+  useEpicMutations,
+  useModules,
+  useModuleMutations,
+  useCycles,
+  useCycleMutations,
+  useWorkItemRelations,
+  useRelationMutations,
+  useSavedViews,
+  useSavedViewMutations,
+  useIntakeRequests,
+  useIntakeMutations,
+  useProjectUpdates,
+  useProjectUpdateMutations,
   useWhiteboard,
   useWhiteboardMutations,
   useWhiteboards,
@@ -78,7 +98,19 @@ export {
   statusForListName,
   type ImportProgress,
 } from './lib/kanban/server-import.js';
-export { AsanaProjectManager, type AsanaViewMode } from './lib/AsanaProjectManager.js';
+export {
+  AsanaProjectManager,
+  UnifiedWorkManager,
+  type AsanaViewMode,
+} from './lib/AsanaProjectManager.js';
+export { ProjectSpreadsheetView } from './lib/views/ProjectSpreadsheetView.js';
+export { ProjectGanttView } from './lib/views/ProjectGanttView.js';
+export { CyclesPlanningView } from './lib/views/CyclesPlanningView.js';
+export { ModulesEpicsView } from './lib/views/ModulesEpicsView.js';
+export { InitiativesView } from './lib/views/InitiativesView.js';
+export { IntakeTriageView } from './lib/views/IntakeTriageView.js';
+export { ProjectUpdatesView } from './lib/views/ProjectUpdatesView.js';
+export { ProjectSettingsView } from './lib/views/ProjectSettingsView.js';
 export { ProjectListView } from './lib/asana/ProjectListView.js';
 export { ProjectTimelineView } from './lib/asana/ProjectTimelineView.js';
 export { ProjectDashboardView } from './lib/asana/ProjectDashboardView.js';

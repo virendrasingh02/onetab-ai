@@ -134,6 +134,104 @@ export const WORKSPACE_ROLE_ORDER: readonly WorkspaceRole[] = [
   WorkspaceRole.OWNER,
 ];
 
+export const IdentifierPrefixMode = {
+  AUTO: 'AUTO',
+  CUSTOM: 'CUSTOM',
+  LOCKED: 'LOCKED',
+} as const;
+export type IdentifierPrefixMode =
+  (typeof IdentifierPrefixMode)[keyof typeof IdentifierPrefixMode];
+
+export const ProjectHealth = {
+  HEALTHY: 'HEALTHY',
+  AT_RISK: 'AT_RISK',
+  OFF_TRACK: 'OFF_TRACK',
+  COMPLETED: 'COMPLETED',
+} as const;
+export type ProjectHealth =
+  (typeof ProjectHealth)[keyof typeof ProjectHealth];
+
+export const WorkItemType = {
+  TASK: 'TASK',
+  BUG: 'BUG',
+  FEATURE: 'FEATURE',
+  IMPROVEMENT: 'IMPROVEMENT',
+  REQUEST: 'REQUEST',
+  SUPPORT: 'SUPPORT',
+  INCIDENT: 'INCIDENT',
+  STORY: 'STORY',
+  CUSTOM: 'CUSTOM',
+} as const;
+export type WorkItemType = (typeof WorkItemType)[keyof typeof WorkItemType];
+
+export const RelationType = {
+  BLOCKS: 'BLOCKS',
+  BLOCKED_BY: 'BLOCKED_BY',
+  RELATED_TO: 'RELATED_TO',
+  DUPLICATE_OF: 'DUPLICATE_OF',
+  DUPLICATED_BY: 'DUPLICATED_BY',
+  PARENT_OF: 'PARENT_OF',
+  SUB_ITEM_OF: 'SUB_ITEM_OF',
+} as const;
+export type RelationType = (typeof RelationType)[keyof typeof RelationType];
+
+export const CycleStatus = {
+  DRAFT: 'DRAFT',
+  UPCOMING: 'UPCOMING',
+  ACTIVE: 'ACTIVE',
+  COMPLETED: 'COMPLETED',
+  ARCHIVED: 'ARCHIVED',
+} as const;
+export type CycleStatus = (typeof CycleStatus)[keyof typeof CycleStatus];
+
+export const CustomFieldType = {
+  TEXT: 'TEXT',
+  NUMBER: 'NUMBER',
+  CURRENCY: 'CURRENCY',
+  DATE: 'DATE',
+  DATETIME: 'DATETIME',
+  BOOLEAN: 'BOOLEAN',
+  SELECT: 'SELECT',
+  MULTI_SELECT: 'MULTI_SELECT',
+  USER: 'USER',
+  TEAM: 'TEAM',
+  URL: 'URL',
+  EMAIL: 'EMAIL',
+  FORMULA: 'FORMULA',
+} as const;
+export type CustomFieldType =
+  (typeof CustomFieldType)[keyof typeof CustomFieldType];
+
+export const ViewType = {
+  LIST: 'LIST',
+  BOARD: 'BOARD',
+  CALENDAR: 'CALENDAR',
+  TIMELINE: 'TIMELINE',
+  GANTT: 'GANTT',
+  SPREADSHEET: 'SPREADSHEET',
+} as const;
+export type ViewType = (typeof ViewType)[keyof typeof ViewType];
+
+export const IntakeStatus = {
+  PENDING: 'PENDING',
+  TRIAGED: 'TRIAGED',
+  CONVERTED: 'CONVERTED',
+  DECLINED: 'DECLINED',
+} as const;
+export type IntakeStatus = (typeof IntakeStatus)[keyof typeof IntakeStatus];
+
+export const IntakeSource = {
+  USER: 'USER',
+  CUSTOMER: 'CUSTOMER',
+  SUPPORT: 'SUPPORT',
+  INTEGRATION: 'INTEGRATION',
+  FORM: 'FORM',
+  EMAIL: 'EMAIL',
+  SLACK: 'SLACK',
+  AI_AGENT: 'AI_AGENT',
+} as const;
+export type IntakeSource = (typeof IntakeSource)[keyof typeof IntakeSource];
+
 /** True when `role` is at least as privileged as `minimum`. */
 export function hasWorkspaceRole(
   role: WorkspaceRole,

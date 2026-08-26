@@ -33,6 +33,9 @@ export interface KanbanCard {
    * prefix to pair a number with.
    */
   ticketId?: string;
+  identifier?: string | null;
+  ticketNumber?: number | null;
+  type?: string;
   title: string;
   description: string;
   /**

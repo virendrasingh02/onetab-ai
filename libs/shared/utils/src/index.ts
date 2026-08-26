@@ -38,3 +38,9 @@ export {
   type WorkingHoursInfo,
   type WorkingHoursStatus,
 } from './lib/regions.js';
+
+export {
+  formatTicketIdentifier,
+  generateProjectIdentifier,
+  isValidIdentifierPrefix,
+} from './lib/dynamic-identifier.js';

@@ -299,6 +299,11 @@ export function App() {
             <Route path="schedule" element={<ScheduleView />} />
             <Route path="tasks" element={<AsanaProjectManager />} />
             <Route path="kanban" element={<AsanaProjectManager />} />
+            <Route path="work" element={<AsanaProjectManager />} />
+            <Route path="projects" element={<AsanaProjectManager />} />
+            <Route path="cycles" element={<AsanaProjectManager />} />
+            <Route path="intake" element={<AsanaProjectManager />} />
+            <Route path="initiatives" element={<AsanaProjectManager />} />
             <Route path="notes" element={<DocumentEditor />} />
             <Route path="docs" element={<DocumentEditor />} />
             <Route path="files" element={<FileManagerView />} />

@@ -70,6 +70,7 @@ import type {
   PluginSDKDescriptor,
   Project,
   ProjectDetail,
+  ProjectUpdate,
   PromptTemplate,
   ProviderConnectionTestResult,
   PublicUser,
@@ -77,6 +78,7 @@ import type {
   ReportDefinition,
   ReportType,
   SaveProviderCredentialInput,
+  SavedView,
   SearchCategory,
   SearchResultItem,
   SSOConfiguration,
@@ -84,31 +86,48 @@ import type {
   SystemRole,
   Task,
   TaskComment,
+  Team,
   Upload,
   UserAnalytics,
   UserPreferences,
   UpdateModelSettingsInput,
   Whiteboard,
   WorkDocument,
+  WorkItemRelation,
   Workspace,
   WorkspaceAnalytics,
   WorkflowExecution,
   WorkflowExecutionEntry,
   WorkspaceMember,
   WorkspaceSummary,
+  Cycle,
+  Epic,
+  Initiative,
+  IntakeRequest,
+  Module,
 } from '@org/types';
 import type {
   AddChannelMembersInput,
   ChannelPreferencesInput,
+  ConvertIntakeRequestInput,
   CreateCalendarEventInput,
   CreateChannelInput,
+  CreateCycleInput,
   CreateDocumentInput,
+  CreateEpicInput,
+  CreateInitiativeInput,
+  CreateIntakeRequestInput,
+  CreateModuleInput,
   CreatePinInput,
   CreateProjectInput,
+  CreateProjectUpdateInput,
   CreatePromptTemplateInput,
+  CreateSavedViewInput,
   CreateTaskCommentInput,
   CreateTaskInput,
+  CreateTeamInput,
   CreateWhiteboardInput,
+  CreateWorkItemRelationInput,
   CreateWorkspaceInput,
   DesktopAuthorizeInput,
   DesktopExchangeInput,
@@ -123,18 +142,25 @@ import type {
   LoginInput,
   MoveTaskInput,
   PollDeviceAuthInput,
+  ProjectIdentifierSettingsInput,
   RegisterInput,
   RejectDeviceAuthInput,
   ResetPasswordInput,
   UpdateCalendarEventInput,
   UpdateChannelInput,
+  UpdateCycleInput,
   UpdateDocumentInput,
+  UpdateEpicInput,
+  UpdateInitiativeInput,
   UpdateMemberRoleInput,
+  UpdateModuleInput,
   UpdateProfileInput,
   UpdateProjectInput,
   UpdatePromptTemplateInput,
+  UpdateSavedViewInput,
   UpdateStatusInput,
   UpdateTaskInput,
+  UpdateTeamInput,
   UpdateUserPreferencesInput,
   UpdateWhiteboardInput,
   UpdateWorkspaceInput,
@@ -756,11 +782,69 @@ export const marketplaceApi = {
  * that path parameter, so the workspace is never a caller-supplied filter.
  */
 export const workToolsApi = {
+  // --- teams ----------------------------------------------------------------
+
+  teams: (workspaceId: string) =>
+    request<Team[]>(http.get(`/workspaces/${workspaceId}/work-tools/teams`)),
+
+  createTeam: (workspaceId: string, input: CreateTeamInput) =>
+    request<Team>(
+      http.post(`/workspaces/${workspaceId}/work-tools/teams`, input),
+    ),
+
+  updateTeam: (workspaceId: string, teamId: string, input: UpdateTeamInput) =>
+    request<Team>(
+      http.patch(`/workspaces/${workspaceId}/work-tools/teams/${teamId}`, input),
+    ),
+
+  deleteTeam: (workspaceId: string, teamId: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/work-tools/teams/${teamId}`),
+    ),
+
+  // --- initiatives ----------------------------------------------------------
+
+  initiatives: (workspaceId: string) =>
+    request<Initiative[]>(
+      http.get(`/workspaces/${workspaceId}/work-tools/initiatives`),
+    ),
+
+  createInitiative: (workspaceId: string, input: CreateInitiativeInput) =>
+    request<Initiative>(
+      http.post(`/workspaces/${workspaceId}/work-tools/initiatives`, input),
+    ),
+
+  updateInitiative: (
+    workspaceId: string,
+    initiativeId: string,
+    input: UpdateInitiativeInput,
+  ) =>
+    request<Initiative>(
+      http.patch(
+        `/workspaces/${workspaceId}/work-tools/initiatives/${initiativeId}`,
+        input,
+      ),
+    ),
+
+  deleteInitiative: (workspaceId: string, initiativeId: string) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/work-tools/initiatives/${initiativeId}`,
+      ),
+    ),
+
   // --- projects -------------------------------------------------------------
 
-  projects: (workspaceId: string) =>
+  projects: (workspaceId: string, teamId?: string) =>
     request<ProjectDetail[]>(
-      http.get(`/workspaces/${workspaceId}/work-tools/projects`),
+      http.get(`/workspaces/${workspaceId}/work-tools/projects`, {
+        params: teamId ? { teamId } : undefined,
+      }),
+    ),
+
+  project: (workspaceId: string, projectId: string) =>
+    request<ProjectDetail>(
+      http.get(`/workspaces/${workspaceId}/work-tools/projects/${projectId}`),
     ),
 
   createProject: (workspaceId: string, input: CreateProjectInput) =>
@@ -780,16 +864,23 @@ export const workToolsApi = {
       ),
     ),
 
+  updateIdentifierSettings: (
+    workspaceId: string,
+    projectId: string,
+    input: ProjectIdentifierSettingsInput,
+  ) =>
+    request<{ project: Project; preview: string }>(
+      http.patch(
+        `/workspaces/${workspaceId}/work-tools/projects/${projectId}/identifier-settings`,
+        input,
+      ),
+    ),
+
   deleteProject: (workspaceId: string, projectId: string) =>
     request<void>(
       http.delete(`/workspaces/${workspaceId}/work-tools/projects/${projectId}`),
     ),
 
-  /**
-   * The icon half of a project update, on its own — the project's saver for the
-   * global icon layer, which addresses entities through one saver per kind
-   * rather than through each screen's form patch. See `workspaceApi.setIcon`.
-   */
   setProjectIcon: (
     workspaceId: string,
     projectId: string,
@@ -802,13 +893,105 @@ export const workToolsApi = {
       ),
     ),
 
+  // --- epics, modules, cycles -----------------------------------------------
+
+  epics: (workspaceId: string, projectId: string) =>
+    request<Epic[]>(
+      http.get(`/workspaces/${workspaceId}/work-tools/projects/${projectId}/epics`),
+    ),
+
+  createEpic: (workspaceId: string, input: CreateEpicInput) =>
+    request<Epic>(
+      http.post(`/workspaces/${workspaceId}/work-tools/epics`, input),
+    ),
+
+  updateEpic: (workspaceId: string, epicId: string, input: UpdateEpicInput) =>
+    request<Epic>(
+      http.patch(`/workspaces/${workspaceId}/work-tools/epics/${epicId}`, input),
+    ),
+
+  deleteEpic: (workspaceId: string, epicId: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/work-tools/epics/${epicId}`),
+    ),
+
+  modules: (workspaceId: string, projectId: string) =>
+    request<Module[]>(
+      http.get(`/workspaces/${workspaceId}/work-tools/projects/${projectId}/modules`),
+    ),
+
+  createModule: (workspaceId: string, input: CreateModuleInput) =>
+    request<Module>(
+      http.post(`/workspaces/${workspaceId}/work-tools/modules`, input),
+    ),
+
+  updateModule: (
+    workspaceId: string,
+    moduleId: string,
+    input: UpdateModuleInput,
+  ) =>
+    request<Module>(
+      http.patch(
+        `/workspaces/${workspaceId}/work-tools/modules/${moduleId}`,
+        input,
+      ),
+    ),
+
+  deleteModule: (workspaceId: string, moduleId: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/work-tools/modules/${moduleId}`),
+    ),
+
+  cycles: (workspaceId: string, projectId?: string, teamId?: string) =>
+    request<Cycle[]>(
+      http.get(`/workspaces/${workspaceId}/work-tools/cycles`, {
+        params: {
+          ...(projectId ? { projectId } : {}),
+          ...(teamId ? { teamId } : {}),
+        },
+      }),
+    ),
+
+  createCycle: (workspaceId: string, input: CreateCycleInput) =>
+    request<Cycle>(
+      http.post(`/workspaces/${workspaceId}/work-tools/cycles`, input),
+    ),
+
+  updateCycle: (workspaceId: string, cycleId: string, input: UpdateCycleInput) =>
+    request<Cycle>(
+      http.patch(`/workspaces/${workspaceId}/work-tools/cycles/${cycleId}`, input),
+    ),
+
+  deleteCycle: (workspaceId: string, cycleId: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/work-tools/cycles/${cycleId}`),
+    ),
+
   // --- tasks ----------------------------------------------------------------
 
-  tasks: (workspaceId: string, projectId?: string) =>
-    request<Task[]>(
+  tasks: (
+    workspaceId: string,
+    params?: {
+      projectId?: string;
+      teamId?: string;
+      cycleId?: string;
+      epicId?: string;
+      moduleId?: string;
+      assigneeId?: string;
+      search?: string;
+    } | string,
+  ) => {
+    const query = typeof params === 'string' ? { projectId: params } : params;
+    return request<Task[]>(
       http.get(`/workspaces/${workspaceId}/work-tools/tasks`, {
-        params: projectId ? { projectId } : undefined,
+        params: query,
       }),
+    );
+  },
+
+  task: (workspaceId: string, taskId: string) =>
+    request<Task>(
+      http.get(`/workspaces/${workspaceId}/work-tools/tasks/${taskId}`),
     ),
 
   createTask: (workspaceId: string, input: CreateTaskInput) =>
@@ -821,7 +1004,6 @@ export const workToolsApi = {
       http.patch(`/workspaces/${workspaceId}/work-tools/tasks/${taskId}`, input),
     ),
 
-  /** Board drag-and-drop: column plus position, nothing else. */
   moveTask: (workspaceId: string, taskId: string, input: MoveTaskInput) =>
     request<Task>(
       http.patch(
@@ -833,6 +1015,110 @@ export const workToolsApi = {
   deleteTask: (workspaceId: string, taskId: string) =>
     request<void>(
       http.delete(`/workspaces/${workspaceId}/work-tools/tasks/${taskId}`),
+    ),
+
+  // --- relations ------------------------------------------------------------
+
+  relations: (workspaceId: string, taskId: string) =>
+    request<WorkItemRelation[]>(
+      http.get(`/workspaces/${workspaceId}/work-tools/tasks/${taskId}/relations`),
+    ),
+
+  addRelation: (workspaceId: string, input: CreateWorkItemRelationInput) =>
+    request<WorkItemRelation>(
+      http.post(`/workspaces/${workspaceId}/work-tools/relations`, input),
+    ),
+
+  deleteRelation: (workspaceId: string, relationId: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/work-tools/relations/${relationId}`),
+    ),
+
+  // --- saved views ----------------------------------------------------------
+
+  savedViews: (workspaceId: string, projectId?: string, teamId?: string) =>
+    request<SavedView[]>(
+      http.get(`/workspaces/${workspaceId}/work-tools/views`, {
+        params: {
+          ...(projectId ? { projectId } : {}),
+          ...(teamId ? { teamId } : {}),
+        },
+      }),
+    ),
+
+  createSavedView: (workspaceId: string, input: CreateSavedViewInput) =>
+    request<SavedView>(
+      http.post(`/workspaces/${workspaceId}/work-tools/views`, input),
+    ),
+
+  updateSavedView: (
+    workspaceId: string,
+    viewId: string,
+    input: UpdateSavedViewInput,
+  ) =>
+    request<SavedView>(
+      http.patch(`/workspaces/${workspaceId}/work-tools/views/${viewId}`, input),
+    ),
+
+  deleteSavedView: (workspaceId: string, viewId: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/work-tools/views/${viewId}`),
+    ),
+
+  // --- intake / triage ------------------------------------------------------
+
+  intake: (workspaceId: string, status?: string) =>
+    request<IntakeRequest[]>(
+      http.get(`/workspaces/${workspaceId}/work-tools/intake`, {
+        params: status ? { status } : undefined,
+      }),
+    ),
+
+  createIntakeRequest: (
+    workspaceId: string,
+    input: CreateIntakeRequestInput,
+  ) =>
+    request<IntakeRequest>(
+      http.post(`/workspaces/${workspaceId}/work-tools/intake`, input),
+    ),
+
+  convertIntakeRequest: (
+    workspaceId: string,
+    intakeId: string,
+    input: ConvertIntakeRequestInput,
+  ) =>
+    request<Task>(
+      http.post(
+        `/workspaces/${workspaceId}/work-tools/intake/${intakeId}/convert`,
+        input,
+      ),
+    ),
+
+  declineIntakeRequest: (workspaceId: string, intakeId: string) =>
+    request<IntakeRequest>(
+      http.patch(
+        `/workspaces/${workspaceId}/work-tools/intake/${intakeId}/decline`,
+      ),
+    ),
+
+  // --- project updates ------------------------------------------------------
+
+  projectUpdates: (workspaceId: string, projectId: string) =>
+    request<ProjectUpdate[]>(
+      http.get(
+        `/workspaces/${workspaceId}/work-tools/projects/${projectId}/updates`,
+      ),
+    ),
+
+  createProjectUpdate: (
+    workspaceId: string,
+    input: CreateProjectUpdateInput,
+  ) =>
+    request<ProjectUpdate>(
+      http.post(
+        `/workspaces/${workspaceId}/work-tools/projects/${input.projectId}/updates`,
+        input,
+      ),
     ),
 
   taskComments: (workspaceId: string, taskId: string) =>

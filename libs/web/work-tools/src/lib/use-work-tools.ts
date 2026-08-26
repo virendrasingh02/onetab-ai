@@ -7,25 +7,51 @@ import {
 } from '@org/api-client';
 import type {
   CalendarEvent,
+  Cycle,
   DocumentKind,
+  Epic,
+  Initiative,
+  IntakeRequest,
+  Module,
   ProjectDetail,
+  ProjectUpdate,
+  SavedView,
   Task,
+  Team,
   Whiteboard,
   WorkDocument,
+  WorkItemRelation,
   WorkspaceSummary,
 } from '@org/types';
 import type {
+  ConvertIntakeRequestInput,
   CreateCalendarEventInput,
+  CreateCycleInput,
   CreateDocumentInput,
+  CreateEpicInput,
+  CreateInitiativeInput,
+  CreateIntakeRequestInput,
+  CreateModuleInput,
   CreateProjectInput,
+  CreateProjectUpdateInput,
+  CreateSavedViewInput,
   CreateTaskCommentInput,
   CreateTaskInput,
+  CreateTeamInput,
   CreateWhiteboardInput,
+  CreateWorkItemRelationInput,
   MoveTaskInput,
+  ProjectIdentifierSettingsInput,
   UpdateCalendarEventInput,
+  UpdateCycleInput,
   UpdateDocumentInput,
+  UpdateEpicInput,
+  UpdateInitiativeInput,
+  UpdateModuleInput,
   UpdateProjectInput,
+  UpdateSavedViewInput,
   UpdateTaskInput,
+  UpdateTeamInput,
   UpdateWhiteboardInput,
 } from '@org/validation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -33,9 +59,6 @@ import { useParams } from 'react-router-dom';
 
 /**
  * Data access for the work-tools screens.
- *
- * Everything is keyed by workspace because the API is too: the workspace is a
- * path segment the server authorises, not a filter the client chooses.
  */
 
 // --- current workspace ------------------------------------------------------
@@ -90,14 +113,109 @@ export function useWorkspaceChannels(
   });
 }
 
-// --- projects ---------------------------------------------------------------
+// --- teams ------------------------------------------------------------------
 
-export function useProjects(workspaceId: string | undefined) {
+export function useTeams(workspaceId: string | undefined) {
   return useQuery({
-    queryKey: queryKeys.workTools.projects(workspaceId ?? ''),
-    queryFn: () => workToolsApi.projects(workspaceId as string),
+    queryKey: queryKeys.workTools.teams(workspaceId ?? ''),
+    queryFn: () => workToolsApi.teams(workspaceId as string),
     enabled: !!workspaceId,
     staleTime: 30_000,
+  });
+}
+
+export function useTeamMutations(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.workTools.teams(workspaceId ?? ''),
+    });
+
+  const create = useMutation({
+    mutationFn: (input: CreateTeamInput) =>
+      workToolsApi.createTeam(workspaceId as string, input),
+    onSuccess: invalidate,
+  });
+
+  const update = useMutation({
+    mutationFn: ({ teamId, input }: { teamId: string; input: UpdateTeamInput }) =>
+      workToolsApi.updateTeam(workspaceId as string, teamId, input),
+    onSuccess: invalidate,
+  });
+
+  const remove = useMutation({
+    mutationFn: (teamId: string) =>
+      workToolsApi.deleteTeam(workspaceId as string, teamId),
+    onSuccess: invalidate,
+  });
+
+  return { create, update, remove };
+}
+
+// --- initiatives ------------------------------------------------------------
+
+export function useInitiatives(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.workTools.initiatives(workspaceId ?? ''),
+    queryFn: () => workToolsApi.initiatives(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+  });
+}
+
+export function useInitiativeMutations(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.workTools.initiatives(workspaceId ?? ''),
+    });
+
+  const create = useMutation({
+    mutationFn: (input: CreateInitiativeInput) =>
+      workToolsApi.createInitiative(workspaceId as string, input),
+    onSuccess: invalidate,
+  });
+
+  const update = useMutation({
+    mutationFn: ({
+      initiativeId,
+      input,
+    }: {
+      initiativeId: string;
+      input: UpdateInitiativeInput;
+    }) => workToolsApi.updateInitiative(workspaceId as string, initiativeId, input),
+    onSuccess: invalidate,
+  });
+
+  const remove = useMutation({
+    mutationFn: (initiativeId: string) =>
+      workToolsApi.deleteInitiative(workspaceId as string, initiativeId),
+    onSuccess: invalidate,
+  });
+
+  return { create, update, remove };
+}
+
+// --- projects ---------------------------------------------------------------
+
+export function useProjects(workspaceId: string | undefined, teamId?: string) {
+  return useQuery({
+    queryKey: queryKeys.workTools.projects(workspaceId ?? '', teamId),
+    queryFn: () => workToolsApi.projects(workspaceId as string, teamId),
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+  });
+}
+
+export function useProjectDetail(
+  workspaceId: string | undefined,
+  projectId: string | undefined,
+) {
+  return useQuery({
+    queryKey: queryKeys.workTools.project(workspaceId ?? '', projectId ?? ''),
+    queryFn: () => workToolsApi.project(workspaceId as string, projectId as string),
+    enabled: !!workspaceId && !!projectId,
+    staleTime: 15_000,
   });
 }
 
@@ -114,8 +232,6 @@ export function useProjectMutations(workspaceId: string | undefined) {
     onSuccess: invalidate,
   });
 
-  const projectsKey = queryKeys.workTools.projects(workspaceId ?? '');
-
   const update = useMutation({
     mutationFn: ({
       projectId,
@@ -124,32 +240,23 @@ export function useProjectMutations(workspaceId: string | undefined) {
       projectId: string;
       input: UpdateProjectInput;
     }) => workToolsApi.updateProject(workspaceId as string, projectId, input),
+    onSuccess: invalidate,
+  });
 
-    /**
-     * Applied optimistically, for the same reason the task move is: dragging a
-     * column rewrites `columnOrder`, and a column that springs back to where it
-     * was while the request is in flight reads as a failed drag.
-     */
-    onMutate: async ({ projectId, input }) => {
-      await queryClient.cancelQueries({ queryKey: projectsKey });
-      const previous = queryClient.getQueryData<ProjectDetail[]>(projectsKey);
-
-      queryClient.setQueryData<ProjectDetail[]>(projectsKey, (current) =>
-        current?.map((project) =>
-          project.id === projectId ? { ...project, ...input } : project,
-        ),
-      );
-
-      return { previous };
-    },
-
-    onError: (_error, _variables, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(projectsKey, context.previous);
-      }
-    },
-
-    onSettled: invalidate,
+  const updateIdentifierSettings = useMutation({
+    mutationFn: ({
+      projectId,
+      input,
+    }: {
+      projectId: string;
+      input: ProjectIdentifierSettingsInput;
+    }) =>
+      workToolsApi.updateIdentifierSettings(
+        workspaceId as string,
+        projectId,
+        input,
+      ),
+    onSuccess: invalidate,
   });
 
   const remove = useMutation({
@@ -158,17 +265,178 @@ export function useProjectMutations(workspaceId: string | undefined) {
     onSuccess: invalidate,
   });
 
+  return { create, update, updateIdentifierSettings, remove };
+}
+
+// --- epics & modules & cycles -----------------------------------------------
+
+export function useEpics(
+  workspaceId: string | undefined,
+  projectId: string | undefined,
+) {
+  return useQuery({
+    queryKey: queryKeys.workTools.epics(workspaceId ?? '', projectId ?? ''),
+    queryFn: () =>
+      workToolsApi.epics(workspaceId as string, projectId as string),
+    enabled: !!workspaceId && !!projectId,
+  });
+}
+
+export function useEpicMutations(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.workTools.all(workspaceId ?? ''),
+    });
+
+  const create = useMutation({
+    mutationFn: (input: CreateEpicInput) =>
+      workToolsApi.createEpic(workspaceId as string, input),
+    onSuccess: invalidate,
+  });
+
+  const update = useMutation({
+    mutationFn: ({ epicId, input }: { epicId: string; input: UpdateEpicInput }) =>
+      workToolsApi.updateEpic(workspaceId as string, epicId, input),
+    onSuccess: invalidate,
+  });
+
+  const remove = useMutation({
+    mutationFn: (epicId: string) =>
+      workToolsApi.deleteEpic(workspaceId as string, epicId),
+    onSuccess: invalidate,
+  });
+
   return { create, update, remove };
 }
 
-// --- tasks ------------------------------------------------------------------
-
-export function useTasks(workspaceId: string | undefined, projectId?: string) {
+export function useModules(
+  workspaceId: string | undefined,
+  projectId: string | undefined,
+) {
   return useQuery({
-    queryKey: queryKeys.workTools.tasks(workspaceId ?? '', projectId),
-    queryFn: () => workToolsApi.tasks(workspaceId as string, projectId),
+    queryKey: queryKeys.workTools.modules(workspaceId ?? '', projectId ?? ''),
+    queryFn: () =>
+      workToolsApi.modules(workspaceId as string, projectId as string),
+    enabled: !!workspaceId && !!projectId,
+  });
+}
+
+export function useModuleMutations(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.workTools.all(workspaceId ?? ''),
+    });
+
+  const create = useMutation({
+    mutationFn: (input: CreateModuleInput) =>
+      workToolsApi.createModule(workspaceId as string, input),
+    onSuccess: invalidate,
+  });
+
+  const update = useMutation({
+    mutationFn: ({
+      moduleId,
+      input,
+    }: {
+      moduleId: string;
+      input: UpdateModuleInput;
+    }) => workToolsApi.updateModule(workspaceId as string, moduleId, input),
+    onSuccess: invalidate,
+  });
+
+  const remove = useMutation({
+    mutationFn: (moduleId: string) =>
+      workToolsApi.deleteModule(workspaceId as string, moduleId),
+    onSuccess: invalidate,
+  });
+
+  return { create, update, remove };
+}
+
+export function useCycles(
+  workspaceId: string | undefined,
+  projectId?: string,
+  teamId?: string,
+) {
+  return useQuery({
+    queryKey: queryKeys.workTools.cycles(workspaceId ?? '', projectId, teamId),
+    queryFn: () => workToolsApi.cycles(workspaceId as string, projectId, teamId),
+    enabled: !!workspaceId,
+  });
+}
+
+export function useCycleMutations(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.workTools.cycles(workspaceId ?? ''),
+    });
+
+  const create = useMutation({
+    mutationFn: (input: CreateCycleInput) =>
+      workToolsApi.createCycle(workspaceId as string, input),
+    onSuccess: invalidate,
+  });
+
+  const update = useMutation({
+    mutationFn: ({
+      cycleId,
+      input,
+    }: {
+      cycleId: string;
+      input: UpdateCycleInput;
+    }) => workToolsApi.updateCycle(workspaceId as string, cycleId, input),
+    onSuccess: invalidate,
+  });
+
+  const remove = useMutation({
+    mutationFn: (cycleId: string) =>
+      workToolsApi.deleteCycle(workspaceId as string, cycleId),
+    onSuccess: invalidate,
+  });
+
+  return { create, update, remove };
+}
+
+// --- tasks / universal work items -------------------------------------------
+
+export function useTasks(
+  workspaceId: string | undefined,
+  params?: {
+    projectId?: string;
+    teamId?: string;
+    cycleId?: string;
+    epicId?: string;
+    moduleId?: string;
+    assigneeId?: string;
+    search?: string;
+  } | string,
+) {
+  const projectId = typeof params === 'string' ? params : params?.projectId;
+  const filterParams = typeof params === 'object' ? params : undefined;
+
+  return useQuery({
+    queryKey: queryKeys.workTools.tasks(
+      workspaceId ?? '',
+      projectId,
+      filterParams,
+    ),
+    queryFn: () => workToolsApi.tasks(workspaceId as string, params),
     enabled: !!workspaceId,
     staleTime: 15_000,
+  });
+}
+
+export function useTaskDetail(
+  workspaceId: string | undefined,
+  taskId: string | null | undefined,
+) {
+  return useQuery({
+    queryKey: queryKeys.workTools.task(workspaceId ?? '', taskId ?? ''),
+    queryFn: () => workToolsApi.task(workspaceId as string, taskId as string),
+    enabled: !!workspaceId && !!taskId,
   });
 }
 
@@ -177,7 +445,6 @@ export function useTaskMutations(
   projectId?: string,
 ) {
   const queryClient = useQueryClient();
-  const listKey = queryKeys.workTools.tasks(workspaceId ?? '', projectId);
   const invalidate = () =>
     queryClient.invalidateQueries({
       queryKey: queryKeys.workTools.all(workspaceId ?? ''),
@@ -195,37 +462,10 @@ export function useTaskMutations(
     onSuccess: invalidate,
   });
 
-  /**
-   * Drag-and-drop, applied optimistically.
-   *
-   * A card that snaps back to its old column while the request is in flight
-   * reads as a failed drag, so the board is rewritten immediately and rolled
-   * back only if the server refuses.
-   */
   const move = useMutation({
     mutationFn: ({ taskId, input }: { taskId: string; input: MoveTaskInput }) =>
       workToolsApi.moveTask(workspaceId as string, taskId, input),
-
-    onMutate: async ({ taskId, input }) => {
-      await queryClient.cancelQueries({ queryKey: listKey });
-      const previous = queryClient.getQueryData<Task[]>(listKey);
-
-      queryClient.setQueryData<Task[]>(listKey, (current) =>
-        current?.map((task) =>
-          task.id === taskId
-            ? { ...task, status: input.status, orderIndex: input.orderIndex }
-            : task,
-        ),
-      );
-
-      return { previous };
-    },
-
-    onError: (_error, _variables, context) => {
-      if (context?.previous) queryClient.setQueryData(listKey, context.previous);
-    },
-
-    onSettled: invalidate,
+    onSuccess: invalidate,
   });
 
   const remove = useMutation({
@@ -237,12 +477,176 @@ export function useTaskMutations(
   return { create, update, move, remove };
 }
 
-export function useTaskComments(
+// --- relations --------------------------------------------------------------
+
+export function useWorkItemRelations(
   workspaceId: string | undefined,
   taskId: string | undefined,
 ) {
   return useQuery({
-    queryKey: queryKeys.workTools.taskComments(workspaceId ?? '', taskId ?? ''),
+    queryKey: queryKeys.workTools.relations(workspaceId ?? '', taskId ?? ''),
+    queryFn: () =>
+      workToolsApi.relations(workspaceId as string, taskId as string),
+    enabled: !!workspaceId && !!taskId,
+  });
+}
+
+export function useRelationMutations(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.workTools.all(workspaceId ?? ''),
+    });
+
+  const addRelation = useMutation({
+    mutationFn: (input: CreateWorkItemRelationInput) =>
+      workToolsApi.addRelation(workspaceId as string, input),
+    onSuccess: invalidate,
+  });
+
+  const removeRelation = useMutation({
+    mutationFn: (relationId: string) =>
+      workToolsApi.deleteRelation(workspaceId as string, relationId),
+    onSuccess: invalidate,
+  });
+
+  return { addRelation, removeRelation };
+}
+
+// --- saved views ------------------------------------------------------------
+
+export function useSavedViews(
+  workspaceId: string | undefined,
+  projectId?: string,
+  teamId?: string,
+) {
+  return useQuery({
+    queryKey: queryKeys.workTools.savedViews(workspaceId ?? '', projectId, teamId),
+    queryFn: () => workToolsApi.savedViews(workspaceId as string, projectId, teamId),
+    enabled: !!workspaceId,
+  });
+}
+
+export function useSavedViewMutations(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.workTools.savedViews(workspaceId ?? ''),
+    });
+
+  const create = useMutation({
+    mutationFn: (input: CreateSavedViewInput) =>
+      workToolsApi.createSavedView(workspaceId as string, input),
+    onSuccess: invalidate,
+  });
+
+  const update = useMutation({
+    mutationFn: ({ viewId, input }: { viewId: string; input: UpdateSavedViewInput }) =>
+      workToolsApi.updateSavedView(workspaceId as string, viewId, input),
+    onSuccess: invalidate,
+  });
+
+  const remove = useMutation({
+    mutationFn: (viewId: string) =>
+      workToolsApi.deleteSavedView(workspaceId as string, viewId),
+    onSuccess: invalidate,
+  });
+
+  return { create, update, remove };
+}
+
+// --- intake / triage --------------------------------------------------------
+
+export function useIntakeRequests(
+  workspaceId: string | undefined,
+  status?: string,
+) {
+  return useQuery({
+    queryKey: queryKeys.workTools.intake(workspaceId ?? '', status),
+    queryFn: () => workToolsApi.intake(workspaceId as string, status),
+    enabled: !!workspaceId,
+  });
+}
+
+export function useIntakeMutations(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.workTools.all(workspaceId ?? ''),
+    });
+
+  const create = useMutation({
+    mutationFn: (input: CreateIntakeRequestInput) =>
+      workToolsApi.createIntakeRequest(workspaceId as string, input),
+    onSuccess: invalidate,
+  });
+
+  const convert = useMutation({
+    mutationFn: ({
+      intakeId,
+      input,
+    }: {
+      intakeId: string;
+      input: ConvertIntakeRequestInput;
+    }) =>
+      workToolsApi.convertIntakeRequest(
+        workspaceId as string,
+        intakeId,
+        input,
+      ),
+    onSuccess: invalidate,
+  });
+
+  const decline = useMutation({
+    mutationFn: (intakeId: string) =>
+      workToolsApi.declineIntakeRequest(workspaceId as string, intakeId),
+    onSuccess: invalidate,
+  });
+
+  return { create, convert, decline };
+}
+
+// --- project updates --------------------------------------------------------
+
+export function useProjectUpdates(
+  workspaceId: string | undefined,
+  projectId: string | undefined,
+) {
+  return useQuery({
+    queryKey: queryKeys.workTools.projectUpdates(workspaceId ?? '', projectId ?? ''),
+    queryFn: () =>
+      workToolsApi.projectUpdates(workspaceId as string, projectId as string),
+    enabled: !!workspaceId && !!projectId,
+  });
+}
+
+export function useProjectUpdateMutations(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.workTools.all(workspaceId ?? ''),
+    });
+
+  const create = useMutation({
+    mutationFn: (input: CreateProjectUpdateInput) =>
+      workToolsApi.createProjectUpdate(workspaceId as string, input),
+    onSuccess: invalidate,
+  });
+
+  return { create };
+}
+
+// --- comments, calendar, documents, whiteboards ----------------------------
+
+export function useTaskComments(
+  workspaceId: string | undefined,
+  taskId: string | null | undefined,
+) {
+  return useQuery({
+    queryKey: queryKeys.workTools.taskComments(
+      workspaceId ?? '',
+      taskId ?? '',
+    ),
     queryFn: () =>
       workToolsApi.taskComments(workspaceId as string, taskId as string),
     enabled: !!workspaceId && !!taskId,
@@ -251,10 +655,9 @@ export function useTaskComments(
 
 export function useAddTaskComment(
   workspaceId: string | undefined,
-  taskId: string | undefined,
+  taskId: string | null | undefined,
 ) {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (input: CreateTaskCommentInput) =>
       workToolsApi.addTaskComment(
@@ -269,29 +672,9 @@ export function useAddTaskComment(
           taskId ?? '',
         ),
       });
-      // The card tile shows a comment count, so the board is stale too.
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.workTools.tasks(workspaceId ?? ''),
-      });
     },
   });
 }
-
-/** Groups tasks into their board columns, ordered as the board draws them. */
-export function groupTasksByStatus(tasks: Task[] | undefined) {
-  const columns = new Map<string, Task[]>();
-  for (const task of tasks ?? []) {
-    const bucket = columns.get(task.status);
-    if (bucket) bucket.push(task);
-    else columns.set(task.status, [task]);
-  }
-  for (const bucket of columns.values()) {
-    bucket.sort((a, b) => a.orderIndex - b.orderIndex);
-  }
-  return columns;
-}
-
-// --- calendar ---------------------------------------------------------------
 
 export function useCalendarEvents(
   workspaceId: string | undefined,
@@ -310,7 +693,7 @@ export function useCalendarMutations(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   const invalidate = () =>
     queryClient.invalidateQueries({
-      queryKey: queryKeys.workTools.all(workspaceId ?? ''),
+      queryKey: queryKeys.workTools.calendar(workspaceId ?? ''),
     });
 
   const create = useMutation({
@@ -338,8 +721,6 @@ export function useCalendarMutations(workspaceId: string | undefined) {
 
   return { create, update, remove };
 }
-
-// --- documents --------------------------------------------------------------
 
 export function useDocuments(
   workspaceId: string | undefined,
@@ -378,13 +759,6 @@ export function useDocumentMutations(workspaceId: string | undefined) {
     onSuccess: invalidate,
   });
 
-  /**
-   * Saves an edit without invalidating on every keystroke.
-   *
-   * The editor is the source of truth while it is focused, so the response is
-   * written straight into the cache; a refetch here would fight the user's
-   * cursor.
-   */
   const update = useMutation({
     mutationFn: ({ docId, input }: { docId: string; input: UpdateDocumentInput }) =>
       workToolsApi.updateDocument(workspaceId as string, docId, input),
@@ -407,8 +781,6 @@ export function useDocumentMutations(workspaceId: string | undefined) {
 
   return { create, update, remove };
 }
-
-// --- whiteboards ------------------------------------------------------------
 
 export function useWhiteboards(workspaceId: string | undefined) {
   return useQuery({
@@ -474,10 +846,29 @@ export function useWhiteboardMutations(workspaceId: string | undefined) {
   return { create, update, remove };
 }
 
+export function groupTasksByStatus(tasks: Task[] | undefined): Record<string, Task[]> {
+  const groups: Record<string, Task[]> = {};
+  if (!tasks) return groups;
+  for (const task of tasks) {
+    if (!groups[task.status]) groups[task.status] = [];
+    groups[task.status].push(task);
+  }
+  return groups;
+}
+
 export type {
   CalendarEvent,
+  Cycle,
+  Epic,
+  Initiative,
+  IntakeRequest,
+  Module,
   ProjectDetail,
+  ProjectUpdate,
+  SavedView,
   Task,
+  Team,
   Whiteboard,
   WorkDocument,
+  WorkItemRelation,
 };
