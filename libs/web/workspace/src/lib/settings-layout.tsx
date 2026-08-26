@@ -17,6 +17,7 @@ import {
   Kanban,
   Key,
   MessageSquare,
+  Palette,
   Plug,
   Search,
   ShieldCheck,
@@ -81,7 +82,13 @@ export function SettingsLayout({
       section: 'account',
       title: 'Account Settings',
       items: [
-        { id: 'preferences', label: 'Preferences & Theme', icon: Sliders },
+        { id: 'preferences', label: 'Preferences', icon: Sliders },
+        {
+          id: 'theme',
+          label: 'Theme & Customization',
+          icon: Palette,
+          badge: 'NEW',
+        },
         { id: 'chat', label: 'Chat & Messaging', icon: MessageSquare },
         { id: 'profile', label: 'Profile & Details', icon: User },
         { id: 'timezone-region', label: 'Time Zone & Region', icon: Globe },

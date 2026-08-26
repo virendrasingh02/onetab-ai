@@ -45,6 +45,7 @@ export type {
   Invitation,
   IsoDateString,
   PublicUser,
+  ThemeConfig,
   Upload,
   Workspace,
   WorkspaceMember,

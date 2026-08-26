@@ -1,4 +1,4 @@
-import type { IsoDateString } from './entities.js';
+import type { IsoDateString, ThemeConfig } from './entities.js';
 
 export type MessageDensity = 'comfy' | 'compact';
 export type OpenChatPosition = 'last-read' | 'newest';
@@ -34,6 +34,7 @@ export interface NotificationDisplayPreferences {
 export interface UserPreferences {
   chat: ChatPreferences;
   notifications: NotificationDisplayPreferences;
+  theme?: ThemeConfig;
 }
 
 export interface NotificationPreference {

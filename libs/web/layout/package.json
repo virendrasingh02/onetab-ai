@@ -41,6 +41,7 @@
     "@org/web-chat": "*",
     "@org/web-desktop": "0.0.1",
     "@org/web-members": "*",
+    "@org/web-profile": "*",
     "@org/web-search": "*",
     "@org/web-work-tools": "*",
     "@tanstack/react-query": "^5.101.4",

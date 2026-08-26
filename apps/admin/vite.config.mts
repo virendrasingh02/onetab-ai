@@ -25,6 +25,44 @@ const ORG_WORKSPACE_PACKAGES = (() => {
   }
 })();
 
+function workspaceLiveSourcePlugin() {
+  return {
+    name: 'vite-plugin-workspace-live-source',
+    configureServer(server: any) {
+      server.middlewares.use((req: any, res: any, next: any) => {
+        const url = req.url || '';
+        if (
+          url.includes('/@org/') ||
+          url.includes('node_modules/@org/') ||
+          url.includes('/libs/') ||
+          url.includes('/packages/')
+        ) {
+          res.setHeader(
+            'Cache-Control',
+            'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          );
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+        }
+        next();
+      });
+    },
+    handleHotUpdate({ file, server }: any) {
+      const normalized = file.replace(/\\/g, '/');
+      if (normalized.includes('/libs/') || normalized.includes('/packages/')) {
+        for (const [id, mod] of server.moduleGraph.idToModuleMap.entries()) {
+          if (
+            id.replace(/\\/g, '/').includes(normalized) ||
+            (mod.file && mod.file.replace(/\\/g, '/').includes(normalized))
+          ) {
+            server.moduleGraph.invalidateModule(mod);
+          }
+        }
+      }
+    },
+  };
+}
+
 export default defineConfig(() => ({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/admin',
@@ -32,6 +70,9 @@ export default defineConfig(() => ({
     port: 4201,
     strictPort: true,
     host: 'localhost',
+    watch: {
+      ignored: ['!**/node_modules/@org/**', '!**/libs/**', '!**/packages/**'],
+    },
   },
   preview: {
     port: 4201,
@@ -57,7 +98,7 @@ export default defineConfig(() => ({
       'react-dom': path.resolve(import.meta.dirname, '../../node_modules/react-dom'),
     },
   },
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), workspaceLiveSourcePlugin()],
   optimizeDeps: {
     // use-sync-external-store/shim/with-selector.js is CJS-only and needs
     // esbuild's pre-bundling pass for its default-export interop — see

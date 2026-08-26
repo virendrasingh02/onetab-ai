@@ -21,12 +21,19 @@
   "type": "module",
   "dependencies": {
     "@hookform/resolvers": "^5.7.1",
+    "@org/api-client": "*",
+    "@org/auth": "*",
+    "@org/design-system": "*",
+    "@org/types": "*",
+    "@org/ui": "*",
+    "@org/utils": "*",
+    "@org/validation": "*",
+    "@org/web-workspace": "*",
     "@tanstack/react-query": "^5.101.4",
     "lucide-react": "^1.28.0",
     "react-hook-form": "^7.84.0",
     "react-router-dom": "^6.30.3",
     "zod": "^4.4.3",
-    "zustand": "^5.0.14",
-    "@org/web-workspace": "*"
+    "zustand": "^5.0.14"
   }
 }

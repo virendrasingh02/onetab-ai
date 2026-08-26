@@ -47,9 +47,6 @@
       "path": "../channels/tsconfig.lib.json"
     },
     {
-      "path": "../../shared/api-client/tsconfig.lib.json"
-    },
-    {
       "path": "../../shared/utils/tsconfig.lib.json"
     },
     {
@@ -59,6 +56,9 @@
       "path": "../../shared/types/tsconfig.lib.json"
     },
     {
+      "path": "../../shared/api-client/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/ui/tsconfig.lib.json"
     },
     {
@@ -66,6 +66,9 @@
     },
     {
       "path": "../search/tsconfig.lib.json"
+    },
+    {
+      "path": "../profile/tsconfig.lib.json"
     },
     {
       "path": "../members/tsconfig.lib.json"

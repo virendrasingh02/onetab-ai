@@ -5,7 +5,13 @@ export const updateProfileSchema = z.object({
   displayName: z.string().trim().max(48).nullable().optional(),
   bio: z.string().trim().max(280).nullable().optional(),
   timezone: z.string().min(1).max(64).optional(),
-  avatarUrl: z.string().url('Enter a valid URL').nullable().optional(),
+  avatarUrl: z.string().nullable().optional(),
+  coverUrl: z.string().nullable().optional(),
+  title: z.string().trim().max(80).nullable().optional(),
+  jobTitle: z.string().trim().max(80).nullable().optional(),
+  location: z.string().trim().max(80).nullable().optional(),
+  website: z.string().trim().max(255).nullable().optional(),
+  github: z.string().trim().max(80).nullable().optional(),
   statusText: z.string().trim().max(100).nullable().optional(),
   statusEmoji: z.string().trim().max(32).nullable().optional(),
   statusExpiresAt: z.string().datetime().nullable().optional(),
@@ -73,6 +79,14 @@ export const notificationDisplayPreferencesSchema = z.object({
   size: z.enum(['comfy', 'compact']).default('comfy'),
 });
 
+export const themeConfigSchema = z.object({
+  mode: z.enum(['light', 'dark', 'system']).default('light'),
+  type: z.enum(['default', 'custom', 'preset']).default('default'),
+  brandColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, 'Invalid hex color').optional(),
+  neutralColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, 'Invalid hex color').optional(),
+  presetId: z.string().optional(),
+});
+
 export const userPreferencesSchema = z.object({
   chat: chatPreferencesSchema.default({
     messageDensity: 'comfy',
@@ -87,11 +101,13 @@ export const userPreferencesSchema = z.object({
     position: 'bottom-right',
     size: 'comfy',
   }),
+  theme: themeConfigSchema.optional(),
 });
 
 export const updateUserPreferencesSchema = z.object({
   chat: chatPreferencesSchema.partial().optional(),
   notifications: notificationDisplayPreferencesSchema.partial().optional(),
+  theme: themeConfigSchema.partial().optional(),
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
@@ -101,6 +117,7 @@ export type ChatPreferencesInput = z.infer<typeof chatPreferencesSchema>;
 export type NotificationDisplayPreferencesInput = z.infer<
   typeof notificationDisplayPreferencesSchema
 >;
+export type ThemeConfigInput = z.infer<typeof themeConfigSchema>;
 export type UserPreferencesInput = z.infer<typeof userPreferencesSchema>;
 export type UpdateUserPreferencesInput = z.infer<
   typeof updateUserPreferencesSchema

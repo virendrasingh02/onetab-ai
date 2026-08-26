@@ -111,11 +111,14 @@ export interface WorkspaceSettingsPageProps {
   importPanel?: ReactNode;
   /** The kanban field-customisation panel, from `@org/web-work-tools`. */
   kanbanPanel?: ReactNode;
+  /** The theme customization panel, from `@org/web-settings`. */
+  themePanel?: ReactNode;
 }
 
 export function WorkspaceSettingsPage({
   importPanel,
   kanbanPanel,
+  themePanel,
 }: WorkspaceSettingsPageProps = {}) {
   const { workspace, workspaceId, isLoading } = useCurrentWorkspace();
   const updateWorkspace = useUpdateWorkspace(workspaceId);
@@ -324,6 +327,9 @@ export function WorkspaceSettingsPage({
 
   return (
     <SettingsLayout activeTab={currentTab} onTabChange={handleTabChange}>
+      {/* ---------------- SECTION 0: THEME & CUSTOMIZATION ---------------- */}
+      {currentTab === 'theme' && themePanel}
+
       {/* ---------------- SECTION 1: PREFERENCES ---------------- */}
       {currentTab === 'preferences' && (
         <div className="space-y-8">

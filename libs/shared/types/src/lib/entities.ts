@@ -19,7 +19,12 @@ export interface PublicUser {
   name: string;
   displayName: string | null;
   avatarUrl: string | null;
+  coverUrl?: string | null;
   title?: string | null;
+  jobTitle?: string | null;
+  location?: string | null;
+  website?: string | null;
+  github?: string | null;
   presence: PresenceStatus;
   statusText?: string | null;
   statusEmoji?: string | null;
@@ -31,6 +36,15 @@ export interface PublicUser {
    * would be wrong twice a year — the zone id survives DST, an offset does not.
    */
   timezone: string;
+}
+
+/** Theme configuration object stored in user preferences. */
+export interface ThemeConfig {
+  mode: 'light' | 'dark' | 'system';
+  type: 'default' | 'custom' | 'preset';
+  brandColor?: string;
+  neutralColor?: string;
+  presetId?: string;
 }
 
 /** The authenticated user's own profile — adds private fields. */

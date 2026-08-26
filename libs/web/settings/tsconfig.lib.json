@@ -26,13 +26,19 @@
   ],
   "references": [
     {
-      "path": "../../shared/design-system/tsconfig.lib.json"
-    },
-    {
       "path": "../desktop/tsconfig.lib.json"
     },
     {
       "path": "../notifications/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/common/tsconfig.lib.json"
+    },
+    {
+      "path": "../workspace/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/validation/tsconfig.lib.json"
     },
     {
       "path": "../../shared/utils/tsconfig.lib.json"
@@ -44,10 +50,13 @@
       "path": "../../shared/types/tsconfig.lib.json"
     },
     {
-      "path": "../../shared/common/tsconfig.lib.json"
+      "path": "../../shared/design-system/tsconfig.lib.json"
     },
     {
-      "path": "../workspace/tsconfig.lib.json"
+      "path": "../auth/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/api-client/tsconfig.lib.json"
     }
   ]
 }

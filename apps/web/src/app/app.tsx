@@ -87,13 +87,18 @@ const WorkspaceKanbanSettings = lazy(() =>
     default: m.WorkspaceKanbanSettings,
   })),
 );
+const ThemeSettings = lazy(() =>
+  import('@org/web-settings').then((m) => ({
+    default: m.ThemeSettings,
+  })),
+);
 
 /**
- * The settings page with its two borrowed tabs supplied.
+ * The settings page with its borrowed tabs supplied.
  *
- * `@org/web-workspace` sits below `@org/web-integrations` and
- * `@org/web-work-tools` in the dependency graph, so it cannot import either;
- * the route layer is the first place that may depend on all three. See
+ * `@org/web-workspace` sits below `@org/web-integrations`,
+ * `@org/web-work-tools`, and `@org/web-settings` in the dependency graph, so it cannot import either;
+ * the route layer is the first place that may depend on all. See
  * `WorkspaceSettingsPageProps`.
  */
 function WorkspaceSettings() {
@@ -101,6 +106,7 @@ function WorkspaceSettings() {
     <WorkspaceSettingsPage
       importPanel={<SlackNotionImportView embedded />}
       kanbanPanel={<WorkspaceKanbanSettings />}
+      themePanel={<ThemeSettings />}
     />
   );
 }

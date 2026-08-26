@@ -73,6 +73,48 @@ const ORG_WORKSPACE_PACKAGES = (() => {
   }
 })();
 
+/**
+ * Plugin to ensure @org/* workspace packages in node_modules are treated
+ * as live source without aggressive browser caching or stale module graphs.
+ */
+function workspaceLiveSourcePlugin() {
+  return {
+    name: 'vite-plugin-workspace-live-source',
+    configureServer(server: any) {
+      server.middlewares.use((req: any, res: any, next: any) => {
+        const url = req.url || '';
+        if (
+          url.includes('/@org/') ||
+          url.includes('node_modules/@org/') ||
+          url.includes('/libs/') ||
+          url.includes('/packages/')
+        ) {
+          res.setHeader(
+            'Cache-Control',
+            'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          );
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+        }
+        next();
+      });
+    },
+    handleHotUpdate({ file, server }: any) {
+      const normalized = file.replace(/\\/g, '/');
+      if (normalized.includes('/libs/') || normalized.includes('/packages/')) {
+        for (const [id, mod] of server.moduleGraph.idToModuleMap.entries()) {
+          if (
+            id.replace(/\\/g, '/').includes(normalized) ||
+            (mod.file && mod.file.replace(/\\/g, '/').includes(normalized))
+          ) {
+            server.moduleGraph.invalidateModule(mod);
+          }
+        }
+      }
+    },
+  };
+}
+
 export default defineConfig(() => ({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/web',
@@ -82,6 +124,9 @@ export default defineConfig(() => ({
     host: 'localhost',
     allowedHosts: TUNNEL_HOSTS,
     proxy: API_PROXY,
+    watch: {
+      ignored: ['!**/node_modules/@org/**', '!**/libs/**', '!**/packages/**'],
+    },
   },
   preview: {
     port: 4200,
@@ -123,6 +168,7 @@ export default defineConfig(() => ({
   plugins: [
     react(),
     tailwindcss(),
+    workspaceLiveSourcePlugin(),
     /**
      * matrix-js-sdk's Rust crypto ships as WebAssembly. Without this the E2EE
      * stack cannot load and every encrypted room renders a decryption
