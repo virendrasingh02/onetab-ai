@@ -134,7 +134,7 @@ export function WorkspaceMenu({
             className={cn(
               'group/trigger gap-2 px-2 py-1 flex flex-1 items-center rounded-lg text-left',
               'transition-colors duration-(--duration-fast) ease-standard hover:bg-accent/70',
-              'outline-none focus-visible:ring-1 focus-visible:ring-ring select-none cursor-pointer',
+              'cursor-pointer outline-none select-none focus-visible:ring-1 focus-visible:ring-ring',
             )}
           >
             {/* Avatar with Activity Dot */}
@@ -146,7 +146,7 @@ export function WorkspaceMenu({
                 iconColor={current.iconColor}
                 seed={current.id}
                 size="sm"
-                className="rounded-lg shadow-2xs"
+                className="shadow-2xs rounded-sm"
               />
               <ActivityDot
                 level={othersLevel}
@@ -160,19 +160,14 @@ export function WorkspaceMenu({
             </span>
 
             {/* Workspace Name & Associated Email Stacked (Slack style) */}
-            <span className="min-w-0 flex flex-1 flex-col justify-center leading-tight">
-              <span className="font-semibold tracking-tight text-xs sm:text-sm truncate text-foreground flex items-center gap-1">
+            <span className="min-w-0 leading-tight flex flex-1 flex-col justify-center">
+              <span className="font-semibold tracking-tight text-xs sm:text-sm gap-1 flex items-center truncate text-foreground">
                 <span className="truncate">{current.name}</span>
                 <ChevronDown
                   className="size-3 shrink-0 text-muted-foreground transition-transform duration-(--duration-fast) group-data-[state=open]/trigger:rotate-180"
                   aria-hidden
                 />
               </span>
-              {currentEmail && (
-                <span className="text-[10px] text-muted-foreground truncate font-normal">
-                  {currentEmail}
-                </span>
-              )}
             </span>
           </button>
         </DropdownMenuTrigger>
@@ -180,24 +175,21 @@ export function WorkspaceMenu({
         <DropdownMenuContent
           align="start"
           sideOffset={6}
-          className="w-72 sm:w-80 p-1.5 rounded-xl border border-border bg-popover text-foreground shadow-2xl space-y-1 select-none"
+          className="w-72 sm:w-80 p-1.5 shadow-2xl space-y-1 rounded-xl border border-border bg-popover text-foreground select-none"
         >
           {/* Header Label */}
           <div className="px-2 py-1 flex items-center justify-between">
             <DropdownMenuLabel className="p-0 font-semibold tracking-wide text-[11px] text-muted-foreground uppercase">
               Workspaces & Accounts
             </DropdownMenuLabel>
-            <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+            <span className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px] text-muted-foreground">
               {workspaces.length}
             </span>
           </div>
 
           {/* Quick Search when 3 or more workspaces exist */}
           {workspaces.length >= 3 && (
-            <div
-              className="px-1.5 py-1"
-              onKeyDown={(e) => e.stopPropagation()}
-            >
+            <div className="px-1.5 py-1" onKeyDown={(e) => e.stopPropagation()}>
               <SearchInput
                 value={searchQuery}
                 onValueChange={setSearchQuery}
@@ -211,7 +203,7 @@ export function WorkspaceMenu({
           {/* Workspaces List */}
           <div className="space-y-0.5 my-1 max-h-60 overflow-y-auto">
             {filteredWorkspaces.length === 0 ? (
-              <div className="p-3 text-center text-xs text-muted-foreground">
+              <div className="p-3 text-xs text-center text-muted-foreground">
                 No matching workspaces
               </div>
             ) : (
@@ -228,7 +220,7 @@ export function WorkspaceMenu({
                     className={cn(
                       'gap-2.5 px-2 py-1.5 text-xs flex cursor-pointer items-center rounded-lg transition-colors',
                       isSelected
-                        ? 'font-medium bg-primary/10 text-foreground border border-primary/20'
+                        ? 'font-medium border border-primary/20 bg-primary/10 text-foreground'
                         : 'hover:bg-accent/60',
                     )}
                   >
@@ -240,20 +232,20 @@ export function WorkspaceMenu({
                         iconColor={workspace.iconColor}
                         seed={workspace.id}
                         size="xs"
-                        className="rounded-md shrink-0"
+                        className="shrink-0 rounded-md"
                       />
 
                       {/* Name and email visually grouped */}
-                      <span className="min-w-0 flex-1 leading-tight">
+                      <span className="min-w-0 leading-tight flex-1">
                         <span className="font-semibold block truncate text-foreground">
                           {workspace.name}
                         </span>
                         {wsEmail ? (
-                          <span className="block truncate text-[10px] text-muted-foreground font-normal">
+                          <span className="font-normal block truncate text-[10px] text-muted-foreground">
                             {wsEmail}
                           </span>
                         ) : (
-                          <span className="block truncate text-[10px] text-muted-foreground font-normal">
+                          <span className="font-normal block truncate text-[10px] text-muted-foreground">
                             {workspace.memberCount} member
                             {workspace.memberCount === 1 ? '' : 's'}
                           </span>
@@ -267,7 +259,7 @@ export function WorkspaceMenu({
                           count={indicator?.mentionCount}
                         />
                         {isSelected ? (
-                          <Check className="size-4 text-primary shrink-0" />
+                          <Check className="size-4 shrink-0 text-primary" />
                         ) : null}
                       </span>
                     </Link>
@@ -284,7 +276,7 @@ export function WorkspaceMenu({
             onClick={handleOpenAddAccount}
             className="gap-2.5 px-2 py-1.5 text-xs flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
           >
-            <span className="size-5 flex items-center justify-center rounded-md border border-dashed border-border text-primary shrink-0">
+            <span className="size-5 flex shrink-0 items-center justify-center rounded-md border border-dashed border-border text-primary">
               <UserPlus className="size-3" />
             </span>
             <span className="font-medium text-foreground">
@@ -297,7 +289,7 @@ export function WorkspaceMenu({
             onClick={handleOpenManageAccounts}
             className="gap-2.5 px-2 py-1.5 text-xs flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
           >
-            <span className="size-5 flex items-center justify-center rounded-md border border-border text-subtle shrink-0">
+            <span className="size-5 flex shrink-0 items-center justify-center rounded-md border border-border text-subtle">
               <Users className="size-3" />
             </span>
             <span className="font-medium text-foreground">Manage accounts</span>
@@ -311,7 +303,7 @@ export function WorkspaceMenu({
             className="gap-2.5 px-2 py-1.5 text-xs flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
           >
             <Link to={`/w/${current.slug}/settings`}>
-              <span className="size-5 flex items-center justify-center rounded-md border border-border text-subtle shrink-0">
+              <span className="size-5 flex shrink-0 items-center justify-center rounded-md border border-border text-subtle">
                 <Settings className="size-3" />
               </span>
               <span className="font-medium">Workspace Settings</span>
@@ -324,7 +316,7 @@ export function WorkspaceMenu({
             className="gap-2.5 px-2 py-1.5 text-xs flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
           >
             <Link to="/workspaces/new">
-              <span className="size-5 flex items-center justify-center rounded-md border border-dashed border-border text-subtle shrink-0">
+              <span className="size-5 flex shrink-0 items-center justify-center rounded-md border border-dashed border-border text-subtle">
                 <Plus className="size-3" />
               </span>
               <span className="font-medium">Create New Workspace</span>
@@ -341,7 +333,7 @@ export function WorkspaceMenu({
             size="icon-sm"
             onClick={onToggleSidebar}
             aria-label="Collapse sidebar"
-            className="size-7 p-0 opacity-0 transition-opacity duration-(--duration-fast) group-focus-within/sidebar:opacity-100 group-hover/sidebar:opacity-100 group-hover/workspace-header:opacity-100 focus-visible:opacity-100 cursor-pointer"
+            className="size-7 p-0 cursor-pointer opacity-0 transition-opacity duration-(--duration-fast) group-focus-within/sidebar:opacity-100 group-hover/sidebar:opacity-100 group-hover/workspace-header:opacity-100 focus-visible:opacity-100"
           >
             <PanelLeft className="size-4 text-subtle hover:text-foreground" />
           </Button>

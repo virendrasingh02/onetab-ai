@@ -142,7 +142,7 @@ export function useRoom(roomId: RoomId | undefined) {
   useEffect(() => {
     if (!client || !roomId || !readReceiptsEnabled) return;
     const latest = state.messages[state.messages.length - 1];
-    if (latest && !latest.isPending) {
+    if (latest && latest.sendState !== 'sending') {
       void client.markRead(roomId, latest.id);
     }
   }, [client, roomId, readReceiptsEnabled, state.messages]);

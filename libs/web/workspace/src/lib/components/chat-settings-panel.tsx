@@ -15,7 +15,6 @@ import {
   RotateCcw,
   Sparkles,
 } from 'lucide-react';
-import React from 'react';
 
 export function ChatSettingsPanel() {
   const { chat, updateChatPreferences } = useChatPreferences();

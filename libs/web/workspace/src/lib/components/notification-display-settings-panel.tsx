@@ -2,10 +2,7 @@ import {
   useNotificationDisplayPreferences,
   useUserPreferences,
 } from '@org/common';
-import {
-  notificationService,
-  useNotificationPermissionBar,
-} from '@org/notifications';
+import { notificationService } from '@org/notifications';
 import type {
   NotificationDismissDuration,
   NotificationPosition,
@@ -41,7 +38,7 @@ import {
   RotateCcw,
   Sparkles,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 export function NotificationDisplaySettingsPanel({
   workspaceId,
@@ -51,7 +48,6 @@ export function NotificationDisplaySettingsPanel({
   const { notifications, updateNotificationPreferences } =
     useNotificationDisplayPreferences();
   const { resetPreferences } = useUserPreferences();
-  const notifBarState = useNotificationPermissionBar(workspaceId);
   const capabilities = useCapabilities();
   const isTaskbarFlashSupported = useTaskbarFlashSupported();
   const isSystemSettingsSupported = useSystemSettingsSupported();
@@ -259,9 +255,9 @@ export function NotificationDisplaySettingsPanel({
         <div className="grid grid-cols-2 gap-3 max-w-lg">
           {(
             [
-              { id: 'top-left', label: 'Top Left' },
-              { id: 'top-right', label: 'Top Right' },
-              { id: 'bottom-left', label: 'Bottom Left' },
+              { id: 'top-left', label: 'Top Left', defaultBadge: false },
+              { id: 'top-right', label: 'Top Right', defaultBadge: false },
+              { id: 'bottom-left', label: 'Bottom Left', defaultBadge: false },
               { id: 'bottom-right', label: 'Bottom Right', defaultBadge: true },
             ] as const
           ).map((pos) => {
