@@ -1,4 +1,5 @@
 export { AppShell } from './lib/app-shell.js';
+export { DirectMessagesPage } from './lib/direct-messages-page.js';
 export { AppHeader, type AppHeaderProps } from './lib/app-header.js';
 export {
   AssistantPanel,

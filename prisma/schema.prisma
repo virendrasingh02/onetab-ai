@@ -591,6 +591,10 @@ model AIAgent {
   tools         String              @default("[\"search_docs\",\"create_task\",\"send_channel_message\"]")
   isActive      Boolean             @default(true)
   isMarketplace Boolean             @default(false)
+  /// This agent's provisioned Matrix bot identity (e.g. @onetab_agent-<id>:server), set lazily on first DM open.
+  matrixUserId  String?             @unique
+  /// The agent's shared DM room with whichever human opens it first.
+  matrixRoomId  String?             @unique
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
   logs          AgentExecutionLog[]
@@ -761,6 +765,10 @@ model ExternalIntegration {
   lastSyncAt            DateTime?
   lastErrorAt           DateTime?
   lastErrorMessage      String?
+  /// This app's provisioned Matrix bot identity (e.g. @onetab_app-<id>:server), set lazily on first DM open.
+  matrixUserId          String?              @unique
+  /// The app's shared DM room with whichever human opens it first.
+  matrixRoomId          String?              @unique
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
   workspace             Workspace?           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

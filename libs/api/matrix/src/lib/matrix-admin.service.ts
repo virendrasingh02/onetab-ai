@@ -681,4 +681,62 @@ export class MatrixAdminService {
       }),
     });
   }
+
+  /**
+   * Joins a room as the given Matrix user.
+   *
+   * Bot identities (agents, apps) are invited to their DM room the same way a
+   * human is, but nothing ever accepts on their behalf — a human joins from
+   * their own browser session, a bot has none. `MatrixSyncService` calls this
+   * the moment the homeserver reports the invite, since Matrix requires a
+   * *joined* member to send events at all, and `getOrCreateDirectMessage`
+   * only recognises a room as already existing once both sides have joined it.
+   */
+  async joinRoomAs(matrixUserId: string, roomId: string): Promise<void> {
+    this.assertEnabled();
+    const accessToken = this.isAdminMode
+      ? await this.actAs(matrixUserId, { expiresInMs: 60_000 })
+      : this.config.asToken;
+
+    const path = this.isAdminMode
+      ? `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/join`
+      : `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/join?user_id=${encodeURIComponent(matrixUserId)}`;
+
+    await this.request(path, { method: 'POST', accessToken, body: '{}' });
+  }
+
+  /**
+   * Sends a raw timeline event to a room as the given Matrix user.
+   *
+   * The server-side twin of `MatrixClient.sendMessage` in `@org/matrix-client`
+   * (which only ever runs as the signed-in human's own session): this is how
+   * the bridge posts on behalf of a bot identity — an agent's response, an
+   * app's card — rather than a person. `MatrixBotMessagingService` builds the
+   * `content` so it round-trips through the same `extractStructuredEvent`
+   * parsing a human-sent structured message would.
+   */
+  async sendEventAs(
+    roomId: string,
+    senderMatrixId: string,
+    eventType: string,
+    content: Record<string, unknown>,
+  ): Promise<string> {
+    this.assertEnabled();
+    const accessToken = this.isAdminMode
+      ? await this.actAs(senderMatrixId, { expiresInMs: 60_000 })
+      : this.config.asToken;
+
+    const transactionId = `srv.${Date.now()}.${Math.random().toString(36).slice(2)}`;
+    const path = this.isAdminMode
+      ? `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/send/${encodeURIComponent(eventType)}/${transactionId}`
+      : `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/send/${encodeURIComponent(eventType)}/${transactionId}?user_id=${encodeURIComponent(senderMatrixId)}`;
+
+    const response = await this.request<{ event_id: string }>(path, {
+      method: 'PUT',
+      accessToken,
+      body: JSON.stringify(content),
+    });
+
+    return response.event_id;
+  }
 }

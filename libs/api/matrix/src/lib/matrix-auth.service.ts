@@ -171,33 +171,131 @@ export class MatrixAuthService {
   }
 
   /**
-   * The Matrix identity of someone the caller shares a workspace with.
+   * The Matrix identity of a peer the caller may open a direct message with —
+   * a teammate, an AI agent, or a connected app.
    *
    * The browser needs the peer's Matrix id to open a direct message, and it
-   * cannot derive one: the localpart is hashed from our user id and the server
-   * name is deployment configuration. Provisioning happens here too, so a DM to
-   * someone who has never opened chat still lands in a room they can join.
+   * cannot derive one: the localpart is hashed from our user/agent/integration
+   * id and the server name is deployment configuration. Provisioning happens
+   * here too, so a DM to a peer who has never been opened in chat before —
+   * human, agent, or app — still lands in a room they can join.
    *
-   * Returns `null` when the two do not share a workspace — the caller turns
-   * that into a 404 rather than a 403, so this cannot be used to probe whether
-   * a given user id exists.
+   * `peerId` is dispatched by prefix: `agent-<agentId>` and `app-<integrationId>`
+   * address an `AIAgent`/`ExternalIntegration` row directly (the same prefixes
+   * the sidebar and `DirectMessagesView` already use to badge these peers);
+   * anything else is treated as a human user id.
+   *
+   * Returns `null` when the peer cannot be resolved — the caller turns that
+   * into a 404 rather than a 403, so this cannot be used to probe whether a
+   * given id exists.
    */
   async resolvePeerIdentity(
     callerUserId: string,
-    peerUserId: string,
+    peerId: string,
   ): Promise<string | null> {
-    if (!this.admin.isEnabled || callerUserId === peerUserId) return null;
+    if (!this.admin.isEnabled) return null;
+
+    if (peerId.startsWith('agent-')) {
+      return this.resolveAgentIdentity(callerUserId, peerId.slice(6));
+    }
+    if (peerId.startsWith('app-')) {
+      return this.resolveAppIdentity(callerUserId, peerId.slice(4));
+    }
+
+    if (callerUserId === peerId) return null;
 
     const shared = await this.prisma.workspaceMember.findFirst({
       where: {
-        userId: peerUserId,
+        userId: peerId,
         workspace: { members: { some: { userId: callerUserId } } },
       },
       select: { id: true },
     });
     if (!shared) return null;
 
-    return this.ensureIdentity(peerUserId);
+    return this.ensureIdentity(peerId);
+  }
+
+  /**
+   * The Matrix identity of an AI agent in one of the caller's workspaces.
+   *
+   * Keyed by the agent's own row id rather than anything derived (like its
+   * name), which is what keeps two agents from ever colliding on one bot
+   * identity — the same reason a human's Matrix id is derived from their user
+   * id and not their display name.
+   */
+  private async resolveAgentIdentity(
+    callerUserId: string,
+    agentId: string,
+  ): Promise<string | null> {
+    const agent = await this.prisma.aIAgent.findFirst({
+      where: {
+        id: agentId,
+        isActive: true,
+        workspace: { members: { some: { userId: callerUserId } } },
+      },
+      select: { id: true, name: true, matrixUserId: true },
+    });
+    if (!agent) return null;
+    if (agent.matrixUserId) return agent.matrixUserId;
+
+    const { matrixUserId } = await this.admin.provisionUser({
+      userId: `agent-${agent.id}`,
+      displayName: agent.name,
+    });
+
+    await this.prisma.aIAgent.update({
+      where: { id: agent.id },
+      data: { matrixUserId },
+    });
+
+    this.logger.log(`Provisioned Matrix identity for agent ${agent.id}`);
+    return matrixUserId;
+  }
+
+  /**
+   * The Matrix identity of a connected app in one of the caller's workspaces.
+   *
+   * Keyed by the `ExternalIntegration` row id — not by provider name — so two
+   * workspaces that both connect the same provider (two Gmail accounts, say)
+   * never collide on the same bot identity and end up sharing a room across
+   * tenants.
+   */
+  private async resolveAppIdentity(
+    callerUserId: string,
+    integrationId: string,
+  ): Promise<string | null> {
+    const integration = await this.prisma.externalIntegration.findFirst({
+      where: {
+        id: integrationId,
+        status: 'CONNECTED',
+        OR: [
+          { userId: callerUserId },
+          { workspace: { members: { some: { userId: callerUserId } } } },
+        ],
+      },
+      select: {
+        id: true,
+        provider: true,
+        displayName: true,
+        matrixUserId: true,
+      },
+    });
+    if (!integration) return null;
+    if (integration.matrixUserId) return integration.matrixUserId;
+
+    const { matrixUserId } = await this.admin.provisionUser({
+      userId: `app-${integration.id}`,
+      displayName: integration.displayName ?? integration.provider,
+    });
+
+    await this.prisma.externalIntegration.update({
+      where: { id: integration.id },
+      data: { matrixUserId },
+    });
+
+    this.logger.log(`Provisioned Matrix identity for app ${integration.id}`);
+    return matrixUserId;
   }
 
   /** Mirrors a channel membership change into the Matrix room. */

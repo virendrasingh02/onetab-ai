@@ -1,6 +1,11 @@
 export { MatrixModule } from './lib/matrix.module.js';
 export { MatrixAdminService } from './lib/matrix-admin.service.js';
 export { MatrixAuthService } from './lib/matrix-auth.service.js';
+export { MatrixBotMessagingService } from './lib/matrix-bot-messaging.service.js';
+export {
+  MatrixInboundRouterService,
+  type MatrixInboundHandler,
+} from './lib/matrix-inbound-router.service.js';
 export {
   MatrixSyncService,
   type AppserviceTransaction,

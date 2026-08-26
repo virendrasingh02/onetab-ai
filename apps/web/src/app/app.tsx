@@ -16,7 +16,7 @@ import { Button, EmptyState, LoadingState } from '@org/ui';
  * `MatrixProvider` on every render — so its screens are imported statically
  * too. Splitting them would only add a chunk boundary with nothing behind it.
  */
-import { DirectMessagesView, SavedView, ThreadsView } from '@org/web-chat';
+import { SavedView, ThreadsView } from '@org/web-chat';
 /*
  * `@org/web-desktop` is already in the main chunk too — `Providers` mounts its
  * `DesktopProvider`/`DesktopChrome` on every render (see providers.tsx) — so
@@ -176,6 +176,17 @@ const AppChatView = lazy(() =>
 const DesignSystemStudio = lazy(() =>
   import('@org/web-settings').then((m) => ({ default: m.DesignSystemStudio })),
 );
+/*
+ * Composes `DirectMessagesView` (`web-chat`, already in the main chunk — see
+ * the note above) with the agents and connected apps `web-agents`/
+ * `web-integrations` provide, so the DM picker lists them alongside people.
+ * Lazy despite `web-chat` being static: `web-agents` and `web-integrations`
+ * are not, and this is the one place they meet without either becoming
+ * eagerly bundled or `web-chat` depending back on them (see the page itself).
+ */
+const DirectMessagesPage = lazy(() =>
+  import('@org/web-layout').then((m) => ({ default: m.DirectMessagesPage })),
+);
 
 
 
@@ -295,7 +306,7 @@ export function App() {
             <Route path="timeline" element={<ActivityTimelineView />} />
             <Route path="activity" element={<ActivityTimelineView />} />
             <Route path="meetings" element={<MeetingsView />} />
-            <Route path="dms" element={<DirectMessagesView />} />
+            <Route path="dms" element={<DirectMessagesPage />} />
             <Route path="threads" element={<ThreadsView />} />
             <Route path="saved" element={<SavedView />} />
             <Route path="ai-chat" element={<AIChatView />} />

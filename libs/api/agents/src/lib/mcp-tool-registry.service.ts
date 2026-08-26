@@ -175,6 +175,30 @@ export class MCPToolRegistryService {
     return Array.from(this.tools.values()).map((t) => ({ name: t.name, description: t.description }));
   }
 
+  /**
+   * The registered tools as OpenAI-style function schemas, for a provider
+   * chat call's `tools` option (`ChatExecutionOptions.tools`).
+   *
+   * Every declared parameter is treated as required — none of the built-in
+   * tools currently have an optional parameter that isn't already handled by
+   * the handler defaulting it, so this stays a straightforward wrap rather
+   * than needing a richer per-parameter schema on `MCPToolDefinition`.
+   */
+  getToolSchemas(): Array<Record<string, unknown>> {
+    return Array.from(this.tools.values()).map((tool) => ({
+      type: 'function',
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: {
+          type: 'object',
+          properties: tool.parameters,
+          required: Object.keys(tool.parameters),
+        },
+      },
+    }));
+  }
+
   async executeTool(name: string, params: any, workspaceId: string): Promise<unknown> {
     const tool = this.tools.get(name);
     if (!tool) {

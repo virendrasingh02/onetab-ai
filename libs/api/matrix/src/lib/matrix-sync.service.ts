@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@org/database';
+import { MatrixAdminService } from './matrix-admin.service.js';
+import { MatrixInboundRouterService } from './matrix-inbound-router.service.js';
 
 /**
  * One transaction from the homeserver's application-service push.
@@ -28,8 +30,16 @@ export class MatrixSyncService {
   private readonly logger = new Logger(MatrixSyncService.name);
   /** Transaction ids already applied, for idempotency. */
   private readonly processedTransactions = new Set<string>();
+  /** Matches the Matrix user id of a bot identity we provisioned (agent/app),
+   *  regardless of which side of `agent-`/`app-` it is or what the localpart
+   *  suffix is — see `toMatrixLocalpart`/`MatrixAuthService.resolveAgentIdentity`. */
+  private static readonly BOT_INVITE_PATTERN = /^@onetab_(agent|app)-/;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly admin: MatrixAdminService,
+    private readonly router: MatrixInboundRouterService,
+  ) {}
 
   /**
    * Applies a transaction.
@@ -70,16 +80,52 @@ export class MatrixSyncService {
   private async handleEvent(event: MatrixTimelineEvent): Promise<void> {
     switch (event.type) {
       case 'm.room.message':
+        // Channel activity bookkeeping and agent/app inbound routing are
+        // independent: a message either lands in a `Channel` room (recorded
+        // here) or an agent/app DM room (claimed by a registered handler,
+        // e.g. `AgentMatrixBridgeService`) — never both, but neither knows
+        // about the other, so both always get a look.
         await this.recordActivity(event);
+        await this.router.dispatch(event);
+        break;
+      case 'm.room.member':
+        await this.handleMembership(event);
         break;
       case 'm.room.redaction':
-      case 'm.room.member':
       case 'm.room.encryption':
-        // Membership and moderation are owned by our database; these events
-        // are informational for the bridge and need no write.
+        // Moderation is owned by our database; these events are informational
+        // for the bridge and need no write.
         break;
       default:
         break;
+    }
+  }
+
+  /**
+   * Auto-joins a bot identity (agent, app) the moment it is invited.
+   *
+   * A human joins their DM from their own browser session; a bot has none, so
+   * nothing would ever accept its invite otherwise — and Matrix requires a
+   * *joined* member to send events at all, while `getOrCreateDirectMessage`
+   * only recognises a room as already existing once both sides have joined
+   * it, so a bot stuck on `invite` would get a fresh duplicate room on every
+   * visit. Membership for everyone else stays owned by our database, same as
+   * the sibling events this handler ignores.
+   */
+  private async handleMembership(event: MatrixTimelineEvent): Promise<void> {
+    if (event.content['membership'] !== 'invite') return;
+
+    const invitee = event.state_key;
+    if (!invitee || !MatrixSyncService.BOT_INVITE_PATTERN.test(invitee)) {
+      return;
+    }
+
+    try {
+      await this.admin.joinRoomAs(invitee, event.room_id);
+    } catch (error) {
+      this.logger.error(
+        `Failed to auto-join bot ${invitee} into ${event.room_id}: ${String(error)}`,
+      );
     }
   }
 

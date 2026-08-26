@@ -2,9 +2,13 @@ import {
   BadRequestException,
   Injectable,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
+import { MatrixBotMessagingService } from '@org/api-matrix';
 import { PrismaService } from '@org/database';
 import type {
+  AppActionDefinition,
+  AppActionResult,
   IntegrationCustomApiConfig,
   IntegrationExecuteRequestInput,
   ReplyMessageInput,
@@ -30,6 +34,7 @@ export class IntegrationsService {
     private readonly syncService: IntegrationSyncService,
     private readonly permissions: IntegrationPermissionService,
     private readonly auditLogger: IntegrationLoggerService,
+    private readonly botMessaging: MatrixBotMessagingService,
   ) {}
 
   /**
@@ -468,6 +473,150 @@ export class IntegrationsService {
     }
 
     return adapter.modifyMessageLabels(credential, messageId, addLabels, removeLabels);
+  }
+
+  /**
+   * Lists the actions a connected app exposes to chat (a card's buttons, an
+   * app's DM slash-commands) — empty for a provider that hasn't registered any.
+   */
+  async getActions(integrationId: string, userId: string, workspaceId?: string) {
+    await this.permissions.assertIntegrationAccess(integrationId, userId, workspaceId, 'view');
+    const { adapter } = await this.manager.resolveCredential(integrationId);
+    return adapter.getActions?.() ?? [];
+  }
+
+  /**
+   * Runs one of a provider's registered actions.
+   *
+   * Confirmation is enforced here, not just trusted from the client: a card's
+   * `requiresConfirmation` only gates whether the browser shows a dialog first
+   * — the request that actually runs the action must carry `confirm: true`
+   * itself, or a `requiresConfirmation` action is refused outright.
+   */
+  async executeAction(
+    integrationId: string,
+    actionId: string,
+    input: Record<string, unknown>,
+    confirm: boolean | undefined,
+    userId: string,
+    workspaceId?: string,
+    roomId?: string,
+  ): Promise<AppActionResult> {
+    await this.permissions.assertIntegrationAccess(integrationId, userId, workspaceId, 'manage');
+    const { adapter, credential } = await this.manager.resolveCredential(integrationId);
+
+    if (!adapter.getActions || !adapter.executeAction) {
+      throw new BadRequestException(`Provider '${credential.provider}' does not support actions.`);
+    }
+
+    const definition = adapter.getActions().find((action) => action.id === actionId);
+    if (!definition) {
+      throw new NotFoundException(`Provider '${credential.provider}' has no action '${actionId}'.`);
+    }
+
+    if (definition.requiresConfirmation && confirm !== true) {
+      throw new BadRequestException(
+        `Action '${actionId}' requires confirmation — resend with confirm: true.`,
+      );
+    }
+
+    const startedAt = Date.now();
+    try {
+      const result = await adapter.executeAction(credential, actionId, input);
+      await this.auditLogger.logAudit({
+        integrationId,
+        workspaceId,
+        userId,
+        action: `APP_ACTION_${actionId.toUpperCase()}`,
+        status: result.success ? 'SUCCESS' : 'FAILURE',
+        durationMs: Date.now() - startedAt,
+        details: { provider: credential.provider, actionId },
+      });
+
+      if (roomId) {
+        await this.postActionResult(integrationId, roomId, definition, result).catch(
+          (error) =>
+            this.logger.warn(
+              `Failed to post action result into room ${roomId}: ${String(error)}`,
+            ),
+        );
+      }
+
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await this.auditLogger.logAudit({
+        integrationId,
+        workspaceId,
+        userId,
+        action: `APP_ACTION_${actionId.toUpperCase()}`,
+        status: 'FAILURE',
+        durationMs: Date.now() - startedAt,
+        details: { provider: credential.provider, actionId, error: message },
+      });
+
+      if (roomId) {
+        await this.postActionResult(
+          integrationId,
+          roomId,
+          definition,
+          { success: false, message },
+        ).catch((postError) =>
+          this.logger.warn(
+            `Failed to post action failure into room ${roomId}: ${String(postError)}`,
+          ),
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Posts the outcome of a chat-triggered action back into the room it came
+   * from, as the app's own bot identity — a success becomes an
+   * `mie.app.response` card, a failure an `mie.system` error notice. Posting
+   * is best-effort: the action itself has already succeeded or failed by the
+   * time this runs, so a failure here is logged, never thrown.
+   */
+  private async postActionResult(
+    integrationId: string,
+    roomId: string,
+    definition: AppActionDefinition,
+    result: AppActionResult,
+  ): Promise<void> {
+    const integration = await this.prisma.externalIntegration.findUnique({
+      where: { id: integrationId },
+      select: { matrixUserId: true, provider: true, displayName: true },
+    });
+    if (!integration?.matrixUserId) return;
+
+    const appName = integration.displayName ?? integration.provider;
+    const data =
+      result.data && typeof result.data === 'object'
+        ? (result.data as Record<string, unknown>)
+        : undefined;
+
+    if (result.success) {
+      await this.botMessaging.sendStructured(roomId, integration.matrixUserId, {
+        type: 'mie.app.response',
+        appId: integrationId,
+        appName,
+        eventType: definition.id,
+        title: definition.label,
+        subtitle: result.message,
+        data,
+        timestamp: Date.now(),
+      });
+    } else {
+      await this.botMessaging.sendStructured(roomId, integration.matrixUserId, {
+        type: 'mie.system',
+        severity: 'error',
+        title: `${definition.label} failed`,
+        details: result.message,
+        timestamp: Date.now(),
+      });
+    }
   }
 
   /**

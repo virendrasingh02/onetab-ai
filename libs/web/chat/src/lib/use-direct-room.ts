@@ -3,23 +3,23 @@ import { useQuery } from '@tanstack/react-query';
 import { useMatrix } from './matrix-provider.js';
 
 /**
- * Resolves the Matrix room for a direct message with one teammate.
+ * Resolves the Matrix room for a direct message with one peer — a teammate,
+ * an AI agent (`agent-<id>`), or a connected app (`app-<id>`).
  *
  * Two steps, and the split is deliberate. The identity mapping is the server's
- * — the Matrix localpart is derived from our user id — while finding or opening
- * the room is the client's, because `getOrCreateDirectMessage` reuses a room
- * the user is already in and records `m.direct` under their own account so both
- * ends group the conversation the same way. Doing that server-side would mean
+ * — the Matrix localpart is derived from our user/agent/integration id, and for
+ * an agent or app it's provisioned lazily on first resolution (see
+ * `MatrixAuthService.resolvePeerIdentity`) — while finding or opening the room
+ * is the client's, because `getOrCreateDirectMessage` reuses a room the user is
+ * already in and records `m.direct` under their own account so both ends group
+ * the conversation the same way. Doing that server-side would mean
  * impersonating the user with admin credentials.
  *
  * Modelled as a query rather than a mutation: from the caller's point of view
- * "the room for this person" is a stable resource, and re-selecting someone in
- * the list should be a cache hit, not another round of room creation.
- *
- * Only real people resolve here. Agents and integrations have no Matrix
- * identity to hold up the other end of a room, and they each have a surface of
- * their own — an agent conversation replays its execution log, an app shows its
- * connection state — so neither is reachable through a direct message.
+ * "the room for this peer" is a stable resource, and re-selecting someone in
+ * the list should be a cache hit, not another round of room creation. This is
+ * agnostic to what kind of peer it is — `getOrCreateDirectMessage` only ever
+ * needs a Matrix user id, human or bot.
  */
 export function useDirectRoom(peerUserId: string | undefined) {
   const { client, enabled } = useMatrix();

@@ -90,7 +90,10 @@ export class MatrixController {
   }
 
   /**
-   * The Matrix identity of a teammate, so the browser can open a DM with them.
+   * The Matrix identity of a DM peer, so the browser can open a room with
+   * them — a teammate, an AI agent (`agent-<id>`), or a connected app
+   * (`app-<id>`); see `MatrixAuthService.resolvePeerIdentity` for the prefix
+   * dispatch.
    *
    * The room itself is created client-side — `getOrCreateDirectMessage` reuses
    * an existing one and records `m.direct` so both ends group the conversation
@@ -111,7 +114,7 @@ export class MatrixController {
       peerUserId,
     );
     if (!matrixUserId) {
-      throw new NotFoundException('No such person in your workspaces.');
+      throw new NotFoundException('No such conversation peer in your workspaces.');
     }
 
     return { matrixUserId };

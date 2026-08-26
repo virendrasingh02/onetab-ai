@@ -1,4 +1,3 @@
-import { AIErrorRow, AIMessage, AIThinkingRow } from '@org/chat-ui';
 import {
   Badge,
   Button,
@@ -11,15 +10,14 @@ import {
   EmptyState,
   ErrorState,
   Hint,
-  LoadingState,
   Panel,
-  ScrollArea,
   SearchInput,
   Spinner,
   toast,
   useRightPanelStore,
 } from '@org/ui';
 import { cn } from '@org/utils';
+import { ChatPanel, useDirectRoom, useMatrix } from '@org/web-chat';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Activity,
@@ -29,21 +27,19 @@ import {
   Check,
   ChevronRight,
   Copy,
+  MessageSquareOff,
   MoreHorizontal,
   RefreshCw,
-  Send,
-  Sparkles,
   Star,
   UserRound,
   Wrench,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { AgentAvatar } from './AgentMarketplaceView.js';
-import { useAgentConversation } from './use-agent-conversation.js';
 import { useAgents } from './use-agents.js';
 
 interface AgentPreferencesState {
@@ -461,132 +457,47 @@ function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
 /**
  * Full-height conversation surface for one AI agent.
  *
- * Not a Matrix room: an agent has no Matrix identity to speak with, so there is
- * nobody on the other end of a room to answer. The transcript is the agent's
- * execution log — see `useAgentConversation` — and a turn is a real call to the
- * agent-run endpoint, whose output the server records and this reads back.
+ * A real Matrix room, same as a human DM: the agent is provisioned a bot
+ * identity on first open (`MatrixAuthService.resolveAgentIdentity`), and
+ * `AgentMatrixBridgeService` on the API answers inside it. This is the same
+ * `ChatPanel`/`ChatSurface` every other conversation uses — threads,
+ * reactions, pins, the shared composer — nothing here is agent-specific
+ * beyond which peer id `useDirectRoom` resolves.
  */
 function AgentConversationPanel({ agent }: { agent: AgentModelItem }) {
   const { workspaceId } = useCurrentWorkspace();
-  const chat = useAgentConversation(workspaceId, agent.id);
-  const endRef = useRef<HTMLDivElement>(null);
+  const { enabled } = useMatrix();
+  const { roomId, error } = useDirectRoom(`agent-${agent.id}`);
 
-  // Pin the view to the newest turn as it arrives, the way a chat log behaves.
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ block: 'end' });
-  }, [chat.messages.length, chat.isThinking]);
-
-  if (chat.isLoadingHistory) {
+  if (!enabled) {
     return (
-      <LoadingState label={`Opening your conversation with ${agent.name}…`} />
+      <EmptyState
+        size="lg"
+        icon={<MessageSquareOff />}
+        title="Chat is not configured"
+        description="This deployment has no Matrix homeserver. Set MATRIX_ENABLED and the homeserver settings to talk to agents."
+      />
     );
   }
 
-  if (chat.historyError) {
+  if (error) {
     return (
       <ErrorState
         title={`Could not open the conversation with ${agent.name}`}
-        description={chat.historyError}
+        description={error}
       />
     );
   }
 
   return (
-    <div className="min-h-0 flex flex-1 flex-col items-center overflow-hidden">
-      {/* `min-h-0` is what lets the transcript scroll rather than the page. */}
-      <ScrollArea
-        className="max-w-3xl min-h-0 w-full flex-1"
-        contentClassName="px-4"
-      >
-        <div
-          role="log"
-          aria-live="polite"
-          aria-label={`Conversation with ${agent.name}`}
-          className="space-y-3 py-4"
-        >
-          {chat.messages.length === 0 && !chat.isThinking ? (
-            <EmptyState
-              size="lg"
-              icon={<Sparkles />}
-              title={`Start a conversation with ${agent.name}`}
-              description={
-                agent.description ||
-                'Ask a question and this agent will run against your workspace.'
-              }
-            />
-          ) : null}
-
-          {chat.messages.map((message) => (
-            <AIMessage
-              key={message.id}
-              message={message}
-              assistantLabel={agent.name}
-            />
-          ))}
-
-          {chat.isThinking ? <AIThinkingRow /> : null}
-
-          {chat.error ? (
-            <AIErrorRow error={new Error(chat.error)} onRetry={chat.retry} />
-          ) : null}
-
-          <div ref={endRef} />
-        </div>
-      </ScrollArea>
-
-      <div className="max-w-3xl px-4 pt-3 pb-3 w-full shrink-0">
-        <AgentComposer
-          value={chat.input}
-          onChange={chat.setInput}
-          onSend={chat.send}
-          disabled={chat.isThinking}
-          placeholder={`Message ${agent.name}…`}
-        />
-      </div>
-    </div>
-  );
-}
-
-/** The agent composer: a growing textarea, Enter to send. */
-function AgentComposer({
-  value,
-  onChange,
-  onSend,
-  disabled,
-  placeholder,
-}: {
-  value: string;
-  onChange: (next: string) => void;
-  onSend: () => void;
-  disabled?: boolean;
-  placeholder?: string;
-}) {
-  return (
-    <div className="gap-2 p-2 flex items-end rounded-card border border-border bg-surface-raised">
-      <textarea
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        onKeyDown={(event) => {
-          // Enter sends; Shift+Enter is a newline, as everywhere else in chat.
-          if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault();
-            onSend();
-          }
-        }}
-        rows={1}
-        placeholder={placeholder}
-        aria-label={placeholder}
-        className="max-h-40 min-h-9 px-2 py-1.5 text-sm w-full flex-1 resize-none bg-transparent outline-none placeholder:text-muted-foreground"
-      />
-      <Button
-        size="sm"
-        onClick={onSend}
-        disabled={disabled || !value.trim()}
-        aria-label="Send message"
-      >
-        <Send className="size-4" aria-hidden />
-      </Button>
-    </div>
+    <ChatPanel
+      roomId={roomId}
+      title={agent.name}
+      subtitle={agent.model ? `${agent.model} · AI Agent` : 'AI Agent'}
+      workspaceId={workspaceId}
+      showMembers={false}
+      showEncryptedBadge={false}
+    />
   );
 }
 

@@ -1,5 +1,10 @@
-import { workToolsApi } from '@org/api-client';
-import { ConnectionBanner, executeStructuredAction } from '@org/chat-ui';
+import { integrationsApi, workToolsApi } from '@org/api-client';
+import {
+  ConnectionBanner,
+  executeStructuredAction,
+  type ActionExecutionContext,
+  type ActionExecutionResult,
+} from '@org/chat-ui';
 import type {
   Message,
   StructuredChatMessage,
@@ -15,6 +20,27 @@ import { usePresence, useRoom, useRoomActions } from './use-chat.js';
 
 const toggle = (ids: string[], id: string) =>
   ids.includes(id) ? ids.filter((entry) => entry !== id) : [...ids, id];
+
+/**
+ * The `customHandler` `executeStructuredAction` runs for an app's card
+ * button — the real backend call the fallback `toast.success` used to stand
+ * in for. `universal-card-renderer` already gated a confirmation dialog
+ * before this ever runs for a `requiresConfirmation` action, so `confirm:
+ * true` reflects a real "yes" from the person who clicked it — the server
+ * still enforces this independently (`IntegrationsService.executeAction`
+ * refuses a `requiresConfirmation` action without it, regardless of caller).
+ */
+async function runAppAction(
+  workspaceId: string,
+  action: StructuredMessageAction,
+  context: ActionExecutionContext,
+): Promise<ActionExecutionResult> {
+  return integrationsApi.executeAction(workspaceId, context.appId as string, action.id, {
+    input: (action.payload ?? {}) as Record<string, unknown>,
+    confirm: true,
+    roomId: context.roomId,
+  });
+}
 
 export interface ChatPanelProps {
   /** Matrix room backing the channel. Null while it is being provisioned. */
@@ -286,13 +312,30 @@ export function ChatPanel({
         }
       }
 
-      await executeStructuredAction(action, {
+      const context: ActionExecutionContext = {
         roomId,
         messageId: message.id,
         senderId: message.senderId,
-      });
+        appId:
+          message.structuredEvent?.type === 'mie.app.response'
+            ? message.structuredEvent.appId
+            : undefined,
+        agentId:
+          message.structuredEvent?.type === 'mie.ai.agent'
+            ? message.structuredEvent.agentId
+            : undefined,
+      };
+
+      await executeStructuredAction(
+        action,
+        context,
+        context.appId && workspaceId
+          ? (executedAction, executedContext) =>
+              runAppAction(workspaceId, executedAction, executedContext)
+          : undefined,
+      );
     },
-    [client, roomId],
+    [client, roomId, workspaceId],
   );
 
   const handleSendCard = useCallback(
@@ -314,17 +357,32 @@ export function ChatPanel({
   const handleRetryAgent = useCallback(
     async (message: Message) => {
       if (!client || !roomId) return;
-      if (message.structuredEvent?.type === 'mie.ai.agent') {
-        const runningEvent = {
-          ...message.structuredEvent,
-          status: 'running' as const,
-          errorMessage: undefined,
-        };
-        await client.updateStructuredMessage(roomId, message.id, runningEvent);
-        toast.info('Re-running agent execution…');
+      if (message.structuredEvent?.type !== 'mie.ai.agent') return;
+
+      /*
+       * Re-running means asking the agent the same question again, not
+       * cosmetically flipping this event back to `running` — that left the
+       * room stuck showing "running" forever with nothing actually
+       * happening, since nothing re-invoked the agent. Resending the human
+       * message that triggered this turn as a new room message is what
+       * actually does: `AgentMatrixBridgeService` on the API picks it up
+       * through the same inbound path a fresh prompt would take.
+       */
+      const ownIndex = room.messages.findIndex((entry) => entry.id === message.id);
+      const trigger = room.messages
+        .slice(0, ownIndex === -1 ? undefined : ownIndex)
+        .reverse()
+        .find((entry) => entry.senderId !== message.senderId && !entry.structuredEvent);
+
+      if (!trigger) {
+        toast.error('Could not find the original message to retry.');
+        return;
       }
+
+      await client.sendMessage(roomId, trigger.body);
+      toast.info('Re-running agent execution…');
     },
-    [client, roomId],
+    [client, roomId, room.messages],
   );
 
   if (!enabled) {

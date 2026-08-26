@@ -152,6 +152,8 @@ export interface AIChatMessage {
   content: string;
   name?: string;
   toolCalls?: AIToolCall[];
+  /** Set on a `role: 'tool'` message: which call (by `AIToolCall.id`) this is the result of. */
+  toolCallId?: string;
 }
 
 export interface AIChatRequest {

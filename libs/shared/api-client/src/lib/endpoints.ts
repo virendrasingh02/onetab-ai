@@ -25,6 +25,8 @@ import type {
   AITranslationResponse,
   AIUsageStats,
   AIVisionResponse,
+  AppActionDefinition,
+  AppActionResult,
   AuthTokens,
   AutomationWorkflow,
   AutomationWorkflowDetail,
@@ -1207,6 +1209,28 @@ export const integrationsApi = {
       http.post(`/workspaces/${workspaceId}/integrations/import/notion`, {
         pages,
       }),
+    ),
+
+  getActions: (workspaceId: string, integrationId: string) =>
+    request<AppActionDefinition[]>(
+      http.get(`/workspaces/${workspaceId}/integrations/${integrationId}/actions`),
+    ),
+
+  executeAction: (
+    workspaceId: string,
+    integrationId: string,
+    actionId: string,
+    input: {
+      input?: Record<string, unknown>;
+      confirm?: boolean;
+      roomId?: string;
+    },
+  ) =>
+    request<AppActionResult>(
+      http.post(
+        `/workspaces/${workspaceId}/integrations/${integrationId}/actions/${actionId}`,
+        input,
+      ),
     ),
 };
 

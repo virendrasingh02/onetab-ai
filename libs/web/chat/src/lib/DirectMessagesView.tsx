@@ -61,11 +61,27 @@ import { useDirectMessagePreferences } from './use-dm-preferences.js';
  * What a DM does not get is membership: it is one-to-one for its whole life,
  * so there is no roster control, no invite, and no join.
  */
-export function DirectMessagesView() {
+export interface DirectMessagesViewProps {
+  /**
+   * AI agents and connected apps, pre-shaped as `WorkspaceMember`s (id
+   * prefixed `agent-`/`app-`) so the picker and the open conversation list
+   * them alongside teammates. Supplied by the host rather than fetched in
+   * here: `web-chat` has no dependency on `web-agents`/`web-integrations` —
+   * both of those already depend on `web-chat` for `ChatPanel`, so the
+   * reverse import would be circular. See `apps/web`'s route for the DM page.
+   */
+  extraPeers?: WorkspaceMember[];
+}
+
+export function DirectMessagesView({ extraPeers }: DirectMessagesViewProps = {}) {
   const [searchParams] = useSearchParams();
   const peerId = searchParams.get('user');
 
-  return peerId ? <DirectConversation peerId={peerId} /> : <NewDirectMessage />;
+  return peerId ? (
+    <DirectConversation peerId={peerId} extraPeers={extraPeers} />
+  ) : (
+    <NewDirectMessage extraPeers={extraPeers} />
+  );
 }
 
 /**
@@ -78,7 +94,13 @@ export function DirectMessagesView() {
  * rebuild the header, composer and layout for no correctness reason, which is
  * exactly the flicker switching people used to cause. See `ChatPanel`.
  */
-function DirectConversation({ peerId }: { peerId: string }) {
+function DirectConversation({
+  peerId,
+  extraPeers,
+}: {
+  peerId: string;
+  extraPeers?: WorkspaceMember[];
+}) {
   const { workspaceId } = useCurrentWorkspace();
   const members = useMembers(workspaceId);
   const { enabled } = useMatrix();
@@ -89,7 +111,10 @@ function DirectConversation({ peerId }: { peerId: string }) {
     null,
   );
 
-  const allMembers = useMemo(() => members.data ?? [], [members.data]);
+  const allMembers = useMemo(
+    () => [...(members.data ?? []), ...(extraPeers ?? [])],
+    [members.data, extraPeers],
+  );
 
   const member = allMembers.find((entry) => entry.user.id === peerId);
 
@@ -493,7 +518,7 @@ function DirectMessageHeader({
  * The picker for "New direct message" — the only place a list of people still
  * belongs, since there is nobody selected to show a conversation for.
  */
-function NewDirectMessage() {
+function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
   const { workspaceId } = useCurrentWorkspace();
   const currentUser = useCurrentUser();
   const members = useMembers(workspaceId);
@@ -501,16 +526,12 @@ function NewDirectMessage() {
   const [, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState('');
 
-  /*
-   * Teammates only. Agents and apps are not addressable here — neither has a
-   * Matrix identity — and each has its own surface in the sidebar.
-   */
   const allPeers = useMemo(
     () =>
-      (members.data ?? []).filter(
+      [...(members.data ?? []), ...(extraPeers ?? [])].filter(
         (member) => member.user.id !== currentUser?.id,
       ),
-    [members.data, currentUser?.id],
+    [members.data, extraPeers, currentUser?.id],
   );
 
   const visible = useMemo(() => {

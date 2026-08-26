@@ -27,6 +27,9 @@
       "path": "../common/tsconfig.lib.json"
     },
     {
+      "path": "../../shared/types/tsconfig.lib.json"
+    },
+    {
       "path": "../database/tsconfig.lib.json"
     }
   ]

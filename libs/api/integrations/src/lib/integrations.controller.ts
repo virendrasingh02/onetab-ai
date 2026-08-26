@@ -247,6 +247,38 @@ export class IntegrationsController {
     );
   }
 
+  // --- App Actions (chat cards, DM slash-commands) ---------------------------
+
+  @Get('workspaces/:workspaceId/integrations/:id/actions')
+  @UseGuards(WorkspaceRoleGuard)
+  getActions(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @Param('id') integrationId: string,
+  ) {
+    return this.integrationsService.getActions(integrationId, userId, workspaceId);
+  }
+
+  @Post('workspaces/:workspaceId/integrations/:id/actions/:actionId')
+  @UseGuards(WorkspaceRoleGuard)
+  executeAction(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @Param('id') integrationId: string,
+    @Param('actionId') actionId: string,
+    @Body() body: { input?: Record<string, unknown>; confirm?: boolean; roomId?: string },
+  ) {
+    return this.integrationsService.executeAction(
+      integrationId,
+      actionId,
+      body.input ?? {},
+      body.confirm,
+      userId,
+      workspaceId,
+      body.roomId,
+    );
+  }
+
   // --- Custom API Execution & Testing Endpoints ------------------------------
 
   @Post('workspaces/:workspaceId/integrations/custom/test')

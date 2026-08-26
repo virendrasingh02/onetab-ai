@@ -32,6 +32,28 @@ export interface IntegrationCapabilities {
   scopes?: Array<{ scope: string; description: string; required?: boolean }>;
 }
 
+/**
+ * One named action a connected app exposes — "send an email", "find a
+ * customer" — discoverable independent of the underlying method, and carrying
+ * enough metadata (`permissionLevel`, `requiresConfirmation`) for the caller
+ * to decide whether to run it silently or ask first.
+ */
+export interface AppActionDefinition {
+  id: string;
+  label: string;
+  description: string;
+  /** JSON Schema for the action's input. */
+  inputSchema: Record<string, unknown>;
+  permissionLevel: 'read' | 'write' | 'destructive';
+  requiresConfirmation: boolean;
+}
+
+export interface AppActionResult {
+  success: boolean;
+  message?: string;
+  data?: unknown;
+}
+
 export interface ExternalIntegration {
   id: string;
   workspaceId: string | null;

@@ -3,6 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from '@org/api-auth';
 import { MatrixAdminService } from './matrix-admin.service.js';
 import { MatrixAuthService } from './matrix-auth.service.js';
+import { MatrixBotMessagingService } from './matrix-bot-messaging.service.js';
+import { MatrixInboundRouterService } from './matrix-inbound-router.service.js';
 import { MatrixSyncService } from './matrix-sync.service.js';
 import {
   MatrixAppserviceController,
@@ -23,9 +25,16 @@ import { NotificationBridgeService } from './notification-bridge.service.js';
   providers: [
     MatrixAdminService,
     MatrixAuthService,
+    MatrixBotMessagingService,
+    MatrixInboundRouterService,
     MatrixSyncService,
     NotificationBridgeService,
   ],
-  exports: [MatrixAdminService, MatrixAuthService],
+  exports: [
+    MatrixAdminService,
+    MatrixAuthService,
+    MatrixBotMessagingService,
+    MatrixInboundRouterService,
+  ],
 })
 export class MatrixModule {}

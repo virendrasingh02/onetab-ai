@@ -1,4 +1,6 @@
 import type {
+  AppActionDefinition,
+  AppActionResult,
   IntegrationAccount,
   IntegrationCapabilities,
   IntegrationCustomApiConfig,
@@ -132,4 +134,24 @@ export interface ProviderAdapter {
     config: IntegrationCustomApiConfig,
     req: IntegrationExecuteRequestInput,
   ): Promise<IntegrationExecuteResponse>;
+
+  /**
+   * The named actions this app exposes to a chat conversation (an
+   * `mie.app.response` card's buttons, `/<actionId>` in an app's DM). Optional
+   * so existing providers keep working unchanged; a provider with none simply
+   * has no actions to trigger from chat yet.
+   */
+  getActions?(): AppActionDefinition[];
+
+  /**
+   * Runs one named action. `IntegrationsService.executeAction` looks the
+   * definition up via `getActions()` first — the adapter can assume `actionId`
+   * is one of its own and `input` has already cleared the definition's
+   * permission/confirmation checks server-side.
+   */
+  executeAction?(
+    credential: ResolvedCredential,
+    actionId: string,
+    input: Record<string, unknown>,
+  ): Promise<AppActionResult>;
 }

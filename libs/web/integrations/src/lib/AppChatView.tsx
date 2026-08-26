@@ -18,6 +18,7 @@ import {
   useRightPanelStore,
 } from '@org/ui';
 import { cn } from '@org/utils';
+import { ChatPanel, useDirectRoom, useMatrix } from '@org/web-chat';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Bell,
@@ -26,6 +27,7 @@ import {
   Check,
   ChevronRight,
   Copy,
+  MessageSquareOff,
   MoreHorizontal,
   RefreshCw,
   Settings,
@@ -131,6 +133,15 @@ export interface AppModelItem {
   isConnected?: boolean;
   statusText?: string;
   quickStarters?: string[];
+  /**
+   * The `ExternalIntegration` row's own id — set only once the app is
+   * actually connected in this workspace. `id`/`provider` above stay the
+   * provider slug (`gmail`), which is what URLs and the sidebar use; this is
+   * the real per-connection identity Matrix and disconnect calls need, since
+   * two workspaces connecting the same provider must never collide on one
+   * bot identity or DM room. See `MatrixAuthService.resolveAppIdentity`.
+   */
+  integrationId?: string;
 }
 
 export const APP_LOGOS: Record<string, string> = {
@@ -373,6 +384,7 @@ function AppConversation({ appId }: { appId: string }) {
         statusText:
           i.status === 'CONNECTED' ? 'Connected · Active' : 'Disconnected',
         quickStarters: defaultMatch?.quickStarters,
+        integrationId: i.id,
       } as AppModelItem;
     });
   }, [integrationsQuery.data]);
@@ -680,6 +692,12 @@ function AppMessageHeader({ app }: { app: AppModelItem }) {
 
 /**
  * Full-height Direct Matrix Room conversation surface for Connected Apps.
+ *
+ * The connection card stays: unlike an agent, an app is only reachable once
+ * connected, and this is where that state is managed. Once connected, the
+ * app is provisioned a Matrix bot identity and the rest of the page is the
+ * same `ChatPanel`/`ChatSurface` every other conversation uses — see
+ * `AppConversationPanel`.
  */
 function AppDetailPanel({ app }: { app: AppModelItem }) {
   const { workspaceId } = useCurrentWorkspace();
@@ -689,8 +707,8 @@ function AppDetailPanel({ app }: { app: AppModelItem }) {
   const failure = connect.error ?? disconnect.error;
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="max-w-2xl px-6 py-8 space-y-6 mx-auto">
+    <div className="min-h-0 flex flex-1 flex-col overflow-hidden">
+      <div className="max-w-2xl px-6 py-4 w-full mx-auto">
         <section className="p-5 space-y-3 rounded-card border border-border bg-surface-raised">
           <div className="gap-3 flex items-start justify-between">
             <div className="space-y-1">
@@ -709,7 +727,7 @@ function AppDetailPanel({ app }: { app: AppModelItem }) {
                 size="sm"
                 disabled={isBusy}
                 onClick={() =>
-                  disconnect.mutate(app.provider, {
+                  disconnect.mutate(app.integrationId ?? app.provider, {
                     onSuccess: () => toast.success(`${app.name} disconnected`),
                   })
                 }
@@ -743,20 +761,73 @@ function AppDetailPanel({ app }: { app: AppModelItem }) {
             </p>
           ) : null}
         </section>
+      </div>
 
-        {/*
-          An integration has no conversation surface: there is no endpoint that
-          takes a message for a third-party app and answers as it, so offering
-          a composer here would be a box that swallows what you type.
-        */}
-        <EmptyState
-          size="sm"
-          icon={<Blocks />}
-          title="No conversation for apps"
-          description={`${app.name} sends activity into your channels rather than a direct thread. Connect it, then pick the channels that should receive its updates.`}
-        />
+      <div className="min-h-0 flex flex-1 flex-col overflow-hidden">
+        {app.isConnected && app.integrationId ? (
+          <AppConversationPanel app={app} integrationId={app.integrationId} />
+        ) : (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="max-w-2xl px-6 pb-8 mx-auto">
+              <EmptyState
+                size="sm"
+                icon={<Blocks />}
+                title="Connect to start a conversation"
+                description={`Once ${app.name} is connected it gets its own chat, the same as any teammate or AI agent — ask it to run its available actions, or wait for it to post activity.`}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+/**
+ * The app's Matrix DM room, once connected. Same shape as `DirectRoom` in
+ * `DirectMessagesView` and `AgentConversationPanel` above — the app is a
+ * conversation participant with a bot identity, not a special case.
+ */
+function AppConversationPanel({
+  app,
+  integrationId,
+}: {
+  app: AppModelItem;
+  integrationId: string;
+}) {
+  const { workspaceId } = useCurrentWorkspace();
+  const { enabled } = useMatrix();
+  const { roomId, error } = useDirectRoom(`app-${integrationId}`);
+
+  if (!enabled) {
+    return (
+      <EmptyState
+        size="lg"
+        icon={<MessageSquareOff />}
+        title="Chat is not configured"
+        description="This deployment has no Matrix homeserver. Set MATRIX_ENABLED and the homeserver settings to talk to connected apps."
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <ErrorState
+        title={`Could not open the conversation with ${app.name}`}
+        description={error}
+      />
+    );
+  }
+
+  return (
+    <ChatPanel
+      roomId={roomId}
+      title={app.name}
+      subtitle={app.category}
+      workspaceId={workspaceId}
+      showMembers={false}
+      showEncryptedBadge={false}
+    />
   );
 }
 
@@ -785,6 +856,7 @@ function NewAppMessage() {
         description:
           defaultMatch?.description || `${i.provider} workspace integration.`,
         isConnected: i.status === 'CONNECTED',
+        integrationId: i.id,
       } as AppModelItem;
     });
   }, [integrationsQuery.data]);

@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type {
+  AppActionDefinition,
+  AppActionResult,
   IntegrationAccount,
   IntegrationCapabilities,
   IntegrationMessage,
@@ -470,6 +472,163 @@ export class GmailProvider implements ProviderAdapter {
 
       return this.parseGmailMessage(res.data, credential.id);
     });
+  }
+
+  /**
+   * The four actions below are a discoverable façade over the messaging
+   * methods already implemented above (`sendMessage`, `replyMessage`,
+   * `createDraft`, `modifyMessageLabels`) — no new Gmail logic, just metadata
+   * (`inputSchema`, `permissionLevel`, `requiresConfirmation`) a chat
+   * conversation can use to list and gate them.
+   */
+  getActions(): AppActionDefinition[] {
+    return [
+      {
+        id: 'send_message',
+        label: 'Send email',
+        description: 'Send a new email from the connected Gmail account.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            to: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Recipient email addresses.',
+            },
+            subject: { type: 'string' },
+            bodyText: { type: 'string' },
+          },
+          required: ['to', 'subject', 'bodyText'],
+        },
+        permissionLevel: 'write',
+        requiresConfirmation: true,
+      },
+      {
+        id: 'reply_message',
+        label: 'Reply to email',
+        description: 'Reply within an existing Gmail thread.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            threadId: { type: 'string' },
+            inReplyToMessageId: { type: 'string' },
+            to: { type: 'array', items: { type: 'string' } },
+            subject: { type: 'string' },
+            bodyText: { type: 'string' },
+          },
+          required: [
+            'threadId',
+            'inReplyToMessageId',
+            'to',
+            'subject',
+            'bodyText',
+          ],
+        },
+        permissionLevel: 'write',
+        requiresConfirmation: true,
+      },
+      {
+        id: 'create_draft',
+        label: 'Save draft',
+        description: 'Save an email as a draft without sending it.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            to: { type: 'array', items: { type: 'string' } },
+            subject: { type: 'string' },
+            bodyText: { type: 'string' },
+          },
+          required: ['to', 'subject', 'bodyText'],
+        },
+        permissionLevel: 'write',
+        requiresConfirmation: false,
+      },
+      {
+        id: 'modify_labels',
+        label: 'Update labels',
+        description:
+          'Add or remove labels on a message (e.g. archive, mark read).',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            messageId: { type: 'string' },
+            addLabelIds: { type: 'array', items: { type: 'string' } },
+            removeLabelIds: { type: 'array', items: { type: 'string' } },
+          },
+          required: ['messageId'],
+        },
+        permissionLevel: 'write',
+        requiresConfirmation: false,
+      },
+    ];
+  }
+
+  async executeAction(
+    credential: ResolvedCredential,
+    actionId: string,
+    input: Record<string, unknown>,
+  ): Promise<AppActionResult> {
+    switch (actionId) {
+      case 'send_message': {
+        const message = await this.sendMessage(credential, {
+          to: this.parseRecipients(input['to']),
+          subject: String(input['subject'] ?? ''),
+          bodyText: input['bodyText'] ? String(input['bodyText']) : undefined,
+          bodyHtml: input['bodyHtml'] ? String(input['bodyHtml']) : undefined,
+        });
+        return {
+          success: true,
+          message: `Email sent to ${message.to.map((recipient) => recipient.email).join(', ')}.`,
+          data: message,
+        };
+      }
+      case 'reply_message': {
+        const message = await this.replyMessage(credential, {
+          threadId: String(input['threadId'] ?? ''),
+          inReplyToMessageId: String(input['inReplyToMessageId'] ?? ''),
+          to: this.parseRecipients(input['to']),
+          subject: String(input['subject'] ?? ''),
+          bodyText: input['bodyText'] ? String(input['bodyText']) : undefined,
+          bodyHtml: input['bodyHtml'] ? String(input['bodyHtml']) : undefined,
+        });
+        return { success: true, message: 'Reply sent.', data: message };
+      }
+      case 'create_draft': {
+        const message = await this.createDraft(credential, {
+          to: this.parseRecipients(input['to']),
+          subject: String(input['subject'] ?? ''),
+          bodyText: input['bodyText'] ? String(input['bodyText']) : undefined,
+          bodyHtml: input['bodyHtml'] ? String(input['bodyHtml']) : undefined,
+        });
+        return { success: true, message: 'Draft saved.', data: message };
+      }
+      case 'modify_labels': {
+        const message = await this.modifyMessageLabels(
+          credential,
+          String(input['messageId'] ?? ''),
+          this.parseStringArray(input['addLabelIds']),
+          this.parseStringArray(input['removeLabelIds']),
+        );
+        return { success: true, message: 'Labels updated.', data: message };
+      }
+      default:
+        throw new BadRequestException(`Unknown Gmail action '${actionId}'.`);
+    }
+  }
+
+  private parseRecipients(value: unknown): string[] {
+    if (Array.isArray(value)) return value.map((entry) => String(entry));
+    if (typeof value === 'string') {
+      return value
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+    }
+    return [];
+  }
+
+  private parseStringArray(value: unknown): string[] {
+    return Array.isArray(value) ? value.map((entry) => String(entry)) : [];
   }
 
   async sync(
