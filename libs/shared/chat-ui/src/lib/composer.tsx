@@ -8,11 +8,12 @@ import {
   DropdownMenuTrigger,
   Hint,
 } from '@org/ui';
-import { cn } from '@org/utils';
+import { cn, formatBytes } from '@org/utils';
 import {
   AtSign,
   ChevronDown,
   Clock,
+  File as FileIcon,
   Film,
   LayoutGrid,
   Plus,
@@ -20,8 +21,17 @@ import {
   Slash,
   Smile,
   Video,
+  X,
 } from 'lucide-react';
-import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { SendCardDialog } from './cards/send-card-dialog.js';
 import { DiscordEmojiGifPicker } from './discord-emoji-gif-picker.js';
 import {
@@ -142,6 +152,83 @@ const DEFAULT_APP_MENTIONS: MentionCandidate[] = [
   },
 ];
 
+/** An upload staged in the composer, not sent yet. */
+interface StagedAttachment {
+  id: string;
+  file: File;
+  /** Object URL for an image file; unset for anything else. */
+  previewUrl?: string;
+}
+
+function toStagedAttachments(files: Iterable<File>): StagedAttachment[] {
+  return Array.from(files, (file) => ({
+    id: `${file.name}-${file.size}-${file.lastModified}-${Math.random()
+      .toString(36)
+      .slice(2, 8)}`,
+    file,
+    previewUrl: file.type.startsWith('image/')
+      ? URL.createObjectURL(file)
+      : undefined,
+  }));
+}
+
+/**
+ * One staged upload, before it has gone anywhere.
+ *
+ * An image gets an actual thumbnail — the point of a preview is seeing what
+ * you're about to post, not trusting the filename. Everything else gets an
+ * icon-and-name chip the same size, so the strip lines up either way.
+ */
+function StagedAttachmentChip({
+  attachment,
+  onRemove,
+}: {
+  attachment: StagedAttachment;
+  onRemove: () => void;
+}) {
+  const { file, previewUrl } = attachment;
+  const caption = `${file.name} · ${formatBytes(file.size)}`;
+
+  return (
+    <div className="group/chip relative shrink-0">
+      {previewUrl ? (
+        <Hint label={caption}>
+          <div className="size-16 overflow-hidden rounded-lg border border-border bg-muted">
+            <img
+              src={previewUrl}
+              alt={file.name}
+              className="size-full object-cover"
+            />
+          </div>
+        </Hint>
+      ) : (
+        <div className="h-16 w-44 gap-2 px-2.5 flex items-center rounded-lg border border-border bg-surface-raised">
+          <span className="size-8 flex shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+            <FileIcon className="size-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="text-xs font-medium block truncate text-foreground">
+              {file.name}
+            </span>
+            <span className="block text-[11px] text-muted-foreground">
+              {formatBytes(file.size)}
+            </span>
+          </span>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={`Remove ${file.name}`}
+        className="-right-1.5 -top-1.5 size-5 absolute flex items-center justify-center rounded-full border border-border bg-background text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover/chip:opacity-100 hover:text-destructive focus-visible:opacity-100"
+      >
+        <X className="size-3" />
+      </button>
+    </div>
+  );
+}
+
 export interface ComposerProps {
   onSend: (body: string) => void | Promise<void>;
   onTyping?: (isTyping: boolean) => void;
@@ -159,7 +246,11 @@ export interface ComposerProps {
   onSchedule?: (body: string, when: string) => void;
   onStartHuddle?: () => void;
   onRecordClip?: () => void;
-  onSendCard?: (cardId: string, version: number, data: Record<string, unknown>) => void | Promise<void>;
+  onSendCard?: (
+    cardId: string,
+    version: number,
+    data: Record<string, unknown>,
+  ) => void | Promise<void>;
 }
 
 /**
@@ -191,9 +282,83 @@ export function Composer({
     tab: 'emoji' | 'gif';
   }>({ open: false, tab: 'emoji' });
   const [sendCardOpen, setSendCardOpen] = useState(false);
+  /* Collapsed by default, Slack-style — the formatting bar is for people who
+     go looking for it, not a permanent fixture above every message. */
+  const [toolbarOpen, setToolbarOpen] = useState(false);
+  /* Drives the send button's active state. Read from the editor rather than
+     trusted from `isTyping`, which the editor reports as `true` on every
+     change including the one that empties it. */
+  const [hasContent, setHasContent] = useState(false);
+  const [attachments, setAttachments] = useState<StagedAttachment[]>([]);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   const lexicalRef = useRef<LexicalEditorRef | null>(null);
   const fileInputId = useId();
+
+  // Object URLs are only good for as long as the tab is open — revoke each
+  // one when its chip goes away, and sweep whatever's left on unmount so a
+  // conversation switch mid-upload doesn't leak them.
+  const attachmentsRef = useRef<StagedAttachment[]>(attachments);
+  useEffect(() => {
+    attachmentsRef.current = attachments;
+  }, [attachments]);
+  useEffect(() => {
+    return () => {
+      for (const attachment of attachmentsRef.current) {
+        if (attachment.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
+      }
+    };
+  }, []);
+
+  const stageFiles = useCallback(
+    (files: FileList | File[] | null | undefined) => {
+      if (!files || files.length === 0) return;
+      setAttachments((current) => [...current, ...toStagedAttachments(files)]);
+    },
+    [],
+  );
+
+  const removeAttachment = useCallback((id: string) => {
+    setAttachments((current) => {
+      const target = current.find((attachment) => attachment.id === id);
+      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+      return current.filter((attachment) => attachment.id !== id);
+    });
+  }, []);
+
+  /** Hands the staged files to the host and clears the strip. Sending itself
+   *  is fire-and-forget from here — upload progress belongs on the message
+   *  it becomes, not on a preview that no longer exists. */
+  const flushAttachments = useCallback(() => {
+    if (attachments.length === 0) return;
+    if (onAttach) {
+      const dataTransfer = new DataTransfer();
+      for (const attachment of attachments)
+        dataTransfer.items.add(attachment.file);
+      void onAttach(dataTransfer.files);
+    }
+    for (const attachment of attachments) {
+      if (attachment.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
+    }
+    setAttachments([]);
+  }, [attachments, onAttach]);
+
+  const handleTyping = (isTyping: boolean) => {
+    onTyping?.(isTyping);
+    setHasContent(!(lexicalRef.current?.isEmpty() ?? true));
+  };
+
+  /* The editor's own send only fires with text in hand — attachments ride
+     along whenever there are any, text or none. */
+  const handleComposerSend = useCallback(
+    (body: string) => {
+      flushAttachments();
+      if (body) return onSend(body);
+    },
+    [flushAttachments, onSend],
+  );
+
+  const canSend = hasContent || attachments.length > 0;
 
   const mentionCandidates = useMemo<MentionCandidate[]>(
     () => [
@@ -216,7 +381,7 @@ export function Composer({
   };
 
   return (
-    <div className="sticky bottom-0 z-20 shrink-0 border-t border-border bg-background p-3">
+    <div className="bottom-0 p-5 sticky z-20 shrink-0 border-t border-border bg-background">
       {contextSlot}
 
       {pickerState.open ? (
@@ -231,15 +396,51 @@ export function Composer({
       <div
         className={cn(
           'relative flex flex-col rounded-xl border border-border bg-surface transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary',
-          disabled && 'opacity-60 pointer-events-none',
+          isDraggingOver && 'border-primary ring-2 ring-primary/40',
+          disabled && 'pointer-events-none opacity-60',
         )}
+        onDragOver={(event) => {
+          if (!event.dataTransfer.types.includes('Files')) return;
+          event.preventDefault();
+          setIsDraggingOver(true);
+        }}
+        onDragLeave={() => setIsDraggingOver(false)}
+        onDrop={(event) => {
+          setIsDraggingOver(false);
+          if (!event.dataTransfer.files.length) return;
+          event.preventDefault();
+          stageFiles(event.dataTransfer.files);
+        }}
+        onPaste={(event) => {
+          const files = Array.from(event.clipboardData?.files ?? []);
+          if (files.length > 0) stageFiles(files);
+        }}
       >
+        {isDraggingOver ? (
+          <div className="inset-0 text-xs font-semibold pointer-events-none absolute z-10 flex items-center justify-center rounded-xl bg-primary/5 text-primary-text">
+            Drop to attach
+          </div>
+        ) : null}
+
+        {attachments.length > 0 ? (
+          <div className="gap-2 px-3 py-2.5 flex scrollbar-none items-start overflow-x-auto border-b border-border">
+            {attachments.map((attachment) => (
+              <StagedAttachmentChip
+                key={attachment.id}
+                attachment={attachment}
+                onRemove={() => removeAttachment(attachment.id)}
+              />
+            ))}
+          </div>
+        ) : null}
+
         <LexicalComposerInput
           placeholder={placeholder}
-          onSend={onSend}
-          onTyping={onTyping}
+          onSend={handleComposerSend}
+          onTyping={handleTyping}
           disabled={disabled}
-          showToolbar={showFormatting}
+          showToolbar={showFormatting && toolbarOpen}
+          hasPendingAttachments={attachments.length > 0}
           members={mentionCandidates}
           slashCommands={slashCommands}
           onRegisterRef={(ref) => {
@@ -248,13 +449,32 @@ export function Composer({
         />
 
         {/* Action bar */}
-        <div className="flex items-center justify-between border-t border-border bg-surface-raised px-2.5 py-1.5 rounded-b-xl">
-          <div className="flex items-center gap-1">
+        <div className="px-2.5 py-1.5 flex items-center justify-between rounded-b-xl border-t border-border bg-surface-raised">
+          <div className="gap-1 flex items-center">
+            {showFormatting ? (
+              <Hint label={toolbarOpen ? 'Hide formatting' : 'Formatting'}>
+                <button
+                  type="button"
+                  aria-pressed={toolbarOpen}
+                  aria-label="Toggle formatting bar"
+                  onClick={() => setToolbarOpen((open) => !open)}
+                  className={cn(
+                    'h-7 min-w-7 px-1.5 text-xs font-bold flex items-center justify-center rounded-md transition-colors',
+                    toolbarOpen
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                  )}
+                >
+                  Aa
+                </button>
+              </Hint>
+            ) : null}
+
             <Hint label="Attach file or media">
               <button
                 type="button"
                 onClick={() => document.getElementById(fileInputId)?.click()}
-                className="flex size-7 items-center justify-center rounded-full bg-accent text-foreground hover:bg-selected transition-colors"
+                className="size-7 flex items-center justify-center rounded-full bg-accent text-foreground transition-colors hover:bg-selected"
               >
                 <Plus className="size-4" />
               </button>
@@ -265,7 +485,7 @@ export function Composer({
               multiple
               className="sr-only"
               onChange={(event) => {
-                if (event.target.files?.length) onAttach?.(event.target.files);
+                stageFiles(event.target.files);
                 event.target.value = '';
               }}
             />
@@ -274,7 +494,7 @@ export function Composer({
               <button
                 type="button"
                 onClick={() => setSendCardOpen(true)}
-                className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 <LayoutGrid className="size-4 text-primary" />
               </button>
@@ -291,7 +511,7 @@ export function Composer({
                   lexicalRef.current?.focus();
                   lexicalRef.current?.insertText('@');
                 }}
-                className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 <AtSign className="size-4" />
               </button>
@@ -307,7 +527,7 @@ export function Composer({
                   }))
                 }
                 className={cn(
-                  'flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors',
+                  'size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
                   pickerState.open &&
                     pickerState.tab === 'emoji' &&
                     'bg-primary text-primary-foreground',
@@ -327,14 +547,16 @@ export function Composer({
                   }))
                 }
                 className={cn(
-                  'flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-bold text-muted-foreground hover:bg-accent hover:text-foreground transition-colors',
+                  'gap-1 px-1.5 py-1 text-xs font-bold flex items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
                   pickerState.open &&
                     pickerState.tab === 'gif' &&
                     'bg-primary text-primary-foreground',
                 )}
               >
                 <Film className="size-3.5" />
-                <span className="text-[10px] uppercase tracking-wider">GIF</span>
+                <span className="tracking-wider text-[10px] uppercase">
+                  GIF
+                </span>
               </button>
             </Hint>
 
@@ -345,7 +567,7 @@ export function Composer({
                   lexicalRef.current?.focus();
                   lexicalRef.current?.insertText('/');
                 }}
-                className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 <Slash className="size-3.5" />
               </button>
@@ -356,7 +578,7 @@ export function Composer({
                 <button
                   type="button"
                   onClick={onStartHuddle}
-                  className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                  className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 >
                   <Video className="size-4" />
                 </button>
@@ -364,61 +586,70 @@ export function Composer({
             ) : null}
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="gap-1 flex items-center">
             {onSchedule ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
                     aria-label="Schedule message"
-                    className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                    className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
                     <ChevronDown className="size-3.5" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="end"
-                  className="w-52 bg-surface text-foreground border-border"
+                  className="w-52 border-border bg-surface text-foreground"
                 >
                   <DropdownMenuLabel className="text-xs text-muted-foreground">
                     Schedule message
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-border" />
-                  {['In 30 minutes', 'Tomorrow at 9:00 AM', 'Monday at 9:00 AM'].map(
-                    (when) => (
-                      <DropdownMenuItem
-                        key={when}
-                        onSelect={() => {
-                          const body = lexicalRef.current?.getMarkdown().trim();
-                          if (!body) return;
-                          onSchedule(body, when);
-                          lexicalRef.current?.clear();
-                        }}
-                        className="hover:bg-accent focus:bg-accent"
-                      >
-                        <Clock className="mr-2 size-3.5" />
-                        {when}
-                      </DropdownMenuItem>
-                    ),
-                  )}
+                  {[
+                    'In 30 minutes',
+                    'Tomorrow at 9:00 AM',
+                    'Monday at 9:00 AM',
+                  ].map((when) => (
+                    <DropdownMenuItem
+                      key={when}
+                      onSelect={() => {
+                        const body = lexicalRef.current?.getMarkdown().trim();
+                        if (!body) return;
+                        onSchedule(body, when);
+                        lexicalRef.current?.clear();
+                      }}
+                      className="hover:bg-accent focus:bg-accent"
+                    >
+                      <Clock className="mr-2 size-3.5" />
+                      {when}
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : null}
 
-            <button
-              type="button"
-              onClick={() => lexicalRef.current?.send()}
-              disabled={disabled}
-              className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground shadow-sm transition-transform hover:bg-primary-hover active:scale-95 disabled:opacity-50"
-            >
-              <span>Send</span>
-              <Send className="size-3.5" />
-            </button>
+            <Hint label="Send message">
+              <button
+                type="button"
+                onClick={() => lexicalRef.current?.send()}
+                disabled={disabled || !canSend}
+                aria-label="Send message"
+                className={cn(
+                  'size-7 flex items-center justify-center rounded-full transition-colors',
+                  canSend && !disabled
+                    ? 'bg-primary text-primary-foreground hover:bg-primary-hover active:scale-95'
+                    : 'bg-transparent text-muted-foreground/40',
+                )}
+              >
+                <Send className="size-3.5" />
+              </button>
+            </Hint>
           </div>
         </div>
       </div>
 
-      <div className="mt-1 px-1 flex items-center justify-between text-[11px] text-muted-foreground">
+      {/* <div className="mt-1 px-1 flex items-center justify-between text-[11px] text-muted-foreground">
         <span>
           <strong className="font-semibold text-foreground">Enter</strong> to send ·{' '}
           <strong className="font-semibold text-foreground">Shift+Enter</strong> for
@@ -427,7 +658,7 @@ export function Composer({
           commands, <strong className="font-semibold text-foreground">:</strong>{' '}
           emoji · markdown as you type
         </span>
-      </div>
+      </div> */}
 
       <SendCardDialog
         open={sendCardOpen}

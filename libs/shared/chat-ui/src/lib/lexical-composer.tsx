@@ -71,7 +71,10 @@ import {
   CAN_UNDO_COMMAND,
   COMMAND_PRIORITY_CRITICAL,
   COMMAND_PRIORITY_HIGH,
+  COMMAND_PRIORITY_NORMAL,
   FORMAT_TEXT_COMMAND,
+  IS_APPLE,
+  KEY_DOWN_COMMAND,
   KEY_ENTER_COMMAND,
   REDO_COMMAND,
   SELECTION_CHANGE_COMMAND,
@@ -206,6 +209,12 @@ export interface LexicalComposerInputProps {
   disabled?: boolean;
   autoFocus?: boolean;
   showToolbar?: boolean;
+  /**
+   * Staged images/files are waiting to go out with this message. Lets Enter
+   * (and the imperative `send()`) fire with an empty body — the attachments
+   * are the message — instead of the empty-body guard swallowing the keypress.
+   */
+  hasPendingAttachments?: boolean;
   /** Candidates for the in-editor `@` menu. With none, the menu stays closed. */
   members?: MentionCandidate[];
   /** Commands for the in-editor `/` menu, offered at the start of a message. */
@@ -251,10 +260,12 @@ function EditorApiPlugin({
   onSend,
   onTyping,
   onRegisterRef,
+  hasPendingAttachments = false,
 }: {
   onSend: (text: string) => void | Promise<void>;
   onTyping?: (isTyping: boolean) => void;
   onRegisterRef?: (ref: LexicalEditorRef) => void;
+  hasPendingAttachments?: boolean;
 }) {
   const [editor] = useLexicalComposerContext();
 
@@ -276,13 +287,15 @@ function EditorApiPlugin({
 
   const send = useCallback(() => {
     const body = readMarkdown().trim();
-    if (!body) return false;
+    // A message with nothing but staged attachments is still a message —
+    // only bail out when there's neither text nor anything else going out.
+    if (!body && !hasPendingAttachments) return false;
 
     reset();
     onTyping?.(false);
     void onSend(body);
     return true;
-  }, [readMarkdown, reset, onSend, onTyping]);
+  }, [readMarkdown, reset, onSend, onTyping, hasPendingAttachments]);
 
   const insertNodesAtCaret = useCallback(
     (build: () => ReturnType<typeof $createTextNode>[]) => {
@@ -381,6 +394,83 @@ function EditablePlugin({ disabled }: { disabled: boolean }) {
   useEffect(() => {
     editor.setEditable(!disabled);
   }, [editor, disabled]);
+
+  return null;
+}
+
+/**
+ * Formatting shortcuts, on the same keys Slack binds them to. They work
+ * whether or not the formatting bar above is open — the bar is there for
+ * discovery, not because it is what makes these active.
+ *
+ * List and quote shortcuts *set* the block rather than toggling it back to a
+ * paragraph on a second press. The toolbar buttons do toggle, but that reads
+ * `blockType` state private to `LexicalToolbar`; duplicating it here for a
+ * keyboard shortcut wasn't worth it when Lexical's own list commands are
+ * already idempotent on a block that's already that type.
+ */
+function FormattingShortcutsPlugin() {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    return editor.registerCommand(
+      KEY_DOWN_COMMAND,
+      (event: KeyboardEvent) => {
+        const hasModifier = IS_APPLE ? event.metaKey : event.ctrlKey;
+        if (!hasModifier) return false;
+
+        // `event.code` (the physical key) rather than `event.key` (the
+        // character it produces): Shift+7 types '&' on a standard layout, not
+        // '7', so matching the digit bindings below against `key` would never
+        // fire. Letters happen to survive a Shift on `key` too (it's just the
+        // upper-cased letter), but `code` is the one rule that's right for both.
+        if (!event.shiftKey) {
+          if (event.code === 'KeyB') {
+            event.preventDefault();
+            editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold');
+            return true;
+          }
+          if (event.code === 'KeyI') {
+            event.preventDefault();
+            editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic');
+            return true;
+          }
+          return false;
+        }
+
+        switch (event.code) {
+          case 'KeyX':
+            event.preventDefault();
+            editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough');
+            return true;
+          case 'KeyC':
+            event.preventDefault();
+            editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code');
+            return true;
+          case 'Digit7':
+            event.preventDefault();
+            editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
+            return true;
+          case 'Digit8':
+            event.preventDefault();
+            editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
+            return true;
+          case 'Digit9':
+            event.preventDefault();
+            editor.update(() => {
+              const selection = $getSelection();
+              if ($isRangeSelection(selection)) {
+                $setBlocksType(selection, () => $createQuoteNode());
+              }
+            });
+            return true;
+          default:
+            return false;
+        }
+      },
+      COMMAND_PRIORITY_NORMAL,
+    );
+  }, [editor]);
 
   return null;
 }
@@ -1095,7 +1185,7 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
           <Italic className="size-3.5" />
         </ToolButton>
         <ToolButton
-          label="Strikethrough (~~text~~)"
+          label="Strikethrough (Ctrl+Shift+X)"
           isActive={formats.strikethrough}
           onClick={() =>
             editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough')
@@ -1104,7 +1194,7 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
           <Strikethrough className="size-3.5" />
         </ToolButton>
         <ToolButton
-          label="Inline code (`code`)"
+          label="Inline code (Ctrl+Shift+C)"
           isActive={formats.code}
           onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code')}
         >
@@ -1151,14 +1241,14 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
         <Divider />
 
         <ToolButton
-          label="Bulleted list (- )"
+          label="Bulleted list (Ctrl+Shift+8)"
           isActive={blockType === 'ul'}
           onClick={() => setBlock('ul')}
         >
           <List className="size-3.5" />
         </ToolButton>
         <ToolButton
-          label="Numbered list (1. )"
+          label="Numbered list (Ctrl+Shift+7)"
           isActive={blockType === 'ol'}
           onClick={() => setBlock('ol')}
         >
@@ -1175,7 +1265,7 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
         <Divider />
 
         <ToolButton
-          label="Blockquote (> )"
+          label="Blockquote (Ctrl+Shift+9)"
           isActive={blockType === 'quote'}
           onClick={() => setBlock('quote')}
         >
@@ -1278,6 +1368,7 @@ export function LexicalComposerInput({
   disabled = false,
   autoFocus = false,
   showToolbar = true,
+  hasPendingAttachments = false,
   members = [],
   slashCommands = [],
   onRegisterRef,
@@ -1342,10 +1433,12 @@ export function LexicalComposerInput({
           onChange={() => onTyping?.(true)}
         />
         <EditablePlugin disabled={disabled} />
+        <FormattingShortcutsPlugin />
         <EditorApiPlugin
           onSend={onSend}
           onTyping={onTyping}
           onRegisterRef={onRegisterRef}
+          hasPendingAttachments={hasPendingAttachments}
         />
 
         {members.length > 0 ? (
