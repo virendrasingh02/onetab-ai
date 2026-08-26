@@ -7,6 +7,7 @@ import {
   File as FileIcon,
   FileText,
   Film,
+  Maximize2,
   Music,
   Pause,
   Play,
@@ -213,7 +214,7 @@ export function VideoPreview({
   onOpen?: () => void;
 }) {
   return (
-    <div className="mt-1 max-w-sm rounded-lg border border-border bg-surface overflow-hidden">
+    <div className="relative mt-1 max-w-sm rounded-lg border border-border bg-surface overflow-hidden">
       <video
         controls
         preload="metadata"
@@ -224,6 +225,17 @@ export function VideoPreview({
         <source src={attachment.url} type={attachment.mimeType} />
         Your browser cannot play this video.
       </video>
+      {onOpen ? (
+        <button
+          type="button"
+          onClick={onOpen}
+          className="absolute top-2 right-2 size-7 flex items-center justify-center rounded-md bg-black/50 text-white hover:bg-black/70 transition-colors"
+          aria-label={`Open ${attachment.name}`}
+          title="Open in full view"
+        >
+          <Maximize2 className="size-3.5" />
+        </button>
+      ) : null}
     </div>
   );
 }

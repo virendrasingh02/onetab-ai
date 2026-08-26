@@ -25,8 +25,8 @@
           "{projectRoot}/test-output/vitest/coverage"
         ],
         "options": {
-          "command": "vitest run --passWithNoTests",
-          "cwd": "libs/web/layout"
+          "command": "node scripts/run-vitest.mjs libs/web/layout",
+          "cwd": "{workspaceRoot}"
         }
       }
     }

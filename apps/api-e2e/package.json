@@ -18,8 +18,8 @@
           "@org/api:serve"
         ],
         "options": {
-          "command": "vitest run --passWithNoTests",
-          "cwd": "apps/api-e2e"
+          "command": "node scripts/run-vitest.mjs apps/api-e2e",
+          "cwd": "{workspaceRoot}"
         }
       }
     },

@@ -43,14 +43,17 @@ describe('ImageViewer', () => {
   });
 
   it('does not go below the minimum or above the maximum zoom', async () => {
+    // 40 clicks in this test: skip user-event's simulated per-keystroke delay
+    // so the run stays well under the default test timeout under load.
+    const user = userEvent.setup({ delay: null });
     setup();
     for (let i = 0; i < 20; i++) {
-      await userEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+      await user.click(screen.getByRole('button', { name: 'Zoom in' }));
     }
     expect(screen.getByRole('button', { name: '400%' })).toBeInTheDocument();
 
     for (let i = 0; i < 20; i++) {
-      await userEvent.click(screen.getByRole('button', { name: 'Zoom out' }));
+      await user.click(screen.getByRole('button', { name: 'Zoom out' }));
     }
     expect(screen.getByRole('button', { name: '25%' })).toBeInTheDocument();
   });

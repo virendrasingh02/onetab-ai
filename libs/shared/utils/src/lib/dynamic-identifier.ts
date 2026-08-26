@@ -41,7 +41,7 @@ export function generateProjectIdentifier(
     .split(' ')
     .filter(Boolean);
 
-  let stem = '';
+  let stem: string;
 
   if (words.length === 0) {
     stem = 'PRJ';

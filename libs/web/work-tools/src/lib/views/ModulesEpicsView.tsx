@@ -20,13 +20,7 @@ import {
   Textarea,
   UserAvatar,
 } from '@org/ui';
-import {
-  TaskPriority,
-  type Epic,
-  type Module,
-  type PublicUser,
-  type Task,
-} from '@org/types';
+import type { Epic, Module, PublicUser, Task, TaskPriority } from '@org/types';
 import { cn } from '@org/utils';
 import {
   Plus,

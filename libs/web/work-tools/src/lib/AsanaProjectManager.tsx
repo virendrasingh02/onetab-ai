@@ -599,7 +599,6 @@ export function AsanaProjectManager() {
         setDraft={setDraft}
         showStatus={false}
         pending={projectMutations.create.isPending}
-        error={projectMutations.create.error}
         onSubmit={handleCreateProject}
       />
 
@@ -613,7 +612,6 @@ export function AsanaProjectManager() {
         setDraft={setDraft}
         showStatus={true}
         pending={projectMutations.update.isPending}
-        error={projectMutations.update.error}
         onSubmit={handleUpdateProject}
       />
 
@@ -1162,7 +1160,6 @@ interface ProjectDialogProps {
   setDraft: React.Dispatch<React.SetStateAction<ProjectDraft>>;
   showStatus: boolean;
   pending: boolean;
-  error: unknown;
   onSubmit: (event: React.FormEvent) => void;
 }
 
@@ -1176,7 +1173,6 @@ function ProjectDialog({
   setDraft,
   showStatus,
   pending,
-  error,
   onSubmit,
 }: ProjectDialogProps) {
   const iconEditor = useIconEditor(

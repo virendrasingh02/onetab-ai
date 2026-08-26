@@ -41,7 +41,7 @@ import {
 import { useState } from 'react';
 
 export function NotificationDisplaySettingsPanel({
-  workspaceId,
+  workspaceId: _workspaceId,
 }: {
   workspaceId?: string;
 }) {

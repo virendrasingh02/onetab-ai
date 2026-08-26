@@ -440,10 +440,7 @@ export function useTaskDetail(
   });
 }
 
-export function useTaskMutations(
-  workspaceId: string | undefined,
-  projectId?: string,
-) {
+export function useTaskMutations(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
   const invalidate = () =>
     queryClient.invalidateQueries({

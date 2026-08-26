@@ -26,8 +26,8 @@
           "{projectRoot}/test-output/vitest/coverage"
         ],
         "options": {
-          "command": "vitest run --passWithNoTests",
-          "cwd": "packages/matrix-client"
+          "command": "node scripts/run-vitest.mjs packages/matrix-client",
+          "cwd": "{workspaceRoot}"
         }
       }
     }

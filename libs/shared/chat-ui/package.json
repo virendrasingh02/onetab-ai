@@ -26,8 +26,8 @@
           "{projectRoot}/test-output/vitest/coverage"
         ],
         "options": {
-          "command": "vitest run --passWithNoTests",
-          "cwd": "libs/shared/chat-ui"
+          "command": "node scripts/run-vitest.mjs libs/shared/chat-ui",
+          "cwd": "{workspaceRoot}"
         }
       }
     }

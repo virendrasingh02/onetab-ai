@@ -30,7 +30,7 @@
         "cache": true,
         "outputs": ["{projectRoot}/test-output/vitest/coverage"],
         "options": {
-          "command": "node apps/desktop/scripts/run-tests.mjs",
+          "command": "node scripts/run-vitest.mjs apps/desktop",
           "cwd": "{workspaceRoot}"
         }
       },

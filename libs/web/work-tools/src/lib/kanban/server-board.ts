@@ -332,7 +332,7 @@ export function useServerBoard({
 }: UseServerBoardInput): ServerBoard {
   const projectId = project?.id;
   const tasks = useTasks(workspaceId, projectId);
-  const mutations = useTaskMutations(workspaceId, projectId);
+  const mutations = useTaskMutations(workspaceId);
   const projectMutations = useProjectMutations(workspaceId);
 
   const board = useMemo(

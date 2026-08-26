@@ -14,10 +14,10 @@ import {
 } from '@org/ui';
 import {
   ProjectHealth,
-  TaskPriority,
   type Initiative,
   type ProjectDetail,
   type PublicUser,
+  type TaskPriority,
 } from '@org/types';
 import { cn } from '@org/utils';
 import {

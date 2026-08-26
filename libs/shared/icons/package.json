@@ -26,8 +26,8 @@
           "{projectRoot}/test-output/vitest/coverage"
         ],
         "options": {
-          "command": "vitest run --passWithNoTests",
-          "cwd": "libs/shared/icons"
+          "command": "node scripts/run-vitest.mjs libs/shared/icons",
+          "cwd": "{workspaceRoot}"
         }
       }
     }

@@ -168,6 +168,11 @@ export function WorkspaceMenu({
                   aria-hidden
                 />
               </span>
+              {currentEmail ? (
+                <span className="font-normal block truncate text-[10px] text-muted-foreground">
+                  {currentEmail}
+                </span>
+              ) : null}
             </span>
           </button>
         </DropdownMenuTrigger>

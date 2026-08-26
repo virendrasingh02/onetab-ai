@@ -65,8 +65,10 @@ launcher script rather than left for the next person to rediscover:
   shortcut, or `env -u ELECTRON_RUN_AS_NODE ./'OneTab AI.exe'`.
 - **Windows drive-letter case** — Nx invokes tasks with `d:\…` where a shell
   gives `D:\…`, and Vitest keys its module registry by absolute path, so every
-  spec fails to collect before a test body runs. `scripts/run-tests.mjs` spawns
-  Vitest from `realpathSync.native()`, the canonical spelling.
+  spec fails to collect before a test body runs. Every project's `test` target
+  runs through the workspace-wide `scripts/run-vitest.mjs`, which spawns
+  Vitest from `realpathSync.native()`, the canonical spelling — not a
+  desktop-specific script.
 
 ## Why the packaged app serves over localhost
 
