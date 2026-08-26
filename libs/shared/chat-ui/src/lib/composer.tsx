@@ -451,25 +451,6 @@ export function Composer({
         {/* Action bar */}
         <div className="px-2.5 py-1.5 flex items-center justify-between rounded-b-xl border-t border-border bg-surface-raised">
           <div className="gap-1 flex items-center">
-            {showFormatting ? (
-              <Hint label={toolbarOpen ? 'Hide formatting' : 'Formatting'}>
-                <button
-                  type="button"
-                  aria-pressed={toolbarOpen}
-                  aria-label="Toggle formatting bar"
-                  onClick={() => setToolbarOpen((open) => !open)}
-                  className={cn(
-                    'h-7 min-w-7 px-1.5 text-xs font-bold flex items-center justify-center rounded-md transition-colors',
-                    toolbarOpen
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                  )}
-                >
-                  Aa
-                </button>
-              </Hint>
-            ) : null}
-
             <Hint label="Attach file or media">
               <button
                 type="button"
@@ -489,6 +470,25 @@ export function Composer({
                 event.target.value = '';
               }}
             />
+
+            {showFormatting ? (
+              <Hint label={toolbarOpen ? 'Hide formatting' : 'Formatting'}>
+                <button
+                  type="button"
+                  aria-pressed={toolbarOpen}
+                  aria-label="Toggle formatting bar"
+                  onClick={() => setToolbarOpen((open) => !open)}
+                  className={cn(
+                    'h-7 min-w-7 px-1.5 text-xs font-bold flex items-center justify-center rounded-md transition-colors',
+                    toolbarOpen
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                  )}
+                >
+                  Aa
+                </button>
+              </Hint>
+            ) : null}
 
             <Hint label="Send Universal Card">
               <button

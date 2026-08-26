@@ -1,7 +1,29 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
+
+/**
+ * Every @org/* package is a node_modules/@org/foo -> libs/**\/foo workspace
+ * symlink. With preserveSymlinks: true below, Vite's optimizer can't tell
+ * those apart from real node_modules dependencies and pre-bundles them,
+ * caching the bundle by lockfile hash rather than the lib's own source — so
+ * edits under libs/**\/src stop showing up until something clears
+ * node_modules/.vite/admin (a full nx reset happens to do that, which is why
+ * that "fixes" it). See apps/web/vite.config.mts for the full writeup.
+ */
+const ORG_WORKSPACE_PACKAGES = (() => {
+  const orgModulesDir = path.resolve(
+    import.meta.dirname,
+    '../../node_modules/@org',
+  );
+  try {
+    return fs.readdirSync(orgModulesDir).map((name) => `@org/${name}`);
+  } catch {
+    return [];
+  }
+})();
 
 export default defineConfig(() => ({
   root: import.meta.dirname,
@@ -37,7 +59,13 @@ export default defineConfig(() => ({
   },
   plugins: [react(), tailwindcss()],
   optimizeDeps: {
-    include: ['react', 'react-dom'],
+    // use-sync-external-store/shim/with-selector.js is CJS-only and needs
+    // esbuild's pre-bundling pass for its default-export interop — see
+    // apps/web/vite.config.mts for the full writeup.
+    include: ['react', 'react-dom', 'use-sync-external-store/shim/with-selector.js'],
+    // Keeps every @org/* lib off the pre-bundle path — see
+    // ORG_WORKSPACE_PACKAGES above.
+    exclude: ORG_WORKSPACE_PACKAGES,
   },
   build: {
     outDir: './dist',

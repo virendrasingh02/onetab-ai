@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import react from '@vitejs/plugin-react';
 import wasm from 'vite-plugin-wasm';
@@ -38,6 +39,39 @@ const API_PROXY = {
     changeOrigin: true,
   },
 };
+
+/**
+ * `preserveSymlinks: true` below (needed for the duplicate-context fix
+ * documented there) has a side effect: Vite's dependency optimizer decides
+ * whether an import is "linked workspace source" or "a real node_modules
+ * dependency" by comparing the import path against its realpath, and that's
+ * exactly the check preserveSymlinks turns off. Every `@org/*` package is a
+ * `node_modules/@org/foo -> libs/**\/foo` workspace symlink, so without this
+ * list they all get swept into the esbuild pre-bundle like a normal
+ * dependency instead of being served as live source.
+ *
+ * That pre-bundle is cached by lockfile hash, not by the lib's own file
+ * contents, so editing anything under `libs/**\/src` stops showing up in the
+ * running app — a plain HMR update or dev-server restart doesn't re-bundle
+ * it, only clearing `node_modules/.vite/web` does (which is why a full
+ * `nx reset` + restart "fixes" it: resetting the workspace happens to blow
+ * the cache away too). Excluding every `@org/*` name from optimization keeps
+ * them on the live-source path with real HMR regardless of what
+ * preserveSymlinks does to the optimizer's own detection.
+ */
+const ORG_WORKSPACE_PACKAGES = (() => {
+  const orgModulesDir = path.resolve(
+    import.meta.dirname,
+    '../../node_modules/@org',
+  );
+  try {
+    return fs
+      .readdirSync(orgModulesDir)
+      .map((name) => `@org/${name}`);
+  } catch {
+    return [];
+  }
+})();
 
 export default defineConfig(() => ({
   root: import.meta.dirname,
@@ -112,8 +146,24 @@ export default defineConfig(() => ({
     // actually run, throwing "Prism is not defined". Including the core here
     // makes it part of the same eager, dev-server-startup pre-bundle pass as
     // everything else in this list, closing that ordering gap.
-    include: ['react', 'react-dom', 'matrix-js-sdk', 'prismjs'],
-    exclude: ['@matrix-org/matrix-sdk-crypto-wasm'],
+    // `use-sync-external-store/shim/with-selector.js` is CJS-only and gets
+    // its default-export interop from esbuild's pre-bundling pass. It's a
+    // deep, non-bare-package import (pulled in by zustand's `traditional`
+    // entry, which several @org libs use), and Vite's scanner doesn't always
+    // discover deep subpath imports like this on its own — when it's missed,
+    // the module is served raw and the browser's native ESM loader can't
+    // find a `default` export on a `module.exports =` file. Listing it
+    // explicitly forces it through the interop-providing bundle every time.
+    include: [
+      'react',
+      'react-dom',
+      'matrix-js-sdk',
+      'prismjs',
+      'use-sync-external-store/shim/with-selector.js',
+    ],
+    // See ORG_WORKSPACE_PACKAGES above: keeps every @org/* lib off the
+    // pre-bundle path so edits to their source show up without a restart.
+    exclude: ['@matrix-org/matrix-sdk-crypto-wasm', ...ORG_WORKSPACE_PACKAGES],
   },
   build: {
     outDir: './dist',
