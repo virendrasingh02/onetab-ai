@@ -3,25 +3,35 @@ import {
   Badge,
   Button,
   Card,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  Hint,
   SearchInput,
+  toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
+  Activity,
   BarChart3,
   Check,
   ChevronDown,
+  Code2,
   DollarSign,
   ExternalLink,
   FolderKanban,
   Headphones,
+  Inbox,
   Layout,
   Palette,
+  RefreshCw,
   Share2,
   Sparkles,
   Users,
@@ -30,6 +40,10 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useState } from 'react';
+import type { ExternalIntegration } from '@org/types';
+import { CustomApiModal } from './CustomApiModal.js';
+import { GmailInboxModal } from './GmailInboxModal.js';
+import { IntegrationLogsView } from './IntegrationLogsView.js';
 import {
   useIntegrationMutations,
   useIntegrations,
@@ -74,6 +88,9 @@ const CATEGORY_META: Record<AppCategory, { icon: LucideIcon; accent: Accent }> =
   };
 
 const APP_LOGOS: Record<string, string> = {
+  gmail: 'https://cdn.simpleicons.org/gmail',
+  custom_api: 'https://cdn.simpleicons.org/fastapi',
+  onetab_internal: 'https://cdn.simpleicons.org/electron',
   github: 'https://cdn.simpleicons.org/github',
   gitlab: 'https://cdn.simpleicons.org/gitlab',
   jira: 'https://cdn.simpleicons.org/jira',
@@ -99,7 +116,38 @@ const APP_LOGOS: Record<string, string> = {
   webhooks: 'https://cdn.simpleicons.org/webhooks',
 };
 
+/**
+ * Cards backed by a real provider adapter on the server — the only ones a
+ * `connect` actually knows how to fulfil. Everything else in the catalogue
+ * below is a decorative preview card whose connect toggle only writes a mock
+ * DB row, same as before this feature existed. Gating sync/inbox/logs to
+ * this set keeps those actions off cards that have nothing behind them.
+ */
+const REAL_PROVIDERS = new Set(['gmail', 'custom_api', 'onetab_internal']);
+
 const integrationsList: IntegrationCard[] = [
+  {
+    id: 'gmail',
+    name: 'Gmail',
+    category: 'Productivity & Project Management',
+    description:
+      'Read, send, and search Gmail threads directly from your workspace.',
+  },
+  {
+    id: 'custom_api',
+    name: 'Custom External API',
+    category: 'Developer Tools',
+    description:
+      'Connect any REST API with custom headers, bearer tokens, or API keys.',
+  },
+  {
+    id: 'onetab_internal',
+    name: 'OneTab Native Bridge',
+    category: 'Internal Apps',
+    description:
+      'Internal workspace events, activity streams, and channel notifications.',
+    isInternal: true,
+  },
   {
     id: 'github',
     name: 'GitHub',
@@ -226,31 +274,78 @@ const integrationsList: IntegrationCard[] = [
 ];
 
 export function IntegrationHubView() {
-  const workspaceId = useWorkspaceId();
+  const workspaceId = useWorkspaceId() ?? '';
   const integrations = useIntegrations(workspaceId);
-  const { connect, disconnect } = useIntegrationMutations(workspaceId);
+  const { connect, disconnect, sync } = useIntegrationMutations(workspaceId);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'All' | AppCategory>(
     'All',
   );
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [isCustomApiModalOpen, setIsCustomApiModalOpen] = useState(false);
+  const [activeGmailModal, setActiveGmailModal] = useState<{
+    integrationId: string;
+    email?: string;
+  } | null>(null);
+  const [logsCard, setLogsCard] = useState<IntegrationCard | null>(null);
 
   /*
    * The catalogue below is the set of apps we can offer; the server records
    * which of them this workspace actually connected. Provider codes are stored
    * upper-case, so the card id is matched case-insensitively.
    */
-  const connectedProviders = new Set(
-    (integrations.data ?? [])
-      .filter((integration) => integration.status === 'CONNECTED')
-      .map((integration) => integration.provider.toUpperCase()),
-  );
+  const connectedMap = new Map<string, ExternalIntegration>();
+  for (const integration of integrations.data ?? []) {
+    if (integration.status === 'CONNECTED') {
+      connectedMap.set(integration.provider.toUpperCase(), integration);
+    }
+  }
+
+  /*
+   * Gmail and the custom API connector need more than a bare provider
+   * upsert — Gmail hands back a Google consent URL to pop open, and the
+   * custom connector needs its config form filled in first. Everything
+   * else keeps the original one-shot mock connect.
+   */
+  const startConnect = async (card: IntegrationCard) => {
+    if (card.id === 'gmail') {
+      try {
+        const result = await connect.mutateAsync({
+          provider: 'GMAIL',
+          scopeType: 'USER',
+        });
+        if (result.authUrl) {
+          const width = 600;
+          const height = 700;
+          const left = window.screen.width / 2 - width / 2;
+          const top = window.screen.height / 2 - height / 2;
+          window.open(
+            result.authUrl,
+            'Google OAuth',
+            `width=${width},height=${height},left=${left},top=${top}`,
+          );
+        }
+      } catch (err: unknown) {
+        toast.error(
+          err instanceof Error ? err.message : 'Failed to start Gmail connection.',
+        );
+      }
+      return;
+    }
+
+    if (card.id === 'custom_api') {
+      setIsCustomApiModalOpen(true);
+      return;
+    }
+
+    connect.mutate({ provider: card.id.toUpperCase() });
+  };
 
   const toggleConnection = (card: IntegrationCard) => {
-    const provider = card.id.toUpperCase();
-    if (connectedProviders.has(provider)) disconnect.mutate(provider);
-    else connect.mutate({ provider });
+    const connected = connectedMap.get(card.id.toUpperCase());
+    if (connected) disconnect.mutate(connected.id);
+    else void startConnect(card);
   };
 
   const filteredCards = integrationsList.filter((card) => {
@@ -443,10 +538,10 @@ export function IntegrationHubView() {
                 const meta =
                   CATEGORY_META[card.category] || CATEGORY_META['Other'];
                 const Icon = meta.icon;
-                const isConnected = connectedProviders.has(
-                  card.id.toUpperCase(),
-                );
+                const connectedInfo = connectedMap.get(card.id.toUpperCase());
+                const isConnected = Boolean(connectedInfo);
                 const logoUrl = APP_LOGOS[card.id.toLowerCase()];
+                const showQuickActions = isConnected && REAL_PROVIDERS.has(card.id);
 
                 return (
                   <li key={card.id}>
@@ -494,7 +589,76 @@ export function IntegrationHubView() {
                         <p className="mb-4 text-xs leading-relaxed line-clamp-3 text-muted-foreground">
                           {card.description}
                         </p>
+
+                        {isConnected && connectedInfo?.displayName ? (
+                          <p className="mb-4 -mt-2 text-[11px] font-medium truncate text-muted-foreground">
+                            Connected as {connectedInfo.displayName}
+                          </p>
+                        ) : null}
                       </div>
+
+                      {showQuickActions && connectedInfo ? (
+                        <div className="mb-2 gap-1 flex items-center justify-end">
+                          {card.id === 'gmail' ? (
+                            <Hint label="Open inbox">
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Open inbox"
+                                onClick={() =>
+                                  setActiveGmailModal({
+                                    integrationId: connectedInfo.id,
+                                    email: connectedInfo.displayName ?? undefined,
+                                  })
+                                }
+                              >
+                                <Inbox className="size-3.5" />
+                              </Button>
+                            </Hint>
+                          ) : null}
+
+                          {card.id === 'custom_api' ? (
+                            <Hint label="Edit API config">
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Edit API config"
+                                onClick={() => setIsCustomApiModalOpen(true)}
+                              >
+                                <Code2 className="size-3.5" />
+                              </Button>
+                            </Hint>
+                          ) : null}
+
+                          <Hint label="Sync now">
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label="Sync now"
+                              disabled={sync.isPending}
+                              onClick={() => sync.mutate(connectedInfo.id)}
+                            >
+                              <RefreshCw
+                                className={cn(
+                                  'size-3.5',
+                                  sync.isPending && 'animate-spin',
+                                )}
+                              />
+                            </Button>
+                          </Hint>
+
+                          <Hint label="Sync & activity log">
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label="Sync & activity log"
+                              onClick={() => setLogsCard(card)}
+                            >
+                              <Activity className="size-3.5" />
+                            </Button>
+                          </Hint>
+                        </div>
+                      ) : null}
 
                       <Button
                         variant={isConnected ? 'outline' : 'primary'}
@@ -533,6 +697,48 @@ export function IntegrationHubView() {
           )}
         </div>
       </div>
+
+      {/* Gmail Inbox Modal */}
+      {activeGmailModal ? (
+        <GmailInboxModal
+          workspaceId={workspaceId}
+          integrationId={activeGmailModal.integrationId}
+          accountEmail={activeGmailModal.email}
+          isOpen={Boolean(activeGmailModal)}
+          onClose={() => setActiveGmailModal(null)}
+        />
+      ) : null}
+
+      {/* Custom API Modal */}
+      <CustomApiModal
+        workspaceId={workspaceId}
+        isOpen={isCustomApiModalOpen}
+        onClose={() => setIsCustomApiModalOpen(false)}
+      />
+
+      {/* Sync & Activity Log Modal — scoped to a single connected card */}
+      <Dialog
+        open={Boolean(logsCard)}
+        onOpenChange={(open) => {
+          if (!open) setLogsCard(null);
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {logsCard ? `Sync & Activity — ${logsCard.name}` : 'Sync & Activity'}
+            </DialogTitle>
+          </DialogHeader>
+          {logsCard ? (
+            (() => {
+              const info = connectedMap.get(logsCard.id.toUpperCase());
+              return info ? (
+                <IntegrationLogsView workspaceId={workspaceId} integrations={[info]} />
+              ) : null;
+            })()
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

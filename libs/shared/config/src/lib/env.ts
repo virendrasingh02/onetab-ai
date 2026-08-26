@@ -95,6 +95,13 @@ export const apiEnvSchema = z.object({
   // Default Platform Provider & Model
   AI_DEFAULT_PROVIDER: z.string().default('nvidia'),
   AI_DEFAULT_MODEL: z.string().default('nvidia/nemotron-3-super-120b-a12b'),
+
+  // Multi-App API Integration Configuration
+  ENCRYPTION_KEY: z.string().optional(),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_REDIRECT_URI: z.string().optional(),
+  CUSTOM_API_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;

@@ -115,6 +115,20 @@ export const queryKeys = {
     all: (workspaceId: string) => ['integrations', workspaceId] as const,
     list: (workspaceId: string) =>
       ['integrations', workspaceId, 'list'] as const,
+    providers: (workspaceId: string) =>
+      ['integrations', workspaceId, 'providers'] as const,
+    detail: (workspaceId: string, integrationId: string) =>
+      ['integrations', workspaceId, 'detail', integrationId] as const,
+    messages: (
+      workspaceId: string,
+      integrationId: string,
+      params?: { q?: string; pageToken?: string },
+    ) =>
+      ['integrations', workspaceId, 'messages', integrationId, params] as const,
+    thread: (workspaceId: string, integrationId: string, threadId: string) =>
+      ['integrations', workspaceId, 'thread', integrationId, threadId] as const,
+    syncJobs: (workspaceId: string, integrationId: string) =>
+      ['integrations', workspaceId, 'sync-jobs', integrationId] as const,
   },
   admin: {
     all: () => ['admin'] as const,

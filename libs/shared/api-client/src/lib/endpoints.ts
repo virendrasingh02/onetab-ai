@@ -39,6 +39,14 @@ import type {
   EnterpriseOrganization,
   ErrorTrackingReport,
   ExternalIntegration,
+  IntegrationCapabilities,
+  IntegrationMessage,
+  IntegrationThread,
+  IntegrationExecuteRequestInput,
+  IntegrationExecuteResponse,
+  IntegrationSyncJobDto,
+  ReplyMessageInput,
+  SendMessageInput,
   GeneratedReport,
   HealthStatus,
   Invitation,
@@ -1087,18 +1095,98 @@ export const integrationsApi = {
       http.get(`/workspaces/${workspaceId}/integrations`),
     ),
 
+  getProviders: (workspaceId: string) =>
+    request<IntegrationCapabilities[]>(
+      http.get(`/workspaces/${workspaceId}/integrations/providers`),
+    ),
+
+  getDetail: (workspaceId: string, integrationId: string) =>
+    request<ExternalIntegration>(
+      http.get(`/workspaces/${workspaceId}/integrations/${integrationId}`),
+    ),
+
   connect: (
     workspaceId: string,
     provider: string,
-    input: { accessToken?: string; config?: Record<string, unknown> } = {},
+    input: {
+      scopeType?: 'WORKSPACE' | 'USER';
+      accessToken?: string;
+      config?: Record<string, unknown>;
+      redirectUri?: string;
+    } = {},
   ) =>
-    request<ExternalIntegration>(
+    request<{ authUrl?: string; state?: string; id?: string } & ExternalIntegration>(
       http.post(`/workspaces/${workspaceId}/integrations/${provider}/connect`, input),
     ),
 
-  disconnect: (workspaceId: string, provider: string) =>
-    request<{ count: number }>(
-      http.delete(`/workspaces/${workspaceId}/integrations/${provider}`),
+  disconnect: (workspaceId: string, integrationId: string) =>
+    request<ExternalIntegration>(
+      http.post(`/workspaces/${workspaceId}/integrations/${integrationId}/disconnect`),
+    ),
+
+  sync: (workspaceId: string, integrationId: string) =>
+    request<{ message: string; jobId: string }>(
+      http.post(`/workspaces/${workspaceId}/integrations/${integrationId}/sync`),
+    ),
+
+  getSyncJobs: (workspaceId: string, integrationId: string) =>
+    request<IntegrationSyncJobDto[]>(
+      http.get(`/workspaces/${workspaceId}/integrations/${integrationId}/jobs`),
+    ),
+
+  getMessages: (
+    workspaceId: string,
+    integrationId: string,
+    params?: { q?: string; pageToken?: string; maxResults?: number },
+  ) =>
+    request<{ messages: IntegrationMessage[]; nextPageToken?: string }>(
+      http.get(`/workspaces/${workspaceId}/integrations/${integrationId}/messages`, {
+        params,
+      }),
+    ),
+
+  getThread: (workspaceId: string, integrationId: string, threadId: string) =>
+    request<IntegrationThread>(
+      http.get(`/workspaces/${workspaceId}/integrations/${integrationId}/threads/${threadId}`),
+    ),
+
+  sendMessage: (workspaceId: string, integrationId: string, input: SendMessageInput) =>
+    request<IntegrationMessage>(
+      http.post(`/workspaces/${workspaceId}/integrations/${integrationId}/messages`, input),
+    ),
+
+  replyMessage: (workspaceId: string, integrationId: string, input: ReplyMessageInput) =>
+    request<IntegrationMessage>(
+      http.post(`/workspaces/${workspaceId}/integrations/${integrationId}/reply`, input),
+    ),
+
+  createDraft: (workspaceId: string, integrationId: string, input: SendMessageInput) =>
+    request<IntegrationMessage>(
+      http.post(`/workspaces/${workspaceId}/integrations/${integrationId}/drafts`, input),
+    ),
+
+  modifyLabels: (
+    workspaceId: string,
+    integrationId: string,
+    messageId: string,
+    input: { addLabelIds?: string[]; removeLabelIds?: string[] },
+  ) =>
+    request<IntegrationMessage>(
+      http.patch(`/workspaces/${workspaceId}/integrations/${integrationId}/messages/${messageId}/labels`, input),
+    ),
+
+  testCustomApi: (workspaceId: string, config: Record<string, unknown>) =>
+    request<{ success: boolean; message: string; details?: unknown }>(
+      http.post(`/workspaces/${workspaceId}/integrations/custom/test`, config),
+    ),
+
+  executeCustomRequest: (
+    workspaceId: string,
+    integrationId: string,
+    input: IntegrationExecuteRequestInput,
+  ) =>
+    request<IntegrationExecuteResponse>(
+      http.post(`/workspaces/${workspaceId}/integrations/${integrationId}/custom/execute`, input),
     ),
 
   importSlack: (

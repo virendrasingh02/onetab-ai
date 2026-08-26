@@ -51,6 +51,7 @@ model User {
   workDocuments           WorkDocument[]
   workspaceMembers        WorkspaceMember[]
   ownedWorkspaces         Workspace[]              @relation("WorkspaceOwner")
+  integrations            ExternalIntegration[]
 
   @@map("users")
 }
@@ -742,18 +743,86 @@ model OrganizationSubscription {
 }
 
 model ExternalIntegration {
-  id          String    @id @default(cuid())
-  workspaceId String
-  provider    String
-  status      String    @default("CONNECTED")
-  configJson  String    @default("{}")
-  accessToken String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id                    String               @id @default(cuid())
+  workspaceId           String?
+  userId                String?
+  scopeType             String               @default("WORKSPACE")
+  provider              String
+  providerAccountId     String?
+  displayName           String?
+  status                String               @default("CONNECTED")
+  scopes                String               @default("[]")
+  encryptedAccessToken  String?
+  encryptedRefreshToken String?
+  tokenExpiresAt        DateTime?
+  metadata              String               @default("{}")
+  configJson            String               @default("{}")
+  accessToken           String?
+  lastSyncAt            DateTime?
+  lastErrorAt           DateTime?
+  lastErrorMessage      String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  workspace             Workspace?           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user                  User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncJobs              IntegrationSyncJob[]
 
   @@index([workspaceId, provider])
+  @@index([userId, provider])
   @@map("external_integrations")
+}
+
+model IntegrationWebhookEvent {
+  id           String    @id @default(cuid())
+  provider     String
+  eventId      String
+  eventType    String
+  payload      String
+  status       String    @default("RECEIVED")
+  errorMessage String?
+  processedAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@unique([provider, eventId])
+  @@index([provider, status])
+  @@map("integration_webhook_events")
+}
+
+model IntegrationSyncJob {
+  id             String              @id @default(cuid())
+  integrationId  String
+  jobType        String              @default("INCREMENTAL_SYNC")
+  status         String              @default("PENDING")
+  itemsProcessed Int                 @default(0)
+  totalItems     Int                 @default(0)
+  cursor         String?
+  errorMessage   String?
+  retryCount     Int                 @default(0)
+  maxRetries     Int                 @default(3)
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  integration    ExternalIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@index([integrationId, status])
+  @@map("integration_sync_jobs")
+}
+
+model IntegrationAuditLog {
+  id            String   @id @default(cuid())
+  integrationId String?
+  workspaceId   String?
+  userId        String?
+  action        String
+  status        String   @default("SUCCESS")
+  durationMs    Int?
+  details       String?
+  createdAt     DateTime @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@index([integrationId])
+  @@map("integration_audit_logs")
 }
 
 model ImportJob {

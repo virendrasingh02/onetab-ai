@@ -89,17 +89,4 @@ export interface WorkflowExecutionEntry extends WorkflowExecution {
   workflow: { id: string; name: string; triggerType: string };
 }
 
-/**
- * A connected third-party provider.
- *
- * No `accessToken`: the API never sends the stored credential to a browser.
- */
-export interface ExternalIntegration {
-  id: string;
-  workspaceId: string;
-  provider: string;
-  status: string;
-  configJson: string;
-  createdAt: IsoDateString;
-  updatedAt: IsoDateString;
-}
+export type { ExternalIntegration } from './integrations.js';

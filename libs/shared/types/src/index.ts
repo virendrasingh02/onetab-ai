@@ -153,3 +153,4 @@ export * from './lib/card-schema.js';
 export * from './lib/structured-event-validator.js';
 export * from './lib/analytics.js';
 export * from './lib/marketplace.js';
+export * from './lib/integrations.js';
