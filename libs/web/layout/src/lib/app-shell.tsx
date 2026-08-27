@@ -8,7 +8,6 @@ import {
   FocusModeWidget,
   HuddleDock,
   LoadingState,
-  ScrollArea,
   Sheet,
   SheetContent,
   SheetTitle,
@@ -294,16 +293,13 @@ export function AppShell() {
               definite to resolve against inside a scrolled content box.
             */}
             <main className="min-w-0 flex flex-1 flex-col overflow-hidden">
-              <ScrollArea
-                className="min-h-0 flex-1"
-                contentClassName="flex min-h-full flex-col p-3 sm:p-4 lg:p-6"
-              >
+              <div className="min-h-0 flex-1 overflow-y-auto flex min-h-full flex-col p-3 sm:p-4 lg:p-6">
                 <ErrorBoundary resetKeys={[location.pathname]}>
                   <Suspense fallback={<LoadingState fullPage />}>
                     <Outlet />
                   </Suspense>
                 </ErrorBoundary>
-              </ScrollArea>
+              </div>
             </main>
           </div>
 

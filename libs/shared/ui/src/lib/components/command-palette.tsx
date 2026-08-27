@@ -158,6 +158,17 @@ export function CommandPalette({
       },
     },
     {
+      id: 'invitations',
+      category: 'Team',
+      label: 'Invite People & Shareable Links',
+      icon: <Users className="size-4 text-primary" />,
+      shortcut: 'I',
+      action: () => {
+        onOpenChange(false);
+        navigate('invitations');
+      },
+    },
+    {
       id: 'design-system',
       category: 'Design System',
       label: 'Open Design System Studio & Component Explorer',

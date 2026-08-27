@@ -19,6 +19,8 @@ import { useWorkspaceStore, type WorkspaceState } from '@org/web-workspace';
 import {
   Check,
   ChevronDown,
+  Mail,
+  MailPlus,
   PanelLeft,
   Plus,
   Settings,
@@ -99,6 +101,19 @@ export function WorkspaceMenu({
     });
   }, [workspaces, searchQuery, userEmail]);
 
+  // Group filtered workspaces by their associated email
+  const groupedWorkspaces = useMemo(() => {
+    const groups: Record<string, WorkspaceSummary[]> = {};
+    for (const ws of filteredWorkspaces) {
+      const email = ws.email || userEmail || 'Other Accounts';
+      if (!groups[email]) {
+        groups[email] = [];
+      }
+      groups[email].push(ws);
+    }
+    return groups;
+  }, [filteredWorkspaces, userEmail]);
+
   const handleOpenManageAccounts = () => {
     setMenuOpen(false);
     if (onManageAccounts) {
@@ -159,7 +174,7 @@ export function WorkspaceMenu({
               />
             </span>
 
-            {/* Workspace Name & Associated Email Stacked (Slack style) */}
+            {/* Workspace Name */}
             <span className="min-w-0 leading-tight flex flex-1 flex-col justify-center">
               <span className="font-semibold tracking-tight text-xs sm:text-sm gap-1 flex items-center truncate text-foreground">
                 <span className="truncate">{current.name}</span>
@@ -168,11 +183,6 @@ export function WorkspaceMenu({
                   aria-hidden
                 />
               </span>
-              {currentEmail && (
-                <span className="text-[11px] text-muted-foreground truncate">
-                  {currentEmail}
-                </span>
-              )}
             </span>
           </button>
         </DropdownMenuTrigger>
@@ -205,76 +215,116 @@ export function WorkspaceMenu({
             </div>
           )}
 
-          {/* Workspaces List */}
-          <div className="space-y-0.5 my-1 max-h-60 overflow-y-auto">
+          {/* Workspaces List Grouped by Email */}
+          <div className="space-y-2 my-1 max-h-64 overflow-y-auto pr-0.5">
             {filteredWorkspaces.length === 0 ? (
               <div className="p-3 text-xs text-center text-muted-foreground">
                 No matching workspaces
               </div>
             ) : (
-              filteredWorkspaces.map((workspace) => {
-                const isSelected = workspace.id === current.id;
-                const indicator = workspaceActivity?.[workspace.id];
-                const wsEmail = workspace.email || userEmail;
+              Object.entries(groupedWorkspaces).map(([groupEmail, groupWorkspaces]) => (
+                <div key={groupEmail} className="space-y-1">
+                  {/* Email Group Header */}
+                  <div className="px-2 pt-1 pb-0.5 text-[10px] font-semibold text-muted-foreground/80 flex items-center gap-1.5 uppercase tracking-wider border-t border-border/40 first:border-t-0 first:pt-0">
+                    <Mail className="size-3 text-muted-foreground/70 shrink-0" />
+                    <span className="truncate">{groupEmail}</span>
+                  </div>
 
-                return (
-                  <DropdownMenuItem
-                    key={workspace.id}
-                    asChild
-                    aria-current={isSelected ? 'true' : undefined}
-                    className={cn(
-                      'gap-2.5 px-2 py-1.5 text-xs flex cursor-pointer items-center rounded-lg transition-colors',
-                      isSelected
-                        ? 'font-medium border border-primary/20 bg-primary/10 text-foreground'
-                        : 'hover:bg-accent/60',
-                    )}
-                  >
-                    <Link to={`/w/${workspace.slug}`}>
-                      <WorkspaceAvatar
-                        name={workspace.name}
-                        src={workspace.avatarUrl}
-                        icon={workspace.icon}
-                        iconColor={workspace.iconColor}
-                        seed={workspace.id}
-                        size="sm"
-                        className="shrink-0 rounded-sm"
-                      />
+                  {/* Workspaces in this Email Group */}
+                  <div className="space-y-0.5">
+                    {groupWorkspaces.map((workspace) => {
+                      const isSelected = workspace.id === current.id;
+                      const indicator = workspaceActivity?.[workspace.id];
 
-                      {/* Name and email visually grouped */}
-                      <span className="min-w-0 leading-tight flex-1">
-                        <span className="font-semibold block truncate text-foreground">
-                          {workspace.name}
-                        </span>
-                        {wsEmail ? (
-                          <span className="font-normal block truncate text-[10px] text-muted-foreground">
-                            {wsEmail}
-                          </span>
-                        ) : (
-                          <span className="font-normal block truncate text-[10px] text-muted-foreground">
-                            {workspace.memberCount} member
-                            {workspace.memberCount === 1 ? '' : 's'}
-                          </span>
-                        )}
-                      </span>
+                      return (
+                        <div
+                          key={workspace.id}
+                          className={cn(
+                            'group/ws-row gap-2 px-2 py-1 text-xs flex items-center justify-between rounded-lg transition-colors',
+                            isSelected
+                              ? 'font-medium border border-primary/20 bg-primary/10 text-foreground'
+                              : 'hover:bg-accent/60',
+                          )}
+                        >
+                          <DropdownMenuItem
+                            asChild
+                            aria-current={isSelected ? 'true' : undefined}
+                            className="p-0 flex-1 hover:bg-transparent focus:bg-transparent cursor-pointer"
+                          >
+                            <Link
+                              to={`/w/${workspace.slug}`}
+                              className="gap-2.5 flex items-center flex-1 min-w-0 outline-none"
+                            >
+                              <WorkspaceAvatar
+                                name={workspace.name}
+                                src={workspace.avatarUrl}
+                                icon={workspace.icon}
+                                iconColor={workspace.iconColor}
+                                seed={workspace.id}
+                                size="sm"
+                                className="shrink-0 rounded-sm"
+                              />
 
-                      {/* Active check / mention indicator */}
-                      <span className="gap-1.5 ml-auto flex shrink-0 items-center">
-                        <ActivityDot
-                          level={indicator?.level ?? 'none'}
-                          count={indicator?.mentionCount}
-                        />
-                        {isSelected ? (
-                          <Check className="size-4 shrink-0 text-primary" />
-                        ) : null}
-                      </span>
-                    </Link>
-                  </DropdownMenuItem>
-                );
-              })
+                              <span className="min-w-0 leading-tight flex-1">
+                                <span className="font-semibold block truncate text-foreground">
+                                  {workspace.name}
+                                </span>
+                                <span className="font-normal block truncate text-[10px] text-muted-foreground">
+                                  {workspace.memberCount} member
+                                  {workspace.memberCount === 1 ? '' : 's'}
+                                </span>
+                              </span>
+                            </Link>
+                          </DropdownMenuItem>
+
+                          {/* Action controls for this specific workspace */}
+                          <div className="flex items-center gap-1 shrink-0">
+                            {/* Invitation button specifically for this workspace */}
+                            <Link
+                              to={`/w/${workspace.slug}/invitations`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMenuOpen(false);
+                              }}
+                              title={`Invite people to ${workspace.name}`}
+                              className="size-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-primary/15 transition-colors opacity-70 group-hover/ws-row:opacity-100"
+                            >
+                              <MailPlus className="size-3.5" />
+                            </Link>
+
+                            <ActivityDot
+                              level={indicator?.level ?? 'none'}
+                              count={indicator?.mentionCount}
+                            />
+                            {isSelected ? (
+                              <Check className="size-3.5 shrink-0 text-primary" />
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
             )}
           </div>
 
           <DropdownMenuSeparator className="my-1 border-border/60" />
+
+          {/* Action: Invite to Current Workspace */}
+          <DropdownMenuItem
+            asChild
+            className="gap-2.5 px-2 py-1.5 text-xs flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
+          >
+            <Link to={`/w/${current.slug}/invitations`}>
+              <span className="size-5 flex shrink-0 items-center justify-center rounded-md border border-primary/30 bg-primary/10 text-primary">
+                <MailPlus className="size-3" />
+              </span>
+              <span className="font-medium text-foreground">
+                Invite to {current.name}
+              </span>
+            </Link>
+          </DropdownMenuItem>
 
           {/* Action: Add another account */}
           <DropdownMenuItem

@@ -213,6 +213,7 @@ export function App() {
         <Route path="/auth/callback" element={<DesktopAuthCallbackPage />} />
         <Route path="/auth/device" element={<MobileDeviceConfirmPage />} />
         <Route path="/auth/pair" element={<MobileDevicePairPage />} />
+        <Route path="/invite/:token" element={<AcceptInvitationPage />} />
         <Route element={<PublicOnlyRoute />}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -222,7 +223,6 @@ export function App() {
 
         {/* --- authenticated --------------------------------------------- */}
         <Route element={<ProtectedRoute />}>
-          <Route path="/invite/:token" element={<AcceptInvitationPage />} />
           <Route path="/workspaces/new" element={<CreateWorkspacePage />} />
 
           {/*

@@ -54,6 +54,8 @@ import type {
   GeneratedReport,
   HealthStatus,
   Invitation,
+  InvitationPublicPreview,
+  InviteBatchResult,
   MarketplaceBrowseParams,
   MarketplaceCategoryCount,
   MarketplaceInstallation,
@@ -141,6 +143,9 @@ import type {
   ForgotPasswordInput,
   IconPatch,
   InviteMembersInput,
+  CreateInvitationLinkInput,
+  UpdateInvitationLinkInput,
+  DeclineInvitationInput,
   LoginInput,
   MoveTaskInput,
   PollDeviceAuthInput,
@@ -464,15 +469,30 @@ export const memberApi = {
 };
 
 export const invitationApi = {
-  list: (workspaceId: string) =>
-    request<Invitation[]>(http.get(`/workspaces/${workspaceId}/invitations`)),
+  list: (
+    workspaceId: string,
+    params?: { status?: string; search?: string; scope?: string },
+  ) =>
+    request<Invitation[]>(
+      http.get(`/workspaces/${workspaceId}/invitations`, { params }),
+    ),
 
   create: (workspaceId: string, input: InviteMembersInput) =>
-    request<{
-      invited: Invitation[];
-      alreadyMembers: string[];
-      tokens?: Record<string, string>;
-    }>(http.post(`/workspaces/${workspaceId}/invitations`, input)),
+    request<InviteBatchResult>(
+      http.post(`/workspaces/${workspaceId}/invitations`, input),
+    ),
+
+  preview: (token: string) =>
+    request<InvitationPublicPreview>(
+      http.get(`/invitations/preview/${token}`),
+    ),
+
+  resend: (workspaceId: string, invitationId: string) =>
+    request<{ invitation: Invitation; token?: string }>(
+      http.post(
+        `/workspaces/${workspaceId}/invitations/${invitationId}/resend`,
+      ),
+    ),
 
   revoke: (workspaceId: string, invitationId: string) =>
     request<void>(
@@ -480,8 +500,47 @@ export const invitationApi = {
     ),
 
   accept: (token: string) =>
-    request<{ workspaceSlug: string }>(
+    request<{ workspaceSlug: string; channelSlug?: string }>(
       http.post('/invitations/accept', { token }),
+    ),
+
+  decline: (token: string) =>
+    request<void>(http.post('/invitations/decline', { token })),
+
+  // --- Shareable Invitation Links ---
+
+  listLinks: (workspaceId: string) =>
+    request<Invitation[]>(
+      http.get(`/workspaces/${workspaceId}/invitation-links`),
+    ),
+
+  createLink: (workspaceId: string, input: CreateInvitationLinkInput) =>
+    request<{ link: Invitation; url: string; token: string }>(
+      http.post(`/workspaces/${workspaceId}/invitation-links`, input),
+    ),
+
+  updateLink: (
+    workspaceId: string,
+    linkId: string,
+    input: UpdateInvitationLinkInput,
+  ) =>
+    request<Invitation>(
+      http.patch(
+        `/workspaces/${workspaceId}/invitation-links/${linkId}`,
+        input,
+      ),
+    ),
+
+  revokeLink: (workspaceId: string, linkId: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/invitation-links/${linkId}`),
+    ),
+
+  regenerateLink: (workspaceId: string, linkId: string) =>
+    request<{ link: Invitation; url: string; token: string }>(
+      http.post(
+        `/workspaces/${workspaceId}/invitation-links/${linkId}/regenerate`,
+      ),
     ),
 };
 

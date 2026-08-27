@@ -57,11 +57,21 @@ export type ChannelVisibility =
 export const InvitationStatus = {
   PENDING: 'PENDING',
   ACCEPTED: 'ACCEPTED',
+  DECLINED: 'DECLINED',
   REVOKED: 'REVOKED',
   EXPIRED: 'EXPIRED',
 } as const;
 export type InvitationStatus =
   (typeof InvitationStatus)[keyof typeof InvitationStatus];
+
+export const InvitationScope = {
+  WORKSPACE: 'WORKSPACE',
+  TEAM: 'TEAM',
+  PROJECT: 'PROJECT',
+  CHANNEL: 'CHANNEL',
+} as const;
+export type InvitationScope =
+  (typeof InvitationScope)[keyof typeof InvitationScope];
 
 export const PresenceStatus = {
   ONLINE: 'ONLINE',

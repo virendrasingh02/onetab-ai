@@ -1,4 +1,4 @@
-import { Button, Hint, ScrollArea } from '@org/ui';
+import { Button, Hint } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   AIComposer,
@@ -84,7 +84,7 @@ export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
         </div>
       </div>
 
-      <ScrollArea className="min-h-0 flex-1" contentClassName="p-3">
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {/* A hardcoded "Recent chat — Workspace research & step parameters"
             card used to sit here, inside the live transcript and inside the
             `log` region, so screen readers announced it as part of the
@@ -116,7 +116,7 @@ export function AssistantPanel({ onClose, className }: AssistantPanelProps) {
 
           <div ref={endRef} />
         </div>
-      </ScrollArea>
+      </div>
 
       <div className="p-3 shrink-0 border-t border-border">
         <AIComposer

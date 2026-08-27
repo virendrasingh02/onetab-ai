@@ -26,6 +26,7 @@ export {
   capitalize,
   escapeRegExp,
   initials,
+  parseEmails,
   slugify,
   truncate,
 } from './lib/string.js';

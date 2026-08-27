@@ -172,13 +172,69 @@ export interface ChannelPin {
 export interface Invitation {
   id: string;
   workspaceId: string;
-  email: string;
+  email: string | null;
   role: WorkspaceRole;
   status: InvitationStatus;
   expiresAt: IsoDateString;
   acceptedAt: IsoDateString | null;
+  declinedAt?: IsoDateString | null;
+  revokedAt?: IsoDateString | null;
   createdAt: IsoDateString;
+  updatedAt?: IsoDateString;
   invitedBy: PublicUser;
+  workspace?: {
+    id: string;
+    name: string;
+    slug: string;
+    avatarUrl?: string | null;
+    icon?: string | null;
+    iconColor?: string | null;
+  } | null;
+  channelId?: string | null;
+  channel?: { id: string; name: string; slug: string } | null;
+  teamId?: string | null;
+  team?: { id: string; name: string; key: string } | null;
+  projectId?: string | null;
+  project?: { id: string; name: string; slug: string } | null;
+  message?: string | null;
+  maxUses?: number | null;
+  useCount?: number;
+  isLink?: boolean;
+  token?: string;
+}
+
+export interface InvitationPublicPreview {
+  valid: boolean;
+  status: InvitationStatus;
+  email: string | null;
+  role: WorkspaceRole;
+  expiresAt: IsoDateString;
+  message: string | null;
+  isLink: boolean;
+  workspace: {
+    id: string;
+    name: string;
+    slug: string;
+    avatarUrl: string | null;
+    icon: string | null;
+    iconColor: string | null;
+  };
+  inviter: {
+    id: string;
+    name: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  };
+  channel?: { id: string; name: string; slug: string } | null;
+  team?: { id: string; name: string; key: string } | null;
+  project?: { id: string; name: string; slug: string } | null;
+}
+
+export interface InviteBatchResult {
+  invited: Invitation[];
+  alreadyMembers: string[];
+  alreadyInvited?: string[];
+  tokens?: Record<string, string>;
 }
 
 export interface Upload {

@@ -18,6 +18,8 @@ export const AppEvent = {
   ProjectCreated: 'project.created',
   DocumentCreated: 'document.created',
   ChannelCreated: 'channel.created',
+  WorkspaceInvited: 'workspace.invited',
+  MemberJoined: 'member.joined',
 } as const;
 
 export type AppEventName = (typeof AppEvent)[keyof typeof AppEvent];

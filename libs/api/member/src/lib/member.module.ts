@@ -3,6 +3,7 @@ import { AuthModule } from '@org/api-auth';
 import {
   InvitationAcceptController,
   InvitationController,
+  InvitationLinkController,
   MemberController,
 } from './member.controller.js';
 import { MemberService } from './member.service.js';
@@ -12,6 +13,7 @@ import { MemberService } from './member.service.js';
   controllers: [
     MemberController,
     InvitationController,
+    InvitationLinkController,
     InvitationAcceptController,
   ],
   providers: [MemberService],

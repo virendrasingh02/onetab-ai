@@ -1,5 +1,4 @@
 import {
-  ScrollArea,
   Sheet,
   SheetContent,
   SheetDescription,
@@ -60,10 +59,10 @@ export function AISidebar({ isOpen, onClose }: AISidebarProps) {
           `aria-live="polite"` so replies are announced as they arrive without
           interrupting whatever the user is currently doing.
         */}
-        <ScrollArea
-          className="min-h-0 flex-1"
-          contentClassName="space-y-3 p-4"
-          viewportProps={{ 'aria-live': 'polite', 'aria-busy': chat.isThinking }}
+        <div
+          className="min-h-0 flex-1 overflow-y-auto space-y-3 p-4"
+          aria-live="polite"
+          aria-busy={chat.isThinking}
         >
           {chat.messages.map((message) => (
             <AIMessage
@@ -85,7 +84,7 @@ export function AISidebar({ isOpen, onClose }: AISidebarProps) {
           ) : null}
 
           <div ref={streamEndRef} />
-        </ScrollArea>
+        </div>
 
         {/*
           The model picker moved out of the header strip and into the composer,

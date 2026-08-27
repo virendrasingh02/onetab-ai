@@ -39,8 +39,13 @@ export const queryKeys = {
   },
   invitations: {
     all: (workspaceId: string) => ['invitations', workspaceId] as const,
-    list: (workspaceId: string) =>
-      ['invitations', workspaceId, 'list'] as const,
+    list: (
+      workspaceId: string,
+      filters?: { status?: string; search?: string; scope?: string },
+    ) => ['invitations', workspaceId, 'list', filters ?? {}] as const,
+    links: (workspaceId: string) =>
+      ['invitations', workspaceId, 'links'] as const,
+    preview: (token: string) => ['invitations', 'preview', token] as const,
   },
   analytics: {
     all: (workspaceId: string) => ['analytics', workspaceId] as const,

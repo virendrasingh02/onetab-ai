@@ -38,3 +38,12 @@ export function escapeRegExp(value: string): string {
 export function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
+
+/** Splits a pasted or comma/newline separated string of email addresses into clean tokens. */
+export function parseEmails(raw: string): string[] {
+  return raw
+    .split(/[\s,;]+/)
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+}
+

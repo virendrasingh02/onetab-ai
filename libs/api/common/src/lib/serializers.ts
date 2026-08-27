@@ -162,26 +162,68 @@ export function toChannelPin(row: ChannelPinRow): ChannelPin {
 interface InvitationRow {
   id: string;
   workspaceId: string;
-  email: string;
+  email: string | null;
   role: string;
   status: string;
   expiresAt: Date;
   acceptedAt: Date | null;
+  declinedAt?: Date | null;
+  revokedAt?: Date | null;
   createdAt: Date;
+  updatedAt?: Date;
+  channelId?: string | null;
+  teamId?: string | null;
+  projectId?: string | null;
+  message?: string | null;
+  maxUses?: number | null;
+  useCount?: number;
+  isLink?: boolean;
   invitedBy: UserRow;
+  workspace?: {
+    id: string;
+    name: string;
+    slug: string;
+    avatarUrl?: string | null;
+    icon?: string | null;
+    iconColor?: string | null;
+  } | null;
+  channel?: { id: string; name: string; slug: string } | null;
+  team?: { id: string; name: string; key: string } | null;
+  project?: { id: string; name: string; slug: string } | null;
 }
 
 export function toInvitation(row: InvitationRow): Invitation {
+  const toIso = (d: Date | string | null | undefined): string | null => {
+    if (!d) return null;
+    return typeof d === 'string' ? d : d.toISOString();
+  };
+
+  const createdIso = toIso(row.createdAt) ?? new Date().toISOString();
+
   return {
     id: row.id,
     workspaceId: row.workspaceId,
     email: row.email,
     role: row.role as Invitation['role'],
     status: row.status as Invitation['status'],
-    expiresAt: row.expiresAt.toISOString(),
-    acceptedAt: row.acceptedAt?.toISOString() ?? null,
-    createdAt: row.createdAt.toISOString(),
+    expiresAt: toIso(row.expiresAt) ?? new Date().toISOString(),
+    acceptedAt: toIso(row.acceptedAt),
+    declinedAt: toIso(row.declinedAt),
+    revokedAt: toIso(row.revokedAt),
+    createdAt: createdIso,
+    updatedAt: toIso(row.updatedAt) ?? createdIso,
     invitedBy: toPublicUser(row.invitedBy),
+    workspace: row.workspace ?? null,
+    channelId: row.channelId ?? null,
+    channel: row.channel ?? null,
+    teamId: row.teamId ?? null,
+    team: row.team ?? null,
+    projectId: row.projectId ?? null,
+    project: row.project ?? null,
+    message: row.message ?? null,
+    maxUses: row.maxUses ?? null,
+    useCount: row.useCount ?? 0,
+    isLink: row.isLink ?? false,
   };
 }
 

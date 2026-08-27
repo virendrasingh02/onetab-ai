@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -15,6 +16,7 @@ import { WorkspaceRoleGuard } from '@org/api-auth';
 import {
   AllowArchivedWorkspace,
   CurrentUser,
+  Public,
   RequireWorkspacePermissions,
   WorkspaceId,
   WorkspaceMemberRole,
@@ -23,10 +25,16 @@ import {
 import { WorkspacePermission, WorkspaceRole } from '@org/types';
 import {
   acceptInvitationSchema,
+  createInvitationLinkSchema,
+  declineInvitationSchema,
   inviteMembersSchema,
+  updateInvitationLinkSchema,
   updateMemberRoleSchema,
   type AcceptInvitationInput,
+  type CreateInvitationLinkInput,
+  type DeclineInvitationInput,
   type InviteMembersInput,
+  type UpdateInvitationLinkInput,
   type UpdateMemberRoleInput,
 } from '@org/validation';
 import { MemberService } from './member.service.js';
@@ -85,8 +93,13 @@ export class InvitationController {
 
   @Get()
   @RequireWorkspacePermissions(WorkspacePermission.MANAGE_MEMBERS)
-  list(@WorkspaceId() workspaceId: string) {
-    return this.members.listInvitations(workspaceId);
+  list(
+    @WorkspaceId() workspaceId: string,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+    @Query('scope') scope?: string,
+  ) {
+    return this.members.listInvitations(workspaceId, { status, search, scope });
   }
 
   @Post()
@@ -94,10 +107,33 @@ export class InvitationController {
   invite(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
+    @WorkspaceMemberRole() actorRole: WorkspaceRole,
     @Body(zodBody(inviteMembersSchema)) body: InviteMembersInput,
   ) {
     const includeTokens = this.config.get('NODE_ENV') !== 'production';
-    return this.members.invite(workspaceId, userId, body, includeTokens);
+    return this.members.invite(
+      workspaceId,
+      userId,
+      actorRole,
+      body,
+      includeTokens,
+    );
+  }
+
+  @Post(':invitationId/resend')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_MEMBERS)
+  resend(
+    @WorkspaceId() workspaceId: string,
+    @WorkspaceMemberRole() actorRole: WorkspaceRole,
+    @Param('invitationId') invitationId: string,
+  ) {
+    const includeTokens = this.config.get('NODE_ENV') !== 'production';
+    return this.members.resendInvitation(
+      workspaceId,
+      actorRole,
+      invitationId,
+      includeTokens,
+    );
   }
 
   @Delete(':invitationId')
@@ -105,19 +141,94 @@ export class InvitationController {
   @HttpCode(HttpStatus.NO_CONTENT)
   revoke(
     @WorkspaceId() workspaceId: string,
+    @WorkspaceMemberRole() actorRole: WorkspaceRole,
     @Param('invitationId') invitationId: string,
   ): Promise<void> {
-    return this.members.revokeInvitation(workspaceId, invitationId);
+    return this.members.revokeInvitation(workspaceId, actorRole, invitationId);
+  }
+}
+
+@Controller({ path: 'workspaces/:workspaceId/invitation-links', version: '1' })
+@UseGuards(WorkspaceRoleGuard)
+export class InvitationLinkController {
+  constructor(private readonly members: MemberService) {}
+
+  @Get()
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_MEMBERS)
+  list(@WorkspaceId() workspaceId: string) {
+    return this.members.listInvitationLinks(workspaceId);
+  }
+
+  @Post()
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_MEMBERS)
+  create(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @WorkspaceMemberRole() actorRole: WorkspaceRole,
+    @Body(zodBody(createInvitationLinkSchema)) body: CreateInvitationLinkInput,
+  ) {
+    return this.members.createInvitationLink(
+      workspaceId,
+      userId,
+      actorRole,
+      body,
+    );
+  }
+
+  @Patch(':linkId')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_MEMBERS)
+  update(
+    @WorkspaceId() workspaceId: string,
+    @WorkspaceMemberRole() actorRole: WorkspaceRole,
+    @Param('linkId') linkId: string,
+    @Body(zodBody(updateInvitationLinkSchema)) body: UpdateInvitationLinkInput,
+  ) {
+    return this.members.updateInvitationLink(
+      workspaceId,
+      actorRole,
+      linkId,
+      body,
+    );
+  }
+
+  @Delete(':linkId')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_MEMBERS)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  revoke(
+    @WorkspaceId() workspaceId: string,
+    @WorkspaceMemberRole() actorRole: WorkspaceRole,
+    @Param('linkId') linkId: string,
+  ): Promise<void> {
+    return this.members.revokeInvitationLink(workspaceId, actorRole, linkId);
+  }
+
+  @Post(':linkId/regenerate')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_MEMBERS)
+  regenerate(
+    @WorkspaceId() workspaceId: string,
+    @WorkspaceMemberRole() actorRole: WorkspaceRole,
+    @Param('linkId') linkId: string,
+  ) {
+    return this.members.regenerateInvitationLink(
+      workspaceId,
+      actorRole,
+      linkId,
+    );
   }
 }
 
 /**
- * Accepting an invitation happens outside a workspace context — the caller is
- * not a member yet, so `WorkspaceRoleGuard` must not run here.
+ * Public and unauthenticated acceptance endpoints.
  */
 @Controller({ path: 'invitations', version: '1' })
 export class InvitationAcceptController {
   constructor(private readonly members: MemberService) {}
+
+  @Public()
+  @Get('preview/:token')
+  preview(@Param('token') token: string) {
+    return this.members.getInvitationPreview(token);
+  }
 
   @Post('accept')
   @HttpCode(HttpStatus.OK)
@@ -126,5 +237,12 @@ export class InvitationAcceptController {
     @Body(zodBody(acceptInvitationSchema)) body: AcceptInvitationInput,
   ) {
     return this.members.acceptInvitation(body.token, userId);
+  }
+
+  @Public()
+  @Post('decline')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  decline(@Body(zodBody(declineInvitationSchema)) body: DeclineInvitationInput) {
+    return this.members.declineInvitation(body.token);
   }
 }

@@ -116,11 +116,34 @@ export const inviteMembersSchema = z.object({
     .refine((list) => new Set(list).size === list.length, {
       message: 'Remove duplicate email addresses',
     }),
-  // See channel.schema.ts — no `.default()`, so input and output types match.
   role: workspaceRoleSchema,
+  channelId: z.string().cuid('Invalid channel ID').optional().nullable(),
+  teamId: z.string().cuid('Invalid team ID').optional().nullable(),
+  projectId: z.string().cuid('Invalid project ID').optional().nullable(),
+  message: z.string().trim().max(500, 'Message cannot exceed 500 characters').optional().nullable(),
+});
+
+export const createInvitationLinkSchema = z.object({
+  role: workspaceRoleSchema.default(WorkspaceRole.MEMBER),
+  channelId: z.string().cuid('Invalid channel ID').optional().nullable(),
+  teamId: z.string().cuid('Invalid team ID').optional().nullable(),
+  projectId: z.string().cuid('Invalid project ID').optional().nullable(),
+  maxUses: z.number().int().positive('Max uses must be greater than 0').optional().nullable(),
+  expiresInDays: z.number().int().min(0).max(365).optional().nullable(),
+});
+
+export const updateInvitationLinkSchema = z.object({
+  role: workspaceRoleSchema.optional(),
+  maxUses: z.number().int().positive().optional().nullable(),
+  expiresAt: z.string().datetime().optional().nullable(),
+  isActive: z.boolean().optional(),
 });
 
 export const acceptInvitationSchema = z.object({
+  token: z.string().min(1, 'Invitation token is required'),
+});
+
+export const declineInvitationSchema = z.object({
   token: z.string().min(1, 'Invitation token is required'),
 });
 
@@ -128,4 +151,7 @@ export type CreateWorkspaceInput = z.infer<typeof createWorkspaceSchema>;
 export type UpdateWorkspaceInput = z.infer<typeof updateWorkspaceSchema>;
 export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>;
 export type InviteMembersInput = z.infer<typeof inviteMembersSchema>;
+export type CreateInvitationLinkInput = z.infer<typeof createInvitationLinkSchema>;
+export type UpdateInvitationLinkInput = z.infer<typeof updateInvitationLinkSchema>;
 export type AcceptInvitationInput = z.infer<typeof acceptInvitationSchema>;
+export type DeclineInvitationInput = z.infer<typeof declineInvitationSchema>;

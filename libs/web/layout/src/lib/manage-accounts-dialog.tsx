@@ -16,6 +16,7 @@ import { cn } from '@org/utils';
 import {
   Building2,
   Check,
+  MailPlus,
   Plus,
   Search,
   Settings,
@@ -213,6 +214,20 @@ export function ManageAccountsDialog({
                           Switch
                         </Button>
                       )}
+
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => {
+                          onOpenChange(false);
+                          navigate(`/w/${workspace.slug}/invitations`);
+                        }}
+                        title={`Invite People to ${workspace.name}`}
+                        aria-label={`Invite people to ${workspace.name}`}
+                        className="size-7 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                      >
+                        <MailPlus className="size-3.5" />
+                      </Button>
 
                       <Button
                         variant="ghost"

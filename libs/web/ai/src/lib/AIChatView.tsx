@@ -6,7 +6,6 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  ScrollArea,
   toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -234,13 +233,8 @@ export function AIChatView() {
             </div>
           </header>
 
-          {/* `min-h-0` is what lets the transcript scroll: without it this flex
-              child refuses to shrink past its content, the `ScrollArea` never
-              gets a bounded height, and the whole page scrolls instead. */}
-          <ScrollArea
-            className="max-w-3xl min-h-0 w-full flex-1"
-            contentClassName="px-4"
-          >
+          {/* Native scroll container without SimpleBar */}
+          <div className="max-w-3xl min-h-0 w-full flex-1 overflow-y-auto px-4">
             <div
               role="log"
               aria-live="polite"
@@ -263,7 +257,7 @@ export function AIChatView() {
 
               <div ref={streamEndRef} />
             </div>
-          </ScrollArea>
+          </div>
 
           <div className="max-w-3xl px-4 pt-3 pb-1 w-full shrink-0">
             {composer}

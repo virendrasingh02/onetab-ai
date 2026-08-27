@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { WorkspaceRole, WorkspaceStatus, type WorkspaceSummary } from '@org/types';
 import { render, screen } from '@testing-library/react';
@@ -67,7 +68,7 @@ const mockWorkspaces: WorkspaceSummary[] = [
 ];
 
 describe('WorkspaceMenu / Switcher', () => {
-  it('renders current workspace name and associated email stacked in the header trigger', () => {
+  it('renders current workspace name in the header trigger', () => {
     render(
       <MemoryRouter>
         <WorkspaceMenu
@@ -79,11 +80,10 @@ describe('WorkspaceMenu / Switcher', () => {
     );
 
     const trigger = screen.getByRole('button', {
-      name: /Current workspace: Mie Team \(virendra@mie\.ai\)/i,
+      name: /Current workspace: Mie Team/i,
     });
     expect(trigger).toBeInTheDocument();
     expect(screen.getByText('Mie Team')).toBeInTheDocument();
-    expect(screen.getByText('virendra@mie.ai')).toBeInTheDocument();
   });
 
   it('opens switcher dropdown on click, displays all workspaces with their associated emails, and filters by search', async () => {
@@ -118,6 +118,26 @@ describe('WorkspaceMenu / Switcher', () => {
 
     expect(screen.getByText('Acme Corp')).toBeInTheDocument();
     expect(screen.queryByText('Personal Space')).toBeNull();
+  });
+
+  it('renders workspace-specific invitation button and current workspace invite action', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <WorkspaceMenu
+          workspaces={mockWorkspaces}
+          current={mockWorkspaces[0]}
+          userEmail="virendra@gmail.com"
+        />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: /Current workspace/i }));
+
+    expect(screen.getByText('Invite to Mie Team')).toBeInTheDocument();
+    expect(
+      screen.getByTitle('Invite people to Acme Corp'),
+    ).toBeInTheDocument();
   });
 
   it('supports action triggers for Add Another Account and Manage Accounts', async () => {

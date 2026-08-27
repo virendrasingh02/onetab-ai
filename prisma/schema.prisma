@@ -180,6 +180,7 @@ model Channel {
   matrixRoomId     String?           @unique
   members          ChannelMember[]
   pins             ChannelPin[]
+  invitations      Invitation[]
   createdBy        User              @relation("ChannelCreator", fields: [createdById], references: [id])
   workspace        Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   recentActivities RecentActivity[]
@@ -236,21 +237,36 @@ model ChannelPin {
 model Invitation {
   id          String           @id @default(cuid())
   workspaceId String
-  email       String
+  email       String?
   role        WorkspaceRole    @default(MEMBER)
-  /// SHA-256 of the emailed token. The plaintext is never stored.
+  /// SHA-256 of the emailed token or shareable link token. The plaintext is never stored.
   tokenHash   String           @unique
   status      InvitationStatus @default(PENDING)
   expiresAt   DateTime
   acceptedAt  DateTime?
+  declinedAt  DateTime?
   revokedAt   DateTime?
   invitedById String
+  channelId   String?
+  teamId      String?
+  projectId   String?
+  message     String?
+  maxUses     Int?
+  useCount    Int              @default(0)
+  isLink      Boolean          @default(false)
   createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @default(now()) @updatedAt
   invitedBy   User             @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
   workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  channel     Channel?         @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  team        Team?            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  project     Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  @@unique([workspaceId, email])
+  @@index([workspaceId, email])
   @@index([workspaceId, status])
+  @@index([channelId])
+  @@index([teamId])
+  @@index([projectId])
   @@map("invitations")
 }
 
@@ -458,6 +474,7 @@ model Team {
   savedViews   SavedView[]
   intakeRequests IntakeRequest[]
   tasks        Task[]
+  invitations  Invitation[]
 
   @@unique([workspaceId, key])
   @@index([workspaceId])
@@ -525,6 +542,7 @@ model Project {
   intakeRequests       IntakeRequest[]
   updates              ProjectUpdate[]
   tasks                Task[]
+  invitations          Invitation[]
   /// Full-text index over name/description. Generated column — see the migration.
   searchVector         Unsupported("tsvector")?
 
@@ -1412,6 +1430,7 @@ enum ChannelVisibility {
 enum InvitationStatus {
   PENDING
   ACCEPTED
+  DECLINED
   REVOKED
   EXPIRED
 }

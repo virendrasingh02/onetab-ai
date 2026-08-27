@@ -34,7 +34,6 @@ import {
   SelectTrigger,
   SelectValue,
   SkeletonList,
-  Textarea,
   UserAvatar,
 } from '@org/ui';
 import { formatRelative } from '@org/utils';
@@ -56,6 +55,7 @@ import {
   Users,
 } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTransferOwnership } from '../use-workspaces.js';
 import { UpgradePlanBanner } from './upgrade-plan-banner.js';
 
@@ -135,19 +135,7 @@ export function WorkspaceMembersSettings({
     },
   });
 
-  const inviteMutation = useMutation({
-    mutationFn: (input: { emails: string[]; role: WorkspaceRole }) =>
-      invitationApi.create(workspaceId as string, input),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.invitations.all(workspaceId ?? ''),
-      });
-      setIsInviteModalOpen(false);
-      setInviteEmails('');
-      setInviteSuccessMessage('Invitations dispatched successfully!');
-      setTimeout(() => setInviteSuccessMessage(null), 4000);
-    },
-  });
+  const navigate = useNavigate();
 
   const revokeInvitationMutation = useMutation({
     mutationFn: (invitationId: string) =>
@@ -173,11 +161,6 @@ export function WorkspaceMembersSettings({
   >(null);
 
   // Dialog States
-  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-  const [inviteEmails, setInviteEmails] = useState('');
-  const [inviteRole, setInviteRole] = useState<WorkspaceRole>(
-    WorkspaceRole.MEMBER,
-  );
   const [memberToRemove, setMemberToRemove] = useState<WorkspaceMember | null>(
     null,
   );
@@ -217,18 +200,27 @@ export function WorkspaceMembersSettings({
     });
   }, [membersList, searchQuery, roleFilter]);
 
-  const handleCopyInviteLink = () => {
-    const inviteUrl = `${window.location.origin}/w/${workspaceSlug}/join`;
-    navigator.clipboard.writeText(inviteUrl);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2500);
-  };
-
-  const handleSendInvitations = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const emails = parseEmails(inviteEmails);
-    if (emails.length === 0) return;
-    inviteMutation.mutate({ emails, role: inviteRole });
+  const handleCopyInviteLink = async () => {
+    try {
+      const res = await invitationApi.createLink(workspaceId as string, {
+        role: WorkspaceRole.MEMBER,
+        expiresInDays: 30,
+      });
+      const url = `${window.location.origin}${res.url.startsWith('/') ? '' : '/'}${res.url}`;
+      navigator.clipboard.writeText(url);
+      setCopiedLink(true);
+      setInviteSuccessMessage('Shareable invitation link copied to clipboard!');
+      setTimeout(() => {
+        setCopiedLink(false);
+        setInviteSuccessMessage(null);
+      }, 3000);
+    } catch {
+      // Fallback
+      const url = `${window.location.origin}/w/${workspaceSlug}`;
+      navigator.clipboard.writeText(url);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    }
   };
 
   return (
@@ -271,7 +263,7 @@ export function WorkspaceMembersSettings({
             <Button
               variant="primary"
               size="sm"
-              onClick={() => setIsInviteModalOpen(true)}
+              onClick={() => navigate(`/w/${workspaceSlug}/invitations`)}
               className="text-xs font-semibold shadow-xs"
             >
               <UserPlus className="size-3.5 mr-1.5" />
@@ -569,7 +561,7 @@ export function WorkspaceMembersSettings({
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => setIsInviteModalOpen(true)}
+                onClick={() => navigate(`/w/${workspaceSlug}/invitations`)}
                 className="text-xs font-semibold"
               >
                 <Plus className="size-3.5 mr-1" />
@@ -621,10 +613,12 @@ export function WorkspaceMembersSettings({
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          const link = `${window.location.origin}/w/${workspaceSlug}/join`;
+                          const link = invitation.token
+                            ? `${window.location.origin}/invite/${invitation.token}`
+                            : `${window.location.origin}/w/${workspaceSlug}/invitations`;
                           navigator.clipboard.writeText(link);
                           setInviteSuccessMessage(
-                            `Copied invitation link for ${invitation.email}`,
+                            `Copied link for ${invitation.email}`,
                           );
                           setTimeout(() => setInviteSuccessMessage(null), 3000);
                         }}
@@ -652,100 +646,6 @@ export function WorkspaceMembersSettings({
           )}
         </div>
       )}
-
-      {/* Invite Modal Dialog */}
-      <Dialog open={isInviteModalOpen} onOpenChange={setIsInviteModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UserPlus className="size-5 text-primary" />
-              Invite People to {workspaceName}
-            </DialogTitle>
-            <DialogDescription>
-              Enter one or more email addresses separated by commas or line breaks.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleSendInvitations} className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">
-                Email Addresses
-              </label>
-              <Textarea
-                rows={3}
-                placeholder="alex@example.com, sara@example.com"
-                value={inviteEmails}
-                onChange={(e) => setInviteEmails(e.target.value)}
-                className="text-xs bg-surface border-border"
-                required
-              />
-              <span className="text-[11px] text-muted-foreground">
-                {parseEmails(inviteEmails).length} recipient(s) detected
-              </span>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">
-                Workspace Role
-              </label>
-              <Select
-                value={inviteRole}
-                onValueChange={(val) => setInviteRole(val as WorkspaceRole)}
-              >
-                <SelectTrigger className="text-xs bg-surface">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={WorkspaceRole.MEMBER}>
-                    <div className="flex flex-col text-left py-0.5">
-                      <span className="font-semibold text-xs">Member</span>
-                      <span className="text-[11px] text-muted-foreground">
-                        Can view and collaborate on channels, tasks, and documents
-                      </span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value={WorkspaceRole.ADMIN}>
-                    <div className="flex flex-col text-left py-0.5">
-                      <span className="font-semibold text-xs">Admin</span>
-                      <span className="text-[11px] text-muted-foreground">
-                        Can manage members, channels, integrations, and workspace settings
-                      </span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value={WorkspaceRole.GUEST}>
-                    <div className="flex flex-col text-left py-0.5">
-                      <span className="font-semibold text-xs">Guest</span>
-                      <span className="text-[11px] text-muted-foreground">
-                        Restricted access to only specifically shared channels
-                      </span>
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <DialogFooter className="pt-2">
-              <DialogClose asChild>
-                <Button variant="ghost" size="sm">
-                  Cancel
-                </Button>
-              </DialogClose>
-              <Button
-                type="submit"
-                variant="primary"
-                size="sm"
-                disabled={
-                  parseEmails(inviteEmails).length === 0 ||
-                  inviteMutation.isPending
-                }
-                className="font-semibold"
-              >
-                {inviteMutation.isPending ? 'Sending Invites...' : 'Send Invitations'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       {/* Remove Member Confirmation Dialog */}
       <Dialog
