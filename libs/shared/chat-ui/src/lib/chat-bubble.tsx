@@ -1,7 +1,6 @@
 import type { Message, RoomMember } from '@org/types';
 import {
   Badge,
-  DatePicker,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -23,6 +22,8 @@ import {
   Calendar as CalendarIcon,
   CheckSquare,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Copy,
   FileText,
   Forward,
@@ -36,7 +37,24 @@ import {
   Smile,
   Trash2,
   UserCheck,
+  X,
 } from 'lucide-react';
+import {
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameDay,
+  isSameMonth,
+  isToday,
+  startOfMonth,
+  startOfWeek,
+  startOfYear,
+  subDays,
+  subMonths,
+  subYears,
+} from 'date-fns';
 import { useState, type ReactNode } from 'react';
 import { MarkdownMessage } from './markdown-message.js';
 import { UserProfileCard } from './user-profile-card.js';
@@ -675,18 +693,180 @@ export function ReactionPicker({
   );
 }
 
+export interface JumpToDatePickerProps {
+  selectedDate?: Date;
+  onSelectDate: (
+    target:
+      | 'today'
+      | 'yesterday'
+      | 'last_week'
+      | 'last_month'
+      | 'beginning'
+      | string,
+  ) => void;
+  onClose?: () => void;
+}
+
+export function JumpToDatePicker({
+  selectedDate = new Date(),
+  onSelectDate,
+  onClose,
+}: JumpToDatePickerProps) {
+  const [currentMonth, setCurrentMonth] = useState<Date>(selectedDate);
+
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(monthStart);
+  const startDate = startOfWeek(monthStart);
+  const endDate = endOfWeek(monthEnd);
+
+  const days = eachDayOfInterval({ start: startDate, end: endDate });
+  const weekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+  const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+  const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+
+  const presets = [
+    { label: 'Today', target: 'today', date: new Date() },
+    { label: 'Yesterday', target: 'yesterday', date: subDays(new Date(), 1) },
+    { label: 'Last 7 days', target: 'last_7_days', date: subDays(new Date(), 7) },
+    { label: 'Last 30 days', target: 'last_30_days', date: subDays(new Date(), 30) },
+    {
+      label: 'Month to date',
+      target: 'month_to_date',
+      date: startOfMonth(new Date()),
+    },
+    {
+      label: 'Last month',
+      target: 'last_month',
+      date: subMonths(startOfMonth(new Date()), 1),
+    },
+    {
+      label: 'Year to date',
+      target: 'year_to_date',
+      date: startOfYear(new Date()),
+    },
+    {
+      label: 'Last year',
+      target: 'last_year',
+      date: subYears(startOfYear(new Date()), 1),
+    },
+  ];
+
+  return (
+    <div className="flex bg-[#18181b] border border-border/80 text-foreground rounded-2xl shadow-2xl overflow-hidden select-none">
+      {/* Left Presets Column */}
+      <div className="w-36 p-3 space-y-0.5 border-r border-border/60 flex flex-col justify-center bg-surface-inset/30">
+        {presets.map((preset) => (
+          <button
+            key={preset.label}
+            type="button"
+            onClick={() => {
+              onSelectDate(preset.target);
+              onClose?.();
+            }}
+            className="w-full px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors cursor-pointer"
+          >
+            {preset.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Right Calendar Column */}
+      <div className="p-4 w-[280px]">
+        {/* Month & Year Navigation Header */}
+        <div className="mb-4 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={handlePrevMonth}
+            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors cursor-pointer"
+            aria-label="Previous month"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+          <span className="text-sm font-bold text-foreground">
+            {format(currentMonth, 'MMMM yyyy')}
+          </span>
+          <button
+            type="button"
+            onClick={handleNextMonth}
+            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors cursor-pointer"
+            aria-label="Next month"
+          >
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
+
+        {/* Weekday headers */}
+        <div className="mb-2 grid grid-cols-7 text-center">
+          {weekDays.map((day) => (
+            <span
+              key={day}
+              className="font-medium text-[11px] text-muted-foreground"
+            >
+              {day}
+            </span>
+          ))}
+        </div>
+
+        {/* Days Grid */}
+        <div className="gap-y-1 grid grid-cols-7 text-center">
+          {days.map((day) => {
+            const isSelected = selectedDate && isSameDay(day, selectedDate);
+            const isCurrentMonth = isSameMonth(day, currentMonth);
+            const isCurrentDay = isToday(day);
+
+            return (
+              <div
+                key={day.toISOString()}
+                className="flex items-center justify-center p-0.5"
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    const formatted = format(day, 'yyyy-MM-dd');
+                    onSelectDate(formatted);
+                    onClose?.();
+                  }}
+                  className={cn(
+                    'size-7 text-xs flex items-center justify-center rounded-lg transition-all cursor-pointer font-medium',
+                    !isCurrentMonth &&
+                      'text-muted-foreground/30 hover:text-muted-foreground/60',
+                    isCurrentMonth &&
+                      !isSelected &&
+                      'text-foreground hover:bg-white/10',
+                    isCurrentDay &&
+                      !isSelected &&
+                      'text-sky-400 font-semibold ring-1 ring-sky-500/40',
+                    isSelected &&
+                      'bg-white text-black font-bold shadow-md hover:bg-white/90',
+                  )}
+                >
+                  {format(day, 'd')}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export interface DateSeparatorProps {
   timestamp: number;
   onJumpToDate?: (
     target:
-      'today' | 'yesterday' | 'last_week' | 'last_month' | 'beginning' | string,
+      | 'today'
+      | 'yesterday'
+      | 'last_week'
+      | 'last_month'
+      | 'beginning'
+      | string,
   ) => void;
 }
 
 export function DateSeparator({ timestamp, onJumpToDate }: DateSeparatorProps) {
-  const [customDate, setCustomDate] = useState<string | undefined>(undefined);
-  const [pickerOpen, setPickerOpen] = useState(false);
-
+  const [open, setOpen] = useState(false);
   const date = new Date(timestamp);
   const today = new Date();
   const yesterday = new Date(today.getTime() - 86_400_000);
@@ -706,91 +886,32 @@ export function DateSeparator({ timestamp, onJumpToDate }: DateSeparatorProps) {
     <div className="top-0 my-2 gap-3 px-4 py-1 sticky z-10 flex items-center">
       <span className="h-px flex-1 bg-border" aria-hidden />
 
-      {/* Date Dropdown Trigger Button */}
-      <DropdownMenu open={pickerOpen} onOpenChange={setPickerOpen}>
-        <DropdownMenuTrigger asChild>
+      {/* Date Dropdown Trigger Button with Dual Panel Popover */}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
           <button
             type="button"
-            className="gap-1.5 px-4 py-1.5 text-xs font-semibold flex items-center rounded-full border border-border bg-surface text-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="gap-1.5 px-4 py-1.5 text-xs font-semibold flex items-center rounded-full border border-border bg-surface text-foreground transition-colors hover:bg-accent hover:text-foreground cursor-pointer shadow-xs"
           >
             <span>{label}</span>
             <ChevronDown className="size-3 text-muted-foreground" />
           </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
+        </PopoverTrigger>
+        <PopoverContent
           align="center"
-          className="w-56 p-1.5 shadow-2xl border-border bg-surface-inset text-foreground"
+          sideOffset={6}
+          className="p-0 border-0 bg-transparent shadow-none w-auto"
         >
-          <DropdownMenuLabel className="px-2 py-1 font-bold text-[11px] text-muted-foreground">
-            Jump to...
-          </DropdownMenuLabel>
-
-          <DropdownMenuItem
-            onSelect={() => onJumpToDate?.('today')}
-            className="px-2.5 py-1.5 text-xs font-medium cursor-pointer rounded-md hover:bg-accent"
-          >
-            Today
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={() => onJumpToDate?.('yesterday')}
-            className="px-2.5 py-1.5 text-xs font-medium cursor-pointer rounded-md hover:bg-accent"
-          >
-            Yesterday
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={() => onJumpToDate?.('last_week')}
-            className="px-2.5 py-1.5 text-xs font-medium cursor-pointer rounded-md hover:bg-accent"
-          >
-            Last week
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={() => onJumpToDate?.('last_month')}
-            className="px-2.5 py-1.5 text-xs font-medium cursor-pointer rounded-md hover:bg-accent"
-          >
-            Last month
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={() => onJumpToDate?.('beginning')}
-            className="px-2.5 py-1.5 text-xs font-medium cursor-pointer rounded-md hover:bg-accent"
-          >
-            The very beginning
-          </DropdownMenuItem>
-
-          <DropdownMenuSeparator className="my-1 bg-border" />
-
-          <div className="p-1">
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="gap-2 px-2 py-1.5 text-xs font-medium flex w-full items-center rounded-md text-primary-text transition-colors hover:bg-primary/20"
-                >
-                  <CalendarIcon className="size-3.5" />
-                  <span>Jump to a specific date</span>
-                </button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="center"
-                className="p-3 w-auto border-border bg-surface text-foreground"
-              >
-                <p className="mb-2 text-xs font-bold text-muted-foreground">
-                  Select date
-                </p>
-                <DatePicker
-                  value={customDate}
-                  onChange={(d) => {
-                    if (d) {
-                      setCustomDate(d);
-                      onJumpToDate?.(d);
-                      setPickerOpen(false);
-                    }
-                  }}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          <JumpToDatePicker
+            selectedDate={date}
+            onSelectDate={(target) => {
+              onJumpToDate?.(target);
+              setOpen(false);
+            }}
+            onClose={() => setOpen(false)}
+          />
+        </PopoverContent>
+      </Popover>
 
       <span className="h-px flex-1 bg-border" aria-hidden />
     </div>

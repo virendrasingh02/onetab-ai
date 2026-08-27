@@ -112,20 +112,12 @@ export function ChannelDetailsPanel({
   const memberList = members.data ?? [];
   const channelAgentsApps = useChannelAgentsAndApps(workspaceId, channel.id);
 
-  /*
-   * Settings is a mode, not a tab. It is administration — archive, rename,
-   * leave — which has nothing in common with the four tabs that describe the
-   * channel, and putting it fifth in that row implied it did. It gets a toggle
-   * beside the close button instead, the way a settings affordance usually sits.
-   */
-  const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState<
     'about' | 'members' | 'apps' | 'automations'
   >(initialTab);
 
   useEffect(() => {
     setActiveTab(initialTab);
-    setShowSettings(false);
   }, [initialTab]);
 
   const ChannelIcon = channel.visibility === 'PRIVATE' ? Lock : Hash;
@@ -141,23 +133,12 @@ export function ChannelDetailsPanel({
           <span className="truncate">{channel.name}</span>
         </h2>
 
-        <Hint
-          label={showSettings ? 'Back to channel details' : 'Channel settings'}
-        >
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setShowSettings((open) => !open)}
-            aria-label="Channel settings"
-            aria-pressed={showSettings}
-            className={cn(
-              '-mt-0.5 shrink-0',
-              showSettings && 'bg-accent text-foreground',
-            )}
-          >
-            <MoreVertical className="size-4" />
-          </Button>
-        </Hint>
+        <ChannelSettingsDropdown
+          channel={channel}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+          onEditDetails={onEditDetails}
+        />
 
         <Hint label="Close panel">
           <Button
@@ -190,24 +171,16 @@ export function ChannelDetailsPanel({
         </Button>
       </div>
 
-      {showSettings ? (
-        <SettingsTab
-          channel={channel}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-          onEditDetails={onEditDetails}
-        />
-      ) : (
-        <Tabs
-          value={activeTab}
-          onValueChange={(val) =>
-            setActiveTab(
-              val as 'about' | 'members' | 'apps' | 'automations',
-            )
-          }
-          className="min-h-0 flex flex-1 flex-col"
-        >
-          <div className="px-3 shrink-0 scrollbar-none overflow-x-auto border-b border-border">
+      <Tabs
+        value={activeTab}
+        onValueChange={(val) =>
+          setActiveTab(
+            val as 'about' | 'members' | 'apps' | 'automations',
+          )
+        }
+        className="min-h-0 flex flex-1 flex-col"
+      >
+        <div className="px-3 shrink-0 scrollbar-none overflow-x-auto border-b border-border">
             <TabsList>
               <TabsTrigger value="about">About</TabsTrigger>
               <TabsTrigger value="members" className="gap-1.5">
@@ -1284,12 +1257,19 @@ function SettingsTab({
   currentUserId,
   onEditDetails,
 }: {
+function ChannelSettingsDropdown({
+  channel,
+  workspaceId,
+  currentUserId,
+  onEditDetails,
+}: {
   channel: ChannelSummary;
   workspaceId: string | undefined;
   currentUserId: string;
   onEditDetails: () => void;
 }) {
   const archive = useArchiveChannel(workspaceId);
+  const { remove } = useChannelMemberMutations(workspaceId);
   const prompts = usePromptDialog();
 
   const toggleArchive = async () => {
@@ -1308,140 +1288,158 @@ function SettingsTab({
     archive.mutate({ channelId: channel.id, archived: !channel.isArchived });
   };
 
-  return (
-    <ScrollArea className="min-h-0 flex-1" contentClassName="p-3 space-y-2">
-      <SettingRow
-        icon={Settings}
-        label="Edit channel details"
-        description="Name, topic and description"
-        onClick={onEditDetails}
-      />
+  const handleLeave = async () => {
+    const confirmed = await prompts.confirmAction({
+      title: `Leave #${channel.name}?`,
+      description:
+        'You will stop receiving messages from this channel. You can rejoin later if it is public.',
+      confirmLabel: 'Leave channel',
+      destructive: true,
+    });
+    if (!confirmed) return;
 
-      <SettingRow
-        icon={Link2}
-        label="Copy channel link"
-        description="Share this channel with a teammate"
-        onClick={() => {
-          void navigator.clipboard?.writeText(window.location.href);
-          toast.success('Link copied');
-        }}
-      />
+    remove.mutate(
+      { channelId: channel.id, userId: currentUserId },
+      {
+        onSuccess: () => toast.success(`Left #${channel.name}`),
+        onError: () => toast.error('Could not leave the channel.'),
+      },
+    );
+  };
 
-      <SettingRow
-        icon={Download}
-        label="Export channel history"
-        description="Download channel metadata and details as JSON"
-        onClick={() => {
-          const exportData = {
-            id: channel.id,
-            name: channel.name,
-            slug: channel.slug,
-            topic: channel.topic,
-            description: channel.description,
-            visibility: channel.visibility,
-            isArchived: channel.isArchived,
-            createdAt: channel.createdAt,
-            exportedAt: new Date().toISOString(),
-          };
-          const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-            type: 'application/json',
-          });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `channel-${channel.slug}-export.json`;
-          a.click();
-          URL.revokeObjectURL(url);
-          toast.success('Channel exported', {
-            description: `channel-${channel.slug}-export.json downloaded.`,
-          });
-        }}
-      />
-
-      <SettingRow
-        icon={channel.isArchived ? Bell : BellOff}
-        label={channel.isArchived ? 'Unarchive channel' : 'Archive channel'}
-        description={
-          channel.isArchived
-            ? 'Make the channel active again'
-            : 'Keep the history, close the conversation'
-        }
-        onClick={() => void toggleArchive()}
-      />
-
-      <div className="pt-1">
-        <LeaveChannelRow
-          channel={channel}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      </div>
-    </ScrollArea>
-  );
-}
-
-function SettingRow({
-  icon: Icon,
-  label,
-  description,
-  onClick,
-}: {
-  icon: LucideIcon;
-  label: string;
-  description: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'gap-2.5 p-2.5 flex w-full items-start rounded-card border border-border bg-surface-inset/40 text-left',
-        'transition-colors duration-(--duration-fast) ease-standard hover:bg-accent/50',
-        'outline-none focus-visible:ring-1 focus-visible:ring-ring',
-      )}
-    >
-      <Icon
-        className="size-4 mt-0.5 shrink-0 text-muted-foreground"
-        aria-hidden
-      />
-      <span className="min-w-0 flex-1">
-        <span className="text-xs font-medium block text-foreground">
-          {label}
-        </span>
-        <span className="block text-[11px] text-muted-foreground">
-          {description}
-        </span>
-      </span>
-    </button>
-  );
-}
-
-function LeaveChannelRow({
-  channel,
-  workspaceId,
-  currentUserId,
-}: {
-  channel: ChannelSummary;
-  workspaceId: string | undefined;
-  currentUserId: string;
-}) {
-  if (!channel.membership) return null;
+  const handleExport = () => {
+    const exportData = {
+      id: channel.id,
+      name: channel.name,
+      slug: channel.slug,
+      topic: channel.topic,
+      description: channel.description,
+      visibility: channel.visibility,
+      isArchived: channel.isArchived,
+      createdAt: channel.createdAt,
+      exportedAt: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `channel-${channel.slug}-export.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Channel exported', {
+      description: `channel-${channel.slug}-export.json downloaded.`,
+    });
+  };
 
   return (
-    <div className="p-2.5 gap-2.5 flex items-start rounded-card border border-destructive/30 bg-destructive/5">
-      <LogOut className="size-4 mt-0.5 shrink-0 text-destructive" aria-hidden />
-      <div className="min-w-0 space-y-1 flex-1">
-        <p className="text-xs font-medium text-foreground">
-          Leave this channel
-        </p>
-        <LeaveChannelButton
-          channel={channel}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      </div>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Channel settings"
+          className="-mt-0.5 shrink-0 hover:bg-accent text-muted-foreground hover:text-foreground cursor-pointer"
+        >
+          <MoreVertical className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent
+        align="end"
+        className="w-64 p-1.5 rounded-xl shadow-2xl border-border bg-surface text-foreground"
+      >
+        <DropdownMenuItem
+          onSelect={onEditDetails}
+          className="gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent"
+        >
+          <Settings className="size-4 text-muted-foreground shrink-0" />
+          <div className="flex flex-col min-w-0">
+            <span className="font-semibold text-foreground">
+              Edit channel details
+            </span>
+            <span className="text-[10px] text-muted-foreground truncate">
+              Name, topic and description
+            </span>
+          </div>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          onSelect={() => {
+            void navigator.clipboard?.writeText(window.location.href);
+            toast.success('Channel link copied to clipboard');
+          }}
+          className="gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent"
+        >
+          <Link2 className="size-4 text-muted-foreground shrink-0" />
+          <div className="flex flex-col min-w-0">
+            <span className="font-semibold text-foreground">
+              Copy channel link
+            </span>
+            <span className="text-[10px] text-muted-foreground truncate">
+              Share this channel with a teammate
+            </span>
+          </div>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          onSelect={handleExport}
+          className="gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent"
+        >
+          <Download className="size-4 text-muted-foreground shrink-0" />
+          <div className="flex flex-col min-w-0">
+            <span className="font-semibold text-foreground">
+              Export channel history
+            </span>
+            <span className="text-[10px] text-muted-foreground truncate">
+              Download channel metadata and details as JSON
+            </span>
+          </div>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          onSelect={() => void toggleArchive()}
+          className="gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent"
+        >
+          {channel.isArchived ? (
+            <Bell className="size-4 text-muted-foreground shrink-0" />
+          ) : (
+            <BellOff className="size-4 text-muted-foreground shrink-0" />
+          )}
+          <div className="flex flex-col min-w-0">
+            <span className="font-semibold text-foreground">
+              {channel.isArchived ? 'Unarchive channel' : 'Archive channel'}
+            </span>
+            <span className="text-[10px] text-muted-foreground truncate">
+              {channel.isArchived
+                ? 'Make the channel active again'
+                : 'Keep the history, close the conversation'}
+            </span>
+          </div>
+        </DropdownMenuItem>
+
+        {channel.membership && (
+          <>
+            <DropdownMenuSeparator className="my-1 bg-border/60" />
+            <DropdownMenuItem
+              onSelect={() => void handleLeave()}
+              className="gap-2.5 px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              <LogOut className="size-4 text-destructive shrink-0" />
+              <div className="flex flex-col min-w-0">
+                <span className="font-semibold text-destructive">
+                  Leave this channel
+                </span>
+                <span className="text-[10px] text-destructive/80 truncate">
+                  Leave channel
+                </span>
+              </div>
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
