@@ -483,9 +483,13 @@ describe('toRoomKind', () => {
     expect(toRoomKind(room, client)).toBe('group');
   });
 
-  it('classifies a larger room not in m.direct as a channel', () => {
-    const room = fakeDmRoom({ roomId: '!chan:x', joinedCount: 12 });
-    expect(toRoomKind(room, fakeKindClient({}))).toBe('channel');
+  it('classifies a room not in m.direct with any headcount as a channel', () => {
+    const room1 = fakeDmRoom({ roomId: '!chan:1', joinedCount: 1 });
+    const room2 = fakeDmRoom({ roomId: '!chan:2', joinedCount: 2 });
+    const room12 = fakeDmRoom({ roomId: '!chan:12', joinedCount: 12 });
+    expect(toRoomKind(room1, fakeKindClient({}))).toBe('channel');
+    expect(toRoomKind(room2, fakeKindClient({}))).toBe('channel');
+    expect(toRoomKind(room12, fakeKindClient({}))).toBe('channel');
   });
 });
 

@@ -29,6 +29,7 @@ import {
   type PresenceStatus,
 } from '@org/ui';
 import { cn } from '@org/utils';
+import { useChannels } from '@org/web-channels';
 import {
   useDirectMessagePreferences,
   useGroupDirectMessages,
@@ -448,6 +449,7 @@ export function DirectMessagesSection({
   const currentUser = useCurrentUser();
   const members = useMembers(workspaceId);
   const groups = useGroupDirectMessages();
+  const { data: channels } = useChannels(workspaceId);
   const preferences = useDirectMessagePreferences(workspaceId);
   const dndId = useId();
 
@@ -456,10 +458,40 @@ export function DirectMessagesSection({
 
   const { favoriteIds, mutedIds } = preferences;
 
+  const channelNames = useMemo(
+    () =>
+      new Set(
+        (channels ?? []).map((c) => c.name.toLowerCase().trim()),
+      ),
+    [channels],
+  );
+
+  const filteredGroups = useMemo(() => {
+    const seenRooms = new Set<string>();
+    const seenNames = new Set<string>();
+
+    return groups.filter((group) => {
+      if (!group.roomId || seenRooms.has(group.roomId)) return false;
+      const lowerName = group.name.toLowerCase().trim();
+      // If the group name matches any existing channel name, or if we've already seen this name, exclude it
+      if (channelNames.has(lowerName) || seenNames.has(lowerName)) {
+        return false;
+      }
+      seenRooms.add(group.roomId);
+      seenNames.add(lowerName);
+      return true;
+    });
+  }, [groups, channelNames]);
+
   const rawPeople = useMemo(() => {
-    const roster = (members.data ?? []).filter(
-      (member) => member.user.id !== currentUser?.id,
-    );
+    const seen = new Set<string>();
+    const roster = (members.data ?? []).filter((member) => {
+      if (member.user.id === currentUser?.id || seen.has(member.user.id)) {
+        return false;
+      }
+      seen.add(member.user.id);
+      return true;
+    });
 
     return [
       ...roster.filter((member) => favoriteIds.includes(member.user.id)),
@@ -520,7 +552,7 @@ export function DirectMessagesSection({
   return (
     <Section
       title="Direct Messages"
-      count={people.length + groups.length}
+      count={people.length + filteredGroups.length}
       action={
         <Hint label="New direct message">
           <Button
@@ -537,7 +569,7 @@ export function DirectMessagesSection({
         </Hint>
       }
     >
-      {groups.map((group) => (
+      {filteredGroups.map((group) => (
         <GroupDmRow
           key={group.roomId}
           group={group}

@@ -328,7 +328,9 @@ export function IntegrationHubView() {
         }
       } catch (err: unknown) {
         toast.error(
-          err instanceof Error ? err.message : 'Failed to start Gmail connection.',
+          err instanceof Error
+            ? err.message
+            : 'Failed to start Gmail connection.',
         );
       }
       return;
@@ -400,56 +402,6 @@ export function IntegrationHubView() {
 
       <div className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto">
-          {/* Featured AI Banner Card */}
-          {!bannerDismissed ? (
-            <div className="mb-6 p-5 relative overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-lg">
-              <button
-                type="button"
-                onClick={() => setBannerDismissed(true)}
-                className="top-3 right-3 p-1 absolute rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <X className="size-4" />
-              </button>
-
-              <div className="md:flex-row md:items-center gap-4 flex flex-col items-start justify-between">
-                <div className="space-y-2 max-w-xl">
-                  <div className="gap-2 text-xs font-bold tracking-wider flex items-center text-primary-text uppercase">
-                    <Sparkles className="size-4 text-warning-text" />
-                    <span>AI-Powered Integrations</span>
-                  </div>
-                  <h3 className="text-lg font-extrabold tracking-tight text-foreground">
-                    One-click access to AI tools in OneTab
-                  </h3>
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    A new app messaging experience makes having conversations
-                    with AI-powered agents and assistants a snap. Install apps
-                    with an assistant or agent, and put them to work today.
-                  </p>
-                  <div className="pt-1">
-                    <Button
-                      size="sm"
-                      className="font-semibold px-4 py-1.5 rounded-lg bg-success text-success-foreground shadow-sm hover:bg-success/90"
-                    >
-                      Browse agents
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Thumbnail Badge Grid */}
-                <div className="gap-2 p-3 shadow-inner flex items-center rounded-2xl border border-border bg-surface">
-                  {['🤖', '⚡', '📊', '💬', '📂'].map((icon, idx) => (
-                    <div
-                      key={idx}
-                      className="size-10 text-lg flex items-center justify-center rounded-xl border border-border bg-surface-inset shadow-sm"
-                    >
-                      {icon}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : null}
-
           {/* Filter Dropdown & App Counter Header */}
           <div className="mb-4 flex items-center justify-between">
             <DropdownMenu>
@@ -541,7 +493,8 @@ export function IntegrationHubView() {
                 const connectedInfo = connectedMap.get(card.id.toUpperCase());
                 const isConnected = Boolean(connectedInfo);
                 const logoUrl = APP_LOGOS[card.id.toLowerCase()];
-                const showQuickActions = isConnected && REAL_PROVIDERS.has(card.id);
+                const showQuickActions =
+                  isConnected && REAL_PROVIDERS.has(card.id);
 
                 return (
                   <li key={card.id}>
@@ -591,7 +544,7 @@ export function IntegrationHubView() {
                         </p>
 
                         {isConnected && connectedInfo?.displayName ? (
-                          <p className="mb-4 -mt-2 text-[11px] font-medium truncate text-muted-foreground">
+                          <p className="mb-4 -mt-2 font-medium truncate text-[11px] text-muted-foreground">
                             Connected as {connectedInfo.displayName}
                           </p>
                         ) : null}
@@ -608,7 +561,8 @@ export function IntegrationHubView() {
                                 onClick={() =>
                                   setActiveGmailModal({
                                     integrationId: connectedInfo.id,
-                                    email: connectedInfo.displayName ?? undefined,
+                                    email:
+                                      connectedInfo.displayName ?? undefined,
                                   })
                                 }
                               >
@@ -726,17 +680,22 @@ export function IntegrationHubView() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {logsCard ? `Sync & Activity — ${logsCard.name}` : 'Sync & Activity'}
+              {logsCard
+                ? `Sync & Activity — ${logsCard.name}`
+                : 'Sync & Activity'}
             </DialogTitle>
           </DialogHeader>
-          {logsCard ? (
-            (() => {
-              const info = connectedMap.get(logsCard.id.toUpperCase());
-              return info ? (
-                <IntegrationLogsView workspaceId={workspaceId} integrations={[info]} />
-              ) : null;
-            })()
-          ) : null}
+          {logsCard
+            ? (() => {
+                const info = connectedMap.get(logsCard.id.toUpperCase());
+                return info ? (
+                  <IntegrationLogsView
+                    workspaceId={workspaceId}
+                    integrations={[info]}
+                  />
+                ) : null;
+              })()
+            : null}
         </DialogContent>
       </Dialog>
     </div>

@@ -1,4 +1,5 @@
-import type { ChannelMember, ChannelSummary } from '@org/types';
+import { invitationApi, memberApi, queryKeys } from '@org/api-client';
+import type { ChannelMember, ChannelSummary, WorkspaceMember } from '@org/types';
 import {
   Badge,
   Button,
@@ -24,6 +25,7 @@ import {
   useRightPanelStore,
 } from '@org/ui';
 import { cn, formatDate } from '@org/utils';
+import { useQuery } from '@tanstack/react-query';
 import {
   Bell,
   BellOff,
@@ -32,16 +34,22 @@ import {
   ChevronDown,
   Copy,
   Download,
+  ExternalLink,
   Hash,
   Headphones,
   Info,
   Link2,
+  Loader2,
   Lock,
   LogOut,
+  MoreVertical,
   Plus,
   Search,
+  Send,
   Settings,
   Star,
+  UserMinus,
+  UserPlus,
   Workflow,
   X,
   type LucideIcon,
@@ -147,7 +155,7 @@ export function ChannelDetailsPanel({
               showSettings && 'bg-accent text-foreground',
             )}
           >
-            <Settings className="size-4" />
+            <MoreVertical className="size-4" />
           </Button>
         </Hint>
 
@@ -225,6 +233,10 @@ export function ChannelDetailsPanel({
 
           <TabsContent value="members" className="min-h-0 flex flex-1 flex-col">
             <MembersTab
+              channelId={channel.id}
+              channelName={channel.name}
+              workspaceId={workspaceId}
+              currentUserId={currentUserId}
               members={memberList}
               isLoading={members.isLoading}
               onAddPeople={onAddPeople}
@@ -772,103 +784,492 @@ function LeaveChannelButton({
 /* --------------------------------------------------------------- members --- */
 
 function MembersTab({
+  channelId,
+  channelName,
+  workspaceId,
+  currentUserId,
   members,
   isLoading,
   onAddPeople,
 }: {
+  channelId?: string;
+  channelName?: string;
+  workspaceId?: string;
+  currentUserId?: string;
   members: ChannelMember[];
   isLoading: boolean;
   onAddPeople: () => void;
 }) {
   const [query, setQuery] = useState('');
+  const [addingMemberId, setAddingMemberId] = useState<string | null>(null);
+  const [isInviting, setIsInviting] = useState(false);
   const openProfilePanel = useRightPanelStore((s) => s.openProfile);
+  const { add, remove } = useChannelMemberMutations(workspaceId);
+  const prompts = usePromptDialog();
 
-  const filtered = useMemo(() => {
+  const workspaceMembersQuery = useQuery({
+    queryKey: queryKeys.members.list(workspaceId ?? ''),
+    queryFn: () => memberApi.list(workspaceId as string),
+    enabled: !!workspaceId,
+  });
+
+  const channelMemberIds = useMemo(
+    () => new Set(members.map((m) => m.user.id)),
+    [members],
+  );
+
+  const inChannelFiltered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return members;
-    return members.filter((member) =>
-      (member.user.displayName ?? member.user.name)
-        .toLowerCase()
-        .includes(needle),
-    );
+    return members.filter((member) => {
+      const displayName = (member.user.displayName ?? '').toLowerCase();
+      const name = (member.user.name ?? '').toLowerCase();
+      const jobTitle = (
+        member.user.jobTitle ??
+        member.user.title ??
+        ''
+      ).toLowerCase();
+      return (
+        displayName.includes(needle) ||
+        name.includes(needle) ||
+        jobTitle.includes(needle)
+      );
+    });
   }, [members, query]);
+
+  const notInChannelFiltered = useMemo(() => {
+    const wsMembers = (workspaceMembersQuery.data ?? []) as WorkspaceMember[];
+    const notInChannel = wsMembers.filter(
+      (wm) => !channelMemberIds.has(wm.user.id),
+    );
+    const needle = query.trim().toLowerCase();
+    if (!needle) return notInChannel;
+    return notInChannel.filter((wm) => {
+      const displayName = (wm.user.displayName ?? '').toLowerCase();
+      const name = (wm.user.name ?? '').toLowerCase();
+      const jobTitle = (
+        wm.user.jobTitle ??
+        wm.user.title ??
+        ''
+      ).toLowerCase();
+      return (
+        displayName.includes(needle) ||
+        name.includes(needle) ||
+        jobTitle.includes(needle)
+      );
+    });
+  }, [workspaceMembersQuery.data, channelMemberIds, query]);
+
+  const isEmailLike = query.includes('@') && query.trim().length > 3;
+
+  const handleAddWorkspaceMember = (wsMember: WorkspaceMember) => {
+    if (!channelId) return;
+    setAddingMemberId(wsMember.user.id);
+    const memberName = wsMember.user.displayName ?? wsMember.user.name;
+
+    add.mutate(
+      {
+        channelId,
+        input: { userIds: [wsMember.user.id], role: 'MEMBER' },
+      },
+      {
+        onSuccess: () => {
+          setAddingMemberId(null);
+          toast.success(`Added ${memberName} to #${channelName ?? 'channel'}`);
+        },
+        onError: () => {
+          setAddingMemberId(null);
+          toast.error(`Could not add ${memberName} to channel`);
+        },
+      },
+    );
+  };
+
+  const handleInviteEmail = async () => {
+    const email = query.trim();
+    if (!email || !workspaceId) return;
+    setIsInviting(true);
+
+    try {
+      await invitationApi.create(workspaceId, {
+        emails: [email],
+        role: 'MEMBER' as any,
+        channelId: channelId,
+      });
+      setIsInviting(false);
+      setQuery('');
+      toast.success(`Invitation sent to ${email}`);
+    } catch (err: any) {
+      setIsInviting(false);
+      toast.error(err?.message || `Could not send invite to ${email}`);
+    }
+  };
+
+  const handleRemoveMember = async (member: ChannelMember) => {
+    if (!channelId) return;
+    const memberName = member.user.displayName ?? member.user.name;
+    const confirmed = await prompts.confirmAction({
+      title: `Remove ${memberName}?`,
+      description: `They will be removed from #${channelName ?? 'channel'}.`,
+      confirmLabel: 'Remove',
+      destructive: true,
+    });
+    if (!confirmed) return;
+
+    remove.mutate(
+      { channelId, userId: member.user.id },
+      {
+        onSuccess: () => toast.success(`Removed ${memberName}`),
+        onError: () => toast.error('Could not remove member.'),
+      },
+    );
+  };
 
   return (
     <div className="min-h-0 flex flex-1 flex-col">
-      <div className="p-3 gap-2 space-y-2 shrink-0">
+      <div className="p-3 space-y-2 shrink-0 border-b border-border/40">
         <div className="relative">
           <Search className="size-3.5 left-2.5 absolute top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Find members"
-            aria-label="Find members"
-            className="h-8 pl-8 text-xs"
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && isEmailLike) {
+                event.preventDefault();
+                void handleInviteEmail();
+              }
+            }}
+            placeholder="Find people or agents..."
+            aria-label="Find people or agents"
+            className="h-8 pl-8 pr-7 text-xs"
           />
+          {query ? (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/60"
+              aria-label="Clear search"
+            >
+              <X className="size-3" />
+            </button>
+          ) : null}
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
+        <button
+          type="button"
           onClick={onAddPeople}
-          className="h-8 gap-1.5 text-xs w-full"
+          className="w-full px-2.5 py-1.5 flex items-center gap-2.5 rounded-lg bg-surface border border-border hover:border-border-strong hover:bg-accent/50 text-left transition-colors cursor-pointer"
         >
-          <Plus className="size-3.5" />
-          <span>Add people</span>
-        </Button>
+          <div className="size-6 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <UserPlus className="size-3.5" />
+          </div>
+          <span className="text-xs font-semibold text-foreground">
+            Add people or agents
+          </span>
+        </button>
       </div>
 
-      <ScrollArea className="min-h-0 flex-1" contentClassName="px-3 pb-3">
+      <ScrollArea className="min-h-0 flex-1" contentClassName="px-3 py-2 space-y-3">
+        {isEmailLike ? (
+          <button
+            type="button"
+            onClick={() => void handleInviteEmail()}
+            disabled={isInviting}
+            className="w-full p-2.5 flex items-center justify-between rounded-lg bg-surface border border-primary/40 hover:bg-primary/10 hover:border-primary text-foreground transition-all cursor-pointer group"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="size-7 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                {isInviting ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Send className="size-3.5" />
+                )}
+              </div>
+              <span className="text-xs font-medium truncate">
+                Invite <span className="font-semibold text-primary">{query.trim()}</span>
+              </span>
+            </div>
+            <Badge
+              variant="outline"
+              className="text-[10px] font-mono py-0 h-4.5 px-1.5 bg-background"
+            >
+              Enter
+            </Badge>
+          </button>
+        ) : null}
+
         {isLoading ? (
           <SkeletonList rows={5} />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            size="sm"
-            title={query ? 'No one matches' : 'No members yet'}
-            description={
-              query
-                ? 'Try a different name.'
-                : 'Add people so they can read and post here.'
-            }
-          />
         ) : (
-          <ul className="space-y-0.5">
-            {filtered.map((member) => (
-              <li key={member.id}>
-                <button
-                  type="button"
-                  onClick={() =>
-                    openProfilePanel({
-                      userId: member.user.id,
-                      name: member.user.displayName ?? member.user.name,
-                      avatarUrl: member.user.avatarUrl ?? undefined,
-                      email: (member.user as any).email,
-                      role: member.role,
-                      timezone: member.user.timezone,
-                      statusEmoji: member.user.statusEmoji,
-                      statusText: member.user.statusText,
-                    })
-                  }
-                  className="gap-2.5 px-2 py-1.5 flex w-full items-center rounded-btn hover:bg-accent/60 text-left transition-colors cursor-pointer"
-                >
-                  <UserAvatar
-                    name={member.user.displayName ?? member.user.name}
-                    src={member.user.avatarUrl ?? undefined}
-                    seed={member.user.id}
-                    size="xs"
-                  />
-                  <span className="min-w-0 text-xs font-medium flex-1 truncate">
-                    {member.user.displayName ?? member.user.name}
-                  </span>
-                  {member.role === 'ADMIN' ? (
-                    <Badge variant="neutral" className="text-[10px]">
-                      Admin
-                    </Badge>
-                  ) : null}
-                </button>
-              </li>
-            ))}
-          </ul>
+          <>
+            {/* Section 1: Members in this channel */}
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold text-muted-foreground block px-1">
+                Members in this channel
+              </span>
+
+              {inChannelFiltered.length === 0 ? (
+                <p className="px-2 py-3 text-xs text-muted-foreground text-center">
+                  {query
+                    ? 'No matching members in this channel.'
+                    : 'No members yet.'}
+                </p>
+              ) : (
+                <ul className="space-y-0.5">
+                  {inChannelFiltered.map((member) => {
+                    const isSelf = member.user.id === currentUserId;
+                    const isOnline =
+                      member.user.presence === 'ONLINE' ||
+                      member.user.presence?.toLowerCase() === 'online';
+                    const displayName =
+                      member.user.displayName ?? member.user.name;
+                    const subtitle =
+                      member.user.jobTitle ||
+                      member.user.title ||
+                      member.user.statusText ||
+                      (member.role === 'ADMIN' ? 'Channel Admin' : undefined);
+
+                    return (
+                      <li key={member.id}>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() =>
+                            openProfilePanel({
+                              userId: member.user.id,
+                              name: displayName,
+                              avatarUrl: member.user.avatarUrl ?? undefined,
+                              email: (member.user as any).email,
+                              role: member.role,
+                              timezone: member.user.timezone,
+                              statusEmoji: member.user.statusEmoji,
+                              statusText: member.user.statusText,
+                              status: isOnline ? 'online' : 'offline',
+                            })
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              openProfilePanel({
+                                userId: member.user.id,
+                                name: displayName,
+                                avatarUrl: member.user.avatarUrl ?? undefined,
+                                email: (member.user as any).email,
+                                role: member.role,
+                                timezone: member.user.timezone,
+                                statusEmoji: member.user.statusEmoji,
+                                statusText: member.user.statusText,
+                                status: isOnline ? 'online' : 'offline',
+                              });
+                            }
+                          }}
+                          className="group px-2 py-1.5 flex items-center justify-between gap-2.5 rounded-lg hover:bg-accent/50 text-left transition-colors cursor-pointer"
+                        >
+                          <div className="min-w-0 flex items-center gap-2.5 flex-1">
+                            <UserAvatar
+                              name={displayName}
+                              src={member.user.avatarUrl ?? undefined}
+                              seed={member.user.id}
+                              size="md"
+                              shape="rounded"
+                              className="shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="text-xs font-semibold text-foreground truncate">
+                                  {displayName}
+                                </span>
+                                {isSelf ? (
+                                  <span className="text-[11px] text-muted-foreground shrink-0 font-normal">
+                                    (you)
+                                  </span>
+                                ) : null}
+                                <span className="shrink-0 flex items-center justify-center">
+                                  {isOnline ? (
+                                    <span
+                                      className="size-2 rounded-full bg-emerald-500"
+                                      aria-label="Online"
+                                    />
+                                  ) : (
+                                    <span
+                                      className="size-2 rounded-full border border-muted-foreground/50"
+                                      aria-label="Offline"
+                                    />
+                                  )}
+                                </span>
+                                <span className="text-xs text-muted-foreground truncate">
+                                  {member.user.name}
+                                </span>
+                              </div>
+                              {subtitle ? (
+                                <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                                  {subtitle}
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          <div
+                            className="flex items-center gap-1 shrink-0"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {member.role === 'ADMIN' ? (
+                              <Badge
+                                variant="neutral"
+                                className="text-[10px] py-0 h-4 px-1.5"
+                              >
+                                Admin
+                              </Badge>
+                            ) : null}
+
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-xs"
+                                  className="h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/70"
+                                  aria-label={`Options for ${displayName}`}
+                                >
+                                  <MoreVertical className="size-3.5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem
+                                  className="gap-2 text-xs"
+                                  onClick={() =>
+                                    openProfilePanel({
+                                      userId: member.user.id,
+                                      name: displayName,
+                                      avatarUrl:
+                                        member.user.avatarUrl ?? undefined,
+                                      email: (member.user as any).email,
+                                      role: member.role,
+                                      timezone: member.user.timezone,
+                                      statusEmoji: member.user.statusEmoji,
+                                      statusText: member.user.statusText,
+                                      status: isOnline ? 'online' : 'offline',
+                                    })
+                                  }
+                                >
+                                  <ExternalLink className="size-3.5" />
+                                  <span>View profile</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="gap-2 text-xs"
+                                  onClick={() => {
+                                    void navigator.clipboard?.writeText(
+                                      displayName,
+                                    );
+                                    toast.success('Name copied');
+                                  }}
+                                >
+                                  <Copy className="size-3.5" />
+                                  <span>Copy name</span>
+                                </DropdownMenuItem>
+                                {!isSelf && channelId ? (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      className="gap-2 text-xs text-destructive focus:text-destructive"
+                                      onClick={() =>
+                                        void handleRemoveMember(member)
+                                      }
+                                    >
+                                      <UserMinus className="size-3.5" />
+                                      <span>Remove from channel</span>
+                                    </DropdownMenuItem>
+                                  </>
+                                ) : null}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
+            {/* Section 2: Not in this channel */}
+            {notInChannelFiltered.length > 0 ? (
+              <div className="pt-2 border-t border-border space-y-1">
+                <span className="text-[11px] font-bold text-muted-foreground block px-1">
+                  Not in this channel
+                </span>
+                <ul className="space-y-0.5">
+                  {notInChannelFiltered.map((wsMember) => {
+                    const name =
+                      wsMember.user.displayName ?? wsMember.user.name;
+                    const isOnline =
+                      wsMember.user.presence === 'ONLINE' ||
+                      wsMember.user.presence?.toLowerCase() === 'online';
+                    const subtitle =
+                      wsMember.user.jobTitle ??
+                      wsMember.user.title ??
+                      wsMember.user.statusText;
+                    const isAdding = addingMemberId === wsMember.user.id;
+
+                    return (
+                      <li key={wsMember.id}>
+                        <div className="group px-2 py-1.5 flex items-center justify-between gap-2.5 rounded-lg hover:bg-accent/50 text-left transition-colors">
+                          <div className="min-w-0 flex items-center gap-2.5 flex-1">
+                            <UserAvatar
+                              name={name}
+                              src={wsMember.user.avatarUrl ?? undefined}
+                              seed={wsMember.user.id}
+                              size="md"
+                              shape="rounded"
+                              className="shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="text-xs font-semibold text-foreground truncate">
+                                  {name}
+                                </span>
+                                <span className="shrink-0 flex items-center justify-center">
+                                  {isOnline ? (
+                                    <span
+                                      className="size-2 rounded-full bg-emerald-500"
+                                      aria-label="Online"
+                                    />
+                                  ) : (
+                                    <span
+                                      className="size-2 rounded-full border border-muted-foreground/50"
+                                      aria-label="Offline"
+                                    />
+                                  )}
+                                </span>
+                                <span className="text-xs text-muted-foreground truncate">
+                                  {wsMember.user.name}
+                                </span>
+                              </div>
+                              {subtitle ? (
+                                <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                                  {subtitle}
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={isAdding || add.isPending}
+                            loading={isAdding}
+                            onClick={() => handleAddWorkspaceMember(wsMember)}
+                            className="h-7 text-xs px-2.5 shrink-0 rounded-md hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all cursor-pointer"
+                          >
+                            Add to Channel
+                          </Button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : null}
+          </>
         )}
       </ScrollArea>
     </div>

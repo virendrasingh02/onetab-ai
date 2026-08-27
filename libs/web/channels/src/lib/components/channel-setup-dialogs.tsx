@@ -1,5 +1,5 @@
-import { memberApi, queryKeys } from '@org/api-client';
-import type { ChannelSummary } from '@org/types';
+import { invitationApi, memberApi, queryKeys } from '@org/api-client';
+import type { ChannelSummary, PublicUser } from '@org/types';
 import {
   Badge,
   Button,
@@ -21,16 +21,19 @@ import {
   Bot,
   Check,
   LayoutTemplate,
+  Loader2,
   PenLine,
   Play,
   Plus,
   Search,
+  Send,
   Sparkles,
   UserPlus,
   Workflow,
+  X,
   Zap,
 } from 'lucide-react';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
   useChannelMemberMutations,
   useUpdateChannel,
@@ -60,7 +63,11 @@ export function AddPeopleDialog({
   existingMemberIds,
 }: AddPeopleDialogProps) {
   const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<PublicUser[]>([]);
+  const [selectedEmails, setSelectedEmails] = useState<string[]>([]);
+  const [focusedIndex, setFocusedIndex] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { add } = useChannelMemberMutations(workspaceId);
 
   const membersQuery = useQuery({
@@ -72,7 +79,9 @@ export function AddPeopleDialog({
   useEffect(() => {
     if (!open) {
       setSearch('');
-      setSelected([]);
+      setSelectedUsers([]);
+      setSelectedEmails([]);
+      setFocusedIndex(0);
     }
   }, [open]);
 
@@ -81,9 +90,17 @@ export function AddPeopleDialog({
     [existingMemberIds],
   );
 
+  const selectedUserIds = useMemo(
+    () => new Set(selectedUsers.map((u) => u.id)),
+    [selectedUsers],
+  );
+
   const candidates = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return (membersQuery.data ?? []).filter((member) => {
+      if (alreadyIn.has(member.user.id) || selectedUserIds.has(member.user.id)) {
+        return false;
+      }
       if (!needle) return true;
       const name = member.user.displayName ?? member.user.name;
       return (
@@ -91,145 +108,343 @@ export function AddPeopleDialog({
         member.user.name.toLowerCase().includes(needle)
       );
     });
-  }, [membersQuery.data, search]);
+  }, [membersQuery.data, alreadyIn, selectedUserIds, search]);
 
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    if (selected.length === 0) return;
+  const isEmailLike = search.includes('@') && search.trim().length > 3;
 
-    add.mutate(
-      {
-        channelId: channel.id,
-        input: { userIds: selected, role: 'MEMBER' },
-      },
-      {
-        onSuccess: () => {
-          toast.success(
-            selected.length === 1
-              ? 'Added 1 person to the channel'
-              : `Added ${selected.length} people to the channel`,
-          );
-          onOpenChange(false);
-        },
-        onError: () => toast.error('Could not add people to this channel'),
-      },
-    );
+  const selectUser = (user: PublicUser) => {
+    if (!selectedUsers.some((u) => u.id === user.id)) {
+      setSelectedUsers((prev) => [...prev, user]);
+    }
+    setSearch('');
+    setFocusedIndex(0);
+    inputRef.current?.focus();
   };
+
+  const selectEmail = (email: string) => {
+    const trimmed = email.trim();
+    if (trimmed && !selectedEmails.includes(trimmed)) {
+      setSelectedEmails((prev) => [...prev, trimmed]);
+    }
+    setSearch('');
+    setFocusedIndex(0);
+    inputRef.current?.focus();
+  };
+
+  const handleAdd = async (event?: FormEvent) => {
+    if (event) event.preventDefault();
+
+    let finalUsers = [...selectedUsers];
+    let finalEmails = [...selectedEmails];
+
+    if (isEmailLike && !finalEmails.includes(search.trim())) {
+      finalEmails.push(search.trim());
+    } else if (
+      search.trim() &&
+      candidates.length > 0 &&
+      !finalUsers.some((u) => u.id === candidates[0].user.id)
+    ) {
+      finalUsers.push(candidates[0].user);
+    }
+
+    if (finalUsers.length === 0 && finalEmails.length === 0) return;
+
+    setIsSubmitting(true);
+
+    try {
+      if (finalUsers.length > 0) {
+        await add.mutateAsync({
+          channelId: channel.id,
+          input: { userIds: finalUsers.map((u) => u.id), role: 'MEMBER' },
+        });
+      }
+
+      if (finalEmails.length > 0 && workspaceId) {
+        await invitationApi.create(workspaceId, {
+          emails: finalEmails,
+          role: 'MEMBER' as any,
+          channelId: channel.id,
+        });
+      }
+
+      const totalCount = finalUsers.length + finalEmails.length;
+      toast.success(
+        totalCount === 1
+          ? 'Added 1 person to the channel'
+          : `Added ${totalCount} people to the channel`,
+      );
+      setIsSubmitting(false);
+      onOpenChange(false);
+    } catch (err: any) {
+      setIsSubmitting(false);
+      toast.error(err?.message || 'Could not add people to this channel');
+    }
+  };
+
+  const hasItems =
+    selectedUsers.length > 0 ||
+    selectedEmails.length > 0 ||
+    search.trim().length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <form onSubmit={submit}>
-          <DialogHeader>
-            <div className="gap-2 flex items-center">
-              <div className="size-8 flex items-center justify-center rounded-lg border border-border bg-surface-raised text-primary">
-                <UserPlus className="size-4" />
-              </div>
-              <div>
-                <DialogTitle>Add people</DialogTitle>
-                <DialogDescription>
-                  Invite workspace members to #{channel.name}.
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
+      <DialogContent className="sm:max-w-lg p-0 overflow-visible gap-0 border-border bg-surface shadow-2xl rounded-2xl">
+        {/* Header */}
+        <div className="flex items-start justify-between p-5 pb-3">
+          <div>
+            <h2 className="text-base font-bold text-foreground">
+              Add people or agents to #{channel.name}
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5 font-medium">
+              #{channel.name}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
+            aria-label="Close"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
 
-          <div className="space-y-3 px-6 py-4">
-            <div className="relative">
-              <Search className="top-2.5 left-2.5 size-3.5 absolute text-muted-foreground" />
-              <Input
+        {/* Input & Autocomplete Area */}
+        <form onSubmit={handleAdd} className="px-5 pb-4 space-y-3">
+          <div className="relative">
+            <div
+              onClick={() => inputRef.current?.focus()}
+              className="min-h-12 w-full p-2 gap-1.5 flex flex-wrap items-center rounded-xl border border-border bg-surface-inset/50 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all cursor-text"
+            >
+              {selectedUsers.map((user) => (
+                <span
+                  key={user.id}
+                  className="h-7 pl-1.5 pr-2 gap-1.5 flex items-center rounded-lg bg-surface border border-border text-xs font-medium text-foreground shrink-0 select-none shadow-xs"
+                >
+                  <UserAvatar
+                    name={user.displayName ?? user.name}
+                    src={user.avatarUrl}
+                    seed={user.id}
+                    size="xs"
+                    shape="rounded"
+                  />
+                  <span className="truncate max-w-[120px]">
+                    {user.displayName ?? user.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedUsers((prev) =>
+                        prev.filter((u) => u.id !== user.id),
+                      );
+                    }}
+                    className="p-0.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/60"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </span>
+              ))}
+
+              {selectedEmails.map((email) => (
+                <span
+                  key={email}
+                  className="h-7 pl-2 pr-2 gap-1.5 flex items-center rounded-lg bg-primary/10 border border-primary/30 text-xs font-medium text-primary shrink-0 select-none shadow-xs"
+                >
+                  <Send className="size-3" />
+                  <span className="truncate max-w-[150px]">{email}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedEmails((prev) =>
+                        prev.filter((item) => item !== email),
+                      );
+                    }}
+                    className="p-0.5 rounded-full text-primary hover:bg-primary/20"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </span>
+              ))}
+
+              <input
+                ref={inputRef}
+                type="text"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search by name…"
-                aria-label="Search workspace members"
-                className="pl-8"
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setFocusedIndex(0);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Backspace' && !search) {
+                    if (selectedEmails.length > 0) {
+                      setSelectedEmails((prev) => prev.slice(0, -1));
+                    } else if (selectedUsers.length > 0) {
+                      setSelectedUsers((prev) => prev.slice(0, -1));
+                    }
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (isEmailLike) {
+                      selectEmail(search.trim());
+                    } else if (candidates.length > 0 && candidates[focusedIndex]) {
+                      selectUser(candidates[focusedIndex].user);
+                    } else if (hasItems) {
+                      void handleAdd();
+                    }
+                  } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setFocusedIndex((prev) =>
+                      Math.min(prev + 1, candidates.length - 1),
+                    );
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setFocusedIndex((prev) => Math.max(prev - 1, 0));
+                  }
+                }}
+                placeholder={
+                  selectedUsers.length === 0 && selectedEmails.length === 0
+                    ? 'ex. Nathalie, or james@acme.com'
+                    : 'Add more...'
+                }
+                className="flex-1 min-w-[160px] bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none border-none p-1"
                 autoFocus
               />
             </div>
 
-            <ScrollArea
-              className="max-h-64"
-              contentClassName="space-y-0.5 pr-1"
-            >
-              {membersQuery.isLoading ? (
-                <p className="py-6 text-xs text-center text-muted-foreground">
-                  Loading members…
-                </p>
-              ) : candidates.length === 0 ? (
-                <p className="py-6 text-xs text-center text-muted-foreground">
-                  No workspace members match that search.
-                </p>
-              ) : (
-                candidates.map((member) => {
-                  const name = member.user.displayName ?? member.user.name;
-                  const joined = alreadyIn.has(member.user.id);
-                  const isSelected = selected.includes(member.user.id);
+            {/* Dropdown suggestions popover when search query is active */}
+            {search.trim() ? (
+              <div className="absolute z-50 left-0 right-0 top-full mt-1.5 max-h-56 overflow-y-auto rounded-xl border border-border bg-surface-raised shadow-2xl p-1.5 space-y-0.5">
+                {isEmailLike ? (
+                  <button
+                    type="button"
+                    onClick={() => selectEmail(search.trim())}
+                    className="w-full px-3 py-2 flex items-center justify-between rounded-lg bg-surface hover:bg-primary/10 text-foreground transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="size-6 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                        <Send className="size-3.5" />
+                      </div>
+                      <span className="text-xs font-medium truncate">
+                        Invite{' '}
+                        <span className="font-semibold text-primary">
+                          {search.trim()}
+                        </span>
+                      </span>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] font-mono py-0 h-4 px-1.5 bg-background shrink-0"
+                    >
+                      Enter
+                    </Badge>
+                  </button>
+                ) : null}
+
+                {candidates.map((member, index) => {
+                  const isFocused = index === focusedIndex;
+                  const name =
+                    member.user.displayName ?? member.user.name;
+                  const isOnline =
+                    member.user.presence === 'ONLINE' ||
+                    member.user.presence?.toLowerCase() === 'online';
 
                   return (
                     <button
                       key={member.id}
                       type="button"
-                      disabled={joined}
-                      onClick={() =>
-                        setSelected((current) =>
-                          current.includes(member.user.id)
-                            ? current.filter((id) => id !== member.user.id)
-                            : [...current, member.user.id],
-                        )
-                      }
+                      onClick={() => selectUser(member.user)}
+                      onMouseEnter={() => setFocusedIndex(index)}
                       className={cn(
-                        'gap-2.5 px-2 py-1.5 flex w-full items-center rounded-lg text-left transition-colors',
-                        joined
-                          ? 'opacity-50'
-                          : isSelected
-                            ? 'bg-primary/15'
-                            : 'hover:bg-accent/60',
+                        'w-full px-2.5 py-1.5 flex items-center justify-between gap-2.5 rounded-lg text-left transition-colors cursor-pointer',
+                        isFocused
+                          ? 'bg-accent text-foreground'
+                          : 'hover:bg-accent/60',
                       )}
                     >
-                      <UserAvatar
-                        name={name}
-                        src={member.user.avatarUrl}
-                        seed={member.user.id}
-                        size="sm"
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="text-xs font-semibold block truncate text-foreground">
-                          {name}
-                        </span>
-                        <span className="block truncate text-[11px] text-muted-foreground">
-                          @{member.user.name}
-                        </span>
-                      </span>
-                      {joined ? (
-                        <span className="tracking-wide text-[10px] text-muted-foreground uppercase">
-                          In channel
-                        </span>
-                      ) : isSelected ? (
-                        <Check className="size-4 text-primary-text" />
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <UserAvatar
+                          name={name}
+                          src={member.user.avatarUrl}
+                          seed={member.user.id}
+                          size="sm"
+                          shape="rounded"
+                          className="shrink-0"
+                        />
+                        <div className="flex items-center gap-1.5 min-w-0 flex-1 truncate">
+                          <span className="text-xs font-semibold text-foreground truncate">
+                            {name}
+                          </span>
+                          <span className="shrink-0 flex items-center justify-center">
+                            {isOnline ? (
+                              <span className="size-1.5 rounded-full bg-emerald-500" />
+                            ) : (
+                              <span className="size-1.5 rounded-full border border-muted-foreground/60" />
+                            )}
+                          </span>
+                          <span className="text-xs text-muted-foreground truncate">
+                            {member.user.name}
+                          </span>
+                        </div>
+                      </div>
+                      {isFocused ? (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] font-mono py-0 h-4 px-1.5 bg-background shrink-0"
+                        >
+                          Enter
+                        </Badge>
                       ) : null}
                     </button>
                   );
-                })
-              )}
-            </ScrollArea>
+                })}
+
+                {!isEmailLike && candidates.length === 0 ? (
+                  <p className="py-4 text-xs text-center text-muted-foreground">
+                    No matching workspace members. Type an email address to invite them.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
+          <div className="flex justify-end pt-1">
             <Button
               type="submit"
-              disabled={selected.length === 0 || add.isPending}
+              disabled={!hasItems || isSubmitting}
+              loading={isSubmitting}
+              className="h-8 px-4 text-xs font-medium rounded-lg"
             >
-              {selected.length > 0 ? `Add ${selected.length}` : 'Add'}
+              Add
             </Button>
-          </DialogFooter>
+          </div>
         </form>
+
+        {/* Footer / Connect Banner */}
+        <div className="px-5 py-3.5 border-t border-border/60 bg-surface-inset/20 space-y-1 rounded-b-2xl">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-bold text-foreground">
+              Try OneTab Connect
+            </span>
+            <Badge className="bg-fuchsia-600/20 text-fuchsia-400 border-fuchsia-500/30 text-[10px] font-bold py-0 h-4 px-1.5 uppercase tracking-wide">
+              PRO
+            </Badge>
+          </div>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Working with external people? Simply type their email above to get started.{' '}
+            <button
+              type="button"
+              onClick={() =>
+                toast.info(
+                  'OneTab Connect is available on Enterprise and Pro plans.',
+                )
+              }
+              className="text-primary hover:underline font-medium cursor-pointer"
+            >
+              Learn more
+            </button>
+          </p>
+        </div>
       </DialogContent>
     </Dialog>
   );
