@@ -43,6 +43,7 @@ import { AddAccountDialog } from './add-account-dialog.js';
 import { AppHeader } from './app-header.js';
 import { ChannelNav } from './channel-nav.js';
 import { ManageAccountsDialog } from './manage-accounts-dialog.js';
+import { useSidebarStore } from './navigation/sidebar-store.js';
 import { ResizeHandle } from './resize-handle.js';
 import { RightPanel } from './right-panel.js';
 import { useResizableLayout } from './use-resizable-layout.js';
@@ -54,6 +55,7 @@ export function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const palette = useCommandPalette();
+  const isSidebarCollapsed = useSidebarStore((s) => s.sidebarCollapsed);
   /* Creating a channel is a dialog, so the sidebar's "+" no longer navigates
      away from whatever the user was reading. */
   const [createChannelOpen, setCreateChannelOpen] = useState(false);
@@ -201,6 +203,8 @@ export function AppShell() {
 
   const workspaces = workspacesQuery.data ?? [];
 
+  const effectiveLeftWidth = isSidebarCollapsed ? 64 : leftWidth;
+
   const channelNav = (
     <ChannelNav
       workspaceId={workspaceId}
@@ -211,12 +215,13 @@ export function AppShell() {
       channelActivity={channelActivity}
       onCreateChannel={() => setCreateChannelOpen(true)}
       onBrowseChannels={() => navigate(`/w/${slug}/channels`)}
+      isCollapsed={isSidebarCollapsed && !isMobile}
     />
   );
 
   return (
     <TooltipProvider>
-      <div className="flex h-full flex-col overflow-hidden bg-background font-sans text-foreground">
+      <div className="flex h-full flex-col overflow-hidden bg-background bg-app-gradient font-sans text-foreground">
         {/* Top Header Bar spanning full width */}
         <AppHeader
           user={user}
@@ -249,24 +254,26 @@ export function AppShell() {
           {sidebarOpen && !isMobile ? (
             <>
               <aside
-                className="group/sidebar flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-surface-muted text-sidebar-foreground"
-                style={{ width: `${leftWidth}px` }}
+                className="group/sidebar flex h-full shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-surface-muted text-sidebar-foreground transition-[width] duration-150"
+                style={{ width: `${effectiveLeftWidth}px` }}
                 aria-label="Sidebar navigation"
               >
                 <div className="min-h-0 flex flex-1 flex-col">{channelNav}</div>
               </aside>
 
-              <ResizeHandle
-                side="left"
-                isResizing={isResizing === 'left'}
-                currentWidth={leftWidth}
-                minWidth={bounds.leftMin}
-                maxWidth={bounds.leftMax}
-                onPointerDown={startLeftResize}
-                onDoubleClick={resetLeftWidth}
-                onStepWidth={stepLeftWidth}
-                onResetWidth={resetLeftWidth}
-              />
+              {!isSidebarCollapsed && (
+                <ResizeHandle
+                  side="left"
+                  isResizing={isResizing === 'left'}
+                  currentWidth={leftWidth}
+                  minWidth={bounds.leftMin}
+                  maxWidth={bounds.leftMax}
+                  onPointerDown={startLeftResize}
+                  onDoubleClick={resetLeftWidth}
+                  onStepWidth={stepLeftWidth}
+                  onResetWidth={resetLeftWidth}
+                />
+              )}
             </>
           ) : null}
 

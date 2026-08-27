@@ -47,16 +47,14 @@ import {
   Copy,
   HardDrive,
   Hash,
-  Home,
-  Inbox,
   Lock,
   Mail,
-  MessagesSquare,
   MoreHorizontal,
   Pencil,
   Pin,
   Plus,
   Share2,
+  SlidersHorizontal,
   Star,
   Users,
   Video,
@@ -68,6 +66,7 @@ import { DirectMessagesSection } from './direct-messages-section.js';
 import { DocNavRow, DocsTreeSection } from './docs-section.js';
 import {
   FavoriteToggle,
+  IconOnlyNavRow,
   navActionClass,
   navIconClass,
   navRowClass,
@@ -78,6 +77,9 @@ import {
   useCopyLink,
   type NavEntry,
 } from './nav-primitives.js';
+import { resolveNavigation } from './navigation/navigation-resolver.js';
+import { SidebarCustomizerDialog } from './navigation/sidebar-customizer-dialog.js';
+import { useSidebarStore } from './navigation/sidebar-store.js';
 import { ProjectNavRow, ProjectsTreeSection } from './projects-section.js';
 import {
   AgentNavRow,
@@ -88,13 +90,6 @@ import {
   WorkflowsSection,
 } from './resource-sections.js';
 import { useSidebarFavorites } from './use-sidebar-favorites.js';
-
-/** Fixed core destinations: Home, Inbox, Threads (permanent and never removable). */
-const CORE_LINKS: readonly NavEntry[] = [
-  { path: '', label: 'Home', icon: Home, end: true },
-  { path: 'inbox', label: 'Inbox', icon: Inbox },
-  { path: 'threads', label: 'Threads', icon: MessagesSquare },
-];
 
 /** Secondary destinations that can be pinned to the primary sidebar or accessed via More. */
 const MORE_DESTINATIONS: readonly NavEntry[] = [
@@ -361,6 +356,8 @@ export interface ChannelNavProps {
   channelActivity?: Record<string, ActivityIndicator>;
   onCreateChannel: () => void;
   onBrowseChannels: () => void;
+  /** Whether sidebar is in collapsed icon rail mode */
+  isCollapsed?: boolean;
 }
 
 export function ChannelNav({
@@ -372,6 +369,7 @@ export function ChannelNav({
   channelActivity,
   onCreateChannel,
   onBrowseChannels,
+  isCollapsed = false,
 }: ChannelNavProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -425,14 +423,17 @@ export function ChannelNav({
     [navigate, workspaceSlug],
   );
 
-  const coreLinks = useMemo(
+  const itemsPrefs = useSidebarStore((s) => s.items);
+  const customizerOpen = useSidebarStore((s) => s.customizerOpen);
+  const setCustomizerOpen = useSidebarStore((s) => s.setCustomizerOpen);
+
+  const resolvedNav = useMemo(
     () =>
-      CORE_LINKS.map((entry) =>
-        entry.path === 'inbox' && inboxUnread > 0
-          ? { ...entry, badge: inboxUnread > 99 ? '99+' : inboxUnread }
-          : entry,
-      ),
-    [inboxUnread],
+      resolveNavigation(itemsPrefs, {
+        workspaceSlug,
+        inboxUnread,
+      }),
+    [itemsPrefs, workspaceSlug, inboxUnread],
   );
 
   const pinnedSecondaryLinks = useMemo(
@@ -522,6 +523,51 @@ export function ChannelNav({
     );
   }
 
+  // --- Collapsed Sidebar View (Icon rail with tooltips) ---
+  if (isCollapsed) {
+    return (
+      <div className="min-h-0 flex h-full flex-col items-center justify-between py-2">
+        <ScrollArea
+          className="min-h-0 w-full flex-1 px-1"
+          contentClassName="flex flex-col items-center gap-1.5 py-1"
+        >
+          {resolvedNav.visibleItems.map((item) => (
+            <IconOnlyNavRow
+              key={item.id}
+              entry={{
+                path: item.href,
+                label: item.label,
+                icon: item.icon,
+                badge: item.badge ?? undefined,
+                end: item.href === '',
+              }}
+              workspaceSlug={workspaceSlug}
+            />
+          ))}
+        </ScrollArea>
+
+        <div className="pt-2 border-t border-border flex flex-col items-center gap-1.5 shrink-0 w-full">
+          <Hint side="right" label="Customize sidebar">
+            <button
+              type="button"
+              onClick={() => setCustomizerOpen(true)}
+              aria-label="Customize sidebar"
+              className="size-9 flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              <SlidersHorizontal className="size-4" />
+            </button>
+          </Hint>
+        </div>
+
+        <SidebarCustomizerDialog
+          open={customizerOpen}
+          onOpenChange={setCustomizerOpen}
+        />
+        {prompts.dialog}
+      </div>
+    );
+  }
+
   const rowProps = {
     workspaceId,
     workspaceSlug,
@@ -529,6 +575,11 @@ export function ChannelNav({
     onToggleMute: toggleMute,
     prompts,
   };
+
+  // Extract visible workspace items and any additional customized primary items
+  const primaryWorkspaceItems = resolvedNav.visibleItems.filter(
+    (item) => item.group === 'workspace',
+  );
 
   return (
     <div className="min-h-0 flex h-full flex-col">
@@ -538,10 +589,16 @@ export function ChannelNav({
       >
         <div className="space-y-4">
           <nav aria-label="Primary navigation" className="space-y-0.5 pb-2">
-            {coreLinks.map((entry) => (
+            {primaryWorkspaceItems.map((item) => (
               <NavRow
-                key={entry.label}
-                entry={entry}
+                key={item.id}
+                entry={{
+                  path: item.href,
+                  label: item.label,
+                  icon: item.icon,
+                  badge: item.badge ?? undefined,
+                  end: item.href === '',
+                }}
                 workspaceSlug={workspaceSlug}
               />
             ))}
@@ -555,87 +612,111 @@ export function ChannelNav({
               />
             ))}
 
-            <DropdownMenu modal={false}>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className={navActionClass()}
-                  aria-label="More destinations"
+            <div className="flex items-center gap-1 pt-0.5">
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className={cn(navActionClass(), 'flex-1')}
+                    aria-label="More destinations"
+                  >
+                    <MoreHorizontal className={navIconClass(0)} aria-hidden />
+                    <span className="flex-1 truncate">More</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  side="bottom"
+                  sideOffset={4}
+                  className="w-56 p-1.5"
                 >
-                  <MoreHorizontal className={navIconClass(0)} aria-hidden />
-                  <span className="flex-1 truncate">More</span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="start"
-                side="bottom"
-                sideOffset={4}
-                className="w-56 p-1.5"
-              >
-                <DropdownMenuLabel className="px-2.5 py-1 font-medium tracking-wide text-[11px] text-subtle uppercase">
-                  More destinations
-                </DropdownMenuLabel>
-                <div className="space-y-0.5 my-1">
-                  {MORE_DESTINATIONS.map((entry) => {
-                    const Icon = entry.icon;
-                    const isPinned = isNavPinned(entry.path);
-                    return (
-                      <div
-                        key={entry.path}
-                        className="group/more-row gap-1.5 px-2 py-1.5 text-xs flex items-center justify-between rounded-md text-muted-foreground hover:bg-surface-raised hover:text-foreground"
-                      >
-                        <NavLink
-                          to={`/w/${workspaceSlug}/${entry.path}`}
-                          className={({ isActive }) =>
-                            cn(
-                              'gap-2 flex flex-1 items-center outline-none',
-                              isActive && 'font-semibold text-foreground',
-                            )
-                          }
+                  <DropdownMenuLabel className="px-2.5 py-1 font-medium tracking-wide text-[11px] text-subtle uppercase">
+                    More destinations
+                  </DropdownMenuLabel>
+                  <div className="space-y-0.5 my-1">
+                    {MORE_DESTINATIONS.map((entry) => {
+                      const Icon = entry.icon;
+                      const isPinned = isNavPinned(entry.path);
+                      return (
+                        <div
+                          key={entry.path}
+                          className="group/more-row gap-1.5 px-2 py-1.5 text-xs flex items-center justify-between rounded-md text-muted-foreground hover:bg-surface-raised hover:text-foreground"
                         >
-                          <Icon className="size-4 shrink-0" aria-hidden />
-                          <span className="truncate">{entry.label}</span>
-                        </NavLink>
-                        <Hint
-                          side="right"
-                          label={
-                            isPinned ? 'Unpin from sidebar' : 'Pin to sidebar'
-                          }
-                        >
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              toggleNavPinned(entry.path);
-                            }}
-                            aria-label={
-                              isPinned
-                                ? `Unpin ${entry.label}`
-                                : `Pin ${entry.label}`
+                          <NavLink
+                            to={`/w/${workspaceSlug}/${entry.path}`}
+                            className={({ isActive }) =>
+                              cn(
+                                'gap-2 flex flex-1 items-center outline-none',
+                                isActive && 'font-semibold text-foreground',
+                              )
                             }
-                            className={cn(
-                              'size-6 flex items-center justify-center rounded-md transition-all',
-                              isPinned
-                                ? 'bg-accent/80 text-foreground opacity-100'
-                                : 'text-muted-foreground opacity-0 group-focus-within/more-row:opacity-100 group-hover/more-row:opacity-100 hover:bg-accent hover:text-foreground',
-                            )}
                           >
-                            <Pin
+                            <Icon className="size-4 shrink-0" aria-hidden />
+                            <span className="truncate">{entry.label}</span>
+                          </NavLink>
+                          <Hint
+                            side="right"
+                            label={
+                              isPinned ? 'Unpin from sidebar' : 'Pin to sidebar'
+                            }
+                          >
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                toggleNavPinned(entry.path);
+                              }}
+                              aria-label={
+                                isPinned
+                                  ? `Unpin ${entry.label}`
+                                  : `Pin ${entry.label}`
+                              }
                               className={cn(
-                                'size-3.5',
-                                isPinned &&
-                                  'rotate-45 fill-current text-foreground',
+                                'size-6 flex items-center justify-center rounded-md transition-all',
+                                isPinned
+                                  ? 'bg-accent/80 text-foreground opacity-100'
+                                  : 'text-muted-foreground opacity-0 group-focus-within/more-row:opacity-100 group-hover/more-row:opacity-100 hover:bg-accent hover:text-foreground',
                               )}
-                            />
-                          </button>
-                        </Hint>
-                      </div>
-                    );
-                  })}
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                            >
+                              <Pin
+                                className={cn(
+                                  'size-3.5',
+                                  isPinned &&
+                                    'rotate-45 fill-current text-foreground',
+                                )}
+                              />
+                            </button>
+                          </Hint>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuItem
+                    onSelect={() => setCustomizerOpen(true)}
+                    className="gap-2 text-xs"
+                  >
+                    <SlidersHorizontal className="size-3.5" />
+                    <span>Customize Sidebar</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Hint label="Customize navigation">
+                <button
+                  type="button"
+                  onClick={() => setCustomizerOpen(true)}
+                  aria-label="Customize sidebar navigation"
+                  className="size-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                >
+                  <SlidersHorizontal className="size-3.5" />
+                </button>
+              </Hint>
+            </div>
           </nav>
+
 
           <div>
             <Section
@@ -904,6 +985,11 @@ export function ChannelNav({
           onNewChat={startNewChat}
         />
       </div>
+
+      <SidebarCustomizerDialog
+        open={customizerOpen}
+        onOpenChange={setCustomizerOpen}
+      />
 
       {prompts.dialog}
     </div>

@@ -199,6 +199,53 @@ export function NavRow({
   );
 }
 
+export function IconOnlyNavRow({
+  entry,
+  workspaceSlug,
+  isActive,
+  onClick,
+}: {
+  entry: NavEntry;
+  workspaceSlug: string;
+  isActive?: boolean;
+  onClick?: () => void;
+}) {
+  const Icon = entry.icon;
+  const to = entry.path
+    ? `/w/${workspaceSlug}/${entry.path}`
+    : `/w/${workspaceSlug}`;
+
+  const tooltipText = entry.badge !== undefined
+    ? `${entry.label} (${entry.badge})`
+    : entry.label;
+
+  return (
+    <Hint side="right" label={tooltipText}>
+      <NavLink
+        to={to}
+        end={entry.end}
+        onClick={onClick}
+        className={({ isActive: linkActive }) => {
+          const active = isActive ?? linkActive;
+          return cn(
+            'relative size-9 flex items-center justify-center rounded-xl transition-all duration-150',
+            'outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer',
+            active
+              ? 'bg-accent text-foreground shadow-2xs font-semibold'
+              : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground',
+          );
+        }}
+      >
+        <Icon className="size-4 shrink-0" aria-hidden />
+        {entry.badge !== undefined && (
+          <span className="absolute top-1 right-1 size-2 rounded-full bg-primary ring-2 ring-background" />
+        )}
+      </NavLink>
+    </Hint>
+  );
+}
+
+
 /**
  * Section container. Wraps a titled group of rows (Favorites, Channels, DMs,
  * Projects) in a `Collapsible` box so people can collapse what they are not using.

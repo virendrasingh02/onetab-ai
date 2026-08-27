@@ -145,8 +145,14 @@
   --color-sidebar-muted: var(--sidebar-muted);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-active-foreground: var(--sidebar-active-foreground);
+  --color-sidebar-hover: var(--sidebar-hover);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  --background-image-app-gradient: var(--app-gradient);
+  --background-image-surface-gradient: var(--surface-gradient);
 
   --radius-xs: 4px;
   --radius-sm: 6px;
@@ -343,8 +349,24 @@
   --sidebar-muted: #67766f;
   --sidebar-accent: #f1f0ec;
   --sidebar-accent-foreground: #11271f;
+  --sidebar-active: #e6ede8;
+  --sidebar-active-foreground: #11271f;
+  --sidebar-hover: #f1f0ec;
   --sidebar-border: #eeece6;
   --sidebar-ring: #037152;
+
+  --app-gradient: radial-gradient(
+      circle at 0% 0%,
+      color-mix(in oklch, var(--primary) 7%, transparent) 0%,
+      transparent 35%
+    ),
+    radial-gradient(
+      circle at 100% 0%,
+      color-mix(in oklch, var(--accent-blue) 6%, transparent) 0%,
+      transparent 30%
+    ),
+    var(--background);
+  --surface-gradient: linear-gradient(180deg, var(--surface) 0%, var(--surface-muted) 100%);
 
   /*
    * Elevation stays quiet: a tight contact shadow plus a wider, very low-alpha
@@ -456,8 +478,24 @@
   --sidebar-muted: #aeaeae;
   --sidebar-accent: #1c1c1c;
   --sidebar-accent-foreground: #fafafa;
+  --sidebar-active: #0d2c21;
+  --sidebar-active-foreground: #fafafa;
+  --sidebar-hover: #1c1c1c;
   --sidebar-border: #2e2e2e;
   --sidebar-ring: #60c686;
+
+  --app-gradient: radial-gradient(
+      circle at 0% 0%,
+      color-mix(in oklch, var(--primary) 8%, transparent) 0%,
+      transparent 38%
+    ),
+    radial-gradient(
+      circle at 100% 0%,
+      color-mix(in oklch, var(--accent-blue) 7%, transparent) 0%,
+      transparent 32%
+    ),
+    var(--background);
+  --surface-gradient: linear-gradient(180deg, var(--surface) 0%, var(--surface-muted) 100%);
 
   --shadow-elevated-value:
     0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.32);

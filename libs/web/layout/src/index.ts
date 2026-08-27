@@ -32,6 +32,7 @@ export { ResizeHandle, type ResizeHandleProps } from './lib/resize-handle.js';
 export { usePromptDialog, type PromptDialog } from '@org/ui';
 export {
   FavoriteToggle,
+  IconOnlyNavRow,
   NavRow,
   NavRowActions,
   NavRowMenuTrigger,
@@ -45,3 +46,29 @@ export {
   type NavDepth,
   type NavEntry,
 } from './lib/nav-primitives.js';
+
+export {
+  DEFAULT_NAV_GROUPS,
+  DEFAULT_NAV_ITEMS,
+  type NavGroupConfig,
+  type NavGroupId,
+  type NavItemConfig,
+} from './lib/navigation/navigation.config.js';
+
+export {
+  resolveNavigation,
+  type ResolvedNavGroup,
+  type ResolvedNavItem,
+  type NavigationResolutionContext,
+} from './lib/navigation/navigation-resolver.js';
+
+export { isRouteActive } from './lib/navigation/route-matcher.js';
+
+export {
+  useSidebarStore,
+  type SidebarItemPreference,
+  type SidebarState,
+} from './lib/navigation/sidebar-store.js';
+
+export { SidebarCustomizerDialog } from './lib/navigation/sidebar-customizer-dialog.js';
+

@@ -65,12 +65,96 @@ export function CommandPalette({
     {
       id: 'docs',
       category: 'Navigation',
-      label: 'Go to Document Editor',
+      label: 'Go to Document Editor & Notes',
       icon: <FileText className="size-4 text-accent-green" />,
       shortcut: 'G D',
       action: () => {
         onOpenChange(false);
         navigate('docs');
+      },
+    },
+    {
+      id: 'whiteboards',
+      category: 'Navigation',
+      label: 'Open Whiteboard Canvas',
+      icon: <Sparkles className="size-4 text-accent-cyan" />,
+      action: () => {
+        onOpenChange(false);
+        navigate('whiteboards');
+      },
+    },
+    {
+      id: 'meetings',
+      category: 'Navigation',
+      label: 'Go to Meetings & Huddles',
+      icon: <Calendar className="size-4 text-accent-blue" />,
+      shortcut: 'G M',
+      action: () => {
+        onOpenChange(false);
+        navigate('meetings');
+      },
+    },
+    {
+      id: 'schedule',
+      category: 'Navigation',
+      label: 'Go to Schedule & Calendar',
+      icon: <Calendar className="size-4 text-accent-amber" />,
+      shortcut: 'G C',
+      action: () => {
+        onOpenChange(false);
+        navigate('schedule');
+      },
+    },
+    {
+      id: 'ai-chat',
+      category: 'AI Workflows',
+      label: 'Open AI Assistant Copilot',
+      icon: <Sparkles className="size-4 text-accent-violet" />,
+      shortcut: 'G A',
+      action: () => {
+        onOpenChange(false);
+        navigate('ai-chat');
+      },
+    },
+    {
+      id: 'agents',
+      category: 'AI Workflows',
+      label: 'AI Agent Marketplace & Builder',
+      icon: <Sparkles className="size-4 text-accent-green" />,
+      action: () => {
+        onOpenChange(false);
+        navigate('agents');
+      },
+    },
+    {
+      id: 'automations',
+      category: 'AI Workflows',
+      label: 'Automations & Workflow Canvas',
+      icon: <Zap className="size-4 text-accent-amber" />,
+      shortcut: 'G W',
+      action: () => {
+        onOpenChange(false);
+        navigate('automations');
+      },
+    },
+    {
+      id: 'integrations',
+      category: 'Tools',
+      label: 'Integration Hub & Connected Apps',
+      icon: <Settings className="size-4 text-accent-blue" />,
+      action: () => {
+        onOpenChange(false);
+        navigate('integrations');
+      },
+    },
+    {
+      id: 'members',
+      category: 'Team',
+      label: 'Team Directory & Member Presence',
+      icon: <Users className="size-4 text-muted-foreground" />,
+      action: () => {
+        onOpenChange(false);
+        navigate('members');
       },
     },
     {
@@ -82,50 +166,6 @@ export function CommandPalette({
       action: () => {
         onOpenChange(false);
         navigate('design-system');
-      },
-    },
-    {
-      id: 'ai-chat',
-      category: 'AI Workflows',
-      label: 'Open AI Assistant',
-      icon: <Sparkles className="size-4 text-accent-violet" />,
-      shortcut: 'G A',
-      action: () => {
-        onOpenChange(false);
-        navigate('ai-chat');
-      },
-    },
-
-    {
-      id: 'automations',
-      category: 'AI Workflows',
-      label: 'Automations & Workflows',
-      icon: <Zap className="size-4 text-accent-amber" />,
-      shortcut: 'G W',
-      action: () => {
-        onOpenChange(false);
-        navigate('automations');
-      },
-    },
-    {
-      id: 'calendar',
-      category: 'Navigation',
-      label: 'Calendar & Schedule',
-      icon: <Calendar className="size-4 text-accent-blue" />,
-      shortcut: 'G C',
-      action: () => {
-        onOpenChange(false);
-        navigate('calendar');
-      },
-    },
-    {
-      id: 'members',
-      category: 'Team',
-      label: 'Team Directory & Members',
-      icon: <Users className="size-4 text-muted-foreground" />,
-      action: () => {
-        onOpenChange(false);
-        navigate('members');
       },
     },
     {
@@ -144,7 +184,6 @@ export function CommandPalette({
       category: 'Settings',
       label: 'Workspace & Profile Settings',
       icon: <Settings className="size-4 text-subtle" />,
-      shortcut: 'G S',
       action: () => {
         onOpenChange(false);
         navigate('settings');

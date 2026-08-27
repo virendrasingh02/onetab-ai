@@ -44,7 +44,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { WorkspaceMenu } from './workspace-switcher.js';
 
 export interface AppHeaderProps {
@@ -101,7 +101,7 @@ export function AppHeader({
   const searchShortcut = isApple ? '⌘K' : 'Ctrl K';
 
   const openStatusModal = useFocusStore((s) => s.openStatusModal);
-  const openProfilePanel = useRightPanelStore((s) => s.openProfile);
+  const _openProfilePanel = useRightPanelStore((s) => s.openProfile);
   const isRightPanelOpen = useRightPanelStore((s) => s.open);
   const rightPanelView = useRightPanelStore((s) => s.view);
   const dismissRightPanel = useRightPanelStore((s) => s.dismiss);
