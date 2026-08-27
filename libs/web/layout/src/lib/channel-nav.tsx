@@ -4,11 +4,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
   Hint,
+  IconRenderer,
   ScrollArea,
   SkeletonList,
   usePromptDialog,
@@ -59,7 +59,30 @@ import {
   Users,
   Video,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { SidebarFooterActions } from './create-menu.js';
 import { DirectMessagesSection } from './direct-messages-section.js';
@@ -79,7 +102,10 @@ import {
 } from './nav-primitives.js';
 import { resolveNavigation } from './navigation/navigation-resolver.js';
 import { SidebarCustomizerDialog } from './navigation/sidebar-customizer-dialog.js';
-import { useSidebarStore } from './navigation/sidebar-store.js';
+import {
+  DEFAULT_SIDEBAR_SECTIONS,
+  useSidebarStore,
+} from './navigation/sidebar-store.js';
 import { ProjectNavRow, ProjectsTreeSection } from './projects-section.js';
 import {
   AgentNavRow,
@@ -345,6 +371,86 @@ function ChannelRow({
   );
 }
 
+interface SortableChannelRowProps {
+  channel: ChannelSummary;
+  workspaceId: string;
+  workspaceSlug: string;
+  activity?: ActivityIndicator;
+  onToggleFavorite: (channel: ChannelSummary) => void;
+  onToggleMute: (channel: ChannelSummary) => void;
+  prompts: PromptDialog;
+}
+
+function SortableChannelRow(props: SortableChannelRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: props.channel.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'relative',
+        isDragging &&
+          'z-50 opacity-80 rounded-lg bg-surface-raised ring-1 ring-primary/40 shadow-sm',
+      )}
+      {...attributes}
+      {...listeners}
+    >
+      <ChannelRow {...props} />
+    </div>
+  );
+}
+
+function SortableStarredItem({
+  id,
+  children,
+}: {
+  id: string;
+  children: React.ReactNode;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'relative',
+        isDragging &&
+          'z-50 opacity-80 rounded-lg bg-surface-raised ring-1 ring-primary/40 shadow-sm',
+      )}
+      {...attributes}
+      {...listeners}
+    >
+      {children}
+    </div>
+  );
+}
+
 export interface ChannelNavProps {
   workspaceId: string;
   workspaceSlug: string;
@@ -395,7 +501,6 @@ export function ChannelNav({
     favoriteAgentIds,
     favoriteAppIds,
     favoriteWorkflowIds,
-    isNavPinned,
     toggleNavPinned,
     pinnedNavPaths,
   } = useSidebarFavorites(workspaceId);
@@ -424,6 +529,7 @@ export function ChannelNav({
   );
 
   const itemsPrefs = useSidebarStore((s) => s.items);
+  const sectionsPrefs = useSidebarStore((s) => s.sections);
   const customizerOpen = useSidebarStore((s) => s.customizerOpen);
   const setCustomizerOpen = useSidebarStore((s) => s.setCustomizerOpen);
 
@@ -436,11 +542,82 @@ export function ChannelNav({
     [itemsPrefs, workspaceSlug, inboxUnread],
   );
 
-  const pinnedSecondaryLinks = useMemo(
-    () =>
-      MORE_DESTINATIONS.filter((entry) => pinnedNavPaths.includes(entry.path)),
-    [pinnedNavPaths],
+  const activeSections = useMemo(() => {
+    return [...DEFAULT_SIDEBAR_SECTIONS]
+      .sort((a, b) => {
+        const orderA = sectionsPrefs[a.id]?.order ?? a.order;
+        const orderB = sectionsPrefs[b.id]?.order ?? b.order;
+        return orderA - orderB;
+      })
+      .filter((sec) => sectionsPrefs[sec.id]?.visible ?? true);
+  }, [sectionsPrefs]);
+
+  const channelOrders = useSidebarStore((s) => s.channelOrders);
+  const moveChannel = useSidebarStore((s) => s.moveChannel);
+  const resourceOrders = useSidebarStore((s) => s.resourceOrders);
+  const moveResourceItem = useSidebarStore((s) => s.moveResourceItem);
+  const channelDndId = useId();
+  const starredDndId = useId();
+
+  const customChannelOrder = channelOrders[workspaceId];
+
+  const orderedJoinedChannels = useMemo(() => {
+    if (!customChannelOrder || customChannelOrder.length === 0) {
+      return groups.joined;
+    }
+    const map = new Map(groups.joined.map((c) => [c.id, c]));
+    const result: ChannelSummary[] = [];
+
+    // First add channels in custom order if they are currently in joined
+    for (const id of customChannelOrder) {
+      const channel = map.get(id);
+      if (channel) {
+        result.push(channel);
+        map.delete(id);
+      }
+    }
+
+    // Then append any newly joined channels that weren't in the saved order
+    for (const channel of map.values()) {
+      result.push(channel);
+    }
+
+    return result;
+  }, [groups.joined, customChannelOrder]);
+
+  const channelSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
+
+  const starredSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const handleChannelDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    moveChannel(
+      workspaceId,
+      active.id as string,
+      over.id as string,
+      orderedJoinedChannels.map((c) => c.id),
+    );
+  };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -507,13 +684,293 @@ export function ChannelNav({
     [workflowsQuery.data, favoriteWorkflowIds],
   );
 
-  const totalStarredCount =
-    groups.favorites.length +
-    starredProjects.length +
-    starredDocs.length +
-    starredAgents.length +
-    starredApps.length +
-    starredWorkflows.length;
+  const rowProps = useMemo(
+    () => ({
+      workspaceId,
+      workspaceSlug,
+      onToggleFavorite: toggleFavorite,
+      onToggleMute: toggleMute,
+      prompts,
+    }),
+    [workspaceId, workspaceSlug, toggleFavorite, toggleMute, prompts],
+  );
+
+  const rawStarredItems = useMemo(() => {
+    const list: Array<{ id: string; render: () => React.ReactNode }> = [];
+
+    groups.favorites.forEach((channel) => {
+      list.push({
+        id: `channel-${channel.id}`,
+        render: () => (
+          <ChannelRow
+            key={channel.id}
+            channel={channel}
+            activity={channelActivity?.[channel.id]}
+            {...rowProps}
+          />
+        ),
+      });
+    });
+
+    starredProjects.forEach((project) => {
+      const isSelected =
+        location.pathname.includes('/tasks') &&
+        location.search.includes(`project=${project.id}`);
+      list.push({
+        id: `project-${project.id}`,
+        render: () => (
+          <ProjectNavRow
+            key={`starred-proj-${project.id}`}
+            project={project}
+            workspaceSlug={workspaceSlug}
+            isSelected={isSelected}
+            isFavorite={true}
+            onToggleFavorite={() =>
+              toggleResourceFavorite('project', project.id)
+            }
+            prompts={prompts}
+            mutations={projectMutations}
+            depth={1}
+          />
+        ),
+      });
+    });
+
+    starredDocs.forEach((doc) => {
+      const isSelected =
+        location.pathname.includes('/docs') &&
+        location.search.includes(`doc=${doc.id}`);
+      list.push({
+        id: `doc-${doc.id}`,
+        render: () => (
+          <DocNavRow
+            key={`starred-doc-${doc.id}`}
+            doc={doc}
+            workspaceSlug={workspaceSlug}
+            isSelected={isSelected}
+            isFavorite={true}
+            onToggleFavorite={() => toggleResourceFavorite('doc', doc.id)}
+            onRename={async () => {
+              const title = await prompts.promptText({
+                title: 'Rename document',
+                label: 'Document title',
+                defaultValue: doc.title,
+                confirmLabel: 'Rename',
+              });
+              if (!title) return;
+              docsWorkspace.updateDocTitle(doc.id, title);
+            }}
+            onDuplicate={async () => {
+              const docId = await docsWorkspace.duplicateDoc(doc.id);
+              if (docId) navigate(`/w/${workspaceSlug}/docs?doc=${docId}`);
+            }}
+            onMoveToCompany={(targetCompanyId) =>
+              docsWorkspace.moveDocToCompany(doc.id, targetCompanyId)
+            }
+            onDelete={async () => {
+              const confirmed = await prompts.confirmAction({
+                title: `Delete “${doc.title}”?`,
+                description: 'This cannot be undone.',
+                confirmLabel: 'Delete document',
+                destructive: true,
+              });
+              if (!confirmed) return;
+              docsWorkspace.deleteDoc(doc.id);
+            }}
+            companies={docsWorkspace.companies}
+            depth={1}
+          />
+        ),
+      });
+    });
+
+    starredAgents.forEach((agent) => {
+      const isSelected =
+        location.pathname.endsWith('/agents') &&
+        location.search.includes(`agent=${agent.id}`);
+      list.push({
+        id: `agent-${agent.id}`,
+        render: () => (
+          <AgentNavRow
+            key={`starred-agent-${agent.id}`}
+            agent={{
+              id: agent.id,
+              name: agent.name,
+              icon: 'Bot',
+              detail: agent.role,
+            }}
+            workspaceSlug={workspaceSlug}
+            isSelected={isSelected}
+            isFavorite={true}
+            onToggleFavorite={() => toggleResourceFavorite('agent', agent.id)}
+            onDelete={async () => {
+              const confirmed = await prompts.confirmAction({
+                title: `Delete “${agent.name}”?`,
+                description:
+                  'The AI agent will be removed from this workspace. This action cannot be undone.',
+                confirmLabel: 'Delete agent',
+                destructive: true,
+              });
+              if (!confirmed) return;
+              agentMutations.remove.mutate(agent.id);
+            }}
+            depth={1}
+          />
+        ),
+      });
+    });
+
+    starredApps.forEach((app) => {
+      const isSelected =
+        location.pathname.endsWith('/integrations') &&
+        location.search.includes(`app=${app.provider}`);
+      list.push({
+        id: `app-${app.provider}`,
+        render: () => (
+          <AppNavRow
+            key={`starred-app-${app.provider}`}
+            app={{
+              id: app.provider,
+              resourceId: app.id,
+              name: titleCaseProvider(app.provider),
+              icon: PROVIDER_ICON[app.provider] ?? 'Plug',
+              detail: 'Connected',
+            }}
+            workspaceSlug={workspaceSlug}
+            isSelected={isSelected}
+            isFavorite={true}
+            onToggleFavorite={() => toggleResourceFavorite('app', app.provider)}
+            onDisconnect={async () => {
+              const confirmed = await prompts.confirmAction({
+                title: `Disconnect ${titleCaseProvider(app.provider)}?`,
+                description:
+                  'This integration will be removed from your workspace and webhooks will be disabled.',
+                confirmLabel: 'Disconnect',
+                destructive: true,
+              });
+              if (!confirmed) return;
+              integrationMutations.disconnect.mutate(app.id);
+            }}
+            onSync={() => integrationMutations.sync.mutateAsync(app.id)}
+            depth={1}
+          />
+        ),
+      });
+    });
+
+    starredWorkflows.forEach((workflow) => {
+      const isSelected =
+        location.pathname.endsWith('/automations') &&
+        location.search.includes(`workflow=${workflow.id}`);
+      list.push({
+        id: `workflow-${workflow.id}`,
+        render: () => (
+          <WorkflowNavRow
+            key={`starred-wf-${workflow.id}`}
+            workflow={{
+              id: workflow.id,
+              name: workflow.name,
+              icon: TRIGGER_ICON[workflow.triggerType] ?? 'Zap',
+              detail: workflow.triggerType,
+              isActive: workflow.isActive,
+            }}
+            workspaceSlug={workspaceSlug}
+            isSelected={isSelected}
+            isFavorite={true}
+            onToggleFavorite={() =>
+              toggleResourceFavorite('workflow', workflow.id)
+            }
+            onDelete={async () => {
+              const confirmed = await prompts.confirmAction({
+                title: `Delete “${workflow.name}”?`,
+                description:
+                  'This workflow automation will be permanently deleted for all members.',
+                confirmLabel: 'Delete workflow',
+                destructive: true,
+              });
+              if (!confirmed) return;
+              workflowMutations.remove.mutate(workflow.id);
+            }}
+            onRun={() =>
+              workflowMutations.trigger.mutateAsync({
+                workflowId: workflow.id,
+                payload: {},
+              })
+            }
+            onToggleActive={() =>
+              workflowMutations.update.mutate({
+                workflowId: workflow.id,
+                input: { isActive: !workflow.isActive },
+              })
+            }
+            depth={1}
+          />
+        ),
+      });
+    });
+
+    return list;
+  }, [
+    groups.favorites,
+    starredProjects,
+    starredDocs,
+    starredAgents,
+    starredApps,
+    starredWorkflows,
+    channelActivity,
+    rowProps,
+    workspaceSlug,
+    prompts,
+    projectMutations,
+    docsWorkspace,
+    agentMutations,
+    integrationMutations,
+    workflowMutations,
+    location,
+    navigate,
+    toggleResourceFavorite,
+  ]);
+
+  const customStarredOrder = workspaceId
+    ? resourceOrders[workspaceId]?.starred
+    : undefined;
+
+  const orderedStarredItems = useMemo(() => {
+    if (!customStarredOrder || customStarredOrder.length === 0) {
+      return rawStarredItems;
+    }
+    const map = new Map(rawStarredItems.map((item) => [item.id, item]));
+    const result: typeof rawStarredItems = [];
+
+    for (const id of customStarredOrder) {
+      const item = map.get(id);
+      if (item) {
+        result.push(item);
+        map.delete(id);
+      }
+    }
+
+    for (const item of map.values()) {
+      result.push(item);
+    }
+
+    return result;
+  }, [rawStarredItems, customStarredOrder]);
+
+  const handleStarredDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !workspaceId) return;
+
+    moveResourceItem(
+      workspaceId,
+      'starred',
+      active.id as string,
+      over.id as string,
+      orderedStarredItems.map((i) => i.id),
+    );
+  };
+
+  const totalStarredCount = orderedStarredItems.length;
 
   if (isLoading) {
     return (
@@ -546,18 +1003,13 @@ export function ChannelNav({
           ))}
         </ScrollArea>
 
-        <div className="pt-2 border-t border-border flex flex-col items-center gap-1.5 shrink-0 w-full">
-          <Hint side="right" label="Customize sidebar">
-            <button
-              type="button"
-              onClick={() => setCustomizerOpen(true)}
-              aria-label="Customize sidebar"
-              className="size-9 flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-            >
-              <SlidersHorizontal className="size-4" />
-            </button>
-          </Hint>
-        </div>
+        <SidebarFooterActions
+          workspaceSlug={workspaceSlug}
+          onCreateChannel={onCreateChannel}
+          onNewChat={startNewChat}
+          onOpenCustomizer={() => setCustomizerOpen(true)}
+          isCollapsed={true}
+        />
 
         <SidebarCustomizerDialog
           open={customizerOpen}
@@ -568,28 +1020,17 @@ export function ChannelNav({
     );
   }
 
-  const rowProps = {
-    workspaceId,
-    workspaceSlug,
-    onToggleFavorite: toggleFavorite,
-    onToggleMute: toggleMute,
-    prompts,
-  };
-
-  // Extract visible workspace items and any additional customized primary items
-  const primaryWorkspaceItems = resolvedNav.visibleItems.filter(
-    (item) => item.group === 'workspace',
-  );
-
+  // --- Expanded Standard Sidebar View ---
   return (
-    <div className="min-h-0 flex h-full flex-col">
-      <ScrollArea
-        className="min-h-0 px-3 pt-3 pb-3 flex-1"
-        contentClassName="px-3 pt-2 pb-6"
-      >
-        <div className="space-y-4">
-          <nav aria-label="Primary navigation" className="space-y-0.5 pb-2">
-            {primaryWorkspaceItems.map((item) => (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
+      <ScrollArea className="min-h-0 flex-1" contentClassName="p-2 space-y-4">
+        {/* Top Primary Navigation Items (Customizable via Dialog) */}
+        <nav
+          aria-label="Workspace navigation"
+          className="space-y-0.5 border-b border-border/60 pb-3"
+        >
+          <div className="space-y-0.5">
+            {resolvedNav.visibleItems.map((item) => (
               <NavRow
                 key={item.id}
                 entry={{
@@ -600,389 +1041,240 @@ export function ChannelNav({
                   end: item.href === '',
                 }}
                 workspaceSlug={workspaceSlug}
+                isActiveOverride={
+                  item.id === 'channels'
+                    ? location.pathname.includes('/c/')
+                    : undefined
+                }
               />
             ))}
+          </div>
 
-            {pinnedSecondaryLinks.map((entry) => (
-              <NavRow
-                key={entry.label}
-                entry={entry}
-                workspaceSlug={workspaceSlug}
-                onTogglePin={() => toggleNavPinned(entry.path)}
-              />
-            ))}
-
-            <div className="flex items-center gap-1 pt-0.5">
-              <DropdownMenu modal={false}>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className={cn(navActionClass(), 'flex-1')}
-                    aria-label="More destinations"
-                  >
-                    <MoreHorizontal className={navIconClass(0)} aria-hidden />
-                    <span className="flex-1 truncate">More</span>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  side="bottom"
-                  sideOffset={4}
-                  className="w-56 p-1.5"
-                >
-                  <DropdownMenuLabel className="px-2.5 py-1 font-medium tracking-wide text-[11px] text-subtle uppercase">
-                    More destinations
-                  </DropdownMenuLabel>
-                  <div className="space-y-0.5 my-1">
-                    {MORE_DESTINATIONS.map((entry) => {
-                      const Icon = entry.icon;
-                      const isPinned = isNavPinned(entry.path);
-                      return (
-                        <div
-                          key={entry.path}
-                          className="group/more-row gap-1.5 px-2 py-1.5 text-xs flex items-center justify-between rounded-md text-muted-foreground hover:bg-surface-raised hover:text-foreground"
-                        >
-                          <NavLink
-                            to={`/w/${workspaceSlug}/${entry.path}`}
-                            className={({ isActive }) =>
-                              cn(
-                                'gap-2 flex flex-1 items-center outline-none',
-                                isActive && 'font-semibold text-foreground',
-                              )
-                            }
-                          >
-                            <Icon className="size-4 shrink-0" aria-hidden />
-                            <span className="truncate">{entry.label}</span>
-                          </NavLink>
-                          <Hint
-                            side="right"
-                            label={
-                              isPinned ? 'Unpin from sidebar' : 'Pin to sidebar'
-                            }
-                          >
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                toggleNavPinned(entry.path);
-                              }}
-                              aria-label={
-                                isPinned
-                                  ? `Unpin ${entry.label}`
-                                  : `Pin ${entry.label}`
-                              }
-                              className={cn(
-                                'size-6 flex items-center justify-center rounded-md transition-all',
-                                isPinned
-                                  ? 'bg-accent/80 text-foreground opacity-100'
-                                  : 'text-muted-foreground opacity-0 group-focus-within/more-row:opacity-100 group-hover/more-row:opacity-100 hover:bg-accent hover:text-foreground',
-                              )}
-                            >
-                              <Pin
-                                className={cn(
-                                  'size-3.5',
-                                  isPinned &&
-                                    'rotate-45 fill-current text-foreground',
-                                )}
-                              />
-                            </button>
-                          </Hint>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuItem
-                    onSelect={() => setCustomizerOpen(true)}
-                    className="gap-2 text-xs"
-                  >
-                    <SlidersHorizontal className="size-3.5" />
-                    <span>Customize Sidebar</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <Hint label="Customize navigation">
+          <div className="pt-1.5 flex items-center justify-between px-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  onClick={() => setCustomizerOpen(true)}
-                  aria-label="Customize sidebar navigation"
-                  className="size-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  aria-label="More navigation destinations"
+                  className="inline-flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-accent/60 transition-colors"
+                >
+                  <MoreHorizontal className="size-3.5" />
+                  <span>More shortcuts</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-52">
+                {MORE_DESTINATIONS.map((entry) => {
+                  const isPinned = pinnedNavPaths.includes(entry.path);
+                  return (
+                    <DropdownMenuItem
+                      key={entry.path}
+                      onSelect={() => navigate(`/w/${workspaceSlug}${entry.path}`)}
+                      className="justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <IconRenderer
+                          name={entry.icon}
+                          className="size-4 text-muted-foreground"
+                          fallback="FileText"
+                        />
+                        <span>{entry.label}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleNavPinned(entry.path);
+                        }}
+                        className={cn(
+                          'p-1 hover:text-foreground transition-colors',
+                          isPinned
+                            ? 'text-primary'
+                            : 'text-muted-foreground opacity-40 hover:opacity-100',
+                        )}
+                        title={isPinned ? 'Unpin from sidebar' : 'Pin to sidebar'}
+                      >
+                        <Pin className="size-3" />
+                      </button>
+                    </DropdownMenuItem>
+                  );
+                })}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onSelect={() => setCustomizerOpen(true)}
+                  className="gap-2 text-xs"
                 >
                   <SlidersHorizontal className="size-3.5" />
-                </button>
-              </Hint>
-            </div>
-          </nav>
+                  <span>Customize Sidebar</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-
-          <div>
-            <Section
-              title="Starred"
-              count={totalStarredCount}
-              emptyLabel="Drop an important item here to keep it handy."
-            >
-              {groups.favorites.map((channel) => (
-                <ChannelRow
-                  key={channel.id}
-                  channel={channel}
-                  activity={channelActivity?.[channel.id]}
-                  {...rowProps}
-                />
-              ))}
-
-              {starredProjects.map((project) => {
-                const isSelected =
-                  location.pathname.includes('/tasks') &&
-                  location.search.includes(`project=${project.id}`);
-                return (
-                  <ProjectNavRow
-                    key={`starred-proj-${project.id}`}
-                    project={project}
-                    workspaceSlug={workspaceSlug}
-                    isSelected={isSelected}
-                    isFavorite={true}
-                    onToggleFavorite={() =>
-                      toggleResourceFavorite('project', project.id)
-                    }
-                    prompts={prompts}
-                    mutations={projectMutations}
-                    depth={1}
-                  />
-                );
-              })}
-
-              {starredDocs.map((doc) => {
-                const isSelected =
-                  location.pathname.includes('/docs') &&
-                  location.search.includes(`doc=${doc.id}`);
-                return (
-                  <DocNavRow
-                    key={`starred-doc-${doc.id}`}
-                    doc={doc}
-                    workspaceSlug={workspaceSlug}
-                    isSelected={isSelected}
-                    isFavorite={true}
-                    onToggleFavorite={() =>
-                      toggleResourceFavorite('doc', doc.id)
-                    }
-                    onRename={async () => {
-                      const title = await prompts.promptText({
-                        title: 'Rename document',
-                        label: 'Document title',
-                        defaultValue: doc.title,
-                        confirmLabel: 'Rename',
-                      });
-                      if (!title) return;
-                      docsWorkspace.updateDocTitle(doc.id, title);
-                    }}
-                    onDuplicate={async () => {
-                      const docId = await docsWorkspace.duplicateDoc(doc.id);
-                      if (docId)
-                        navigate(`/w/${workspaceSlug}/docs?doc=${docId}`);
-                    }}
-                    onMoveToCompany={(targetCompanyId) =>
-                      docsWorkspace.moveDocToCompany(doc.id, targetCompanyId)
-                    }
-                    onDelete={async () => {
-                      const confirmed = await prompts.confirmAction({
-                        title: `Delete “${doc.title}”?`,
-                        description: 'This cannot be undone.',
-                        confirmLabel: 'Delete document',
-                        destructive: true,
-                      });
-                      if (!confirmed) return;
-                      docsWorkspace.deleteDoc(doc.id);
-                    }}
-                    companies={docsWorkspace.companies}
-                    depth={1}
-                  />
-                );
-              })}
-
-              {starredAgents.map((agent) => {
-                const isSelected =
-                  location.pathname.endsWith('/agents') &&
-                  location.search.includes(`agent=${agent.id}`);
-                return (
-                  <AgentNavRow
-                    key={`starred-agent-${agent.id}`}
-                    agent={{
-                      id: agent.id,
-                      name: agent.name,
-                      icon: 'Bot',
-                      detail: agent.role,
-                    }}
-                    workspaceSlug={workspaceSlug}
-                    isSelected={isSelected}
-                    isFavorite={true}
-                    onToggleFavorite={() =>
-                      toggleResourceFavorite('agent', agent.id)
-                    }
-                    onDelete={async () => {
-                      const confirmed = await prompts.confirmAction({
-                        title: `Delete “${agent.name}”?`,
-                        description:
-                          'The AI agent will be removed from this workspace. This action cannot be undone.',
-                        confirmLabel: 'Delete agent',
-                        destructive: true,
-                      });
-                      if (!confirmed) return;
-                      agentMutations.remove.mutate(agent.id);
-                    }}
-                    depth={1}
-                  />
-                );
-              })}
-
-              {starredApps.map((app) => {
-                const isSelected =
-                  location.pathname.endsWith('/integrations') &&
-                  location.search.includes(`app=${app.provider}`);
-                return (
-                  <AppNavRow
-                    key={`starred-app-${app.provider}`}
-                    app={{
-                      id: app.provider,
-                      resourceId: app.id,
-                      name: titleCaseProvider(app.provider),
-                      icon: PROVIDER_ICON[app.provider] ?? 'Plug',
-                      detail: 'Connected',
-                    }}
-                    workspaceSlug={workspaceSlug}
-                    isSelected={isSelected}
-                    isFavorite={true}
-                    onToggleFavorite={() =>
-                      toggleResourceFavorite('app', app.provider)
-                    }
-                    onDisconnect={async () => {
-                      const confirmed = await prompts.confirmAction({
-                        title: `Disconnect ${titleCaseProvider(app.provider)}?`,
-                        description:
-                          'This integration will be removed from your workspace and webhooks will be disabled.',
-                        confirmLabel: 'Disconnect',
-                        destructive: true,
-                      });
-                      if (!confirmed) return;
-                      integrationMutations.disconnect.mutate(app.id);
-                    }}
-                    onSync={() => integrationMutations.sync.mutateAsync(app.id)}
-                    depth={1}
-                  />
-                );
-              })}
-
-              {starredWorkflows.map((workflow) => {
-                const isSelected =
-                  location.pathname.endsWith('/automations') &&
-                  location.search.includes(`workflow=${workflow.id}`);
-                return (
-                  <WorkflowNavRow
-                    key={`starred-wf-${workflow.id}`}
-                    workflow={{
-                      id: workflow.id,
-                      name: workflow.name,
-                      icon: TRIGGER_ICON[workflow.triggerType] ?? 'Zap',
-                      detail: workflow.triggerType,
-                      isActive: workflow.isActive,
-                    }}
-                    workspaceSlug={workspaceSlug}
-                    isSelected={isSelected}
-                    isFavorite={true}
-                    onToggleFavorite={() =>
-                      toggleResourceFavorite('workflow', workflow.id)
-                    }
-                    onDelete={async () => {
-                      const confirmed = await prompts.confirmAction({
-                        title: `Delete “${workflow.name}”?`,
-                        description:
-                          'This workflow automation will be permanently deleted for all members.',
-                        confirmLabel: 'Delete workflow',
-                        destructive: true,
-                      });
-                      if (!confirmed) return;
-                      workflowMutations.remove.mutate(workflow.id);
-                    }}
-                    onRun={() =>
-                      workflowMutations.trigger.mutateAsync({
-                        workflowId: workflow.id,
-                        payload: {},
-                      })
-                    }
-                    onToggleActive={() =>
-                      workflowMutations.update.mutate({
-                        workflowId: workflow.id,
-                        input: { isActive: !workflow.isActive },
-                      })
-                    }
-                    depth={1}
-                  />
-                );
-              })}
-            </Section>
-
-            <Section
-              title="Channels"
-              count={groups.joined.length}
-              emptyLabel="You have not joined any channels yet."
-              action={
-                <Hint label="Create a channel">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={onCreateChannel}
-                    aria-label="Create a channel"
-                    className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
-                  >
-                    <Plus className="size-3.5" />
-                  </Button>
-                </Hint>
-              }
-            >
-              {groups.joined.map((channel) => (
-                <ChannelRow
-                  key={channel.id}
-                  channel={channel}
-                  activity={channelActivity?.[channel.id]}
-                  {...rowProps}
-                />
-              ))}
-              <li>
-                <button
-                  onClick={onBrowseChannels}
-                  className={navActionClass({ depth: 1 })}
-                >
-                  <Plus className={navIconClass(1)} aria-hidden />
-                  <span className="flex-1 truncate">Browse channels</span>
-                </button>
-              </li>
-            </Section>
-
-            <DirectMessagesSection workspaceSlug={workspaceSlug} />
-
-            <ProjectsTreeSection
-              workspaceSlug={workspaceSlug}
-              prompts={prompts}
-            />
-
-            <DocsTreeSection workspaceSlug={workspaceSlug} prompts={prompts} />
-
-            <AgentsSection workspaceSlug={workspaceSlug} prompts={prompts} />
-
-            <AppsSection workspaceSlug={workspaceSlug} prompts={prompts} />
-
-            <WorkflowsSection workspaceSlug={workspaceSlug} prompts={prompts} />
+            <Hint label="Customize navigation">
+              <button
+                type="button"
+                onClick={() => setCustomizerOpen(true)}
+                aria-label="Customize sidebar navigation"
+                className="size-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              >
+                <SlidersHorizontal className="size-3.5" />
+              </button>
+            </Hint>
           </div>
+        </nav>
+
+        {/* Dynamic Resource Sections (Channels, DMs, Projects, Docs, AI Agents, Apps, Workflows, Starred) */}
+        <div className="space-y-4">
+          {activeSections.map((sec) => {
+            switch (sec.id) {
+              case 'starred':
+                return (
+                  <Section
+                    key="starred"
+                    title="Starred"
+                    count={totalStarredCount}
+                    emptyLabel="Drop an important item here to keep it handy."
+                  >
+                    <DndContext
+                      id={starredDndId}
+                      sensors={starredSensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleStarredDragEnd}
+                    >
+                      <SortableContext
+                        items={orderedStarredItems.map((i) => i.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {orderedStarredItems.map((item) => (
+                          <SortableStarredItem key={item.id} id={item.id}>
+                            {item.render()}
+                          </SortableStarredItem>
+                        ))}
+                      </SortableContext>
+                    </DndContext>
+                  </Section>
+                );
+
+              case 'channels':
+                return (
+                  <Section
+                    key="channels"
+                    title="Channels"
+                    count={orderedJoinedChannels.length}
+                    emptyLabel="You have not joined any channels yet."
+                    action={
+                      <Hint label="Create a channel">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={onCreateChannel}
+                          aria-label="Create a channel"
+                          className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
+                        >
+                          <Plus className="size-3.5" />
+                        </Button>
+                      </Hint>
+                    }
+                  >
+                    <DndContext
+                      id={channelDndId}
+                      sensors={channelSensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleChannelDragEnd}
+                    >
+                      <SortableContext
+                        items={orderedJoinedChannels.map((c) => c.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {orderedJoinedChannels.map((channel) => (
+                          <SortableChannelRow
+                            key={channel.id}
+                            channel={channel}
+                            activity={channelActivity?.[channel.id]}
+                            {...rowProps}
+                          />
+                        ))}
+                      </SortableContext>
+                    </DndContext>
+                    <li>
+                      <button
+                        onClick={onBrowseChannels}
+                        className={navActionClass({ depth: 1 })}
+                      >
+                        <Plus className={navIconClass(1)} aria-hidden />
+                        <span className="flex-1 truncate">
+                          Browse channels
+                        </span>
+                      </button>
+                    </li>
+                  </Section>
+                );
+
+              case 'dms':
+                return (
+                  <DirectMessagesSection
+                    key="dms"
+                    workspaceSlug={workspaceSlug}
+                  />
+                );
+
+              case 'projects':
+                return (
+                  <ProjectsTreeSection
+                    key="projects"
+                    workspaceSlug={workspaceSlug}
+                    prompts={prompts}
+                  />
+                );
+
+              case 'docs':
+                return (
+                  <DocsTreeSection
+                    key="docs"
+                    workspaceSlug={workspaceSlug}
+                    prompts={prompts}
+                  />
+                );
+
+              case 'agents':
+                return (
+                  <AgentsSection
+                    key="agents"
+                    workspaceSlug={workspaceSlug}
+                    prompts={prompts}
+                  />
+                );
+
+              case 'apps':
+                return (
+                  <AppsSection
+                    key="apps"
+                    workspaceSlug={workspaceSlug}
+                    prompts={prompts}
+                  />
+                );
+
+              case 'workflows':
+                return (
+                  <WorkflowsSection
+                    key="workflows"
+                    workspaceSlug={workspaceSlug}
+                    prompts={prompts}
+                  />
+                );
+
+              default:
+                return null;
+            }
+          })}
         </div>
       </ScrollArea>
 
-      <div className="p-3.5 shrink-0 border-t border-border/60 bg-transparent">
+      <div className="p-2.5 shrink-0 border-t border-border/70 bg-surface-muted/30">
         <SidebarFooterActions
           workspaceSlug={workspaceSlug}
           onCreateChannel={onCreateChannel}
           onNewChat={startNewChat}
+          onOpenCustomizer={() => setCustomizerOpen(true)}
         />
       </div>
 

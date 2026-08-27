@@ -1,7 +1,22 @@
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useCurrentUser } from '@org/auth';
 import type { WorkspaceMember } from '@org/types';
 import {
-  Badge,
   Button,
   DropdownMenu,
   DropdownMenuContent,
@@ -21,14 +36,20 @@ import {
   Bell,
   BellOff,
   Check,
-  ChevronRight,
   Copy,
   Mail,
   Plus,
   Star,
   UserRound,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   FavoriteToggle,
@@ -40,6 +61,7 @@ import {
   Section,
   useCopyLink,
 } from './nav-primitives.js';
+import { useSidebarStore } from './navigation/sidebar-store.js';
 
 const PRESENCE_DOT: Record<PresenceStatus, string> = {
   online: 'bg-success',
@@ -50,11 +72,6 @@ const PRESENCE_DOT: Record<PresenceStatus, string> = {
 
 /**
  * One person's row.
- *
- * Carries the same hover cluster a channel row does — star plus overflow menu.
- * A DM has no membership record to hang preferences off, so favorite and mute
- * come from `useDirectMessagePreferences`, which is also what the conversation
- * header reads; starring here and starring there are the same switch.
  */
 function DirectMessageRow({
   member,
@@ -101,95 +118,76 @@ function DirectMessageRow({
           })
         }
       >
-        {/*
-          The avatar chip is sized off `navIconClass`, not a hand-picked
-          `size-5`: at 20px these rows stood 4px taller than the channel and
-          project rows in the same sidebar.
-        */}
-        <span
-          className={navIconClass(
-            1,
-            'relative flex items-center justify-center',
-          )}
-        >
-          {member.user.avatarUrl ? (
+        {member.user.avatarUrl ? (
+          <div className="relative shrink-0">
             <img
               src={member.user.avatarUrl}
               alt=""
-              className="size-full rounded-md object-cover"
+              className="size-4 rounded-full object-cover"
             />
-          ) : (
             <span
-              aria-hidden
-              className="font-semibold flex size-full items-center justify-center rounded-md bg-secondary text-[9px] text-foreground"
-            >
+              className={cn(
+                'right-0 bottom-0 absolute size-1.5 rounded-full ring-1 ring-background',
+                PRESENCE_DOT[presence],
+              )}
+            />
+          </div>
+        ) : (
+          <div className="relative shrink-0">
+            <div className="size-4 rounded-full bg-accent-amber/20 text-accent-amber flex items-center justify-center text-[9px] font-bold">
               {name.charAt(0).toUpperCase()}
-            </span>
-          )}
-
-          {/*
-            The presence dot carried no text alternative, so screen readers
-            announced identically-named rows with no status at all.
-          */}
-          <span
-            className={cn(
-              '-right-1 -bottom-1 size-2 absolute rounded-full border-2 border-sidebar',
-              PRESENCE_DOT[presence],
-            )}
-          >
-            <span className="sr-only">{PRESENCE_LABELS[presence]}</span>
-          </span>
-        </span>
-
-        <span className="gap-1.5 flex flex-1 items-center truncate">
-          <span className="truncate">{name}</span>
-          {/*
-            No AI/APP badge: this list is teammates now. Agents and apps are
-            not addressable as direct messages, so no row here can be one.
-          */}
-          {member.user.statusEmoji ? (
+            </div>
             <span
-              className="shrink-0 text-[11px] select-none"
-              title={
-                member.user.statusText
-                  ? `${member.user.statusEmoji} ${member.user.statusText}`
-                  : undefined
-              }
-            >
-              {member.user.statusEmoji}
-            </span>
-          ) : null}
-        </span>
+              className={cn(
+                'right-0 bottom-0 absolute size-1.5 rounded-full ring-1 ring-background',
+                PRESENCE_DOT[presence],
+              )}
+            />
+          </div>
+        )}
 
-        {isMuted ? (
+        <span className="flex-1 truncate">{name}</span>
+
+        {isMuted && (
           <Hint label="Notifications muted">
             <BellOff className="mr-1 size-3 shrink-0 text-muted-foreground/70" />
           </Hint>
-        ) : null}
-
-        {member.role === 'OWNER' ? (
-          <Badge
-            variant="neutral"
-            className="h-3.5 px-1 py-0 ml-auto text-[9px]"
-          >
-            Owner
-          </Badge>
-        ) : null}
+        )}
       </NavLink>
 
       <NavRowActions isPinned={isFavorite}>
-        <FavoriteToggle isFavorite={isFavorite} onToggle={onToggleFavorite} />
+        <FavoriteToggle
+          isFavorite={isFavorite}
+          onToggle={onToggleFavorite}
+        />
 
         <DropdownMenu modal={false}>
           <NavRowMenuTrigger label={`Options for ${name}`} />
-          <DropdownMenuContent align="end" side="bottom" className="w-64">
+          <DropdownMenuContent align="end" side="bottom" className="w-60">
+            <div className="px-2 py-1.5 border-b border-border/60">
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    'size-2 rounded-full shrink-0',
+                    PRESENCE_DOT[presence],
+                  )}
+                />
+                <span className="text-xs font-semibold text-foreground truncate">
+                  {name}
+                </span>
+              </div>
+              <span className="text-[11px] text-muted-foreground">
+                {PRESENCE_LABELS[presence]} · @{member.user.name}
+              </span>
+            </div>
+
             <DropdownMenuItem
               onSelect={handleMarkUnread}
-              className="justify-between"
+              className="justify-between mt-1"
             >
               <div className="gap-2.5 flex items-center">
                 {unreadState ? (
-                  <Check className="size-4 text-success-text" />
+                  <Check className="size-4 text-success" />
                 ) : (
                   <Mail className="size-4" />
                 )}
@@ -206,7 +204,7 @@ function DirectMessageRow({
             >
               <div className="gap-2.5 flex items-center">
                 {copied ? (
-                  <Check className="size-4 text-success-text" />
+                  <Check className="size-4 text-success" />
                 ) : (
                   <Copy className="size-4" />
                 )}
@@ -230,37 +228,20 @@ function DirectMessageRow({
                 />
                 <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
               </div>
-              <ChevronRight className="size-4 text-muted-foreground/70" />
             </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
 
             <DropdownMenuItem
               onSelect={onToggleMuted}
-              description={
-                isMuted
-                  ? 'Turn notifications for this conversation back on.'
-                  : 'Keep the conversation in your sidebar without being notified.'
-              }
+              className="justify-between"
             >
-              {isMuted ? (
-                <Bell className="size-4" />
-              ) : (
-                <BellOff className="size-4" />
-              )}
-              <span>
-                {isMuted ? 'Unmute conversation' : 'Mute conversation'}
-              </span>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem
-              onSelect={() =>
-                navigate(`/w/${workspaceSlug}/settings?tab=notifications`)
-              }
-              className="gap-2.5"
-            >
-              <Bell className="size-4" />
-              <span>Notification settings</span>
+              <div className="gap-2.5 flex items-center">
+                {isMuted ? (
+                  <Bell className="size-4" />
+                ) : (
+                  <BellOff className="size-4" />
+                )}
+                <span>{isMuted ? 'Unmute' : 'Mute'}</span>
+              </div>
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
@@ -270,7 +251,7 @@ function DirectMessageRow({
               className="gap-2.5"
             >
               <UserRound className="size-4" />
-              <span>View profile</span>
+              <span>View Profile</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -279,17 +260,47 @@ function DirectMessageRow({
   );
 }
 
+function SortableDirectMessageRow(props: {
+  member: WorkspaceMember;
+  workspaceSlug: string;
+  isFavorite: boolean;
+  isMuted: boolean;
+  onToggleFavorite: () => void;
+  onToggleMuted: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: props.member.user.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'relative',
+        isDragging &&
+          'z-50 opacity-80 rounded-lg bg-surface-raised ring-1 ring-primary/40 shadow-sm',
+      )}
+      {...attributes}
+      {...listeners}
+    >
+      <DirectMessageRow {...props} />
+    </div>
+  );
+}
+
 /**
- * The people this workspace can be messaged.
- *
- * There is no DM endpoint yet, so the roster is the workspace's member list
- * rather than a list of open conversations — which is what it should be either
- * way on a workspace where nobody has messaged anyone. It used to be four
- * invented names with invented unread counts, so every sidebar looked like it
- * had traffic in it.
- *
- * Starred people sort to the top, the way starred channels do; within each half
- * the roster keeps the order the member list came in.
+ * The people this workspace can message with drag-and-drop sortable ordering.
  */
 export function DirectMessagesSection({
   workspaceSlug,
@@ -300,15 +311,14 @@ export function DirectMessagesSection({
   const currentUser = useCurrentUser();
   const members = useMembers(workspaceId);
   const preferences = useDirectMessagePreferences(workspaceId);
+  const dndId = useId();
+
+  const resourceOrders = useSidebarStore((s) => s.resourceOrders);
+  const moveResourceItem = useSidebarStore((s) => s.moveResourceItem);
 
   const { favoriteIds, mutedIds } = preferences;
 
-  /*
-   * Teammates only — favourites first. Agents and apps used to be listed here
-   * as stand-in peers, but neither can hold up the other end of a direct
-   * message; they are reached through their own sidebar sections instead.
-   */
-  const people = useMemo(() => {
+  const rawPeople = useMemo(() => {
     const roster = (members.data ?? []).filter(
       (member) => member.user.id !== currentUser?.id,
     );
@@ -318,6 +328,56 @@ export function DirectMessagesSection({
       ...roster.filter((member) => !favoriteIds.includes(member.user.id)),
     ];
   }, [members.data, currentUser?.id, favoriteIds]);
+
+  const customOrder = workspaceId
+    ? resourceOrders[workspaceId]?.dms
+    : undefined;
+
+  const people = useMemo(() => {
+    if (!customOrder || customOrder.length === 0) {
+      return rawPeople;
+    }
+    const map = new Map(rawPeople.map((p) => [p.user.id, p]));
+    const result: WorkspaceMember[] = [];
+
+    for (const id of customOrder) {
+      const p = map.get(id);
+      if (p) {
+        result.push(p);
+        map.delete(id);
+      }
+    }
+
+    for (const p of map.values()) {
+      result.push(p);
+    }
+
+    return result;
+  }, [rawPeople, customOrder]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !workspaceId) return;
+
+    moveResourceItem(
+      workspaceId,
+      'dms',
+      active.id as string,
+      over.id as string,
+      people.map((p) => p.user.id),
+    );
+  };
 
   return (
     <Section
@@ -339,20 +399,30 @@ export function DirectMessagesSection({
         </Hint>
       }
     >
-      {people.map((member) => (
-        <DirectMessageRow
-          key={member.user.id}
-          member={member}
-          workspaceSlug={workspaceSlug}
-          isFavorite={favoriteIds.includes(member.user.id)}
-          isMuted={mutedIds.includes(member.user.id)}
-          onToggleFavorite={() => preferences.toggleFavorite(member.user.id)}
-          onToggleMuted={() => preferences.toggleMuted(member.user.id)}
-        />
-      ))}
+      <DndContext
+        id={dndId}
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={people.map((p) => p.user.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {people.map((member) => (
+            <SortableDirectMessageRow
+              key={member.user.id}
+              member={member}
+              workspaceSlug={workspaceSlug}
+              isFavorite={favoriteIds.includes(member.user.id)}
+              isMuted={mutedIds.includes(member.user.id)}
+              onToggleFavorite={() => preferences.toggleFavorite(member.user.id)}
+              onToggleMuted={() => preferences.toggleMuted(member.user.id)}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
 
-      {/* Same treatment as "Browse channels" / "Add project" — it used to be a
-          nav row with a dashed medallion, unlike every other add affordance. */}
       <li>
         <NavLink
           to={`/w/${workspaceSlug}/members`}

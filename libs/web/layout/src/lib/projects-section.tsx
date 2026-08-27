@@ -1,3 +1,19 @@
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { ProjectDetail } from '@org/types';
 import {
   Button,
@@ -15,17 +31,14 @@ import { useProjectMutations, useProjects } from '@org/web-work-tools';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Check,
-  ChevronRight,
   Copy,
-  FolderKanban,
   Pencil,
   Plus,
   Settings,
   Share2,
-  Star,
   Trash2,
 } from 'lucide-react';
-import { useCallback } from 'react';
+import { useCallback, useId, useMemo } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   FavoriteToggle,
@@ -38,6 +51,7 @@ import {
   useCopyLink,
   type NavDepth,
 } from './nav-primitives.js';
+import { useSidebarStore } from './navigation/sidebar-store.js';
 import { useSidebarFavorites } from './use-sidebar-favorites.js';
 
 export function ProjectNavRow({
@@ -62,7 +76,6 @@ export function ProjectNavRow({
   const navigate = useNavigate();
   const projectUrl = `${window.location.origin}/w/${workspaceSlug}/tasks?project=${project.id}`;
   const { copied, copy: handleCopyLink } = useCopyLink(projectUrl);
-  /* "Share" copies the same link; it only differs in the confirmation it shows. */
   const { copied: shared, copy: handleShare } = useCopyLink(projectUrl);
 
   const handleRename = useCallback(async () => {
@@ -98,12 +111,13 @@ export function ProjectNavRow({
         })}
       >
         <ProjectGlyph
-          icon={project.icon}
-          iconColor={project.iconColor}
-          color={project.color}
-          size="xs"
-          className={navIconClass(depth)}
+          icon={project.icon ?? undefined}
+          color={project.color ?? undefined}
+          name={project.name}
+          size="sm"
+          className="shrink-0"
         />
+
         <span className="flex-1 truncate">{project.name}</span>
       </NavLink>
 
@@ -115,20 +129,10 @@ export function ProjectNavRow({
 
         <DropdownMenu modal={false}>
           <NavRowMenuTrigger label={`Options for ${project.name}`} />
-          <DropdownMenuContent align="end" side="bottom" className="w-64">
-            <DropdownMenuItem
-              onSelect={() =>
-                navigate(`/w/${workspaceSlug}/tasks?project=${project.id}`)
-              }
-              className="gap-2.5"
-            >
-              <FolderKanban className="size-4" />
-              <span>Open board</span>
-            </DropdownMenuItem>
-
+          <DropdownMenuContent align="end" side="bottom" className="w-56">
             <DropdownMenuItem onSelect={handleRename} className="gap-2.5">
               <Pencil className="size-4" />
-              <span>Rename project</span>
+              <span>Rename</span>
             </DropdownMenuItem>
 
             <DropdownMenuItem
@@ -146,26 +150,6 @@ export function ProjectNavRow({
               <DropdownMenuShortcut>C</DropdownMenuShortcut>
             </DropdownMenuItem>
 
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem
-              onSelect={() => onToggleFavorite(project)}
-              className="justify-between"
-            >
-              <div className="gap-2.5 flex items-center">
-                <Star
-                  className={cn(
-                    'size-4',
-                    isFavorite && 'fill-current text-accent-amber',
-                  )}
-                />
-                <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
-              </div>
-              <ChevronRight className="size-4 text-muted-foreground/70" />
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator />
-
             <DropdownMenuItem
               onSelect={() =>
                 navigate(`/w/${workspaceSlug}/tasks?project=${project.id}`)
@@ -176,7 +160,10 @@ export function ProjectNavRow({
               <span>Project settings</span>
             </DropdownMenuItem>
 
-            <DropdownMenuItem onSelect={handleShare} className="gap-2.5">
+            <DropdownMenuItem
+              onSelect={handleShare}
+              className="gap-2.5"
+            >
               {shared ? (
                 <Check className="size-4 text-success-text" />
               ) : (
@@ -202,6 +189,47 @@ export function ProjectNavRow({
   );
 }
 
+function SortableProjectRow(props: {
+  project: ProjectDetail;
+  workspaceSlug: string;
+  isSelected: boolean;
+  isFavorite: boolean;
+  onToggleFavorite: (project: ProjectDetail) => void;
+  prompts: PromptDialog;
+  mutations?: ReturnType<typeof useProjectMutations>;
+  depth?: NavDepth;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: props.project.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'relative',
+        isDragging &&
+          'z-50 opacity-80 rounded-lg bg-surface-raised ring-1 ring-primary/40 shadow-sm',
+      )}
+      {...attributes}
+      {...listeners}
+    >
+      <ProjectNavRow {...props} />
+    </div>
+  );
+}
+
 export function ProjectsTreeSection({
   workspaceSlug,
   prompts,
@@ -214,8 +242,61 @@ export function ProjectsTreeSection({
   const query = useProjects(workspaceId);
   const mutations = useProjectMutations(workspaceId);
   const { isFavorite, toggleFavorite } = useSidebarFavorites(workspaceId);
+  const dndId = useId();
 
-  const projects: ProjectDetail[] = query.data ?? [];
+  const resourceOrders = useSidebarStore((s) => s.resourceOrders);
+  const moveResourceItem = useSidebarStore((s) => s.moveResourceItem);
+
+  const customOrder = workspaceId
+    ? resourceOrders[workspaceId]?.projects
+    : undefined;
+
+  const projects = useMemo(() => {
+    const rawProjects = query.data ?? [];
+    if (!customOrder || customOrder.length === 0) {
+      return rawProjects;
+    }
+    const map = new Map(rawProjects.map((p) => [p.id, p]));
+    const result: ProjectDetail[] = [];
+
+    for (const id of customOrder) {
+      const p = map.get(id);
+      if (p) {
+        result.push(p);
+        map.delete(id);
+      }
+    }
+
+    for (const p of map.values()) {
+      result.push(p);
+    }
+
+    return result;
+  }, [query.data, customOrder]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !workspaceId) return;
+
+    moveResourceItem(
+      workspaceId,
+      'projects',
+      active.id as string,
+      over.id as string,
+      projects.map((p) => p.id),
+    );
+  };
 
   return (
     <Section
@@ -238,26 +319,38 @@ export function ProjectsTreeSection({
         </Hint>
       }
     >
-      {projects.map((project, index) => {
-        const isSelected =
-          location.pathname.includes('/tasks') &&
-          (location.search.includes(`project=${project.id}`) ||
-            (!location.search.includes('project=') && index === 0));
+      <DndContext
+        id={dndId}
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={projects.map((p) => p.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {projects.map((project, index) => {
+            const isSelected =
+              location.pathname.includes('/tasks') &&
+              (location.search.includes(`project=${project.id}`) ||
+                (!location.search.includes('project=') && index === 0));
 
-        return (
-          <ProjectNavRow
-            key={project.id}
-            project={project}
-            workspaceSlug={workspaceSlug}
-            isSelected={isSelected}
-            isFavorite={isFavorite('project', project.id)}
-            onToggleFavorite={() => toggleFavorite('project', project.id)}
-            prompts={prompts}
-            mutations={mutations}
-            depth={1}
-          />
-        );
-      })}
+            return (
+              <SortableProjectRow
+                key={project.id}
+                project={project}
+                workspaceSlug={workspaceSlug}
+                isSelected={isSelected}
+                isFavorite={isFavorite('project', project.id)}
+                onToggleFavorite={() => toggleFavorite('project', project.id)}
+                prompts={prompts}
+                mutations={mutations}
+                depth={1}
+              />
+            );
+          })}
+        </SortableContext>
+      </DndContext>
 
       <li>
         <NavLink

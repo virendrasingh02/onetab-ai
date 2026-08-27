@@ -66,9 +66,13 @@ export { isRouteActive } from './lib/navigation/route-matcher.js';
 
 export {
   useSidebarStore,
+  DEFAULT_SIDEBAR_SECTIONS,
   type SidebarItemPreference,
+  type SidebarSectionConfig,
+  type SidebarSectionId,
   type SidebarState,
 } from './lib/navigation/sidebar-store.js';
 
 export { SidebarCustomizerDialog } from './lib/navigation/sidebar-customizer-dialog.js';
+
 

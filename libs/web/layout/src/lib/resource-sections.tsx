@@ -33,7 +33,23 @@ import {
   Trash2,
   Wrench,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   FavoriteToggle,
@@ -46,6 +62,7 @@ import {
   useCopyLink,
   type NavDepth,
 } from './nav-primitives.js';
+import { useSidebarStore } from './navigation/sidebar-store.js';
 import { useSidebarFavorites } from './use-sidebar-favorites.js';
 
 export interface ResourceItemData {
@@ -651,6 +668,129 @@ export function WorkflowNavRow({
   );
 }
 
+function SortableAgentNavRow(props: {
+  agent: ResourceItemData;
+  workspaceSlug: string;
+  isSelected: boolean;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+  onDelete: () => void;
+  depth?: NavDepth;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: props.agent.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'relative',
+        isDragging &&
+          'z-50 opacity-80 rounded-lg bg-surface-raised ring-1 ring-primary/40 shadow-sm',
+      )}
+      {...attributes}
+      {...listeners}
+    >
+      <AgentNavRow {...props} />
+    </div>
+  );
+}
+
+function SortableAppNavRow(props: {
+  app: ResourceItemData;
+  workspaceSlug: string;
+  isSelected: boolean;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+  onDisconnect: () => void;
+  onSync: () => void;
+  depth?: NavDepth;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: props.app.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'relative',
+        isDragging &&
+          'z-50 opacity-80 rounded-lg bg-surface-raised ring-1 ring-primary/40 shadow-sm',
+      )}
+      {...attributes}
+      {...listeners}
+    >
+      <AppNavRow {...props} />
+    </div>
+  );
+}
+
+function SortableWorkflowNavRow(props: {
+  workflow: ResourceItemData;
+  workspaceSlug: string;
+  isSelected: boolean;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+  onDelete: () => void;
+  onRun: () => void;
+  onToggleActive: () => void;
+  depth?: NavDepth;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: props.workflow.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'relative',
+        isDragging &&
+          'z-50 opacity-80 rounded-lg bg-surface-raised ring-1 ring-primary/40 shadow-sm',
+      )}
+      {...attributes}
+      {...listeners}
+    >
+      <WorkflowNavRow {...props} />
+    </div>
+  );
+}
+
 export function AgentsSection({
   workspaceSlug,
   prompts,
@@ -663,15 +803,69 @@ export function AgentsSection({
   const agents = useAgents(workspaceId);
   const mutations = useAgentMutations(workspaceId);
   const { isFavorite, toggleFavorite } = useSidebarFavorites(workspaceId);
+  const dndId = useId();
+
+  const resourceOrders = useSidebarStore((s) => s.resourceOrders);
+  const moveResourceItem = useSidebarStore((s) => s.moveResourceItem);
 
   const agentList = agents.data ?? [];
 
-  const items: ResourceItemData[] = agentList.map((agent) => ({
+  const rawItems: ResourceItemData[] = agentList.map((agent) => ({
     id: agent.id,
     name: agent.name,
     icon: 'Bot',
     detail: agent.role,
   }));
+
+  const customOrder = workspaceId
+    ? resourceOrders[workspaceId]?.agents
+    : undefined;
+
+  const items = useMemo(() => {
+    if (!customOrder || customOrder.length === 0) {
+      return rawItems;
+    }
+    const map = new Map(rawItems.map((a) => [a.id, a]));
+    const result: ResourceItemData[] = [];
+
+    for (const id of customOrder) {
+      const a = map.get(id);
+      if (a) {
+        result.push(a);
+        map.delete(id);
+      }
+    }
+
+    for (const a of map.values()) {
+      result.push(a);
+    }
+
+    return result;
+  }, [rawItems, customOrder]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !workspaceId) return;
+
+    moveResourceItem(
+      workspaceId,
+      'agents',
+      active.id as string,
+      over.id as string,
+      items.map((i) => i.id),
+    );
+  };
 
   const handleDelete = async (agent: ResourceItemData) => {
     if (prompts) {
@@ -710,27 +904,39 @@ export function AgentsSection({
         </Hint>
       }
     >
-      {items.map((item, index) => {
-        const isSelected =
-          (location.pathname.includes('/agents/chat') &&
-            (location.search.includes(`id=${item.id}`) ||
-              (!location.search.includes('id=') && index === 0))) ||
-          (location.pathname.endsWith('/agents') &&
-            location.search.includes(`agent=${item.id}`));
+      <DndContext
+        id={dndId}
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={items.map((i) => i.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {items.map((item, index) => {
+            const isSelected =
+              (location.pathname.includes('/agents/chat') &&
+                (location.search.includes(`id=${item.id}`) ||
+                  (!location.search.includes('id=') && index === 0))) ||
+              (location.pathname.endsWith('/agents') &&
+                location.search.includes(`agent=${item.id}`));
 
-        return (
-          <AgentNavRow
-            key={item.id}
-            agent={item}
-            workspaceSlug={workspaceSlug}
-            isSelected={isSelected}
-            isFavorite={isFavorite('agent', item.id)}
-            onToggleFavorite={() => toggleFavorite('agent', item.id)}
-            onDelete={() => void handleDelete(item)}
-            depth={1}
-          />
-        );
-      })}
+            return (
+              <SortableAgentNavRow
+                key={item.id}
+                agent={item}
+                workspaceSlug={workspaceSlug}
+                isSelected={isSelected}
+                isFavorite={isFavorite('agent', item.id)}
+                onToggleFavorite={() => toggleFavorite('agent', item.id)}
+                onDelete={() => void handleDelete(item)}
+                depth={1}
+              />
+            );
+          })}
+        </SortableContext>
+      </DndContext>
 
       <li>
         <NavLink
@@ -757,18 +963,72 @@ export function AppsSection({
   const integrations = useIntegrations(workspaceId);
   const mutations = useIntegrationMutations(workspaceId);
   const { isFavorite, toggleFavorite } = useSidebarFavorites(workspaceId);
+  const dndId = useId();
+
+  const resourceOrders = useSidebarStore((s) => s.resourceOrders);
+  const moveResourceItem = useSidebarStore((s) => s.moveResourceItem);
 
   const integrationList = (integrations.data ?? []).filter(
     (i) => i.status === 'CONNECTED',
   );
 
-  const items: ResourceItemData[] = integrationList.map((integration) => ({
+  const rawItems: ResourceItemData[] = integrationList.map((integration) => ({
     id: integration.provider,
     resourceId: integration.id,
     name: titleCaseProvider(integration.provider),
     icon: PROVIDER_ICON[integration.provider] ?? 'Plug',
     detail: 'Connected',
   }));
+
+  const customOrder = workspaceId
+    ? resourceOrders[workspaceId]?.apps
+    : undefined;
+
+  const items = useMemo(() => {
+    if (!customOrder || customOrder.length === 0) {
+      return rawItems;
+    }
+    const map = new Map(rawItems.map((a) => [a.id, a]));
+    const result: ResourceItemData[] = [];
+
+    for (const id of customOrder) {
+      const a = map.get(id);
+      if (a) {
+        result.push(a);
+        map.delete(id);
+      }
+    }
+
+    for (const a of map.values()) {
+      result.push(a);
+    }
+
+    return result;
+  }, [rawItems, customOrder]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !workspaceId) return;
+
+    moveResourceItem(
+      workspaceId,
+      'apps',
+      active.id as string,
+      over.id as string,
+      items.map((i) => i.id),
+    );
+  };
 
   const handleDisconnect = async (app: ResourceItemData) => {
     if (prompts) {
@@ -807,32 +1067,44 @@ export function AppsSection({
         </Hint>
       }
     >
-      {items.map((item, index) => {
-        const isSelected =
-          (location.pathname.includes('/apps/chat') &&
-            (location.search.includes(`app=${item.id}`) ||
-              (!location.search.includes('app=') && index === 0))) ||
-          (location.pathname.endsWith('/apps') &&
-            location.search.includes(`app=${item.id}`)) ||
-          (location.pathname.endsWith('/integrations') &&
-            location.search.includes(`app=${item.id}`));
+      <DndContext
+        id={dndId}
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={items.map((i) => i.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {items.map((item, index) => {
+            const isSelected =
+              (location.pathname.includes('/apps/chat') &&
+                (location.search.includes(`app=${item.id}`) ||
+                  (!location.search.includes('app=') && index === 0))) ||
+              (location.pathname.endsWith('/apps') &&
+                location.search.includes(`app=${item.id}`)) ||
+              (location.pathname.endsWith('/integrations') &&
+                location.search.includes(`app=${item.id}`));
 
-        return (
-          <AppNavRow
-            key={item.id}
-            app={item}
-            workspaceSlug={workspaceSlug}
-            isSelected={isSelected}
-            isFavorite={isFavorite('app', item.id)}
-            onToggleFavorite={() => toggleFavorite('app', item.id)}
-            onDisconnect={() => void handleDisconnect(item)}
-            onSync={() =>
-              mutations.sync.mutateAsync(item.resourceId ?? item.id)
-            }
-            depth={1}
-          />
-        );
-      })}
+            return (
+              <SortableAppNavRow
+                key={item.id}
+                app={item}
+                workspaceSlug={workspaceSlug}
+                isSelected={isSelected}
+                isFavorite={isFavorite('app', item.id)}
+                onToggleFavorite={() => toggleFavorite('app', item.id)}
+                onDisconnect={() => void handleDisconnect(item)}
+                onSync={() =>
+                  mutations.sync.mutateAsync(item.resourceId ?? item.id)
+                }
+                depth={1}
+              />
+            );
+          })}
+        </SortableContext>
+      </DndContext>
 
       <li>
         <NavLink
@@ -859,14 +1131,68 @@ export function WorkflowsSection({
   const workflows = useWorkflows(workspaceId);
   const mutations = useWorkflowMutations(workspaceId);
   const { isFavorite, toggleFavorite } = useSidebarFavorites(workspaceId);
+  const dndId = useId();
 
-  const items: ResourceItemData[] = (workflows.data ?? []).map((workflow) => ({
+  const resourceOrders = useSidebarStore((s) => s.resourceOrders);
+  const moveResourceItem = useSidebarStore((s) => s.moveResourceItem);
+
+  const rawItems: ResourceItemData[] = (workflows.data ?? []).map((workflow) => ({
     id: workflow.id,
     name: workflow.name,
     icon: TRIGGER_ICON[workflow.triggerType] ?? 'Zap',
     detail: workflow.triggerType,
     isActive: workflow.isActive,
   }));
+
+  const customOrder = workspaceId
+    ? resourceOrders[workspaceId]?.workflows
+    : undefined;
+
+  const items = useMemo(() => {
+    if (!customOrder || customOrder.length === 0) {
+      return rawItems;
+    }
+    const map = new Map(rawItems.map((w) => [w.id, w]));
+    const result: ResourceItemData[] = [];
+
+    for (const id of customOrder) {
+      const w = map.get(id);
+      if (w) {
+        result.push(w);
+        map.delete(id);
+      }
+    }
+
+    for (const w of map.values()) {
+      result.push(w);
+    }
+
+    return result;
+  }, [rawItems, customOrder]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !workspaceId) return;
+
+    moveResourceItem(
+      workspaceId,
+      'workflows',
+      active.id as string,
+      over.id as string,
+      items.map((i) => i.id),
+    );
+  };
 
   const handleDelete = async (workflow: ResourceItemData) => {
     if (prompts) {
@@ -905,33 +1231,48 @@ export function WorkflowsSection({
         </Hint>
       }
     >
-      {items.map((item) => {
-        const isSelected =
-          location.pathname.endsWith('/automations') &&
-          location.search.includes(`workflow=${item.id}`);
+      <DndContext
+        id={dndId}
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={items.map((i) => i.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {items.map((item) => {
+            const isSelected =
+              location.pathname.endsWith('/automations') &&
+              location.search.includes(`workflow=${item.id}`);
 
-        return (
-          <WorkflowNavRow
-            key={item.id}
-            workflow={item}
-            workspaceSlug={workspaceSlug}
-            isSelected={isSelected}
-            isFavorite={isFavorite('workflow', item.id)}
-            onToggleFavorite={() => toggleFavorite('workflow', item.id)}
-            onDelete={() => void handleDelete(item)}
-            onRun={() =>
-              mutations.trigger.mutateAsync({ workflowId: item.id, payload: {} })
-            }
-            onToggleActive={() =>
-              mutations.update.mutate({
-                workflowId: item.id,
-                input: { isActive: !(item.isActive ?? true) },
-              })
-            }
-            depth={1}
-          />
-        );
-      })}
+            return (
+              <SortableWorkflowNavRow
+                key={item.id}
+                workflow={item}
+                workspaceSlug={workspaceSlug}
+                isSelected={isSelected}
+                isFavorite={isFavorite('workflow', item.id)}
+                onToggleFavorite={() => toggleFavorite('workflow', item.id)}
+                onDelete={() => void handleDelete(item)}
+                onRun={() =>
+                  mutations.trigger.mutateAsync({
+                    workflowId: item.id,
+                    payload: {},
+                  })
+                }
+                onToggleActive={() =>
+                  mutations.update.mutate({
+                    workflowId: item.id,
+                    input: { isActive: !(item.isActive ?? true) },
+                  })
+                }
+                depth={1}
+              />
+            );
+          })}
+        </SortableContext>
+      </DndContext>
 
       <li>
         <NavLink
@@ -945,3 +1286,4 @@ export function WorkflowsSection({
     </Section>
   );
 }
+
