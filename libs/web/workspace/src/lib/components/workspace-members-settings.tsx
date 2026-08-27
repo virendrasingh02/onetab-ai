@@ -54,8 +54,7 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react';
-import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
 import { useTransferOwnership } from '../use-workspaces.js';
 import { useWorkspaceStore, type WorkspaceState } from '../workspace.store.js';
 import { UpgradePlanBanner } from './upgrade-plan-banner.js';
@@ -77,13 +76,6 @@ const ROLE_BADGES: Record<
   MEMBER: { variant: 'neutral', label: 'Member' },
   GUEST: { variant: 'warning', label: 'Guest' },
 };
-
-function parseEmails(raw: string): string[] {
-  return raw
-    .split(/[\s,;]+/)
-    .map((v) => v.trim().toLowerCase())
-    .filter(Boolean);
-}
 
 export function WorkspaceMembersSettings({
   workspaceId,
@@ -138,8 +130,6 @@ export function WorkspaceMembersSettings({
       setMemberToRemove(null);
     },
   });
-
-  const navigate = useNavigate();
 
   const revokeInvitationMutation = useMutation({
     mutationFn: (invitationId: string) =>

@@ -181,266 +181,265 @@ export function ChannelDetailsPanel({
         className="min-h-0 flex flex-1 flex-col"
       >
         <div className="px-3 shrink-0 scrollbar-none overflow-x-auto border-b border-border">
-            <TabsList>
-              <TabsTrigger value="about">About</TabsTrigger>
-              <TabsTrigger value="members" className="gap-1.5">
-                Members
-                <span className="text-muted-foreground">
-                  {memberList.length || channel.memberCount}
-                </span>
-              </TabsTrigger>
-              <TabsTrigger value="apps">Agents &amp; apps</TabsTrigger>
-              <TabsTrigger value="automations">Automations</TabsTrigger>
-            </TabsList>
-          </div>
-
-          <TabsContent value="about" className="min-h-0 flex flex-1 flex-col">
-            <AboutTab
-              channel={channel}
-              workspaceId={workspaceId}
-              currentUserId={currentUserId}
-              createdByName={createdByName}
-              onEditDetails={onEditDetails}
-            />
-          </TabsContent>
-
-          <TabsContent value="members" className="min-h-0 flex flex-1 flex-col">
-            <MembersTab
-              channelId={channel.id}
-              channelName={channel.name}
-              workspaceId={workspaceId}
-              currentUserId={currentUserId}
-              members={memberList}
-              isLoading={members.isLoading}
-              onAddPeople={onAddPeople}
-            />
-          </TabsContent>
-
-          <TabsContent
-            value="apps"
-            className="min-h-0 flex flex-1 flex-col p-4 space-y-4 overflow-y-auto"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-xs font-semibold text-foreground block">
-                  Channel AI Agents &amp; Apps
-                </span>
-                <span className="text-[10px] text-muted-foreground">
-                  {channelAgentsApps.agents.length} agents · {channelAgentsApps.apps.length} apps
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {onAddApp ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={onAddApp}
-                    className="h-7 text-xs gap-1 px-2 border-accent-violet/30 text-accent-violet"
-                  >
-                    <Plus className="size-3" />
-                    <span>App</span>
-                  </Button>
-                ) : null}
-                {onAddAgent ? (
-                  <Button
-                    size="sm"
-                    onClick={onAddAgent}
-                    className="h-7 text-xs gap-1 px-2"
-                  >
-                    <Plus className="size-3" />
-                    <span>Agent</span>
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-
-            {/* List of active AI agents */}
-            <div className="space-y-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-                Active AI Agents ({channelAgentsApps.agents.length})
+          <TabsList>
+            <TabsTrigger value="about">About</TabsTrigger>
+            <TabsTrigger value="members" className="gap-1.5">
+              Members
+              <span className="text-muted-foreground">
+                {memberList.length || channel.memberCount}
               </span>
-              {channelAgentsApps.agents.map((agent) => (
-                <div
-                  key={agent.id}
-                  className="p-3 rounded-xl border border-border bg-surface flex items-start gap-2.5 transition-colors hover:border-border-strong"
-                >
-                  <UserAvatar name={agent.name} seed={agent.avatarSeed} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-xs font-bold text-foreground truncate">
-                          {agent.name}
-                        </span>
-                        <span className="text-[10px] font-mono text-primary truncate">
-                          {agent.handle}
-                        </span>
-                      </div>
-                      <Badge
-                        variant={agent.enabled ? 'primary' : 'neutral'}
-                        className="text-[10px] py-0 h-4"
-                      >
-                        {agent.enabled ? 'Active' : 'Paused'}
-                      </Badge>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
-                      {agent.description}
-                    </p>
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="text-[10px] font-mono text-muted-foreground">
-                        {agent.model}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => channelAgentsApps.toggleAgent(agent.id)}
-                        className="text-[10px] font-semibold text-primary hover:underline cursor-pointer"
-                      >
-                        {agent.enabled ? 'Pause' : 'Enable'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            </TabsTrigger>
+            <TabsTrigger value="apps">Agents &amp; apps</TabsTrigger>
+            <TabsTrigger value="automations">Automations</TabsTrigger>
+          </TabsList>
+        </div>
 
-              {/* List of connected apps */}
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block pt-2">
-                Connected Apps ({channelAgentsApps.apps.length})
+        <TabsContent value="about" className="min-h-0 flex flex-1 flex-col">
+          <AboutTab
+            channel={channel}
+            workspaceId={workspaceId}
+            currentUserId={currentUserId}
+            createdByName={createdByName}
+            onEditDetails={onEditDetails}
+          />
+        </TabsContent>
+
+        <TabsContent value="members" className="min-h-0 flex flex-1 flex-col">
+          <MembersTab
+            channelId={channel.id}
+            channelName={channel.name}
+            workspaceId={workspaceId}
+            currentUserId={currentUserId}
+            members={memberList}
+            isLoading={members.isLoading}
+            onAddPeople={onAddPeople}
+          />
+        </TabsContent>
+
+        <TabsContent
+          value="apps"
+          className="min-h-0 flex flex-1 flex-col p-4 space-y-4 overflow-y-auto"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-semibold text-foreground block">
+                Channel AI Agents &amp; Apps
               </span>
-              {channelAgentsApps.apps.map((app) => (
-                <div
-                  key={app.id}
-                  className="p-3 rounded-xl border border-border bg-surface flex items-start gap-2.5 transition-colors hover:border-border-strong"
-                >
-                  <UserAvatar name={app.name} seed={app.icon} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-xs font-bold text-foreground truncate">
-                          {app.name}
-                        </span>
-                        <span className="text-[10px] font-mono text-accent-violet truncate">
-                          {app.botHandle}
-                        </span>
-                      </div>
-                      <Badge
-                        variant={app.enabled ? 'primary' : 'neutral'}
-                        className={cn(
-                          'text-[10px] py-0 h-4',
-                          app.enabled && 'bg-accent-violet-soft text-accent-violet border-accent-violet/20',
-                        )}
-                      >
-                        {app.enabled ? 'Connected' : 'Muted'}
-                      </Badge>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
-                      {app.description}
-                    </p>
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="text-[10px] text-muted-foreground">
-                        {app.events.length} event triggers
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => channelAgentsApps.toggleApp(app.id)}
-                        className="text-[10px] font-semibold text-accent-violet hover:underline cursor-pointer"
-                      >
-                        {app.enabled ? 'Mute' : 'Enable'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {onOpenAgentsAppsTab ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onOpenAgentsAppsTab}
-                className="w-full text-xs h-8 gap-1.5"
-              >
-                <Bot className="size-3.5 text-primary" />
-                <span>Open Full AI Agents &amp; Apps Tab</span>
-              </Button>
-            ) : null}
-
-            <div className="pt-2 border-t border-border">
-              <LinkOutTab
-                icon={Blocks}
-                title="Browse All Workspace Agents"
-                description="Explore pre-built integrations, custom agents, and bot webhooks."
-                actionLabel="Explore marketplace"
-                to={`/w/${workspaceSlug}/agents`}
-              />
-            </div>
-          </TabsContent>
-
-          <TabsContent
-            value="automations"
-            className="min-h-0 flex flex-1 flex-col p-4 space-y-4 overflow-y-auto"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-foreground">
-                Channel Workflows
+              <span className="text-[10px] text-muted-foreground">
+                {channelAgentsApps.agents.length} agents · {channelAgentsApps.apps.length} apps
               </span>
-              {onOpenWorkflows ? (
+            </div>
+            <div className="flex items-center gap-1.5">
+              {onAddApp ? (
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={onOpenWorkflows}
-                  className="h-7 text-xs gap-1.5"
+                  onClick={onAddApp}
+                  className="h-7 text-xs gap-1 px-2 border-accent-violet/30 text-accent-violet"
                 >
-                  <Workflow className="size-3.5" />
-                  <span>Manage Workflows</span>
+                  <Plus className="size-3" />
+                  <span>App</span>
+                </Button>
+              ) : null}
+              {onAddAgent ? (
+                <Button
+                  size="sm"
+                  onClick={onAddAgent}
+                  className="h-7 text-xs gap-1 px-2"
+                >
+                  <Plus className="size-3" />
+                  <span>Agent</span>
                 </Button>
               ) : null}
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <div className="p-3 rounded-xl border border-border bg-surface flex items-start justify-between gap-2">
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-foreground">
-                      Welcome New Members
-                    </span>
-                    <Badge variant="primary" className="text-[10px] py-0 h-4">
-                      Enabled
+          {/* List of active AI agents */}
+          <div className="space-y-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+              Active AI Agents ({channelAgentsApps.agents.length})
+            </span>
+            {channelAgentsApps.agents.map((agent) => (
+              <div
+                key={agent.id}
+                className="p-3 rounded-xl border border-border bg-surface flex items-start gap-2.5 transition-colors hover:border-border-strong"
+              >
+                <UserAvatar name={agent.name} seed={agent.avatarSeed} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-xs font-bold text-foreground truncate">
+                        {agent.name}
+                      </span>
+                      <span className="text-[10px] font-mono text-primary truncate">
+                        {agent.handle}
+                      </span>
+                    </div>
+                    <Badge
+                      variant={agent.enabled ? 'primary' : 'neutral'}
+                      className="text-[10px] py-0 h-4"
+                    >
+                      {agent.enabled ? 'Active' : 'Paused'}
                     </Badge>
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Sends welcome guides &amp; tips when anyone joins #{channel.name}.
+                  <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
+                    {agent.description}
                   </p>
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      {agent.model}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => channelAgentsApps.toggleAgent(agent.id)}
+                      className="text-[10px] font-semibold text-primary hover:underline cursor-pointer"
+                    >
+                      {agent.enabled ? 'Pause' : 'Enable'}
+                    </button>
+                  </div>
                 </div>
               </div>
+            ))}
 
-              <div className="p-3 rounded-xl border border-border bg-surface flex items-start justify-between gap-2">
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-foreground">
-                      Daily Standup Reminder
-                    </span>
-                    <Badge variant="primary" className="text-[10px] py-0 h-4">
-                      Enabled
+            {/* List of connected apps */}
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block pt-2">
+              Connected Apps ({channelAgentsApps.apps.length})
+            </span>
+            {channelAgentsApps.apps.map((app) => (
+              <div
+                key={app.id}
+                className="p-3 rounded-xl border border-border bg-surface flex items-start gap-2.5 transition-colors hover:border-border-strong"
+              >
+                <UserAvatar name={app.name} seed={app.icon} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-xs font-bold text-foreground truncate">
+                        {app.name}
+                      </span>
+                      <span className="text-[10px] font-mono text-accent-violet truncate">
+                        {app.botHandle}
+                      </span>
+                    </div>
+                    <Badge
+                      variant={app.enabled ? 'primary' : 'neutral'}
+                      className={cn(
+                        'text-[10px] py-0 h-4',
+                        app.enabled && 'bg-accent-violet-soft text-accent-violet border-accent-violet/20',
+                      )}
+                    >
+                      {app.enabled ? 'Connected' : 'Muted'}
                     </Badge>
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Collects daily status updates at 9:30 AM every weekday.
+                  <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
+                    {app.description}
                   </p>
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-[10px] text-muted-foreground">
+                      {app.events.length} event triggers
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => channelAgentsApps.toggleApp(app.id)}
+                      className="text-[10px] font-semibold text-accent-violet hover:underline cursor-pointer"
+                    >
+                      {app.enabled ? 'Mute' : 'Enable'}
+                    </button>
+                  </div>
                 </div>
+              </div>
+            ))}
+          </div>
+
+          {onOpenAgentsAppsTab ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenAgentsAppsTab}
+              className="w-full text-xs h-8 gap-1.5"
+            >
+              <Bot className="size-3.5 text-primary" />
+              <span>Open Full AI Agents &amp; Apps Tab</span>
+            </Button>
+          ) : null}
+
+          <div className="pt-2 border-t border-border">
+            <LinkOutTab
+              icon={Blocks}
+              title="Browse All Workspace Agents"
+              description="Explore pre-built integrations, custom agents, and bot webhooks."
+              actionLabel="Explore marketplace"
+              to={`/w/${workspaceSlug}/agents`}
+            />
+          </div>
+        </TabsContent>
+
+        <TabsContent
+          value="automations"
+          className="min-h-0 flex flex-1 flex-col p-4 space-y-4 overflow-y-auto"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-foreground">
+              Channel Workflows
+            </span>
+            {onOpenWorkflows ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onOpenWorkflows}
+                className="h-7 text-xs gap-1.5"
+              >
+                <Workflow className="size-3.5" />
+                <span>Manage Workflows</span>
+              </Button>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <div className="p-3 rounded-xl border border-border bg-surface flex items-start justify-between gap-2">
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-foreground">
+                    Welcome New Members
+                  </span>
+                  <Badge variant="primary" className="text-[10px] py-0 h-4">
+                    Enabled
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Sends welcome guides &amp; tips when anyone joins #{channel.name}.
+                </p>
               </div>
             </div>
 
-            <div className="pt-2 border-t border-border">
-              <LinkOutTab
-                icon={Workflow}
-                title="Workspace Automations"
-                description="Create cross-channel workflows, webhook triggers, and scheduled jobs."
-                actionLabel="Open Workflow Builder"
-                to={`/w/${workspaceSlug}/automations`}
-              />
+            <div className="p-3 rounded-xl border border-border bg-surface flex items-start justify-between gap-2">
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-foreground">
+                    Daily Standup Reminder
+                  </span>
+                  <Badge variant="primary" className="text-[10px] py-0 h-4">
+                    Enabled
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Collects daily status updates at 9:30 AM every weekday.
+                </p>
+              </div>
             </div>
-          </TabsContent>
-        </Tabs>
-      )}
+          </div>
+
+          <div className="pt-2 border-t border-border">
+            <LinkOutTab
+              icon={Workflow}
+              title="Workspace Automations"
+              description="Create cross-channel workflows, webhook triggers, and scheduled jobs."
+              actionLabel="Open Workflow Builder"
+              to={`/w/${workspaceSlug}/automations`}
+            />
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <ChannelIdFooter channelId={channel.id} />
     </div>
@@ -1251,12 +1250,6 @@ function MembersTab({
 
 /* -------------------------------------------------------------- settings --- */
 
-function SettingsTab({
-  channel,
-  workspaceId,
-  currentUserId,
-  onEditDetails,
-}: {
 function ChannelSettingsDropdown({
   channel,
   workspaceId,

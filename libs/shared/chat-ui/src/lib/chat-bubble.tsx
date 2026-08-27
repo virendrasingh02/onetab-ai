@@ -4,7 +4,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Hint,
@@ -19,7 +18,6 @@ import {
   Blocks,
   Bookmark,
   Bot,
-  Calendar as CalendarIcon,
   CheckSquare,
   ChevronDown,
   ChevronLeft,
@@ -37,7 +35,6 @@ import {
   Smile,
   Trash2,
   UserCheck,
-  X,
 } from 'lucide-react';
 import {
   addMonths,

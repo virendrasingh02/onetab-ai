@@ -145,7 +145,6 @@ import type {
   InviteMembersInput,
   CreateInvitationLinkInput,
   UpdateInvitationLinkInput,
-  DeclineInvitationInput,
   LoginInput,
   MoveTaskInput,
   PollDeviceAuthInput,

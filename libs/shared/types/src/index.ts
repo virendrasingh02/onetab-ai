@@ -43,6 +43,8 @@ export type {
   CurrentUser,
   IconSelection,
   Invitation,
+  InvitationPublicPreview,
+  InviteBatchResult,
   IsoDateString,
   PublicUser,
   ThemeConfig,

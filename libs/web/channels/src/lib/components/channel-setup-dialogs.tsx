@@ -21,14 +21,12 @@ import {
   Bot,
   Check,
   LayoutTemplate,
-  Loader2,
   PenLine,
   Play,
   Plus,
   Search,
   Send,
   Sparkles,
-  UserPlus,
   Workflow,
   X,
   Zap,
@@ -134,8 +132,8 @@ export function AddPeopleDialog({
   const handleAdd = async (event?: FormEvent) => {
     if (event) event.preventDefault();
 
-    let finalUsers = [...selectedUsers];
-    let finalEmails = [...selectedEmails];
+    const finalUsers = [...selectedUsers];
+    const finalEmails = [...selectedEmails];
 
     if (isEmailLike && !finalEmails.includes(search.trim())) {
       finalEmails.push(search.trim());
