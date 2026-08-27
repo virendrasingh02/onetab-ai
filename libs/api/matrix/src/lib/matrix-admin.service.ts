@@ -657,6 +657,24 @@ export class MatrixAdminService {
     );
   }
 
+  /**
+   * The Matrix ids currently joined to a room.
+   *
+   * Uses the Synapse admin room-members API, so the caller does not have to be
+   * in the room. Feeds the membership reconciler (`MatrixReconcilerService`),
+   * which compares this against our `ChannelMember` rows and converges the two.
+   */
+  async getRoomMembers(roomId: string): Promise<string[]> {
+    this.assertEnabled();
+    const response = await this.withPrivileged((accessToken) =>
+      this.request<{ members?: string[] }>(
+        `/_synapse/admin/v1/rooms/${encodeURIComponent(roomId)}/members`,
+        { accessToken },
+      ),
+    );
+    return response.members ?? [];
+  }
+
   /** Sets a member's power level, mirroring our workspace roles into Matrix. */
   async setPowerLevel(
     roomId: string,

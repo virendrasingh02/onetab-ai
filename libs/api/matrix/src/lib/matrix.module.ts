@@ -5,6 +5,7 @@ import { MatrixAdminService } from './matrix-admin.service.js';
 import { MatrixAuthService } from './matrix-auth.service.js';
 import { MatrixBotMessagingService } from './matrix-bot-messaging.service.js';
 import { MatrixInboundRouterService } from './matrix-inbound-router.service.js';
+import { MatrixReconcilerService } from './matrix-reconciler.service.js';
 import { MatrixSyncService } from './matrix-sync.service.js';
 import {
   MatrixAppserviceController,
@@ -27,6 +28,7 @@ import { NotificationBridgeService } from './notification-bridge.service.js';
     MatrixAuthService,
     MatrixBotMessagingService,
     MatrixInboundRouterService,
+    MatrixReconcilerService,
     MatrixSyncService,
     NotificationBridgeService,
   ],
