@@ -77,14 +77,6 @@ export function isRouteActive(
     return pathname.startsWith(`${basePath}/ai/prompts`);
   }
 
-  if (itemHref === 'ai/images') {
-    return pathname.startsWith(`${basePath}/ai/images`);
-  }
-
-  if (itemHref === 'cards') {
-    return pathname.startsWith(`${basePath}/cards`);
-  }
-
   // 4. Default prefix check for nested subroutes
   return pathname.startsWith(`${targetPath}/`);
 }

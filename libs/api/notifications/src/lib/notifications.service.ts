@@ -36,6 +36,9 @@ export interface ActivityFeedItem {
   /** The subject, so the client can deep-link the row. */
   resourceType: string | null;
   resourceId: string | null;
+  /** For chat rows: the Matrix event id, so a click can jump to the message
+   *  (`c/<slug>?msg=<id>`). Null for non-chat rows. */
+  messageEventId: string | null;
   channel: { id: string; name: string; slug: string } | null;
   user: {
     id: string;
@@ -237,6 +240,7 @@ export class NotificationsService {
       summary: row.summary,
       resourceType: row.resourceType,
       resourceId: row.resourceId,
+      messageEventId: row.matrixEventId ?? null,
       channel: row.channel,
       user: row.user
         ? {

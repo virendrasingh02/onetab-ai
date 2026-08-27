@@ -1,10 +1,13 @@
 import type { MatrixClient as SdkClient, MatrixEvent } from 'matrix-js-sdk';
 import type { Room as SdkRoom } from 'matrix-js-sdk';
 import {
+  resolveDirectMessageRoom,
+  resolveGroupDirectMessageRoom,
   resolveMediaUrl,
   toMessage,
   toMessageKind,
   toPresence,
+  toRoomKind,
 } from './mappers.js';
 
 /**
@@ -303,5 +306,291 @@ describe('toPresence', () => {
   it('defaults an unknown or missing state to offline', () => {
     expect(toPresence('@a:x', undefined).state).toBe('offline');
     expect(toPresence('@a:x', 'weird').state).toBe('offline');
+  });
+});
+
+// --- resolveDirectMessageRoom (audit B4) ----------------------------------
+
+interface FakeDmRoomInput {
+  roomId: string;
+  /** Defaults to 'join'. */
+  myMembership?: string;
+  /** Presence of an `m.room.name` state event marks this a channel/group. */
+  name?: string;
+  members?: Array<{ userId: string; membership?: string }>;
+  /** Defaults to the count of joined `members`, or 2. */
+  joinedCount?: number;
+}
+
+function fakeDmRoom(input: FakeDmRoomInput): SdkRoom {
+  const joined = (input.members ?? []).filter(
+    (member) => (member.membership ?? 'join') === 'join',
+  );
+  return {
+    roomId: input.roomId,
+    getMyMembership: () => input.myMembership ?? 'join',
+    getJoinedMemberCount: () => input.joinedCount ?? joined.length ?? 2,
+    currentState: {
+      getStateEvents: (type: string) =>
+        type === 'm.room.name' && input.name
+          ? ({ getContent: () => ({ name: input.name }) } as unknown)
+          : null,
+    },
+    getMembers: () =>
+      (input.members ?? []).map((member) => ({
+        userId: member.userId,
+        membership: member.membership ?? 'join',
+      })),
+  } as unknown as SdkRoom;
+}
+
+function fakeKindClient(direct: Record<string, string[]>): SdkClient {
+  return {
+    getAccountData: (type: string) =>
+      type === 'm.direct' ? { getContent: () => direct } : undefined,
+  } as unknown as SdkClient;
+}
+
+function fakeDmClient(input: {
+  direct?: Record<string, string[]>;
+  rooms?: SdkRoom[];
+  myUserId?: string;
+}): SdkClient {
+  const rooms = input.rooms ?? [];
+  return {
+    getUserId: () => input.myUserId ?? '@me:example.org',
+    getAccountData: (type: string) =>
+      type === 'm.direct'
+        ? { getContent: () => input.direct ?? {} }
+        : undefined,
+    getRoom: (id: string) => rooms.find((room) => room.roomId === id) ?? null,
+    getRooms: () => rooms,
+  } as unknown as SdkClient;
+}
+
+describe('resolveDirectMessageRoom', () => {
+  const peer = '@alice:example.org';
+  const me = '@me:example.org';
+
+  it('returns the room recorded in m.direct for the peer', () => {
+    const client = fakeDmClient({
+      direct: { [peer]: ['!dm:example.org'] },
+      rooms: [fakeDmRoom({ roomId: '!dm:example.org' })],
+    });
+    expect(resolveDirectMessageRoom(client, peer)).toBe('!dm:example.org');
+  });
+
+  it('returns a recorded room whose invite is still pending, so no duplicate is created', () => {
+    const client = fakeDmClient({
+      direct: { [peer]: ['!dm:example.org'] },
+      rooms: [fakeDmRoom({ roomId: '!dm:example.org', myMembership: 'invite' })],
+    });
+    expect(resolveDirectMessageRoom(client, peer)).toBe('!dm:example.org');
+  });
+
+  it('skips a recorded room the caller has left', () => {
+    const client = fakeDmClient({
+      direct: { [peer]: ['!old:example.org'] },
+      rooms: [fakeDmRoom({ roomId: '!old:example.org', myMembership: 'leave' })],
+    });
+    expect(resolveDirectMessageRoom(client, peer)).toBeNull();
+  });
+
+  it('finds an untagged, nameless two-person room with the peer', () => {
+    const client = fakeDmClient({
+      rooms: [
+        fakeDmRoom({
+          roomId: '!legacy:example.org',
+          members: [{ userId: me }, { userId: peer }],
+        }),
+      ],
+    });
+    expect(resolveDirectMessageRoom(client, peer)).toBe('!legacy:example.org');
+  });
+
+  it('never matches a two-person channel — a named room (audit B4)', () => {
+    const client = fakeDmClient({
+      rooms: [
+        fakeDmRoom({
+          roomId: '!private-channel:example.org',
+          name: 'secret-project',
+          members: [{ userId: me }, { userId: peer }],
+        }),
+      ],
+    });
+    expect(resolveDirectMessageRoom(client, peer)).toBeNull();
+  });
+
+  it('never matches a room already tagged as another user’s DM', () => {
+    const client = fakeDmClient({
+      direct: { '@bob:example.org': ['!bobs-dm:example.org'] },
+      rooms: [
+        fakeDmRoom({
+          roomId: '!bobs-dm:example.org',
+          members: [{ userId: me }, { userId: peer }],
+        }),
+      ],
+    });
+    expect(resolveDirectMessageRoom(client, peer)).toBeNull();
+  });
+
+  it('does not match a room with a third participant', () => {
+    const client = fakeDmClient({
+      rooms: [
+        fakeDmRoom({
+          roomId: '!trio:example.org',
+          members: [
+            { userId: me },
+            { userId: peer },
+            { userId: '@carol:example.org' },
+          ],
+        }),
+      ],
+    });
+    expect(resolveDirectMessageRoom(client, peer)).toBeNull();
+  });
+
+  it('counts a still-pending invite toward the two parties', () => {
+    const client = fakeDmClient({
+      rooms: [
+        fakeDmRoom({
+          roomId: '!pending:example.org',
+          members: [
+            { userId: me, membership: 'join' },
+            { userId: peer, membership: 'invite' },
+          ],
+        }),
+      ],
+    });
+    expect(resolveDirectMessageRoom(client, peer)).toBe('!pending:example.org');
+  });
+
+  it('returns null when nothing matches', () => {
+    expect(resolveDirectMessageRoom(fakeDmClient({ rooms: [] }), peer)).toBeNull();
+  });
+});
+
+describe('toRoomKind', () => {
+  it('classifies a two-person room in m.direct as a direct message', () => {
+    const room = fakeDmRoom({ roomId: '!dm:x', joinedCount: 2 });
+    const client = fakeKindClient({ '@a:x': ['!dm:x'] });
+    expect(toRoomKind(room, client)).toBe('direct');
+  });
+
+  it('classifies a room in m.direct with three or more people as a group DM', () => {
+    const room = fakeDmRoom({ roomId: '!grp:x', joinedCount: 4 });
+    const client = fakeKindClient({ '@a:x': ['!grp:x'], '@b:x': ['!grp:x'] });
+    expect(toRoomKind(room, client)).toBe('group');
+  });
+
+  it('classifies a larger room not in m.direct as a channel', () => {
+    const room = fakeDmRoom({ roomId: '!chan:x', joinedCount: 12 });
+    expect(toRoomKind(room, fakeKindClient({}))).toBe('channel');
+  });
+});
+
+describe('resolveGroupDirectMessageRoom', () => {
+  const me = '@me:example.org';
+  const alice = '@alice:example.org';
+  const bob = '@bob:example.org';
+  const carol = '@carol:example.org';
+
+  it('returns a tagged room whose other participants are exactly the wanted set', () => {
+    const client = fakeDmClient({
+      direct: { [alice]: ['!grp:x'], [bob]: ['!grp:x'] },
+      rooms: [
+        fakeDmRoom({
+          roomId: '!grp:x',
+          members: [{ userId: me }, { userId: alice }, { userId: bob }],
+        }),
+      ],
+    });
+    expect(resolveGroupDirectMessageRoom(client, [alice, bob])).toBe('!grp:x');
+  });
+
+  it('does not reuse a room that is missing one of the wanted people', () => {
+    const client = fakeDmClient({
+      direct: { [alice]: ['!grp:x'], [bob]: ['!grp:x'] },
+      rooms: [
+        fakeDmRoom({
+          roomId: '!grp:x',
+          members: [{ userId: me }, { userId: alice }, { userId: bob }],
+        }),
+      ],
+    });
+    expect(resolveGroupDirectMessageRoom(client, [alice, bob, carol])).toBeNull();
+  });
+
+  it('does not reuse a room that has an extra person', () => {
+    const client = fakeDmClient({
+      direct: { [alice]: ['!grp:x'], [bob]: ['!grp:x'], [carol]: ['!grp:x'] },
+      rooms: [
+        fakeDmRoom({
+          roomId: '!grp:x',
+          members: [
+            { userId: me },
+            { userId: alice },
+            { userId: bob },
+            { userId: carol },
+          ],
+        }),
+      ],
+    });
+    expect(resolveGroupDirectMessageRoom(client, [alice, bob])).toBeNull();
+  });
+
+  it('never infers a group DM from an untagged room by default', () => {
+    const client = fakeDmClient({
+      rooms: [
+        fakeDmRoom({
+          roomId: '!untagged:x',
+          members: [{ userId: me }, { userId: alice }, { userId: bob }],
+        }),
+      ],
+    });
+    expect(resolveGroupDirectMessageRoom(client, [alice, bob])).toBeNull();
+  });
+
+  it('reuses an untagged room these exact people share when includeChannels is set', () => {
+    const client = fakeDmClient({
+      rooms: [
+        fakeDmRoom({
+          roomId: '!shared-channel:x',
+          name: 'squad',
+          members: [{ userId: me }, { userId: alice }, { userId: bob }],
+        }),
+      ],
+    });
+    expect(
+      resolveGroupDirectMessageRoom(client, [alice, bob], {
+        includeChannels: true,
+      }),
+    ).toBe('!shared-channel:x');
+  });
+
+  it('does not reuse a channel whose membership is a superset of the picked people', () => {
+    const client = fakeDmClient({
+      rooms: [
+        fakeDmRoom({
+          roomId: '!general:x',
+          name: 'general',
+          members: [
+            { userId: me },
+            { userId: alice },
+            { userId: bob },
+            { userId: carol },
+          ],
+        }),
+      ],
+    });
+    expect(
+      resolveGroupDirectMessageRoom(client, [alice, bob], {
+        includeChannels: true,
+      }),
+    ).toBeNull();
+  });
+
+  it('returns null for fewer than two peers', () => {
+    expect(resolveGroupDirectMessageRoom(fakeDmClient({}), [alice])).toBeNull();
   });
 });

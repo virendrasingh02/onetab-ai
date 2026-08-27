@@ -34,6 +34,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -138,6 +139,21 @@ export interface ChatSurfaceProps {
   savedIds?: string[];
   firstUnreadId?: string | null;
 
+  /**
+   * The open thread, driven by the URL (`?thread=`). Passing it — even as
+   * `null` — hands the surface's thread-panel selection to the host; leaving it
+   * `undefined` keeps the old purely-local behaviour.
+   */
+  deepLinkThreadId?: string | null;
+  /** Called when the reader opens or closes a thread, so the host can update the URL. */
+  onDeepLinkThreadChange?: (threadRootId: string | null) => void;
+  /** A message to scroll to and highlight once it is in the timeline (`?msg=`). */
+  deepLinkMessageId?: string | null;
+  /** Root ids of threads with replies the reader has not caught up to. */
+  unreadThreadRootIds?: readonly string[];
+  /** Called while a thread panel is open, so the host can mark it read. */
+  onThreadRead?: (threadRootId: string) => void;
+
   /** Offered by the channel welcome block; there is no bookmarks bar. */
   onAddBookmark?: () => void;
   onSend: (body: string, threadRootId?: string) => void | Promise<void>;
@@ -194,6 +210,11 @@ export function ChatSurface({
   pinnedIds = [],
   savedIds = [],
   firstUnreadId,
+  deepLinkThreadId,
+  onDeepLinkThreadChange,
+  deepLinkMessageId,
+  unreadThreadRootIds,
+  onThreadRead,
   onAddBookmark,
   onSend,
   onEdit,
@@ -229,6 +250,33 @@ export function ChatSurface({
   }, [huddleRequest]);
 
   /*
+   * Which thread the URL currently points at, as last reconciled here. Guards
+   * the two directions from fighting: the effect below opens the panel when the
+   * `?thread=` param changes, and the open/close handlers push the param when
+   * the reader acts — without this ref each would re-trigger the other.
+   */
+  const deepLinkThreadApplied = useRef<string | null | undefined>(undefined);
+
+  const notifyThreadChange = useCallback(
+    (rootId: string | null) => {
+      if (deepLinkThreadId === undefined) return;
+      if (rootId === deepLinkThreadApplied.current) return;
+      deepLinkThreadApplied.current = rootId;
+      onDeepLinkThreadChange?.(rootId);
+    },
+    [deepLinkThreadId, onDeepLinkThreadChange],
+  );
+
+  const openThreadPanel = useCallback(
+    (rootId: string) => {
+      setThreadRootId(rootId);
+      setPanel('thread');
+      notifyThreadChange(rootId);
+    },
+    [notifyThreadChange],
+  );
+
+  /*
    * This surface used to be torn down and rebuilt on every conversation
    * switch — its host unmounted the whole tree while the next room loaded —
    * which reset all of this state for free. Now that the switch happens in
@@ -251,7 +299,26 @@ export function ChatSurface({
     // message is gone with it — fall back to the thread list rather than
     // close the panel outright.
     setPanel((current) => (current === 'thread' ? 'threads' : current));
+    // Let the URL re-open the right thread for the new conversation (below).
+    deepLinkThreadApplied.current = undefined;
   }, [conversationId]);
+
+  /*
+   * URL → panel. Runs after the reset above, so on a conversation switch the
+   * `?thread=` param wins over the blanket `setThreadRootId(null)`.
+   */
+  useEffect(() => {
+    if (deepLinkThreadId === undefined) return;
+    if (deepLinkThreadId === deepLinkThreadApplied.current) return;
+    deepLinkThreadApplied.current = deepLinkThreadId;
+    if (deepLinkThreadId) {
+      setThreadRootId(deepLinkThreadId);
+      setPanel('thread');
+    } else {
+      setThreadRootId(null);
+      setPanel((current) => (current === 'thread' ? 'none' : current));
+    }
+  }, [deepLinkThreadId, conversationId]);
 
   const byId = useMemo(
     () => new Map(messages.map((message) => [message.id, message])),
@@ -330,10 +397,38 @@ export function ChatSurface({
       ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }, []);
 
+  /*
+   * Deep link to a message (`?msg=`). Waits for the message to actually be in
+   * the timeline — it may still be paging in — and only jumps once per id, so a
+   * later render does not yank the reader back after they have scrolled away.
+   */
+  const jumpedToDeepLink = useRef<string | null>(null);
+  useEffect(() => {
+    if (!deepLinkMessageId) {
+      jumpedToDeepLink.current = null;
+      return;
+    }
+    if (deepLinkMessageId === jumpedToDeepLink.current) return;
+    if (!byId.has(deepLinkMessageId)) return;
+    jumpedToDeepLink.current = deepLinkMessageId;
+    jumpTo(deepLinkMessageId);
+  }, [deepLinkMessageId, byId, jumpTo]);
+
+  const unreadThreadRoots = useMemo(
+    () => new Set(unreadThreadRootIds ?? []),
+    [unreadThreadRootIds],
+  );
+
   const threadRoot = threadRootId ? (byId.get(threadRootId) ?? null) : null;
   const threadReplies = threadRootId
     ? (repliesByRoot.get(threadRootId) ?? [])
     : [];
+
+  /* Mark a thread read while its panel is open, and again when a reply lands. */
+  useEffect(() => {
+    if (panel !== 'thread' || !threadRootId) return;
+    onThreadRead?.(threadRootId);
+  }, [panel, threadRootId, threadReplies.length, onThreadRead]);
 
   const openProfilePanel = useRightPanelStore((s) => s.openProfile);
 
@@ -372,6 +467,9 @@ export function ChatSurface({
           isPinned={pinnedIds.includes(message.id)}
           isSaved={savedIds.includes(message.id)}
           threadReplyCount={replies.length}
+          threadHasUnread={unreadThreadRoots.has(
+            message.threadRootId ?? message.id,
+          )}
           threadParticipants={[
             ...new Set(replies.map((reply) => reply.senderId)),
           ]
@@ -397,10 +495,9 @@ export function ChatSurface({
           }
           onEdit={onEdit ? () => setEditing(message) : undefined}
           onDelete={onDelete ? () => void onDelete(message.id) : undefined}
-          onOpenThread={() => {
-            setThreadRootId(message.threadRootId ?? message.id);
-            setPanel('thread');
-          }}
+          onOpenThread={() =>
+            openThreadPanel(message.threadRootId ?? message.id)
+          }
           onTogglePin={onTogglePin ? () => onTogglePin(message.id) : undefined}
           onToggleSave={
             onToggleSave ? () => onToggleSave(message.id) : undefined
@@ -448,6 +545,8 @@ export function ChatSurface({
       mentionNames,
       pinnedIds,
       savedIds,
+      unreadThreadRoots,
+      openThreadPanel,
       onReact,
       onEdit,
       onDelete,
@@ -498,7 +597,8 @@ export function ChatSurface({
   const closeThreads = useCallback(() => {
     setPanel('none');
     setThreadRootId(null);
-  }, []);
+    notifyThreadChange(null);
+  }, [notifyThreadChange]);
 
   useEffect(() => {
     if (!inThreads) return;
@@ -711,10 +811,7 @@ export function ChatSurface({
               ) : (
                 <ThreadListPanel
                   threads={threads}
-                  onOpen={(rootId) => {
-                    setThreadRootId(rootId);
-                    setPanel('thread');
-                  }}
+                  onOpen={(rootId) => openThreadPanel(rootId)}
                 />
               ),
               threadsSlot,

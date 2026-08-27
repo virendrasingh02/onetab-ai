@@ -137,20 +137,11 @@ const MeetingsView = lazy(() =>
 const WhiteboardCanvas = lazy(() =>
   import('@org/web-work-tools').then((m) => ({ default: m.WhiteboardCanvas })),
 );
-const CardRegistryView = lazy(() =>
-  import('@org/web-work-tools').then((m) => ({ default: m.CardRegistryView })),
-);
-const CardBuilderView = lazy(() =>
-  import('@org/web-work-tools').then((m) => ({ default: m.CardBuilderView })),
-);
 const AIChatView = lazy(() =>
   import('@org/web-ai').then((m) => ({ default: m.AIChatView })),
 );
 const PromptLibraryView = lazy(() =>
   import('@org/web-ai').then((m) => ({ default: m.PromptLibraryView })),
-);
-const AIImageGeneratorView = lazy(() =>
-  import('@org/web-ai').then((m) => ({ default: m.AIImageGeneratorView })),
 );
 const AgentMarketplaceView = lazy(() =>
   import('@org/web-agents').then((m) => ({ default: m.AgentMarketplaceView })),
@@ -178,9 +169,6 @@ const IntegrationHubView = lazy(() =>
 );
 const AppChatView = lazy(() =>
   import('@org/web-integrations').then((m) => ({ default: m.AppChatView })),
-);
-const DesignSystemStudio = lazy(() =>
-  import('@org/web-settings').then((m) => ({ default: m.DesignSystemStudio })),
 );
 /*
  * Composes `DirectMessagesView` (`web-chat`, already in the main chunk — see
@@ -322,7 +310,6 @@ export function App() {
             <Route path="saved" element={<SavedView />} />
             <Route path="ai-chat" element={<AIChatView />} />
             <Route path="ai/prompts" element={<PromptLibraryView />} />
-            <Route path="ai/images" element={<AIImageGeneratorView />} />
             <Route path="whiteboards" element={<WhiteboardCanvas />} />
             <Route path="agents" element={<AgentMarketplaceView />} />
             <Route path="agents/chat" element={<AgentChatView />} />
@@ -336,15 +323,10 @@ export function App() {
             <Route path="apps" element={<AppChatView />} />
             <Route path="apps/chat" element={<AppChatView />} />
             <Route path="apps/:appId/chat" element={<AppChatView />} />
-            <Route path="cards" element={<CardRegistryView />} />
-            <Route path="cards/builder" element={<CardBuilderView />} />
-            <Route path="cards/:cardId/builder" element={<CardBuilderView />} />
-            <Route path="design-system" element={<DesignSystemStudio />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>
 
-        <Route path="/design-system" element={<DesignSystemStudio />} />
         <Route path="/404" element={<NotFoundPage />} />
 
         <Route path="*" element={<Navigate to="/404" replace />} />

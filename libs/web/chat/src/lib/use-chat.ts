@@ -1,5 +1,12 @@
 import { useReadReceipts } from '@org/common';
-import type { Message, Presence, RoomId, RoomMember } from '@org/matrix-client';
+import type {
+  Message,
+  Presence,
+  Room,
+  RoomId,
+  RoomMember,
+  Thread,
+} from '@org/matrix-client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMatrix } from './matrix-provider.js';
 
@@ -180,6 +187,193 @@ export function useRoom(roomId: RoomId | undefined) {
   );
 
   return { ...state, typingNames, loadOlder };
+}
+
+export interface RoomSummary {
+  room: Room | null;
+  members: RoomMember[];
+}
+
+/**
+ * A room's name, kind and roster, kept live — without loading its timeline.
+ *
+ * `useRoom` is the whole conversation (messages, typing, pagination); this is
+ * only what a title bar needs, so a group DM's header can react to a rename or
+ * someone joining without paying for the message history.
+ */
+export function useRoomSummary(roomId: RoomId | undefined): RoomSummary {
+  const { client } = useMatrix();
+
+  const read = useCallback((): RoomSummary => {
+    if (!client || !roomId) return { room: null, members: [] };
+    try {
+      return {
+        room: client.getRoom(roomId),
+        members: client.getMembers(roomId),
+      };
+    } catch {
+      // Client present but not synced yet — `require()` throws.
+      return { room: null, members: [] };
+    }
+  }, [client, roomId]);
+
+  const [summary, setSummary] = useState<RoomSummary>(read);
+
+  // Reset during render when the room or client changes — same reason as
+  // `useRoom`: an effect would paint the previous room's roster first.
+  const bound = useRef({ client, roomId });
+  if (bound.current.client !== client || bound.current.roomId !== roomId) {
+    bound.current = { client, roomId };
+    setSummary(read());
+  }
+
+  useEffect(() => {
+    if (!client || !roomId) return;
+    return client.on((event) => {
+      if (event.type === 'room.upserted' && event.room.id === roomId) {
+        setSummary(read());
+      }
+    });
+  }, [client, roomId, read]);
+
+  return summary;
+}
+
+/**
+ * A room's threads, kept live — each with its own reply count and read marker.
+ *
+ * The per-thread unread flag comes from the homeserver's thread notification
+ * count (via `client.getThreads`), which is only meaningful once the reader has
+ * posted in the thread; a thread they have never touched always reads as read.
+ */
+export function useRoomThreads(roomId: RoomId | undefined): Thread[] {
+  const { client } = useMatrix();
+  const [threads, setThreads] = useState<Thread[]>([]);
+
+  useEffect(() => {
+    if (!client || !roomId) {
+      setThreads([]);
+      return;
+    }
+
+    const collect = () => {
+      // The client can be present but not yet synced; reading threads then
+      // throws through `require()`. Treat it as "none yet".
+      try {
+        setThreads(client.getThreads(roomId));
+      } catch {
+        setThreads([]);
+      }
+    };
+    collect();
+
+    return client.on((event) => {
+      if (
+        event.type === 'thread.updated' ||
+        (event.type === 'message.received' && event.message.roomId === roomId) ||
+        (event.type === 'receipt' && event.roomId === roomId) ||
+        (event.type === 'notifications' && event.roomId === roomId)
+      ) {
+        collect();
+      }
+    });
+  }, [client, roomId]);
+
+  return threads;
+}
+
+export interface GroupDirectMessageSummary {
+  roomId: string;
+  /** The room's name, or its members' names when it has none. */
+  name: string;
+  memberCount: number;
+  unreadCount: number;
+  mentionCount: number;
+  lastActivityAt?: number;
+  /** Up to three other members, for an avatar stack. */
+  avatarMembers: {
+    userId: string;
+    displayName: string;
+    avatarUrl?: string;
+  }[];
+}
+
+function summariseGroup(
+  room: Room,
+  others: RoomMember[],
+): GroupDirectMessageSummary {
+  const names = others.map((member) => member.displayName || member.userId);
+  return {
+    roomId: room.id,
+    name:
+      room.name?.trim() ||
+      (names.length ? names.slice(0, 3).join(', ') : 'Group message'),
+    memberCount: room.memberCount,
+    unreadCount: room.unreadCount,
+    mentionCount: room.highlightCount,
+    lastActivityAt: room.lastActivityAt,
+    avatarMembers: others.slice(0, 3).map((member) => ({
+      userId: member.userId,
+      displayName: member.displayName,
+      avatarUrl: member.avatarUrl,
+    })),
+  };
+}
+
+/**
+ * The reader's group direct messages, most-recent activity first, kept live.
+ *
+ * A 1:1 DM is still addressed by peer and listed from the workspace roster;
+ * this is only the multi-person rooms, which have no single peer to list them
+ * under and so need their own source.
+ */
+export function useGroupDirectMessages(): GroupDirectMessageSummary[] {
+  const { client } = useMatrix();
+  const [groups, setGroups] = useState<GroupDirectMessageSummary[]>([]);
+
+  useEffect(() => {
+    if (!client) {
+      setGroups([]);
+      return;
+    }
+
+    const collect = () => {
+      try {
+        const myUserId = client.getSession()?.userId;
+        setGroups(
+          client
+            .getRooms()
+            .filter((room) => room.kind === 'group')
+            .map((room) =>
+              summariseGroup(
+                room,
+                client
+                  .getMembers(room.id)
+                  .filter((member) => member.userId !== myUserId),
+              ),
+            )
+            .sort((a, b) => (b.lastActivityAt ?? 0) - (a.lastActivityAt ?? 0)),
+        );
+      } catch {
+        // Client present but not synced yet — `require()` throws.
+        setGroups([]);
+      }
+    };
+
+    collect();
+    return client.on((event) => {
+      if (
+        event.type === 'room.upserted' ||
+        event.type === 'room.removed' ||
+        event.type === 'message.received' ||
+        event.type === 'notifications'
+      ) {
+        collect();
+      }
+    });
+  }, [client]);
+
+  return groups;
 }
 
 /** Message actions for a room, with the room id already bound. */

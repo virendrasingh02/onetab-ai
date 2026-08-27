@@ -27,6 +27,7 @@ export interface MessageRendererProps {
   density?: 'comfy' | 'compact';
   mentionNames?: string[];
   threadReplyCount?: number;
+  threadHasUnread?: boolean;
   threadParticipants?: RoomMember[];
   lastReplyAt?: number;
   onReact?: (key: string) => void;

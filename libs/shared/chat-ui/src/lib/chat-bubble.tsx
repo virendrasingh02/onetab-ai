@@ -76,6 +76,8 @@ export interface ChatBubbleProps {
   onDelete?: () => void;
   onOpenThread?: () => void;
   threadReplyCount?: number;
+  /** True when the thread has replies the reader has not caught up to. */
+  threadHasUnread?: boolean;
   attachmentSlot?: ReactNode;
   isPinned?: boolean;
   onTogglePin?: () => void;
@@ -134,6 +136,7 @@ export function ChatBubble({
   onDelete,
   onOpenThread,
   threadReplyCount,
+  threadHasUnread = false,
   attachmentSlot,
   isPinned = false,
   onTogglePin,
@@ -395,8 +398,17 @@ export function ChatBubble({
         {threadReplyCount && threadReplyCount > 0 ? (
           <button
             onClick={onOpenThread}
-            className="mt-1.5 gap-2 px-2.5 py-1 text-xs font-semibold flex items-center rounded-md bg-surface text-info-text transition-colors hover:bg-accent hover:underline"
+            className={cn(
+              'mt-1.5 gap-2 px-2.5 py-1 text-xs font-semibold flex items-center rounded-md bg-surface text-info-text transition-colors hover:bg-accent hover:underline',
+              threadHasUnread && 'ring-1 ring-info-text/30',
+            )}
           >
+            {threadHasUnread ? (
+              <span
+                className="size-1.5 shrink-0 rounded-full bg-info-text"
+                aria-label="Unread replies"
+              />
+            ) : null}
             {threadParticipants && threadParticipants.length > 0 ? (
               <span className="-space-x-1.5 flex items-center">
                 {threadParticipants.slice(0, 3).map((participant) => (

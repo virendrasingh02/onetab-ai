@@ -13,10 +13,16 @@ import type {
 import { Button, EmptyState, toast, useRightPanelStore } from '@org/ui';
 import { MessageSquareOff } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ChatSurface, type ChatSurfaceWelcome } from './chat-surface.js';
 import { useSavedIds, useToggleSaved } from './use-saved-messages.js';
 import { useMatrix } from './matrix-provider.js';
-import { usePresence, useRoom, useRoomActions } from './use-chat.js';
+import {
+  usePresence,
+  useRoom,
+  useRoomActions,
+  useRoomThreads,
+} from './use-chat.js';
 
 const toggle = (ids: string[], id: string) =>
   ids.includes(id) ? ids.filter((entry) => entry !== id) : [...ids, id];
@@ -96,6 +102,45 @@ export function ChatPanel({
   const { client, status, enabled, error } = useMatrix();
   const room = useRoom(roomId ?? undefined);
   const actions = useRoomActions(roomId ?? undefined);
+  const threads = useRoomThreads(roomId ?? undefined);
+
+  /*
+   * The URL is the source of truth for which thread is open and which message
+   * is being jumped to — that is what makes a thread or a notification a
+   * shareable link, and what lets browser back close the thread. `?thread=` and
+   * `?msg=` are read here and handed to `ChatSurface`; opening or closing a
+   * thread there writes the param back.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const threadParam = searchParams.get('thread');
+  const messageParam = searchParams.get('msg');
+
+  const handleThreadChange = useCallback(
+    (threadRootId: string | null) => {
+      setSearchParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          if (threadRootId) next.set('thread', threadRootId);
+          else next.delete('thread');
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const handleThreadRead = useCallback(
+    (threadRootId: string) => {
+      if (client && roomId) void client.markThreadRead(roomId, threadRootId);
+    },
+    [client, roomId],
+  );
+
+  const unreadThreadRootIds = useMemo(
+    () => threads.filter((thread) => thread.hasUnread).map((thread) => thread.rootId),
+    [threads],
+  );
 
   // Pins have no Matrix account-data binding yet, so they live here for the
   // session. The surface does not care where they come from.
@@ -453,6 +498,11 @@ export function ChatPanel({
       presenceOf={presenceOf}
       pinnedIds={pinnedIds}
       savedIds={savedIds}
+      deepLinkThreadId={threadParam}
+      onDeepLinkThreadChange={handleThreadChange}
+      deepLinkMessageId={messageParam}
+      unreadThreadRootIds={unreadThreadRootIds}
+      onThreadRead={handleThreadRead}
       onSend={actions.send}
       onEdit={actions.edit}
       onDelete={actions.remove}

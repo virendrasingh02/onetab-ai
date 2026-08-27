@@ -18,19 +18,146 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAllThreads, type CrossRoomThread } from './use-all-threads.js';
 
+function ThreadCard({
+  thread,
+  workspaceSlug,
+  channelSlugByName,
+}: {
+  thread: CrossRoomThread;
+  workspaceSlug?: string;
+  /** Lower-cased channel name → real slug, so the link is not a guess. */
+  channelSlugByName?: Map<string, string>;
+}) {
+  const isChannel = thread.roomKind === 'channel';
+  const channelSlug =
+    channelSlugByName?.get(thread.roomName?.toLowerCase() ?? '') ||
+    thread.roomName?.toLowerCase().replace(/[^a-z0-9-_]/g, '-') ||
+    'general';
+
+  /* Opening the room with `?thread=` lands on the conversation with this thread
+     already open — see `ChatPanel`. A 1:1 DM has no room-addressable route, so
+     it falls back to the DM home. */
+  const channelLink = isChannel
+    ? `/w/${workspaceSlug}/c/${channelSlug}?thread=${thread.id}`
+    : thread.roomKind === 'group'
+      ? `/w/${workspaceSlug}/dms?room=${thread.roomId}&thread=${thread.id}`
+      : `/w/${workspaceSlug}/dms`;
+
+  return (
+    <li>
+      <Card className="p-4 gap-4 group flex items-start justify-between bg-surface transition-colors hover:border-border-strong">
+        <div className="gap-3 min-w-0 flex flex-1 items-start">
+          <UserAvatar
+            name={thread.authorName}
+            src={thread.root?.senderAvatarUrl}
+            seed={thread.root?.senderId ?? thread.id}
+          />
+
+          <div className="min-w-0 flex-1">
+            <div className="gap-2 flex flex-wrap items-center">
+              <span className="text-xs font-semibold text-foreground">
+                {thread.authorName}
+              </span>
+              <Link
+                to={channelLink}
+                className="gap-1 font-medium inline-flex items-center text-[11px] text-muted-foreground hover:text-foreground"
+              >
+                <Badge
+                  variant="outline"
+                  className="gap-1 py-0 h-5 text-[11px]"
+                >
+                  {isChannel ? (
+                    <Hash className="size-3" aria-hidden />
+                  ) : (
+                    <MessagesSquare className="size-3" aria-hidden />
+                  )}
+                  {thread.roomName}
+                </Badge>
+              </Link>
+              {thread.hasUnread ? (
+                <Badge variant="primary" className="py-0 h-4 text-[10px]">
+                  Unread
+                </Badge>
+              ) : null}
+              {thread.lastReplyAt ? (
+                <span className="font-mono text-[11px] text-muted-foreground">
+                  · last reply{' '}
+                  {formatRelative(new Date(thread.lastReplyAt).toISOString())}
+                </span>
+              ) : null}
+            </div>
+
+            <p className="mt-2 text-xs sm:text-sm font-medium leading-relaxed line-clamp-2 text-foreground">
+              {thread.title}
+            </p>
+            <p className="mt-1.5 font-mono text-[10px] text-subtle">
+              {thread.replyCount}{' '}
+              {thread.replyCount === 1 ? 'reply' : 'replies'} in conversation
+            </p>
+          </div>
+        </div>
+
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 text-xs shrink-0"
+        >
+          <Link to={channelLink}>
+            <Reply className="size-3.5" />
+            <span>Reply</span>
+          </Link>
+        </Button>
+      </Card>
+    </li>
+  );
+}
+
+/** Buckets a mixed thread list into the sidebar's own top-level categories. */
+const THREAD_GROUPS: ReadonlyArray<{
+  key: string;
+  label: string;
+  icon: typeof Hash;
+  match: (thread: CrossRoomThread) => boolean;
+}> = [
+  {
+    key: 'channels',
+    label: 'Channels',
+    icon: Hash,
+    match: (thread) => thread.roomKind === 'channel',
+  },
+  {
+    key: 'dms',
+    label: 'Direct Messages',
+    icon: MessagesSquare,
+    match: (thread) => thread.roomKind !== 'channel',
+  },
+];
+
 function ThreadList({
   items,
   isLoading,
   emptyDescription,
   workspaceSlug,
   firstChannelSlug,
+  channelSlugByName,
 }: {
   items: CrossRoomThread[];
   isLoading: boolean;
   emptyDescription: string;
   workspaceSlug?: string;
   firstChannelSlug?: string;
+  channelSlugByName?: Map<string, string>;
 }) {
+  const groups = useMemo(
+    () =>
+      THREAD_GROUPS.map((group) => ({
+        ...group,
+        items: items.filter(group.match),
+      })).filter((group) => group.items.length > 0),
+    [items],
+  );
+
   if (isLoading) return <LoadingState label="Loading threads…" />;
 
   if (items.length === 0) {
@@ -57,82 +184,32 @@ function ThreadList({
   }
 
   return (
-    <ul className="space-y-2.5">
-      {items.map((thread) => {
-        const channelSlug =
-          thread.roomName?.toLowerCase().replace(/[^a-z0-9-_]/g, '-') ||
-          'general';
-        const channelLink = `/w/${workspaceSlug}/c/${channelSlug}`;
-
+    <div className="space-y-6">
+      {groups.map((group) => {
+        const Icon = group.icon;
         return (
-          <li key={thread.id}>
-            <Card className="p-4 gap-4 group flex items-start justify-between bg-surface transition-colors hover:border-border-strong">
-              <div className="gap-3 min-w-0 flex flex-1 items-start">
-                <UserAvatar
-                  name={thread.authorName}
-                  src={thread.root?.senderAvatarUrl}
-                  seed={thread.root?.senderId ?? thread.id}
+          <section key={group.key}>
+            <h3 className="mb-2.5 gap-1.5 px-0.5 flex items-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <Icon className="size-3.5" aria-hidden />
+              <span>{group.label}</span>
+              <Badge variant="neutral" className="px-1.5 py-0 h-4 text-[10px]">
+                {group.items.length}
+              </Badge>
+            </h3>
+            <ul className="space-y-2.5">
+              {group.items.map((thread) => (
+                <ThreadCard
+                  key={thread.id}
+                  thread={thread}
+                  workspaceSlug={workspaceSlug}
+                  channelSlugByName={channelSlugByName}
                 />
-
-                <div className="min-w-0 flex-1">
-                  <div className="gap-2 flex flex-wrap items-center">
-                    <span className="text-xs font-semibold text-foreground">
-                      {thread.authorName}
-                    </span>
-                    <Link
-                      to={channelLink}
-                      className="gap-1 font-medium inline-flex items-center text-[11px] text-muted-foreground hover:text-foreground"
-                    >
-                      <Badge
-                        variant="outline"
-                        className="gap-1 py-0 h-5 text-[11px]"
-                      >
-                        <Hash className="size-3" aria-hidden />
-                        {thread.roomName}
-                      </Badge>
-                    </Link>
-                    {thread.hasUnread ? (
-                      <Badge variant="primary" className="py-0 h-4 text-[10px]">
-                        Unread
-                      </Badge>
-                    ) : null}
-                    {thread.lastReplyAt ? (
-                      <span className="font-mono text-[11px] text-muted-foreground">
-                        · last reply{' '}
-                        {formatRelative(
-                          new Date(thread.lastReplyAt).toISOString(),
-                        )}
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <p className="mt-2 text-xs sm:text-sm font-medium leading-relaxed line-clamp-2 text-foreground">
-                    {thread.title}
-                  </p>
-                  <p className="mt-1.5 font-mono text-[10px] text-subtle">
-                    {thread.replyCount}{' '}
-                    {thread.replyCount === 1 ? 'reply' : 'replies'} in
-                    conversation
-                  </p>
-                </div>
-              </div>
-
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1.5 text-xs shrink-0"
-              >
-                <Link to={channelLink}>
-                  <Reply className="size-3.5" />
-                  <span>Reply</span>
-                </Link>
-              </Button>
-            </Card>
-          </li>
+              ))}
+            </ul>
+          </section>
         );
       })}
-    </ul>
+    </div>
   );
 }
 
@@ -153,6 +230,17 @@ export function ThreadsView() {
   const unread = useMemo(
     () => threads.filter((thread) => thread.hasUnread),
     [threads],
+  );
+
+  const channelSlugByName = useMemo(
+    () =>
+      new Map(
+        (channelsQuery.data ?? []).map((channel) => [
+          channel.name.toLowerCase(),
+          channel.slug,
+        ]),
+      ),
+    [channelsQuery.data],
   );
 
   const activeThreads = tab === 'unread' ? unread : threads;
@@ -225,6 +313,7 @@ export function ThreadsView() {
             }
             workspaceSlug={slug}
             firstChannelSlug={firstChannel}
+            channelSlugByName={channelSlugByName}
           />
         </div>
       </div>

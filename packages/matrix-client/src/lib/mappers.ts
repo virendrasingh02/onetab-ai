@@ -4,6 +4,7 @@ import { NotificationCountType } from 'matrix-js-sdk';
 import type {
   Room as SdkRoom,
   RoomMember as SdkRoomMember,
+  Thread as SdkThread,
 } from 'matrix-js-sdk';
 import {
   validateStructuredEvent,
@@ -17,6 +18,7 @@ import {
   type RoomKind,
   type RoomMember,
   type StructuredChatMessage,
+  type Thread,
 } from './types.js';
 
 /**
@@ -298,17 +300,140 @@ export function toMessage(
   };
 }
 
+/**
+ * The `m.direct` account-data map: peer user id → ids of rooms marked as a
+ * direct message with them.
+ *
+ * This is the authoritative record of which rooms are DMs and with whom — it
+ * lives in account data, not on the room, so a user's own devices and the
+ * other party all agree on it.
+ */
+export function readDirectMap(client: SdkClient): Record<string, string[]> {
+  return (client.getAccountData('m.direct' as never)?.getContent() ??
+    {}) as Record<string, string[]>;
+}
+
 export function toRoomKind(room: SdkRoom, client: SdkClient): RoomKind {
-  // A DM is recorded in m.direct account data, not on the room itself.
+  // A DM is recorded in m.direct account data, not on the room itself — and it
+  // stays there whatever the headcount, so a group DM is simply a DM with more
+  // than two people in it. Only a room *not* in the map is classified by size.
   const directRoomIds = new Set<string>(
-    Object.values(
-      (client.getAccountData('m.direct' as never)?.getContent() ??
-        {}) as Record<string, string[]>,
-    ).flat(),
+    Object.values(readDirectMap(client)).flat(),
   );
 
-  if (directRoomIds.has(room.roomId)) return 'direct';
+  if (directRoomIds.has(room.roomId)) {
+    return room.getJoinedMemberCount() > 2 ? 'group' : 'direct';
+  }
   return room.getJoinedMemberCount() > 2 ? 'channel' : 'group';
+}
+
+/** Memberships that mean the room is the caller's to open: joined, or invited and not yet accepted. */
+const OPEN_MEMBERSHIPS = new Set(['join', 'invite']);
+
+/**
+ * An existing direct-message room shared with `peerUserId`, or `null`.
+ *
+ * `m.direct` is consulted first, and is the only thing consulted for a room the
+ * caller has merely been invited to — its member list has not synced yet, so
+ * the scan below cannot see it, and skipping the map here is what produced a
+ * duplicate room for every pending DM invite.
+ *
+ * The fallback scan — for a DM created before this client maintained the map —
+ * is deliberately narrow so a two-person *channel* is never taken for a DM
+ * (audit B4): the room must be nameless, hold exactly the caller and the peer
+ * (an unaccepted invite on either side still counts), and not already be
+ * tagged as someone else's DM.
+ */
+export function resolveDirectMessageRoom(
+  client: SdkClient,
+  peerUserId: string,
+): string | null {
+  const directMap = readDirectMap(client);
+  const myUserId = client.getUserId();
+
+  for (const roomId of directMap[peerUserId] ?? []) {
+    const room = client.getRoom(roomId);
+    if (room && OPEN_MEMBERSHIPS.has(room.getMyMembership() ?? '')) {
+      return roomId;
+    }
+  }
+
+  const taggedForSomeoneElse = new Set(
+    Object.entries(directMap)
+      .filter(([userId]) => userId !== peerUserId)
+      .flatMap(([, roomIds]) => roomIds),
+  );
+
+  for (const room of client.getRooms()) {
+    if (taggedForSomeoneElse.has(room.roomId)) continue;
+    if (!OPEN_MEMBERSHIPS.has(room.getMyMembership() ?? '')) continue;
+    // A DM is created without a name; a named room is a channel or a group.
+    if (room.currentState.getStateEvents('m.room.name', '')) continue;
+
+    const parties = room
+      .getMembers()
+      .filter((member) => OPEN_MEMBERSHIPS.has(member.membership ?? ''))
+      .map((member) => member.userId);
+
+    if (
+      parties.length === 2 &&
+      parties.includes(peerUserId) &&
+      (!myUserId || parties.includes(myUserId))
+    ) {
+      return room.roomId;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * An existing room whose members are exactly the caller plus `peerUserIds`, or
+ * `null` — so a group conversation reuses what already exists instead of making
+ * a duplicate.
+ *
+ * By default only `m.direct`-tagged rooms are considered. With
+ * `includeChannels`, every room the caller is in is fair game: if those exact
+ * people already share a private channel, that channel is returned rather than
+ * a fresh group-DM room. The match is naturally narrow — a busy channel's
+ * member set never equals a handful of hand-picked people.
+ */
+export function resolveGroupDirectMessageRoom(
+  client: SdkClient,
+  peerUserIds: string[],
+  options: { includeChannels?: boolean } = {},
+): string | null {
+  const wanted = new Set(peerUserIds);
+  if (wanted.size < 2) return null;
+
+  const myUserId = client.getUserId();
+
+  const rooms = options.includeChannels
+    ? client.getRooms()
+    : [
+        ...new Set<string>(Object.values(readDirectMap(client)).flat()),
+      ]
+        .map((roomId) => client.getRoom(roomId))
+        .filter((room): room is NonNullable<typeof room> => room != null);
+
+  for (const room of rooms) {
+    if (!OPEN_MEMBERSHIPS.has(room.getMyMembership() ?? '')) continue;
+
+    const others = room
+      .getMembers()
+      .filter((member) => OPEN_MEMBERSHIPS.has(member.membership ?? ''))
+      .map((member) => member.userId)
+      .filter((userId) => userId !== myUserId);
+
+    if (
+      others.length === wanted.size &&
+      others.every((userId) => wanted.has(userId))
+    ) {
+      return room.roomId;
+    }
+  }
+
+  return null;
 }
 
 export function toRoom(client: SdkClient, room: SdkRoom): Room {
@@ -340,6 +465,32 @@ export function toRoom(client: SdkClient, room: SdkRoom): Room {
     lastActivityAt: room.getLastActiveTimestamp(),
     memberCount: room.getJoinedMemberCount(),
     directUserId,
+  };
+}
+
+/**
+ * One threaded conversation, rolled up to the counts a list needs.
+ *
+ * `hasUnread` is only meaningful once the reader has posted in the thread — the
+ * homeserver does not track a per-thread read marker for threads you have never
+ * touched, so those always report read.
+ */
+export function toThread(room: SdkRoom, thread: SdkThread): Thread {
+  return {
+    rootId: thread.id,
+    roomId: room.roomId,
+    replyCount: thread.length,
+    latestReplyAt: thread.replyToEvent?.getTs(),
+    participantIds: [
+      ...new Set(
+        thread.events
+          .map((event) => event.getSender())
+          .filter((id): id is string => !!id),
+      ),
+    ],
+    hasUnread: thread.hasCurrentUserParticipated
+      ? (room.getThreadUnreadNotificationCount(thread.id) ?? 0) > 0
+      : false,
   };
 }
 

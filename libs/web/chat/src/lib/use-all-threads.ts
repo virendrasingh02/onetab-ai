@@ -1,4 +1,4 @@
-import type { Message, Room } from '@org/matrix-client';
+import type { Message, Room, RoomKind } from '@org/matrix-client';
 import { useCallback, useEffect, useState } from 'react';
 import { useMatrix } from './matrix-provider.js';
 
@@ -7,6 +7,8 @@ export interface CrossRoomThread {
   id: string;
   roomId: string;
   roomName: string;
+  /** What the thread's room is, so the list can group channels apart from DMs. */
+  roomKind: RoomKind;
   /** The message the thread hangs off, when it is in the loaded timeline. */
   root: Message | null;
   title: string;
@@ -52,6 +54,7 @@ export function useAllThreads() {
           id: thread.rootId,
           roomId: room.id,
           roomName: room.name,
+          roomKind: room.kind,
           root,
           title: root?.body || 'Thread',
           authorName: root?.senderName ?? 'Someone',

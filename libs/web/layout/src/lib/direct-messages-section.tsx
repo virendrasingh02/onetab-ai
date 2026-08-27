@@ -29,7 +29,11 @@ import {
   type PresenceStatus,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { useDirectMessagePreferences } from '@org/web-chat';
+import {
+  useDirectMessagePreferences,
+  useGroupDirectMessages,
+  type GroupDirectMessageSummary,
+} from '@org/web-chat';
 import { useMembers } from '@org/web-members';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
@@ -300,7 +304,140 @@ function SortableDirectMessageRow(props: {
 }
 
 /**
- * The people this workspace can message with drag-and-drop sortable ordering.
+ * A group direct message's row — an avatar stack, its name, and the same
+ * favorite / mute controls a 1:1 has, keyed on the room id.
+ */
+function GroupDmRow({
+  group,
+  workspaceSlug,
+  isFavorite,
+  isMuted,
+  onToggleFavorite,
+  onToggleMuted,
+}: {
+  group: GroupDirectMessageSummary;
+  workspaceSlug: string;
+  isFavorite: boolean;
+  isMuted: boolean;
+  onToggleFavorite: () => void;
+  onToggleMuted: () => void;
+}) {
+  const to = `/w/${workspaceSlug}/dms?room=${group.roomId}`;
+  const { copied, copy: handleCopyLink } = useCopyLink(
+    `${window.location.origin}${to}`,
+  );
+  const hasUnread = !isMuted && group.unreadCount > 0;
+
+  return (
+    <li className="group/row relative">
+      <NavLink
+        to={to}
+        className={({ isActive }) =>
+          navRowClass(isActive, {
+            depth: 1,
+            extra: cn(
+              'pr-14',
+              isMuted && 'text-muted-foreground',
+              hasUnread && 'font-semibold text-foreground',
+            ),
+          })
+        }
+      >
+        <span className="shrink-0 flex -space-x-1.5">
+          {(group.avatarMembers.length
+            ? group.avatarMembers.slice(0, 2)
+            : [{ userId: group.roomId, displayName: group.name }]
+          ).map((member) => (
+            <span
+              key={member.userId}
+              className="size-4 overflow-hidden rounded-full bg-accent-amber/20 text-[8px] font-bold text-accent-amber ring-1 ring-background flex items-center justify-center"
+            >
+              {'avatarUrl' in member && member.avatarUrl ? (
+                <img
+                  src={member.avatarUrl}
+                  alt=""
+                  className="size-full object-cover"
+                />
+              ) : (
+                member.displayName.charAt(0).toUpperCase()
+              )}
+            </span>
+          ))}
+        </span>
+
+        <span className="flex-1 truncate">{group.name}</span>
+
+        {hasUnread ? (
+          <span className="mr-1 size-1.5 shrink-0 rounded-full bg-primary" />
+        ) : null}
+        {isMuted ? (
+          <Hint label="Notifications muted">
+            <BellOff className="mr-1 size-3 shrink-0 text-muted-foreground/70" />
+          </Hint>
+        ) : null}
+      </NavLink>
+
+      <NavRowActions isPinned={isFavorite}>
+        <FavoriteToggle isFavorite={isFavorite} onToggle={onToggleFavorite} />
+
+        <DropdownMenu modal={false}>
+          <NavRowMenuTrigger label={`Options for ${group.name}`} />
+          <DropdownMenuContent align="end" side="bottom" className="w-56">
+            <DropdownMenuItem
+              onSelect={handleCopyLink}
+              className="justify-between"
+            >
+              <div className="gap-2.5 flex items-center">
+                {copied ? (
+                  <Check className="size-4 text-success" />
+                ) : (
+                  <Copy className="size-4" />
+                )}
+                <span>{copied ? 'Link copied!' : 'Copy link'}</span>
+              </div>
+              <DropdownMenuShortcut>C</DropdownMenuShortcut>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem
+              onSelect={onToggleFavorite}
+              className="justify-between"
+            >
+              <div className="gap-2.5 flex items-center">
+                <Star
+                  className={cn(
+                    'size-4',
+                    isFavorite && 'fill-current text-accent-amber',
+                  )}
+                />
+                <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
+              </div>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              onSelect={onToggleMuted}
+              className="justify-between"
+            >
+              <div className="gap-2.5 flex items-center">
+                {isMuted ? (
+                  <Bell className="size-4" />
+                ) : (
+                  <BellOff className="size-4" />
+                )}
+                <span>{isMuted ? 'Unmute' : 'Mute'}</span>
+              </div>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </NavRowActions>
+    </li>
+  );
+}
+
+/**
+ * The people this workspace can message with drag-and-drop sortable ordering,
+ * with group conversations listed above them.
  */
 export function DirectMessagesSection({
   workspaceSlug,
@@ -310,6 +447,7 @@ export function DirectMessagesSection({
   const { workspaceId } = useCurrentWorkspace();
   const currentUser = useCurrentUser();
   const members = useMembers(workspaceId);
+  const groups = useGroupDirectMessages();
   const preferences = useDirectMessagePreferences(workspaceId);
   const dndId = useId();
 
@@ -382,7 +520,7 @@ export function DirectMessagesSection({
   return (
     <Section
       title="Direct Messages"
-      count={people.length}
+      count={people.length + groups.length}
       action={
         <Hint label="New direct message">
           <Button
@@ -399,6 +537,18 @@ export function DirectMessagesSection({
         </Hint>
       }
     >
+      {groups.map((group) => (
+        <GroupDmRow
+          key={group.roomId}
+          group={group}
+          workspaceSlug={workspaceSlug}
+          isFavorite={favoriteIds.includes(group.roomId)}
+          isMuted={mutedIds.includes(group.roomId)}
+          onToggleFavorite={() => preferences.toggleFavorite(group.roomId)}
+          onToggleMuted={() => preferences.toggleMuted(group.roomId)}
+        />
+      ))}
+
       <DndContext
         id={dndId}
         sensors={sensors}

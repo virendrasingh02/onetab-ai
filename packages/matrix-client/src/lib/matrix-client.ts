@@ -15,11 +15,16 @@ import {
 import { CryptoEvent } from 'matrix-js-sdk/lib/crypto-api/index.js';
 import { toMatrixError, withRetry } from './errors.js';
 import {
+  readDirectMap,
+  resolveDirectMessageRoom,
+  resolveGroupDirectMessageRoom,
   resolveMediaUrl,
   toMessage,
   toPresence,
   toRoom,
+  toRoomKind,
   toRoomMember,
+  toThread,
 } from './mappers.js';
 import {
   LocalStorageSessionStore,
@@ -299,7 +304,13 @@ export class OneTabMatrixClient {
     this.attachListeners(sdk);
     this.setStatus('syncing');
 
-    await sdk.startClient({ initialSyncLimit: this.options.initialSyncLimit });
+    await sdk.startClient({
+      initialSyncLimit: this.options.initialSyncLimit,
+      // Organise threaded replies into `Room.getThreads()` instead of letting
+      // them collapse into the main timeline — the Threads page and the
+      // per-channel thread panel both read from it.
+      threadSupport: true,
+    });
   }
 
   /** Stops syncing and clears the persisted session. */
@@ -472,6 +483,14 @@ export class OneTabMatrixClient {
       this.emit({ type: 'room.upserted', room: toRoom(sdk, room) });
     });
 
+    // A join or leave changes a room's roster and, for an unnamed group DM,
+    // its displayed title — surface it so headers and member lists refresh
+    // without waiting for the next sync.
+    sdk.on(RoomMemberEvent.Membership, (_event, member) => {
+      const room = sdk.getRoom(member.roomId);
+      if (room) this.emit({ type: 'room.upserted', room: toRoom(sdk, room) });
+    });
+
     sdk.on(ClientEvent.DeleteRoom, (roomId: string) => {
       this.emit({ type: 'room.removed', roomId });
     });
@@ -557,15 +576,13 @@ export class OneTabMatrixClient {
   async getOrCreateDirectMessage(userId: string): Promise<RoomId> {
     const sdk = this.require();
 
-    const existing = sdk
-      .getRooms()
-      .find(
-        (room) =>
-          room.getJoinedMemberCount() === 2 &&
-          room.getJoinedMembers().some((member) => member.userId === userId),
-      );
-
-    if (existing) return existing.roomId;
+    const existing = resolveDirectMessageRoom(sdk, userId);
+    if (existing) {
+      // A room found by the fallback scan is not in `m.direct` yet; recording
+      // it now means the next lookup — and `toRoomKind` — trust the map.
+      await this.recordDirectMessage(sdk, userId, existing);
+      return existing;
+    }
 
     const roomId = await this.createRoom({
       name: '',
@@ -574,21 +591,107 @@ export class OneTabMatrixClient {
       inviteUserIds: [userId],
     });
 
-    // Record the DM so both clients group it correctly.
-    const direct =
-      (sdk.getAccountData('m.direct' as never)?.getContent() as Record<
-        string,
-        string[]
-      >) ?? {};
-    await sdk.setAccountData(
-      'm.direct' as never,
-      {
-        ...direct,
-        [userId]: [...(direct[userId] ?? []), roomId],
-      } as never,
-    );
-
+    await this.recordDirectMessage(sdk, userId, roomId);
     return roomId;
+  }
+
+  /**
+   * Finds an existing group direct message with exactly `userIds`, or creates
+   * one.
+   *
+   * A group DM is a private, encrypted room tagged in `m.direct` under every
+   * participant — the same tag a 1:1 carries, which is what stops `toRoomKind`
+   * seeing it as a channel. `name` is optional; an unnamed group is titled from
+   * its members by the UI.
+   */
+  async getOrCreateGroupDirectMessage(
+    userIds: string[],
+    name?: string,
+  ): Promise<RoomId> {
+    const sdk = this.require();
+    const peers = [...new Set(userIds)];
+    if (peers.length < 2) {
+      throw new MatrixError(
+        'UNSUPPORTED',
+        'A group direct message needs at least two other people.',
+      );
+    }
+
+    // Reuse whatever already holds exactly these people — a prior group DM or
+    // a private channel — rather than create a duplicate room.
+    const existing = resolveGroupDirectMessageRoom(sdk, peers, {
+      includeChannels: true,
+    });
+    if (existing) {
+      // Tag it as a DM only if it is not already a channel: tagging a channel
+      // would reclassify it (see `toRoomKind`).
+      const room = sdk.getRoom(existing);
+      if (room && toRoomKind(room, sdk) !== 'channel') {
+        await this.recordDirectMessage(sdk, peers, existing);
+      }
+      return existing;
+    }
+
+    const roomId = await this.createRoom({
+      name: name?.trim() ?? '',
+      isPrivate: true,
+      encrypted: true,
+      inviteUserIds: peers,
+    });
+
+    await this.recordDirectMessage(sdk, peers, roomId);
+    return roomId;
+  }
+
+  /** Renames a room. Used for channels and named group DMs. */
+  async setRoomName(roomId: RoomId, name: string): Promise<void> {
+    const sdk = this.require();
+    await withRetry(() => sdk.setRoomName(roomId, name.trim()));
+  }
+
+  /**
+   * Invites people to an existing group DM and tags the room in their
+   * `m.direct` map, so it groups as a DM for them too.
+   */
+  async addToGroupDirectMessage(
+    roomId: RoomId,
+    userIds: string[],
+  ): Promise<void> {
+    const sdk = this.require();
+    const peers = [...new Set(userIds)];
+    for (const peer of peers) await this.inviteToRoom(roomId, peer);
+    await this.recordDirectMessage(sdk, peers, roomId);
+  }
+
+  /** Removes a member from a room. The caller needs the power level to kick. */
+  async removeFromRoom(roomId: RoomId, userId: string): Promise<void> {
+    const sdk = this.require();
+    await withRetry(() => sdk.kick(roomId, userId));
+  }
+
+  /**
+   * Adds `roomId` to the `m.direct` map for one user or several, in a single
+   * account-data write, so every client groups it as a DM.
+   */
+  private async recordDirectMessage(
+    sdk: SdkClient,
+    userIds: string | string[],
+    roomId: RoomId,
+  ): Promise<void> {
+    const ids = Array.isArray(userIds) ? userIds : [userIds];
+    const direct = readDirectMap(sdk);
+    const next: Record<string, string[]> = { ...direct };
+    let changed = false;
+
+    for (const id of ids) {
+      const forUser = next[id] ?? [];
+      if (forUser.includes(roomId)) continue;
+      next[id] = [...forUser, roomId];
+      changed = true;
+    }
+
+    if (!changed) return;
+    await sdk.setAccountData('m.direct' as never, next as never);
   }
 
   async joinRoom(roomIdOrAlias: string): Promise<RoomId> {
@@ -904,22 +1007,7 @@ export class OneTabMatrixClient {
     const room = sdk.getRoom(roomId);
     if (!room) return [];
 
-    return room.getThreads().map((thread) => ({
-      rootId: thread.id,
-      roomId,
-      replyCount: thread.length,
-      latestReplyAt: thread.replyToEvent?.getTs(),
-      participantIds: [
-        ...new Set(
-          thread.events
-            .map((event) => event.getSender())
-            .filter((id): id is string => !!id),
-        ),
-      ],
-      hasUnread: thread.hasCurrentUserParticipated
-        ? (room.getThreadUnreadNotificationCount(thread.id) ?? 0) > 0
-        : false,
-    }));
+    return room.getThreads().map((thread) => toThread(room, thread));
   }
 
   async getThreadMessages(roomId: RoomId, rootId: EventId): Promise<Message[]> {
@@ -949,6 +1037,20 @@ export class OneTabMatrixClient {
     const room = sdk.getRoom(roomId);
     const event = room?.getUnfilteredTimelineSet().findEventById(eventId);
     if (event) await sdk.sendReadReceipt(event);
+  }
+
+  /**
+   * Marks a thread caught up to its latest reply.
+   *
+   * A thread carries its own read marker, separate from the room's — the SDK
+   * routes the receipt to the thread from the event's own relation, so this is
+   * the same call as `markRead` pointed at a threaded event.
+   */
+  async markThreadRead(roomId: RoomId, threadRootId: EventId): Promise<void> {
+    const sdk = this.require();
+    const thread = sdk.getRoom(roomId)?.getThread(threadRootId);
+    const latest = thread?.replyToEvent ?? thread?.rootEvent;
+    if (latest) await sdk.sendReadReceipt(latest);
   }
 
   async setPresence(

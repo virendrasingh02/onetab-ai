@@ -16,6 +16,7 @@ import {
 } from '@org/ui';
 import { cn, formatDate, formatRelative } from '@org/utils';
 import {
+  AtSign,
   Bell,
   CheckSquare,
   FileUp,
@@ -55,7 +56,9 @@ function headline(item: ActivityFeedItem): string {
 
   switch (item.kind) {
     case 'MESSAGE':
-      return `${who} posted a message${where}`;
+      return item.isMention
+        ? `${who} mentioned you${where}`
+        : `${who} posted a message${where}`;
     case 'MEMBER_JOINED':
       return `${who} joined the workspace`;
     case 'MEMBER_LEFT':
@@ -67,6 +70,87 @@ function headline(item: ActivityFeedItem): string {
     default:
       return `${who} · ${item.kind.toLowerCase().replace(/_/g, ' ')}`;
   }
+}
+
+/**
+ * Where a feed row opens. A chat row jumps to the exact message via `?msg=`
+ * (see `ChatPanel`); everything else falls back to its channel or `null`.
+ */
+function feedItemHref(
+  item: ActivityFeedItem,
+  workspaceSlug: string,
+): string | null {
+  if (!item.channel) return null;
+  const base = `/w/${workspaceSlug}/c/${item.channel.slug}`;
+  return item.messageEventId ? `${base}?msg=${item.messageEventId}` : base;
+}
+
+function FeedRow({
+  item,
+  workspaceSlug,
+  isUnread,
+}: {
+  item: ActivityFeedItem;
+  workspaceSlug: string;
+  isUnread: boolean;
+}) {
+  const Icon = item.isMention
+    ? AtSign
+    : (KIND_ICON[item.kind as keyof typeof KIND_ICON] ?? Bell);
+  const href = feedItemHref(item, workspaceSlug);
+
+  const body = (
+    <Card
+      className={cn(
+        'p-4 gap-4 flex items-start justify-between transition-colors duration-(--duration-fast)',
+        isUnread ? 'border-primary/30 bg-selected/40' : 'bg-surface',
+        href && 'hover:border-border-strong',
+      )}
+    >
+      <div className="gap-3 min-w-0 flex items-start">
+        <span
+          className={cn(
+            'p-2 mt-0.5 shrink-0 rounded-lg',
+            item.isMention
+              ? 'bg-primary/10 text-primary'
+              : (KIND_TONE[item.kind] ?? 'bg-muted text-muted-foreground'),
+          )}
+          aria-hidden
+        >
+          <Icon className="size-4" />
+        </span>
+        <div className="min-w-0">
+          <div className="gap-2 flex items-center">
+            <h4 className="text-xs font-semibold truncate text-foreground">
+              {headline(item)}
+            </h4>
+            {isUnread ? <Badge variant="primary">New</Badge> : null}
+          </div>
+          {item.channel ? (
+            <span className="mt-1 gap-1 text-xs inline-flex items-center text-muted-foreground">
+              <Hash className="size-3" aria-hidden />
+              {item.channel.name}
+            </span>
+          ) : null}
+          <span className="mt-1.5 block font-mono text-[10px] text-subtle">
+            {formatRelative(item.occurredAt)}
+          </span>
+        </div>
+      </div>
+    </Card>
+  );
+
+  return (
+    <li>
+      {href ? (
+        <Link to={href} className="block">
+          {body}
+        </Link>
+      ) : (
+        body
+      )}
+    </li>
+  );
 }
 
 export function InboxView() {
@@ -167,6 +251,11 @@ export function InboxView() {
       .sort((a, b) => b.unread - a.unread);
   }, [channels.data, feed.data]);
 
+  const mentions = useMemo(
+    () => (feed.data ?? []).filter((item) => item.isMention),
+    [feed.data],
+  );
+
   const myTasks = useMemo(() => {
     if (!user) return [];
     return (tasks.data ?? [])
@@ -244,6 +333,21 @@ export function InboxView() {
                 ) : null}
               </TabsTrigger>
               <TabsTrigger
+                value="mentions"
+                className="h-8 gap-1.5 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              >
+                <AtSign className="size-3.5" />
+                <span>Mentions</span>
+                {mentions.length > 0 ? (
+                  <Badge
+                    variant="neutral"
+                    className="px-1 py-0 h-3.5 text-[10px]"
+                  >
+                    {mentions.length}
+                  </Badge>
+                ) : null}
+              </TabsTrigger>
+              <TabsTrigger
                 value="unreads"
                 className="h-8 gap-1.5 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
               >
@@ -306,61 +410,45 @@ export function InboxView() {
                 />
               ) : (
                 <ul className="space-y-2.5">
-                  {feed.data.map((item) => {
-                    const Icon =
-                      KIND_ICON[item.kind as keyof typeof KIND_ICON] ?? Bell;
-                    const isUnread =
-                      !seenThreshold ||
-                      Date.parse(item.occurredAt) > Date.parse(seenThreshold);
+                  {feed.data.map((item) => (
+                    <FeedRow
+                      key={item.id}
+                      item={item}
+                      workspaceSlug={slug ?? ''}
+                      isUnread={
+                        !seenThreshold ||
+                        Date.parse(item.occurredAt) >
+                          Date.parse(seenThreshold)
+                      }
+                    />
+                  ))}
+                </ul>
+              )}
+            </TabsContent>
 
-                    return (
-                      <li key={item.id}>
-                        <Card
-                          className={cn(
-                            'p-4 gap-4 flex items-start justify-between transition-colors duration-(--duration-fast)',
-                            isUnread
-                              ? 'border-primary/30 bg-selected/40'
-                              : 'bg-surface',
-                          )}
-                        >
-                          <div className="gap-3 min-w-0 flex items-start">
-                            <span
-                              className={cn(
-                                'p-2 mt-0.5 shrink-0 rounded-lg',
-                                KIND_TONE[item.kind] ??
-                                  'bg-muted text-muted-foreground',
-                              )}
-                              aria-hidden
-                            >
-                              <Icon className="size-4" />
-                            </span>
-                            <div className="min-w-0">
-                              <div className="gap-2 flex items-center">
-                                <h4 className="text-xs font-semibold truncate text-foreground">
-                                  {headline(item)}
-                                </h4>
-                                {isUnread ? (
-                                  <Badge variant="primary">New</Badge>
-                                ) : null}
-                              </div>
-                              {item.channel ? (
-                                <Link
-                                  to={`/w/${slug}/c/${item.channel.slug}`}
-                                  className="mt-1 gap-1 text-xs inline-flex items-center text-muted-foreground hover:text-foreground"
-                                >
-                                  <Hash className="size-3" aria-hidden />
-                                  {item.channel.name}
-                                </Link>
-                              ) : null}
-                              <span className="mt-1.5 block font-mono text-[10px] text-subtle">
-                                {formatRelative(item.occurredAt)}
-                              </span>
-                            </div>
-                          </div>
-                        </Card>
-                      </li>
-                    );
-                  })}
+            <TabsContent value="mentions" className="space-y-3 mt-0">
+              {feed.isLoading ? (
+                <SkeletonList rows={4} withAvatar />
+              ) : mentions.length === 0 ? (
+                <EmptyState
+                  icon={<AtSign />}
+                  title="No mentions"
+                  description="When someone @mentions you in a channel it shows up here."
+                />
+              ) : (
+                <ul className="space-y-2.5">
+                  {mentions.map((item) => (
+                    <FeedRow
+                      key={item.id}
+                      item={item}
+                      workspaceSlug={slug ?? ''}
+                      isUnread={
+                        !seenThreshold ||
+                        Date.parse(item.occurredAt) >
+                          Date.parse(seenThreshold)
+                      }
+                    />
+                  ))}
                 </ul>
               )}
             </TabsContent>

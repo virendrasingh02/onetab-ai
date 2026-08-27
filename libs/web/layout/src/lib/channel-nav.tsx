@@ -403,7 +403,7 @@ function SortableChannelRow(props: SortableChannelRowProps) {
       className={cn(
         'relative',
         isDragging &&
-          'z-50 opacity-80 rounded-lg bg-surface-raised ring-1 ring-primary/40 shadow-sm',
+          'z-50 rounded-lg bg-surface-raised opacity-80 shadow-sm ring-1 ring-primary/40',
       )}
       {...attributes}
       {...listeners}
@@ -441,7 +441,7 @@ function SortableStarredItem({
       className={cn(
         'relative',
         isDragging &&
-          'z-50 opacity-80 rounded-lg bg-surface-raised ring-1 ring-primary/40 shadow-sm',
+          'z-50 rounded-lg bg-surface-raised opacity-80 shadow-sm ring-1 ring-primary/40',
       )}
       {...attributes}
       {...listeners}
@@ -983,9 +983,9 @@ export function ChannelNav({
   // --- Collapsed Sidebar View (Icon rail with tooltips) ---
   if (isCollapsed) {
     return (
-      <div className="min-h-0 flex h-full flex-col items-center justify-between py-2">
+      <div className="min-h-0 py-2 flex h-full flex-col items-center justify-between">
         <ScrollArea
-          className="min-h-0 w-full flex-1 px-1"
+          className="min-h-0 px-1 w-full flex-1"
           contentClassName="flex flex-col items-center gap-1.5 py-1"
         >
           {resolvedNav.visibleItems.map((item) => (
@@ -1022,12 +1022,15 @@ export function ChannelNav({
 
   // --- Expanded Standard Sidebar View ---
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
-      <ScrollArea className="min-h-0 flex-1" contentClassName="p-2 space-y-4">
+    <div className="min-h-0 flex h-full flex-col overflow-hidden bg-background">
+      <ScrollArea
+        className="min-h-0 p-3 flex-1"
+        contentClassName="p-2 space-y-4"
+      >
         {/* Top Primary Navigation Items (Customizable via Dialog) */}
         <nav
           aria-label="Workspace navigation"
-          className="space-y-0.5 border-b border-border/60 pb-3"
+          className="space-y-0.5 pb-3 border-b border-border/60"
         >
           <div className="space-y-0.5">
             {resolvedNav.visibleItems.map((item) => (
@@ -1050,16 +1053,16 @@ export function ChannelNav({
             ))}
           </div>
 
-          <div className="pt-1.5 flex items-center justify-between px-1">
+          <div className="pt-1.5 px-1 flex items-center justify-between">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
                   aria-label="More navigation destinations"
-                  className="inline-flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-accent/60 transition-colors"
+                  className="gap-1.5 px-2 py-1 text-xs inline-flex items-center rounded-md text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
                 >
                   <MoreHorizontal className="size-3.5" />
-                  <span>More shortcuts</span>
+                  <span>More</span>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-52">
@@ -1068,10 +1071,12 @@ export function ChannelNav({
                   return (
                     <DropdownMenuItem
                       key={entry.path}
-                      onSelect={() => navigate(`/w/${workspaceSlug}${entry.path}`)}
+                      onSelect={() =>
+                        navigate(`/w/${workspaceSlug}${entry.path}`)
+                      }
                       className="justify-between"
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="gap-2 flex items-center">
                         <IconRenderer
                           name={entry.icon}
                           className="size-4 text-muted-foreground"
@@ -1086,12 +1091,14 @@ export function ChannelNav({
                           toggleNavPinned(entry.path);
                         }}
                         className={cn(
-                          'p-1 hover:text-foreground transition-colors',
+                          'p-1 transition-colors hover:text-foreground',
                           isPinned
                             ? 'text-primary'
                             : 'text-muted-foreground opacity-40 hover:opacity-100',
                         )}
-                        title={isPinned ? 'Unpin from sidebar' : 'Pin to sidebar'}
+                        title={
+                          isPinned ? 'Unpin from sidebar' : 'Pin to sidebar'
+                        }
                       >
                         <Pin className="size-3" />
                       </button>
@@ -1114,7 +1121,7 @@ export function ChannelNav({
                 type="button"
                 onClick={() => setCustomizerOpen(true)}
                 aria-label="Customize sidebar navigation"
-                className="size-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                className="size-7 flex items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 <SlidersHorizontal className="size-3.5" />
               </button>
@@ -1201,9 +1208,7 @@ export function ChannelNav({
                         className={navActionClass({ depth: 1 })}
                       >
                         <Plus className={navIconClass(1)} aria-hidden />
-                        <span className="flex-1 truncate">
-                          Browse channels
-                        </span>
+                        <span className="flex-1 truncate">Browse channels</span>
                       </button>
                     </li>
                   </Section>

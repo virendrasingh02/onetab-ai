@@ -1,7 +1,26 @@
 export { MatrixProvider, useMatrix } from './lib/matrix-provider.js';
-export { usePresence, useRoom, useRoomActions } from './lib/use-chat.js';
+export {
+  useGroupDirectMessages,
+  usePresence,
+  useRoom,
+  useRoomActions,
+  useRoomSummary,
+  useRoomThreads,
+  type GroupDirectMessageSummary,
+  type RoomSummary,
+} from './lib/use-chat.js';
 export { useChannelRoom } from './lib/use-channel-room.js';
 export { useDirectRoom } from './lib/use-direct-room.js';
+export {
+  useCreateConversation,
+  type CreatedConversation,
+  type CreateConversationInput,
+} from './lib/use-create-conversation.js';
+export { PeoplePicker, type PeoplePickerProps } from './lib/people-picker.js';
+export {
+  GroupConversation,
+  type GroupConversationProps,
+} from './lib/GroupConversation.js';
 export { useAllThreads, type CrossRoomThread } from './lib/use-all-threads.js';
 export { ChatPanel, type ChatPanelProps } from './lib/chat-panel.js';
 export {

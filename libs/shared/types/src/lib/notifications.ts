@@ -69,6 +69,9 @@ export interface ActivityFeedItem {
   /** The subject the row is about, so a click can deep-link it. */
   resourceType: string | null;
   resourceId: string | null;
+  /** For chat rows: the Matrix event id, so a click jumps to the message
+   *  (`c/<slug>?msg=<id>`). Null for non-chat rows. */
+  messageEventId: string | null;
   channel: { id: string; name: string; slug: string } | null;
   user: {
     id: string;

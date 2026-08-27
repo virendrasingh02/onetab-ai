@@ -12,9 +12,9 @@ import {
   EmptyState,
   ErrorState,
   Hint,
+  Input,
   LoadingState,
   Panel,
-  SearchInput,
   toast,
   toPresenceStatus,
   UserAvatar,
@@ -36,16 +36,17 @@ import {
   MessageSquareOff,
   MoreHorizontal,
   RefreshCw,
-  Search,
   Star,
   UserRound,
-  Users,
   X,
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChatPanel } from './chat-panel.js';
+import { GroupConversation } from './GroupConversation.js';
 import { useMatrix } from './matrix-provider.js';
+import { PeoplePicker } from './people-picker.js';
+import { useCreateConversation } from './use-create-conversation.js';
 import { useDirectRoom } from './use-direct-room.js';
 import { useDirectMessagePreferences } from './use-dm-preferences.js';
 
@@ -76,6 +77,13 @@ export interface DirectMessagesViewProps {
 export function DirectMessagesView({ extraPeers }: DirectMessagesViewProps = {}) {
   const [searchParams] = useSearchParams();
   const peerId = searchParams.get('user');
+  const roomId = searchParams.get('room');
+
+  // `?room=` is a group DM — it has no single peer to key on, so it is
+  // addressed by its Matrix room id. `?user=` stays the 1:1 deep link.
+  if (roomId) {
+    return <GroupConversation roomId={roomId} extraPeers={extraPeers} />;
+  }
 
   return peerId ? (
     <DirectConversation peerId={peerId} extraPeers={extraPeers} />
@@ -515,41 +523,64 @@ function DirectMessageHeader({
 }
 
 /**
- * The picker for "New direct message" — the only place a list of people still
- * belongs, since there is nobody selected to show a conversation for.
+ * The picker for a new conversation.
+ *
+ * One person selected opens a 1:1 DM (the `?user=` deep link, unchanged); two
+ * or more create a group DM (`?room=`). The roster itself is `PeoplePicker`,
+ * shared with a group's "Add people" dialog.
  */
 function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
   const { workspaceId } = useCurrentWorkspace();
   const currentUser = useCurrentUser();
   const members = useMembers(workspaceId);
+  const createConversation = useCreateConversation();
 
   const [, setSearchParams] = useSearchParams();
-  const [query, setQuery] = useState('');
+  const [selected, setSelected] = useState<string[]>([]);
+  const [groupName, setGroupName] = useState('');
 
   const allPeers = useMemo(
-    () =>
-      [...(members.data ?? []), ...(extraPeers ?? [])].filter(
-        (member) => member.user.id !== currentUser?.id,
-      ),
-    [members.data, extraPeers, currentUser?.id],
+    () => [...(members.data ?? []), ...(extraPeers ?? [])],
+    [members.data, extraPeers],
   );
 
-  const visible = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return allPeers;
-    return allPeers.filter(
-      (member) =>
-        (member.user.displayName ?? member.user.name)
-          .toLowerCase()
-          .includes(needle) ||
-        member.user.name.toLowerCase().includes(needle) ||
-        (member.user.statusText &&
-          member.user.statusText.toLowerCase().includes(needle)),
-    );
-  }, [allPeers, query]);
+  const excludeIds = useMemo(
+    () => (currentUser?.id ? [currentUser.id] : []),
+    [currentUser?.id],
+  );
 
-  const select = (member: WorkspaceMember) =>
-    setSearchParams({ user: member.user.id }, { replace: true });
+  const selectedMembers = useMemo(
+    () => allPeers.filter((member) => selected.includes(member.user.id)),
+    [allPeers, selected],
+  );
+
+  const isGroup = selected.length >= 2;
+
+  const toggle = (id: string) =>
+    setSelected((current) =>
+      current.includes(id)
+        ? current.filter((entry) => entry !== id)
+        : [...current, id],
+    );
+
+  const start = () => {
+    if (selected.length === 0 || createConversation.isPending) return;
+    createConversation.mutate(
+      { peerIds: selected, name: isGroup ? groupName : undefined },
+      {
+        onSuccess: (result) => {
+          setSearchParams(
+            result.kind === 'direct'
+              ? { user: result.peerId }
+              : { room: result.roomId },
+            { replace: true },
+          );
+        },
+        onError: (err) =>
+          toast.error(err.message || 'Could not start the conversation'),
+      },
+    );
+  };
 
   return (
     <div className="min-h-0 px-4 py-8 flex flex-1 flex-col items-center overflow-y-auto">
@@ -557,23 +588,14 @@ function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
         <div className="mb-4 text-center">
           <MessageSquare className="mb-2 size-6 mx-auto text-muted-foreground" />
           <h1 className="text-base font-semibold text-foreground">
-            New direct message
+            New message
           </h1>
           <p className="text-sm text-muted-foreground">
-            Pick a teammate, AI Agent, or App to start a conversation.
+            Pick one person for a direct message, or several for a group.
           </p>
         </div>
 
         <Panel flush title="People, AI Agents & Apps">
-          <div className="p-3 border-b border-border">
-            <SearchInput
-              value={query}
-              onValueChange={setQuery}
-              placeholder="Search people, agents & apps"
-              label="Search people, agents & apps"
-            />
-          </div>
-
           {members.isLoading ? (
             <LoadingState label="Loading directory…" />
           ) : members.isError ? (
@@ -581,72 +603,67 @@ function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
               title="Could not load directory"
               description="The member list for this workspace is unavailable."
             />
-          ) : visible.length === 0 ? (
-            <EmptyState
-              size="sm"
-              icon={allPeers.length === 0 ? <Users /> : <Search />}
-              title={allPeers.length === 0 ? 'No contacts yet' : 'No matches'}
-              description={
-                allPeers.length === 0
-                  ? 'Invite someone to this workspace to start a conversation.'
-                  : 'No person, agent, or app matches that search.'
-              }
-            />
           ) : (
-            <ul className="p-2 space-y-px">
-              {visible.map((member) => {
-                const name = member.user.displayName ?? member.user.name;
-                const isAgent = member.user.id.startsWith('agent-');
-                const isApp = member.user.id.startsWith('app-');
+            <>
+              {selectedMembers.length > 0 ? (
+                <div className="gap-1.5 p-3 flex flex-wrap border-b border-border">
+                  {selectedMembers.map((member) => {
+                    const name = member.user.displayName ?? member.user.name;
+                    return (
+                      <button
+                        key={member.user.id}
+                        type="button"
+                        onClick={() => toggle(member.user.id)}
+                        className="gap-1 pl-1 pr-1.5 py-0.5 text-xs inline-flex items-center rounded-full bg-primary/10 text-primary transition-colors hover:bg-primary/15"
+                      >
+                        <UserAvatar
+                          name={name}
+                          src={member.user.avatarUrl}
+                          seed={member.user.id}
+                          className="size-4"
+                        />
+                        <span className="max-w-[12ch] truncate">{name}</span>
+                        <X className="size-3" />
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
 
-                return (
-                  <li key={member.user.id}>
-                    <button
-                      type="button"
-                      onClick={() => select(member)}
-                      className="gap-2.5 p-2 flex w-full items-center rounded-md text-left transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none"
-                    >
-                      <UserAvatar
-                        name={name}
-                        src={member.user.avatarUrl}
-                        seed={member.user.id}
-                        presence={toPresenceStatus(member.user.presence)}
-                        className={cn(
-                          isAgent && 'ring-2 ring-primary/40',
-                          isApp && 'ring-2 ring-accent-violet/40',
-                        )}
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="text-sm font-medium gap-1.5 flex items-center truncate">
-                          <span className="truncate">{name}</span>
-                          {isAgent ? (
-                            <Badge
-                              variant="primary"
-                              className="py-0 h-3.5 font-bold tracking-wider text-[9px] uppercase"
-                            >
-                              AI AGENT
-                            </Badge>
-                          ) : isApp ? (
-                            <Badge
-                              variant="neutral"
-                              className="py-0 h-3.5 font-bold tracking-wider border-accent-violet/20 bg-accent-violet-soft text-[9px] text-accent-violet uppercase"
-                            >
-                              APP
-                            </Badge>
-                          ) : null}
-                        </span>
-                        <span className="text-xs block truncate text-muted-foreground">
-                          @{member.user.name}{' '}
-                          {member.user.statusText
-                            ? `· ${member.user.statusText}`
-                            : ''}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+              <div className="h-72 flex flex-col">
+                <PeoplePicker
+                  members={allPeers}
+                  selectedIds={selected}
+                  onToggle={toggle}
+                  excludeIds={excludeIds}
+                />
+              </div>
+
+              <div className="p-3 space-y-2 border-t border-border">
+                {isGroup ? (
+                  <Input
+                    value={groupName}
+                    onChange={(event) => setGroupName(event.target.value)}
+                    placeholder="Group name (optional)"
+                    aria-label="Group name"
+                  />
+                ) : null}
+                <Button
+                  className="w-full"
+                  disabled={selected.length === 0 || createConversation.isPending}
+                  onClick={start}
+                  leadingIcon={<MessageSquare className="size-4" />}
+                >
+                  {createConversation.isPending
+                    ? 'Starting…'
+                    : isGroup
+                      ? `Create group with ${selected.length}`
+                      : selected.length === 1
+                        ? 'Start conversation'
+                        : 'Select someone'}
+                </Button>
+              </div>
+            </>
           )}
         </Panel>
       </div>
