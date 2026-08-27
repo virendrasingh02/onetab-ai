@@ -18,7 +18,13 @@ export const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
  * pill under it and read as a different design system.
  */
 const menuSurface = [
-  'z-50 min-w-44 overflow-hidden bg-popover text-popover-foreground',
+  'z-50 min-w-44 bg-popover text-popover-foreground',
+  // Never spill past the viewport: Radix reports the room it has in
+  // `--radix-dropdown-menu-content-available-height`, so a menu taller than
+  // the screen (the channel "⋯" actions menu is ~15 rows) scrolls its
+  // overflow instead of clipping rows off the bottom where they can't be
+  // clicked. `overflow-x-hidden` keeps the horizontal box tight.
+  'max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto overflow-x-hidden overscroll-contain scrollbar-subtle',
   'rounded-popup border border-border p-1 shadow-overlay',
   'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
   'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
@@ -50,6 +56,7 @@ const menuIndicator =
 export function DropdownMenuContent({
   className,
   sideOffset = 6,
+  collisionPadding = 8,
   ...props
 }: ComponentProps<typeof DropdownMenuPrimitive.Content>) {
   return (
@@ -57,6 +64,7 @@ export function DropdownMenuContent({
       <DropdownMenuPrimitive.Content
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset}
+        collisionPadding={collisionPadding}
         className={cn(menuSurface, className)}
         {...props}
       />
@@ -229,10 +237,12 @@ export function DropdownMenuSubTrigger({
 
 export function DropdownMenuSubContent({
   className,
+  collisionPadding = 8,
   ...props
 }: ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
   return (
     <DropdownMenuPrimitive.SubContent
+      collisionPadding={collisionPadding}
       className={cn(menuSurface, className)}
       {...props}
     />

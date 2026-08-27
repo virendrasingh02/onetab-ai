@@ -68,13 +68,15 @@ export function MenubarSubTrigger({
 
 export function MenubarSubContent({
   className,
+  collisionPadding = 8,
   ...props
 }: ComponentProps<typeof MenubarPrimitive.SubContent>) {
   return (
     <MenubarPrimitive.SubContent
       data-slot="menubar-sub-content"
+      collisionPadding={collisionPadding}
       className={cn(
-        'z-50 min-w-[8rem] overflow-hidden rounded-popup border border-border bg-popover p-1 text-popover-foreground shadow-elevated',
+        'z-50 min-w-[8rem] max-h-(--radix-menubar-content-available-height) overflow-y-auto overflow-x-hidden overscroll-contain scrollbar-subtle rounded-popup border border-border bg-popover p-1 text-popover-foreground shadow-elevated',
         'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
         'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
         'duration-(--duration-fast) ease-standard',
@@ -90,6 +92,7 @@ export function MenubarContent({
   align = 'start',
   alignOffset = -4,
   sideOffset = 8,
+  collisionPadding = 8,
   ...props
 }: ComponentProps<typeof MenubarPrimitive.Content>) {
   return (
@@ -99,8 +102,9 @@ export function MenubarContent({
         align={align}
         alignOffset={alignOffset}
         sideOffset={sideOffset}
+        collisionPadding={collisionPadding}
         className={cn(
-          'z-50 min-w-[12rem] overflow-hidden rounded-popup border border-border bg-popover p-1 text-popover-foreground shadow-elevated',
+          'z-50 min-w-[12rem] max-h-(--radix-menubar-content-available-height) overflow-y-auto overflow-x-hidden overscroll-contain scrollbar-subtle rounded-popup border border-border bg-popover p-1 text-popover-foreground shadow-elevated',
           'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
           'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
           'duration-(--duration-fast) ease-standard',

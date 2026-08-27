@@ -80,6 +80,15 @@ export interface RightPanelState {
   toggleView: (view: RightPanelView) => void;
   /** Dismisses the rail, telling the current hosted owner if there is one. */
   dismiss: () => void;
+  /**
+   * Return the rail to its default — closed, on the assistant, holding nothing
+   * transient. Called when the active workspace changes: an "Ask AI" rail or an
+   * open profile belongs to the workspace it was opened in, not the next one, so
+   * switching workspaces starts the rail over rather than carrying it across.
+   * Hosted views (card/threads/details) already close themselves when their
+   * owning page unmounts on navigation; this clears them too, defensively.
+   */
+  reset: () => void;
 
   openProfile: (profile: RightPanelProfile | null) => void;
 
@@ -131,6 +140,15 @@ export const useRightPanelStore = create<RightPanelState>()(
         // After the state write, so the owner's own close sees a shut rail.
         if (isHosted(view)) hosted[view]?.onClose();
       },
+
+      reset: () =>
+        set({
+          open: false,
+          view: 'assistant',
+          profile: null,
+          hosted: emptyHosted(),
+          slots: emptySlots(),
+        }),
 
       openProfile: (profile) => set({ profile, view: 'profile', open: true }),
 

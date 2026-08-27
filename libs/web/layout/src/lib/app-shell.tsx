@@ -37,7 +37,7 @@ import {
   type WorkspaceState,
 } from '@org/web-workspace';
 import { Building2 } from 'lucide-react';
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AddAccountDialog } from './add-account-dialog.js';
 import { AppHeader } from './app-header.js';
@@ -87,6 +87,7 @@ export function AppShell() {
   const setRightPanelOpen = useRightPanelStore((s) => s.setOpen);
   /* Not `setOpen(false)`: a hosted panel's owner has to hear about the close. */
   const dismissRightPanel = useRightPanelStore((s) => s.dismiss);
+  const resetRightPanel = useRightPanelStore((s) => s.reset);
 
   const isManageAccountsOpen = useWorkspaceStore(
     (s: WorkspaceState) => s.isManageAccountsOpen,
@@ -147,6 +148,26 @@ export function AppShell() {
     setSidebarOpen(false);
     setRightPanelOpen(false);
   }, [location.pathname, isMobile, setSidebarOpen, setRightPanelOpen]);
+
+  /*
+   * A workspace switch starts the right rail over. Its open/closed state and
+   * which panel it shows are global (see `right-panel-store`), so without this
+   * an "Ask AI" rail — or an open profile — opened in one workspace stays put,
+   * now pointed at a different workspace, after switching. Ref-guarded so it
+   * fires only on a real change of workspace, never on the first resolve, a
+   * reload, or leaving/returning to the same workspace.
+   */
+  const lastWorkspaceIdRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!workspaceId) return;
+    if (
+      lastWorkspaceIdRef.current &&
+      lastWorkspaceIdRef.current !== workspaceId
+    ) {
+      resetRightPanel();
+    }
+    lastWorkspaceIdRef.current = workspaceId;
+  }, [workspaceId, resetRightPanel]);
 
   const closeSidebar = useCallback(
     () => setSidebarOpen(false),
