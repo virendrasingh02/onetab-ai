@@ -164,6 +164,7 @@ export class SearchService {
                  ts_rank(d."searchVector", ${tsq}) AS score
           FROM "work_documents" d
           WHERE d."workspaceId" = ${workspaceId}
+            AND d."deletedAt" IS NULL
             AND d."searchVector" @@ ${tsq}
           ORDER BY score DESC, d."updatedAt" DESC
           LIMIT ${take}
@@ -226,6 +227,7 @@ export class SearchService {
                  ts_rank(t."searchVector", ${tsq}) AS score
           FROM "tasks" t
           WHERE t."workspaceId" = ${workspaceId}
+            AND t."deletedAt" IS NULL
             AND t."searchVector" @@ ${tsq}
           ORDER BY score DESC, t."updatedAt" DESC
           LIMIT ${take}
@@ -255,6 +257,7 @@ export class SearchService {
                  ts_rank(p."searchVector", ${tsq}) AS score
           FROM "projects" p
           WHERE p."workspaceId" = ${workspaceId}
+            AND p."deletedAt" IS NULL
             AND p."searchVector" @@ ${tsq}
           ORDER BY score DESC, p."updatedAt" DESC
           LIMIT ${take}

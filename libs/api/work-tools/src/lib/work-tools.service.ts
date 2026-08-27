@@ -224,6 +224,7 @@ export class WorkToolsService {
     return this.prisma.project.findMany({
       where: {
         workspaceId,
+        deletedAt: null,
         ...(teamId ? { teamId } : {}),
       },
       include: {
@@ -237,7 +238,7 @@ export class WorkToolsService {
           orderBy: { targetDate: 'asc' },
         },
         cycles: { orderBy: { startDate: 'asc' } },
-        _count: { select: { tasks: true } },
+        _count: { select: { tasks: { where: { deletedAt: null } } } },
       },
       orderBy: { updatedAt: 'desc' },
     });
@@ -263,7 +264,7 @@ export class WorkToolsService {
           include: { author: { select: PUBLIC_USER_SELECT } },
           orderBy: { createdAt: 'desc' },
         },
-        _count: { select: { tasks: true } },
+        _count: { select: { tasks: { where: { deletedAt: null } } } },
       },
     });
   }
@@ -451,7 +452,20 @@ export class WorkToolsService {
 
   async deleteProject(workspaceId: string, projectId: string): Promise<void> {
     await this.assertProject(workspaceId, projectId);
-    await this.prisma.project.delete({ where: { id: projectId } });
+    // Soft delete: the project and its still-live tasks are stamped with the
+    // *same* timestamp, so restore can bring back exactly the set that this
+    // delete removed and nothing a user deleted individually beforehand.
+    const deletedAt = new Date();
+    await this.prisma.$transaction([
+      this.prisma.task.updateMany({
+        where: { projectId, deletedAt: null },
+        data: { deletedAt },
+      }),
+      this.prisma.project.update({
+        where: { id: projectId },
+        data: { deletedAt },
+      }),
+    ]);
   }
 
   // --- epics & modules & cycles ---------------------------------------------
@@ -462,6 +476,7 @@ export class WorkToolsService {
       where: { projectId, workspaceId },
       include: {
         tasks: {
+          where: { deletedAt: null },
           select: { id: true, status: true, priority: true, title: true },
         },
       },
@@ -666,6 +681,7 @@ export class WorkToolsService {
     return this.prisma.task.findMany({
       where: {
         workspaceId,
+        deletedAt: null,
         ...(projectId ? { projectId } : {}),
         ...(status ? { status } : {}),
         ...(options?.teamId ? { teamId: options.teamId } : {}),
@@ -702,6 +718,7 @@ export class WorkToolsService {
         cycle: true,
         team: true,
         subItems: {
+          where: { deletedAt: null },
           include: { assignee: { select: PUBLIC_USER_SELECT } },
         },
         sourceRelations: {
@@ -742,6 +759,7 @@ export class WorkToolsService {
           include: { assignee: { select: PUBLIC_USER_SELECT } },
         },
         subItems: {
+          where: { deletedAt: null },
           include: { assignee: { select: PUBLIC_USER_SELECT } },
           orderBy: { orderIndex: 'asc' },
         },
@@ -995,7 +1013,10 @@ export class WorkToolsService {
     if (actorId) {
       await this.logActivity(workspaceId, taskId, actorId, 'DELETED');
     }
-    await this.prisma.task.delete({ where: { id: taskId } });
+    await this.prisma.task.update({
+      where: { id: taskId },
+      data: { deletedAt: new Date() },
+    });
   }
 
   // --- relations ------------------------------------------------------------
@@ -1291,7 +1312,7 @@ export class WorkToolsService {
 
   async getCalendarEvents(workspaceId: string) {
     return this.prisma.calendarEvent.findMany({
-      where: { workspaceId },
+      where: { workspaceId, deletedAt: null },
       include: { organizer: { select: PUBLIC_USER_SELECT } },
       orderBy: { startAt: 'asc' },
     });
@@ -1339,15 +1360,21 @@ export class WorkToolsService {
 
   async deleteCalendarEvent(workspaceId: string, eventId: string): Promise<void> {
     await this.assertEvent(workspaceId, eventId);
-    await this.prisma.calendarEvent.delete({ where: { id: eventId } });
+    await this.prisma.calendarEvent.update({
+      where: { id: eventId },
+      data: { deletedAt: new Date() },
+    });
   }
 
   async getDocuments(workspaceId: string) {
     return this.prisma.workDocument.findMany({
-      where: { workspaceId },
+      where: { workspaceId, deletedAt: null },
       include: {
         author: { select: PUBLIC_USER_SELECT },
-        children: { select: { id: true, title: true, kind: true } },
+        children: {
+          where: { deletedAt: null },
+          select: { id: true, title: true, kind: true },
+        },
       },
       orderBy: { updatedAt: 'desc' },
     });
@@ -1359,7 +1386,10 @@ export class WorkToolsService {
       where: { id: docId },
       include: {
         author: { select: PUBLIC_USER_SELECT },
-        children: { select: { id: true, title: true, kind: true } },
+        children: {
+          where: { deletedAt: null },
+          select: { id: true, title: true, kind: true },
+        },
       },
     });
   }
@@ -1419,12 +1449,17 @@ export class WorkToolsService {
 
   async deleteDocument(workspaceId: string, docId: string): Promise<void> {
     await this.assertDocument(workspaceId, docId);
-    await this.prisma.workDocument.delete({ where: { id: docId } });
+    // Child documents are re-parented implicitly by the read filter — a
+    // restored parent brings its subtree back with it.
+    await this.prisma.workDocument.update({
+      where: { id: docId },
+      data: { deletedAt: new Date() },
+    });
   }
 
   async getWhiteboards(workspaceId: string) {
     return this.prisma.whiteboard.findMany({
-      where: { workspaceId },
+      where: { workspaceId, deletedAt: null },
       include: { author: { select: PUBLIC_USER_SELECT } },
       orderBy: { updatedAt: 'desc' },
     });
@@ -1472,7 +1507,10 @@ export class WorkToolsService {
 
   async deleteWhiteboard(workspaceId: string, whiteboardId: string): Promise<void> {
     await this.assertWhiteboard(workspaceId, whiteboardId);
-    await this.prisma.whiteboard.delete({ where: { id: whiteboardId } });
+    await this.prisma.whiteboard.update({
+      where: { id: whiteboardId },
+      data: { deletedAt: new Date() },
+    });
   }
 
   // --- activity logging & helpers -------------------------------------------
@@ -1533,7 +1571,7 @@ export class WorkToolsService {
 
   private async assertProject(workspaceId: string, projectId: string) {
     const project = await this.prisma.project.findFirst({
-      where: { id: projectId, workspaceId },
+      where: { id: projectId, workspaceId, deletedAt: null },
     });
     if (!project) throw new NotFoundException('Project not found');
     return project;
@@ -1541,7 +1579,7 @@ export class WorkToolsService {
 
   private async assertTask(workspaceId: string, taskId: string) {
     const task = await this.prisma.task.findFirst({
-      where: { id: taskId, workspaceId },
+      where: { id: taskId, workspaceId, deletedAt: null },
     });
     if (!task) throw new NotFoundException('Task not found');
     return task;
@@ -1632,7 +1670,7 @@ export class WorkToolsService {
 
   private async assertEvent(workspaceId: string, eventId: string) {
     const event = await this.prisma.calendarEvent.findFirst({
-      where: { id: eventId, workspaceId },
+      where: { id: eventId, workspaceId, deletedAt: null },
     });
     if (!event) throw new NotFoundException('Event not found');
     return event;
@@ -1640,7 +1678,7 @@ export class WorkToolsService {
 
   private async assertDocument(workspaceId: string, docId: string) {
     const doc = await this.prisma.workDocument.findFirst({
-      where: { id: docId, workspaceId },
+      where: { id: docId, workspaceId, deletedAt: null },
     });
     if (!doc) throw new NotFoundException('Document not found');
     return doc;
@@ -1648,9 +1686,112 @@ export class WorkToolsService {
 
   private async assertWhiteboard(workspaceId: string, whiteboardId: string) {
     const board = await this.prisma.whiteboard.findFirst({
-      where: { id: whiteboardId, workspaceId },
+      where: { id: whiteboardId, workspaceId, deletedAt: null },
     });
     if (!board) throw new NotFoundException('Whiteboard not found');
     return board;
+  }
+
+  // --- soft delete plumbing ----------------------------------------------
+  //
+  // The `assert*` helpers only ever see live rows; restore is the one path
+  // that looks *for* a `deletedAt`.
+
+  async restoreProject(workspaceId: string, projectId: string) {
+    const project = await this.prisma.project.findFirst({
+      where: { id: projectId, workspaceId, deletedAt: { not: null } },
+      select: { deletedAt: true },
+    });
+    if (!project?.deletedAt) {
+      throw new NotFoundException('No deleted project with that id.');
+    }
+    // Bring back only the tasks this project's delete took down with it —
+    // matched by the shared timestamp — not ones deleted individually earlier.
+    await this.prisma.$transaction([
+      this.prisma.task.updateMany({
+        where: { projectId, deletedAt: project.deletedAt },
+        data: { deletedAt: null },
+      }),
+      this.prisma.project.update({
+        where: { id: projectId },
+        data: { deletedAt: null },
+      }),
+    ]);
+    return this.getProject(workspaceId, projectId);
+  }
+
+  async restoreTask(workspaceId: string, taskId: string) {
+    const { count } = await this.prisma.task.updateMany({
+      where: { id: taskId, workspaceId, deletedAt: { not: null } },
+      data: { deletedAt: null },
+    });
+    if (count === 0) throw new NotFoundException('No deleted task with that id.');
+    return this.getTask(workspaceId, taskId);
+  }
+
+  async restoreDocument(workspaceId: string, docId: string) {
+    const { count } = await this.prisma.workDocument.updateMany({
+      where: { id: docId, workspaceId, deletedAt: { not: null } },
+      data: { deletedAt: null },
+    });
+    if (count === 0) {
+      throw new NotFoundException('No deleted document with that id.');
+    }
+    return this.getDocument(workspaceId, docId);
+  }
+
+  async restoreWhiteboard(workspaceId: string, whiteboardId: string) {
+    const { count } = await this.prisma.whiteboard.updateMany({
+      where: { id: whiteboardId, workspaceId, deletedAt: { not: null } },
+      data: { deletedAt: null },
+    });
+    if (count === 0) {
+      throw new NotFoundException('No deleted whiteboard with that id.');
+    }
+    return this.getWhiteboard(workspaceId, whiteboardId);
+  }
+
+  async restoreCalendarEvent(workspaceId: string, eventId: string) {
+    const { count } = await this.prisma.calendarEvent.updateMany({
+      where: { id: eventId, workspaceId, deletedAt: { not: null } },
+      data: { deletedAt: null },
+    });
+    if (count === 0) throw new NotFoundException('No deleted event with that id.');
+    return this.prisma.calendarEvent.findUniqueOrThrow({
+      where: { id: eventId },
+      include: { organizer: { select: PUBLIC_USER_SELECT } },
+    });
+  }
+
+  /** The workspace's recycle bin — everything soft-deleted, newest first. */
+  async listDeleted(workspaceId: string) {
+    const [projects, tasks, documents, whiteboards, events] = await Promise.all([
+      this.prisma.project.findMany({
+        where: { workspaceId, deletedAt: { not: null } },
+        select: { id: true, name: true, deletedAt: true },
+        orderBy: { deletedAt: 'desc' },
+      }),
+      this.prisma.task.findMany({
+        where: { workspaceId, deletedAt: { not: null } },
+        select: { id: true, title: true, identifier: true, deletedAt: true },
+        orderBy: { deletedAt: 'desc' },
+      }),
+      this.prisma.workDocument.findMany({
+        where: { workspaceId, deletedAt: { not: null } },
+        select: { id: true, title: true, deletedAt: true },
+        orderBy: { deletedAt: 'desc' },
+      }),
+      this.prisma.whiteboard.findMany({
+        where: { workspaceId, deletedAt: { not: null } },
+        select: { id: true, name: true, deletedAt: true },
+        orderBy: { deletedAt: 'desc' },
+      }),
+      this.prisma.calendarEvent.findMany({
+        where: { workspaceId, deletedAt: { not: null } },
+        select: { id: true, title: true, deletedAt: true },
+        orderBy: { deletedAt: 'desc' },
+      }),
+    ]);
+    return { projects, tasks, documents, whiteboards, events };
   }
 }

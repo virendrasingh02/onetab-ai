@@ -91,6 +91,62 @@ import { WorkToolsService } from './work-tools.service.js';
 export class WorkToolsController {
   constructor(private readonly workTools: WorkToolsService) {}
 
+  // --- recycle bin --------------------------------------------------------
+  //
+  // Projects, tasks, documents, whiteboards and calendar events are soft
+  // deleted — the row and its children stay in the database and are hidden
+  // from every read until purged. These routes list and restore them.
+
+  @Get('trash')
+  listTrash(@WorkspaceId() workspaceId: string) {
+    return this.workTools.listDeleted(workspaceId);
+  }
+
+  @Post('trash/projects/:projectId/restore')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  restoreProject(
+    @WorkspaceId() workspaceId: string,
+    @Param('projectId') projectId: string,
+  ) {
+    return this.workTools.restoreProject(workspaceId, projectId);
+  }
+
+  @Post('trash/tasks/:taskId/restore')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  restoreTask(
+    @WorkspaceId() workspaceId: string,
+    @Param('taskId') taskId: string,
+  ) {
+    return this.workTools.restoreTask(workspaceId, taskId);
+  }
+
+  @Post('trash/documents/:docId/restore')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  restoreDocument(
+    @WorkspaceId() workspaceId: string,
+    @Param('docId') docId: string,
+  ) {
+    return this.workTools.restoreDocument(workspaceId, docId);
+  }
+
+  @Post('trash/whiteboards/:whiteboardId/restore')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  restoreWhiteboard(
+    @WorkspaceId() workspaceId: string,
+    @Param('whiteboardId') whiteboardId: string,
+  ) {
+    return this.workTools.restoreWhiteboard(workspaceId, whiteboardId);
+  }
+
+  @Post('trash/events/:eventId/restore')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  restoreCalendarEvent(
+    @WorkspaceId() workspaceId: string,
+    @Param('eventId') eventId: string,
+  ) {
+    return this.workTools.restoreCalendarEvent(workspaceId, eventId);
+  }
+
   // --- teams ----------------------------------------------------------------
 
   @Get('teams')

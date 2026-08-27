@@ -512,11 +512,16 @@ model Project {
   /// Full-text index over name/description. Generated column — see the migration.
   searchVector         Unsupported("tsvector")?
 
+  /// Soft delete. A user-initiated delete sets this instead of removing the
+  /// row (and its cascade of tasks); reads filter it out; restore clears it.
+  deletedAt            DateTime?
+
   @@unique([workspaceId, slug])
   @@unique([workspaceId, ticketPrefix])
   @@index([workspaceId, status])
   @@index([teamId])
   @@index([initiativeId])
+  @@index([workspaceId, deletedAt])
   @@index([searchVector], type: Gin)
   @@map("projects")
 }
@@ -669,6 +674,8 @@ model Task {
   workspace       Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   /// Full-text index over title/description/identifier. Generated column — see the migration.
   searchVector    Unsupported("tsvector")?
+  /// Soft delete — see Project.deletedAt.
+  deletedAt       DateTime?
 
   @@unique([projectId, ticketNumber])
   @@index([workspaceId, status])
@@ -679,6 +686,7 @@ model Task {
   @@index([moduleId])
   @@index([parentId])
   @@index([identifier])
+  @@index([workspaceId, deletedAt])
   @@index([searchVector], type: Gin)
   @@map("tasks")
 }
@@ -841,8 +849,11 @@ model CalendarEvent {
   updatedAt   DateTime  @updatedAt
   organizer   User      @relation(fields: [organizerId], references: [id], onDelete: Cascade)
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// Soft delete — see Project.deletedAt.
+  deletedAt   DateTime?
 
   @@index([workspaceId, startAt])
+  @@index([workspaceId, deletedAt])
   @@map("calendar_events")
 }
 
@@ -863,9 +874,12 @@ model WorkDocument {
   workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   /// Full-text index over title/content. Generated column — see the migration.
   searchVector Unsupported("tsvector")?
+  /// Soft delete — see Project.deletedAt.
+  deletedAt   DateTime?
 
   @@index([workspaceId, kind])
   @@index([parentId])
+  @@index([workspaceId, deletedAt])
   @@index([searchVector], type: Gin)
   @@map("work_documents")
 }
@@ -880,8 +894,11 @@ model Whiteboard {
   updatedAt   DateTime  @updatedAt
   author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// Soft delete — see Project.deletedAt.
+  deletedAt   DateTime?
 
   @@index([workspaceId, createdAt])
+  @@index([workspaceId, deletedAt])
   @@map("whiteboards")
 }
 

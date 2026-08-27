@@ -41,6 +41,7 @@ export class MCPToolRegistryService {
         return this.prisma.workDocument.findMany({
           where: {
             workspaceId,
+            deletedAt: null,
             OR: [
               { title: { contains: params.query, mode: 'insensitive' } },
               { content: { contains: params.query, mode: 'insensitive' } },
@@ -96,7 +97,7 @@ export class MCPToolRegistryService {
         // A projectId the model invented could point into another workspace.
         if (params.projectId) {
           const project = await this.prisma.project.findFirst({
-            where: { id: params.projectId, workspaceId },
+            where: { id: params.projectId, workspaceId, deletedAt: null },
             select: { id: true },
           });
           if (!project) {
@@ -126,7 +127,7 @@ export class MCPToolRegistryService {
       parameters: {},
       handler: async (_params: unknown, { workspaceId }) => {
         return this.prisma.project.findMany({
-          where: { workspaceId },
+          where: { workspaceId, deletedAt: null },
           select: {
             id: true,
             name: true,
@@ -148,6 +149,7 @@ export class MCPToolRegistryService {
         return this.prisma.task.findMany({
           where: {
             workspaceId,
+            deletedAt: null,
             ...(params.projectId ? { projectId: params.projectId } : {}),
           },
           select: {
