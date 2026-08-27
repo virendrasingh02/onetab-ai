@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useWorkspaceStore, type WorkspaceState } from '@org/web-workspace';
 
 export interface ManageAccountsDialogProps {
   open: boolean;
@@ -46,6 +47,9 @@ export function ManageAccountsDialog({
 }: ManageAccountsDialogProps) {
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
+  const setInviteMembersOpen = useWorkspaceStore(
+    (s: WorkspaceState) => s.setInviteMembersOpen,
+  );
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -220,11 +224,11 @@ export function ManageAccountsDialog({
                         size="icon-sm"
                         onClick={() => {
                           onOpenChange(false);
-                          navigate(`/w/${workspace.slug}/invitations`);
+                          setInviteMembersOpen(true, workspace);
                         }}
                         title={`Invite People to ${workspace.name}`}
                         aria-label={`Invite people to ${workspace.name}`}
-                        className="size-7 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                        className="size-7 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 cursor-pointer"
                       >
                         <MailPlus className="size-3.5" />
                       </Button>

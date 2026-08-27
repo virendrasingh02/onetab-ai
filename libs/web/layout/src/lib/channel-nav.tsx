@@ -35,7 +35,11 @@ import {
   useProjectMutations,
   useProjects,
 } from '@org/web-work-tools';
-import { persistLastChannel } from '@org/web-workspace';
+import {
+  persistLastChannel,
+  useWorkspaceStore,
+  type WorkspaceState,
+} from '@org/web-workspace';
 import {
   Activity,
   Archive,
@@ -526,6 +530,10 @@ export function ChannelNav({
   const startNewChat = useCallback(
     () => navigate(`/w/${workspaceSlug}/home`),
     [navigate, workspaceSlug],
+  );
+
+  const setInviteMembersOpen = useWorkspaceStore(
+    (s: WorkspaceState) => s.setInviteMembersOpen,
   );
 
   const itemsPrefs = useSidebarStore((s) => s.items);
@@ -1278,6 +1286,7 @@ export function ChannelNav({
         <SidebarFooterActions
           workspaceSlug={workspaceSlug}
           onCreateChannel={onCreateChannel}
+          onOpenInvite={() => setInviteMembersOpen(true)}
           onNewChat={startNewChat}
           onOpenCustomizer={() => setCustomizerOpen(true)}
         />

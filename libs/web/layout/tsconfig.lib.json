@@ -44,6 +44,9 @@
       "path": "../workspace/tsconfig.lib.json"
     },
     {
+      "path": "../invitations/tsconfig.lib.json"
+    },
+    {
       "path": "../channels/tsconfig.lib.json"
     },
     {

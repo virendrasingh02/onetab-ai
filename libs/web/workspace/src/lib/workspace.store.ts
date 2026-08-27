@@ -9,12 +9,18 @@ export interface WorkspaceState {
   isSwitching: boolean;
   isManageAccountsOpen: boolean;
   isAddAccountOpen: boolean;
+  isInviteMembersOpen: boolean;
+  inviteTargetWorkspace: WorkspaceSummary | null;
 
   setActiveWorkspace: (workspace: WorkspaceSummary | null | undefined) => void;
   setActiveWorkspaceId: (id: string | null) => void;
   setIsSwitching: (isSwitching: boolean) => void;
   setManageAccountsOpen: (open: boolean) => void;
   setAddAccountOpen: (open: boolean) => void;
+  setInviteMembersOpen: (
+    open: boolean,
+    workspace?: WorkspaceSummary | null,
+  ) => void;
 }
 
 const LAST_ACTIVE_WORKSPACE_KEY = 'onetab_active_workspace_id';
@@ -87,6 +93,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   isSwitching: false,
   isManageAccountsOpen: false,
   isAddAccountOpen: false,
+  isInviteMembersOpen: false,
+  inviteTargetWorkspace: null,
 
   setActiveWorkspace: (workspace) => {
     if (workspace) {
@@ -116,4 +124,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   setIsSwitching: (isSwitching) => set({ isSwitching }),
   setManageAccountsOpen: (isManageAccountsOpen) => set({ isManageAccountsOpen }),
   setAddAccountOpen: (isAddAccountOpen) => set({ isAddAccountOpen }),
+  setInviteMembersOpen: (isInviteMembersOpen, workspace = null) =>
+    set({
+      isInviteMembersOpen,
+      inviteTargetWorkspace: workspace ?? null,
+    }),
 }));

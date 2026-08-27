@@ -57,6 +57,7 @@ import {
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTransferOwnership } from '../use-workspaces.js';
+import { useWorkspaceStore, type WorkspaceState } from '../workspace.store.js';
 import { UpgradePlanBanner } from './upgrade-plan-banner.js';
 
 export interface WorkspaceMembersSettingsProps {
@@ -93,6 +94,9 @@ export function WorkspaceMembersSettings({
 }: WorkspaceMembersSettingsProps) {
   const currentUser = useCurrentUser();
   const queryClient = useQueryClient();
+  const setInviteMembersOpen = useWorkspaceStore(
+    (s: WorkspaceState) => s.setInviteMembersOpen,
+  );
 
   // Queries
   const membersQuery = useQuery({
@@ -263,7 +267,7 @@ export function WorkspaceMembersSettings({
             <Button
               variant="primary"
               size="sm"
-              onClick={() => navigate(`/w/${workspaceSlug}/invitations`)}
+              onClick={() => setInviteMembersOpen(true)}
               className="text-xs font-semibold shadow-xs"
             >
               <UserPlus className="size-3.5 mr-1.5" />
@@ -561,7 +565,7 @@ export function WorkspaceMembersSettings({
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => navigate(`/w/${workspaceSlug}/invitations`)}
+                onClick={() => setInviteMembersOpen(true)}
                 className="text-xs font-semibold"
               >
                 <Plus className="size-3.5 mr-1" />

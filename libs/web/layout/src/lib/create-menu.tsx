@@ -112,30 +112,25 @@ const CREATE_ACTIONS: readonly CreateAction[] = [
 export interface SidebarFooterActionsProps {
   workspaceSlug: string;
   onCreateChannel: () => void;
-  onNewChat: () => void;
+  onOpenInvite?: () => void;
+  onNewChat?: () => void;
   onOpenCustomizer?: () => void;
   isCollapsed?: boolean;
 }
 
 /**
  * Modern, responsive sidebar footer actions with quick create menu,
- * new chat trigger, customization shortcut, and collapsed rail support.
+ * invite members trigger, customization shortcut, and collapsed rail support.
  */
 export function SidebarFooterActions({
   workspaceSlug,
   onCreateChannel,
+  onOpenInvite,
   onNewChat,
   onOpenCustomizer,
   isCollapsed = false,
 }: SidebarFooterActionsProps) {
   const navigate = useNavigate();
-
-  const isMac = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    return /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
-  }, []);
-
-  const shortcutLabel = isMac ? '⌘O' : 'Ctrl+O';
 
   const run = (action: CreateAction) => {
     if (action.path === null) {
@@ -143,7 +138,11 @@ export function SidebarFooterActions({
       return;
     }
     if (action.label === 'AI Chat') {
-      onNewChat();
+      if (onNewChat) {
+        onNewChat();
+      } else {
+        navigate(`/w/${workspaceSlug}/home`);
+      }
       return;
     }
     navigate(`/w/${workspaceSlug}/${action.path}`);
@@ -158,14 +157,14 @@ export function SidebarFooterActions({
   if (isCollapsed) {
     return (
       <div className="pt-2 pb-1 border-t border-border/70 flex flex-col items-center gap-1.5 shrink-0 w-full px-1">
-        <Hint side="right" label={`New chat (${shortcutLabel})`}>
+        <Hint side="right" label="Invite members (I)">
           <button
             type="button"
-            onClick={onNewChat}
-            aria-label={`New chat (${shortcutLabel})`}
-            className="size-9 flex items-center justify-center rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-colors duration-150 outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            onClick={onOpenInvite}
+            aria-label="Invite members (I)"
+            className="size-9 flex items-center justify-center rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-colors duration-150 outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
           >
-            <MessageCircle className="size-4" />
+            <UserPlus className="size-4" />
           </button>
         </Hint>
 
@@ -315,26 +314,26 @@ export function SidebarFooterActions({
   // --- Expanded Sidebar Footer View (Refined Card UX) ---
   return (
     <div className="gap-1.5 flex items-center">
-      {/* Primary New Chat Button with Shortcut Badge */}
+      {/* Primary Invite Members Button */}
       <button
         type="button"
-        onClick={onNewChat}
+        onClick={onOpenInvite}
         className={cn(
-          'group/new-chat gap-2 px-2.5 py-1.5 flex flex-1 items-center justify-between',
-          'rounded-lg border border-border/70 bg-surface-raised/80 hover:bg-accent/80 hover:border-border',
+          'group/invite-btn gap-2 px-2.5 py-1.5 flex flex-1 items-center justify-between',
+          'rounded-lg border border-border/70 bg-surface-raised/80 hover:bg-primary/10 hover:border-primary/30',
           'text-xs font-medium text-foreground transition-all duration-150 ease-standard',
           'cursor-pointer outline-none select-none focus-visible:ring-1 focus-visible:ring-ring',
         )}
       >
         <span className="gap-2 flex items-center truncate">
-          <MessageCircle
-            className="size-3.5 shrink-0 text-muted-foreground group-hover/new-chat:text-foreground transition-colors"
+          <UserPlus
+            className="size-3.5 shrink-0 text-primary group-hover/invite-btn:text-primary transition-colors"
             aria-hidden
           />
-          <span className="truncate">New chat</span>
+          <span className="truncate">Invite members</span>
         </span>
         <kbd className="rounded px-1.5 py-0.5 border border-border/50 bg-background/80 font-sans text-[10px] text-muted-foreground tabular-nums select-none">
-          {shortcutLabel}
+          I
         </kbd>
       </button>
 
@@ -449,12 +448,18 @@ export function SidebarFooterActions({
           <DropdownMenuSeparator className="my-1" />
 
           <DropdownMenuItem
-            onSelect={() => navigate(`/w/${workspaceSlug}/directory`)}
+            onSelect={() => {
+              if (onOpenInvite) {
+                onOpenInvite();
+              } else {
+                navigate(`/w/${workspaceSlug}/invitations`);
+              }
+            }}
             className="gap-3 px-2.5 py-2 flex items-center cursor-pointer"
           >
             <span
               aria-hidden
-              className="size-8 flex shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground"
+              className="size-8 flex shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary"
             >
               <UserPlus className="size-4" />
             </span>
@@ -463,7 +468,7 @@ export function SidebarFooterActions({
                 Invite Teammates
               </span>
               <span className="block truncate text-[11px] text-muted-foreground">
-                Add members to this workspace
+                Add members or share invite links
               </span>
             </span>
           </DropdownMenuItem>

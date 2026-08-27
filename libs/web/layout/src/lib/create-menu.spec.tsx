@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import React from 'react';
 import '@testing-library/jest-dom/vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TooltipProvider } from '@org/ui';
@@ -7,8 +8,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { SidebarFooterActions } from './create-menu.js';
 
 describe('SidebarFooterActions', () => {
-  it('renders expanded footer with New chat button and trigger', () => {
-    const handleNewChat = vi.fn();
+  it('renders expanded footer with Invite members button and trigger', () => {
+    const handleOpenInvite = vi.fn();
     const handleCreateChannel = vi.fn();
     const handleOpenCustomizer = vi.fn();
 
@@ -18,24 +19,24 @@ describe('SidebarFooterActions', () => {
           <SidebarFooterActions
             workspaceSlug="acme"
             onCreateChannel={handleCreateChannel}
-            onNewChat={handleNewChat}
+            onOpenInvite={handleOpenInvite}
             onOpenCustomizer={handleOpenCustomizer}
           />
         </MemoryRouter>
       </TooltipProvider>,
     );
 
-    const newChatBtn = screen.getByRole('button', { name: /new chat/i });
-    expect(newChatBtn).toBeInTheDocument();
-    fireEvent.click(newChatBtn);
-    expect(handleNewChat).toHaveBeenCalled();
+    const inviteBtn = screen.getByRole('button', { name: /invite members/i });
+    expect(inviteBtn).toBeInTheDocument();
+    fireEvent.click(inviteBtn);
+    expect(handleOpenInvite).toHaveBeenCalled();
 
     const createBtn = screen.getByRole('button', { name: /create new item/i });
     expect(createBtn).toBeInTheDocument();
   });
 
   it('renders collapsed footer with compact icon buttons and tooltips', () => {
-    const handleNewChat = vi.fn();
+    const handleOpenInvite = vi.fn();
     const handleCreateChannel = vi.fn();
 
     render(
@@ -44,17 +45,17 @@ describe('SidebarFooterActions', () => {
           <SidebarFooterActions
             workspaceSlug="acme"
             onCreateChannel={handleCreateChannel}
-            onNewChat={handleNewChat}
+            onOpenInvite={handleOpenInvite}
             isCollapsed={true}
           />
         </MemoryRouter>
       </TooltipProvider>,
     );
 
-    const newChatBtn = screen.getByRole('button', { name: /new chat/i });
-    expect(newChatBtn).toBeInTheDocument();
-    fireEvent.click(newChatBtn);
-    expect(handleNewChat).toHaveBeenCalled();
+    const inviteBtn = screen.getByRole('button', { name: /invite members/i });
+    expect(inviteBtn).toBeInTheDocument();
+    fireEvent.click(inviteBtn);
+    expect(handleOpenInvite).toHaveBeenCalled();
 
     const createBtn = screen.getByRole('button', { name: /create new item/i });
     expect(createBtn).toBeInTheDocument();

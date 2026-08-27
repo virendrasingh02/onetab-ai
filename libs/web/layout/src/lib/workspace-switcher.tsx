@@ -82,6 +82,9 @@ export function WorkspaceMenu({
   const setAddAccountOpen = useWorkspaceStore(
     (s: WorkspaceState) => s.setAddAccountOpen,
   );
+  const setInviteMembersOpen = useWorkspaceStore(
+    (s: WorkspaceState) => s.setInviteMembersOpen,
+  );
 
   const othersLevel = summariseOthers(
     workspaces,
@@ -280,17 +283,18 @@ export function WorkspaceMenu({
                           {/* Action controls for this specific workspace */}
                           <div className="flex items-center gap-1 shrink-0">
                             {/* Invitation button specifically for this workspace */}
-                            <Link
-                              to={`/w/${workspace.slug}/invitations`}
+                            <button
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setMenuOpen(false);
+                                setInviteMembersOpen(true, workspace);
                               }}
                               title={`Invite people to ${workspace.name}`}
-                              className="size-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-primary/15 transition-colors opacity-70 group-hover/ws-row:opacity-100"
+                              className="size-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-primary/15 transition-colors opacity-70 group-hover/ws-row:opacity-100 cursor-pointer"
                             >
                               <MailPlus className="size-3.5" />
-                            </Link>
+                            </button>
 
                             <ActivityDot
                               level={indicator?.level ?? 'none'}
@@ -313,17 +317,18 @@ export function WorkspaceMenu({
 
           {/* Action: Invite to Current Workspace */}
           <DropdownMenuItem
-            asChild
+            onClick={() => {
+              setMenuOpen(false);
+              setInviteMembersOpen(true, current);
+            }}
             className="gap-2.5 px-2 py-1.5 text-xs flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
           >
-            <Link to={`/w/${current.slug}/invitations`}>
-              <span className="size-5 flex shrink-0 items-center justify-center rounded-md border border-primary/30 bg-primary/10 text-primary">
-                <MailPlus className="size-3" />
-              </span>
-              <span className="font-medium text-foreground">
-                Invite to {current.name}
-              </span>
-            </Link>
+            <span className="size-5 flex shrink-0 items-center justify-center rounded-md border border-primary/30 bg-primary/10 text-primary">
+              <MailPlus className="size-3" />
+            </span>
+            <span className="font-medium text-foreground">
+              Invite to {current.name}
+            </span>
           </DropdownMenuItem>
 
           {/* Action: Add another account */}

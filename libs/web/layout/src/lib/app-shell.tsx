@@ -29,6 +29,7 @@ import {
   useWorkspaceActivity,
 } from '@org/notifications';
 import { WorkspaceSearchPanel } from '@org/web-search';
+import { InviteMembersDialog } from '@org/web-invitations';
 import {
   useCurrentWorkspace,
   useWorkspaces,
@@ -87,12 +88,27 @@ export function AppShell() {
   /* Not `setOpen(false)`: a hosted panel's owner has to hear about the close. */
   const dismissRightPanel = useRightPanelStore((s) => s.dismiss);
 
-  const isManageAccountsOpen = useWorkspaceStore((s: WorkspaceState) => s.isManageAccountsOpen);
+  const isManageAccountsOpen = useWorkspaceStore(
+    (s: WorkspaceState) => s.isManageAccountsOpen,
+  );
   const setManageAccountsOpen = useWorkspaceStore(
     (s: WorkspaceState) => s.setManageAccountsOpen,
   );
-  const isAddAccountOpen = useWorkspaceStore((s: WorkspaceState) => s.isAddAccountOpen);
-  const setAddAccountOpen = useWorkspaceStore((s: WorkspaceState) => s.setAddAccountOpen);
+  const isAddAccountOpen = useWorkspaceStore(
+    (s: WorkspaceState) => s.isAddAccountOpen,
+  );
+  const setAddAccountOpen = useWorkspaceStore(
+    (s: WorkspaceState) => s.setAddAccountOpen,
+  );
+  const isInviteMembersOpen = useWorkspaceStore(
+    (s: WorkspaceState) => s.isInviteMembersOpen,
+  );
+  const setInviteMembersOpen = useWorkspaceStore(
+    (s: WorkspaceState) => s.setInviteMembersOpen,
+  );
+  const inviteTargetWorkspace = useWorkspaceStore(
+    (s: WorkspaceState) => s.inviteTargetWorkspace,
+  );
 
   const workspacesQuery = useWorkspaces();
   const { slug, workspace, workspaceId, isLoading } = useCurrentWorkspace();
@@ -156,6 +172,7 @@ export function AppShell() {
   );
   useDesktopCommand('toggle-sidebar', toggleSidebar);
   useDesktopCommand('new-channel', () => setCreateChannelOpen(true));
+  useDesktopCommand('open-invite', () => setInviteMembersOpen(true));
   useDesktopCommand('open-settings', () => {
     if (slug) navigate(`/w/${slug}/settings`);
   });
@@ -293,7 +310,7 @@ export function AppShell() {
               definite to resolve against inside a scrolled content box.
             */}
             <main className="min-w-0 flex flex-1 flex-col overflow-hidden">
-              <div className="min-h-0 flex-1 overflow-y-auto flex min-h-full flex-col p-3 sm:p-4 lg:p-6">
+              <div className="min-h-0 flex min-h-full flex-1 flex-col overflow-y-auto">
                 <ErrorBoundary resetKeys={[location.pathname]}>
                   <Suspense fallback={<LoadingState fullPage />}>
                     <Outlet />
@@ -417,6 +434,14 @@ export function AppShell() {
         <AddAccountDialog
           open={isAddAccountOpen}
           onOpenChange={setAddAccountOpen}
+        />
+
+        <InviteMembersDialog
+          open={isInviteMembersOpen}
+          onOpenChange={setInviteMembersOpen}
+          workspaceId={inviteTargetWorkspace?.id || workspaceId}
+          workspaceName={inviteTargetWorkspace?.name || workspace.name}
+          workspaceSlug={inviteTargetWorkspace?.slug || slug}
         />
 
         {/*

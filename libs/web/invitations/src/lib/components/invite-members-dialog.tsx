@@ -65,6 +65,9 @@ import {
 export interface InviteMembersDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  workspaceId?: string;
+  workspaceName?: string;
+  workspaceSlug?: string;
   defaultScope?: {
     type: 'WORKSPACE' | 'CHANNEL' | 'TEAM' | 'PROJECT';
     id?: string;
@@ -76,10 +79,17 @@ export interface InviteMembersDialogProps {
 export function InviteMembersDialog({
   open,
   onOpenChange,
+  workspaceId: propWorkspaceId,
+  workspaceName: propWorkspaceName,
+  workspaceSlug: propWorkspaceSlug,
   defaultScope,
   defaultRole = WorkspaceRole.MEMBER,
 }: InviteMembersDialogProps) {
-  const { workspace, workspaceId, slug } = useCurrentWorkspace();
+  const currentCtx = useCurrentWorkspace();
+  const workspaceId = propWorkspaceId || currentCtx.workspaceId;
+  const workspace = currentCtx.workspace;
+  const workspaceName = propWorkspaceName || workspace?.name || 'Workspace';
+  const slug = propWorkspaceSlug || currentCtx.slug;
   const [activeTab, setActiveTab] = useState<'email' | 'link' | 'pending'>('email');
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedDevToken, setCopiedDevToken] = useState<string | null>(null);
@@ -274,95 +284,53 @@ export function InviteMembersDialog({
                     )}
                   />
 
-                  {/* Scope Selection (if not locked to default scope) */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <FormField
-                      control={form.control}
-                      name="role"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-semibold">Role</FormLabel>
-                          <Select
-                            value={field.value}
-                            onValueChange={field.onChange}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="h-8.5 text-xs bg-surface">
-                                <SelectValue placeholder="Select role" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent className="text-xs">
-                              <SelectItem value={WorkspaceRole.ADMIN}>
-                                <div className="flex flex-col text-left py-0.5">
-                                  <span className="font-medium text-xs">Admin</span>
-                                  <span className="text-[10px] text-muted-foreground">
-                                    Can manage members and workspace settings
-                                  </span>
-                                </div>
-                              </SelectItem>
-                              <SelectItem value={WorkspaceRole.MEMBER}>
-                                <div className="flex flex-col text-left py-0.5">
-                                  <span className="font-medium text-xs">Member</span>
-                                  <span className="text-[10px] text-muted-foreground">
-                                    Full collaboration access to channels & tools
-                                  </span>
-                                </div>
-                              </SelectItem>
-                              <SelectItem value={WorkspaceRole.GUEST}>
-                                <div className="flex flex-col text-left py-0.5">
-                                  <span className="font-medium text-xs">Guest</span>
-                                  <span className="text-[10px] text-muted-foreground">
-                                    Access only to assigned channels
-                                  </span>
-                                </div>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="channelId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-semibold">
-                            Channel Scope <span className="text-muted-foreground font-normal">(optional)</span>
-                          </FormLabel>
-                          <Select
-                            value={field.value ?? 'none'}
-                            onValueChange={(val) =>
-                              field.onChange(val === 'none' ? null : val)
-                            }
-                          >
-                            <FormControl>
-                              <SelectTrigger className="h-8.5 text-xs bg-surface">
-                                <SelectValue placeholder="All workspace channels" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent className="text-xs">
-                              <SelectItem value="none">
-                                <span className="text-xs text-muted-foreground">
-                                  Entire Workspace
+                  {/* Role Selection */}
+                  <FormField
+                    control={form.control}
+                    name="role"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-semibold">Workspace Role</FormLabel>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="h-8.5 text-xs bg-surface">
+                              <SelectValue placeholder="Select role" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="text-xs">
+                            <SelectItem value={WorkspaceRole.MEMBER}>
+                              <div className="flex flex-col text-left py-0.5">
+                                <span className="font-medium text-xs">Member</span>
+                                <span className="text-[10px] text-muted-foreground">
+                                  Full collaboration access to channels & tools
                                 </span>
-                              </SelectItem>
-                              {channelsList.map((ch) => (
-                                <SelectItem key={ch.id} value={ch.id}>
-                                  <span className="flex items-center gap-1.5 text-xs">
-                                    <Hash className="size-3 text-muted-foreground" />
-                                    {ch.name}
-                                  </span>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value={WorkspaceRole.ADMIN}>
+                              <div className="flex flex-col text-left py-0.5">
+                                <span className="font-medium text-xs">Admin</span>
+                                <span className="text-[10px] text-muted-foreground">
+                                  Can manage members and workspace settings
+                                </span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value={WorkspaceRole.GUEST}>
+                              <div className="flex flex-col text-left py-0.5">
+                                <span className="font-medium text-xs">Guest</span>
+                                <span className="text-[10px] text-muted-foreground">
+                                  Access only to assigned channels
+                                </span>
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   {/* Personal Message */}
                   <FormField
