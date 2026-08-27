@@ -3,6 +3,7 @@ import { PUBLIC_USER_SELECT, toPublicUser } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import type { CurrentUser, PublicUser, UserPreferences } from '@org/types';
 import type {
+  SidebarPreferencesInput,
   UpdateProfileInput,
   UpdateStatusInput,
   UpdateUserPreferencesInput,
@@ -202,6 +203,35 @@ export class UserService {
     });
 
     return members.map((row) => toPublicUser(row.user));
+  }
+
+  // --- sidebar customization -------------------------------------------
+
+  /**
+   * The user's persisted sidebar layout. Returns `{}` when they have never
+   * customized it — the client falls back to its defaults.
+   */
+  async getSidebarPreferences(
+    userId: string,
+  ): Promise<Record<string, unknown>> {
+    const row = await this.prisma.sidebarPreference.findUnique({
+      where: { userId },
+      select: { data: true },
+    });
+    return (row?.data as Record<string, unknown> | undefined) ?? {};
+  }
+
+  async saveSidebarPreferences(
+    userId: string,
+    data: SidebarPreferencesInput,
+  ): Promise<Record<string, unknown>> {
+    const row = await this.prisma.sidebarPreference.upsert({
+      where: { userId },
+      create: { userId, data: data as object },
+      update: { data: data as object },
+      select: { data: true },
+    });
+    return row.data as Record<string, unknown>;
   }
 
   async getPreferences(userId: string): Promise<UserPreferences> {

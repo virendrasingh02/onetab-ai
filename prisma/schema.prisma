@@ -59,8 +59,24 @@ model User {
   reportedTasks           Task[]                   @relation("TaskReporter")
   workItemActivities      WorkItemActivity[]
   notifications           Notification[]
+  sidebarPreference       SidebarPreference?
 
   @@map("users")
+}
+
+/// A user's sidebar customization — section/item visibility and order,
+/// per-workspace resource ordering, collapsed groups. Server-persisted so it
+/// survives logout and follows the user to another device; the client also
+/// keeps a localStorage copy for first paint. One row per user; `data` is the
+/// client's own partialized store blob, validated loosely on write.
+model SidebarPreference {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  data      Json     @default("{}")
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sidebar_preferences")
 }
 
 model Workspace {

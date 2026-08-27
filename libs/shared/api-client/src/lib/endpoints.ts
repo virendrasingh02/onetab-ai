@@ -513,6 +513,13 @@ export const userApi = {
     ),
 
   byId: (userId: string) => request<PublicUser>(http.get(`/users/${userId}`)),
+
+  /** The persisted sidebar-customization blob. `{}` when never customized. */
+  sidebarPreferences: () =>
+    request<Record<string, unknown>>(http.get('/users/me/sidebar')),
+
+  saveSidebarPreferences: (data: Record<string, unknown>) =>
+    request<Record<string, unknown>>(http.put('/users/me/sidebar', data)),
 };
 
 /** Matrix session brokering. The browser never holds Matrix credentials. */

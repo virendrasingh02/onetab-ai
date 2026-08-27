@@ -110,7 +110,32 @@ export const updateUserPreferencesSchema = z.object({
   theme: themeConfigSchema.partial().optional(),
 });
 
+/**
+ * The sidebar-customization blob the web client persists — section/item
+ * visibility and order, per-workspace resource ordering, collapsed groups.
+ *
+ * Validated loosely: the shape is owned by the client's zustand store and
+ * evolves with the UI, so this pins the known top-level keys, strips anything
+ * else, and caps the serialized size rather than describing every nested
+ * value.
+ */
+export const sidebarPreferencesSchema = z
+  .object({
+    items: z.record(z.string(), z.unknown()).optional(),
+    sections: z.record(z.string(), z.unknown()).optional(),
+    channelOrders: z.record(z.string(), z.array(z.string())).optional(),
+    resourceOrders: z
+      .record(z.string(), z.record(z.string(), z.array(z.string())))
+      .optional(),
+    collapsedGroups: z.record(z.string(), z.boolean()).optional(),
+    sidebarCollapsed: z.boolean().optional(),
+  })
+  .refine((value) => JSON.stringify(value).length <= 64_000, {
+    message: 'Sidebar preferences payload is too large.',
+  });
+
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type SidebarPreferencesInput = z.infer<typeof sidebarPreferencesSchema>;
 export type UpdateStatusInput = z.infer<typeof updateStatusSchema>;
 export type UploadRequestInput = z.infer<typeof uploadRequestSchema>;
 export type ChatPreferencesInput = z.infer<typeof chatPreferencesSchema>;

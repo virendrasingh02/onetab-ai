@@ -4,15 +4,18 @@ import {
   Get,
   Param,
   Patch,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import { CurrentUser, WorkspaceId, zodBody } from '@org/api-common';
 import {
+  sidebarPreferencesSchema,
   updateProfileSchema,
   updateStatusSchema,
   updateUserPreferencesSchema,
+  type SidebarPreferencesInput,
   type UpdateProfileInput,
   type UpdateStatusInput,
   type UpdateUserPreferencesInput,
@@ -35,6 +38,19 @@ export class UserController {
     body: UpdateUserPreferencesInput,
   ) {
     return this.users.updatePreferences(userId, body);
+  }
+
+  @Get('me/sidebar')
+  getSidebarPreferences(@CurrentUser('id') userId: string) {
+    return this.users.getSidebarPreferences(userId);
+  }
+
+  @Put('me/sidebar')
+  saveSidebarPreferences(
+    @CurrentUser('id') userId: string,
+    @Body(zodBody(sidebarPreferencesSchema)) body: SidebarPreferencesInput,
+  ) {
+    return this.users.saveSidebarPreferences(userId, body);
   }
 
   @Patch('me')

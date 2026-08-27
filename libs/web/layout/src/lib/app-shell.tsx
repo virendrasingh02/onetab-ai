@@ -43,6 +43,7 @@ import { AddAccountDialog } from './add-account-dialog.js';
 import { AppHeader } from './app-header.js';
 import { ChannelNav } from './channel-nav.js';
 import { ManageAccountsDialog } from './manage-accounts-dialog.js';
+import { useSidebarSync } from './navigation/use-sidebar-sync.js';
 import { useSidebarStore } from './navigation/sidebar-store.js';
 import { ResizeHandle } from './resize-handle.js';
 import { RightPanel } from './right-panel.js';
@@ -52,6 +53,11 @@ import { WorkspaceMenu } from './workspace-switcher.js';
 export function AppShell() {
   const user = useCurrentUser();
   const setUser = useAuthStore((s) => s.setUser);
+
+  // Hydrate the sidebar-customization store from the server and push local
+  // changes back — so a reordered sidebar survives logout and moves between
+  // devices rather than living only in this browser's localStorage.
+  useSidebarSync(!!user);
   const navigate = useNavigate();
   const location = useLocation();
   const palette = useCommandPalette();
