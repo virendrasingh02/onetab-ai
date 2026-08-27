@@ -207,7 +207,14 @@ export function App() {
   useSessionBootstrap();
 
   return (
-    <Suspense fallback={<LoadingState fullPage label="Loading your workspace…" />}>
+    /*
+     * Neutral fallback, not "Loading your workspace…": this boundary also
+     * catches a lazy route chunk loading on a later navigation (Settings,
+     * Profile, and the other standalone routes have no closer boundary), and
+     * flashing a full "workspace" loader there reads as the app reloading.
+     * The genuine cold-start message lives in `ProtectedRoute`.
+     */
+    <Suspense fallback={<LoadingState fullPage />}>
       <Routes>
         {/* --- public & callback routes -------------------------------- */}
         <Route path="/auth/callback" element={<DesktopAuthCallbackPage />} />

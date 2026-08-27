@@ -8,16 +8,23 @@ import { useAuthStore } from './auth.store.js';
  * `idle`/`authenticating` render a loader rather than redirecting: on a cold
  * load the session is still being restored from the refresh cookie, and
  * bouncing to /login there would sign the user out on every page refresh.
+ *
+ * Once a user is known, a later `authenticating` (a background token refresh,
+ * a desktop session re-check) must NOT swap `<Outlet/>` for the loader —
+ * doing so unmounts and remounts the entire app, which reads as the whole
+ * page reloading on every interaction. The loader is only for the cold start
+ * where there is genuinely nothing to show yet.
  */
 export function ProtectedRoute() {
   const status = useAuthStore((state) => state.status);
+  const hasUser = useAuthStore((state) => state.user !== null);
   const location = useLocation();
 
-  if (status === 'idle' || status === 'authenticating') {
+  if ((status === 'idle' || status === 'authenticating') && !hasUser) {
     return <LoadingState fullPage label="Loading your workspace…" />;
   }
 
-  if (status !== 'authenticated') {
+  if (status !== 'authenticated' && !hasUser) {
     // `state.from` lets the login page return the user where they meant to go.
     return <Navigate to="/login" replace state={{ from: location }} />;
   }

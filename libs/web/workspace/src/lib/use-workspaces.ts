@@ -4,7 +4,12 @@ import type {
   CreateWorkspaceInput,
   UpdateWorkspaceInput,
 } from '@org/validation';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useWorkspaceStore } from './workspace.store.js';
@@ -20,6 +25,9 @@ export function useWorkspaces() {
     queryKey: queryKeys.workspaces.list(),
     queryFn: () => workspaceApi.list(),
     staleTime: 60_000,
+    // Hold the last list through any refetch so `AppShell`'s boot gate never
+    // sees `data: undefined` again after the first load.
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -33,6 +41,9 @@ export function useWorkspace(slug: string | undefined) {
     // The API returns 404 both for a workspace that does not exist and for one
     // the user cannot see. Neither improves on a retry.
     retry: false,
+    // Keep the current workspace on screen across a slug change or a refetch,
+    // so switching pages never blanks the shell to "Loading your workspace…".
+    placeholderData: keepPreviousData,
   });
 }
 

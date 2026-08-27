@@ -183,7 +183,18 @@ export function AppShell() {
    * separately flashed a second spinner between them — so they share a single
    * screen with a single label until the shell has everything it needs.
    */
-  if (!user || isLoading || workspacesQuery.isLoading) {
+  /*
+   * Only block on a genuine cold start — nothing to show yet. Once we have a
+   * workspace and its list, a later background refetch (`isLoading` never goes
+   * true for those since they keep their data, but `enabled` gaps or a cache
+   * eviction can) must not swap the whole shell for the loader: that unmounts
+   * the sidebar, header and every panel and reads as the app reloading on
+   * every navigation.
+   */
+  const bootingWorkspace =
+    (isLoading && !workspace) ||
+    (workspacesQuery.isLoading && !workspacesQuery.data);
+  if (!user || bootingWorkspace) {
     return <LoadingState fullPage label="Loading your workspace…" />;
   }
 

@@ -61,7 +61,7 @@ import {
   Users,
   Workflow,
 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams } from 'react-router-dom';
 import { useCurrentUser } from '@org/auth';
@@ -490,7 +490,19 @@ export function ChannelPage() {
   const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
   const currentUser = useCurrentUser();
   const channelQuery = useChannel(workspaceId, channelSlug);
-  const channel = channelQuery.data;
+
+  /*
+   * Keep the previously-resolved channel on screen while the next one loads,
+   * so switching channels swaps the page contents in place instead of
+   * blanking to a full-height spinner for the round trip. Without this, any
+   * channel not already in the query cache (a fresh session, one opened from
+   * search, a just-joined one) makes the whole panel flash empty on click.
+   */
+  const lastChannel = useRef<ChannelSummary | undefined>(undefined);
+  if (channelQuery.data) lastChannel.current = channelQuery.data;
+  const channel = channelQuery.isError
+    ? undefined
+    : (channelQuery.data ?? lastChannel.current);
 
   const pins = useChannelPins(workspaceId, channel?.id);
   const files = useChannelFiles(workspaceId, channel?.id);
@@ -573,7 +585,9 @@ export function ChannelPage() {
     markChannelSeen(channel?.id);
   }, [channel?.id, markChannelSeen]);
 
-  if (channelQuery.isLoading) return <LoadingState fullPage />;
+  // Only the very first channel of the session — nothing to keep on screen —
+  // gets the full-page loader; every later switch renders through in place.
+  if (!channel && channelQuery.isLoading) return <LoadingState fullPage />;
   if (channelQuery.isError || !channel) {
     return (
       <ErrorState
