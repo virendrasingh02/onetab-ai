@@ -172,6 +172,12 @@ export const queryKeys = {
       ['notifications', workspaceId, 'preferences'] as const,
     feed: (workspaceId: string) =>
       ['notifications', workspaceId, 'feed'] as const,
+    /** The bell menu's paginated list. */
+    list: (workspaceId: string, unreadOnly = false) =>
+      ['notifications', workspaceId, 'list', unreadOnly ? 'unread' : 'all'] as const,
+    /** Server-side unread total, polled for the bell badge. */
+    unreadCount: (workspaceId: string) =>
+      ['notifications', workspaceId, 'unread-count'] as const,
     /** Devices belong to the person, not a workspace. */
     devices: () => ['notifications', 'devices'] as const,
   },

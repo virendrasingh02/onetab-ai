@@ -1,5 +1,7 @@
 import type {
   ActivityFeedItem,
+  NotificationView,
+  Paginated,
   AdminAuditLogEntry,
   AdminDepartment,
   AdminOrganization,
@@ -1788,6 +1790,46 @@ export const notificationApi = {
       http.get(`/workspaces/${workspaceId}/notifications/feed`, {
         params: limit ? { limit } : undefined,
       }),
+    ),
+
+  // --- notification centre (the bell menu) --------------------------------
+
+  list: (
+    workspaceId: string,
+    params?: { cursor?: string; limit?: number; unreadOnly?: boolean },
+  ) =>
+    request<Paginated<NotificationView>>(
+      http.get(`/workspaces/${workspaceId}/notifications`, {
+        params: {
+          ...(params?.cursor ? { cursor: params.cursor } : {}),
+          ...(params?.limit ? { limit: params.limit } : {}),
+          ...(params?.unreadOnly ? { unreadOnly: true } : {}),
+        },
+      }),
+    ),
+
+  unreadCount: (workspaceId: string) =>
+    request<{ count: number }>(
+      http.get(`/workspaces/${workspaceId}/notifications/unread-count`),
+    ),
+
+  markRead: (workspaceId: string, notificationId: string) =>
+    request<void>(
+      http.post(
+        `/workspaces/${workspaceId}/notifications/${notificationId}/read`,
+      ),
+    ),
+
+  markAllRead: (workspaceId: string) =>
+    request<{ count: number }>(
+      http.post(`/workspaces/${workspaceId}/notifications/read-all`),
+    ),
+
+  dismiss: (workspaceId: string, notificationId: string) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/notifications/${notificationId}`,
+      ),
     ),
 
   devices: () => request<PushDevice[]>(http.get('/notifications/devices')),

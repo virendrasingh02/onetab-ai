@@ -12,7 +12,7 @@ import {
   useFocusStore,
   useRightPanelStore,
 } from '@org/ui';
-import type { ActivityIndicator } from '@org/notifications';
+import { NotificationBell, type ActivityIndicator } from '@org/notifications';
 import { useLogout } from '@org/auth';
 import { cn } from '@org/utils';
 import { ProfileEditModal } from '@org/web-profile';
@@ -50,6 +50,8 @@ import { WorkspaceMenu } from './workspace-switcher.js';
 export interface AppHeaderProps {
   user: CurrentUser;
   workspaceSlug: string;
+  /** Enables the notification bell. Omitted before a workspace is resolved. */
+  workspaceId?: string;
   title: string;
   subtitle?: string;
   workspaces?: WorkspaceSummary[];
@@ -75,6 +77,7 @@ export interface AppHeaderProps {
 export function AppHeader({
   user,
   workspaceSlug,
+  workspaceId,
   workspaces,
   currentWorkspace,
   onOpenSearch,
@@ -261,6 +264,16 @@ export function AppHeader({
               <Search className="size-4" />
             </Button>
           </Hint>
+
+          {/* Notifications bell */}
+          {workspaceId ? (
+            <div style={NO_DRAG}>
+              <NotificationBell
+                workspaceId={workspaceId}
+                workspaceSlug={workspaceSlug}
+              />
+            </div>
+          ) : null}
 
           {/* Help & Resources */}
           <Hint label="Help & Resources">

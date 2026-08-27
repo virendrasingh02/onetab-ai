@@ -1,6 +1,17 @@
 export { NotificationBadge } from './lib/notification-badge.js';
 
 export {
+  NotificationBell,
+  type NotificationBellProps,
+} from './lib/notification-bell.js';
+
+export {
+  useNotificationList,
+  useNotificationMutations,
+  useNotificationUnreadCount,
+} from './lib/use-notification-center.js';
+
+export {
   NotificationEnableBar,
   useNotificationPermissionBar,
   type NotificationEnableBarProps,

@@ -63,8 +63,49 @@ export interface ActivityFeedItem {
    * a grey one for everything else.
    */
   isMention: boolean;
+  /** Pre-rendered one-liner for non-chat rows ("created task WEB-42"). Null for
+   *  chat rows, which the client renders from the channel. */
+  summary: string | null;
+  /** The subject the row is about, so a click can deep-link it. */
+  resourceType: string | null;
+  resourceId: string | null;
   channel: { id: string; name: string; slug: string } | null;
   user: {
+    id: string;
+    name: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  } | null;
+}
+
+export type NotificationKind =
+  | 'TASK_ASSIGNED'
+  | 'TASK_COMPLETED'
+  | 'MENTION'
+  | 'CHANNEL_INVITE'
+  | 'WORKSPACE_INVITE'
+  | 'PROJECT_CREATED'
+  | 'DOCUMENT_SHARED'
+  | 'SYSTEM';
+
+/**
+ * One row in the bell menu — a notification addressed to the signed-in user,
+ * with server-side read state (unlike {@link ActivityFeedItem}, which is a
+ * workspace-wide log).
+ */
+export interface NotificationView {
+  id: string;
+  workspaceId: string;
+  kind: NotificationKind | string;
+  title: string;
+  body: string | null;
+  /** Workspace-relative route the row opens, e.g. `tasks/abc123`. */
+  deepLink: string | null;
+  resourceType: string | null;
+  resourceId: string | null;
+  read: boolean;
+  createdAt: IsoDateString;
+  actor: {
     id: string;
     name: string;
     displayName: string | null;

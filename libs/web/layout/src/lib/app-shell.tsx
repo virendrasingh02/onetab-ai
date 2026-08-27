@@ -226,6 +226,7 @@ export function AppShell() {
         <AppHeader
           user={user}
           workspaceSlug={slug}
+          workspaceId={workspaceId}
           title={workspace.name}
           subtitle={`${workspace.memberCount} members · ${workspace.channelCount} channels`}
           workspaces={workspaces}
