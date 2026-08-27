@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@org/database';
+import { Prisma, PrismaService } from '@org/database';
 
 export type SearchCategory =
   | 'channels'
@@ -16,6 +16,8 @@ export interface SearchResultItem {
   snippet?: string;
   /** Workspace-relative route the result opens. */
   href?: string;
+  /** Full-text rank, higher is a better match. Absent for `people` (ILIKE). */
+  score?: number;
   metadata?: Record<string, unknown>;
 }
 
@@ -53,13 +55,16 @@ function snippet(body: string, query: string, radius = 60): string {
 }
 
 /**
- * Workspace search, served from Postgres.
+ * Workspace search, served from Postgres full-text search.
  *
- * Meilisearch is the intended engine, but nothing is indexed into it yet and a
- * search box that always returns nothing is worse than a slower one that works.
- * `ILIKE` over the handful of tables people actually search is accurate and
- * needs no second system; the shape here is deliberately engine-agnostic so
- * swapping the backend later is a change to this file.
+ * Every searched table carries a `GENERATED ALWAYS AS (...) STORED` `tsvector`
+ * column with a GIN index (migration `search_fts`), so a query is an indexed
+ * `@@` match plus a `ts_rank` sort rather than a sequential `ILIKE '%q%'` over
+ * `content`. User input goes through `websearch_to_tsquery`, which accepts
+ * quoted phrases, `or`, and `-negation`, and never throws on junk.
+ *
+ * The shape is still engine-agnostic — swapping in Meilisearch later is a
+ * change to this file.
  */
 @Injectable()
 export class SearchService {
@@ -104,122 +109,181 @@ export class SearchService {
     query: string,
     take: number,
   ): Promise<SearchResultItem[]> {
-    const contains = { contains: query, mode: 'insensitive' as const };
+    // `websearch_to_tsquery` bound once and reused per branch.
+    const tsq = Prisma.sql`websearch_to_tsquery('english', ${query})`;
 
     switch (category) {
       case 'channels': {
-        const rows = await this.prisma.channel.findMany({
-          where: {
-            workspaceId,
-            isArchived: false,
-            // Mirrors ChannelService.list: a private channel is only a result
-            // for someone who is in it. Filtering on workspace + archived alone
-            // leaked private channel names, topics and existence to every
-            // member (audit S3).
-            OR: [
-              { visibility: 'PUBLIC' },
-              { members: { some: { userId } } },
-            ],
-            AND: [
-              {
-                OR: [
-                  { name: contains },
-                  { topic: contains },
-                  { description: contains },
-                ],
-              },
-            ],
-          },
-          take,
-          orderBy: { name: 'asc' },
-        });
+        const rows = await this.prisma.$queryRaw<
+          Array<{
+            id: string;
+            name: string;
+            slug: string;
+            topic: string | null;
+            description: string | null;
+            score: number;
+          }>
+        >(Prisma.sql`
+          SELECT c."id", c."name", c."slug", c."topic", c."description",
+                 ts_rank(c."searchVector", ${tsq}) AS score
+          FROM "channels" c
+          WHERE c."workspaceId" = ${workspaceId}
+            AND c."isArchived" = false
+            AND c."searchVector" @@ ${tsq}
+            AND (
+              c."visibility" = 'PUBLIC'
+              OR EXISTS (
+                SELECT 1 FROM "channel_members" cm
+                WHERE cm."channelId" = c."id" AND cm."userId" = ${userId}
+              )
+            )
+          ORDER BY score DESC, c."name" ASC
+          LIMIT ${take}
+        `);
         return rows.map((row) => ({
           id: row.id,
           category,
           title: `#${row.name}`,
           snippet: row.topic ?? row.description ?? undefined,
-          // `/w/:slug/channels` is the browse screen; a single channel is `c/:slug`.
           href: `c/${row.slug}`,
+          score: Number(row.score),
         }));
       }
 
       case 'docs': {
-        const rows = await this.prisma.workDocument.findMany({
-          where: { workspaceId, OR: [{ title: contains }, { content: contains }] },
-          take,
-          orderBy: { updatedAt: 'desc' },
-        });
+        const rows = await this.prisma.$queryRaw<
+          Array<{
+            id: string;
+            title: string;
+            content: string;
+            kind: string;
+            score: number;
+          }>
+        >(Prisma.sql`
+          SELECT d."id", d."title", d."content", d."kind"::text AS kind,
+                 ts_rank(d."searchVector", ${tsq}) AS score
+          FROM "work_documents" d
+          WHERE d."workspaceId" = ${workspaceId}
+            AND d."searchVector" @@ ${tsq}
+          ORDER BY score DESC, d."updatedAt" DESC
+          LIMIT ${take}
+        `);
         return rows.map((row) => ({
           id: row.id,
           category,
           title: row.title,
           snippet: snippet(row.content, query),
           href: `docs/${row.id}`,
+          score: Number(row.score),
           metadata: { kind: row.kind },
         }));
       }
 
       case 'files': {
-        const rows = await this.prisma.upload.findMany({
-          where: { workspaceId, filename: contains },
-          take,
-          orderBy: { createdAt: 'desc' },
-        });
+        const rows = await this.prisma.$queryRaw<
+          Array<{
+            id: string;
+            filename: string;
+            mimeType: string;
+            size: number;
+            score: number;
+          }>
+        >(Prisma.sql`
+          SELECT u."id", u."filename", u."mimeType", u."size",
+                 ts_rank(u."searchVector", ${tsq}) AS score
+          FROM "uploads" u
+          WHERE u."workspaceId" = ${workspaceId}
+            AND u."searchVector" @@ ${tsq}
+          ORDER BY score DESC, u."createdAt" DESC
+          LIMIT ${take}
+        `);
         return rows.map((row) => ({
           id: row.id,
           category,
           title: row.filename,
           snippet: row.mimeType,
           href: `files`,
-          metadata: { size: row.size, mimeType: row.mimeType },
+          score: Number(row.score),
+          metadata: { size: Number(row.size), mimeType: row.mimeType },
         }));
       }
 
       case 'tasks': {
-        const rows = await this.prisma.task.findMany({
-          where: {
-            workspaceId,
-            OR: [{ title: contains }, { description: contains }],
-          },
-          take,
-          orderBy: { updatedAt: 'desc' },
-        });
+        const rows = await this.prisma.$queryRaw<
+          Array<{
+            id: string;
+            title: string;
+            description: string | null;
+            status: string;
+            priority: string;
+            projectId: string | null;
+            score: number;
+          }>
+        >(Prisma.sql`
+          SELECT t."id", t."title", t."description",
+                 t."status"::text AS status, t."priority"::text AS priority,
+                 t."projectId",
+                 ts_rank(t."searchVector", ${tsq}) AS score
+          FROM "tasks" t
+          WHERE t."workspaceId" = ${workspaceId}
+            AND t."searchVector" @@ ${tsq}
+          ORDER BY score DESC, t."updatedAt" DESC
+          LIMIT ${take}
+        `);
         return rows.map((row) => ({
           id: row.id,
           category,
           title: row.title,
           snippet: row.description ? snippet(row.description, query) : undefined,
           href: row.projectId ? `tasks?project=${row.projectId}` : `tasks`,
+          score: Number(row.score),
           metadata: { status: row.status, priority: row.priority },
         }));
       }
 
       case 'projects': {
-        const rows = await this.prisma.project.findMany({
-          where: {
-            workspaceId,
-            OR: [{ name: contains }, { description: contains }],
-          },
-          take,
-          orderBy: { updatedAt: 'desc' },
-        });
+        const rows = await this.prisma.$queryRaw<
+          Array<{
+            id: string;
+            name: string;
+            description: string | null;
+            status: string;
+            score: number;
+          }>
+        >(Prisma.sql`
+          SELECT p."id", p."name", p."description", p."status"::text AS status,
+                 ts_rank(p."searchVector", ${tsq}) AS score
+          FROM "projects" p
+          WHERE p."workspaceId" = ${workspaceId}
+            AND p."searchVector" @@ ${tsq}
+          ORDER BY score DESC, p."updatedAt" DESC
+          LIMIT ${take}
+        `);
         return rows.map((row) => ({
           id: row.id,
           category,
           title: row.name,
           snippet: row.description ?? undefined,
           href: `tasks?project=${row.id}`,
+          score: Number(row.score),
           metadata: { status: row.status },
         }));
       }
 
       case 'people': {
-        // Only members of this workspace: search must not become a directory
-        // of every account on the platform.
+        // Names do not benefit from stemming, and `users` is not tenant-scoped,
+        // so people stay on a scoped ILIKE rather than a generated tsvector.
+        const contains = { contains: query, mode: 'insensitive' as const };
         const rows = await this.prisma.workspaceMember.findMany({
           where: {
             workspaceId,
-            user: { OR: [{ name: contains }, { displayName: contains }] },
+            user: {
+              OR: [
+                { name: contains },
+                { displayName: contains },
+                { email: contains },
+              ],
+            },
           },
           include: {
             user: {

@@ -168,11 +168,17 @@ model Channel {
   workspace        Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   recentActivities RecentActivity[]
   uploads          Upload[]
+  /// Postgres full-text index over name/topic/description. Populated by a
+  /// `GENERATED ALWAYS AS (...) STORED` expression defined in the migration —
+  /// Prisma cannot express the generator, so this is `Unsupported` and the
+  /// column is never written from application code.
+  searchVector     Unsupported("tsvector")?
 
   @@unique([workspaceId, slug])
   @@index([workspaceId, isArchived])
   @@index([workspaceId, visibility])
   @@index([createdById])
+  @@index([searchVector], type: Gin)
   @@map("channels")
 }
 
@@ -281,10 +287,13 @@ model Upload {
   channel     Channel?  @relation(fields: [channelId], references: [id])
   uploader    User      @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// Full-text index over filename. Generated column — see the migration.
+  searchVector Unsupported("tsvector")?
 
   @@index([workspaceId, createdAt])
   @@index([channelId, createdAt])
   @@index([uploaderId])
+  @@index([searchVector], type: Gin)
   @@map("uploads")
 }
 
@@ -500,12 +509,15 @@ model Project {
   intakeRequests       IntakeRequest[]
   updates              ProjectUpdate[]
   tasks                Task[]
+  /// Full-text index over name/description. Generated column — see the migration.
+  searchVector         Unsupported("tsvector")?
 
   @@unique([workspaceId, slug])
   @@unique([workspaceId, ticketPrefix])
   @@index([workspaceId, status])
   @@index([teamId])
   @@index([initiativeId])
+  @@index([searchVector], type: Gin)
   @@map("projects")
 }
 
@@ -655,6 +667,8 @@ model Task {
   targetRelations WorkItemRelation[] @relation("RelationTarget")
   activities      WorkItemActivity[]
   workspace       Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// Full-text index over title/description/identifier. Generated column — see the migration.
+  searchVector    Unsupported("tsvector")?
 
   @@unique([projectId, ticketNumber])
   @@index([workspaceId, status])
@@ -665,6 +679,7 @@ model Task {
   @@index([moduleId])
   @@index([parentId])
   @@index([identifier])
+  @@index([searchVector], type: Gin)
   @@map("tasks")
 }
 
@@ -846,9 +861,12 @@ model WorkDocument {
   parent      WorkDocument?  @relation("DocHierarchy", fields: [parentId], references: [id])
   children    WorkDocument[] @relation("DocHierarchy")
   workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// Full-text index over title/content. Generated column — see the migration.
+  searchVector Unsupported("tsvector")?
 
   @@index([workspaceId, kind])
   @@index([parentId])
+  @@index([searchVector], type: Gin)
   @@map("work_documents")
 }
 
