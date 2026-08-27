@@ -3,7 +3,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PUBLIC_USER_SELECT } from '@org/api-common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AppEvent, PUBLIC_USER_SELECT } from '@org/api-common';
 import {
   CycleStatus,
   DocumentKind,
@@ -69,7 +70,10 @@ const ORDER_STRIDE = 1024;
 
 @Injectable()
 export class WorkToolsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly events: EventEmitter2,
+  ) {}
 
   // --- teams ----------------------------------------------------------------
 
@@ -264,7 +268,11 @@ export class WorkToolsService {
     });
   }
 
-  async createProject(workspaceId: string, input: CreateProjectInput) {
+  async createProject(
+    workspaceId: string,
+    input: CreateProjectInput,
+    actorId?: string,
+  ) {
     if (input.teamId) await this.assertTeam(workspaceId, input.teamId);
     if (input.leadId) await this.assertWorkspaceUser(workspaceId, input.leadId);
     if (input.initiativeId) await this.assertInitiative(workspaceId, input.initiativeId);
@@ -291,7 +299,7 @@ export class WorkToolsService {
       );
     }
 
-    return this.prisma.project.create({
+    const project = await this.prisma.project.create({
       data: {
         workspaceId,
         name: input.name,
@@ -316,6 +324,15 @@ export class WorkToolsService {
         team: true,
       },
     });
+
+    this.events.emit(AppEvent.ProjectCreated, {
+      workspaceId,
+      actorId: actorId ?? null,
+      projectId: project.id,
+      name: project.name,
+    });
+
+    return project;
   }
 
   async updateProject(
@@ -753,7 +770,7 @@ export class WorkToolsService {
     const status = (input.status as TaskStatus) ?? TaskStatus.TODO;
     const projectId = input.projectId ?? null;
 
-    return this.prisma.$transaction(async (tx) => {
+    const task = await this.prisma.$transaction(async (tx) => {
       let ticketNumber: number | null = null;
       let identifier: string | null = null;
 
@@ -817,6 +834,21 @@ export class WorkToolsService {
 
       return task;
     });
+
+    // Emitted after the write commits, so a listener that reads the task back
+    // always finds it. Fan-out (notification to the assignee, an activity-feed
+    // row) happens in `DomainEventsListener`, not here.
+    this.events.emit(AppEvent.TaskCreated, {
+      workspaceId,
+      actorId: actorId ?? null,
+      taskId: task.id,
+      title: task.title,
+      identifier: task.identifier,
+      projectId: task.projectId,
+      assigneeId: task.assigneeId,
+    });
+
+    return task;
   }
 
   async updateTask(
@@ -887,6 +919,34 @@ export class WorkToolsService {
       }
     }
 
+    if (
+      input.assigneeId !== undefined &&
+      input.assigneeId !== existing.assigneeId
+    ) {
+      this.events.emit(AppEvent.TaskAssigned, {
+        workspaceId,
+        actorId: actorId ?? null,
+        taskId: updated.id,
+        title: updated.title,
+        identifier: updated.identifier,
+        assigneeId: updated.assigneeId,
+        previousAssigneeId: existing.assigneeId,
+      });
+    }
+
+    const becameDone =
+      input.status === TaskStatus.DONE && existing.status !== TaskStatus.DONE;
+    if (becameDone) {
+      this.events.emit(AppEvent.TaskCompleted, {
+        workspaceId,
+        actorId: actorId ?? null,
+        taskId: updated.id,
+        title: updated.title,
+        identifier: updated.identifier,
+        assigneeId: updated.assigneeId,
+      });
+    }
+
     return updated;
   }
 
@@ -910,6 +970,20 @@ export class WorkToolsService {
       await this.logActivity(workspaceId, taskId, actorId, 'STATUS_CHANGED', {
         oldValue: existing.status,
         newValue: input.status,
+      });
+    }
+
+    if (
+      input.status === TaskStatus.DONE &&
+      existing.status !== TaskStatus.DONE
+    ) {
+      this.events.emit(AppEvent.TaskCompleted, {
+        workspaceId,
+        actorId: actorId ?? null,
+        taskId: updated.id,
+        title: updated.title,
+        identifier: updated.identifier,
+        assigneeId: updated.assigneeId,
       });
     }
 
@@ -1296,7 +1370,7 @@ export class WorkToolsService {
     input: CreateDocumentInput,
   ) {
     if (input.parentId) await this.assertDocument(workspaceId, input.parentId);
-    return this.prisma.workDocument.create({
+    const doc = await this.prisma.workDocument.create({
       data: {
         workspaceId,
         authorId,
@@ -1310,6 +1384,15 @@ export class WorkToolsService {
         children: { select: { id: true, title: true, kind: true } },
       },
     });
+
+    this.events.emit(AppEvent.DocumentCreated, {
+      workspaceId,
+      actorId: authorId,
+      documentId: doc.id,
+      title: doc.title,
+    });
+
+    return doc;
   }
 
   async updateDocument(

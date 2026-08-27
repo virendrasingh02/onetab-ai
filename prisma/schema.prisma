@@ -58,6 +58,7 @@ model User {
   createdUpdates          ProjectUpdate[]
   reportedTasks           Task[]                   @relation("TaskReporter")
   workItemActivities      WorkItemActivity[]
+  notifications           Notification[]
 
   @@map("users")
 }
@@ -115,6 +116,7 @@ model Workspace {
   whiteboards              Whiteboard[]
   workDocuments            WorkDocument[]
   members                  WorkspaceMember[]
+  notifications            Notification[]
   owner                    User                      @relation("WorkspaceOwner", fields: [ownerId], references: [id])
 
   @@index([ownerId])
@@ -355,11 +357,21 @@ model RecentActivity {
   id            String       @id @default(cuid())
   workspaceId   String
   channelId     String?
+  /// The actor. For chat rows this is the sender; for non-chat rows (a task
+  /// created, a project added) it is whoever did it. Null for system events.
   userId        String?
   kind          ActivityKind
   /// Pointer into Matrix. Unique so a retried appservice transaction cannot
   /// record the same event twice.
   matrixEventId String?      @unique
+  /// The thing this activity is about, for deep-linking from the feed. Free of
+  /// a foreign key on purpose — the referenced row may be hard-deleted and the
+  /// feed entry should outlive it.
+  resourceType  String?
+  resourceId    String?
+  /// A short, already-rendered description for non-chat rows ("created task
+  /// WEB-42"). Null for chat rows, which the client renders from the channel.
+  summary       String?
   /// Users this event named. Ids only — still no message content — so the
   /// sidebar can tell "something happened" apart from "someone called you".
   mentionedUserIds String[]  @default([])
@@ -371,6 +383,36 @@ model RecentActivity {
   @@index([workspaceId, occurredAt])
   @@index([channelId, occurredAt])
   @@map("recent_activity")
+}
+
+/// A per-recipient notification: one row per user who should be told about one
+/// thing. Distinct from `RecentActivity` (a workspace-wide log with no
+/// read state) — this has an addressee and a `readAt`, and drives the bell
+/// menu and its unread badge.
+model Notification {
+  id           String           @id @default(cuid())
+  workspaceId  String
+  /// Who receives it.
+  recipientId  String
+  /// Who caused it, for the avatar in the row. Null for system notifications.
+  actorId      String?
+  kind         NotificationKind
+  title        String
+  body         String?
+  /// Workspace-relative route the row opens, e.g. `tasks/abc123`.
+  deepLink     String?
+  /// The subject, for dedup / bulk mark-as-read by resource.
+  resourceType String?
+  resourceId   String?
+  readAt       DateTime?
+  createdAt    DateTime         @default(now())
+  recipient    User             @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  workspace    Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, readAt])
+  @@index([recipientId, createdAt])
+  @@index([workspaceId, recipientId])
+  @@map("notifications")
 }
 
 model Team {
@@ -1336,6 +1378,22 @@ enum ActivityKind {
   MEMBER_LEFT
   CHANNEL_CREATED
   FILE_SHARED
+  TASK_CREATED
+  TASK_ASSIGNED
+  TASK_COMPLETED
+  PROJECT_CREATED
+  DOCUMENT_CREATED
+}
+
+enum NotificationKind {
+  TASK_ASSIGNED
+  TASK_COMPLETED
+  MENTION
+  CHANNEL_INVITE
+  WORKSPACE_INVITE
+  PROJECT_CREATED
+  DOCUMENT_SHARED
+  SYSTEM
 }
 
 enum TaskStatus {

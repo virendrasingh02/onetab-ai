@@ -185,9 +185,10 @@ export class WorkToolsController {
   @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   createProject(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser() user: CurrentUserType,
     @Body(zodBody(createProjectSchema)) body: CreateProjectInput,
   ) {
-    return this.workTools.createProject(workspaceId, body);
+    return this.workTools.createProject(workspaceId, body, user.id);
   }
 
   @Patch('projects/:projectId')

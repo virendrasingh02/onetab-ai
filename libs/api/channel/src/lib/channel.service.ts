@@ -4,7 +4,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
+  AppEvent,
   PUBLIC_USER_SELECT,
   toChannel,
   toChannelMember,
@@ -32,7 +34,10 @@ import type {
 
 @Injectable()
 export class ChannelService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly events: EventEmitter2,
+  ) {}
 
   /**
    * Channels visible to the caller: every public channel in the workspace plus
@@ -172,6 +177,15 @@ export class ChannelService {
           })),
         },
       },
+    });
+
+    this.events.emit(AppEvent.ChannelCreated, {
+      workspaceId,
+      actorId: userId,
+      channelId: channel.id,
+      name: channel.name,
+      slug: channel.slug,
+      visibility: channel.visibility,
     });
 
     return toChannel(channel);

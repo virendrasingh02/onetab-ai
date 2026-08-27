@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import { CurrentUser, WorkspaceId } from '@org/api-common';
+import { NotificationCenterService } from './notification-center.service.js';
 import {
   NotificationsService,
   type NotificationPreferenceInput,
@@ -29,7 +30,64 @@ import {
 @Controller({ path: 'workspaces/:workspaceId/notifications', version: '1' })
 @UseGuards(WorkspaceRoleGuard)
 export class NotificationsController {
-  constructor(private readonly notifications: NotificationsService) {}
+  constructor(
+    private readonly notifications: NotificationsService,
+    private readonly center: NotificationCenterService,
+  ) {}
+
+  // --- notification centre (bell menu) -----------------------------------
+
+  @Get()
+  list(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+    @Query('unreadOnly') unreadOnly?: string,
+  ) {
+    return this.center.list(workspaceId, userId, {
+      cursor,
+      limit,
+      unreadOnly: unreadOnly === 'true' || unreadOnly === '1',
+    });
+  }
+
+  @Get('unread-count')
+  async unreadCount(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return { count: await this.center.unreadCount(workspaceId, userId) };
+  }
+
+  @Post('read-all')
+  @HttpCode(HttpStatus.OK)
+  markAllRead(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.center.markAllRead(workspaceId, userId);
+  }
+
+  @Post(':notificationId/read')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  markRead(
+    @CurrentUser('id') userId: string,
+    @Param('notificationId') notificationId: string,
+  ): Promise<void> {
+    return this.center.markRead(userId, notificationId);
+  }
+
+  @Delete(':notificationId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  dismiss(
+    @CurrentUser('id') userId: string,
+    @Param('notificationId') notificationId: string,
+  ): Promise<void> {
+    return this.center.dismiss(userId, notificationId);
+  }
+
+  // --- preferences + activity feed -------------------------------------
 
   @Get('preferences')
   getPreferences(

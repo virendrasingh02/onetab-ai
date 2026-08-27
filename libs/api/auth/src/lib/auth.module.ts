@@ -8,6 +8,7 @@ import { DesktopAuthService } from './desktop-auth.service.js';
 import { DeviceAuthService } from './device-auth.service.js';
 import { JwtAuthGuard, WorkspaceRoleGuard } from './guards.js';
 import { JwtStrategy } from './jwt.strategy.js';
+import { TokenCleanupService } from './token-cleanup.service.js';
 import { TokenService } from './token.service.js';
 
 @Module({
@@ -22,6 +23,7 @@ import { TokenService } from './token.service.js';
     DesktopAuthService,
     DeviceAuthService,
     TokenService,
+    TokenCleanupService,
     JwtStrategy,
     JwtAuthGuard,
     WorkspaceRoleGuard,

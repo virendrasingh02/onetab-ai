@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule, JwtAuthGuard } from '@org/api-auth';
 import { ChannelModule } from '@org/api-channel';
@@ -42,6 +44,12 @@ import { AppService } from './app.service';
         limit: Number(process.env['THROTTLE_LIMIT'] ?? 120),
       },
     ]),
+    // In-process domain event bus. Producers emit `AppEvent.*`; listener
+    // classes (`DomainEventsListener`, the Matrix reconciler) subscribe.
+    EventEmitterModule.forRoot({ global: true }),
+    // Cron/interval support for the Matrix membership reconciler and future
+    // scheduled jobs (agent schedules, token cleanup).
+    ScheduleModule.forRoot(),
     InfrastructureModule,
     PrismaModule,
     AuthModule,

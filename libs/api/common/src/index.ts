@@ -2,6 +2,18 @@ export { ZodValidationPipe, zodBody } from './lib/zod-validation.pipe.js';
 export { HttpExceptionFilter } from './lib/http-exception.filter.js';
 
 export {
+  AppEvent,
+  type AppEventName,
+  type AppEventPayloads,
+  type TaskCreatedEvent,
+  type TaskAssignedEvent,
+  type TaskCompletedEvent,
+  type ProjectCreatedEvent,
+  type DocumentCreatedEvent,
+  type ChannelCreatedEvent,
+} from './lib/events.js';
+
+export {
   ALLOW_ARCHIVED_KEY,
   AllowArchivedWorkspace,
   CurrentUser,

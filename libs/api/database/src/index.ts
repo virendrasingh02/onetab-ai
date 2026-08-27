@@ -29,6 +29,8 @@ export {
   ViewType,
   IntakeStatus,
   IntakeSource,
+  ActivityKind,
+  NotificationKind,
 } from './generated/client.js';
 
 export type {
@@ -81,4 +83,5 @@ export type {
   ImportJob,
   AnalyticsEvent,
   RecentActivity,
+  Notification,
 } from './generated/client.js';

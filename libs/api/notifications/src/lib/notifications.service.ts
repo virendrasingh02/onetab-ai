@@ -30,6 +30,12 @@ export interface ActivityFeedItem {
   occurredAt: string;
   /** True when this row named the *calling* user — never anyone else. */
   isMention: boolean;
+  /** Pre-rendered one-liner for non-chat rows ("created task WEB-42"). Null
+   *  for chat rows, which the client renders from the channel. */
+  summary: string | null;
+  /** The subject, so the client can deep-link the row. */
+  resourceType: string | null;
+  resourceId: string | null;
   channel: { id: string; name: string; slug: string } | null;
   user: {
     id: string;
@@ -228,6 +234,9 @@ export class NotificationsService {
        * boolean to pick a dot colour.
        */
       isMention: row.mentionedUserIds.includes(userId),
+      summary: row.summary,
+      resourceType: row.resourceType,
+      resourceId: row.resourceId,
       channel: row.channel,
       user: row.user
         ? {
