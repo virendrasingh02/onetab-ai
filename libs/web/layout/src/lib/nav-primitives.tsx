@@ -142,11 +142,17 @@ export function NavRow({
   workspaceSlug,
   depth = 0,
   onTogglePin,
+  isActiveOverride,
 }: {
   entry: NavEntry;
   workspaceSlug: string;
   depth?: NavDepth;
   onTogglePin?: () => void;
+  /**
+   * Forces the active style regardless of the URL match — the "Channels" row
+   * lights up for any `/c/:slug`, which `NavLink`'s own match never covers.
+   */
+  isActiveOverride?: boolean;
 }) {
   const Icon = entry.icon;
   const to = entry.path
@@ -159,7 +165,7 @@ export function NavRow({
         to={to}
         end={entry.end}
         className={({ isActive }) =>
-          navRowClass(isActive, {
+          navRowClass(Boolean(isActiveOverride) || isActive, {
             depth,
             extra: onTogglePin ? 'pr-7 flex-1' : 'flex-1',
           })

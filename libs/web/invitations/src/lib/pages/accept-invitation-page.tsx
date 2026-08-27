@@ -5,7 +5,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
   LoadingState,
@@ -18,12 +17,10 @@ import {
   CheckCircle2,
   Hash,
   LogOut,
-  Mail,
-  Shield,
   XCircle,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   useAcceptInvitation,
   useDeclineInvitation,
@@ -34,7 +31,7 @@ export function AcceptInvitationPage() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const authStatus = useAuthStore((s) => s.status);
-  const logout = useAuthStore((s) => s.logout);
+  const clearSession = useAuthStore((s) => s.clear);
   const currentUser = useCurrentUser();
 
   const previewQuery = useInvitationPreview(token);
@@ -54,6 +51,7 @@ export function AcceptInvitationPage() {
       const timer = setTimeout(() => navigate(destination), 1500);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [acceptMutation.isSuccess, acceptMutation.data, navigate]);
 
   const handleAccept = () => {
@@ -71,8 +69,8 @@ export function AcceptInvitationPage() {
     }
   };
 
-  const handleSwitchAccount = async () => {
-    await logout();
+  const handleSwitchAccount = () => {
+    clearSession();
     navigate('/login', {
       state: {
         from: { pathname: `/invite/${token}` },

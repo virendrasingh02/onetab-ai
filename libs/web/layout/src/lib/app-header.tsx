@@ -104,7 +104,6 @@ export function AppHeader({
   const searchShortcut = isApple ? '⌘K' : 'Ctrl K';
 
   const openStatusModal = useFocusStore((s) => s.openStatusModal);
-  const _openProfilePanel = useRightPanelStore((s) => s.openProfile);
   const isRightPanelOpen = useRightPanelStore((s) => s.open);
   const rightPanelView = useRightPanelStore((s) => s.view);
   const dismissRightPanel = useRightPanelStore((s) => s.dismiss);
@@ -351,10 +350,9 @@ export function AppHeader({
                   name={user.displayName ?? user.name}
                   src={user.avatarUrl}
                   seed={user.id}
-                  shape="rounded"
                   size="md"
                   presence={isSelfAway ? 'away' : 'online'}
-                  className="size-10 rounded-xl ring-1 ring-border/50 shrink-0"
+                  className="size-10 ring-1 ring-border/50 shrink-0"
                 />
                 <div className="min-w-0 flex-1">
                   <h4 className="text-sm font-bold tracking-tight text-foreground truncate">

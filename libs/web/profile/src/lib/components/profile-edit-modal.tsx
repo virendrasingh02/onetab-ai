@@ -28,8 +28,8 @@ import {
 import { getSystemTimezone } from '@org/utils';
 import { updateProfileSchema, type UpdateProfileInput } from '@org/validation';
 import { useMutation } from '@tanstack/react-query';
-import { Camera, Check, Globe, Image as ImageIcon, Info, Lock, Trash2, User } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import { Camera, Info, Lock, Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ImageCropperDialog } from './image-cropper-dialog.js';
 

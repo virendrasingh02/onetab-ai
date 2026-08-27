@@ -45,13 +45,26 @@
     <script>
       (function () {
         try {
+          var el = document.documentElement;
           var k = localStorage.getItem('onetab.theme');
           var d =
             k === 'dark' ||
             (k === 'system' &&
               matchMedia('(prefers-color-scheme: dark)').matches);
-          document.documentElement.classList.toggle('dark', d);
-          document.documentElement.style.colorScheme = d ? 'dark' : 'light';
+          el.classList.toggle('dark', d);
+          el.style.colorScheme = d ? 'dark' : 'light';
+          el.setAttribute(
+            'data-density',
+            localStorage.getItem('onetab.density') || 'default',
+          );
+          el.setAttribute(
+            'data-accent',
+            localStorage.getItem('onetab.accent') || 'mint',
+          );
+          el.setAttribute(
+            'data-radius',
+            localStorage.getItem('onetab.radius') || 'md',
+          );
         } catch (e) {}
       })();
     </script>

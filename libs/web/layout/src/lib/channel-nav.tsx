@@ -8,7 +8,6 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
   Hint,
-  IconRenderer,
   ScrollArea,
   SkeletonList,
   usePromptDialog,
@@ -1076,19 +1075,19 @@ export function ChannelNav({
               <DropdownMenuContent align="start" className="w-52">
                 {MORE_DESTINATIONS.map((entry) => {
                   const isPinned = pinnedNavPaths.includes(entry.path);
+                  const EntryIcon = entry.icon;
                   return (
                     <DropdownMenuItem
                       key={entry.path}
                       onSelect={() =>
-                        navigate(`/w/${workspaceSlug}${entry.path}`)
+                        navigate(`/w/${workspaceSlug}/${entry.path}`)
                       }
                       className="justify-between"
                     >
                       <div className="gap-2 flex items-center">
-                        <IconRenderer
-                          name={entry.icon}
+                        <EntryIcon
                           className="size-4 text-muted-foreground"
-                          fallback="FileText"
+                          aria-hidden
                         />
                         <span>{entry.label}</span>
                       </div>

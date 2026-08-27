@@ -4,7 +4,7 @@ import { Button, LoadingState, ScrollArea, useFocusStore } from '@org/ui';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { useMutation } from '@tanstack/react-query';
 import { ArrowLeft, Sparkles, UserCheck } from 'lucide-react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ImageCropperDialog } from '../components/image-cropper-dialog.js';
 import { ProfileDetails } from '../components/profile-details.js';

@@ -184,7 +184,9 @@ export function ProfileHeader({
                 <DropdownMenuItem
                   onClick={() => {
                     if (navigator.share) {
-                      navigator.share({ title: displayName, url: window.location.href }).catch(() => {});
+                      navigator
+                        .share({ title: displayName, url: window.location.href })
+                        .catch(() => undefined);
                     } else {
                       handleCopyProfileLink();
                     }

@@ -11,7 +11,6 @@ import {
   Download,
   Moon,
   Paintbrush,
-  Pipette,
   RotateCcw,
   Sun,
   Upload,
@@ -25,7 +24,6 @@ export interface ThemeCustomizerProps {
 
 export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProps) {
   const {
-    theme,
     resolvedTheme,
     customTheme,
     setCustomTheme,

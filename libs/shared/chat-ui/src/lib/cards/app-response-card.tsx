@@ -106,7 +106,7 @@ export function AppResponseCard({
             seed={event.appIcon || event.appId}
             src={message.senderAvatarUrl}
             size="md"
-            className="size-10 rounded-xl ring-2 ring-border shadow-xs"
+            className="size-10 ring-2 ring-border shadow-xs"
           />
 
           <div className="min-w-0">

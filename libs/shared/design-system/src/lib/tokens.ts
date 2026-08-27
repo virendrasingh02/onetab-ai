@@ -203,11 +203,36 @@ const AVATAR_TINTS = [
   '#E07BB8',
 ] as const;
 
-export function avatarTint(seed: string): string {
+function hashSeed(seed: string): number {
   let hash = 0;
   for (let i = 0; i < seed.length; i++) {
     hash = (hash << 5) - hash + seed.charCodeAt(i);
     hash |= 0;
   }
-  return AVATAR_TINTS[Math.abs(hash) % AVATAR_TINTS.length];
+  return Math.abs(hash);
+}
+
+export function avatarTint(seed: string): string {
+  return AVATAR_TINTS[hashSeed(seed) % AVATAR_TINTS.length];
+}
+
+/**
+ * Deterministic two-stop gradient for an avatar with no uploaded image.
+ *
+ * Shares {@link avatarTint}'s hash and palette, so a given seed maps to one
+ * fixed gradient for the life of the product — the same person shows the same
+ * avatar in the sidebar, a chat bubble, a mention, and the desktop app. The
+ * first stop is exactly `avatarTint(seed)`, so existing solid avatars keep
+ * their dominant colour and only gain depth. Returns a CSS `linear-gradient()`
+ * value for `background-image`.
+ */
+export function avatarGradient(seed: string): string {
+  const h = hashSeed(seed);
+  const len = AVATAR_TINTS.length;
+  const from = AVATAR_TINTS[h % len];
+  // Second stop is a *different* palette entry (offset 3–6 of 10 never lands
+  // back on the first), so both ends stay legible under white initials.
+  const to = AVATAR_TINTS[(h + 3 + (h % 4)) % len];
+  const angle = 120 + (h % 5) * 15; // 120–180°, seeded but bounded
+  return `linear-gradient(${angle}deg, ${from}, ${to})`;
 }

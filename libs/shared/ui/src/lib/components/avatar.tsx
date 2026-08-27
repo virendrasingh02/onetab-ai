@@ -1,4 +1,4 @@
-import { avatarTint } from '@org/design-system';
+import { avatarGradient, avatarTint } from '@org/design-system';
 import { cn, initials } from '@org/utils';
 import * as AvatarPrimitive from '@radix-ui/react-avatar';
 import { cva, type VariantProps } from 'class-variance-authority';
@@ -76,7 +76,9 @@ const PRESENCE_STYLES: Record<PresenceStatus, string> = {
   online: 'bg-success',
   away: 'bg-warning',
   busy: 'bg-destructive',
-  offline: 'bg-muted-foreground',
+  // Faint, so "offline" and the no-presence-data placeholder read as absence
+  // rather than as a status worth looking at.
+  offline: 'bg-muted-foreground/40',
 };
 
 export const PRESENCE_LABELS: Record<PresenceStatus, string> = {
@@ -107,47 +109,75 @@ export function toPresenceStatus(
     : 'offline';
 }
 
-export interface UserAvatarProps extends AvatarProps {
+export interface UserAvatarProps extends Omit<AvatarProps, 'shape'> {
   name: string;
   src?: string | null;
   /** Stable tint seed. Defaults to `name`; pass a user id where available. */
   seed?: string;
   presence?: PresenceStatus;
+  /**
+   * Whether to draw the corner indicator. On by default — a person avatar
+   * carries a presence dot everywhere. When `presence` is unknown it shows a
+   * hollow placeholder; pass `false` for dense stacks where it would be noise.
+   */
+  indicator?: boolean;
   statusEmoji?: string | null;
   statusText?: string | null;
 }
 
 /**
- * Avatar with a deterministic colour fallback and optional presence dot and status emoji.
- * The tint is derived from `seed`, so a user keeps the same colour everywhere.
+ * The one avatar for a person: a circle (always — people are never squircles),
+ * a deterministic gradient fallback derived from `seed` so the same user looks
+ * identical in every surface and in the desktop app, plus a presence dot and
+ * optional status emoji.
  */
 export function UserAvatar({
   name,
   src,
   seed,
   presence,
+  indicator = true,
   statusEmoji,
   statusText,
   size,
-  shape,
   className,
   ...props
 }: UserAvatarProps) {
+  const tintSeed = seed ?? name;
+  const dot = presence ?? 'offline';
+  const showDot = indicator && (presence !== undefined || !statusEmoji);
+
   return (
     <span className="relative inline-flex shrink-0">
-      <Avatar size={size} shape={shape} className={className} {...props}>
-        {src ? <AvatarImage src={src} alt={name} /> : null}
-        <AvatarFallback style={{ backgroundColor: avatarTint(seed ?? name) }}>
+      <Avatar
+        size={size}
+        shape="circle"
+        className={cn('rounded-full', className)}
+        {...props}
+      >
+        {src ? (
+          <AvatarImage src={src} alt={name} className="rounded-full" />
+        ) : null}
+        <AvatarFallback
+          className="rounded-full"
+          style={{
+            backgroundImage: avatarGradient(tintSeed),
+            // A flat fallback under the gradient for any renderer that drops it.
+            backgroundColor: avatarTint(tintSeed),
+          }}
+        >
           {initials(name)}
         </AvatarFallback>
       </Avatar>
-      {presence ? (
+      {showDot ? (
         <span
           role="status"
-          aria-label={`${name} is ${presence}`}
+          aria-label={
+            presence ? `${name} is ${presence}` : `${name} presence unknown`
+          }
           className={cn(
             '-right-0.5 -bottom-0.5 size-2.5 absolute rounded-full border-2 border-background',
-            PRESENCE_STYLES[presence],
+            PRESENCE_STYLES[dot],
           )}
         />
       ) : null}

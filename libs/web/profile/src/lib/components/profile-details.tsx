@@ -9,13 +9,11 @@ import {
 } from '@org/utils';
 import {
   Briefcase,
-  Calendar,
   Clock,
   ExternalLink,
   Globe,
   Mail,
   MapPin,
-  ShieldCheck,
   User as UserIcon,
 } from 'lucide-react';
 

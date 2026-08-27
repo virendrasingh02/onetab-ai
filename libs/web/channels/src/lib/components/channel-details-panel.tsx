@@ -1043,7 +1043,6 @@ function MembersTab({
                               src={member.user.avatarUrl ?? undefined}
                               seed={member.user.id}
                               size="md"
-                              shape="rounded"
                               className="shrink-0"
                             />
                             <div className="min-w-0 flex-1">
@@ -1191,7 +1190,6 @@ function MembersTab({
                               src={wsMember.user.avatarUrl ?? undefined}
                               seed={wsMember.user.id}
                               size="md"
-                              shape="rounded"
                               className="shrink-0"
                             />
                             <div className="min-w-0 flex-1">

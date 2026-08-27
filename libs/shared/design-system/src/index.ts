@@ -17,6 +17,7 @@ export {
   layout,
   breakpoints,
   avatarTint,
+  avatarGradient,
   ACCENTS,
   accentTokens,
   accentFor,

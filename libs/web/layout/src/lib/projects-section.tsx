@@ -113,7 +113,6 @@ export function ProjectNavRow({
         <ProjectGlyph
           icon={project.icon ?? undefined}
           color={project.color ?? undefined}
-          name={project.name}
           size="sm"
           className="shrink-0"
         />

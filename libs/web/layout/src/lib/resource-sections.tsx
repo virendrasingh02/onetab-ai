@@ -715,7 +715,7 @@ function SortableAppNavRow(props: {
   isFavorite: boolean;
   onToggleFavorite: () => void;
   onDisconnect: () => void;
-  onSync: () => void;
+  onSync: () => Promise<unknown>;
   depth?: NavDepth;
 }) {
   const {
@@ -756,7 +756,7 @@ function SortableWorkflowNavRow(props: {
   isFavorite: boolean;
   onToggleFavorite: () => void;
   onDelete: () => void;
-  onRun: () => void;
+  onRun: () => Promise<unknown>;
   onToggleActive: () => void;
   depth?: NavDepth;
 }) {

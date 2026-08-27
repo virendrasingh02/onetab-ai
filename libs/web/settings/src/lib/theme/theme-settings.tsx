@@ -1,39 +1,26 @@
 import {
-  ACCENTS,
   DENSITIES,
   RADII,
   THEME_PRESETS,
   useTheme,
-  type Accent,
   type Density,
   type RadiusPreset,
   type ThemePreset,
 } from '@org/design-system';
 import type { ThemeConfig } from '@org/types';
-import { Badge, Button, Separator, toast } from '@org/ui';
-import {
-  Check,
-  Monitor,
-  Moon,
-  Paintbrush,
-  Sliders,
-  Sparkles,
-  Sun,
-} from 'lucide-react';
+import { toast } from '@org/ui';
+import { Check, Monitor, Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
 import { ThemeCustomizer } from './theme-customizer.js';
 
 export function ThemeSettings() {
   const {
     theme,
-    resolvedTheme,
     density,
-    accent,
     radius,
     customTheme,
     setTheme,
     setDensity,
-    setAccent,
     setRadius,
     setCustomTheme,
   } = useTheme();

@@ -1,13 +1,7 @@
 import {
   Badge,
   Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
   EmptyState,
-  LocalTime,
   SearchInput,
   Select,
   SelectContent,
@@ -15,10 +9,6 @@ import {
   SelectTrigger,
   SelectValue,
   SkeletonList,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  UserAvatar,
 } from '@org/ui';
 import { formatRelative } from '@org/utils';
 import {
@@ -34,12 +24,9 @@ import {
   Link2,
   Mail,
   MailPlus,
-  MoreHorizontal,
   RefreshCw,
-  Search,
   Trash2,
   Users,
-  XCircle,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { InviteMembersDialog } from '../components/invite-members-dialog.js';
@@ -82,7 +69,7 @@ export function InvitationsPage() {
   const linksQuery = useInvitationLinks(workspaceId);
 
   // Mutations
-  const { resend, revoke, revokeLink } = useInvitationMutations(workspaceId);
+  const { resend, revoke } = useInvitationMutations(workspaceId);
 
   const allInvitations = invitationsQuery.data ?? [];
   const allLinks = linksQuery.data ?? [];

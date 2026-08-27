@@ -307,7 +307,7 @@ export function AgentMessageCard({
               src={event.agentAvatarUrl || message.senderAvatarUrl}
               size="md"
               className={cn(
-                'size-10 rounded-xl shadow-xs ring-2',
+                'size-10 shadow-xs ring-2',
                 isRunning ? 'ring-primary' : 'ring-border',
               )}
             />

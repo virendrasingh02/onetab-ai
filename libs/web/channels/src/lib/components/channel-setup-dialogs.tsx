@@ -224,7 +224,6 @@ export function AddPeopleDialog({
                     src={user.avatarUrl}
                     seed={user.id}
                     size="xs"
-                    shape="rounded"
                   />
                   <span className="truncate max-w-[120px]">
                     {user.displayName ?? user.name}
@@ -366,7 +365,6 @@ export function AddPeopleDialog({
                           src={member.user.avatarUrl}
                           seed={member.user.id}
                           size="sm"
-                          shape="rounded"
                           className="shrink-0"
                         />
                         <div className="flex items-center gap-1.5 min-w-0 flex-1 truncate">

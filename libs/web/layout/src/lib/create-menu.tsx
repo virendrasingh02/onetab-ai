@@ -15,7 +15,6 @@ import {
   FolderKanban,
   Hash,
   Headphones,
-  MessageCircle,
   Plus,
   SlidersHorizontal,
   Sparkles,
@@ -24,7 +23,6 @@ import {
   Workflow,
   type LucideIcon,
 } from 'lucide-react';
-import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 interface CreateAction {

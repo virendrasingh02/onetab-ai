@@ -33,10 +33,8 @@ import {
   Palette,
   RefreshCw,
   Share2,
-  Sparkles,
   Users,
   Webhook,
-  X,
   type LucideIcon,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -282,7 +280,6 @@ export function IntegrationHubView() {
   const [selectedFilter, setSelectedFilter] = useState<'All' | AppCategory>(
     'All',
   );
-  const [bannerDismissed, setBannerDismissed] = useState(false);
   const [isCustomApiModalOpen, setIsCustomApiModalOpen] = useState(false);
   const [activeGmailModal, setActiveGmailModal] = useState<{
     integrationId: string;
