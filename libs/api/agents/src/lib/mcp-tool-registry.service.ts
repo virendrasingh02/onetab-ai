@@ -1,11 +1,25 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@org/database';
 
+/**
+ * Everything a tool handler is allowed to know about who is calling it.
+ *
+ * `actingUserId` is the agent's creator (resolved in `AgentsService`), not a
+ * free-floating "first member of the workspace". Writes are attributed to a
+ * real person so an agent cannot author a document as an arbitrary user
+ * (audit B9), and reads can be narrowed to what that person may see.
+ */
+export interface MCPToolContext {
+  workspaceId: string;
+  /** Null when the agent has no creator on record — write tools then refuse. */
+  actingUserId: string | null;
+}
+
 export interface MCPToolDefinition {
   name: string;
   description: string;
   parameters: Record<string, unknown>;
-  handler: (params: any, workspaceId: string) => Promise<unknown>;
+  handler: (params: any, ctx: MCPToolContext) => Promise<unknown>;
 }
 
 @Injectable()
@@ -23,7 +37,7 @@ export class MCPToolRegistryService {
       name: 'search_docs',
       description: 'Search workspace documents and knowledge base',
       parameters: { query: { type: 'string' } },
-      handler: async (params: { query: string }, workspaceId: string) => {
+      handler: async (params: { query: string }, { workspaceId }) => {
         return this.prisma.workDocument.findMany({
           where: {
             workspaceId,
@@ -44,21 +58,16 @@ export class MCPToolRegistryService {
       parameters: { title: { type: 'string' }, content: { type: 'string' } },
       handler: async (
         params: { title: string; content?: string },
-        workspaceId: string,
+        { workspaceId, actingUserId },
       ) => {
-        const member = await this.prisma.workspaceMember.findFirst({
-          where: { workspaceId },
-          select: { userId: true },
-        });
-        if (!member) {
-          throw new Error(
-            'No active workspace member found to author document.',
-          );
-        }
+        const authorId = await this.assertWorkspaceMember(
+          workspaceId,
+          actingUserId,
+        );
         return this.prisma.workDocument.create({
           data: {
             workspaceId,
-            authorId: member.userId,
+            authorId,
             title: params.title,
             content: params.content ?? '',
             kind: 'DOC',
@@ -78,14 +87,31 @@ export class MCPToolRegistryService {
       },
       handler: async (
         params: { title: string; description?: string; projectId?: string },
-        workspaceId: string,
+        { workspaceId, actingUserId },
       ) => {
+        const reporterId = await this.assertWorkspaceMember(
+          workspaceId,
+          actingUserId,
+        );
+        // A projectId the model invented could point into another workspace.
+        if (params.projectId) {
+          const project = await this.prisma.project.findFirst({
+            where: { id: params.projectId, workspaceId },
+            select: { id: true },
+          });
+          if (!project) {
+            throw new Error(
+              `Project '${params.projectId}' does not exist in this workspace.`,
+            );
+          }
+        }
         return this.prisma.task.create({
           data: {
             workspaceId,
             title: params.title,
             description: params.description,
             projectId: params.projectId ?? null,
+            reporterId,
             status: 'TODO',
             priority: 'MEDIUM',
           },
@@ -98,7 +124,7 @@ export class MCPToolRegistryService {
       name: 'list_projects',
       description: 'List active projects and roadmap initiatives in the workspace',
       parameters: {},
-      handler: async (_params: unknown, workspaceId: string) => {
+      handler: async (_params: unknown, { workspaceId }) => {
         return this.prisma.project.findMany({
           where: { workspaceId },
           select: {
@@ -118,7 +144,7 @@ export class MCPToolRegistryService {
       name: 'list_tasks',
       description: 'List tasks in the workspace or under a project',
       parameters: { projectId: { type: 'string' } },
-      handler: async (params: { projectId?: string }, workspaceId: string) => {
+      handler: async (params: { projectId?: string }, { workspaceId }) => {
         return this.prisma.task.findMany({
           where: {
             workspaceId,
@@ -139,18 +165,30 @@ export class MCPToolRegistryService {
     // 6. List Channels
     this.tools.set('list_channels', {
       name: 'list_channels',
-      description: 'List accessible channels in the workspace',
+      description: 'List public channels in the workspace',
       parameters: {},
-      handler: async (_params: unknown, workspaceId: string) => {
+      handler: async (_params: unknown, { workspaceId, actingUserId }) => {
+        // An agent is not a channel member. It sees public channels plus any
+        // private channel its acting user belongs to — never the full list
+        // (audit S4).
         return this.prisma.channel.findMany({
-          where: { workspaceId, isArchived: false },
+          where: {
+            workspaceId,
+            isArchived: false,
+            OR: [
+              { visibility: 'PUBLIC' },
+              ...(actingUserId
+                ? [{ members: { some: { userId: actingUserId } } }]
+                : []),
+            ],
+          },
           select: { id: true, name: true, slug: true, topic: true },
           take: 20,
         });
       },
     });
 
-    // 7. Send Channel Message Pointer
+    // 7. Send Channel Message
     this.tools.set('send_channel_message', {
       name: 'send_channel_message',
       description: 'Send a notification or update to a workspace channel',
@@ -158,15 +196,14 @@ export class MCPToolRegistryService {
         channelSlug: { type: 'string' },
         messageText: { type: 'string' },
       },
-      handler: async (
-        params: { channelSlug: string; messageText: string },
-        _workspaceId: string,
-      ) => {
-        return {
-          success: true,
-          channelSlug: params.channelSlug,
-          text: params.messageText,
-        };
+      handler: async () => {
+        // This used to return `{ success: true, ... }` without touching Matrix
+        // or the database — a fabricated success the agent trace then recorded
+        // as a real send. It fails honestly until the Matrix bot path is wired
+        // up (tracked as Tier 3: real agent actions).
+        throw new Error(
+          'send_channel_message is not implemented yet — no message was sent.',
+        );
       },
     });
   }
@@ -199,12 +236,39 @@ export class MCPToolRegistryService {
     }));
   }
 
-  async executeTool(name: string, params: any, workspaceId: string): Promise<unknown> {
+  async executeTool(
+    name: string,
+    params: any,
+    ctx: MCPToolContext,
+  ): Promise<unknown> {
     const tool = this.tools.get(name);
     if (!tool) {
       throw new Error(`Tool '${name}' is not registered in the MCP Tool Registry.`);
     }
-    this.logger.log(`Executing MCP tool '${name}' for workspace ${workspaceId}`);
-    return tool.handler(params, workspaceId);
+    this.logger.log(
+      `Executing MCP tool '${name}' for workspace ${ctx.workspaceId} (acting user ${ctx.actingUserId})`,
+    );
+    return tool.handler(params, ctx);
+  }
+
+  private async assertWorkspaceMember(
+    workspaceId: string,
+    userId: string | null,
+  ): Promise<string> {
+    if (!userId) {
+      throw new Error(
+        'This tool writes data and needs an acting user, but the agent has no creator on record.',
+      );
+    }
+    const member = await this.prisma.workspaceMember.findFirst({
+      where: { workspaceId, userId, status: 'ACTIVE' },
+      select: { id: true },
+    });
+    if (!member) {
+      throw new Error(
+        'The acting user is not an active member of this workspace.',
+      );
+    }
+    return userId;
   }
 }

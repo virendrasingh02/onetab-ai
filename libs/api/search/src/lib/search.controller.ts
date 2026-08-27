@@ -1,6 +1,6 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { WorkspaceRoleGuard } from '@org/api-auth';
-import { WorkspaceId } from '@org/api-common';
+import { CurrentUser, WorkspaceId } from '@org/api-common';
 import { SearchService, type SearchCategory } from './search.service.js';
 
 /**
@@ -18,12 +18,14 @@ export class SearchController {
   @Get()
   query(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
     @Query('q') q = '',
     @Query('category') category?: SearchCategory,
     @Query('limit') limit?: string,
   ) {
     return this.search.search({
       workspaceId,
+      userId,
       query: q,
       category,
       limit: limit ? Math.min(Number(limit) || 8, 50) : undefined,
@@ -32,7 +34,11 @@ export class SearchController {
 
   /** Result counts per category, for the filter chips. */
   @Get('counts')
-  counts(@WorkspaceId() workspaceId: string, @Query('q') q = '') {
-    return this.search.counts(workspaceId, q);
+  counts(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @Query('q') q = '',
+  ) {
+    return this.search.counts(workspaceId, userId, q);
   }
 }

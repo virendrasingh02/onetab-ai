@@ -266,6 +266,8 @@ export class WorkToolsService {
 
   async createProject(workspaceId: string, input: CreateProjectInput) {
     if (input.teamId) await this.assertTeam(workspaceId, input.teamId);
+    if (input.leadId) await this.assertWorkspaceUser(workspaceId, input.leadId);
+    if (input.initiativeId) await this.assertInitiative(workspaceId, input.initiativeId);
 
     // Existing prefixes in workspace for collision avoidance
     const existingPrefixes = (
@@ -322,6 +324,9 @@ export class WorkToolsService {
     input: UpdateProjectInput,
   ) {
     const existing = await this.assertProject(workspaceId, projectId);
+    if (input.teamId) await this.assertTeam(workspaceId, input.teamId);
+    if (input.leadId) await this.assertWorkspaceUser(workspaceId, input.leadId);
+    if (input.initiativeId) await this.assertInitiative(workspaceId, input.initiativeId);
 
     if (input.ticketPrefix !== undefined && input.ticketPrefix !== existing.ticketPrefix) {
       const clash = await this.prisma.project.findFirst({
@@ -743,8 +748,7 @@ export class WorkToolsService {
   }
 
   async createTask(workspaceId: string, input: CreateTaskInput, actorId?: string) {
-    if (input.projectId) await this.assertProject(workspaceId, input.projectId);
-    if (input.teamId) await this.assertTeam(workspaceId, input.teamId);
+    await this.assertTaskLinks(workspaceId, input);
 
     const status = (input.status as TaskStatus) ?? TaskStatus.TODO;
     const projectId = input.projectId ?? null;
@@ -822,6 +826,7 @@ export class WorkToolsService {
     actorId?: string,
   ) {
     const existing = await this.assertTask(workspaceId, taskId);
+    await this.assertTaskLinks(workspaceId, input);
 
     const data: Prisma.TaskUncheckedUpdateInput = {
       ...(input.title !== undefined ? { title: input.title } : {}),
@@ -1457,6 +1462,89 @@ export class WorkToolsService {
     });
     if (!task) throw new NotFoundException('Task not found');
     return task;
+  }
+
+  private async assertSprint(workspaceId: string, sprintId: string) {
+    const sprint = await this.prisma.sprint.findFirst({
+      where: { id: sprintId, project: { workspaceId } },
+      select: { id: true },
+    });
+    if (!sprint) throw new NotFoundException('Sprint not found');
+  }
+
+  private async assertMilestone(workspaceId: string, milestoneId: string) {
+    const milestone = await this.prisma.milestone.findFirst({
+      where: { id: milestoneId, project: { workspaceId } },
+      select: { id: true },
+    });
+    if (!milestone) throw new NotFoundException('Milestone not found');
+  }
+
+  private async assertEpicOwned(workspaceId: string, epicId: string) {
+    const epic = await this.prisma.epic.findFirst({
+      where: { id: epicId, workspaceId },
+      select: { id: true },
+    });
+    if (!epic) throw new NotFoundException('Epic not found');
+  }
+
+  private async assertModuleOwned(workspaceId: string, moduleId: string) {
+    const mod = await this.prisma.module.findFirst({
+      where: { id: moduleId, workspaceId },
+      select: { id: true },
+    });
+    if (!mod) throw new NotFoundException('Module not found');
+  }
+
+  private async assertCycleOwned(workspaceId: string, cycleId: string) {
+    const cycle = await this.prisma.cycle.findFirst({
+      where: { id: cycleId, workspaceId },
+      select: { id: true },
+    });
+    if (!cycle) throw new NotFoundException('Cycle not found');
+  }
+
+  /**
+   * Confirms a user id belongs to this workspace before it is written onto a
+   * row as an assignee, reporter, lead or owner. Without this a member of one
+   * workspace can attach any platform user id — or any sibling workspace's
+   * sprint / milestone / epic — to a task, which is a cross-tenant write
+   * (audit S1). 404, not 403, so it cannot be used to probe which ids exist.
+   */
+  private async assertWorkspaceUser(workspaceId: string, userId: string) {
+    const member = await this.prisma.workspaceMember.findFirst({
+      where: { workspaceId, userId },
+      select: { id: true },
+    });
+    if (!member) throw new NotFoundException('User is not a member of this workspace');
+  }
+
+  /** Validates every foreign key a task create/update can carry. */
+  private async assertTaskLinks(
+    workspaceId: string,
+    input: {
+      projectId?: string | null;
+      teamId?: string | null;
+      sprintId?: string | null;
+      milestoneId?: string | null;
+      epicId?: string | null;
+      cycleId?: string | null;
+      moduleId?: string | null;
+      parentId?: string | null;
+      assigneeId?: string | null;
+      reporterId?: string | null;
+    },
+  ) {
+    if (input.projectId) await this.assertProject(workspaceId, input.projectId);
+    if (input.teamId) await this.assertTeam(workspaceId, input.teamId);
+    if (input.sprintId) await this.assertSprint(workspaceId, input.sprintId);
+    if (input.milestoneId) await this.assertMilestone(workspaceId, input.milestoneId);
+    if (input.epicId) await this.assertEpicOwned(workspaceId, input.epicId);
+    if (input.cycleId) await this.assertCycleOwned(workspaceId, input.cycleId);
+    if (input.moduleId) await this.assertModuleOwned(workspaceId, input.moduleId);
+    if (input.parentId) await this.assertTask(workspaceId, input.parentId);
+    if (input.assigneeId) await this.assertWorkspaceUser(workspaceId, input.assigneeId);
+    if (input.reporterId) await this.assertWorkspaceUser(workspaceId, input.reporterId);
   }
 
   private async assertEvent(workspaceId: string, eventId: string) {

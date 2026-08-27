@@ -21,6 +21,8 @@ export interface SearchResultItem {
 
 export interface SearchOptions {
   workspaceId: string;
+  /** The calling member — private channels they are not in must not surface. */
+  userId: string;
   query: string;
   category?: SearchCategory;
   limit?: number;
@@ -67,12 +69,14 @@ export class SearchService {
     const query = options.query.trim();
     if (query.length < 2) return [];
 
-    const { workspaceId } = options;
+    const { workspaceId, userId } = options;
     const limit = options.limit ?? PER_CATEGORY_LIMIT;
     const wanted = options.category ? [options.category] : CATEGORIES;
 
     const groups = await Promise.all(
-      wanted.map((category) => this.searchOne(category, workspaceId, query, limit)),
+      wanted.map((category) =>
+        this.searchOne(category, workspaceId, userId, query, limit),
+      ),
     );
 
     return groups.flat();
@@ -81,9 +85,10 @@ export class SearchService {
   /** Counts per category, for the filter chips above the results. */
   async counts(
     workspaceId: string,
+    userId: string,
     query: string,
   ): Promise<Record<SearchCategory, number>> {
-    const results = await this.search({ workspaceId, query, limit: 100 });
+    const results = await this.search({ workspaceId, userId, query, limit: 100 });
     const counts = Object.fromEntries(
       CATEGORIES.map((category) => [category, 0]),
     ) as Record<SearchCategory, number>;
@@ -95,6 +100,7 @@ export class SearchService {
   private async searchOne(
     category: SearchCategory,
     workspaceId: string,
+    userId: string,
     query: string,
     take: number,
   ): Promise<SearchResultItem[]> {
@@ -106,7 +112,23 @@ export class SearchService {
           where: {
             workspaceId,
             isArchived: false,
-            OR: [{ name: contains }, { topic: contains }, { description: contains }],
+            // Mirrors ChannelService.list: a private channel is only a result
+            // for someone who is in it. Filtering on workspace + archived alone
+            // leaked private channel names, topics and existence to every
+            // member (audit S3).
+            OR: [
+              { visibility: 'PUBLIC' },
+              { members: { some: { userId } } },
+            ],
+            AND: [
+              {
+                OR: [
+                  { name: contains },
+                  { topic: contains },
+                  { description: contains },
+                ],
+              },
+            ],
           },
           take,
           orderBy: { name: 'asc' },

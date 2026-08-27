@@ -63,8 +63,13 @@ export class UserController {
   }
 
   @Get(':userId')
-  findOne(@Param('userId') userId: string) {
-    return this.users.findPublic(userId);
+  findOne(
+    @CurrentUser('id') callerId: string,
+    @Param('userId') userId: string,
+  ) {
+    // Only people you share a workspace with — this route is otherwise a
+    // lookup of any account on the platform by id (audit S9).
+    return this.users.findPublicForViewer(callerId, userId);
   }
 }
 

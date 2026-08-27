@@ -128,7 +128,9 @@ export class MatrixAuthService {
     const channel = await this.prisma.channel.findFirst({
       where: {
         id: channelId,
-        workspace: { members: { some: { userId: creatorUserId } } },
+        workspace: {
+          members: { some: { userId: creatorUserId, status: 'ACTIVE' } },
+        },
         OR: [
           { visibility: 'PUBLIC' },
           { members: { some: { userId: creatorUserId } } },
@@ -204,10 +206,16 @@ export class MatrixAuthService {
 
     if (callerUserId === peerId) return null;
 
+    // Both ends must be *active* members of a shared workspace — a suspended
+    // member keeps their row but must not be able to resolve peers or mint
+    // room links (audit S5).
     const shared = await this.prisma.workspaceMember.findFirst({
       where: {
         userId: peerId,
-        workspace: { members: { some: { userId: callerUserId } } },
+        status: 'ACTIVE',
+        workspace: {
+          members: { some: { userId: callerUserId, status: 'ACTIVE' } },
+        },
       },
       select: { id: true },
     });
@@ -232,7 +240,9 @@ export class MatrixAuthService {
       where: {
         id: agentId,
         isActive: true,
-        workspace: { members: { some: { userId: callerUserId } } },
+        workspace: {
+          members: { some: { userId: callerUserId, status: 'ACTIVE' } },
+        },
       },
       select: { id: true, name: true, matrixUserId: true },
     });
@@ -271,7 +281,11 @@ export class MatrixAuthService {
         status: 'CONNECTED',
         OR: [
           { userId: callerUserId },
-          { workspace: { members: { some: { userId: callerUserId } } } },
+          {
+            workspace: {
+              members: { some: { userId: callerUserId, status: 'ACTIVE' } },
+            },
+          },
         ],
       },
       select: {

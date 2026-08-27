@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PUBLIC_USER_SELECT, toPublicUser } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import type { CurrentUser, PublicUser, UserPreferences } from '@org/types';
@@ -17,6 +17,36 @@ export class UserService {
       where: { id: userId },
       select: PUBLIC_USER_SELECT,
     });
+    return toPublicUser(user);
+  }
+
+  /**
+   * A public profile, but only if the viewer shares a workspace with the
+   * target. 404 (not 403) for everyone else, so the endpoint cannot be used to
+   * confirm which account ids exist.
+   */
+  async findPublicForViewer(
+    viewerId: string,
+    targetId: string,
+  ): Promise<PublicUser> {
+    if (viewerId !== targetId) {
+      const shared = await this.prisma.workspaceMember.findFirst({
+        where: {
+          userId: targetId,
+          workspace: {
+            members: { some: { userId: viewerId, status: 'ACTIVE' } },
+          },
+        },
+        select: { id: true },
+      });
+      if (!shared) throw new NotFoundException('User not found.');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: targetId },
+      select: PUBLIC_USER_SELECT,
+    });
+    if (!user) throw new NotFoundException('User not found.');
     return toPublicUser(user);
   }
 

@@ -200,6 +200,15 @@ export class NotificationsService {
       where: {
         workspaceId,
         ...(muted.length ? { NOT: { channelId: { in: muted } } } : {}),
+        // A private channel's activity — its name, who is talking and how
+        // often — is only for its members. Without this predicate the Inbox
+        // returned every workspace row filtered only by the caller's *muted*
+        // list, leaking private channels to non-members (audit S2).
+        OR: [
+          { channelId: null },
+          { channel: { visibility: 'PUBLIC' } },
+          { channel: { members: { some: { userId } } } },
+        ],
       },
       include: {
         user: { select: PUBLIC_USER_SELECT },

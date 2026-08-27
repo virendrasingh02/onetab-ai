@@ -11,6 +11,50 @@ import { StorageService } from './storage.service.js';
 /** 25 MB. Large enough for documents and screenshots, small enough to stream. */
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
+/**
+ * What a workspace file is allowed to be.
+ *
+ * The browser-supplied `mimetype` is not trustworthy on its own, but combined
+ * with `Content-Disposition: attachment` + `nosniff` on the download route it
+ * is enough to keep executables and inline-script types (`.html`, `.svg`,
+ * `.xhtml`) out of storage (audit S12). Deep magic-byte sniffing and an async
+ * malware scan are still to come — tracked as Tier 2.
+ */
+const ALLOWED_MIME_EXACT = new Set<string>([
+  'application/pdf',
+  'application/json',
+  'application/zip',
+  'application/gzip',
+  'application/x-tar',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/octet-stream',
+]);
+const ALLOWED_MIME_PREFIXES = ['image/', 'video/', 'audio/', 'text/'];
+
+/** Extensions refused regardless of the declared MIME type. */
+const BLOCKED_EXTENSIONS = new Set<string>([
+  '.html', '.htm', '.xhtml', '.svg', '.xml', '.js', '.mjs', '.exe', '.dll',
+  '.bat', '.cmd', '.com', '.msi', '.sh', '.bash', '.ps1', '.scr', '.vbs',
+  '.jar', '.app', '.deb', '.rpm',
+]);
+
+function isAllowedUpload(filename: string, mimeType: string): boolean {
+  const dot = filename.lastIndexOf('.');
+  const ext = dot >= 0 ? filename.slice(dot).toLowerCase() : '';
+  if (ext && BLOCKED_EXTENSIONS.has(ext)) return false;
+
+  const type = (mimeType || 'application/octet-stream').toLowerCase();
+  // `image/svg+xml` is script-capable — keep it out even though it is `image/`.
+  if (type === 'image/svg+xml') return false;
+  if (ALLOWED_MIME_EXACT.has(type)) return true;
+  return ALLOWED_MIME_PREFIXES.some((prefix) => type.startsWith(prefix));
+}
+
 export interface IncomingFile {
   originalname: string;
   mimetype: string;
@@ -53,6 +97,11 @@ export class UploadService {
     if (file.size > MAX_UPLOAD_BYTES) {
       throw new BadRequestException(
         `Files must be ${MAX_UPLOAD_BYTES / (1024 * 1024)} MB or smaller.`,
+      );
+    }
+    if (!isAllowedUpload(file.originalname, file.mimetype)) {
+      throw new BadRequestException(
+        'That file type is not allowed. Executables and inline-script files (.html, .svg, .js) are rejected.',
       );
     }
 

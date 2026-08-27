@@ -214,7 +214,10 @@ export class AgentsService {
             const output = await this.mcpRegistry.executeTool(
               call.function.name,
               input,
-              workspaceId,
+              // Tools act as the agent's creator, not as an anonymous
+              // workspace-wide principal — writes are attributed to a real
+              // person and reads are narrowed to what they may see.
+              { workspaceId, actingUserId: agent.creatorId },
             );
             entry.status = 'success';
             entry.output = output;

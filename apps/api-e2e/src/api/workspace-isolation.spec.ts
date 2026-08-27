@@ -254,6 +254,67 @@ describe('cross-workspace isolation', () => {
     });
   });
 
+  /*
+   * A member acting entirely inside their own workspace, but pointing a
+   * foreign-key field at an id from a workspace they are not in. The guard is
+   * satisfied — Bob owns B — so the check has to be in the service (audit S1).
+   */
+  describe('a member of B cannot attach A’s ids to B’s rows', () => {
+    it('rejects a task assigned to a non-member on create', async () => {
+      const res = await api.post(
+        `/workspaces/${workspaceB}/work-tools/tasks`,
+        { title: 'Planted assignee', assigneeId: alice.userId },
+        { headers: bob.auth },
+      );
+      expect(res.status).toBe(404);
+    });
+
+    it('rejects a task reassigned to a non-member on update', async () => {
+      const res = await api.patch(
+        `/workspaces/${workspaceB}/work-tools/tasks/${taskB}`,
+        { assigneeId: alice.userId },
+        { headers: bob.auth },
+      );
+      expect(res.status).toBe(404);
+
+      // And the assignee really did not change.
+      const check = await api.get(
+        `/workspaces/${workspaceB}/work-tools/tasks/${taskB}`,
+        { headers: bob.auth },
+      );
+      expect(check.data.assigneeId ?? null).toBeNull();
+    });
+
+    it('rejects a project led by a non-member', async () => {
+      const res = await api.post(
+        `/workspaces/${workspaceB}/work-tools/projects`,
+        {
+          name: 'Planted lead',
+          slug: `planted-lead-${suffix}`,
+          leadId: alice.userId,
+        },
+        { headers: bob.auth },
+      );
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('a stranger cannot read a profile through the id route', () => {
+    it('404s when the viewer shares no workspace with the target', async () => {
+      // Alice and Bob share nothing at this point in the file.
+      const res = await api.get(`/users/${bob.userId}`, { headers: alice.auth });
+      expect(res.status).toBe(404);
+    });
+
+    it('still returns the caller’s own profile', async () => {
+      const res = await api.get(`/users/${alice.userId}`, {
+        headers: alice.auth,
+      });
+      expect(res.status).toBe(200);
+      expect(res.data.id).toBe(alice.userId);
+    });
+  });
+
   describe('search and listings never cross the boundary', () => {
     it('does not return another workspace’s task', async () => {
       const res = await api.get(`/workspaces/${workspaceA}/search`, {
@@ -362,6 +423,65 @@ describe('role permissions', () => {
       { headers: bob.auth },
     );
     expect(res.status).toBe(204);
+  });
+});
+
+describe('private channels stay private to non-members', () => {
+  let workspaceId: string;
+  let privateChannelName: string;
+
+  beforeAll(async () => {
+    // Alice owns it; Bob joins as a full MEMBER (so he can search).
+    workspaceId = await createWorkspace(alice.auth, `priv-${suffix}`);
+
+    const invite = await api.post(
+      `/workspaces/${workspaceId}/invitations`,
+      { emails: [bob.email], role: 'MEMBER' },
+      { headers: alice.auth },
+    );
+    expect(invite.status).toBe(201);
+    const accepted = await api.post(
+      '/invitations/accept',
+      { token: invite.data.tokens[bob.email] },
+      { headers: bob.auth },
+    );
+    expect(accepted.status).toBe(200);
+
+    privateChannelName = `secret-room-${suffix}`;
+    const channel = await api.post(
+      `/workspaces/${workspaceId}/channels`,
+      { name: privateChannelName, visibility: 'PRIVATE' },
+      { headers: alice.auth },
+    );
+    expect(channel.status).toBe(201);
+  });
+
+  it('a member not in the channel does not see it in search (audit S3)', async () => {
+    const res = await api.get(`/workspaces/${workspaceId}/search`, {
+      headers: bob.auth,
+      params: { q: privateChannelName },
+    });
+    expect(res.status).toBe(200);
+    expect(
+      res.data.some(
+        (r: { category: string; title: string }) =>
+          r.category === 'channels' && r.title.includes(privateChannelName),
+      ),
+    ).toBe(false);
+  });
+
+  it('the owner, who is in the channel, still finds it', async () => {
+    const res = await api.get(`/workspaces/${workspaceId}/search`, {
+      headers: alice.auth,
+      params: { q: privateChannelName },
+    });
+    expect(res.status).toBe(200);
+    expect(
+      res.data.some(
+        (r: { category: string; title: string }) =>
+          r.category === 'channels' && r.title.includes(privateChannelName),
+      ),
+    ).toBe(true);
   });
 });
 

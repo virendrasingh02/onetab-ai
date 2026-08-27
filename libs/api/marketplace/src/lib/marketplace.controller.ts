@@ -115,7 +115,9 @@ export class MarketplaceController {
   ) {
     return this.marketplace.addReview(slug, {
       // Taken from the session, not the payload — otherwise anyone could post a
-      // review under someone else's name.
+      // review under someone else's name, or attribute it to a workspace they
+      // are not in.
+      authorId: user.id,
       authorName: user.name ?? user.email,
       rating: body.rating,
       title: body.title,

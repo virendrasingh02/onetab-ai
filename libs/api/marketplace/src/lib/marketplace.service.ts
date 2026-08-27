@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -460,6 +461,7 @@ export class MarketplaceService {
   async addReview(
     listingSlug: string,
     input: {
+      authorId: string;
       authorName: string;
       rating: number;
       title?: string;
@@ -473,11 +475,32 @@ export class MarketplaceService {
     }
     const listing = await this.requireListing(listingSlug);
 
+    // `workspaceId` arrives in the request body. Attributing a review to a
+    // workspace the caller does not belong to was possible before this check
+    // (audit S10); an unverified id is dropped rather than trusted.
+    let attributedWorkspaceId: string | null = null;
+    if (input.workspaceId) {
+      const member = await this.prisma.workspaceMember.findFirst({
+        where: {
+          workspaceId: input.workspaceId,
+          userId: input.authorId,
+          status: 'ACTIVE',
+        },
+        select: { id: true },
+      });
+      if (!member) {
+        throw new ForbiddenException(
+          'You can only attribute a review to a workspace you belong to.',
+        );
+      }
+      attributedWorkspaceId = input.workspaceId;
+    }
+
     const [review] = await this.prisma.$transaction([
       this.prisma.marketplaceReview.create({
         data: {
           listingId: listing.id,
-          workspaceId: input.workspaceId ?? null,
+          workspaceId: attributedWorkspaceId,
           authorName: input.authorName,
           rating,
           title: input.title ?? null,
