@@ -74,7 +74,6 @@ export interface AppHeaderProps {
 export function AppHeader({
   user,
   workspaceSlug,
-  workspaceId,
   workspaces,
   currentWorkspace,
   onOpenSearch,

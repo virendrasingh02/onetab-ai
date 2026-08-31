@@ -18,7 +18,6 @@ import {
   DropdownMenuTrigger,
   Hint,
   SearchInput,
-  UserAvatar,
   WorkspaceAvatar,
   type ActivityLevel,
 } from '@org/ui';
