@@ -57,13 +57,19 @@ function accessTokenExpiry(token: string): number {
  *
  * The empty-`refreshToken` branch is the cookie-restored primary account before
  * its first rotation: it still owns the browser refresh cookie, so a bare
- * `/auth/refresh` works and backfills its token. Every other account must use
- * its body token — the cookie is not theirs.
+ * `/auth/refresh` works and backfills its token. That fallback is ONLY valid
+ * for the account that currently owns the cookie — the signed-in one — because
+ * for anyone else it would rotate the wrong session's token.
  *
  * Shared by the switch routine and the api-client refresh provider, so it is a
  * plain function (no hooks): the provider runs outside React.
  */
 export async function rotateAccount(account: Account): Promise<string> {
+  if (!account.refreshToken && useAuthStore.getState().user?.id !== account.id) {
+    throw new SessionRejectedError(
+      'This account needs to be signed in again.',
+    );
+  }
   const res = account.refreshToken
     ? await authApi.refresh({ refreshToken: account.refreshToken })
     : await authApi.refresh();
@@ -125,6 +131,15 @@ async function activateAccount(
     .getState()
     .accounts.find((a) => a.id === accountId);
   if (!account) throw new Error('That account is no longer linked.');
+
+  // Already signed in as this account — the only thing wrong is a dangling
+  // `activeAccountId` (a previous switch that half-failed). Repair the pointer
+  // in place; no token swap, no cache clear, no reload.
+  if (useAuthStore.getState().user?.id === accountId) {
+    useAccountStore.getState().setActiveAccountId(accountId);
+    if (to !== '/') navigate(to, { replace: true });
+    return;
+  }
 
   // Refresh a token that is expired or within 30s of it before it goes live.
   let accessToken = account.accessToken;
@@ -195,8 +210,13 @@ export function useLinkedAccountWorkspaces(): void {
   const accounts = useAccountStore((s) => s.accounts);
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
   const setAccountWorkspaces = useAccountStore((s) => s.setAccountWorkspaces);
+  const authedUserId = useAuthStore((s) => s.user?.id);
 
-  const background = accounts.filter((a) => a.id !== activeAccountId);
+  // The signed-in identity is active even if `activeAccountId` has not caught
+  // up yet — its list already comes from the app's own query, so skip it here.
+  const background = accounts.filter(
+    (a) => a.id !== activeAccountId && a.id !== authedUserId,
+  );
 
   useQueries({
     queries: background.map((account) => ({

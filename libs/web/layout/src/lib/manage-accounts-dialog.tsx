@@ -99,9 +99,21 @@ export function ManageAccountsDialog({
 
     const result: WorkspaceGroup[] = [];
 
-    const activeRow = activeAccountId
-      ? accounts.find((a) => a.id === activeAccountId)
-      : undefined;
+    // `currentUser` (the authenticated identity) is the source of truth for the
+    // active account; `activeAccountId` can lag after a half-failed switch. Both
+    // are excluded from the background loop so the active account never renders
+    // twice.
+    const activeId = currentUser?.id ?? activeAccountId ?? 'active';
+    const activeRow =
+      accounts.find((a) => a.id === activeId) ??
+      (activeAccountId
+        ? accounts.find((a) => a.id === activeAccountId)
+        : undefined);
+    const activeIds = new Set(
+      [activeId, activeAccountId, activeRow?.id, currentUser?.id].filter(
+        Boolean,
+      ),
+    );
     const activeEmail =
       activeRow?.user.email ?? currentUser?.email ?? userEmail ?? 'This account';
     result.push({
@@ -113,7 +125,7 @@ export function ManageAccountsDialog({
     });
 
     for (const account of accounts) {
-      if (account.id === (activeRow?.id ?? activeAccountId)) continue;
+      if (activeIds.has(account.id)) continue;
       const email = account.user.email;
       const list = (account.workspaces ?? []).filter((w) =>
         hit(w.name, w.slug, email),
@@ -179,7 +191,9 @@ export function ManageAccountsDialog({
             </div>
             <div className="space-y-1">
               {accounts.map((account) => {
-                const isActive = account.id === activeAccountId;
+                const isActive =
+                  account.id === (currentUser?.id ?? activeAccountId) ||
+                  account.id === activeAccountId;
                 return (
                   <div
                     key={account.id}

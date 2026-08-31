@@ -151,18 +151,28 @@ export function WorkspaceMenu({
 
     const result: SwitcherGroup[] = [];
 
-    const activeRow = activeAccountId
-      ? accounts.find((a) => a.id === activeAccountId)
-      : undefined;
-    const activeId =
-      activeAccountId ?? activeRow?.id ?? currentUser?.id ?? 'active';
+    // The authenticated identity (`currentUser`) is the source of truth for
+    // "which account is active" — `activeAccountId` can lag behind it after a
+    // half-failed switch, which is what made the active account also show up as
+    // a switch-to row.
+    const activeId = currentUser?.id ?? activeAccountId ?? 'active';
+    const activeRow =
+      accounts.find((a) => a.id === activeId) ??
+      (activeAccountId
+        ? accounts.find((a) => a.id === activeAccountId)
+        : undefined);
+    const activeIds = new Set(
+      [activeId, activeAccountId, activeRow?.id, currentUser?.id].filter(
+        Boolean,
+      ),
+    );
     const activeEmail =
       activeRow?.user.email ?? currentUser?.email ?? userEmail ?? '';
     const activeEmailHit = !term || activeEmail.toLowerCase().includes(term);
 
     result.push({
       kind: 'active',
-      accountId: activeId,
+      accountId: activeRow?.id ?? activeId,
       name:
         activeRow?.user.displayName ??
         activeRow?.user.name ??
@@ -177,7 +187,7 @@ export function WorkspaceMenu({
     });
 
     for (const account of accounts) {
-      if (account.id === activeId) continue;
+      if (activeIds.has(account.id)) continue;
       const email = account.user.email;
       const emailHit = !term || email.toLowerCase().includes(term);
       const list = (account.workspaces ?? []).filter(
@@ -207,18 +217,19 @@ export function WorkspaceMenu({
   // Unfiltered count across every linked account — drives the header badge and
   // whether the search box shows. (Using the *filtered* count there would make
   // the box vanish mid-search as results narrow.)
-  const linkedWorkspaceCount = useMemo(
-    () =>
+  const linkedWorkspaceCount = useMemo(() => {
+    const activeId = currentUser?.id ?? activeAccountId;
+    return (
       workspaces.length +
       accounts.reduce(
         (sum, account) =>
-          account.id === activeAccountId
+          account.id === activeId || account.id === activeAccountId
             ? sum
             : sum + (account.workspaces?.length ?? 0),
         0,
-      ),
-    [workspaces, accounts, activeAccountId],
-  );
+      )
+    );
+  }, [workspaces, accounts, activeAccountId, currentUser]);
 
   const anyResults = groups.some((group) => group.workspaces.length > 0);
 

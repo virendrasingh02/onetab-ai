@@ -187,24 +187,34 @@ export function getActiveAccount(): Account | null {
 }
 
 /**
- * Keeps the active account's row in step with {@link useAuthStore} when the
- * profile is edited or the access token is renewed. A no-op when there is no
- * multi-account state yet (the row is created on login / bootstrap instead), so
- * `auth.store` can call this unconditionally.
+ * Keeps the signed-in account's row in step with {@link useAuthStore} when the
+ * profile is edited or the access token is renewed, and — crucially — repairs
+ * `activeAccountId` to point at that identity.
+ *
+ * `setSession` runs on every auth transition (login, switch, cold-start
+ * restore), so this is the one place that guarantees the store's "active"
+ * pointer matches the authenticated user. Without the repair a failed or
+ * partial switch can leave `activeAccountId` dangling, and the switcher then
+ * renders the current account both as the active section *and* as a
+ * switch-to row.
+ *
+ * A no-op when no row exists yet for this identity — the row is created on
+ * login / bootstrap, not here — so `auth.store` can call this unconditionally.
  */
 export function syncActiveAccount(
   user: CurrentUser,
   accessToken: string,
 ): void {
   const { accounts, activeAccountId } = useAccountStore.getState();
-  if (!activeAccountId || !accounts.some((a) => a.id === activeAccountId)) {
+  if (!accounts.some((a) => a.id === user.id)) {
     return;
   }
   const next = accounts.map((a) =>
-    a.id === activeAccountId ? { ...a, user, accessToken } : a,
+    a.id === user.id ? { ...a, user, accessToken } : a,
   );
-  persist({ accounts: next, activeAccountId });
-  useAccountStore.setState({ accounts: next });
+  const nextActive = activeAccountId === user.id ? activeAccountId : user.id;
+  persist({ accounts: next, activeAccountId: nextActive });
+  useAccountStore.setState({ accounts: next, activeAccountId: nextActive });
 }
 
 /*
