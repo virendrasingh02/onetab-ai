@@ -28,6 +28,7 @@ import {
   ChevronDown,
   MailPlus,
   PanelLeft,
+  Plus,
   Settings,
   UserPlus,
   Users,
@@ -354,7 +355,7 @@ export function WorkspaceMenu({
                     <div className="px-2 py-1 gap-2 flex items-center">
                       <div className="min-w-0 leading-tight flex-1">
                         {group.email ? (
-                          <div className="truncate text-[10px] text-muted-foreground">
+                          <div className="truncate text-[12px] text-muted-foreground">
                             {group.email}
                           </div>
                         ) : null}
@@ -549,6 +550,20 @@ export function WorkspaceMenu({
                 <Settings className="size-3" />
               </span>
               <span className="font-medium">Workspace Settings</span>
+            </Link>
+          </DropdownMenuItem>
+
+          {/* Action: Add a workspace — always created under the active account,
+              since the create request rides the signed-in account's token. */}
+          <DropdownMenuItem
+            asChild
+            className="gap-2.5 px-2 py-1.5 text-xs flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
+          >
+            <Link to="/workspaces/new" onClick={() => setMenuOpen(false)}>
+              <span className="size-5 flex shrink-0 items-center justify-center rounded-md border border-dashed border-border text-subtle">
+                <Plus className="size-3" />
+              </span>
+              <span className="font-medium">Add workspace</span>
             </Link>
           </DropdownMenuItem>
         </DropdownMenuContent>

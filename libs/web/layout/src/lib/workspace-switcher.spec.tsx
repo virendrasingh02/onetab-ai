@@ -170,7 +170,7 @@ describe('WorkspaceMenu / Switcher', () => {
     expect(onAddAccount).toHaveBeenCalledOnce();
   });
 
-  it('has no "Create New Workspace" or "Join" affordance in the switcher', async () => {
+  it('has no "Join with invitation" affordance, and "Add workspace" points at the create flow', async () => {
     const user = userEvent.setup();
     renderInProviders(
       <WorkspaceMenu
@@ -182,10 +182,13 @@ describe('WorkspaceMenu / Switcher', () => {
 
     await user.click(screen.getByRole('button', { name: /Current workspace/i }));
 
-    expect(screen.queryByText(/create new workspace/i)).toBeNull();
-    expect(screen.queryByText(/create workspace/i)).toBeNull();
-    expect(screen.queryByText(/join/i)).toBeNull();
+    // No direct-join UI.
+    expect(screen.queryByText(/join with/i)).toBeNull();
     expect(screen.queryByPlaceholderText(/invitation/i)).toBeNull();
+
+    // Workspace creation for the active account routes to the existing flow.
+    const addWorkspace = screen.getByText('Add workspace').closest('a');
+    expect(addWorkspace).toHaveAttribute('href', '/workspaces/new');
   });
 
   it('lists a background account’s workspaces under its own email and switches on click', async () => {
