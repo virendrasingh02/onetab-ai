@@ -1,4 +1,8 @@
-export { attachmentToMediaItem, generatedFileToMediaItem } from './lib/adapters.js';
+export {
+  attachmentToMediaItem,
+  generatedFileToMediaItem,
+  type MediaUploaderContext,
+} from './lib/adapters.js';
 export { canRenderPreview, extensionFromName, getMediaType } from './lib/get-media-type.js';
 export {
   MediaPreviewProvider,

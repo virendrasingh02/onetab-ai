@@ -185,6 +185,19 @@ export interface ChatSurfaceProps {
   ) => void | Promise<void>;
 }
 
+/**
+ * Matrix presence (`online` / `unavailable` / `offline`) narrowed to the
+ * status vocabulary `UserAvatar` draws with — `unavailable` reads as "away".
+ */
+const PRESENCE_FOR_AVATAR: Record<
+  PresenceState,
+  'online' | 'away' | 'offline'
+> = {
+  online: 'online',
+  unavailable: 'away',
+  offline: 'offline',
+};
+
 export function ChatSurface({
   title,
   subtitle,
@@ -528,7 +541,17 @@ export function ChatSurface({
                 kind={message.kind}
                 onOpen={() =>
                   openPreview([
-                    attachmentToMediaItem(attachment, message.kind, message.id),
+                    attachmentToMediaItem(attachment, message.kind, message.id, {
+                      senderId: message.senderId,
+                      senderName: message.senderName,
+                      senderAvatarUrl: message.senderAvatarUrl,
+                      senderPresence: presenceOf
+                        ? PRESENCE_FOR_AVATAR[presenceOf(message.senderId)]
+                        : undefined,
+                      timestamp: message.timestamp,
+                      channelName: title,
+                      isEncrypted: isEncrypted || message.isEncrypted,
+                    }),
                   ])
                 }
               />
@@ -541,6 +564,7 @@ export function ChatSurface({
       repliesByRoot,
       memberById,
       myUserId,
+      messageDensity,
       highlightId,
       mentionNames,
       pinnedIds,
@@ -559,6 +583,9 @@ export function ChatSurface({
       onAction,
       onRetryAgent,
       openPreview,
+      presenceOf,
+      title,
+      isEncrypted,
     ],
   );
 

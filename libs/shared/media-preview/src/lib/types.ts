@@ -51,6 +51,16 @@ export interface MediaItem {
   isDiff?: boolean;
   /** Freeform, shown in the details/metadata area — uploader, location, etc. */
   metadata?: Record<string, string | number | undefined>;
+  /** Uploader identity & posting context for header profile banner */
+  senderId?: string;
+  senderName?: string;
+  senderAvatarUrl?: string;
+  senderPresence?: 'online' | 'busy' | 'away' | 'offline';
+  senderStatusEmoji?: string;
+  senderStatusText?: string;
+  timestamp?: number | string | Date;
+  channelName?: string;
+  isEncrypted?: boolean;
 }
 
 export interface MediaPreviewState {

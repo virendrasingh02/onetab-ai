@@ -2,6 +2,18 @@ import type { Attachment, GeneratedFile, MessageKind } from '@org/types';
 import { getMediaType } from './get-media-type.js';
 import type { MediaItem } from './types.js';
 
+export interface MediaUploaderContext {
+  senderId?: string;
+  senderName?: string;
+  senderAvatarUrl?: string;
+  senderPresence?: 'online' | 'busy' | 'away' | 'offline';
+  senderStatusEmoji?: string;
+  senderStatusText?: string;
+  timestamp?: number | string | Date;
+  channelName?: string;
+  isEncrypted?: boolean;
+}
+
 /**
  * Chat's Matrix-resolved attachment. `kind` (from the message, already
  * classified server/mapper-side) is trusted over a mimeType guess for the
@@ -12,6 +24,7 @@ export function attachmentToMediaItem(
   attachment: Attachment,
   kind?: MessageKind,
   id = attachment.url,
+  uploaderContext?: MediaUploaderContext,
 ): MediaItem {
   const category =
     kind === 'image' || kind === 'video'
@@ -32,6 +45,15 @@ export function attachmentToMediaItem(
     height: attachment.height,
     duration: attachment.duration,
     waveform: attachment.waveform,
+    senderId: uploaderContext?.senderId,
+    senderName: uploaderContext?.senderName,
+    senderAvatarUrl: uploaderContext?.senderAvatarUrl,
+    senderPresence: uploaderContext?.senderPresence,
+    senderStatusEmoji: uploaderContext?.senderStatusEmoji,
+    senderStatusText: uploaderContext?.senderStatusText,
+    timestamp: uploaderContext?.timestamp,
+    channelName: uploaderContext?.channelName,
+    isEncrypted: uploaderContext?.isEncrypted,
   };
 }
 
@@ -59,5 +81,8 @@ export function generatedFileToMediaItem(
     inlineText: file.codeSnippet?.code,
     language: file.codeSnippet?.language,
     isDiff: file.codeSnippet?.isDiff,
+    // Attributed to the assistant; `GeneratedFile` carries no creation time,
+    // so the banner shows just the name rather than a fabricated "now".
+    senderName: 'OneTab AI',
   };
 }

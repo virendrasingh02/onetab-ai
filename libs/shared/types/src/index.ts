@@ -55,6 +55,7 @@ export type {
   ThemeShapeConfig,
   ThemeShadowsConfig,
   ThemeConfig,
+  PublicUser,
   Upload,
   Workspace,
   WorkspaceMember,
