@@ -448,7 +448,7 @@ function CardDetailsBody({
               </span>
               {currentLead && (
                 <span className="flex items-center gap-1 px-1.5 py-0.2 rounded bg-accent-amber-soft text-accent-amber font-semibold text-[10px]">
-                  <span className="size-3.5 rounded-full bg-accent-amber text-white flex items-center justify-center text-[8px] font-bold">
+                  <span className="size-3.5 rounded-full bg-warning text-warning-foreground flex items-center justify-center text-[8px] font-bold">
                     VI
                   </span>
                   <span>1 for me</span>

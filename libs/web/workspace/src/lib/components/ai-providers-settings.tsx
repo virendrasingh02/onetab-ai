@@ -185,7 +185,7 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
   const renderStatusBadge = (status: AIProviderStatus, isTesting: boolean) => {
     if (isTesting) {
       return (
-        <Badge variant="neutral" className="gap-1.5 bg-sky-500/10 text-sky-600 border-sky-500/20">
+        <Badge variant="neutral" className="gap-1.5 bg-info/10 text-info-text border-info/20">
           <RefreshCw className="size-3 animate-spin" />
           <span>Testing...</span>
         </Badge>
@@ -195,28 +195,28 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
     switch (status) {
       case 'CONNECTED':
         return (
-          <Badge variant="neutral" className="gap-1.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-medium">
+          <Badge variant="neutral" className="gap-1.5 bg-success/10 text-success-text border-success/20 font-medium">
             <CheckCircle2 className="size-3" />
             <span>Connected</span>
           </Badge>
         );
       case 'AUTH_ERROR':
         return (
-          <Badge variant="neutral" className="gap-1.5 bg-rose-500/10 text-rose-600 border-rose-500/20 font-medium">
+          <Badge variant="neutral" className="gap-1.5 bg-destructive/10 text-destructive-text border-destructive/20 font-medium">
             <AlertCircle className="size-3" />
             <span>Auth Error</span>
           </Badge>
         );
       case 'RATE_LIMITED':
         return (
-          <Badge variant="neutral" className="gap-1.5 bg-amber-500/10 text-amber-600 border-amber-500/20 font-medium">
+          <Badge variant="neutral" className="gap-1.5 bg-warning/10 text-warning-text border-warning/20 font-medium">
             <AlertTriangle className="size-3" />
             <span>Rate Limited</span>
           </Badge>
         );
       case 'UNAVAILABLE':
         return (
-          <Badge variant="neutral" className="gap-1.5 bg-amber-500/10 text-amber-600 border-amber-500/20 font-medium">
+          <Badge variant="neutral" className="gap-1.5 bg-warning/10 text-warning-text border-warning/20 font-medium">
             <AlertTriangle className="size-3" />
             <span>Unavailable</span>
           </Badge>
@@ -276,7 +276,7 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
 
       {/* Security Guarantee Banner */}
       <div className="flex items-start gap-3 p-4 rounded-xl border border-border/80 bg-surface-inset/50 text-xs">
-        <ShieldCheck className="size-4 text-emerald-500 shrink-0 mt-0.5" />
+        <ShieldCheck className="size-4 text-success shrink-0 mt-0.5" />
         <div className="space-y-0.5">
           <span className="font-semibold text-foreground">Zero-Trust Credential Security</span>
           <p className="text-[11px] text-muted-foreground">
@@ -508,13 +508,13 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
               {selectedProvider.maskedKey ? (
                 <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-surface-inset text-xs">
                   <div className="flex items-center gap-2">
-                    <Lock className="size-3.5 text-emerald-500" />
+                    <Lock className="size-3.5 text-success" />
                     <div>
                       <span className="font-semibold text-foreground block">Active Stored Key</span>
                       <span className="font-mono text-muted-foreground">{selectedProvider.maskedKey}</span>
                     </div>
                   </div>
-                  <Badge variant="neutral" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                  <Badge variant="neutral" className="text-[10px] bg-success/10 text-success-text border-success/20">
                     Encrypted
                   </Badge>
                 </div>
@@ -621,8 +621,8 @@ export function AIProvidersSettings({ workspaceId }: AIProvidersSettingsProps) {
                     className={cn(
                       'p-3 rounded-xl border text-xs space-y-1',
                       testResult.status === 'CONNECTED'
-                        ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300'
-                        : 'border-rose-500/20 bg-rose-500/5 text-rose-700 dark:text-rose-300'
+                        ? 'border-success/20 bg-success/5 text-success-text'
+                        : 'border-destructive/20 bg-destructive/5 text-destructive-text'
                     )}
                   >
                     <div className="flex items-center gap-1.5 font-semibold">

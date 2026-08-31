@@ -460,6 +460,13 @@ export {
 } from './lib/components/combobox.js';
 
 export {
+  AppSelect,
+  type AppSelectProps,
+  type AppSelectOption,
+  type AppSelectGroup,
+} from './lib/components/app-select.js';
+
+export {
   DataGrid,
   type DataGridProps,
   type DataGridColumn,

@@ -224,7 +224,7 @@ export function ChatBubble({
     ) : isApp ? (
       <Badge
         variant="neutral"
-        className="py-0 h-4 font-bold tracking-wider bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20 gap-0.5 text-[9px] uppercase"
+        className="py-0 h-4 font-bold tracking-wider bg-accent-violet-soft text-accent-violet border-accent-violet/20 gap-0.5 text-[9px] uppercase"
       >
         <Blocks className="size-2.5 mr-0.5 inline-block" />
         <span>APP</span>
@@ -284,7 +284,7 @@ export function ChatBubble({
                 isCompact ? 'size-8' : 'size-10',
                 'cursor-pointer rounded-full shadow-xs transition-transform hover:scale-105 hover:opacity-90',
                 isAgent && 'ring-2 ring-primary/40',
-                isApp && 'ring-violet-500/40 ring-2',
+                isApp && 'ring-accent-violet/40 ring-2',
               )}
             />
           </UserProfileCard>
@@ -585,7 +585,7 @@ export function ChatBubble({
                 onSelect={() => onCreateTask()}
                 className="cursor-pointer hover:bg-accent"
               >
-                <CheckSquare className="mr-2 size-4 text-emerald-500" />
+                <CheckSquare className="mr-2 size-4 text-success" />
                 Create task from message
               </DropdownMenuItem>
             ) : null}
@@ -594,7 +594,7 @@ export function ChatBubble({
                 onSelect={() => onCreateDoc()}
                 className="cursor-pointer hover:bg-accent"
               >
-                <FileText className="mr-2 size-4 text-blue-500" />
+                <FileText className="mr-2 size-4 text-info-text" />
                 Create document from message
               </DropdownMenuItem>
             ) : null}
@@ -750,7 +750,7 @@ export function JumpToDatePicker({
   ];
 
   return (
-    <div className="flex bg-[#18181b] border border-border/80 text-foreground rounded-2xl shadow-2xl overflow-hidden select-none">
+    <div className="flex bg-popover border border-border/80 text-foreground rounded-2xl shadow-overlay overflow-hidden select-none">
       {/* Left Presets Column */}
       <div className="w-36 p-3 space-y-0.5 border-r border-border/60 flex flex-col justify-center bg-surface-inset/30">
         {presets.map((preset) => (
@@ -761,7 +761,7 @@ export function JumpToDatePicker({
               onSelectDate(preset.target);
               onClose?.();
             }}
-            className="w-full px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors cursor-pointer"
+            className="w-full px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
           >
             {preset.label}
           </button>
@@ -775,7 +775,7 @@ export function JumpToDatePicker({
           <button
             type="button"
             onClick={handlePrevMonth}
-            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors cursor-pointer"
+            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
             aria-label="Previous month"
           >
             <ChevronLeft className="size-4" />
@@ -786,7 +786,7 @@ export function JumpToDatePicker({
           <button
             type="button"
             onClick={handleNextMonth}
-            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors cursor-pointer"
+            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
             aria-label="Next month"
           >
             <ChevronRight className="size-4" />
@@ -830,12 +830,12 @@ export function JumpToDatePicker({
                       'text-muted-foreground/30 hover:text-muted-foreground/60',
                     isCurrentMonth &&
                       !isSelected &&
-                      'text-foreground hover:bg-white/10',
+                      'text-foreground hover:bg-accent',
                     isCurrentDay &&
                       !isSelected &&
-                      'text-sky-400 font-semibold ring-1 ring-sky-500/40',
+                      'text-primary font-semibold ring-1 ring-primary/40',
                     isSelected &&
-                      'bg-white text-black font-bold shadow-md hover:bg-white/90',
+                      'bg-primary text-primary-foreground font-bold shadow-md hover:bg-primary-hover',
                   )}
                 >
                   {format(day, 'd')}

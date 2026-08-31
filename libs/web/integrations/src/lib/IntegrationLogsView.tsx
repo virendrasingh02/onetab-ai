@@ -77,10 +77,10 @@ export function IntegrationLogsView({
                 <div
                   className={cn(
                     'size-8 rounded-lg flex items-center justify-center',
-                    job.status === 'COMPLETED' && 'bg-emerald-500/10 text-emerald-500',
-                    job.status === 'RUNNING' && 'bg-blue-500/10 text-blue-500 animate-pulse',
-                    job.status === 'FAILED' && 'bg-rose-500/10 text-rose-500',
-                    job.status === 'PENDING' && 'bg-amber-500/10 text-amber-500',
+                    job.status === 'COMPLETED' && 'bg-success/10 text-success-text',
+                    job.status === 'RUNNING' && 'bg-info/10 text-info-text animate-pulse',
+                    job.status === 'FAILED' && 'bg-destructive/10 text-destructive-text',
+                    job.status === 'PENDING' && 'bg-warning/10 text-warning-text',
                   )}
                 >
                   {job.status === 'COMPLETED' && <CheckCircle2 className="size-4" />}
@@ -111,7 +111,7 @@ export function IntegrationLogsView({
                     Processed {job.itemsProcessed} items • {new Date(job.createdAt).toLocaleString()}
                   </p>
                   {job.errorMessage && (
-                    <p className="text-[11px] text-rose-500 mt-0.5 font-mono">
+                    <p className="text-[11px] text-destructive-text mt-0.5 font-mono">
                       Error: {job.errorMessage}
                     </p>
                   )}

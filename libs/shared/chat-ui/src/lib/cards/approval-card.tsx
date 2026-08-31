@@ -39,9 +39,9 @@ export function ApprovalCard({
 
   const riskBadgeConfig = {
     low: { label: 'Low Risk', variant: 'neutral' as const, color: 'text-muted-foreground' },
-    medium: { label: 'Medium Risk', variant: 'warning' as const, color: 'text-amber-500' },
-    high: { label: 'High Risk', variant: 'destructive' as const, color: 'text-rose-500' },
-    critical: { label: 'Critical Risk', variant: 'destructive' as const, color: 'text-rose-600 font-bold' },
+    medium: { label: 'Medium Risk', variant: 'warning' as const, color: 'text-warning-text' },
+    high: { label: 'High Risk', variant: 'destructive' as const, color: 'text-destructive-text' },
+    critical: { label: 'Critical Risk', variant: 'destructive' as const, color: 'text-destructive-text font-bold' },
   }[event.riskLevel || 'medium'];
 
   const handleApprove = async () => {
@@ -98,9 +98,9 @@ export function ApprovalCard({
       className={cn(
         'group/approval relative my-2 rounded-2xl border bg-surface/95 backdrop-blur-sm p-4 transition-all duration-200 shadow-xs hover:shadow-md',
         isPending
-          ? 'border-amber-500/50 ring-1 ring-amber-500/20'
+          ? 'border-warning/50 ring-1 ring-warning/20'
           : localStatus === 'approved'
-            ? 'border-emerald-500/40 bg-emerald-500/5'
+            ? 'border-success/40 bg-success/5'
             : 'border-border',
         isHighlighted && 'ring-2 ring-primary/60',
       )}
@@ -108,7 +108,7 @@ export function ApprovalCard({
       {/* Header */}
       <header className="flex items-start justify-between gap-3 border-b border-border/60 pb-3">
         <div className="flex items-start gap-3 min-w-0">
-          <div className="size-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 ring-2 ring-amber-500/20">
+          <div className="size-9 rounded-xl bg-warning/10 text-warning-text flex items-center justify-center shrink-0 ring-2 ring-warning/20">
             <ShieldAlert className="size-5" />
           </div>
 
@@ -168,9 +168,9 @@ export function ApprovalCard({
 
       {/* Diff Preview */}
       {event.diffPreview && (
-        <div className="mt-3 rounded-xl border border-border bg-[#0d1117] text-[#e6edf3] font-mono text-xs overflow-hidden shadow-xs">
-          <div className="px-3 py-1.5 bg-[#161b22] border-b border-[#30363d] flex items-center justify-between text-[11px]">
-            <span className="text-[#8b949e] flex items-center gap-1.5">
+        <div className="mt-3 rounded-xl border border-border bg-surface-inset text-foreground font-mono text-xs overflow-hidden shadow-xs">
+          <div className="px-3 py-1.5 bg-surface-raised border-b border-border flex items-center justify-between text-[11px]">
+            <span className="text-muted-foreground flex items-center gap-1.5">
               <FileDiff className="size-3.5 text-primary" />
               <span>{event.diffPreview.filename || 'Diff Preview'}</span>
             </span>
@@ -185,8 +185,8 @@ export function ApprovalCard({
                     key={idx}
                     className={cn(
                       'px-1 rounded',
-                      isAdd && 'bg-emerald-500/20 text-emerald-400 font-semibold',
-                      isRem && 'bg-rose-500/20 text-rose-400 line-through opacity-80',
+                      isAdd && 'bg-success/20 text-success-text font-semibold',
+                      isRem && 'bg-destructive/20 text-destructive-text line-through opacity-80',
                     )}
                   >
                     {line}
@@ -200,8 +200,8 @@ export function ApprovalCard({
 
       {/* Side Effects Warnings */}
       {event.sideEffects && event.sideEffects.length > 0 && (
-        <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-foreground">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 block mb-1.5 flex items-center gap-1">
+        <div className="mt-3 rounded-xl border border-warning/30 bg-warning/5 p-3 text-xs text-foreground">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-warning-text block mb-1.5 flex items-center gap-1">
             <AlertTriangle className="size-3.5" />
             <span>Potential Side Effects:</span>
           </span>
@@ -229,10 +229,10 @@ export function ApprovalCard({
 
           <Button
             size="sm"
-            variant="primary"
+            variant="success"
             disabled={isProcessing}
             onClick={handleApprove}
-            className="h-8 text-xs px-4 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shadow-xs"
+            className="h-8 text-xs px-4 gap-1.5 shadow-xs"
           >
             <Check className="size-3.5" />
             <span>Approve Action</span>
@@ -242,7 +242,7 @@ export function ApprovalCard({
         <div className="mt-3.5 pt-2.5 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
             {localStatus === 'approved' ? (
-              <CheckCircle2 className="size-3.5 text-emerald-500" />
+              <CheckCircle2 className="size-3.5 text-success" />
             ) : (
               <XCircle className="size-3.5 text-destructive" />
             )}

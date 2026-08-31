@@ -112,7 +112,7 @@ export function ActionsEditor({ actions = [], onChange }: ActionsEditorProps) {
               <button
                 type="button"
                 onClick={() => handleRemoveAction(act.id)}
-                className="text-rose-400 hover:text-rose-500 p-1 rounded"
+                className="text-destructive-text hover:text-destructive p-1 rounded"
               >
                 <Trash2 className="size-3.5" />
               </button>

@@ -18,6 +18,7 @@ import {
   AIModelSelector,
   AIThinkingState,
   AIUsageWidget,
+  AppSelect,
   Badge,
   BlockRenderer,
   Button,
@@ -34,6 +35,19 @@ import {
   DataGrid,
   Drawer,
   DrawerFooter,
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
   FilterBuilder,
   IconButton,
   Input,
@@ -41,6 +55,13 @@ import {
   KanbanBoard,
   RadioGroup,
   RadioGroupItem,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
   Separator,
   Slider,
   Switch,
@@ -61,19 +82,24 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
+  Archive,
   Bot,
   Check,
+  ChevronDown,
   Copy,
   Layers,
   Layout,
   Moon,
   Palette,
+  Pencil,
   Play,
   Search,
   Settings,
   Sliders,
   Sparkles,
   Sun,
+  Trash2,
+  UserPlus,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -93,6 +119,26 @@ export function DesignSystemStudio() {
   const [activeTab, setActiveTab] = useState('foundations');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+
+  // Dropdown & select showcase state
+  const [menuDensity, setMenuDensity] = useState('comfortable');
+  const [menuAutosave, setMenuAutosave] = useState(true);
+  const [statusValue, setStatusValue] = useState('in_progress');
+  const [assigneeValue, setAssigneeValue] = useState('');
+  const statusOptions = [
+    { value: 'backlog', label: 'Backlog' },
+    { value: 'in_progress', label: 'In progress' },
+    { value: 'in_review', label: 'In review' },
+    { value: 'done', label: 'Done' },
+    { value: 'cancelled', label: 'Cancelled', disabled: true },
+  ];
+  const memberOptions = [
+    { value: 'u-ada', label: 'Ada Lovelace' },
+    { value: 'u-alan', label: 'Alan Turing' },
+    { value: 'u-grace', label: 'Grace Hopper' },
+    { value: 'u-katherine', label: 'Katherine Johnson' },
+    { value: 'u-long', label: 'A teammate with an unusually long display name that should truncate' },
+  ];
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -684,6 +730,141 @@ export function DesignSystemStudio() {
                       </ContextMenuItem>
                     </ContextMenuContent>
                   </ContextMenu>
+                </div>
+              </div>
+            </section>
+
+            {/* Dropdown Menus & Selects */}
+            <section className="space-y-3">
+              <h2 className="text-base font-bold text-foreground">Dropdown Menus &amp; Selects</h2>
+              <p className="text-xs text-muted-foreground">
+                One dropdown language across the app: the same surface, radius, row
+                height, hover/focus/selected/disabled treatment in both themes.
+                Toggle Light / Dark / System above to check every state.
+              </p>
+              <div className="rounded-card border border-border bg-surface p-4 shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Full DropdownMenu — every item type */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Dropdown Menu (all item types)</label>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full justify-between">
+                        Actions
+                        <ChevronDown className="size-3.5 opacity-60" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56">
+                      <DropdownMenuLabel>Record</DropdownMenuLabel>
+                      <DropdownMenuItem>
+                        <Pencil />
+                        Edit
+                        <DropdownMenuShortcut keys={['mod', 'E']} />
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Copy />
+                        Duplicate
+                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled>
+                        <UserPlus />
+                        Assign (disabled)
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel>View</DropdownMenuLabel>
+                      <DropdownMenuCheckboxItem
+                        checked={menuAutosave}
+                        onCheckedChange={(v) => setMenuAutosave(Boolean(v))}
+                      >
+                        Autosave
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuRadioGroup value={menuDensity} onValueChange={setMenuDensity}>
+                        <DropdownMenuRadioItem value="compact">Compact</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="comfortable">Comfortable</DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                          <Archive />
+                          Move to…
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                          <DropdownMenuItem>Project Atlas</DropdownMenuItem>
+                          <DropdownMenuItem>Project Beacon</DropdownMenuItem>
+                          <DropdownMenuItem>Project Cascade</DropdownMenuItem>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem variant="destructive">
+                        <Trash2 />
+                        Delete
+                        <DropdownMenuShortcut keys={['del']} />
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                {/* AppSelect — short list */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">AppSelect — status (short list)</label>
+                  <AppSelect
+                    value={statusValue}
+                    onValueChange={setStatusValue}
+                    options={statusOptions}
+                    placeholder="Select status"
+                  />
+                </div>
+
+                {/* AppSelect — searchable */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">AppSelect — assignee (searchable)</label>
+                  <AppSelect
+                    searchable
+                    value={assigneeValue}
+                    onValueChange={setAssigneeValue}
+                    options={memberOptions}
+                    placeholder="Select member"
+                    searchPlaceholder="Search members…"
+                    emptyText="No members found."
+                  />
+                </div>
+
+                {/* AppSelect — loading */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">AppSelect — loading</label>
+                  <AppSelect loading options={[]} placeholder="Select project" />
+                </div>
+
+                {/* AppSelect — disabled */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">AppSelect — disabled</label>
+                  <AppSelect disabled options={statusOptions} placeholder="Select status" />
+                </div>
+
+                {/* AppSelect — empty */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">AppSelect — empty</label>
+                  <AppSelect options={[]} placeholder="Select label" emptyText="No labels yet." />
+                </div>
+
+                {/* Grouped Radix Select for parity */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Select — grouped</label>
+                  <Select defaultValue="claude37">
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Anthropic</SelectLabel>
+                        <SelectItem value="claude37">Claude 3.7 Sonnet</SelectItem>
+                        <SelectItem value="claude-haiku">Claude Haiku 4.5</SelectItem>
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>OpenAI</SelectLabel>
+                        <SelectItem value="gpt4o">GPT-4o</SelectItem>
+                        <SelectItem value="gpt4o-mini">GPT-4o mini</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </section>

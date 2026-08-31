@@ -115,7 +115,7 @@ export function WorkflowCard({
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="shrink-0">
                       {step.status === 'completed' ? (
-                        <CheckCircle2 className="size-4 text-emerald-500" />
+                        <CheckCircle2 className="size-4 text-success" />
                       ) : step.status === 'running' ? (
                         <Loader2 className="size-4 animate-spin text-primary" />
                       ) : step.status === 'failed' ? (
@@ -202,7 +202,7 @@ export function WorkflowCard({
               <span className="text-[10px] font-bold text-muted-foreground uppercase block">
                 Output
               </span>
-              <pre className="p-2 rounded bg-surface text-emerald-600 dark:text-emerald-400 overflow-x-auto mt-0.5">
+              <pre className="p-2 rounded bg-surface text-success-text overflow-x-auto mt-0.5">
                 {typeof selectedStep.output === 'string'
                   ? selectedStep.output
                   : JSON.stringify(selectedStep.output, null, 2)}

@@ -931,7 +931,7 @@ function NewAppMessage() {
                   className={cn(
                     'px-2.5 py-1 text-xs font-medium cursor-pointer rounded-full transition-colors',
                     selectedCategory === cat
-                      ? 'text-white bg-accent-violet'
+                      ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground',
                   )}
                 >

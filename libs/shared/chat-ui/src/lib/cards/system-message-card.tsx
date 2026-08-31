@@ -27,23 +27,23 @@ export function SystemMessageCard({
     switch (event.severity) {
       case 'success':
         return {
-          icon: <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />,
-          border: 'border-emerald-500/40 bg-emerald-500/5',
+          icon: <CheckCircle2 className="size-4 text-success shrink-0" />,
+          border: 'border-success/40 bg-success/5',
         };
       case 'warning':
         return {
-          icon: <AlertTriangle className="size-4 text-amber-500 shrink-0" />,
-          border: 'border-amber-500/40 bg-amber-500/5',
+          icon: <AlertTriangle className="size-4 text-warning-text shrink-0" />,
+          border: 'border-warning/40 bg-warning/5',
         };
       case 'error':
         return {
-          icon: <AlertCircle className="size-4 text-rose-500 shrink-0" />,
-          border: 'border-rose-500/40 bg-rose-500/5',
+          icon: <AlertCircle className="size-4 text-destructive-text shrink-0" />,
+          border: 'border-destructive/40 bg-destructive/5',
         };
       default:
         return {
-          icon: <Info className="size-4 text-blue-500 shrink-0" />,
-          border: 'border-blue-500/40 bg-blue-500/5',
+          icon: <Info className="size-4 text-info-text shrink-0" />,
+          border: 'border-info/40 bg-info/5',
         };
     }
   };

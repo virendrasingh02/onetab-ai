@@ -32,6 +32,10 @@ const buttonVariants = cva(
           'bg-surface-raised text-muted-foreground hover:bg-selected hover:text-foreground',
         destructive:
           'shadow-xs bg-destructive text-destructive-foreground hover:bg-destructive/90 active:scale-[0.98]',
+        success:
+          'shadow-xs bg-success text-success-foreground hover:bg-success/90 active:scale-[0.98]',
+        warning:
+          'shadow-xs bg-warning text-warning-foreground hover:bg-warning/90 active:scale-[0.98]',
         link: 'text-primary underline-offset-4 hover:underline p-0 h-auto font-normal',
         sidebar:
           'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-sidebar-ring/50',

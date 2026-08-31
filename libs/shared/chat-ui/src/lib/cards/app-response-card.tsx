@@ -69,18 +69,18 @@ export function AppResponseCard({
   const getCardIcon = () => {
     switch (event.cardType) {
       case 'github':
-        return <GitPullRequest className="size-4 text-blue-500" />;
+        return <GitPullRequest className="size-4 text-info-text" />;
       case 'linear':
       case 'jira':
       case 'task':
-        return <Workflow className="size-4 text-violet-500" />;
+        return <Workflow className="size-4 text-accent-violet" />;
       case 'sentry':
-        return <AlertTriangle className="size-4 text-rose-500" />;
+        return <AlertTriangle className="size-4 text-destructive-text" />;
       case 'crm':
       case 'contact':
-        return <Building2 className="size-4 text-emerald-500" />;
+        return <Building2 className="size-4 text-success" />;
       case 'calendar':
-        return <CalendarIcon className="size-4 text-amber-500" />;
+        return <CalendarIcon className="size-4 text-warning-text" />;
       default:
         return <Blocks className="size-4 text-primary" />;
     }
@@ -117,7 +117,7 @@ export function AppResponseCard({
 
               <Badge
                 variant="neutral"
-                className="text-[9px] py-0 h-4 uppercase font-bold tracking-wider bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20 gap-0.5"
+                className="text-[9px] py-0 h-4 uppercase font-bold tracking-wider bg-accent-violet-soft text-accent-violet border-accent-violet/20 gap-0.5"
               >
                 <Blocks className="size-2.5" />
                 <span>{event.category || 'App'}</span>

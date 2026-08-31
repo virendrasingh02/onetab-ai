@@ -140,16 +140,16 @@ export function AgentMessageCard({
         return {
           label: 'Approval Required',
           variant: 'warning' as const,
-          icon: <ShieldAlert className="size-3 text-amber-500 animate-bounce" />,
-          color: 'text-amber-500',
-          border: 'border-amber-500/60 shadow-sm shadow-amber-500/10',
+          icon: <ShieldAlert className="size-3 text-warning-text animate-bounce" />,
+          color: 'text-warning-text',
+          border: 'border-warning/60 shadow-sm shadow-warning/10',
         };
       case 'completed':
         return {
           label: 'Completed',
           variant: 'success' as const,
-          icon: <CheckCircle2 className="size-3 text-emerald-500" />,
-          color: 'text-emerald-600 dark:text-emerald-400',
+          icon: <CheckCircle2 className="size-3 text-success" />,
+          color: 'text-success-text',
           border: 'border-border',
         };
       case 'failed':
@@ -482,7 +482,7 @@ export function AgentMessageCard({
               event.tools.map((t, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   {t.status === 'success' ? (
-                    <Check className="size-3 text-emerald-500" />
+                    <Check className="size-3 text-success" />
                   ) : t.status === 'running' ? (
                     <Loader2 className="size-3 animate-spin text-primary" />
                   ) : t.status === 'failed' ? (
@@ -514,8 +514,8 @@ export function AgentMessageCard({
 
       {/* 3. APPROVAL REQUIRED STATE BANNER */}
       {isWaitingApproval && (
-        <div className="mt-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5 text-xs text-foreground">
-          <div className="flex items-center gap-2 font-bold text-amber-600 dark:text-amber-400">
+        <div className="mt-3 rounded-xl border border-warning/40 bg-warning/10 p-3.5 text-xs text-foreground">
+          <div className="flex items-center gap-2 font-bold text-warning-text">
             <ShieldAlert className="size-4" />
             <span>Approval Required for Execution</span>
           </div>
@@ -525,7 +525,7 @@ export function AgentMessageCard({
           <div className="mt-3 flex items-center gap-2">
             <Button
               size="sm"
-              variant="primary"
+              variant="warning"
               onClick={() =>
                 handleActionClick({
                   id: 'approve',
@@ -533,7 +533,7 @@ export function AgentMessageCard({
                   variant: 'primary',
                 })
               }
-              className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+              className="h-7 text-xs"
             >
               Approve
             </Button>
@@ -547,7 +547,7 @@ export function AgentMessageCard({
                   variant: 'destructive',
                 })
               }
-              className="h-7 text-xs border-amber-500/30 text-amber-600 dark:text-amber-400"
+              className="h-7 text-xs border-warning/30 text-warning-text"
             >
               Reject
             </Button>
@@ -639,7 +639,7 @@ export function AgentMessageCard({
                 key={idx}
                 className="p-2.5 rounded-lg border border-border/80 bg-surface-raised text-xs text-foreground flex items-start gap-2"
               >
-                <Check className="size-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                <Check className="size-3.5 text-success shrink-0 mt-0.5" />
                 <span>{finding}</span>
               </div>
             ))}
@@ -681,7 +681,7 @@ export function AgentMessageCard({
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
                         {tool.status === 'success' ? (
-                          <Check className="size-3 text-emerald-500 shrink-0" />
+                          <Check className="size-3 text-success shrink-0" />
                         ) : tool.status === 'running' ? (
                           <Loader2 className="size-3 animate-spin text-primary shrink-0" />
                         ) : (
@@ -731,7 +731,7 @@ export function AgentMessageCard({
                             <span className="text-[10px] font-bold text-muted-foreground uppercase block">
                               Output
                             </span>
-                            <pre className="p-2 rounded bg-surface-inset text-emerald-600 dark:text-emerald-400 overflow-x-auto mt-0.5">
+                            <pre className="p-2 rounded bg-surface-inset text-success-text overflow-x-auto mt-0.5">
                               {typeof tool.output === 'string'
                                 ? tool.output
                                 : JSON.stringify(tool.output, null, 2)}

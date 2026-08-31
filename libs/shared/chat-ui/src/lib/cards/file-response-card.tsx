@@ -25,12 +25,12 @@ export function FileResponseCard({
   const { openPreview } = useMediaPreview();
 
   const getFileIcon = (file: GeneratedFile) => {
-    if (file.mimeType.startsWith('image/')) return <ImageIcon className="size-4 text-emerald-500" />;
+    if (file.mimeType.startsWith('image/')) return <ImageIcon className="size-4 text-success" />;
     if (file.mimeType.includes('csv') || file.mimeType.includes('spreadsheet') || file.name.endsWith('.xlsx') || file.name.endsWith('.csv')) {
-      return <FileSpreadsheet className="size-4 text-emerald-600" />;
+      return <FileSpreadsheet className="size-4 text-success" />;
     }
     if (file.codeSnippet || file.name.endsWith('.ts') || file.name.endsWith('.js') || file.name.endsWith('.py')) {
-      return <FileCode className="size-4 text-blue-500" />;
+      return <FileCode className="size-4 text-info-text" />;
     }
     return <FileText className="size-4 text-primary" />;
   };

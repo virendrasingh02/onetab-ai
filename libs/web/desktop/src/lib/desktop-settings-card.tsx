@@ -214,7 +214,7 @@ export function DesktopSettingsCard() {
               size="sm"
               onClick={handleTestNotification}
               disabled={!capabilities.notifications}
-              leadingIcon={testNotificationSent ? <CheckCircle2 className="size-3.5 text-emerald-500" /> : <Bell className="size-3.5" />}
+              leadingIcon={testNotificationSent ? <CheckCircle2 className="size-3.5 text-success" /> : <Bell className="size-3.5" />}
             >
               {testNotificationSent ? 'Sent!' : 'Send Test'}
             </Button>

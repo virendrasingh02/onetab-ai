@@ -126,7 +126,7 @@ export function CustomApiModal({
       <DialogContent className="max-w-2xl p-0 flex flex-col overflow-hidden bg-background border-border">
         <DialogHeader className="px-6 py-4 border-b border-border bg-surface flex flex-row items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="size-9 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-500">
+            <div className="size-9 rounded-xl bg-accent-teal-soft flex items-center justify-center text-accent-teal">
               <Code2 className="size-5" />
             </div>
             <div>
@@ -157,7 +157,7 @@ export function CustomApiModal({
               className="w-full mt-1.5 px-3 py-2 text-xs rounded-lg border border-border bg-surface text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono"
             />
             <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
-              <ShieldCheck className="size-3 text-emerald-500" />
+              <ShieldCheck className="size-3 text-success" />
               Private IP ranges and internal metadata endpoints are automatically blocked.
             </p>
           </div>
@@ -263,8 +263,8 @@ export function CustomApiModal({
               className={cn(
                 'p-3.5 rounded-xl border text-xs space-y-1',
                 testResult.success
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'
-                  : 'bg-rose-500/10 border-rose-500/30 text-rose-500',
+                  ? 'bg-success/10 border-success/30 text-success-text'
+                  : 'bg-destructive/10 border-destructive/30 text-destructive-text',
               )}
             >
               <div className="font-semibold flex items-center gap-1.5">

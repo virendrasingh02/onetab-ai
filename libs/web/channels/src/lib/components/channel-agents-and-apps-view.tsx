@@ -537,16 +537,16 @@ export function ChannelAgentsAndAppsView({
 
                     {/* Code block with Diff highlighting */}
                     {msg.codeBlock && (
-                      <div className="mt-3 rounded-xl border border-border bg-[#0d1117] text-[#e6edf3] overflow-hidden font-mono text-xs shadow-md">
-                        <div className="px-3 py-1.5 bg-[#161b22] border-b border-[#30363d] flex items-center justify-between text-[11px]">
-                          <span className="text-[#8b949e] flex items-center gap-1.5">
+                      <div className="mt-3 rounded-xl border border-border bg-surface-inset text-foreground overflow-hidden font-mono text-xs shadow-md">
+                        <div className="px-3 py-1.5 bg-surface-raised border-b border-border flex items-center justify-between text-[11px]">
+                          <span className="text-muted-foreground flex items-center gap-1.5">
                             <Code2 className="size-3.5 text-primary" />
                             <span>{msg.codeBlock.filename || 'snippet.ts'}</span>
                           </span>
                           <button
                             type="button"
                             onClick={() => handleCopyCode(msg.codeBlock!.code)}
-                            className="text-[#8b949e] hover:text-white flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-[#30363d]"
+                            className="text-muted-foreground hover:text-foreground flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-accent"
                           >
                             <Copy className="size-3" />
                             <span>Copy</span>

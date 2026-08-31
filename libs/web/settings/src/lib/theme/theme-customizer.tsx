@@ -412,7 +412,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
                 : 'text-muted-foreground'
             }`}
           >
-            <Sun className="size-3 text-amber-500" />
+            <Sun className="size-3 text-warning-text" />
             <span>Light</span>
           </button>
 
@@ -425,7 +425,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
                 : 'text-muted-foreground'
             }`}
           >
-            <Moon className="size-3 text-indigo-400" />
+            <Moon className="size-3 text-info-text" />
             <span>Dark</span>
           </button>
         </div>
@@ -723,7 +723,7 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
               </Button>
               <Button
                 size="xs"
-                className="text-xs shadow-xs text-white border-0"
+                className="text-xs shadow-xs text-primary-foreground border-0"
                 style={{ background: 'var(--gradient-button, var(--gradient-primary, var(--primary)))' }}
               >
                 Gradient Button

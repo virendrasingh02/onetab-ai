@@ -156,8 +156,8 @@ export function MobileDeviceConfirmPage() {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md shadow-lg border-border text-center">
           <CardHeader className="pb-2">
-            <div className="mx-auto size-14 rounded-full bg-emerald-500/10 flex items-center justify-center mb-3">
-              <CheckCircle2 className="size-8 text-emerald-500" />
+            <div className="mx-auto size-14 rounded-full bg-success/10 flex items-center justify-center mb-3">
+              <CheckCircle2 className="size-8 text-success" />
             </div>
             <CardTitle className="text-xl">Desktop Signed In</CardTitle>
             <CardDescription className="text-xs">
@@ -221,11 +221,11 @@ export function MobileDeviceConfirmPage() {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md shadow-lg border-border text-center">
           <CardHeader className="pb-2">
-            <div className="mx-auto size-12 rounded-full bg-amber-500/10 flex items-center justify-center mb-3">
-              <AlertCircle className="size-6 text-amber-500" />
+            <div className="mx-auto size-12 rounded-full bg-warning/10 flex items-center justify-center mb-3">
+              <AlertCircle className="size-6 text-warning-text" />
             </div>
             <CardTitle className="text-lg">Sign-In Request Unavailable</CardTitle>
-            <CardDescription className="text-xs text-amber-600 dark:text-amber-400">
+            <CardDescription className="text-xs text-warning-text">
               {error || 'This device sign-in request is invalid or has expired.'}
             </CardDescription>
           </CardHeader>
@@ -265,7 +265,7 @@ export function MobileDeviceConfirmPage() {
           <div className="rounded-xl border border-border bg-surface-muted/30 p-4 space-y-3">
             <div className="flex items-center justify-between text-xs pb-2 border-b border-border/60">
               <span className="text-muted-foreground flex items-center gap-1.5">
-                <ShieldCheck className="size-4 text-emerald-500" /> Account
+                <ShieldCheck className="size-4 text-success" /> Account
               </span>
               <span className="font-semibold text-foreground truncate max-w-[200px]">
                 {authUser?.email}

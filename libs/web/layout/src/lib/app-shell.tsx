@@ -333,7 +333,7 @@ export function AppShell() {
           ) : null}
 
           {/* Column 2 / Box 2: the editor panel — the one lifted surface. */}
-          <div className="min-w-0 bg-white shadow-2xs flex h-full flex-1 flex-col overflow-hidden rounded-xl border border-border text-card-foreground dark:bg-card">
+          <div className="min-w-0 bg-card shadow-2xs flex h-full flex-1 flex-col overflow-hidden rounded-xl border border-border text-card-foreground">
             {/*
               The page scroller. `min-h-full` on the content keeps the column
               full-height for pages that fill it (chat) without capping the ones

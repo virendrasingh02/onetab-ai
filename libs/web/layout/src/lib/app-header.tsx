@@ -195,7 +195,7 @@ export function AppHeader({
             onClick={onOpenSearch}
             className={cn(
               'h-7.5 w-52 sm:w-64 md:w-80 gap-2 px-2.5 sm:flex hidden items-center rounded-lg',
-              'text-xs bg-white shadow-2xs border border-border/80 text-muted-foreground dark:bg-card',
+              'text-xs bg-card shadow-2xs border border-border/80 text-muted-foreground',
               'cursor-pointer transition-colors duration-(--duration-fast) ease-standard',
               'hover:border-border-strong hover:bg-accent/40 hover:text-foreground',
               'outline-none focus-visible:ring-1 focus-visible:ring-ring',

@@ -320,7 +320,7 @@ export function CreateWorkspacePage() {
             </ul>
             <Button
               type="button"
-              className="text-white w-full bg-primary"
+              className="w-full"
               onClick={() => navigate(`/w/${result.workspace.slug}`)}
             >
               Go to workspace <ChevronRight className="h-4 w-4 ml-1" />
@@ -335,7 +335,7 @@ export function CreateWorkspacePage() {
   const StepIcon = step.icon;
 
   return (
-    <div className="selection:text-white flex min-h-full flex-col justify-between bg-background text-foreground selection:bg-primary">
+    <div className="selection:text-primary-foreground flex min-h-full flex-col justify-between bg-background text-foreground selection:bg-primary">
       <main className="max-w-6xl px-4 py-8 mx-auto flex w-full flex-1 flex-col justify-center">
         {/* Top Back Navigation */}
         <div className="mb-6">
@@ -621,7 +621,7 @@ export function CreateWorkspacePage() {
                               type="button"
                               onClick={handleAddInvite}
                               size="sm"
-                              className="text-white shrink-0 bg-primary hover:bg-primary"
+                              className="shrink-0"
                             >
                               <Plus className="h-4 w-4 mr-1" /> Add
                             </Button>
@@ -713,7 +713,7 @@ export function CreateWorkspacePage() {
                       {currentStep === 1 ? (
                         <Button
                           type="submit"
-                          className="text-white font-medium bg-primary shadow-lg shadow-primary/30 hover:bg-primary"
+                          className="font-medium shadow-lg shadow-primary/30"
                         >
                           Continue <ChevronRight className="h-4 w-4 ml-1" />
                         </Button>
@@ -731,7 +731,7 @@ export function CreateWorkspacePage() {
                           <Button
                             type="submit"
                             loading={isBusy}
-                            className="text-white font-semibold shadow-xl px-6 bg-gradient-to-r from-primary to-primary-hover shadow-primary/25 hover:from-primary hover:to-primary-hover"
+                            className="text-primary-foreground font-semibold shadow-xl px-6 bg-gradient-to-r from-primary to-primary-hover shadow-primary/25 hover:from-primary hover:to-primary-hover"
                           >
                             <Sparkles className="h-4 w-4 mr-2" />
                             {invitedEmails.length > 0
@@ -795,7 +795,7 @@ export function CreateWorkspacePage() {
                   </div>
                   <div className="gap-2 flex flex-wrap items-center">
                     <Avatar className="h-7 w-7 border border-primary">
-                      <AvatarFallback className="text-white text-xs font-bold bg-primary">
+                      <AvatarFallback className="text-primary-foreground text-xs font-bold bg-primary">
                         YOU
                       </AvatarFallback>
                     </Avatar>

@@ -248,7 +248,7 @@ export function InviteMembersDialog({
               <button
                 type="button"
                 onClick={handleGoogleWorkspace}
-                className="flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-300 font-medium transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 text-xs text-info-text hover:text-info font-medium transition-colors cursor-pointer"
               >
                 <GoogleLogo className="size-3.5" />
                 <span>Add from Google Workspace</span>
@@ -324,7 +324,7 @@ export function InviteMembersDialog({
                       key={ch.id}
                       type="button"
                       onClick={() => setSelectedChannels((prev) => [...prev, ch])}
-                      className="h-6 px-2 gap-1 flex items-center rounded-md bg-cyan-950/40 border border-cyan-800/40 text-cyan-400 hover:bg-cyan-900/50 text-[11px] font-medium transition-colors cursor-pointer"
+                      className="h-6 px-2 gap-1 flex items-center rounded-md bg-accent-cyan-soft border border-accent-cyan/30 text-accent-cyan hover:bg-accent-cyan-soft text-[11px] font-medium transition-colors cursor-pointer"
                     >
                       <Plus className="size-3" />
                       {isPrivate ? (
@@ -438,7 +438,7 @@ export function InviteMembersDialog({
                 className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-medium text-foreground hover:bg-accent/60 transition-colors cursor-pointer"
               >
                 {copiedLink ? (
-                  <Check className="size-3.5 text-emerald-400" />
+                  <Check className="size-3.5 text-success" />
                 ) : (
                   <Link2 className="size-3.5" />
                 )}

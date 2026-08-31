@@ -57,7 +57,7 @@ export function ComponentTree({
               <button
                 type="button"
                 onClick={(e) => toggleCollapse(node.id, e)}
-                className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded"
+                className="p-0.5 hover:bg-accent rounded"
               >
                 {isCollapsed ? (
                   <ChevronRight className="size-3" />
@@ -88,9 +88,9 @@ export function ComponentTree({
                 e.stopPropagation();
                 onToggleLockNode(node.id);
               }}
-              className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded"
+              className="p-1 hover:bg-accent rounded"
             >
-              {node.locked ? <Lock className="size-3 text-amber-400" /> : <Unlock className="size-3 opacity-60" />}
+              {node.locked ? <Lock className="size-3 text-warning-text" /> : <Unlock className="size-3 opacity-60" />}
             </button>
 
             <button
@@ -100,7 +100,7 @@ export function ComponentTree({
                 e.stopPropagation();
                 onDuplicateNode(node.id);
               }}
-              className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded"
+              className="p-1 hover:bg-accent rounded"
             >
               <Copy className="size-3" />
             </button>
@@ -113,7 +113,7 @@ export function ComponentTree({
                   e.stopPropagation();
                   onDeleteNode(node.id);
                 }}
-                className="p-1 hover:bg-rose-500/20 text-rose-400 rounded"
+                className="p-1 hover:bg-destructive/20 text-destructive-text rounded"
               >
                 <Trash2 className="size-3" />
               </button>

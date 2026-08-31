@@ -149,7 +149,7 @@ export function GmailInboxModal({
         {/* Top Header */}
         <DialogHeader className="px-6 py-3 border-b border-border bg-surface flex flex-row items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="size-8 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-500">
+            <div className="size-8 rounded-lg bg-destructive/10 flex items-center justify-center text-destructive-text">
               <Mail className="size-4" />
             </div>
             <div>

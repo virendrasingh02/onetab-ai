@@ -609,7 +609,7 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
         <Dialog open={!!confirmationAction} onOpenChange={() => setConfirmationAction(null)}>
           <DialogContent className="max-w-md bg-surface border-border text-foreground">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-sm font-bold text-rose-500">
+              <DialogTitle className="flex items-center gap-2 text-sm font-bold text-destructive-text">
                 <AlertTriangle className="size-4" />
                 <span>{confirmationAction.confirmationTitle || 'Confirm Action'}</span>
               </DialogTitle>

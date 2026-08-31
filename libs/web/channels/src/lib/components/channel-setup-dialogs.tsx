@@ -373,7 +373,7 @@ export function AddPeopleDialog({
                           </span>
                           <span className="shrink-0 flex items-center justify-center">
                             {isOnline ? (
-                              <span className="size-1.5 rounded-full bg-emerald-500" />
+                              <span className="size-1.5 rounded-full bg-success" />
                             ) : (
                               <span className="size-1.5 rounded-full border border-muted-foreground/60" />
                             )}
@@ -422,7 +422,7 @@ export function AddPeopleDialog({
             <span className="text-xs font-bold text-foreground">
               Try OneTab Connect
             </span>
-            <Badge className="bg-fuchsia-600/20 text-fuchsia-400 border-fuchsia-500/30 text-[10px] font-bold py-0 h-4 px-1.5 uppercase tracking-wide">
+            <Badge className="bg-accent-pink-soft text-accent-pink border-accent-pink/30 text-[10px] font-bold py-0 h-4 px-1.5 uppercase tracking-wide">
               PRO
             </Badge>
           </div>

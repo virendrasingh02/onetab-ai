@@ -661,7 +661,7 @@ function MentionsPlugin({
                   <Bot className="size-3.5" />
                 </span>
               ) : isApp ? (
-                <span className="size-6 bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20 flex shrink-0 items-center justify-center rounded-full border">
+                <span className="size-6 bg-accent-violet-soft text-accent-violet border-accent-violet/20 flex shrink-0 items-center justify-center rounded-full border">
                   <Blocks className="size-3.5" />
                 </span>
               ) : (
@@ -693,7 +693,7 @@ function MentionsPlugin({
                   ) : isApp ? (
                     <Badge
                       variant="neutral"
-                      className="py-0 h-3.5 font-bold tracking-wider bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20 text-[9px] uppercase"
+                      className="py-0 h-3.5 font-bold tracking-wider bg-accent-violet-soft text-accent-violet border-accent-violet/20 text-[9px] uppercase"
                     >
                       APP
                     </Badge>
@@ -730,7 +730,7 @@ function MentionsPlugin({
             {agents.map(renderOption)}
 
             {apps.length > 0 ? (
-              <li className="mt-1 px-2 py-1 font-bold text-violet-500 text-[10px] uppercase">
+              <li className="mt-1 px-2 py-1 font-bold text-accent-violet text-[10px] uppercase">
                 Connected Apps — {apps.length}
               </li>
             ) : null}

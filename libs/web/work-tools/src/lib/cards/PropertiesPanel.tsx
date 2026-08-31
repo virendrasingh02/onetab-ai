@@ -104,7 +104,7 @@ export function PropertiesPanel({
           className="p-1.5 rounded-lg border border-border/60 hover:bg-accent text-foreground transition-colors"
         >
           {selectedNode.locked ? (
-            <Lock className="size-3.5 text-amber-500" />
+            <Lock className="size-3.5 text-warning-text" />
           ) : (
             <Unlock className="size-3.5 text-muted-foreground" />
           )}

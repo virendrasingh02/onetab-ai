@@ -1058,7 +1058,7 @@ function MembersTab({
                                 <span className="shrink-0 flex items-center justify-center">
                                   {isOnline ? (
                                     <span
-                                      className="size-2 rounded-full bg-emerald-500"
+                                      className="size-2 rounded-full bg-success"
                                       aria-label="Online"
                                     />
                                   ) : (
@@ -1200,7 +1200,7 @@ function MembersTab({
                                 <span className="shrink-0 flex items-center justify-center">
                                   {isOnline ? (
                                     <span
-                                      className="size-2 rounded-full bg-emerald-500"
+                                      className="size-2 rounded-full bg-success"
                                       aria-label="Online"
                                     />
                                   ) : (

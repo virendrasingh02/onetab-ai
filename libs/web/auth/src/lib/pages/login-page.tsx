@@ -350,7 +350,7 @@ export function LoginPage() {
                     aria-label="Copy code"
                   >
                     {copiedCode ? (
-                      <CheckCircle2 className="size-3.5 text-emerald-500" />
+                      <CheckCircle2 className="size-3.5 text-success" />
                     ) : (
                       <Copy className="size-3.5" />
                     )}

@@ -43,9 +43,9 @@ export function PdfPreviewCard({
       {/* Top document banner */}
       <div
         onClick={onOpen}
-        className="h-24 bg-gradient-to-br from-red-500/10 via-red-500/5 to-surface-raised p-3 flex flex-col items-center justify-center cursor-pointer border-b border-border/50 transition-opacity hover:opacity-90"
+        className="h-24 bg-gradient-to-br from-destructive/10 via-destructive/5 to-surface-raised p-3 flex flex-col items-center justify-center cursor-pointer border-b border-border/50 transition-opacity hover:opacity-90"
       >
-        <span className="size-9 flex items-center justify-center rounded-lg bg-red-500/15 text-red-500 mb-1 shadow-xs">
+        <span className="size-9 flex items-center justify-center rounded-lg bg-destructive/15 text-destructive-text mb-1 shadow-xs">
           <FileText className="size-4.5" />
         </span>
         <span className="text-xs font-semibold text-foreground/90 tracking-wide">
@@ -219,7 +219,7 @@ export function VideoPreview({
         controls
         preload="metadata"
         poster={attachment.thumbnailUrl}
-        className="w-full max-h-64 object-contain bg-black/40"
+        className="w-full max-h-64 object-contain bg-surface-inset"
         aria-label={attachment.name}
       >
         <source src={attachment.url} type={attachment.mimeType} />

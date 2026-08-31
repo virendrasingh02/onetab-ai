@@ -57,7 +57,7 @@ export function JsonSourceEditor({ card, onChange }: JsonSourceEditorProps) {
       </div>
 
       {error && (
-        <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-mono">
+        <div className="p-2.5 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive-text text-xs font-mono">
           ⚠ {error}
         </div>
       )}

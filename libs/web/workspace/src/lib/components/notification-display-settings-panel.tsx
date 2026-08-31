@@ -212,7 +212,7 @@ export function NotificationDisplaySettingsPanel({
                   Flashes the desktop application icon when you receive a message in the background.
                 </p>
                 {!isTaskbarFlashSupported && (
-                  <p className="text-[10.5px] text-amber-600 dark:text-amber-400 mt-1 italic">
+                  <p className="text-[10.5px] text-warning-text mt-1 italic">
                     Note: Taskbar flashing requires the OneTab Windows desktop app.
                   </p>
                 )}

@@ -262,7 +262,7 @@ export function PriorityIcon({ priority, className }: PriorityIconProps) {
         <svg
           viewBox="0 0 16 16"
           fill="none"
-          className={cn('size-3.5 text-neutral-700 dark:text-neutral-300 shrink-0', className)}
+          className={cn('size-3.5 text-muted-foreground shrink-0', className)}
           aria-hidden="true"
         >
           <rect x="2" y="2" width="12" height="12" rx="2.5" fill="currentColor" />
@@ -281,7 +281,7 @@ export function PriorityIcon({ priority, className }: PriorityIconProps) {
         <svg
           viewBox="0 0 16 16"
           fill="none"
-          className={cn('size-3.5 text-neutral-700 dark:text-neutral-300 shrink-0', className)}
+          className={cn('size-3.5 text-muted-foreground shrink-0', className)}
           aria-hidden="true"
         >
           <rect x="2" y="10" width="2.5" height="4" rx="0.5" fill="currentColor" />
@@ -296,7 +296,7 @@ export function PriorityIcon({ priority, className }: PriorityIconProps) {
         <svg
           viewBox="0 0 16 16"
           fill="none"
-          className={cn('size-3.5 text-neutral-700 dark:text-neutral-300 shrink-0', className)}
+          className={cn('size-3.5 text-muted-foreground shrink-0', className)}
           aria-hidden="true"
         >
           <rect x="2" y="10" width="2.5" height="4" rx="0.5" fill="currentColor" />
@@ -319,7 +319,7 @@ export function PriorityIcon({ priority, className }: PriorityIconProps) {
         <svg
           viewBox="0 0 16 16"
           fill="none"
-          className={cn('size-3.5 text-neutral-700 dark:text-neutral-300 shrink-0', className)}
+          className={cn('size-3.5 text-muted-foreground shrink-0', className)}
           aria-hidden="true"
         >
           <rect x="2" y="10" width="2.5" height="4" rx="0.5" fill="currentColor" />

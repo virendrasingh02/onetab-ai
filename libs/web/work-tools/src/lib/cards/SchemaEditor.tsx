@@ -128,7 +128,7 @@ export function SchemaEditor({ schema, onChange }: SchemaEditorProps) {
               <button
                 type="button"
                 onClick={() => handleRemoveField(key)}
-                className="text-rose-400 hover:text-rose-500 p-1 rounded"
+                className="text-destructive-text hover:text-destructive p-1 rounded"
               >
                 <Trash2 className="size-3.5" />
               </button>

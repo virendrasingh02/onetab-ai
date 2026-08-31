@@ -71,9 +71,9 @@ export function TestConsoleDrawer({ logs, onClearLogs }: TestConsoleDrawerProps)
               >
                 <div className="flex items-start gap-2">
                   {log.success ? (
-                    <CheckCircle2 className="size-3.5 text-emerald-500 mt-0.5 shrink-0" />
+                    <CheckCircle2 className="size-3.5 text-success mt-0.5 shrink-0" />
                   ) : (
-                    <XCircle className="size-3.5 text-rose-500 mt-0.5 shrink-0" />
+                    <XCircle className="size-3.5 text-destructive-text mt-0.5 shrink-0" />
                   )}
                   <div>
                     <div className="flex items-center gap-2">

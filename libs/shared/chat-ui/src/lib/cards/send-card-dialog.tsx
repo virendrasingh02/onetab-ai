@@ -120,13 +120,13 @@ export function SendCardDialog({ open, onOpenChange, onSendCard }: SendCardDialo
   const getCardIcon = (iconName?: string) => {
     switch (iconName) {
       case 'Building2':
-        return <Building2 className="size-4 text-emerald-500" />;
+        return <Building2 className="size-4 text-success" />;
       case 'GitPullRequest':
-        return <GitPullRequest className="size-4 text-blue-500" />;
+        return <GitPullRequest className="size-4 text-info-text" />;
       case 'ShieldAlert':
-        return <ShieldAlert className="size-4 text-amber-500" />;
+        return <ShieldAlert className="size-4 text-warning-text" />;
       case 'Sparkles':
-        return <Sparkles className="size-4 text-violet-500" />;
+        return <Sparkles className="size-4 text-accent-violet" />;
       default:
         return <LayoutGrid className="size-4 text-primary" />;
     }

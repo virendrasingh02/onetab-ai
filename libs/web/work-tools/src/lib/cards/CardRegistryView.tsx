@@ -127,13 +127,13 @@ export function CardRegistryView() {
   const getCardIcon = (iconName?: string) => {
     switch (iconName) {
       case 'Building2':
-        return <Building2 className="size-4 text-emerald-500" />;
+        return <Building2 className="size-4 text-success" />;
       case 'GitPullRequest':
-        return <GitPullRequest className="size-4 text-blue-500" />;
+        return <GitPullRequest className="size-4 text-info-text" />;
       case 'ShieldAlert':
-        return <ShieldAlert className="size-4 text-amber-500" />;
+        return <ShieldAlert className="size-4 text-warning-text" />;
       case 'Sparkles':
-        return <Sparkles className="size-4 text-violet-500" />;
+        return <Sparkles className="size-4 text-accent-violet" />;
       default:
         return <LayoutGrid className="size-4 text-primary" />;
     }
@@ -280,7 +280,7 @@ export function CardRegistryView() {
                           store.deleteCard(card.cardId);
                           toast.info(`Deleted "${card.name}"`);
                         }}
-                        className="text-rose-500 focus:text-rose-500"
+                        className="text-destructive focus:text-destructive"
                       >
                         <Trash2 className="size-3.5 mr-2" />
                         Delete Card

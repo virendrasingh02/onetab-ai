@@ -73,7 +73,7 @@ export function ThemeSettings() {
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Sun className="size-3.5 text-amber-500" />
+                <Sun className="size-3.5 text-warning-text" />
                 <span>Light</span>
               </button>
 
@@ -86,7 +86,7 @@ export function ThemeSettings() {
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Moon className="size-3.5 text-indigo-400" />
+                <Moon className="size-3.5 text-info-text" />
                 <span>Dark</span>
               </button>
 
