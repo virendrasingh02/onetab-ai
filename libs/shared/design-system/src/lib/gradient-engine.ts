@@ -1,4 +1,4 @@
-import type { GradientConfig, GradientStop } from '@org/types';
+import type { GradientConfig } from '@org/types';
 import { hexToRgb, isValidHexColor } from './theme-color-generator.js';
 
 export interface GradientPreset {

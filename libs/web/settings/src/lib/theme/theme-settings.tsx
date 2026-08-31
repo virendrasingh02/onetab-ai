@@ -7,7 +7,6 @@ import {
   type RadiusPreset,
   type ThemePreset,
 } from '@org/design-system';
-import type { ThemeConfig } from '@org/types';
 import { toast } from '@org/ui';
 import { Check, Monitor, Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
@@ -30,12 +29,12 @@ export function ThemeSettings() {
   const handleSelectPreset = (preset: ThemePreset) => {
     if (preset.id === 'default') {
       setCustomTheme(null);
-      setTheme(preset.mode);
       toast.success(`Applied ${preset.name}`);
       return;
     }
 
-    setCustomTheme(preset.config);
+    // Preserve the user's current Color Mode; the preset only sets brand hues.
+    setCustomTheme({ ...preset.config, mode: theme });
     toast.success(`Applied ${preset.name}`);
   };
 
@@ -182,8 +181,8 @@ export function ThemeSettings() {
                         style={{ backgroundColor: color }}
                       />
                     ))}
-                    <span className="text-[10px] text-muted-foreground font-mono ml-auto capitalize">
-                      {preset.mode}
+                    <span className="text-[10px] text-muted-foreground font-mono ml-auto">
+                      light + dark
                     </span>
                   </div>
                 </div>

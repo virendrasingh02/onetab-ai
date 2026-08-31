@@ -8,14 +8,12 @@ import {
   validateAndParseThemeConfig,
 } from '@org/design-system';
 import type { GradientConfig, ThemeConfig } from '@org/types';
-import { Button, Input, toast, UserAvatar } from '@org/ui';
+import { Button, Input, toast } from '@org/ui';
 import {
   Check,
   Download,
   Eye,
-  Layers,
   Moon,
-  Paintbrush,
   Palette,
   RotateCcw,
   Sparkles,
@@ -171,7 +169,9 @@ export function ThemeCustomizer({ onSaved, className = '' }: ThemeCustomizerProp
   };
 
   const handleApplyPreset = (preset: ThemePreset) => {
-    setThemeState(preset.config);
+    // Keep whatever Color Mode the user is on — a preset is a brand identity,
+    // not a light/dark choice. Surfaces are synthesized for the active mode.
+    setThemeState((prev) => ({ ...preset.config, mode: prev.mode }));
     toast.success(`Applied ${preset.name} preset`);
   };
 

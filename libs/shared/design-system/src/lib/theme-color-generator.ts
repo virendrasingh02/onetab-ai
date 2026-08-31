@@ -135,7 +135,7 @@ export function getContrastRatio(rgb1: RgbColor, rgb2: RgbColor): number {
 }
 
 /** Validates whether a string is a valid Hex color code. */
-export function isValidHexColor(hex: string | undefined | null): boolean {
+export function isValidHexColor(hex: string | undefined | null): hex is string {
   if (!hex || typeof hex !== 'string') return false;
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex.trim());
 }

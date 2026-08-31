@@ -7,7 +7,7 @@ import {
 import type { GradientConfig, GradientStop } from '@org/types';
 import { Button, Input } from '@org/ui';
 import { Plus, RotateCcw, RotateCw, Trash2 } from 'lucide-react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 export interface GradientEditorProps {
   value?: GradientConfig | string;
