@@ -1,4 +1,4 @@
-import { Badge, Button, Input, KbdShortcut, ScrollArea } from '@org/ui';
+import { Badge, Button, Input, KbdShortcut } from '@org/ui';
 import { cn } from '@org/utils';
 import { NotificationEnableBar } from '@org/notifications';
 import {
@@ -234,11 +234,8 @@ export function SettingsLayout({
               </div>
             </div>
 
-            {/* Scrollable Nav Items */}
-            <ScrollArea
-              className="min-h-0 py-3 px-3 flex-1"
-              contentClassName="p-2.5 space-y-4"
-            >
+            {/* Native Scrollable Nav Items */}
+            <div className="min-h-0 py-3 px-3 flex-1 overflow-y-auto overflow-x-hidden p-2.5 space-y-4 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
               {visibleGroups.map((group) => {
                 const filteredItems = group.items.filter((item) =>
                   item.label.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -267,7 +264,7 @@ export function SettingsLayout({
                             }
                           }}
                           className={cn(
-                            'px-2.5 py-1.5 font-medium flex w-full items-center justify-between rounded-xl text-left text-[13px] transition-all',
+                            'px-2.5 py-1.5 font-medium flex w-full items-center justify-between rounded-xl text-left text-[13px] transition-all cursor-pointer',
                             isActive
                               ? 'font-semibold shadow-2xs bg-accent text-foreground'
                               : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
@@ -298,17 +295,12 @@ export function SettingsLayout({
                   </div>
                 );
               })}
-            </ScrollArea>
+            </div>
           </aside>
 
-          {/* Main Settings Content Area */}
-          <main className="min-h-0 flex flex-1 flex-col overflow-hidden bg-surface-inset/20">
-            <ScrollArea
-              className="min-h-0 flex-1"
-              contentClassName="p-6 md:p-10"
-            >
-              <div className="max-w-4xl space-y-8 mx-auto">{children}</div>
-            </ScrollArea>
+          {/* Main Settings Content Area (Native Scrolling) */}
+          <main className="min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-hidden bg-surface-inset/20 p-6 md:p-10 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
+            <div className="max-w-4xl space-y-8 mx-auto w-full">{children}</div>
           </main>
         </div>
       </div>

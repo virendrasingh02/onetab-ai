@@ -153,6 +153,18 @@ export function useSessionBootstrap(): void {
           if (cancelled) return;
 
           if (isSessionRejection(error)) {
+            const currentToken = getAccessToken();
+            if (currentToken) {
+              try {
+                const me = await authApi.me();
+                if (!cancelled) {
+                  setSession(me, currentToken);
+                  return;
+                }
+              } catch {
+                // Token also invalid
+              }
+            }
             clear();
             return;
           }

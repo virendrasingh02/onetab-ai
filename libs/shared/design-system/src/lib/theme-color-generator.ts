@@ -1,9 +1,12 @@
 /**
- * Deterministic color mathematics & palette generation engine.
+ * Deterministic color mathematics, WCAG contrast analyzer & palette generation engine.
  *
- * Converts user-selected Brand and Neutral hex colors into full WCAG-compliant
- * CSS custom property variables for both light and dark modes.
+ * Converts user-selected brand/neutral/custom color tokens and gradient configurations
+ * into full WCAG-compliant CSS custom property variables for both light and dark modes.
  */
+
+import type { ThemeConfig } from '@org/types';
+import { generateCssGradient } from './gradient-engine.js';
 
 export interface RgbColor {
   r: number;
@@ -132,8 +135,47 @@ export function getContrastRatio(rgb1: RgbColor, rgb2: RgbColor): number {
 }
 
 /** Validates whether a string is a valid Hex color code. */
-export function isValidHexColor(hex: string): boolean {
+export function isValidHexColor(hex: string | undefined | null): boolean {
+  if (!hex || typeof hex !== 'string') return false;
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex.trim());
+}
+
+/** Result of WCAG contrast ratio analysis between foreground and background. */
+export interface ContrastCheckResult {
+  ratio: number;
+  formattedRatio: string;
+  passesAA: boolean; // >= 4.5:1 for normal text
+  passesAALarge: boolean; // >= 3:1 for large text / UI elements
+  passesAAA: boolean; // >= 7:1
+  level: 'AAA' | 'AA' | 'Fail';
+}
+
+/** Checks WCAG 2.1 contrast ratio between two hex colors. */
+export function checkContrast(fgHex: string, bgHex: string): ContrastCheckResult {
+  const fgRgb = hexToRgb(isValidHexColor(fgHex) ? fgHex : '#ffffff');
+  const bgRgb = hexToRgb(isValidHexColor(bgHex) ? bgHex : '#000000');
+  const ratio = getContrastRatio(fgRgb, bgRgb);
+  const roundedRatio = Math.round(ratio * 10) / 10;
+
+  const passesAA = ratio >= 4.5;
+  const passesAALarge = ratio >= 3.0;
+  const passesAAA = ratio >= 7.0;
+
+  return {
+    ratio: roundedRatio,
+    formattedRatio: `${roundedRatio}:1`,
+    passesAA,
+    passesAALarge,
+    passesAAA,
+    level: passesAAA ? 'AAA' : passesAA ? 'AA' : 'Fail',
+  };
+}
+
+/** Derives optimal accessible foreground (dark or light) for any given background. */
+export function getAccessibleForeground(bgHex: string): string {
+  const rgb = hexToRgb(isValidHexColor(bgHex) ? bgHex : '#ffffff');
+  const lum = getRelativeLuminance(rgb);
+  return lum > 0.42 ? '#11271f' : '#ffffff';
 }
 
 /** Adjusts lightness of a hex color. */
@@ -161,170 +203,383 @@ export function generateShadeRamp(baseHex: string): Record<number, string> {
   return steps;
 }
 
-export interface GeneratedThemeCssVariables {
-  '--primary': string;
-  '--primary-foreground': string;
-  '--primary-hover': string;
-  '--primary-text': string;
-  '--ring': string;
-  '--background': string;
-  '--foreground': string;
-  '--card': string;
-  '--card-foreground': string;
-  '--popover': string;
-  '--popover-foreground': string;
-  '--surface': string;
-  '--surface-muted': string;
-  '--surface-raised': string;
-  '--surface-inset': string;
-  '--border': string;
-  '--border-strong': string;
-  '--input': string;
-  '--muted': string;
-  '--muted-foreground': string;
-  '--accent': string;
-  '--accent-foreground': string;
-  '--selected': string;
-  '--subtle': string;
-  '--disabled': string;
-  '--sidebar': string;
-  '--sidebar-foreground': string;
-  '--sidebar-border': string;
-  '--sidebar-ring': string;
-}
+export type GeneratedThemeCssVariables = Record<string, string>;
 
 /**
- * Computes all CSS variables for custom themes dynamically.
+ * Computes all CSS variables for custom themes dynamically from brand/neutral or full ThemeConfig.
  */
 export function generateThemeVariables(
-  brandHex: string,
-  neutralHex: string,
-  mode: 'light' | 'dark',
+  brandHexOrConfig: string | ThemeConfig,
+  neutralHexOrMode?: string | 'light' | 'dark',
+  resolvedModeArg?: 'light' | 'dark',
 ): GeneratedThemeCssVariables {
-  const safeBrand = isValidHexColor(brandHex) ? brandHex : '#60c686';
-  const safeNeutral = isValidHexColor(neutralHex) ? neutralHex : mode === 'dark' ? '#121212' : '#fcfbf8';
+  let config: ThemeConfig;
+  let mode: 'light' | 'dark';
+
+  if (typeof brandHexOrConfig === 'object' && brandHexOrConfig !== null) {
+    config = brandHexOrConfig;
+    mode = resolvedModeArg || (config.mode === 'dark' ? 'dark' : 'light');
+  } else {
+    const brand = brandHexOrConfig;
+    const neutral = typeof neutralHexOrMode === 'string' && neutralHexOrMode !== 'light' && neutralHexOrMode !== 'dark'
+      ? neutralHexOrMode
+      : undefined;
+    mode = resolvedModeArg || (neutralHexOrMode === 'dark' || neutralHexOrMode === 'light' ? neutralHexOrMode : 'light');
+    config = {
+      mode,
+      type: 'custom',
+      brandColor: brand,
+      neutralColor: neutral,
+    };
+  }
+
+  const customColors = config.colors || {};
+  const customGradients = config.gradients || {};
+  const customTypography = config.typography || {};
+  const customShape = config.shape || {};
+  const customShadows = config.shadows || {};
+  const customBackgrounds = config.backgrounds || {};
+
+  const safeBrand = isValidHexColor(customColors.primary)
+    ? customColors.primary
+    : isValidHexColor(config.brandColor)
+      ? config.brandColor!
+      : '#60c686';
+
+  const safeNeutral = isValidHexColor(customColors.background)
+    ? customColors.background
+    : isValidHexColor(config.neutralColor)
+      ? config.neutralColor!
+      : mode === 'dark'
+        ? '#0a0a0a'
+        : '#fcfbf8';
 
   const brandRgb = hexToRgb(safeBrand);
   const brandHsl = rgbToHsl(brandRgb);
   const neutralHsl = rgbToHsl(hexToRgb(safeNeutral));
 
-  // Determine brand foreground based on luminance
-  const brandLuminance = getRelativeLuminance(brandRgb);
-  const brandForeground = brandLuminance > 0.45 ? '#11271f' : '#ffffff';
+  const brandForeground = customColors.primaryForeground || getAccessibleForeground(safeBrand);
+
+  const variables: Record<string, string> = {};
 
   if (mode === 'dark') {
-    // Dark mode surfaces derived from neutral hue
     const darkHue = neutralHsl.h;
     const darkSat = Math.min(neutralHsl.s, 22);
 
-    const bg = hslToHex({ h: darkHue, s: darkSat, l: 4 });
-    const fg = '#fafafa';
-    const card = hslToHex({ h: darkHue, s: darkSat, l: 8 });
+    const bg = customColors.background || hslToHex({ h: darkHue, s: darkSat, l: 4 });
+    const fg = customColors.foreground || '#fafafa';
+    const card = customColors.card || hslToHex({ h: darkHue, s: darkSat, l: 8 });
+    const cardFg = customColors.cardForeground || fg;
     const popover = hslToHex({ h: darkHue, s: darkSat, l: 11 });
     const surface = hslToHex({ h: darkHue, s: darkSat, l: 8 });
     const surfaceMuted = hslToHex({ h: darkHue, s: darkSat, l: 10 });
     const surfaceRaised = hslToHex({ h: darkHue, s: darkSat, l: 13 });
     const surfaceInset = hslToHex({ h: darkHue, s: darkSat, l: 15 });
 
-    const border = hslToHex({ h: darkHue, s: darkSat, l: 18 });
+    const border = customColors.border || hslToHex({ h: darkHue, s: darkSat, l: 18 });
     const borderStrong = hslToHex({ h: darkHue, s: darkSat, l: 24 });
-    const input = 'rgba(255, 255, 255, 0.15)';
+    const input = customColors.input || 'rgba(255, 255, 255, 0.15)';
 
-    const muted = hslToHex({ h: darkHue, s: darkSat, l: 15 });
-    const mutedFg = hslToHex({ h: darkHue, s: Math.max(5, darkSat * 0.4), l: 68 });
-    const accent = hslToHex({ h: darkHue, s: darkSat, l: 15 });
+    const muted = customColors.muted || hslToHex({ h: darkHue, s: darkSat, l: 15 });
+    const mutedFg = customColors.mutedForeground || hslToHex({ h: darkHue, s: Math.max(5, darkSat * 0.4), l: 68 });
+    const accent = customColors.accent || hslToHex({ h: darkHue, s: darkSat, l: 15 });
+    const accentFg = customColors.accentForeground || fg;
     const selected = hslToHex({ h: brandHsl.h, s: Math.min(60, brandHsl.s), l: 12 });
 
     const primaryHover = adjustLightness(safeBrand, 8);
     const primaryText = adjustLightness(safeBrand, 12);
 
-    return {
+    // Status
+    const destructive = customColors.destructive || '#ff6568';
+    const destructiveFg = customColors.destructiveForeground || '#2b0a0c';
+    const success = customColors.success || '#37b06f';
+    const successFg = customColors.successForeground || '#071812';
+    const warning = customColors.warning || '#e8a33c';
+    const warningFg = customColors.warningForeground || '#2a1f08';
+    const info = customColors.info || '#92aaf0';
+    const infoFg = customColors.infoForeground || '#080d20';
+
+    Object.assign(variables, {
       '--primary': safeBrand,
+      '--color-primary': safeBrand,
       '--primary-foreground': brandForeground,
+      '--color-primary-foreground': brandForeground,
       '--primary-hover': primaryHover,
+      '--color-primary-hover': primaryHover,
       '--primary-text': primaryText,
-      '--ring': safeBrand,
+      '--ring': customColors.ring || safeBrand,
+      '--color-ring': customColors.ring || safeBrand,
+
+      '--secondary': customColors.secondary || '#071812',
+      '--color-secondary': customColors.secondary || '#071812',
+      '--secondary-foreground': customColors.secondaryForeground || '#fafafa',
+      '--color-secondary-foreground': customColors.secondaryForeground || '#fafafa',
+
       '--background': bg,
+      '--color-background': bg,
       '--foreground': fg,
+      '--color-foreground': fg,
+
       '--card': card,
-      '--card-foreground': fg,
+      '--color-card': card,
+      '--card-foreground': cardFg,
+      '--color-card-foreground': cardFg,
+
       '--popover': popover,
+      '--color-popover': popover,
       '--popover-foreground': fg,
+      '--color-popover-foreground': fg,
+
       '--surface': surface,
+      '--color-surface': surface,
       '--surface-muted': surfaceMuted,
+      '--color-surface-muted': surfaceMuted,
       '--surface-raised': surfaceRaised,
+      '--color-surface-raised': surfaceRaised,
       '--surface-inset': surfaceInset,
+      '--color-surface-inset': surfaceInset,
+
       '--border': border,
+      '--color-border': border,
       '--border-strong': borderStrong,
+      '--color-border-strong': borderStrong,
       '--input': input,
+      '--color-input': input,
+
       '--muted': muted,
+      '--color-muted': muted,
       '--muted-foreground': mutedFg,
+      '--color-muted-foreground': mutedFg,
+
       '--accent': accent,
-      '--accent-foreground': fg,
+      '--color-accent': accent,
+      '--accent-foreground': accentFg,
+      '--color-accent-foreground': accentFg,
       '--selected': selected,
-      '--subtle': '#7d817f',
-      '--disabled': '#5a5f5c',
-      '--sidebar': bg,
-      '--sidebar-foreground': fg,
-      '--sidebar-border': border,
+
+      '--destructive': destructive,
+      '--color-destructive': destructive,
+      '--destructive-foreground': destructiveFg,
+      '--color-destructive-foreground': destructiveFg,
+
+      '--success': success,
+      '--color-success': success,
+      '--success-foreground': successFg,
+      '--color-success-foreground': successFg,
+
+      '--warning': warning,
+      '--color-warning': warning,
+      '--warning-foreground': warningFg,
+      '--color-warning-foreground': warningFg,
+
+      '--info': info,
+      '--color-info': info,
+      '--info-foreground': infoFg,
+      '--color-info-foreground': infoFg,
+
+      '--sidebar': customColors.sidebar || bg,
+      '--color-sidebar': customColors.sidebar || bg,
+      '--sidebar-foreground': customColors.sidebarForeground || fg,
+      '--color-sidebar-foreground': customColors.sidebarForeground || fg,
+      '--sidebar-border': customColors.sidebarBorder || border,
+      '--color-sidebar-border': customColors.sidebarBorder || border,
       '--sidebar-ring': safeBrand,
-    };
+    });
+  } else {
+    const lightHue = neutralHsl.h;
+    const lightSat = Math.min(neutralHsl.s, 16);
+
+    const bg = customColors.background || hslToHex({ h: lightHue, s: lightSat, l: 98 });
+    const fg = customColors.foreground || hslToHex({ h: lightHue, s: Math.min(30, lightSat * 2), l: 11 });
+    const card = customColors.card || '#ffffff';
+    const cardFg = customColors.cardForeground || fg;
+    const popover = '#ffffff';
+    const surface = '#ffffff';
+    const surfaceMuted = hslToHex({ h: lightHue, s: lightSat, l: 97 });
+    const surfaceRaised = hslToHex({ h: lightHue, s: lightSat, l: 95 });
+    const surfaceInset = hslToHex({ h: lightHue, s: lightSat, l: 93 });
+
+    const border = customColors.border || hslToHex({ h: lightHue, s: lightSat, l: 92 });
+    const borderStrong = hslToHex({ h: lightHue, s: lightSat, l: 85 });
+    const input = customColors.input || hslToHex({ h: lightHue, s: lightSat, l: 90 });
+
+    const muted = customColors.muted || hslToHex({ h: lightHue, s: lightSat, l: 96 });
+    const mutedFg = customColors.mutedForeground || hslToHex({ h: lightHue, s: Math.max(5, lightSat * 0.8), l: 45 });
+    const accent = customColors.accent || hslToHex({ h: lightHue, s: lightSat, l: 94 });
+    const accentFg = customColors.accentForeground || fg;
+    const selected = hslToHex({ h: brandHsl.h, s: Math.min(40, brandHsl.s * 0.5), l: 92 });
+
+    const primaryHover = adjustLightness(safeBrand, -8);
+    const primaryText = adjustLightness(safeBrand, -20);
+
+    // Status
+    const destructive = customColors.destructive || '#e40014';
+    const destructiveFg = customColors.destructiveForeground || '#ffffff';
+    const success = customColors.success || '#037152';
+    const successFg = customColors.successForeground || '#ffffff';
+    const warning = customColors.warning || '#e8a33c';
+    const warningFg = customColors.warningForeground || '#2a1f08';
+    const info = customColors.info || '#4d6dd6';
+    const infoFg = customColors.infoForeground || '#ffffff';
+
+    Object.assign(variables, {
+      '--primary': safeBrand,
+      '--color-primary': safeBrand,
+      '--primary-foreground': brandForeground,
+      '--color-primary-foreground': brandForeground,
+      '--primary-hover': primaryHover,
+      '--color-primary-hover': primaryHover,
+      '--primary-text': primaryText,
+      '--ring': customColors.ring || primaryText,
+      '--color-ring': customColors.ring || primaryText,
+
+      '--secondary': customColors.secondary || '#f5f5f5',
+      '--color-secondary': customColors.secondary || '#f5f5f5',
+      '--secondary-foreground': customColors.secondaryForeground || '#33473f',
+      '--color-secondary-foreground': customColors.secondaryForeground || '#33473f',
+
+      '--background': bg,
+      '--color-background': bg,
+      '--foreground': fg,
+      '--color-foreground': fg,
+
+      '--card': card,
+      '--color-card': card,
+      '--card-foreground': cardFg,
+      '--color-card-foreground': cardFg,
+
+      '--popover': popover,
+      '--color-popover': popover,
+      '--popover-foreground': fg,
+      '--color-popover-foreground': fg,
+
+      '--surface': surface,
+      '--color-surface': surface,
+      '--surface-muted': surfaceMuted,
+      '--color-surface-muted': surfaceMuted,
+      '--surface-raised': surfaceRaised,
+      '--color-surface-raised': surfaceRaised,
+      '--surface-inset': surfaceInset,
+      '--color-surface-inset': surfaceInset,
+
+      '--border': border,
+      '--color-border': border,
+      '--border-strong': borderStrong,
+      '--color-border-strong': borderStrong,
+      '--input': input,
+      '--color-input': input,
+
+      '--muted': muted,
+      '--color-muted': muted,
+      '--muted-foreground': mutedFg,
+      '--color-muted-foreground': mutedFg,
+
+      '--accent': accent,
+      '--color-accent': accent,
+      '--accent-foreground': accentFg,
+      '--color-accent-foreground': accentFg,
+      '--selected': selected,
+
+      '--destructive': destructive,
+      '--color-destructive': destructive,
+      '--destructive-foreground': destructiveFg,
+      '--color-destructive-foreground': destructiveFg,
+
+      '--success': success,
+      '--color-success': success,
+      '--success-foreground': successFg,
+      '--color-success-foreground': successFg,
+
+      '--warning': warning,
+      '--color-warning': warning,
+      '--warning-foreground': warningFg,
+      '--color-warning-foreground': warningFg,
+
+      '--info': info,
+      '--color-info': info,
+      '--info-foreground': infoFg,
+      '--color-info-foreground': infoFg,
+
+      '--sidebar': customColors.sidebar || bg,
+      '--color-sidebar': customColors.sidebar || bg,
+      '--sidebar-foreground': customColors.sidebarForeground || fg,
+      '--color-sidebar-foreground': customColors.sidebarForeground || fg,
+      '--sidebar-border': customColors.sidebarBorder || border,
+      '--color-sidebar-border': customColors.sidebarBorder || border,
+      '--sidebar-ring': primaryText,
+    });
   }
 
-  // Light mode surfaces derived from neutral hue
-  const lightHue = neutralHsl.h;
-  const lightSat = Math.min(neutralHsl.s, 16);
+  // --- Gradients Processing ---
+  const defaultPrimaryGradient = `linear-gradient(135deg, ${safeBrand} 0%, ${adjustLightness(safeBrand, mode === 'dark' ? 15 : -15)} 100%)`;
+  const defaultAccentGradient = `linear-gradient(135deg, ${safeBrand} 0%, #3b82f6 100%)`;
+  const defaultHeroGradient = `radial-gradient(circle at 50% 0%, ${safeBrand}22 0%, transparent 70%)`;
+  const defaultSidebarGradient = `linear-gradient(180deg, ${variables['--sidebar']} 0%, ${adjustLightness(variables['--sidebar'], mode === 'dark' ? 5 : -3)} 100%)`;
 
-  const bg = hslToHex({ h: lightHue, s: lightSat, l: 98 });
-  const fg = hslToHex({ h: lightHue, s: Math.min(30, lightSat * 2), l: 11 });
-  const card = '#ffffff';
-  const popover = '#ffffff';
-  const surface = '#ffffff';
-  const surfaceMuted = hslToHex({ h: lightHue, s: lightSat, l: 97 });
-  const surfaceRaised = hslToHex({ h: lightHue, s: lightSat, l: 95 });
-  const surfaceInset = hslToHex({ h: lightHue, s: lightSat, l: 93 });
+  variables['--gradient-primary'] = generateCssGradient(customGradients.primary, defaultPrimaryGradient);
+  variables['--gradient-secondary'] = generateCssGradient(customGradients.secondary, defaultAccentGradient);
+  variables['--gradient-accent'] = generateCssGradient(customGradients.accent, defaultAccentGradient);
+  variables['--gradient-hero'] = generateCssGradient(customGradients.hero, defaultHeroGradient);
+  variables['--gradient-sidebar'] = generateCssGradient(customGradients.sidebar, defaultSidebarGradient);
+  variables['--gradient-button'] = generateCssGradient(customGradients.button, variables['--gradient-primary']);
+  variables['--gradient-surface'] = generateCssGradient(customGradients.surface, `linear-gradient(180deg, ${variables['--surface']} 0%, ${variables['--surface-muted']} 100%)`);
+  variables['--gradient-background'] = generateCssGradient(customGradients.background, variables['--background']);
 
-  const border = hslToHex({ h: lightHue, s: lightSat, l: 92 });
-  const borderStrong = hslToHex({ h: lightHue, s: lightSat, l: 85 });
-  const input = hslToHex({ h: lightHue, s: lightSat, l: 90 });
+  // Background types
+  if (customBackgrounds.pageType === 'gradient' && customGradients.background) {
+    variables['--app-gradient'] = generateCssGradient(customGradients.background);
+  }
 
-  const muted = hslToHex({ h: lightHue, s: lightSat, l: 96 });
-  const mutedFg = hslToHex({ h: lightHue, s: Math.max(5, lightSat * 0.8), l: 45 });
-  const accent = hslToHex({ h: lightHue, s: lightSat, l: 94 });
-  const selected = hslToHex({ h: brandHsl.h, s: Math.min(40, brandHsl.s * 0.5), l: 92 });
+  // --- Geometry & Radius Processing ---
+  if (customShape.radiusBase) {
+    variables['--radius'] = customShape.radiusBase;
+  }
+  if (customShape.radiusButton) {
+    variables['--radius-btn'] = customShape.radiusButton;
+  }
+  if (customShape.radiusCard) {
+    variables['--radius-card'] = customShape.radiusCard;
+  }
+  if (customShape.radiusInput) {
+    variables['--radius-input'] = customShape.radiusInput;
+  }
+  if (customShape.radiusDialog) {
+    variables['--radius-dialog'] = customShape.radiusDialog;
+  }
 
-  const primaryHover = adjustLightness(safeBrand, -8);
-  const primaryText = adjustLightness(safeBrand, -20);
+  // --- Typography Processing ---
+  if (customTypography.fontFamily) {
+    variables['--font-sans-stack'] = `'${customTypography.fontFamily}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
+  }
+  if (customTypography.monoFamily) {
+    variables['--font-mono-stack'] = `'${customTypography.monoFamily}', ui-monospace, SFMono-Regular, Menlo, monospace`;
+  }
+  if (customTypography.baseFontSize) {
+    variables['--font-size-base'] = customTypography.baseFontSize;
+  }
+  if (customTypography.headingWeight) {
+    variables['--font-heading-weight'] = customTypography.headingWeight;
+  }
+  if (customTypography.bodyWeight) {
+    variables['--font-body-weight'] = customTypography.bodyWeight;
+  }
+  if (customTypography.lineHeight) {
+    variables['--line-height-base'] = customTypography.lineHeight;
+  }
 
-  return {
-    '--primary': safeBrand,
-    '--primary-foreground': brandForeground,
-    '--primary-hover': primaryHover,
-    '--primary-text': primaryText,
-    '--ring': primaryText,
-    '--background': bg,
-    '--foreground': fg,
-    '--card': card,
-    '--card-foreground': fg,
-    '--popover': popover,
-    '--popover-foreground': fg,
-    '--surface': surface,
-    '--surface-muted': surfaceMuted,
-    '--surface-raised': surfaceRaised,
-    '--surface-inset': surfaceInset,
-    '--border': border,
-    '--border-strong': borderStrong,
-    '--input': input,
-    '--muted': muted,
-    '--muted-foreground': mutedFg,
-    '--accent': accent,
-    '--accent-foreground': fg,
-    '--selected': selected,
-    '--subtle': '#8a958f',
-    '--disabled': '#b4bcb7',
-    '--sidebar': bg,
-    '--sidebar-foreground': fg,
-    '--sidebar-border': border,
-    '--sidebar-ring': primaryText,
-  };
+  // --- Shadows & Elevation Processing ---
+  if (customShadows.elevation) {
+    if (customShadows.elevation === 'none') {
+      variables['--shadow-elevated-value'] = 'none';
+      variables['--shadow-overlay-value'] = 'none';
+    } else if (customShadows.elevation === 'subtle') {
+      variables['--shadow-elevated-value'] = '0 1px 3px rgba(0, 0, 0, 0.05)';
+      variables['--shadow-overlay-value'] = '0 4px 12px rgba(0, 0, 0, 0.08)';
+    } else if (customShadows.elevation === 'dramatic') {
+      variables['--shadow-elevated-value'] = '0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.2)';
+      variables['--shadow-overlay-value'] = '0 25px 50px -12px rgba(0, 0, 0, 0.35)';
+    }
+  }
+
+  return variables;
 }

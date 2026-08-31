@@ -153,6 +153,14 @@
 
   --background-image-app-gradient: var(--app-gradient);
   --background-image-surface-gradient: var(--surface-gradient);
+  --background-image-gradient-primary: var(--gradient-primary);
+  --background-image-gradient-secondary: var(--gradient-secondary);
+  --background-image-gradient-accent: var(--gradient-accent);
+  --background-image-gradient-hero: var(--gradient-hero);
+  --background-image-gradient-sidebar: var(--gradient-sidebar);
+  --background-image-gradient-button: var(--gradient-button);
+  --background-image-gradient-surface: var(--gradient-surface);
+  --background-image-gradient-background: var(--gradient-background);
 
   --radius-xs: 4px;
   --radius-sm: 6px;
@@ -812,6 +820,26 @@
     background: transparent;
   }
 
+  /* Completely remove scrollbar stepper/arrow buttons everywhere */
+  *::-webkit-scrollbar-button,
+  ::-webkit-scrollbar-button,
+  ::-webkit-scrollbar-button:single-button,
+  ::-webkit-scrollbar-button:double-button,
+  ::-webkit-scrollbar-button:vertical:decrement,
+  ::-webkit-scrollbar-button:vertical:increment,
+  ::-webkit-scrollbar-button:horizontal:decrement,
+  ::-webkit-scrollbar-button:horizontal:increment,
+  ::-webkit-scrollbar-button:start:decrement,
+  ::-webkit-scrollbar-button:end:increment {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+  }
+
   ::-webkit-scrollbar-thumb {
     border: 3px solid transparent;
     border-radius: 8px;
@@ -956,4 +984,14 @@
 /* A dragged thumb should not leave the text under it selected. */
 [data-simplebar].simplebar-dragging {
   user-select: none;
+}
+
+/* Global unlayered rule ensuring scrollbar arrow buttons are completely stripped across all browsers */
+*::-webkit-scrollbar-button,
+::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+  border: none !important;
 }

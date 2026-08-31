@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  checkContrast,
   generateShadeRamp,
   generateThemeVariables,
   getContrastRatio,
@@ -68,18 +69,40 @@ describe('theme-color-generator', () => {
       expect(ramp[900].startsWith('#')).toBe(true);
     });
 
-    it('generates complete set of CSS variables for dark and light modes', () => {
-      const darkVars = generateThemeVariables('#ec15e7', '#5a007a', 'dark');
-      expect(darkVars['--primary']).toBe('#ec15e7');
-      expect(darkVars['--background']).toBeDefined();
-      expect(darkVars['--surface']).toBeDefined();
-      expect(darkVars['--border']).toBeDefined();
-      expect(darkVars['--foreground']).toBeDefined();
+    it('evaluates checkContrast with AA and AAA criteria', () => {
+      const whiteOnBlack = checkContrast('#ffffff', '#000000');
+      expect(whiteOnBlack.ratio).toBeGreaterThan(15);
+      expect(whiteOnBlack.passesAA).toBe(true);
+      expect(whiteOnBlack.passesAAA).toBe(true);
+      expect(whiteOnBlack.level).toBe('AAA');
 
-      const lightVars = generateThemeVariables('#ec15e7', '#5a007a', 'light');
-      expect(lightVars['--primary']).toBe('#ec15e7');
-      expect(lightVars['--background']).toBeDefined();
-      expect(lightVars['--foreground']).toBeDefined();
+      const lowContrast = checkContrast('#777777', '#666666');
+      expect(lowContrast.passesAA).toBe(false);
+      expect(lowContrast.level).toBe('Fail');
+    });
+
+    it('generates variables from full ThemeConfig object with gradients and typography', () => {
+      const config = {
+        mode: 'dark' as const,
+        type: 'custom' as const,
+        colors: {
+          primary: '#6366f1',
+          background: '#0f172a',
+        },
+        typography: {
+          fontFamily: 'Inter',
+        },
+        shape: {
+          radiusBase: '8px' as const,
+        },
+      };
+      const vars = generateThemeVariables(config, undefined, 'dark');
+      expect(vars['--primary']).toBe('#6366f1');
+      expect(vars['--color-primary']).toBe('#6366f1');
+      expect(vars['--background']).toBe('#0f172a');
+      expect(vars['--font-sans-stack']).toContain('Inter');
+      expect(vars['--radius']).toBe('8px');
+      expect(vars['--gradient-primary']).toBeDefined();
     });
   });
 });

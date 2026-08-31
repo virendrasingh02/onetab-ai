@@ -79,12 +79,105 @@ export const notificationDisplayPreferencesSchema = z.object({
   size: z.enum(['comfy', 'compact']).default('comfy'),
 });
 
+const hexColorRegex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
+export const gradientStopSchema = z.object({
+  color: z.string().regex(hexColorRegex, 'Invalid hex color'),
+  position: z.number().min(0).max(100),
+  opacity: z.number().min(0).max(1).optional(),
+});
+
+export const gradientConfigSchema = z.object({
+  type: z.enum(['linear', 'radial']),
+  angle: z.number().min(0).max(360).optional(),
+  shape: z.enum(['circle', 'ellipse']).optional(),
+  stops: z.array(gradientStopSchema).min(2),
+});
+
+export const themeColorsConfigSchema = z.object({
+  primary: z.string().regex(hexColorRegex, 'Invalid hex color'),
+  primaryForeground: z.string().regex(hexColorRegex).optional(),
+  secondary: z.string().regex(hexColorRegex).optional(),
+  secondaryForeground: z.string().regex(hexColorRegex).optional(),
+  accent: z.string().regex(hexColorRegex).optional(),
+  accentForeground: z.string().regex(hexColorRegex).optional(),
+  background: z.string().regex(hexColorRegex).optional(),
+  foreground: z.string().regex(hexColorRegex).optional(),
+  card: z.string().regex(hexColorRegex).optional(),
+  cardForeground: z.string().regex(hexColorRegex).optional(),
+  muted: z.string().regex(hexColorRegex).optional(),
+  mutedForeground: z.string().regex(hexColorRegex).optional(),
+  border: z.string().regex(hexColorRegex).optional(),
+  input: z.string().optional(),
+  ring: z.string().regex(hexColorRegex).optional(),
+  destructive: z.string().regex(hexColorRegex).optional(),
+  destructiveForeground: z.string().regex(hexColorRegex).optional(),
+  success: z.string().regex(hexColorRegex).optional(),
+  successForeground: z.string().regex(hexColorRegex).optional(),
+  warning: z.string().regex(hexColorRegex).optional(),
+  warningForeground: z.string().regex(hexColorRegex).optional(),
+  info: z.string().regex(hexColorRegex).optional(),
+  infoForeground: z.string().regex(hexColorRegex).optional(),
+  sidebar: z.string().regex(hexColorRegex).optional(),
+  sidebarForeground: z.string().regex(hexColorRegex).optional(),
+  sidebarBorder: z.string().regex(hexColorRegex).optional(),
+});
+
+export const themeGradientsConfigSchema = z.object({
+  primary: z.union([gradientConfigSchema, z.string()]).optional(),
+  secondary: z.union([gradientConfigSchema, z.string()]).optional(),
+  accent: z.union([gradientConfigSchema, z.string()]).optional(),
+  hero: z.union([gradientConfigSchema, z.string()]).optional(),
+  sidebar: z.union([gradientConfigSchema, z.string()]).optional(),
+  surface: z.union([gradientConfigSchema, z.string()]).optional(),
+  button: z.union([gradientConfigSchema, z.string()]).optional(),
+  background: z.union([gradientConfigSchema, z.string()]).optional(),
+});
+
+export const themeBackgroundsConfigSchema = z.object({
+  pageType: z.enum(['flat', 'gradient', 'subtle-pattern']).default('flat'),
+  sidebarType: z.enum(['flat', 'gradient']).default('flat'),
+  headerType: z.enum(['flat', 'gradient', 'glass']).default('flat'),
+  cardType: z.enum(['flat', 'gradient', 'glass']).default('flat'),
+  glassBlur: z.number().min(0).max(40).optional(),
+  surfaceOpacity: z.number().min(0).max(1).optional(),
+});
+
+export const themeTypographyConfigSchema = z.object({
+  fontFamily: z.string(),
+  monoFamily: z.string().optional(),
+  baseFontSize: z.enum(['13px', '14px', '15px', '16px']).optional(),
+  headingWeight: z.enum(['500', '600', '700', '800']).optional(),
+  bodyWeight: z.enum(['400', '500']).optional(),
+  lineHeight: z.enum(['1.4', '1.5', '1.6']).optional(),
+});
+
+export const themeShapeConfigSchema = z.object({
+  radiusBase: z.enum(['0px', '4px', '6px', '8px', '10px', '12px', '16px', '9999px']),
+  radiusButton: z.enum(['0px', '4px', '6px', '8px', '10px', '12px', '9999px']).optional(),
+  radiusCard: z.enum(['0px', '6px', '8px', '10px', '12px', '16px', '20px']).optional(),
+  radiusInput: z.enum(['0px', '4px', '6px', '8px', '10px', '12px']).optional(),
+  radiusDialog: z.enum(['0px', '8px', '12px', '16px', '24px']).optional(),
+});
+
+export const themeShadowsConfigSchema = z.object({
+  elevation: z.enum(['none', 'subtle', 'balanced', 'elevated', 'dramatic']),
+  borderIntensity: z.enum(['subtle', 'medium', 'strong', 'none']),
+});
+
 export const themeConfigSchema = z.object({
   mode: z.enum(['light', 'dark', 'system']).default('light'),
   type: z.enum(['default', 'custom', 'preset']).default('default'),
-  brandColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, 'Invalid hex color').optional(),
-  neutralColor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, 'Invalid hex color').optional(),
+  name: z.string().optional(),
+  brandColor: z.string().regex(hexColorRegex, 'Invalid hex color').optional(),
+  neutralColor: z.string().regex(hexColorRegex, 'Invalid hex color').optional(),
   presetId: z.string().optional(),
+  colors: themeColorsConfigSchema.partial().optional(),
+  gradients: themeGradientsConfigSchema.partial().optional(),
+  backgrounds: themeBackgroundsConfigSchema.partial().optional(),
+  typography: themeTypographyConfigSchema.partial().optional(),
+  shape: themeShapeConfigSchema.partial().optional(),
+  shadows: themeShadowsConfigSchema.partial().optional(),
 });
 
 export const userPreferencesSchema = z.object({

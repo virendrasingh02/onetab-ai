@@ -38,13 +38,112 @@ export interface PublicUser {
   timezone: string;
 }
 
-/** Theme configuration object stored in user preferences. */
+/** Single stop within a linear or radial gradient. */
+export interface GradientStop {
+  color: string;
+  position: number; // 0 to 100
+  opacity?: number; // 0 to 1
+}
+
+/** Structured gradient definition. */
+export interface GradientConfig {
+  type: 'linear' | 'radial';
+  angle?: number; // 0 to 360 (for linear)
+  shape?: 'circle' | 'ellipse'; // (for radial)
+  stops: GradientStop[];
+}
+
+/** Color tokens configurable by users/admins. */
+export interface ThemeColorsConfig {
+  primary: string;
+  primaryForeground?: string;
+  secondary?: string;
+  secondaryForeground?: string;
+  accent?: string;
+  accentForeground?: string;
+  background?: string;
+  foreground?: string;
+  card?: string;
+  cardForeground?: string;
+  muted?: string;
+  mutedForeground?: string;
+  border?: string;
+  input?: string;
+  ring?: string;
+  destructive?: string;
+  destructiveForeground?: string;
+  success?: string;
+  successForeground?: string;
+  warning?: string;
+  warningForeground?: string;
+  info?: string;
+  infoForeground?: string;
+  sidebar?: string;
+  sidebarForeground?: string;
+  sidebarBorder?: string;
+}
+
+/** Named gradient slots across the platform. */
+export interface ThemeGradientsConfig {
+  primary?: GradientConfig | string;
+  secondary?: GradientConfig | string;
+  accent?: GradientConfig | string;
+  hero?: GradientConfig | string;
+  sidebar?: GradientConfig | string;
+  surface?: GradientConfig | string;
+  button?: GradientConfig | string;
+  background?: GradientConfig | string;
+}
+
+/** Background treatments for specific platform areas. */
+export interface ThemeBackgroundsConfig {
+  pageType: 'flat' | 'gradient' | 'subtle-pattern';
+  sidebarType: 'flat' | 'gradient';
+  headerType: 'flat' | 'gradient' | 'glass';
+  cardType: 'flat' | 'gradient' | 'glass';
+  glassBlur?: number; // px blur amount
+  surfaceOpacity?: number; // 0 to 1
+}
+
+/** Typography customizations. */
+export interface ThemeTypographyConfig {
+  fontFamily: string; // e.g. 'Inter', 'JetBrains Mono', 'Plus Jakarta Sans'
+  monoFamily?: string;
+  baseFontSize?: '13px' | '14px' | '15px' | '16px';
+  headingWeight?: '500' | '600' | '700' | '800';
+  bodyWeight?: '400' | '500';
+  lineHeight?: '1.4' | '1.5' | '1.6';
+}
+
+/** Geometry and border radii customizations. */
+export interface ThemeShapeConfig {
+  radiusBase: '0px' | '4px' | '6px' | '8px' | '10px' | '12px' | '16px' | '9999px';
+  radiusButton?: '0px' | '4px' | '6px' | '8px' | '10px' | '12px' | '9999px';
+  radiusCard?: '0px' | '6px' | '8px' | '10px' | '12px' | '16px' | '20px';
+  radiusInput?: '0px' | '4px' | '6px' | '8px' | '10px' | '12px';
+  radiusDialog?: '0px' | '8px' | '12px' | '16px' | '24px';
+}
+
+/** Shadow elevations and border treatments. */
+export interface ThemeShadowsConfig {
+  elevation: 'none' | 'subtle' | 'balanced' | 'elevated' | 'dramatic';
+  borderIntensity: 'subtle' | 'medium' | 'strong' | 'none';
+}
+
+/** Theme configuration object stored in user/workspace preferences. */
 export interface ThemeConfig {
   mode: 'light' | 'dark' | 'system';
   type: 'default' | 'custom' | 'preset';
-  brandColor?: string;
-  neutralColor?: string;
+  name?: string;
   presetId?: string;
+  brandColor?: string; // Legacy / quick shortcut
+  neutralColor?: string; // Legacy / quick shortcut
+  colors?: Partial<ThemeColorsConfig>;
+  gradients?: Partial<ThemeGradientsConfig>;
+  backgrounds?: Partial<ThemeBackgroundsConfig>;
+  typography?: Partial<ThemeTypographyConfig>;
+  shape?: Partial<ThemeShapeConfig>;
+  shadows?: Partial<ThemeShadowsConfig>;
 }
 
 /** The authenticated user's own profile — adds private fields. */

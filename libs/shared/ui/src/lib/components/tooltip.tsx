@@ -29,13 +29,18 @@ export type TooltipProps = ComponentProps<typeof TooltipPrimitive.Root>;
 
 export function Tooltip({
   disableHoverableContent = true,
+  children,
   ...props
 }: TooltipProps) {
   return (
-    <TooltipPrimitive.Root
-      disableHoverableContent={disableHoverableContent}
-      {...props}
-    />
+    <TooltipPrimitive.Provider disableHoverableContent={disableHoverableContent}>
+      <TooltipPrimitive.Root
+        disableHoverableContent={disableHoverableContent}
+        {...props}
+      >
+        {children}
+      </TooltipPrimitive.Root>
+    </TooltipPrimitive.Provider>
   );
 }
 

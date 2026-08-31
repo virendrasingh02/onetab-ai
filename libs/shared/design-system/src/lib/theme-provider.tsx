@@ -84,16 +84,26 @@ function applyCustomThemeVariables(config: ThemeConfig | null, resolved: Resolve
   const styleId = 'onetab-custom-theme-vars';
   let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
 
-  if (!config || config.type === 'default' || (!config.brandColor && !config.neutralColor)) {
+  const hasCustomData =
+    config &&
+    (config.type !== 'default' ||
+      Boolean(config.brandColor) ||
+      Boolean(config.neutralColor) ||
+      (config.colors && Object.keys(config.colors).length > 0) ||
+      (config.gradients && Object.keys(config.gradients).length > 0) ||
+      (config.typography && Object.keys(config.typography).length > 0) ||
+      (config.shape && Object.keys(config.shape).length > 0) ||
+      (config.shadows && Object.keys(config.shadows).length > 0) ||
+      (config.backgrounds && Object.keys(config.backgrounds).length > 0));
+
+  if (!config || !hasCustomData) {
     if (styleEl) {
       styleEl.remove();
     }
     return;
   }
 
-  const brand = config.brandColor || '#60c686';
-  const neutral = config.neutralColor || (resolved === 'dark' ? '#0a0a0a' : '#fcfbf8');
-  const vars = generateThemeVariables(brand, neutral, resolved);
+  const vars = generateThemeVariables(config, undefined, resolved);
 
   const cssLines = Object.entries(vars)
     .map(([k, v]) => `  ${k}: ${v} !important;`)

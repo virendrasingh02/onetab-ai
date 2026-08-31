@@ -1,6 +1,6 @@
 import { userApi } from '@org/api-client';
 import { useAuthStore, useCurrentUser } from '@org/auth';
-import { Button, LoadingState, ScrollArea, useFocusStore } from '@org/ui';
+import { Button, LoadingState, useFocusStore } from '@org/ui';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { useMutation } from '@tanstack/react-query';
 import { ArrowLeft, Sparkles, UserCheck } from 'lucide-react';
@@ -96,9 +96,9 @@ export function ProfilePage() {
         </div>
       </header>
 
-      {/* Main Scrollable Profile Area */}
-      <main className="min-h-0 flex-1 overflow-hidden bg-surface-inset/15">
-        <ScrollArea className="h-full w-full" contentClassName="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto space-y-8">
+      {/* Main Native Scrollable Profile Area */}
+      <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-surface-inset/15 p-4 sm:p-6 md:p-8 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
+        <div className="max-w-6xl mx-auto space-y-8">
           {/* Profile Header (Cover, Avatar, Main Meta & Actions) */}
           <ProfileHeader
             user={user}
@@ -143,7 +143,7 @@ export function ProfilePage() {
               )}
             </div>
           </div>
-        </ScrollArea>
+        </div>
       </main>
 
       {/* Profile Edit Dialog */}

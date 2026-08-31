@@ -19,7 +19,6 @@ import {
   FormLabel,
   FormMessage,
   Input,
-  ScrollArea,
   Textarea,
   TimezoneSelect,
   toast,
@@ -157,7 +156,7 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
             </DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 overflow-y-auto" contentClassName="p-6 space-y-6">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-6 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
             {/* Visual Cover & Avatar Preview Box */}
             <div className="space-y-2">
               <div className="text-xs font-semibold text-foreground">Cover &amp; Profile Picture</div>
@@ -465,7 +464,7 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
                 </div>
               </form>
             </Form>
-          </ScrollArea>
+          </div>
 
           <DialogFooter className="p-4 bg-surface-muted/60 border-t border-border/60 flex items-center justify-between sm:justify-between gap-2 shrink-0">
             <Button

@@ -35,15 +35,7 @@ export function ThemeSettings() {
       return;
     }
 
-    const config: ThemeConfig = {
-      mode: preset.mode,
-      type: 'preset',
-      presetId: preset.id,
-      brandColor: preset.brandColor,
-      neutralColor: preset.neutralColor,
-    };
-
-    setCustomTheme(config);
+    setCustomTheme(preset.config);
     toast.success(`Applied ${preset.name}`);
   };
 

@@ -47,10 +47,21 @@ export {
   getContrastRatio,
   isValidHexColor,
   adjustLightness,
+  checkContrast,
+  getAccessibleForeground,
   type GeneratedThemeCssVariables,
   type RgbColor,
   type HslColor,
+  type ContrastCheckResult,
 } from './lib/theme-color-generator.js';
+
+export {
+  generateCssGradient,
+  formatColorWithOpacity,
+  isValidGradientConfig,
+  GRADIENT_PRESETS,
+  type GradientPreset,
+} from './lib/gradient-engine.js';
 
 export {
   THEME_PRESETS,
@@ -62,3 +73,20 @@ export {
   downloadThemeConfigFile,
   type ThemeConfigExport,
 } from './lib/theme-config-io.js';
+
+export {
+  ThemeSurface,
+  GradientSurface,
+  ThemeButton,
+  ThemeCard,
+  ThemeBadge,
+  getThemeColor,
+  getThemeGradient,
+  getSurfaceStyle,
+  getThemeTokens,
+  type ThemeSurfaceProps,
+  type GradientSurfaceProps,
+  type ThemeButtonProps,
+  type ThemeCardProps,
+  type ThemeBadgeProps,
+} from './lib/theme-elements.js';

@@ -50,13 +50,13 @@ if (initialToken) {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: initialUser,
-  // Cached identity is a hint, not a session: the bootstrap has to trade the
-  // refresh cookie for a fresh token before anything counts as authenticated.
-  status: 'idle',
+  // If we have cached user and access token, start in authenticated status so UI doesn't flicker
+  status: initialUser && initialToken ? 'authenticated' : 'idle',
 
   setSession: (user, accessToken) => {
     try {
       localStorage.setItem('onetab_auth_user', JSON.stringify(user));
+      localStorage.setItem('onetab_auth_token', accessToken);
     } catch {
       // ignore storage errors
     }
@@ -78,6 +78,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   clear: () => {
     try {
       localStorage.removeItem('onetab_auth_user');
+      localStorage.removeItem('onetab_auth_token');
     } catch {
       // ignore storage errors
     }
