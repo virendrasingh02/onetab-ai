@@ -185,10 +185,25 @@ export const authApi = {
   login: (input: LoginInput) =>
     request<AuthResponse>(http.post('/auth/login', input)),
 
-  logout: () => request<void>(http.post('/auth/logout')),
+  /**
+   * `refreshToken` in the body removes one *background* account from a
+   * multi-account session (its token is revoked server-side, the active
+   * account's cookie is left alone). Omit it for a normal sign-out, which
+   * clears the refresh cookie.
+   */
+  logout: (body: { refreshToken?: string } = {}) =>
+    request<void>(http.post('/auth/logout', body)),
 
-  refresh: (options?: { signal?: AbortSignal }) =>
-    request<AuthTokens>(http.post('/auth/refresh', {}, options)),
+  /**
+   * With no `refreshToken` the API refreshes from the httpOnly cookie (the
+   * single-account path). A background account, which has no cookie of its own,
+   * passes its stored token here instead. Either way the rotated refresh token
+   * comes back in the response so the caller can persist it.
+   */
+  refresh: (
+    body: { refreshToken?: string } = {},
+    options?: { signal?: AbortSignal },
+  ) => request<AuthTokens>(http.post('/auth/refresh', body, options)),
 
   me: () => request<CurrentUser>(http.get('/auth/me')),
 

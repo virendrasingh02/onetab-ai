@@ -36,7 +36,7 @@ describe('POST /auth/register', () => {
     expect(res.data.user.passwordHash).toBeUndefined();
   });
 
-  it('sets the refresh token as an httpOnly cookie, not in the body', async () => {
+  it('sets the refresh token as an httpOnly cookie and also returns it in the body', async () => {
     const res = await api.post('/auth/register', {
       name: 'Cookie Check',
       email: `cookie-${suffix}@example.com`,
@@ -50,7 +50,10 @@ describe('POST /auth/register', () => {
 
     expect(refresh).toBeDefined();
     expect(refresh).toContain('HttpOnly');
-    expect(res.data.refreshToken).toBeUndefined();
+    // The body copy exists for clients that cannot use the cookie — the desktop
+    // shell, and a browser holding this as a background account in a
+    // multi-account session (a browser has only one refresh cookie).
+    expect(res.data.refreshToken).toEqual(expect.any(String));
   });
 
   it('rejects a weak password with field-level errors', async () => {
@@ -112,6 +115,72 @@ describe('POST /auth/login', () => {
     // Identical status and code to the wrong-password case above.
     expect(unknown.status).toBe(401);
     expect(unknown.data.code).toBe('INVALID_CREDENTIALS');
+  });
+});
+
+describe('multi-account refresh & logout (body refresh token)', () => {
+  async function freshAccount(label: string) {
+    const res = await api.post('/auth/register', {
+      name: label,
+      email: `multi-${label}-${suffix}@example.com`,
+      password: user.password,
+      confirmPassword: user.password,
+      acceptTerms: true,
+    });
+    return res.data as { accessToken: string; refreshToken: string };
+  }
+
+  it('rotates a session from a refresh token in the request body (no cookie)', async () => {
+    const account = await freshAccount('rotate');
+
+    const refreshed = await api.post('/auth/refresh', {
+      refreshToken: account.refreshToken,
+    });
+
+    expect(refreshed.status).toBe(200);
+    expect(refreshed.data.accessToken).toEqual(expect.any(String));
+    // The rotated token comes back so the client can persist it.
+    expect(refreshed.data.refreshToken).toEqual(expect.any(String));
+    expect(refreshed.data.refreshToken).not.toBe(account.refreshToken);
+
+    // The spent token is dead — replaying it revokes the family.
+    const replay = await api.post('/auth/refresh', {
+      refreshToken: account.refreshToken,
+    });
+    expect(replay.status).toBe(401);
+  });
+
+  it('a body-token refresh promotes that account into the refresh cookie', async () => {
+    const account = await freshAccount('promote');
+
+    const refreshed = await api.post('/auth/refresh', {
+      refreshToken: account.refreshToken,
+    });
+
+    // The rotated token replaces the cookie, so the cookie always tracks the
+    // account that was just refreshed — the one the client is switching to.
+    const setCookie = refreshed.headers['set-cookie'] ?? [];
+    const cookie = setCookie.find((c: string) => c.startsWith('onetab_rt='));
+    expect(cookie).toBeDefined();
+    expect(cookie).toContain('HttpOnly');
+  });
+
+  it('logout with a body refresh token revokes just that background session', async () => {
+    const account = await freshAccount('logout');
+
+    // Removing a background account runs while another account is signed in, so
+    // the call is authenticated — here, with the account's own still-valid token.
+    const out = await api.post(
+      '/auth/logout',
+      { refreshToken: account.refreshToken },
+      { headers: { Authorization: `Bearer ${account.accessToken}` } },
+    );
+    expect(out.status).toBe(204);
+
+    const afterLogout = await api.post('/auth/refresh', {
+      refreshToken: account.refreshToken,
+    });
+    expect(afterLogout.status).toBe(401);
   });
 });
 

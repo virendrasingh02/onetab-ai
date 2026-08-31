@@ -45,4 +45,14 @@ export interface AuthTokens {
   /** Seconds until `accessToken` expires. */
   expiresIn: number;
   tokenType: 'Bearer';
+  /**
+   * The opaque refresh token.
+   *
+   * Omitted on the plain browser path, where it is delivered as an httpOnly
+   * cookie instead. Present for clients that cannot use that cookie and must
+   * hold the token themselves: the desktop shell, and a browser multi-account
+   * session keeping a *background* account alive (a browser has only one
+   * refresh cookie, so every account past the first carries its own token).
+   */
+  refreshToken?: string;
 }

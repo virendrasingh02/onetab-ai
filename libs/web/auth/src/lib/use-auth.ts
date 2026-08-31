@@ -19,7 +19,28 @@ import type { CurrentUser } from '@org/types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAccountStore } from './account-store.js';
 import { useAuthStore } from './auth.store.js';
+import { refreshActiveAccountToken } from './use-account-switcher.js';
+
+/** Seeds or refreshes the multi-account row for the signed-in identity. */
+function trackAccount(
+  user: CurrentUser,
+  accessToken: string,
+  refreshToken?: string,
+): void {
+  const store = useAccountStore.getState();
+  const existing = store.accounts.find((a) => a.id === user.id);
+  store.upsertAccount({
+    id: user.id,
+    user,
+    accessToken,
+    // Never downgrade a real stored token back to '' on a later cookie-path pass.
+    refreshToken: refreshToken || existing?.refreshToken || '',
+    addedAt: existing?.addedAt ?? Date.now(),
+  });
+  store.setActiveAccountId(user.id);
+}
 
 /** A refusal from the API — the one answer that ends a session. */
 const isSessionRejection = (error: unknown): boolean =>
@@ -59,6 +80,14 @@ if (desktopApiForRefresh) {
     }
     return session.accessToken;
   });
+} else if (typeof window !== 'undefined') {
+  /*
+   * Browser multi-account: a browser holds exactly one refresh cookie, so every
+   * account past the first refreshes from its own token in the account store
+   * instead. The lone primary account still falls through to the cookie. Same
+   * module-scope timing rationale as the desktop provider above.
+   */
+  setRefreshTokenProvider(() => refreshActiveAccountToken());
 }
 
 /*
@@ -147,7 +176,13 @@ export function useSessionBootstrap(): void {
           setAccessToken(tokens.accessToken);
 
           const me = await authApi.me();
-          if (!cancelled) setSession(me, tokens.accessToken);
+          if (!cancelled) {
+            setSession(me, tokens.accessToken);
+            // The cookie was just rotated — keep the multi-account row's stored
+            // token in step with it, or a later switch back to this account
+            // would replay a spent token.
+            trackAccount(me, tokens.accessToken, tokens.refreshToken);
+          }
           return;
         } catch (error) {
           if (cancelled) return;
@@ -217,6 +252,26 @@ export function useSessionBootstrap(): void {
     });
     return () => setSessionExpiredHandler(null);
   }, [clear, navigate]);
+
+  // Once a session is live — however it was restored — make sure it has a
+  // multi-account row so the switcher lists it and the refresh provider can
+  // find it. Its client-side refresh token is backfilled on the first rotation.
+  const liveUser = useAuthStore((state) => state.user);
+  const liveStatus = useAuthStore((state) => state.status);
+  useEffect(() => {
+    if (liveStatus !== 'authenticated' || !liveUser) return;
+    const store = useAccountStore.getState();
+    const known = store.accounts.some((a) => a.id === liveUser.id);
+    // `setSession`/`setUser` already keep an existing row current — only step in
+    // to create the row (and mark it active) the first time.
+    if (known) {
+      if (store.activeAccountId !== liveUser.id) {
+        store.setActiveAccountId(liveUser.id);
+      }
+      return;
+    }
+    trackAccount(liveUser, getAccessToken() ?? '');
+  }, [liveStatus, liveUser]);
 }
 
 export function useLogin() {
@@ -226,6 +281,7 @@ export function useLogin() {
   return useMutation({
     mutationFn: (input: LoginInput) => authApi.login(input),
     onSuccess: (data) => {
+      trackAccount(data.user, data.accessToken, data.refreshToken);
       setSession(data.user, data.accessToken);
       // Anything cached for a previous account must not leak into this one.
       queryClient.clear();
@@ -240,6 +296,7 @@ export function useRegister() {
   return useMutation({
     mutationFn: (input: RegisterInput) => authApi.register(input),
     onSuccess: (data) => {
+      trackAccount(data.user, data.accessToken, data.refreshToken);
       setSession(data.user, data.accessToken);
       queryClient.clear();
     },
@@ -268,6 +325,8 @@ export function useLogout() {
         // Best-effort: local state is cleared below regardless.
       }
       clear();
+      // "Log out" ends *every* linked account, not just the active one.
+      useAccountStore.getState().clearAll();
       queryClient.clear();
       navigate('/login', { replace: true });
     },

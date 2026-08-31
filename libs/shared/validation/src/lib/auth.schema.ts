@@ -133,6 +133,24 @@ export const pollDeviceAuthSchema = z.object({
   secretToken: z.string().min(16).max(128),
 });
 
+/**
+ * Optional refresh token in a request body.
+ *
+ * The browser normally refreshes through the httpOnly `onetab_rt` cookie, but a
+ * browser holds only one such cookie — so a *background* account in a
+ * multi-account session presents its refresh token here instead. Absent means
+ * "use the cookie", which is the single-account path.
+ */
+export const refreshSchema = z
+  .object({
+    refreshToken: z.string().min(16).max(512).optional(),
+  })
+  // A request with no body at all (the single-account path) parses to `{}`.
+  .default({});
+
+/** Logout accepts the same optional body: present revokes one background account. */
+export const logoutSchema = refreshSchema;
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
@@ -140,6 +158,8 @@ export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type DesktopAuthorizeInput = z.infer<typeof desktopAuthorizeSchema>;
 export type DesktopExchangeInput = z.infer<typeof desktopExchangeSchema>;
+export type RefreshInput = z.infer<typeof refreshSchema>;
+export type LogoutInput = z.infer<typeof logoutSchema>;
 
 export type CreateDeviceAuthInput = z.infer<typeof createDeviceAuthSchema>;
 export type DeviceInfoQueryInput = z.infer<typeof deviceInfoQuerySchema>;

@@ -1,6 +1,7 @@
-import { setAccessToken } from '@org/api-client';
+import { getAccessToken, setAccessToken } from '@org/api-client';
 import type { CurrentUser } from '@org/types';
 import { create } from 'zustand';
+import { syncActiveAccount } from './account-store.js';
 
 /**
  * Authentication state.
@@ -61,6 +62,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       // ignore storage errors
     }
     setAccessToken(accessToken);
+    // Keep the multi-account row (if any) pointing at the same identity/token.
+    syncActiveAccount(user, accessToken);
     set({ user, status: 'authenticated' });
   },
 
@@ -70,6 +73,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch {
       // ignore storage errors
     }
+    const token = getAccessToken();
+    if (token) syncActiveAccount(user, token);
     set({ user });
   },
 

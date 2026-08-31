@@ -1,3 +1,5 @@
+import { useAccounts, useRemoveAccount, useSwitchAccount } from '@org/auth';
+import { isDesktop } from '@org/web-desktop';
 import type { WorkspaceSummary } from '@org/types';
 import {
   Badge,
@@ -10,12 +12,14 @@ import {
   EmptyState,
   ScrollArea,
   SearchInput,
+  UserAvatar,
   WorkspaceAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   Building2,
   Check,
+  LogOut,
   MailPlus,
   Plus,
   Search,
@@ -50,6 +54,11 @@ export function ManageAccountsDialog({
   const setInviteMembersOpen = useWorkspaceStore(
     (s: WorkspaceState) => s.setInviteMembersOpen,
   );
+
+  const { accounts, activeAccountId } = useAccounts();
+  const switchAccount = useSwitchAccount();
+  const removeAccount = useRemoveAccount();
+  const accountsBusy = switchAccount.isPending || removeAccount.isPending;
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -104,6 +113,88 @@ export function ManageAccountsDialog({
             />
           </div>
         </DialogHeader>
+
+        {!isDesktop && accounts.length > 0 ? (
+          <div className="px-3 pt-3">
+            <div className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+              Signed-in accounts
+            </div>
+            <div className="space-y-1">
+              {accounts.map((account) => {
+                const isActive = account.id === activeAccountId;
+                return (
+                  <div
+                    key={account.id}
+                    className={cn(
+                      'flex items-center justify-between gap-3 rounded-xl border p-2.5 transition-colors',
+                      isActive
+                        ? 'border-primary/40 bg-primary/5'
+                        : 'border-border/70 bg-card/60',
+                    )}
+                  >
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <UserAvatar
+                        name={account.user.displayName ?? account.user.name}
+                        src={account.user.avatarUrl}
+                        seed={account.id}
+                        indicator={false}
+                        className="size-8 shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-foreground">
+                          {account.user.displayName ?? account.user.name}
+                        </div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          {account.user.email}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {isActive ? (
+                        <Badge
+                          variant="outline"
+                          className="gap-1 border-primary/40 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+                        >
+                          <UserCheck className="size-3.5" />
+                          <span>Active</span>
+                        </Badge>
+                      ) : (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-7 px-2.5 text-xs font-medium"
+                          disabled={accountsBusy}
+                          loading={
+                            switchAccount.isPending &&
+                            switchAccount.variables === account.id
+                          }
+                          onClick={() => {
+                            onOpenChange(false);
+                            switchAccount.mutate(account.id);
+                          }}
+                        >
+                          Switch
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Sign out of ${account.user.email}`}
+                        title="Sign out of this account"
+                        className="size-7 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        disabled={accountsBusy}
+                        onClick={() => removeAccount.mutate(account.id)}
+                      >
+                        <LogOut className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         <ScrollArea className="max-h-[380px] p-3">
           {filtered.length === 0 ? (

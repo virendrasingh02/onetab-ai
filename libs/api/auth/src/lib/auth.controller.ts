@@ -22,7 +22,9 @@ import {
   exchangeDeviceAuthSchema,
   forgotPasswordSchema,
   loginSchema,
+  logoutSchema,
   pollDeviceAuthSchema,
+  refreshSchema,
   registerSchema,
   rejectDeviceAuthSchema,
   resetPasswordSchema,
@@ -34,7 +36,9 @@ import {
   type ExchangeDeviceAuthInput,
   type ForgotPasswordInput,
   type LoginInput,
+  type LogoutInput,
   type PollDeviceAuthInput,
+  type RefreshInput,
   type RegisterInput,
   type RejectDeviceAuthInput,
   type ResetPasswordInput,
@@ -100,7 +104,11 @@ export class AuthController {
       this.contextOf(request),
     );
     this.setRefreshCookie(response, session);
-    return { user, ...session.tokens };
+    // `refreshToken` in the body as well as the cookie: a browser adding this as
+    // a second account cannot keep a cookie for it (only one per browser), so it
+    // stores the token itself. Harmless for the plain path — the cookie is what
+    // that one reads.
+    return { user, ...session.tokens, refreshToken: session.refreshToken };
   }
 
   @Public()
@@ -117,7 +125,9 @@ export class AuthController {
       this.contextOf(request),
     );
     this.setRefreshCookie(response, session);
-    return { user, ...session.tokens };
+    // See `register` — the body copy is for a browser holding this as a
+    // background account alongside another.
+    return { user, ...session.tokens, refreshToken: session.refreshToken };
   }
 
   @Public()
@@ -127,11 +137,17 @@ export class AuthController {
   async refresh(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
+    @Body(zodBody(refreshSchema)) body: RefreshInput,
   ) {
-    const token = request.cookies?.[REFRESH_COOKIE];
+    // An explicit body token wins: a multi-account client sends it to refresh
+    // (and switch to) a specific account regardless of which one the browser's
+    // single refresh cookie currently holds. Everyone else falls back to that
+    // cookie. Either way the rotated token replaces the cookie, so it always
+    // tracks the account that was just refreshed — the one becoming active.
+    const token = body.refreshToken ?? request.cookies?.[REFRESH_COOKIE];
     const session = await this.auth.refresh(token, this.contextOf(request));
     this.setRefreshCookie(response, session);
-    return session.tokens;
+    return { ...session.tokens, refreshToken: session.refreshToken };
   }
 
   @Post('logout')
@@ -139,7 +155,14 @@ export class AuthController {
   async logout(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
+    @Body(zodBody(logoutSchema)) body: LogoutInput,
   ): Promise<void> {
+    // A specific token in the body means "drop this background account" — revoke
+    // it server-side but leave the active account's cookie in place.
+    if (body.refreshToken) {
+      await this.auth.logout(body.refreshToken);
+      return;
+    }
     const token = request.cookies?.[REFRESH_COOKIE];
     await this.auth.logout(token);
     this.clearRefreshCookie(response);

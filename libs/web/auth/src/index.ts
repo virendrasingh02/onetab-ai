@@ -7,6 +7,23 @@ export {
 } from './lib/auth.store.js';
 
 export {
+  useAccountStore,
+  selectAccounts,
+  selectActiveAccount,
+  selectActiveAccountId,
+  getActiveAccount,
+  type Account,
+} from './lib/account-store.js';
+
+export {
+  useAccounts,
+  useAddAccount,
+  useSwitchAccount,
+  useRemoveAccount,
+  type AddAccountInput,
+} from './lib/use-account-switcher.js';
+
+export {
   formErrorMessage,
   useCurrentUser,
   useForgotPassword,

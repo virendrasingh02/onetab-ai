@@ -1,10 +1,24 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { WorkspaceRole, WorkspaceStatus, type WorkspaceSummary } from '@org/types';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import type { ReactElement } from 'react';
 import { ManageAccountsDialog } from './manage-accounts-dialog.js';
+
+/** The dialog now pulls the multi-account switcher hooks, which need a client. */
+function renderInProviders(ui: ReactElement) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
 
 const mockWorkspaces: WorkspaceSummary[] = [
   {
@@ -49,16 +63,14 @@ const mockWorkspaces: WorkspaceSummary[] = [
 
 describe('ManageAccountsDialog', () => {
   it('renders all connected workspaces with distinct emails and active badges', () => {
-    render(
-      <MemoryRouter>
-        <ManageAccountsDialog
-          open={true}
-          onOpenChange={vi.fn()}
-          workspaces={mockWorkspaces}
-          currentWorkspace={mockWorkspaces[0]}
-          userEmail="virendra@gmail.com"
-        />
-      </MemoryRouter>,
+    renderInProviders(
+      <ManageAccountsDialog
+        open={true}
+        onOpenChange={vi.fn()}
+        workspaces={mockWorkspaces}
+        currentWorkspace={mockWorkspaces[0]}
+        userEmail="virendra@gmail.com"
+      />,
     );
 
     expect(screen.getByText('Manage Workspaces & Accounts')).toBeInTheDocument();
@@ -74,16 +86,14 @@ describe('ManageAccountsDialog', () => {
     const onSwitchWorkspace = vi.fn();
     const onOpenChange = vi.fn();
 
-    render(
-      <MemoryRouter>
-        <ManageAccountsDialog
-          open={true}
-          onOpenChange={onOpenChange}
-          workspaces={mockWorkspaces}
-          currentWorkspace={mockWorkspaces[0]}
-          onSwitchWorkspace={onSwitchWorkspace}
-        />
-      </MemoryRouter>,
+    renderInProviders(
+      <ManageAccountsDialog
+        open={true}
+        onOpenChange={onOpenChange}
+        workspaces={mockWorkspaces}
+        currentWorkspace={mockWorkspaces[0]}
+        onSwitchWorkspace={onSwitchWorkspace}
+      />,
     );
 
     const switchBtn = screen.getByRole('button', { name: 'Switch' });
