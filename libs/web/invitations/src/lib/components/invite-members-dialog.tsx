@@ -81,7 +81,9 @@ export function InviteMembersDialog({
 
   const [emails, setEmails] = useState<string[]>([]);
   const [emailInput, setEmailInput] = useState('');
-  const [selectedChannels, setSelectedChannels] = useState<ChannelSummary[]>([]);
+  const [selectedChannels, setSelectedChannels] = useState<ChannelSummary[]>(
+    [],
+  );
   const [channelSearch, setChannelSearch] = useState('');
   const [showChannelDropdown, setShowChannelDropdown] = useState(false);
   const [showGoogleBanner, setShowGoogleBanner] = useState(true);
@@ -99,22 +101,34 @@ export function InviteMembersDialog({
 
   const { invite } = useInvitationMutations(workspaceId);
 
-  const allChannels: ChannelSummary[] = channelsQuery.data ?? [];
+  /*
+   * Memoized: `channelsQuery.data ?? []` is a fresh array literal on every
+   * render while the query is disabled (`open` is false), and this value feeds
+   * the reset effect's dep array below. Without the memo the effect re-ran
+   * every render and its `setEmails([])` / `setSelectedChannels([])` calls
+   * (new `[]` each time, never `Object.is`-equal) scheduled another render —
+   * an infinite loop for as long as the closed dialog stayed mounted in
+   * `AppShell`.
+   */
+  const allChannels = useMemo<ChannelSummary[]>(
+    () => channelsQuery.data ?? [],
+    [channelsQuery.data],
+  );
 
   useEffect(() => {
     if (!open) {
-      setEmails([]);
-      setEmailInput('');
-      setSelectedChannels([]);
-      setChannelSearch('');
-      setShowChannelDropdown(false);
+      setEmails((prev) => (prev.length ? [] : prev));
+      setEmailInput((prev) => (prev ? '' : prev));
+      setSelectedChannels((prev) => (prev.length ? [] : prev));
+      setChannelSearch((prev) => (prev ? '' : prev));
+      setShowChannelDropdown((prev) => (prev ? false : prev));
     } else if (defaultScope?.type === 'CHANNEL' && defaultScope.id) {
       const matched = allChannels.find((c) => c.id === defaultScope.id);
       if (matched) {
         setSelectedChannels([matched]);
       }
     }
-  }, [open, defaultScope, allChannels]);
+  }, [open, defaultScope?.type, defaultScope?.id, allChannels]);
 
   const addEmailsFromText = (text: string) => {
     const parsed = parseEmails(text);
@@ -202,27 +216,27 @@ export function InviteMembersDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl p-0 overflow-visible gap-0 border-border bg-surface shadow-2xl rounded-2xl">
+      <DialogContent className="sm:max-w-xl p-0 gap-0 shadow-2xl overflow-visible rounded-2xl border-border bg-surface">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 pb-3">
+        <div className="p-5 pb-3 flex items-center justify-between">
           <h2 className="text-base font-bold text-foreground">
             Invite people to {workspaceName}
           </h2>
-          <button
+          {/* <button
             type="button"
             onClick={() => onOpenChange(false)}
             className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors cursor-pointer"
             aria-label="Close"
           >
             <X className="size-4" />
-          </button>
+          </button> */}
         </div>
 
         <div className="pb-4 space-y-3">
           {/* Google directory promo banner (dismissible) */}
           {showGoogleBanner && (
-            <div className="mx-5 p-3 rounded-xl bg-surface-inset/70 border border-border/80 flex items-start justify-between gap-3 text-xs">
-              <p className="text-muted-foreground leading-relaxed">
+            <div className="mx-5 p-3 gap-3 text-xs flex items-start justify-between rounded-xl border border-border/80 bg-surface-inset/70">
+              <p className="leading-relaxed text-muted-foreground">
                 <span className="font-bold text-foreground">
                   Does your team use Google?
                 </span>{' '}
@@ -231,7 +245,7 @@ export function InviteMembersDialog({
               <button
                 type="button"
                 onClick={() => setShowGoogleBanner(false)}
-                className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors shrink-0 cursor-pointer"
+                className="p-0.5 rounded shrink-0 cursor-pointer text-muted-foreground transition-colors hover:text-foreground"
                 aria-label="Dismiss banner"
               >
                 <X className="size-3.5" />
@@ -248,7 +262,7 @@ export function InviteMembersDialog({
               <button
                 type="button"
                 onClick={handleGoogleWorkspace}
-                className="flex items-center gap-1.5 text-xs text-info-text hover:text-info font-medium transition-colors cursor-pointer"
+                className="gap-1.5 text-xs font-medium flex cursor-pointer items-center text-info-text transition-colors hover:text-info"
               >
                 <GoogleLogo className="size-3.5" />
                 <span>Add from Google Workspace</span>
@@ -257,21 +271,23 @@ export function InviteMembersDialog({
 
             <div
               onClick={() => emailInputRef.current?.focus()}
-              className="min-h-[86px] w-full p-2.5 gap-1.5 flex flex-wrap items-start content-start rounded-xl border border-border bg-surface-inset/40 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all cursor-text"
+              className="p-2.5 gap-1.5 flex min-h-[86px] w-full cursor-text flex-wrap content-start items-start rounded-xl border border-border bg-surface-inset/40 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary"
             >
               {emails.map((email) => (
                 <span
                   key={email}
-                  className="h-6 pl-2 pr-1.5 gap-1 flex items-center rounded-md bg-surface border border-border text-xs font-medium text-foreground select-none"
+                  className="h-6 pl-2 pr-1.5 gap-1 text-xs font-medium flex items-center rounded-md border border-border bg-surface text-foreground select-none"
                 >
-                  <span className="truncate max-w-[220px]">{email}</span>
+                  <span className="max-w-[220px] truncate">{email}</span>
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setEmails((prev) => prev.filter((item) => item !== email));
+                      setEmails((prev) =>
+                        prev.filter((item) => item !== email),
+                      );
                     }}
-                    className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+                    className="p-0.5 rounded text-muted-foreground hover:bg-accent hover:text-foreground"
                   >
                     <X className="size-3" />
                   </button>
@@ -299,7 +315,7 @@ export function InviteMembersDialog({
                     ? 'Ex. ellis@onetab.ai, maria@onetab.ai'
                     : 'Add more...'
                 }
-                className="flex-1 min-w-[180px] bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none border-none p-1"
+                className="text-xs p-1 min-w-[180px] flex-1 border-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
                 autoFocus
               />
             </div>
@@ -309,12 +325,14 @@ export function InviteMembersDialog({
           <div className="px-5 pt-1 space-y-2">
             <label className="text-xs font-bold text-foreground">
               Add to channels{' '}
-              <span className="font-normal text-muted-foreground">(optional)</span>
+              <span className="font-normal text-muted-foreground">
+                (optional)
+              </span>
             </label>
 
             {suggestedChannels.length > 0 && (
-              <div className="flex items-center gap-1.5 flex-wrap text-xs">
-                <span className="text-[11px] text-muted-foreground font-medium mr-0.5">
+              <div className="gap-1.5 text-xs flex flex-wrap items-center">
+                <span className="font-medium mr-0.5 text-[11px] text-muted-foreground">
                   Suggested:
                 </span>
                 {suggestedChannels.map((ch) => {
@@ -323,8 +341,10 @@ export function InviteMembersDialog({
                     <button
                       key={ch.id}
                       type="button"
-                      onClick={() => setSelectedChannels((prev) => [...prev, ch])}
-                      className="h-6 px-2 gap-1 flex items-center rounded-md bg-accent-cyan-soft border border-accent-cyan/30 text-accent-cyan hover:bg-accent-cyan-soft text-[11px] font-medium transition-colors cursor-pointer"
+                      onClick={() =>
+                        setSelectedChannels((prev) => [...prev, ch])
+                      }
+                      className="h-6 px-2 gap-1 font-medium flex cursor-pointer items-center rounded-md border border-accent-cyan/30 bg-accent-cyan-soft text-[11px] text-accent-cyan transition-colors hover:bg-accent-cyan-soft"
                     >
                       <Plus className="size-3" />
                       {isPrivate ? (
@@ -343,19 +363,19 @@ export function InviteMembersDialog({
             <div className="relative">
               <div
                 onClick={() => channelSearchRef.current?.focus()}
-                className="min-h-9 w-full px-2.5 py-1.5 gap-1.5 flex flex-wrap items-center rounded-xl border border-border bg-surface-inset/40 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all cursor-text"
+                className="min-h-9 px-2.5 py-1.5 gap-1.5 flex w-full cursor-text flex-wrap items-center rounded-xl border border-border bg-surface-inset/40 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary"
               >
                 {selectedChannels.map((ch) => (
                   <span
                     key={ch.id}
-                    className="h-6 pl-2 pr-1.5 gap-1 flex items-center rounded-md bg-surface border border-border text-xs font-medium text-foreground select-none"
+                    className="h-6 pl-2 pr-1.5 gap-1 text-xs font-medium flex items-center rounded-md border border-border bg-surface text-foreground select-none"
                   >
                     {ch.visibility === 'PRIVATE' ? (
                       <Lock className="size-3 text-muted-foreground" />
                     ) : (
                       <Hash className="size-3 text-muted-foreground" />
                     )}
-                    <span className="truncate max-w-[150px]">{ch.name}</span>
+                    <span className="max-w-[150px] truncate">{ch.name}</span>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -364,7 +384,7 @@ export function InviteMembersDialog({
                           prev.filter((item) => item.id !== ch.id),
                         );
                       }}
-                      className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+                      className="p-0.5 rounded text-muted-foreground hover:bg-accent hover:text-foreground"
                     >
                       <X className="size-3" />
                     </button>
@@ -385,17 +405,17 @@ export function InviteMembersDialog({
                       ? 'Search channels'
                       : 'Add another channel...'
                   }
-                  className="flex-1 min-w-[140px] bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none border-none p-0.5"
+                  className="text-xs p-0.5 min-w-[140px] flex-1 border-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
                 />
               </div>
 
               {showChannelDropdown && (
                 <>
                   <div
-                    className="fixed inset-0 z-40"
+                    className="inset-0 fixed z-40"
                     onClick={() => setShowChannelDropdown(false)}
                   />
-                  <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto rounded-xl border border-border bg-surface-raised shadow-xl p-1 space-y-0.5">
+                  <div className="left-0 right-0 mt-1 max-h-48 shadow-xl p-1 space-y-0.5 absolute top-full z-50 overflow-y-auto rounded-xl border border-border bg-surface-raised">
                     {filteredChannels.length === 0 ? (
                       <p className="py-3 text-xs text-center text-muted-foreground">
                         No matching channels
@@ -410,14 +430,16 @@ export function InviteMembersDialog({
                             setChannelSearch('');
                             setShowChannelDropdown(false);
                           }}
-                          className="w-full px-2.5 py-1.5 flex items-center gap-2 rounded-lg text-left text-xs hover:bg-accent transition-colors cursor-pointer text-foreground"
+                          className="px-2.5 py-1.5 gap-2 text-xs flex w-full cursor-pointer items-center rounded-lg text-left text-foreground transition-colors hover:bg-accent"
                         >
                           {ch.visibility === 'PRIVATE' ? (
-                            <Lock className="size-3.5 text-muted-foreground shrink-0" />
+                            <Lock className="size-3.5 shrink-0 text-muted-foreground" />
                           ) : (
-                            <Hash className="size-3.5 text-muted-foreground shrink-0" />
+                            <Hash className="size-3.5 shrink-0 text-muted-foreground" />
                           )}
-                          <span className="font-medium truncate">{ch.name}</span>
+                          <span className="font-medium truncate">
+                            {ch.name}
+                          </span>
                         </button>
                       ))
                     )}
@@ -429,13 +451,13 @@ export function InviteMembersDialog({
         </div>
 
         {/* Footer / Actions */}
-        <div className="p-5 pt-3 flex items-center justify-between gap-3 border-t border-border/60">
+        <div className="p-5 pt-3 gap-3 flex items-center justify-between border-t border-border/60">
           <DropdownMenu>
-            <div className="inline-flex rounded-lg border border-border bg-surface overflow-hidden divide-x divide-border">
+            <div className="inline-flex divide-x divide-border overflow-hidden rounded-lg border border-border bg-surface">
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-medium text-foreground hover:bg-accent/60 transition-colors cursor-pointer"
+                className="px-3 py-1.5 gap-1.5 text-xs font-medium flex cursor-pointer items-center text-foreground transition-colors hover:bg-accent/60"
               >
                 {copiedLink ? (
                   <Check className="size-3.5 text-success" />
@@ -447,7 +469,7 @@ export function InviteMembersDialog({
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="px-1.5 py-1.5 hover:bg-accent/60 transition-colors text-muted-foreground hover:text-foreground cursor-pointer"
+                  className="px-1.5 py-1.5 cursor-pointer text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
                   aria-label="Link options"
                 >
                   <ChevronDown className="size-3.5" />
@@ -455,7 +477,10 @@ export function InviteMembersDialog({
               </DropdownMenuTrigger>
             </div>
             <DropdownMenuContent align="start" className="w-52 text-xs">
-              <DropdownMenuItem onClick={handleCopyLink} className="cursor-pointer">
+              <DropdownMenuItem
+                onClick={handleCopyLink}
+                className="cursor-pointer"
+              >
                 <Copy className="size-3.5 mr-2" />
                 Copy Standard Link
               </DropdownMenuItem>

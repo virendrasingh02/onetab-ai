@@ -71,8 +71,13 @@ export function InvitationsPage() {
   // Mutations
   const { resend, revoke } = useInvitationMutations(workspaceId);
 
-  const allInvitations = invitationsQuery.data ?? [];
-  const allLinks = linksQuery.data ?? [];
+  // Memoized so the `?? []` fallback keeps a stable identity across renders —
+  // otherwise every dependent `useMemo` below recomputes on every render.
+  const allInvitations = useMemo(
+    () => invitationsQuery.data ?? [],
+    [invitationsQuery.data],
+  );
+  const allLinks = useMemo(() => linksQuery.data ?? [], [linksQuery.data]);
 
   const handleCopyLink = (invitation: Invitation) => {
     const url = invitation.token
