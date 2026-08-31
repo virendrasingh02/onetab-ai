@@ -26,6 +26,7 @@ import {
   Hint,
   PRESENCE_LABELS,
   toPresenceStatus,
+  UserAvatar,
   type PresenceStatus,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -123,41 +124,25 @@ function DirectMessageRow({
           })
         }
       >
-        {member.user.avatarUrl ? (
-          <div className="relative shrink-0">
-            <img
-              src={member.user.avatarUrl}
-              alt=""
-              className="size-4 rounded-full object-cover"
+        <div className="relative shrink-0">
+          <UserAvatar
+            name={name}
+            src={member.user.avatarUrl}
+            seed={member.user.id}
+            indicator={false}
+            className="size-4"
+          />
+          <Hint label={PRESENCE_LABELS[presence]} side="top">
+            <span
+              title={PRESENCE_LABELS[presence]}
+              aria-label={`${name} is ${PRESENCE_LABELS[presence]}`}
+              className={cn(
+                'right-0 bottom-0 absolute size-1.5 rounded-full ring-1 ring-background cursor-default pointer-events-auto',
+                PRESENCE_DOT[presence],
+              )}
             />
-            <Hint label={PRESENCE_LABELS[presence]} side="top">
-              <span
-                title={PRESENCE_LABELS[presence]}
-                aria-label={`${name} is ${PRESENCE_LABELS[presence]}`}
-                className={cn(
-                  'right-0 bottom-0 absolute size-1.5 rounded-full ring-1 ring-background cursor-default pointer-events-auto',
-                  PRESENCE_DOT[presence],
-                )}
-              />
-            </Hint>
-          </div>
-        ) : (
-          <div className="relative shrink-0">
-            <div className="size-4 rounded-full bg-accent-amber/20 text-accent-amber flex items-center justify-center text-[9px] font-bold">
-              {name.charAt(0).toUpperCase()}
-            </div>
-            <Hint label={PRESENCE_LABELS[presence]} side="top">
-              <span
-                title={PRESENCE_LABELS[presence]}
-                aria-label={`${name} is ${PRESENCE_LABELS[presence]}`}
-                className={cn(
-                  'right-0 bottom-0 absolute size-1.5 rounded-full ring-1 ring-background cursor-default pointer-events-auto',
-                  PRESENCE_DOT[presence],
-                )}
-              />
-            </Hint>
-          </div>
-        )}
+          </Hint>
+        </div>
 
         <span className="flex-1 truncate">{name}</span>
 
@@ -357,20 +342,14 @@ function GroupDmRow({
             ? group.avatarMembers.slice(0, 2)
             : [{ userId: group.roomId, displayName: group.name }]
           ).map((member) => (
-            <span
+            <UserAvatar
               key={member.userId}
-              className="size-4 overflow-hidden rounded-full bg-accent-amber/20 text-[8px] font-bold text-accent-amber ring-1 ring-background flex items-center justify-center"
-            >
-              {'avatarUrl' in member && member.avatarUrl ? (
-                <img
-                  src={member.avatarUrl}
-                  alt=""
-                  className="size-full object-cover"
-                />
-              ) : (
-                member.displayName.charAt(0).toUpperCase()
-              )}
-            </span>
+              name={member.displayName}
+              src={'avatarUrl' in member ? member.avatarUrl : undefined}
+              seed={member.userId}
+              indicator={false}
+              className="size-4 text-[8px] ring-1 ring-background"
+            />
           ))}
         </span>
 
