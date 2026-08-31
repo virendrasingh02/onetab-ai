@@ -130,24 +130,32 @@ function DirectMessageRow({
               alt=""
               className="size-4 rounded-full object-cover"
             />
-            <span
-              className={cn(
-                'right-0 bottom-0 absolute size-1.5 rounded-full ring-1 ring-background',
-                PRESENCE_DOT[presence],
-              )}
-            />
+            <Hint label={PRESENCE_LABELS[presence]} side="top">
+              <span
+                title={PRESENCE_LABELS[presence]}
+                aria-label={`${name} is ${PRESENCE_LABELS[presence]}`}
+                className={cn(
+                  'right-0 bottom-0 absolute size-1.5 rounded-full ring-1 ring-background cursor-default pointer-events-auto',
+                  PRESENCE_DOT[presence],
+                )}
+              />
+            </Hint>
           </div>
         ) : (
           <div className="relative shrink-0">
             <div className="size-4 rounded-full bg-accent-amber/20 text-accent-amber flex items-center justify-center text-[9px] font-bold">
               {name.charAt(0).toUpperCase()}
             </div>
-            <span
-              className={cn(
-                'right-0 bottom-0 absolute size-1.5 rounded-full ring-1 ring-background',
-                PRESENCE_DOT[presence],
-              )}
-            />
+            <Hint label={PRESENCE_LABELS[presence]} side="top">
+              <span
+                title={PRESENCE_LABELS[presence]}
+                aria-label={`${name} is ${PRESENCE_LABELS[presence]}`}
+                className={cn(
+                  'right-0 bottom-0 absolute size-1.5 rounded-full ring-1 ring-background cursor-default pointer-events-auto',
+                  PRESENCE_DOT[presence],
+                )}
+              />
+            </Hint>
           </div>
         )}
 

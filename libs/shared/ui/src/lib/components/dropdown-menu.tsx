@@ -196,18 +196,40 @@ export function DropdownMenuSeparator({
   );
 }
 
+import { KbdShortcut } from './kbd.js';
+
+export interface DropdownMenuShortcutProps extends ComponentProps<'span'> {
+  keys?: string[] | string;
+}
+
 export function DropdownMenuShortcut({
   className,
+  keys,
+  children,
   ...props
-}: ComponentProps<'span'>) {
+}: DropdownMenuShortcutProps) {
+  if (keys) {
+    return (
+      <span className={cn('pl-3 ml-auto inline-flex items-center', className)} {...props}>
+        <KbdShortcut keys={keys} size="xs" variant="muted" />
+      </span>
+    );
+  }
+
   return (
     <span
       className={cn(
-        'pl-3 font-normal tracking-wide ml-auto font-mono text-[10px] text-subtle',
+        'pl-3 font-normal tracking-wide ml-auto font-mono text-[10px] text-subtle inline-flex items-center gap-1',
         className,
       )}
       {...props}
-    />
+    >
+      {typeof children === 'string' ? (
+        <KbdShortcut shortcut={children} size="xs" variant="muted" />
+      ) : (
+        children
+      )}
+    </span>
   );
 }
 

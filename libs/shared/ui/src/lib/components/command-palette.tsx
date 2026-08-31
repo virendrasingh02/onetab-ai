@@ -15,6 +15,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ScrollArea } from './scroll-area.js';
 import { Dialog, DialogContent, DialogTitle } from './dialog.js';
+import { Kbd, KbdShortcut, useKeyboardShortcut } from './kbd.js';
 
 export interface CommandPaletteProps {
   open: boolean;
@@ -255,9 +256,9 @@ export function CommandPalette({
             aria-label={placeholder}
             className="h-11 text-xs w-full bg-transparent text-foreground outline-none placeholder:text-subtle"
           />
-          <kbd className="px-1.5 py-0.5 rounded-btn border border-border bg-surface-raised font-mono text-[10px] text-muted-foreground">
+          <Kbd size="xs" variant="muted">
             ESC
-          </kbd>
+          </Kbd>
         </div>
 
         <ScrollArea className="max-h-96" contentClassName="p-1.5">
@@ -306,9 +307,7 @@ export function CommandPalette({
                     </div>
                     <div className="gap-2 flex items-center">
                       {item.shortcut ? (
-                        <kbd className="rounded px-1.5 py-0.5 border border-border bg-surface-raised font-mono text-[10px] text-subtle">
-                          {item.shortcut}
-                        </kbd>
+                        <KbdShortcut shortcut={item.shortcut} size="xs" variant="muted" />
                       ) : null}
                       {isSelected ? (
                         <ArrowRight className="size-3 text-primary" />
@@ -324,15 +323,15 @@ export function CommandPalette({
         <div className="px-4 py-2 flex items-center justify-between border-t border-border bg-surface-muted text-[11px] text-subtle">
           <div className="gap-3 flex items-center">
             <span className="gap-1 flex items-center">
-              <kbd className="rounded px-1 py-0.5 border border-border bg-surface-raised font-mono text-[9px]">
+              <Kbd size="xs" variant="default">
                 ↵
-              </kbd>{' '}
+              </Kbd>{' '}
               select
             </span>
             <span className="gap-1 flex items-center">
-              <kbd className="rounded px-1 py-0.5 border border-border bg-surface-raised font-mono text-[9px]">
+              <Kbd size="xs" variant="default">
                 ↑↓
-              </kbd>{' '}
+              </Kbd>{' '}
               navigate
             </span>
           </div>
@@ -348,24 +347,21 @@ export function CommandPalette({
 export function useCommandPalette() {
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const isInput =
-        ['INPUT', 'TEXTAREA', 'SELECT'].includes(
-          (event.target as HTMLElement)?.tagName,
-        ) || (event.target as HTMLElement)?.isContentEditable;
+  useKeyboardShortcut(
+    'mod+k',
+    () => {
+      setOpen((prev) => !prev);
+    },
+    { enableOnInput: true },
+  );
 
-      if (event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey)) {
-        event.preventDefault();
-        setOpen((prev) => !prev);
-      } else if (event.key === '/' && !isInput) {
-        event.preventDefault();
-        setOpen(true);
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, []);
+  useKeyboardShortcut(
+    '/',
+    () => {
+      setOpen(true);
+    },
+    { enableOnInput: false },
+  );
 
   return { open, setOpen };
 }

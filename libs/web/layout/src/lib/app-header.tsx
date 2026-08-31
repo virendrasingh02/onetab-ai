@@ -7,12 +7,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Hint,
+  KbdShortcut,
   toast,
   UserAvatar,
   useFocusStore,
   useRightPanelStore,
 } from '@org/ui';
-import { NotificationBell, type ActivityIndicator } from '@org/notifications';
+import type { ActivityIndicator } from '@org/notifications';
 import { useLogout } from '@org/auth';
 import { cn } from '@org/utils';
 import { ProfileEditModal } from '@org/web-profile';
@@ -90,18 +91,13 @@ export function AppHeader({
 }: AppHeaderProps) {
   const logout = useLogout();
   const navigate = useNavigate();
-  const { appInfo, toggleMaximize } = useDesktop();
+  const { toggleMaximize } = useDesktop();
 
   // This row draws the window's own drag strip and minimise/maximise/close
   // controls (see the section markup below) instead of leaving that to the
   // fallback `DesktopTitleBar`, so it tells that fallback to stand down for
   // as long as it's on screen — otherwise a workspace would show both.
   useClaimsWindowChrome();
-
-  const isApple = appInfo
-    ? appInfo.platform === 'darwin'
-    : /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
-  const searchShortcut = isApple ? '⌘K' : 'Ctrl K';
 
   const openStatusModal = useFocusStore((s) => s.openStatusModal);
   const isRightPanelOpen = useRightPanelStore((s) => s.open);
@@ -219,9 +215,12 @@ export function AppHeader({
               aria-hidden
             />
             <span className="truncate">Search…</span>
-            <kbd className="px-1.5 py-0.5 rounded ml-auto shrink-0 border border-border/60 bg-muted/60 font-mono text-[10px] text-subtle">
-              {searchShortcut}
-            </kbd>
+            <KbdShortcut
+              keys={['mod', 'K']}
+              size="xs"
+              variant="muted"
+              className="ml-auto shrink-0"
+            />
           </button>
         </div>
 
@@ -263,16 +262,6 @@ export function AppHeader({
               <Search className="size-4" />
             </Button>
           </Hint>
-
-          {/* Notifications bell */}
-          {workspaceId ? (
-            <div style={NO_DRAG}>
-              <NotificationBell
-                workspaceId={workspaceId}
-                workspaceSlug={workspaceSlug}
-              />
-            </div>
-          ) : null}
 
           {/* Help & Resources */}
           <Hint label="Help & Resources">
@@ -461,7 +450,7 @@ export function AppHeader({
                   <Keyboard className="size-3.5 text-muted-foreground" />
                   <span>Keyboard shortcuts</span>
                 </div>
-                <span className="text-[10px] font-mono text-muted-foreground">⌘/</span>
+                <KbdShortcut keys={['mod', '/']} size="xs" variant="muted" />
               </DropdownMenuItem>
 
               <DropdownMenuSeparator className="my-1 border-border/60" />

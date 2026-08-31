@@ -1,4 +1,5 @@
 import { TASK_STATUS_ORDER, type TaskStatus } from '@org/types';
+import { KbdShortcut } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   Calendar,
@@ -169,9 +170,7 @@ export function LinearFilterMenu({
             className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
             autoFocus
           />
-          <kbd className="shrink-0 pointer-events-none inline-flex h-4 items-center rounded border border-border bg-muted px-1 text-[10px] font-mono font-medium text-muted-foreground">
-            F
-          </kbd>
+          <KbdShortcut keys={['F']} size="xs" variant="muted" className="shrink-0 pointer-events-none" />
         </div>
       </div>
 

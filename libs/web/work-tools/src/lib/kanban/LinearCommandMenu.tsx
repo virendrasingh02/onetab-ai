@@ -3,6 +3,8 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
+  Kbd,
+  KbdShortcut,
 } from '@org/ui';
 import {
   FolderKanban,
@@ -90,9 +92,9 @@ export function LinearCommandMenu({
             placeholder="Type a command or search issues, projects..."
             className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/70 outline-none"
           />
-          <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-border bg-muted/60 text-[10px] font-mono text-muted-foreground">
+          <Kbd size="xs" variant="muted" className="hidden sm:inline-flex">
             ESC
-          </kbd>
+          </Kbd>
         </div>
 
         {/* Scrollable Command Items List */}
@@ -166,9 +168,7 @@ export function LinearCommandMenu({
                 <Plus className="size-4 text-primary" />
                 <span className="font-medium text-foreground">Create new issue</span>
               </div>
-              <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted/60 text-[10px] font-mono text-muted-foreground">
-                C
-              </kbd>
+              <KbdShortcut keys={['C']} size="xs" variant="muted" />
             </button>
 
             <button
@@ -183,9 +183,7 @@ export function LinearCommandMenu({
                 <Search className="size-4 text-primary" />
                 <span className="font-medium text-foreground">Filter issues & tasks</span>
               </div>
-              <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted/60 text-[10px] font-mono text-muted-foreground">
-                F
-              </kbd>
+              <KbdShortcut keys={['F']} size="xs" variant="muted" />
             </button>
 
             <button
@@ -271,10 +269,10 @@ export function LinearCommandMenu({
         <div className="px-4 py-2 bg-muted/40 border-t border-border/50 flex items-center justify-between text-[11px] text-muted-foreground">
           <div className="flex items-center gap-2">
             <span>Navigation:</span>
-            <kbd className="px-1 py-0.2 rounded border bg-surface text-[10px]">↑</kbd>
-            <kbd className="px-1 py-0.2 rounded border bg-surface text-[10px]">↓</kbd>
+            <Kbd size="xs" variant="default">↑</Kbd>
+            <Kbd size="xs" variant="default">↓</Kbd>
             <span>Select:</span>
-            <kbd className="px-1 py-0.2 rounded border bg-surface text-[10px]">↵</kbd>
+            <Kbd size="xs" variant="default">↵</Kbd>
           </div>
           <span>Linear Command Palette</span>
         </div>

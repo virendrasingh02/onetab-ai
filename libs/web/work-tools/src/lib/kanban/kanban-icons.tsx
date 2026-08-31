@@ -1,15 +1,82 @@
 import { TaskStatus } from '@org/types';
+import { Hint } from '@org/ui';
 import { cn } from '@org/utils';
 import type { Priority } from './types.js';
 
 /* ----------------------------------------------------------- status icons --- */
 
 export interface StatusIconProps {
-  status: TaskStatus | 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'CANCELLED';
+  status:
+    | TaskStatus
+    | 'BACKLOG'
+    | 'TODO'
+    | 'IN_PROGRESS'
+    | 'IN_REVIEW'
+    | 'DONE'
+    | 'CANCELLED'
+    | string;
   className?: string;
+  /** Whether to show a tooltip on hover. Defaults to true. */
+  showTooltip?: boolean;
+  /** Optional custom tooltip text. Defaults to the formatted status name. */
+  tooltipLabel?: string;
+  /** Tooltip placement side. Defaults to 'top'. */
+  side?: 'top' | 'right' | 'bottom' | 'left';
 }
 
-export function StatusIcon({ status, className }: StatusIconProps) {
+export function getStatusLabel(
+  status?:
+    | TaskStatus
+    | 'BACKLOG'
+    | 'TODO'
+    | 'IN_PROGRESS'
+    | 'IN_REVIEW'
+    | 'DONE'
+    | 'CANCELLED'
+    | string
+    | null,
+): string {
+  switch (status) {
+    case 'BACKLOG':
+    case TaskStatus.BACKLOG:
+      return 'Backlog';
+    case 'TODO':
+    case TaskStatus.TODO:
+      return 'Planned';
+    case 'IN_PROGRESS':
+    case TaskStatus.IN_PROGRESS:
+      return 'In Progress';
+    case 'IN_REVIEW':
+    case TaskStatus.IN_REVIEW:
+      return 'In Review';
+    case 'DONE':
+    case TaskStatus.DONE:
+      return 'Completed';
+    case 'CANCELLED':
+    case TaskStatus.CANCELLED:
+      return 'Cancelled';
+    default:
+      if (!status) return 'Status';
+      return String(status)
+        .replace(/_/g, ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+}
+
+function renderStatusSvg(
+  status:
+    | TaskStatus
+    | 'BACKLOG'
+    | 'TODO'
+    | 'IN_PROGRESS'
+    | 'IN_REVIEW'
+    | 'DONE'
+    | 'CANCELLED'
+    | string,
+  className?: string,
+  label?: string,
+) {
   switch (status) {
     case 'BACKLOG':
     case TaskStatus.BACKLOG:
@@ -18,7 +85,8 @@ export function StatusIcon({ status, className }: StatusIconProps) {
           viewBox="0 0 16 16"
           fill="none"
           className={cn('size-3.5 text-accent-amber shrink-0', className)}
-          aria-hidden="true"
+          aria-label={label ?? 'Backlog'}
+          role="img"
         >
           <circle
             cx="8"
@@ -39,7 +107,8 @@ export function StatusIcon({ status, className }: StatusIconProps) {
           viewBox="0 0 16 16"
           fill="none"
           className={cn('size-3.5 text-muted-foreground/70 shrink-0', className)}
-          aria-hidden="true"
+          aria-label={label ?? 'Planned'}
+          role="img"
         >
           <polygon
             points="8,2 13.5,5.2 13.5,10.8 8,14 2.5,10.8 2.5,5.2"
@@ -58,7 +127,8 @@ export function StatusIcon({ status, className }: StatusIconProps) {
           viewBox="0 0 16 16"
           fill="none"
           className={cn('size-3.5 text-accent-amber shrink-0', className)}
-          aria-hidden="true"
+          aria-label={label ?? 'In Progress'}
+          role="img"
         >
           <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
           <path
@@ -75,7 +145,8 @@ export function StatusIcon({ status, className }: StatusIconProps) {
           viewBox="0 0 16 16"
           fill="none"
           className={cn('size-3.5 text-primary shrink-0', className)}
-          aria-hidden="true"
+          aria-label={label ?? 'In Review'}
+          role="img"
         >
           <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
           <circle cx="8" cy="8" r="3" fill="currentColor" />
@@ -90,7 +161,8 @@ export function StatusIcon({ status, className }: StatusIconProps) {
           viewBox="0 0 16 16"
           fill="none"
           className={cn('size-3.5 text-accent-blue shrink-0', className)}
-          aria-hidden="true"
+          aria-label={label ?? 'Completed'}
+          role="img"
         >
           <circle cx="8" cy="8" r="6.75" fill="currentColor" />
           <path
@@ -111,7 +183,8 @@ export function StatusIcon({ status, className }: StatusIconProps) {
           viewBox="0 0 16 16"
           fill="none"
           className={cn('size-3.5 text-muted-foreground/70 shrink-0', className)}
-          aria-hidden="true"
+          aria-label={label ?? 'Cancelled'}
+          role="img"
         >
           <circle cx="8" cy="8" r="6.75" fill="currentColor" />
           <path
@@ -126,13 +199,39 @@ export function StatusIcon({ status, className }: StatusIconProps) {
     default:
       return (
         <span
+          title={label}
+          aria-label={label ?? 'Status'}
+          role="img"
           className={cn(
-            'size-3.5 rounded-full border border-muted-foreground shrink-0',
+            'size-3.5 rounded-full border border-muted-foreground shrink-0 inline-block',
             className,
           )}
         />
       );
   }
+}
+
+export function StatusIcon({
+  status,
+  className,
+  showTooltip = true,
+  tooltipLabel,
+  side = 'top',
+}: StatusIconProps) {
+  const label = tooltipLabel ?? getStatusLabel(status);
+  const icon = renderStatusSvg(status, className, label);
+
+  if (!showTooltip) {
+    return icon;
+  }
+
+  return (
+    <Hint label={label} side={side}>
+      <span className="inline-flex items-center justify-center shrink-0">
+        {icon}
+      </span>
+    </Hint>
+  );
 }
 
 /* --------------------------------------------------------- priority icons --- */

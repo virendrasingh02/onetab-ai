@@ -2,6 +2,7 @@ import { cn } from '@org/utils';
 import * as MenubarPrimitive from '@radix-ui/react-menubar';
 import { Check, ChevronRight, Circle } from 'lucide-react';
 import type { ComponentProps } from 'react';
+import { KbdShortcut } from './kbd.js';
 
 export const MenubarMenu = MenubarPrimitive.Menu;
 export const MenubarGroup = MenubarPrimitive.Group;
@@ -219,18 +220,42 @@ export function MenubarSeparator({
   );
 }
 
+export interface MenubarShortcutProps extends ComponentProps<'span'> {
+  keys?: string[] | string;
+}
+
 export function MenubarShortcut({
   className,
+  keys,
+  children,
   ...props
-}: ComponentProps<'span'>) {
+}: MenubarShortcutProps) {
+  if (keys) {
+    return (
+      <span
+        data-slot="menubar-shortcut"
+        className={cn('ml-auto inline-flex items-center', className)}
+        {...props}
+      >
+        <KbdShortcut keys={keys} size="xs" variant="muted" />
+      </span>
+    );
+  }
+
   return (
     <span
       data-slot="menubar-shortcut"
       className={cn(
-        'ml-auto text-[10px] tracking-widest font-mono text-muted-foreground',
+        'ml-auto text-[10px] tracking-widest font-mono text-muted-foreground inline-flex items-center gap-1',
         className,
       )}
       {...props}
-    />
+    >
+      {typeof children === 'string' ? (
+        <KbdShortcut shortcut={children} size="xs" variant="muted" />
+      ) : (
+        children
+      )}
+    </span>
   );
 }

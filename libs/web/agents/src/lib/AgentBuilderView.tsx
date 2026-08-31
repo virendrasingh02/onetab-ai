@@ -22,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
   Hint,
+  KbdShortcut,
   toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -718,8 +719,8 @@ function StatusBar({
       </div>
 
       <div className="flex items-center gap-4 text-[11px]">
-        <span className="hidden sm:inline text-muted-foreground/70">
-          <kbd className="px-1 py-0.5 rounded bg-surface-raised border border-border text-[10px] font-mono">Del</kbd> delete · <kbd className="px-1 py-0.5 rounded bg-surface-raised border border-border text-[10px] font-mono">Space+Drag</kbd> pan · <kbd className="px-1 py-0.5 rounded bg-surface-raised border border-border text-[10px] font-mono">Ctrl+S</kbd> save
+        <span className="hidden sm:inline-flex items-center gap-1.5 text-muted-foreground/70">
+          <KbdShortcut keys={['Delete']} size="xs" variant="muted" /> delete · <KbdShortcut shortcut="Space+Drag" size="xs" variant="muted" /> pan · <KbdShortcut keys={['mod', 'S']} size="xs" variant="muted" /> save
         </span>
 
         <span

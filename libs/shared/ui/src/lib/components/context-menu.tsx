@@ -123,10 +123,12 @@ export function ContextMenuContent({ className, children, ...props }: ContextMen
   );
 }
 
+import { KbdShortcut } from './kbd.js';
+
 export interface ContextMenuItemProps extends ComponentProps<'button'> {
   inset?: boolean;
   destructive?: boolean;
-  shortcut?: string;
+  shortcut?: string | string[];
   icon?: ReactNode;
 }
 
@@ -166,7 +168,11 @@ export function ContextMenuItem({
     >
       {icon && <span className="mr-2 size-4 shrink-0 text-muted-foreground [&_svg]:size-4">{icon}</span>}
       <span className="flex-1 text-left">{children}</span>
-      {shortcut && <kbd className="ml-auto text-[10px] tracking-widest text-subtle">{shortcut}</kbd>}
+      {shortcut && (
+        <span className="ml-auto inline-flex items-center pl-2">
+          <KbdShortcut keys={shortcut} size="xs" variant="muted" />
+        </span>
+      )}
     </button>
   );
 }

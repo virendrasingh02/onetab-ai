@@ -4,6 +4,7 @@ import * as AvatarPrimitive from '@radix-ui/react-avatar';
 import { cva, type VariantProps } from 'class-variance-authority';
 import type { ComponentProps } from 'react';
 import { IconRenderer } from './icon-picker-popover.js';
+import { Hint } from './tooltip.js';
 
 const avatarVariants = cva(
   'relative flex shrink-0 overflow-hidden select-none',
@@ -170,16 +171,19 @@ export function UserAvatar({
         </AvatarFallback>
       </Avatar>
       {showDot ? (
-        <span
-          role="status"
-          aria-label={
-            presence ? `${name} is ${presence}` : `${name} presence unknown`
-          }
-          className={cn(
-            '-right-0.5 -bottom-0.5 size-2.5 absolute rounded-full border-2 border-background',
-            PRESENCE_STYLES[dot],
-          )}
-        />
+        <Hint label={PRESENCE_LABELS[dot]} side="top">
+          <span
+            role="status"
+            aria-label={
+              presence ? `${name} is ${PRESENCE_LABELS[dot]}` : `${name} presence unknown`
+            }
+            title={PRESENCE_LABELS[dot]}
+            className={cn(
+              '-right-0.5 -bottom-0.5 size-2.5 absolute rounded-full border-2 border-background cursor-default pointer-events-auto',
+              PRESENCE_STYLES[dot],
+            )}
+          />
+        </Hint>
       ) : null}
       {statusEmoji && !presence ? (
         <span

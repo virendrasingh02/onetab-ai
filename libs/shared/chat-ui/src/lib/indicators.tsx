@@ -1,5 +1,5 @@
 import type { ConnectionStatus, PresenceState, RoomMember } from '@org/types';
-import { Badge, ScrollArea, UserAvatar } from '@org/ui';
+import { Badge, Hint, ScrollArea, UserAvatar } from '@org/ui';
 import { cn } from '@org/utils';
 import { Loader2, ShieldCheck, WifiOff } from 'lucide-react';
 import { UserProfileCard } from './user-profile-card.js';
@@ -56,13 +56,18 @@ export function PresenceBadge({
   className?: string;
   showLabel?: boolean;
 }) {
+  const dot = (
+    <span
+      className={cn('size-2 rounded-full cursor-default shrink-0', PRESENCE_STYLES[state])}
+      role="img"
+      aria-label={PRESENCE_LABELS[state]}
+      title={PRESENCE_LABELS[state]}
+    />
+  );
+
   return (
     <span className={cn('gap-1.5 inline-flex items-center', className)}>
-      <span
-        className={cn('size-2 rounded-full', PRESENCE_STYLES[state])}
-        role="img"
-        aria-label={PRESENCE_LABELS[state]}
-      />
+      {showLabel ? dot : <Hint label={PRESENCE_LABELS[state]}>{dot}</Hint>}
       {showLabel ? (
         <span className="text-xs text-muted-foreground">
           {PRESENCE_LABELS[state]}

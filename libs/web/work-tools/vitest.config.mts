@@ -1,17 +1,34 @@
+import path from 'node:path';
+import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   root: import.meta.dirname,
+  plugins: [react()],
+  resolve: {
+    alias: [
+      { find: /^react$/, replacement: path.resolve(import.meta.dirname, '../../../node_modules/react') },
+      { find: /^react-dom$/, replacement: path.resolve(import.meta.dirname, '../../../node_modules/react-dom') },
+      { find: /^react-dom\/client$/, replacement: path.resolve(import.meta.dirname, '../../../node_modules/react-dom/client') },
+      { find: /^react\/jsx-runtime$/, replacement: path.resolve(import.meta.dirname, '../../../node_modules/react/jsx-runtime') },
+      { find: /^react\/jsx-dev-runtime$/, replacement: path.resolve(import.meta.dirname, '../../../node_modules/react/jsx-dev-runtime') },
+    ],
+  },
   test: {
     name: '@org/web-work-tools',
     globals: true,
-    // The suites here cover the import parsers, which are pure functions over
-    // text. Component tests would need jsdom; add it when there are some.
-    environment: 'node',
-    include: ['src/**/*.{test,spec}.ts'],
+    environment: 'jsdom',
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    setupFiles: ['./src/test-setup.ts'],
+    server: {
+      deps: {
+        inline: true,
+      },
+    },
     coverage: {
       provider: 'v8',
       reportsDirectory: './test-output/vitest/coverage',
     },
   },
 });
+

@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
   EmptyState,
   Input,
+  KbdShortcut,
   ProjectGlyph,
   Select,
   SelectContent,
@@ -811,9 +812,7 @@ export function AsanaProjectManager() {
           >
             <Command className="size-3.5 text-muted-foreground" />
             <span className="sm:inline hidden">Search</span>
-            <kbd className="sm:inline-flex rounded px-1 font-medium hidden items-center border border-border bg-muted/60 font-mono text-[10px]">
-              ⌘K
-            </kbd>
+            <KbdShortcut keys={['mod', 'K']} size="xs" variant="muted" responsive />
           </button>
 
           <button

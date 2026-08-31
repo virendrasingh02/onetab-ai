@@ -3,6 +3,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  KbdShortcut,
 } from '@org/ui';
 import { Keyboard } from 'lucide-react';
 
@@ -15,11 +16,11 @@ const SHORTCUT_GROUPS = [
   {
     title: 'Navigation & Views',
     items: [
-      { key: '⌘ K / Ctrl+K', label: 'Open Command Palette' },
+      { key: 'mod+k', label: 'Open Command Palette' },
       { key: 'F', label: 'Toggle Filter Menu' },
       { key: 'V', label: 'Switch View (Board/List/Timeline)' },
       { key: '?', label: 'Open Keyboard Shortcuts' },
-      { key: 'Esc', label: 'Close Modal / Dropdown' },
+      { key: 'Escape', label: 'Close Modal / Dropdown' },
     ],
   },
   {
@@ -39,7 +40,7 @@ const SHORTCUT_GROUPS = [
     items: [
       { key: '1 - 5', label: 'Select option in active menu' },
       { key: 'Backspace / Del', label: 'Delete card' },
-      { key: '⌘ C / Ctrl+C', label: 'Copy task or link' },
+      { key: 'mod+c', label: 'Copy task or link' },
       { key: 'Tab', label: 'Navigate next element' },
     ],
   },
@@ -74,9 +75,7 @@ export function LinearShortcutsDialog({
                     <span className="text-foreground/90 font-medium">
                       {item.label}
                     </span>
-                    <kbd className="px-1.5 py-0.5 rounded border border-border bg-surface text-[10.5px] font-mono font-semibold text-foreground">
-                      {item.key}
-                    </kbd>
+                    <KbdShortcut shortcut={item.key} size="xs" variant="default" />
                   </div>
                 ))}
               </div>

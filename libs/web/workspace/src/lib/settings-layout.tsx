@@ -1,4 +1,4 @@
-import { Badge, Button, Input, ScrollArea } from '@org/ui';
+import { Badge, Button, Input, KbdShortcut, ScrollArea } from '@org/ui';
 import { cn } from '@org/utils';
 import { NotificationEnableBar } from '@org/notifications';
 import {
@@ -209,9 +209,7 @@ export function SettingsLayout({
                 className="h-8 gap-1.5 px-2.5 text-xs rounded-lg text-muted-foreground hover:text-foreground"
               >
                 <span>Close</span>
-                <kbd className="sm:inline-block rounded px-1 font-medium hidden border border-border bg-surface-inset text-[10px] text-muted-foreground">
-                  Esc
-                </kbd>
+                <KbdShortcut keys={['Escape']} size="xs" variant="muted" responsive />
                 <X className="size-3.5" />
               </Button>
             </Link>

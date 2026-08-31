@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { parseCsv } from './csv.js';
 import { buildBoardState, mergeBoards, exportBoard } from './normalize.js';
 import { detectSource, parseImport, parseImportAuto } from './sources.js';

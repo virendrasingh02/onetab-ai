@@ -7,6 +7,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Hint,
+  Kbd,
+  KbdShortcut,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -43,7 +45,7 @@ const CREATE_ACTIONS: readonly CreateAction[] = [
     description: 'Start a session with AI Copilot',
     icon: Sparkles,
     tone: 'bg-accent-violet/15 border-accent-violet/30 text-accent-violet',
-    shortcut: 'Ctrl+O',
+    shortcut: 'mod+o',
     category: 'communicate',
     path: 'home',
   },
@@ -52,7 +54,7 @@ const CREATE_ACTIONS: readonly CreateAction[] = [
     description: 'Send a private message to a teammate',
     icon: SquarePen,
     tone: 'bg-accent-pink/15 border-accent-pink/30 text-accent-pink',
-    shortcut: 'Ctrl+N',
+    shortcut: 'mod+n',
     category: 'communicate',
     path: 'dms',
   },
@@ -85,7 +87,7 @@ const CREATE_ACTIONS: readonly CreateAction[] = [
     description: 'Write collaborative documents & notes',
     icon: FileText,
     tone: 'bg-accent-blue/15 border-accent-blue/30 text-accent-blue',
-    shortcut: 'Ctrl+Shift+N',
+    shortcut: 'mod+shift+n',
     category: 'work',
     path: 'docs',
   },
@@ -212,9 +214,7 @@ export function SidebarFooterActions({
                           {action.label}
                         </span>
                         {action.shortcut ? (
-                          <kbd className="rounded px-1.5 py-0.5 border border-border/50 bg-muted/60 font-mono text-[10px] text-muted-foreground">
-                            {action.shortcut}
-                          </kbd>
+                          <KbdShortcut shortcut={action.shortcut} size="xs" variant="muted" />
                         ) : null}
                       </span>
                       <span className="block truncate text-[11px] text-muted-foreground">
@@ -255,9 +255,7 @@ export function SidebarFooterActions({
                           {action.label}
                         </span>
                         {action.shortcut ? (
-                          <kbd className="rounded px-1.5 py-0.5 border border-border/50 bg-muted/60 font-mono text-[10px] text-muted-foreground">
-                            {action.shortcut}
-                          </kbd>
+                          <KbdShortcut shortcut={action.shortcut} size="xs" variant="muted" />
                         ) : null}
                       </span>
                       <span className="block truncate text-[11px] text-muted-foreground">
@@ -330,9 +328,9 @@ export function SidebarFooterActions({
           />
           <span className="truncate">Invite members</span>
         </span>
-        <kbd className="rounded px-1.5 py-0.5 border border-border/50 bg-background/80 font-sans text-[10px] text-muted-foreground tabular-nums select-none">
+        <Kbd size="xs" variant="muted">
           I
-        </kbd>
+        </Kbd>
       </button>
 
       {/* Quick Create Dropdown Button */}
@@ -386,9 +384,7 @@ export function SidebarFooterActions({
                         {action.label}
                       </span>
                       {action.shortcut ? (
-                        <kbd className="rounded px-1.5 py-0.5 border border-border/50 bg-muted/60 font-mono text-[10px] text-muted-foreground">
-                          {action.shortcut}
-                        </kbd>
+                        <KbdShortcut shortcut={action.shortcut} size="xs" variant="muted" />
                       ) : null}
                     </span>
                     <span className="block truncate text-[11px] text-muted-foreground">
@@ -429,9 +425,7 @@ export function SidebarFooterActions({
                         {action.label}
                       </span>
                       {action.shortcut ? (
-                        <kbd className="rounded px-1.5 py-0.5 border border-border/50 bg-muted/60 font-mono text-[10px] text-muted-foreground">
-                          {action.shortcut}
-                        </kbd>
+                        <KbdShortcut shortcut={action.shortcut} size="xs" variant="muted" />
                       ) : null}
                     </span>
                     <span className="block truncate text-[11px] text-muted-foreground">

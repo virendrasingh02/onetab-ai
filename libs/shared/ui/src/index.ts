@@ -114,16 +114,34 @@ export {
 
 export {
   Hint,
-  Kbd,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
   renderShortcut,
   type HintProps,
-  type KbdProps,
   type TooltipContentProps,
 } from './lib/components/tooltip.js';
+
+export {
+  Kbd,
+  KbdGroup,
+  KbdShortcut,
+  kbdVariants,
+  formatKey,
+  parseShortcutString,
+  getPlatform,
+  usePlatform,
+  useKeyboardShortcut,
+  SHORTCUTS,
+  type KbdProps,
+  type KbdGroupProps,
+  type KbdShortcutProps,
+  type KbdSize,
+  type KbdVariant,
+  type Platform,
+  type ShortcutOptions,
+} from './lib/components/kbd.js';
 
 export {
   EmptyState,

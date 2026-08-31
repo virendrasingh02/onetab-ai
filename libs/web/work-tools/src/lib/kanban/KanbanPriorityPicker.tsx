@@ -3,6 +3,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  KbdShortcut,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { Check } from 'lucide-react';
@@ -65,15 +66,7 @@ export function KanbanPriorityPicker({
         {/* Header */}
         <div className="flex items-center justify-between px-2.5 py-1.5 mb-1 text-xs text-muted-foreground">
           <span className="font-medium text-[12px]">Change priority...</span>
-          <div className="flex items-center gap-1 text-[10px] text-muted-foreground/80 font-mono">
-            <kbd className="px-1 py-0.2 rounded border bg-muted/60 text-[10px]">
-              P
-            </kbd>
-            <span className="text-[9px] font-sans">then</span>
-            <kbd className="px-1 py-0.2 rounded border bg-muted/60 text-[10px]">
-              P
-            </kbd>
-          </div>
+          <KbdShortcut shortcut="P then P" size="xs" variant="muted" />
         </div>
 
         {/* List items */}

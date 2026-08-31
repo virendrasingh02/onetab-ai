@@ -79,30 +79,22 @@ export function TooltipContent({
   );
 }
 
-export interface KbdProps extends ComponentProps<'kbd'> {
-  children: ReactNode;
-}
+export {
+  Kbd,
+  KbdGroup,
+  KbdShortcut,
+  type KbdProps,
+  type KbdGroupProps,
+  type KbdShortcutProps,
+  type KbdSize,
+  type KbdVariant,
+} from './kbd.js';
 
-/**
- * Keyboard key badge styled for tooltips, menus, and inline hints.
- */
-export function Kbd({ className, children, ...props }: KbdProps) {
-  return (
-    <kbd
-      className={cn(
-        'px-1.5 font-medium inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-[4px] border border-border bg-surface-raised text-[10px] leading-none text-subtle shadow-[0_1px_0_0_rgba(0,0,0,0.04)] select-none dark:text-muted-foreground',
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </kbd>
-  );
-}
+import { KbdShortcut } from './kbd.js';
 
 /**
  * Parses shortcut strings into formatted key badges and connector words
- * e.g., "G then U", "Ctrl+K", "G T", "⌘K".
+ * e.g., "G then U", "Ctrl+K", "G T", "⌘K", "mod+k".
  */
 export function renderShortcut(shortcut: ReactNode): ReactNode {
   if (typeof shortcut !== 'string') {
@@ -112,54 +104,7 @@ export function renderShortcut(shortcut: ReactNode): ReactNode {
   const trimmed = shortcut.trim();
   if (!trimmed) return null;
 
-  // Handle + separated shortcuts without spaces (e.g. "Ctrl+Shift+N" or "Ctrl+K")
-  if (trimmed.includes('+') && !trimmed.includes(' ')) {
-    const parts = trimmed.split('+');
-    return (
-      <span className="gap-1 inline-flex items-center">
-        {parts.map((part, i) => (
-          <span key={i} className="gap-1 inline-flex items-center">
-            {i > 0 && (
-              <span className="font-normal text-[10px] text-muted-foreground/70">
-                +
-              </span>
-            )}
-            <Kbd>{part.trim()}</Kbd>
-          </span>
-        ))}
-      </span>
-    );
-  }
-
-  const tokens = trimmed.split(/\s+/);
-  if (tokens.length === 1) {
-    return <Kbd>{trimmed}</Kbd>;
-  }
-
-  return (
-    <span className="gap-1.5 inline-flex items-center">
-      {tokens.map((token, i) => {
-        const lower = token.toLowerCase();
-        if (
-          lower === 'then' ||
-          lower === 'or' ||
-          lower === 'to' ||
-          token === '+' ||
-          token === '/'
-        ) {
-          return (
-            <span
-              key={i}
-              className="font-normal text-[11px] text-muted-foreground"
-            >
-              {token}
-            </span>
-          );
-        }
-        return <Kbd key={i}>{token}</Kbd>;
-      })}
-    </span>
-  );
+  return <KbdShortcut shortcut={trimmed} />;
 }
 
 export interface HintProps extends Omit<

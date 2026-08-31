@@ -59,6 +59,8 @@ export {
 } from './lib/kanban/kanban-custom-store.js';
 export {
   StatusIcon,
+  getStatusLabel,
+  type StatusIconProps,
   PriorityIcon,
   ActivityPulseBadge,
   CubeProjectIcon,
