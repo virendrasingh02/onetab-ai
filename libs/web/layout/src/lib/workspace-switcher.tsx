@@ -360,7 +360,7 @@ export function WorkspaceMenu({
                           </div>
                         ) : null}
                       </div>
-                      {isActive ? (
+                      {/* {isActive ? (
                         <span className="rounded px-1.5 py-0.5 font-semibold tracking-wide shrink-0 bg-primary/10 text-[9px] text-primary uppercase">
                           Active
                         </span>
@@ -379,7 +379,7 @@ export function WorkspaceMenu({
                         >
                           Switch
                         </Button>
-                      )}
+                      )} */}
                     </div>
 
                     {/* That account's workspaces */}
@@ -461,7 +461,7 @@ export function WorkspaceMenu({
                               <div className="gap-1 flex shrink-0 items-center">
                                 {isActive ? (
                                   <>
-                                    <button
+                                    {/* <button
                                       type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -475,7 +475,7 @@ export function WorkspaceMenu({
                                       className="size-6 flex cursor-pointer items-center justify-center rounded-md text-muted-foreground opacity-70 transition-colors group-hover/ws-row:opacity-100 hover:bg-primary/15 hover:text-primary"
                                     >
                                       <MailPlus className="size-3.5" />
-                                    </button>
+                                    </button> */}
 
                                     <ActivityDot
                                       level={indicator?.level ?? 'none'}
