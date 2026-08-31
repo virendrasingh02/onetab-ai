@@ -32,6 +32,9 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
+      "path": "../../libs/shared/types/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/shared/media-preview/tsconfig.lib.json"
     },
     {
@@ -44,9 +47,6 @@
       "path": "../../libs/shared/api-client/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/web/settings/tsconfig.lib.json"
-    },
-    {
       "path": "../../libs/web/automations/tsconfig.lib.json"
     },
     {
@@ -54,6 +54,9 @@
     },
     {
       "path": "../../libs/web/ai/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/settings/tsconfig.lib.json"
     },
     {
       "path": "../../libs/web/work-tools/tsconfig.lib.json"

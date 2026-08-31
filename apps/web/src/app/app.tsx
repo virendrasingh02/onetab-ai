@@ -64,9 +64,6 @@ const AcceptInvitationPage = lazy(() =>
     default: m.AcceptInvitationPage,
   })),
 );
-const ProfilePage = lazy(() =>
-  import('@org/web-profile').then((m) => ({ default: m.ProfilePage })),
-);
 const ProfileSettingsPanel = lazy(() =>
   import('@org/web-profile').then((m) => ({ default: m.ProfileSettingsPanel })),
 );

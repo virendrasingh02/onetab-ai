@@ -578,6 +578,16 @@ export const userApi = {
 
   saveSidebarPreferences: (data: Record<string, unknown>) =>
     request<Record<string, unknown>>(http.put('/users/me/sidebar', data)),
+
+  /**
+   * The persisted appearance blob — `{ theme, density, accent, radius,
+   * customTheme }`. `{}` when the user has never customized their theme.
+   */
+  themeSettings: () =>
+    request<Record<string, unknown>>(http.get('/users/me/theme')),
+
+  saveThemeSettings: (data: Record<string, unknown>) =>
+    request<Record<string, unknown>>(http.put('/users/me/theme', data)),
 };
 
 /** Matrix session brokering. The browser never holds Matrix credentials. */

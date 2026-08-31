@@ -60,6 +60,7 @@ model User {
   workItemActivities      WorkItemActivity[]
   notifications           Notification[]
   sidebarPreference       SidebarPreference?
+  themeSetting            ThemeSetting?
 
   @@map("users")
 }
@@ -77,6 +78,22 @@ model SidebarPreference {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sidebar_preferences")
+}
+
+/// A user's appearance/theme customization — color mode, density, accent,
+/// corner radius, and the full custom-theme config (brand colors, gradients,
+/// tokens). Server-persisted so it survives logout and follows the user to
+/// another device; the client also keeps a localStorage copy for first paint.
+/// One row per user; `data` is the client's appearance blob, validated on
+/// write against `themeSettingSchema`.
+model ThemeSetting {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  data      Json     @default("{}")
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("theme_settings")
 }
 
 model Workspace {
@@ -163,26 +180,26 @@ model WorkspaceMember {
 }
 
 model Channel {
-  id               String            @id @default(cuid())
+  id               String                   @id @default(cuid())
   workspaceId      String
   name             String
   /// Unique per workspace, not globally.
   slug             String
   topic            String?
   description      String?
-  visibility       ChannelVisibility @default(PUBLIC)
-  isArchived       Boolean           @default(false)
+  visibility       ChannelVisibility        @default(PUBLIC)
+  isArchived       Boolean                  @default(false)
   archivedAt       DateTime?
   createdById      String
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
   /// Matrix room backing this channel. Null until chat is first opened.
-  matrixRoomId     String?           @unique
+  matrixRoomId     String?                  @unique
   members          ChannelMember[]
   pins             ChannelPin[]
   invitations      Invitation[]
-  createdBy        User              @relation("ChannelCreator", fields: [createdById], references: [id])
-  workspace        Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy        User                     @relation("ChannelCreator", fields: [createdById], references: [id])
+  workspace        Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   recentActivities RecentActivity[]
   uploads          Upload[]
   /// Postgres full-text index over name/topic/description. Populated by a
@@ -304,21 +321,21 @@ model PasswordResetToken {
 /// File upload foundation. Phase 2 records metadata and issues storage keys;
 /// the storage driver (S3/R2) plugs in behind StorageService.
 model Upload {
-  id          String    @id @default(cuid())
-  workspaceId String
-  channelId   String?
-  uploaderId  String
-  filename    String
-  mimeType    String
+  id           String                   @id @default(cuid())
+  workspaceId  String
+  channelId    String?
+  uploaderId   String
+  filename     String
+  mimeType     String
   /// Bytes.
-  size        Int
+  size         Int
   /// Opaque key in the object store.
-  storageKey  String    @unique
-  checksum    String?
-  createdAt   DateTime  @default(now())
-  channel     Channel?  @relation(fields: [channelId], references: [id])
-  uploader    User      @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  storageKey   String                   @unique
+  checksum     String?
+  createdAt    DateTime                 @default(now())
+  channel      Channel?                 @relation(fields: [channelId], references: [id])
+  uploader     User                     @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  workspace    Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   /// Full-text index over filename. Generated column — see the migration.
   searchVector Unsupported("tsvector")?
 
@@ -395,31 +412,31 @@ model ChatSettings {
 /// Stores the Matrix event id, never the content — resolving it requires the
 /// user's own Matrix session, so an encrypted message stays unreadable here.
 model RecentActivity {
-  id            String       @id @default(cuid())
-  workspaceId   String
-  channelId     String?
+  id               String       @id @default(cuid())
+  workspaceId      String
+  channelId        String?
   /// The actor. For chat rows this is the sender; for non-chat rows (a task
   /// created, a project added) it is whoever did it. Null for system events.
-  userId        String?
-  kind          ActivityKind
+  userId           String?
+  kind             ActivityKind
   /// Pointer into Matrix. Unique so a retried appservice transaction cannot
   /// record the same event twice.
-  matrixEventId String?      @unique
+  matrixEventId    String?      @unique
   /// The thing this activity is about, for deep-linking from the feed. Free of
   /// a foreign key on purpose — the referenced row may be hard-deleted and the
   /// feed entry should outlive it.
-  resourceType  String?
-  resourceId    String?
+  resourceType     String?
+  resourceId       String?
   /// A short, already-rendered description for non-chat rows ("created task
   /// WEB-42"). Null for chat rows, which the client renders from the channel.
-  summary       String?
+  summary          String?
   /// Users this event named. Ids only — still no message content — so the
   /// sidebar can tell "something happened" apart from "someone called you".
-  mentionedUserIds String[]  @default([])
-  occurredAt    DateTime     @default(now())
-  channel       Channel?     @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  user          User?        @relation(fields: [userId], references: [id])
-  workspace     Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  mentionedUserIds String[]     @default([])
+  occurredAt       DateTime     @default(now())
+  channel          Channel?     @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user             User?        @relation(fields: [userId], references: [id])
+  workspace        Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, occurredAt])
   @@index([channelId, occurredAt])
@@ -457,24 +474,24 @@ model Notification {
 }
 
 model Team {
-  id           String                @id @default(cuid())
-  workspaceId  String
-  name         String
-  key          String
-  description  String?
-  icon         String?
-  iconColor    String?
-  color        String?               @default("#3b82f6")
-  createdAt    DateTime              @default(now())
-  updatedAt    DateTime              @updatedAt
-  workspace    Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  projects     Project[]
-  cycles       Cycle[]
-  customFields WorkItemCustomField[]
-  savedViews   SavedView[]
+  id             String                @id @default(cuid())
+  workspaceId    String
+  name           String
+  key            String
+  description    String?
+  icon           String?
+  iconColor      String?
+  color          String?               @default("#3b82f6")
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  workspace      Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projects       Project[]
+  cycles         Cycle[]
+  customFields   WorkItemCustomField[]
+  savedViews     SavedView[]
   intakeRequests IntakeRequest[]
-  tasks        Task[]
-  invitations  Invitation[]
+  tasks          Task[]
+  invitations    Invitation[]
 
   @@unique([workspaceId, key])
   @@index([workspaceId])
@@ -506,7 +523,7 @@ model Initiative {
 }
 
 model Project {
-  id                   String               @id @default(cuid())
+  id                   String                   @id @default(cuid())
   workspaceId          String
   teamId               String?
   leadId               String?
@@ -514,25 +531,25 @@ model Project {
   name                 String
   slug                 String
   description          String?
-  color                String?              @default("#3b82f6")
+  color                String?                  @default("#3b82f6")
   icon                 String?
   iconColor            String?
-  status               ProjectStatus        @default(ACTIVE)
-  health               ProjectHealth        @default(HEALTHY)
+  status               ProjectStatus            @default(ACTIVE)
+  health               ProjectHealth            @default(HEALTHY)
   healthScore          Int?
   startDate            DateTime?
   targetDate           DateTime?
-  columnOrder          TaskStatus[]         @default([])
+  columnOrder          TaskStatus[]             @default([])
   ticketPrefix         String?
-  identifierPrefixMode IdentifierPrefixMode @default(AUTO)
-  ticketSeq            Int                  @default(0)
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
+  identifierPrefixMode IdentifierPrefixMode     @default(AUTO)
+  ticketSeq            Int                      @default(0)
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
   milestones           Milestone[]
-  workspace            Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  team                 Team?                @relation(fields: [teamId], references: [id])
-  lead                 User?                @relation("ProjectLead", fields: [leadId], references: [id])
-  initiative           Initiative?          @relation(fields: [initiativeId], references: [id])
+  workspace            Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  team                 Team?                    @relation(fields: [teamId], references: [id])
+  lead                 User?                    @relation("ProjectLead", fields: [leadId], references: [id])
+  initiative           Initiative?              @relation(fields: [initiativeId], references: [id])
   sprints              Sprint[]
   epics                Epic[]
   modules              Module[]
@@ -548,7 +565,7 @@ model Project {
 
   /// Soft delete. A user-initiated delete sets this instead of removing the
   /// row (and its cascade of tasks); reads filter it out; restore clears it.
-  deletedAt            DateTime?
+  deletedAt DateTime?
 
   @@unique([workspaceId, slug])
   @@unique([workspaceId, ticketPrefix])
@@ -660,7 +677,7 @@ model Sprint {
 }
 
 model Task {
-  id              String             @id @default(cuid())
+  id              String                   @id @default(cuid())
   workspaceId     String
   projectId       String?
   sprintId        String?
@@ -672,40 +689,40 @@ model Task {
   cycleId         String?
   moduleId        String?
   parentId        String?
-  type            WorkItemType       @default(TASK)
+  type            WorkItemType             @default(TASK)
   customTypeId    String?
   title           String
   description     String?
-  status          TaskStatus         @default(TODO)
-  priority        TaskPriority       @default(MEDIUM)
+  status          TaskStatus               @default(TODO)
+  priority        TaskPriority             @default(MEDIUM)
   startDate       DateTime?
   dueDate         DateTime?
   completedAt     DateTime?
-  orderIndex      Int                @default(0)
+  orderIndex      Int                      @default(0)
   ticketNumber    Int?
   identifier      String?
   estimate        Float?
   timeSpent       Int?
-  labels          String[]           @default([])
-  customFields    Json?              @default("{}")
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  labels          String[]                 @default([])
+  customFields    Json?                    @default("{}")
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
   comments        TaskComment[]
-  assignee        User?              @relation(fields: [assigneeId], references: [id])
-  reporter        User?              @relation("TaskReporter", fields: [reporterId], references: [id])
-  milestone       Milestone?         @relation(fields: [milestoneId], references: [id])
-  project         Project?           @relation(fields: [projectId], references: [id])
-  team            Team?              @relation(fields: [teamId], references: [id])
-  sprint          Sprint?            @relation(fields: [sprintId], references: [id])
-  epic            Epic?              @relation(fields: [epicId], references: [id])
-  cycle           Cycle?             @relation(fields: [cycleId], references: [id])
-  module          Module?            @relation(fields: [moduleId], references: [id])
-  parent          Task?              @relation("TaskSubItems", fields: [parentId], references: [id])
-  subItems        Task[]             @relation("TaskSubItems")
-  sourceRelations WorkItemRelation[] @relation("RelationSource")
-  targetRelations WorkItemRelation[] @relation("RelationTarget")
+  assignee        User?                    @relation(fields: [assigneeId], references: [id])
+  reporter        User?                    @relation("TaskReporter", fields: [reporterId], references: [id])
+  milestone       Milestone?               @relation(fields: [milestoneId], references: [id])
+  project         Project?                 @relation(fields: [projectId], references: [id])
+  team            Team?                    @relation(fields: [teamId], references: [id])
+  sprint          Sprint?                  @relation(fields: [sprintId], references: [id])
+  epic            Epic?                    @relation(fields: [epicId], references: [id])
+  cycle           Cycle?                   @relation(fields: [cycleId], references: [id])
+  module          Module?                  @relation(fields: [moduleId], references: [id])
+  parent          Task?                    @relation("TaskSubItems", fields: [parentId], references: [id])
+  subItems        Task[]                   @relation("TaskSubItems")
+  sourceRelations WorkItemRelation[]       @relation("RelationSource")
+  targetRelations WorkItemRelation[]       @relation("RelationTarget")
   activities      WorkItemActivity[]
-  workspace       Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace       Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   /// Full-text index over title/description/identifier. Generated column — see the migration.
   searchVector    Unsupported("tsvector")?
   /// Soft delete — see Project.deletedAt.
@@ -892,24 +909,24 @@ model CalendarEvent {
 }
 
 model WorkDocument {
-  id          String         @id @default(cuid())
-  workspaceId String
-  authorId    String
-  parentId    String?
-  title       String
-  content     String         @default("")
-  kind        DocumentKind   @default(DOC)
-  isPublic    Boolean        @default(true)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  author      User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  parent      WorkDocument?  @relation("DocHierarchy", fields: [parentId], references: [id])
-  children    WorkDocument[] @relation("DocHierarchy")
-  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id           String                   @id @default(cuid())
+  workspaceId  String
+  authorId     String
+  parentId     String?
+  title        String
+  content      String                   @default("")
+  kind         DocumentKind             @default(DOC)
+  isPublic     Boolean                  @default(true)
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  author       User                     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent       WorkDocument?            @relation("DocHierarchy", fields: [parentId], references: [id])
+  children     WorkDocument[]           @relation("DocHierarchy")
+  workspace    Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   /// Full-text index over title/content. Generated column — see the migration.
   searchVector Unsupported("tsvector")?
   /// Soft delete — see Project.deletedAt.
-  deletedAt   DateTime?
+  deletedAt    DateTime?
 
   @@index([workspaceId, kind])
   @@index([parentId])

@@ -12,10 +12,12 @@ import { WorkspaceRoleGuard } from '@org/api-auth';
 import { CurrentUser, WorkspaceId, zodBody } from '@org/api-common';
 import {
   sidebarPreferencesSchema,
+  themeSettingSchema,
   updateProfileSchema,
   updateStatusSchema,
   updateUserPreferencesSchema,
   type SidebarPreferencesInput,
+  type ThemeSettingInput,
   type UpdateProfileInput,
   type UpdateStatusInput,
   type UpdateUserPreferencesInput,
@@ -51,6 +53,19 @@ export class UserController {
     @Body(zodBody(sidebarPreferencesSchema)) body: SidebarPreferencesInput,
   ) {
     return this.users.saveSidebarPreferences(userId, body);
+  }
+
+  @Get('me/theme')
+  getThemeSetting(@CurrentUser('id') userId: string) {
+    return this.users.getThemeSetting(userId);
+  }
+
+  @Put('me/theme')
+  saveThemeSetting(
+    @CurrentUser('id') userId: string,
+    @Body(zodBody(themeSettingSchema)) body: ThemeSettingInput,
+  ) {
+    return this.users.saveThemeSetting(userId, body);
   }
 
   @Patch('me')

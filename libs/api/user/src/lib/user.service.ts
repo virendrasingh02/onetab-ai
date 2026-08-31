@@ -4,6 +4,7 @@ import { PrismaService } from '@org/database';
 import type { CurrentUser, PublicUser, UserPreferences } from '@org/types';
 import type {
   SidebarPreferencesInput,
+  ThemeSettingInput,
   UpdateProfileInput,
   UpdateStatusInput,
   UpdateUserPreferencesInput,
@@ -229,6 +230,40 @@ export class UserService {
       where: { userId },
       create: { userId, data: data as object },
       update: { data: data as object },
+      select: { data: true },
+    });
+    return row.data as Record<string, unknown>;
+  }
+
+  // --- appearance / theme customization -------------------------------
+
+  /**
+   * The user's persisted appearance settings (mode, density, accent, radius,
+   * custom-theme config). Returns `{}` when they have never customized it —
+   * the client falls back to its localStorage copy / defaults.
+   */
+  async getThemeSetting(userId: string): Promise<Record<string, unknown>> {
+    const row = await this.prisma.themeSetting.findUnique({
+      where: { userId },
+      select: { data: true },
+    });
+    return (row?.data as Record<string, unknown> | undefined) ?? {};
+  }
+
+  /**
+   * Shallow-merges the incoming partial over the stored blob, so a client that
+   * PUTs only `{ theme: 'dark' }` does not drop the saved `customTheme`.
+   */
+  async saveThemeSetting(
+    userId: string,
+    data: ThemeSettingInput,
+  ): Promise<Record<string, unknown>> {
+    const current = await this.getThemeSetting(userId);
+    const merged = { ...current, ...(data as Record<string, unknown>) };
+    const row = await this.prisma.themeSetting.upsert({
+      where: { userId },
+      create: { userId, data: merged as object },
+      update: { data: merged as object },
       select: { data: true },
     });
     return row.data as Record<string, unknown>;

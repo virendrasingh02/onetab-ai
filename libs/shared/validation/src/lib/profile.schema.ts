@@ -227,8 +227,43 @@ export const sidebarPreferencesSchema = z
     message: 'Sidebar preferences payload is too large.',
   });
 
+/**
+ * The appearance blob the web client persists — interface mode, density,
+ * accent, corner radius, and the full custom-theme config (or null when the
+ * user has reverted to the platform default).
+ *
+ * Every field is optional so the client can PUT a partial update; the server
+ * merges it over the stored row. `customTheme` reuses `themeConfigSchema`.
+ */
+export const themeSettingSchema = z
+  .object({
+    theme: z.enum(['light', 'dark', 'system']).optional(),
+    density: z.enum(['compact', 'default', 'comfortable']).optional(),
+    accent: z
+      .enum([
+        'mint',
+        'violet',
+        'blue',
+        'green',
+        'amber',
+        'pink',
+        'cyan',
+        'orange',
+        'indigo',
+        'teal',
+        'rose',
+      ])
+      .optional(),
+    radius: z.enum(['xs', 'sm', 'md', 'lg', 'xl']).optional(),
+    customTheme: themeConfigSchema.nullable().optional(),
+  })
+  .refine((value) => JSON.stringify(value).length <= 32_000, {
+    message: 'Theme settings payload is too large.',
+  });
+
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type SidebarPreferencesInput = z.infer<typeof sidebarPreferencesSchema>;
+export type ThemeSettingInput = z.infer<typeof themeSettingSchema>;
 export type UpdateStatusInput = z.infer<typeof updateStatusSchema>;
 export type UploadRequestInput = z.infer<typeof uploadRequestSchema>;
 export type ChatPreferencesInput = z.infer<typeof chatPreferencesSchema>;

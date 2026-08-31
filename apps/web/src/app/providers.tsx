@@ -1,4 +1,5 @@
 import { ApiError } from '@org/api-client';
+import { useCurrentUser } from '@org/auth';
 import { store, useNotificationDisplayPreferences } from '@org/common';
 import { ThemeProvider } from '@org/design-system';
 import { MediaPreviewProvider } from '@org/media-preview';
@@ -8,6 +9,7 @@ import { DesktopChrome, DesktopProvider } from '@org/web-desktop';
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { Provider } from 'react-redux';
+import { useThemeSync } from './use-theme-sync';
 
 function AppToaster() {
   const { notifications } = useNotificationDisplayPreferences();
@@ -18,6 +20,16 @@ function AppToaster() {
       duration={notifications.dismissDuration}
     />
   );
+}
+
+/**
+ * Mirrors the signed-in user's theme choices to `/users/me/theme`. Rendered
+ * inside `<ThemeProvider>` so it can read and apply appearance state.
+ */
+function ThemeSync() {
+  const user = useCurrentUser();
+  useThemeSync(!!user);
+  return null;
 }
 
 /**
@@ -75,6 +87,7 @@ export function Providers({ children }: { children: ReactNode }) {
       <Provider store={store}>
         <QueryClientProvider client={queryClient}>
           <ThemeProvider defaultTheme="light">
+            <ThemeSync />
             {/*
               Inside ThemeProvider (it pushes the resolved theme to native
               chrome) and inside the router (deep links resolve to routes), but
