@@ -1,4 +1,11 @@
-import { useAccounts, useRemoveAccount, useSwitchAccount } from '@org/auth';
+import {
+  useAccounts,
+  useCurrentUser,
+  useLinkedAccountWorkspaces,
+  useRemoveAccount,
+  useSwitchAccount,
+  type AccountWorkspace,
+} from '@org/auth';
 import { isDesktop } from '@org/web-desktop';
 import type { WorkspaceSummary } from '@org/types';
 import {
@@ -20,6 +27,7 @@ import {
   Building2,
   Check,
   LogOut,
+  Mail,
   MailPlus,
   Plus,
   Search,
@@ -40,6 +48,17 @@ export interface ManageAccountsDialogProps {
   onSwitchWorkspace?: (workspace: WorkspaceSummary) => void;
 }
 
+/** Workspaces for one email, from either the active account or a linked one. */
+type WorkspaceGroup =
+  | { kind: 'active'; email: string; workspaces: WorkspaceSummary[] }
+  | {
+      kind: 'background';
+      email: string;
+      accountId: string;
+      accountName: string;
+      workspaces: AccountWorkspace[];
+    };
+
 export function ManageAccountsDialog({
   open,
   onOpenChange,
@@ -58,20 +77,59 @@ export function ManageAccountsDialog({
   const { accounts, activeAccountId } = useAccounts();
   const switchAccount = useSwitchAccount();
   const removeAccount = useRemoveAccount();
+  const currentUser = useCurrentUser();
   const accountsBusy = switchAccount.isPending || removeAccount.isPending;
+  // Keep every linked account's workspace list fresh so all of them list here.
+  useLinkedAccountWorkspaces();
 
-  const filtered = useMemo(() => {
+  /*
+   * Every workspace across every linked account, grouped by account (never by
+   * the email string alone). The active account's list comes from the app's
+   * live query; each other account's from its own token-scoped cache. Nothing
+   * is merged or shared across accounts — backend membership stays the source
+   * of truth.
+   */
+  const groups = useMemo<WorkspaceGroup[]>(() => {
     const term = query.trim().toLowerCase();
-    if (!term) return workspaces;
-    return workspaces.filter((w) => {
-      const email = (w.email || userEmail || '').toLowerCase();
-      const name = w.name.toLowerCase();
-      const slug = w.slug.toLowerCase();
-      return (
-        name.includes(term) || email.includes(term) || slug.includes(term)
-      );
+    const hit = (name: string, slug: string, email: string) =>
+      !term ||
+      name.toLowerCase().includes(term) ||
+      slug.toLowerCase().includes(term) ||
+      email.toLowerCase().includes(term);
+
+    const result: WorkspaceGroup[] = [];
+
+    const activeRow = activeAccountId
+      ? accounts.find((a) => a.id === activeAccountId)
+      : undefined;
+    const activeEmail =
+      activeRow?.user.email ?? currentUser?.email ?? userEmail ?? 'This account';
+    result.push({
+      kind: 'active',
+      email: activeEmail,
+      workspaces: workspaces.filter((w) =>
+        hit(w.name, w.slug, w.email || activeEmail),
+      ),
     });
-  }, [workspaces, query, userEmail]);
+
+    for (const account of accounts) {
+      if (account.id === (activeRow?.id ?? activeAccountId)) continue;
+      const email = account.user.email;
+      const list = (account.workspaces ?? []).filter((w) =>
+        hit(w.name, w.slug, email),
+      );
+      if (list.length === 0 && term) continue;
+      result.push({
+        kind: 'background',
+        email,
+        accountId: account.id,
+        accountName: account.user.displayName ?? account.user.name,
+        workspaces: list,
+      });
+    }
+
+    return result;
+  }, [workspaces, accounts, activeAccountId, currentUser, query, userEmail]);
 
   const handleSelectWorkspace = (workspace: WorkspaceSummary) => {
     onOpenChange(false);
@@ -197,7 +255,7 @@ export function ManageAccountsDialog({
         ) : null}
 
         <ScrollArea className="max-h-[380px] p-3">
-          {filtered.length === 0 ? (
+          {groups.length === 0 ? (
             <div className="py-8">
               <EmptyState
                 icon={<Search className="size-6 text-muted-foreground" />}
@@ -210,168 +268,224 @@ export function ManageAccountsDialog({
               />
             </div>
           ) : (
-            <div className="space-y-1.5">
-              {filtered.map((workspace) => {
-                const isSelected = workspace.id === currentWorkspace.id;
-                const associatedEmail =
-                  workspace.email || userEmail || 'No email associated';
-                const role = workspace.role;
-
-                return (
-                  <div
-                    key={workspace.id}
-                    className={cn(
-                      'group/card p-3 rounded-xl border transition-all duration-150 flex items-center justify-between gap-3',
-                      isSelected
-                        ? 'border-primary/40 bg-primary/5 shadow-xs'
-                        : 'border-border/70 hover:border-border hover:bg-accent/40 bg-card/60',
-                    )}
-                  >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="relative shrink-0">
-                        <WorkspaceAvatar
-                          name={workspace.name}
-                          src={workspace.avatarUrl}
-                          icon={workspace.icon}
-                          iconColor={workspace.iconColor}
-                          seed={workspace.id}
-                          size="md"
-                          className="rounded-xl ring-1 ring-border/50"
-                        />
-                        {isSelected ? (
-                          <span
-                            className="absolute -bottom-1 -right-1 size-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center ring-2 ring-background"
-                            title="Active workspace"
-                          >
-                            <Check className="size-2.5 stroke-[3]" />
-                          </span>
-                        ) : null}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm text-foreground truncate">
-                            {workspace.name}
-                          </span>
-                          {role && (
-                            <Badge
-                              variant={
-                                role === 'OWNER'
-                                  ? 'primary'
-                                  : role === 'ADMIN'
-                                  ? 'secondary'
-                                  : 'neutral'
-                              }
-                              className="text-[10px] px-1.5 py-0 h-4 font-medium uppercase"
-                            >
-                              {role}
-                            </Badge>
-                          )}
-                          {workspace.status === 'ARCHIVED' && (
-                            <Badge
-                              variant="destructive"
-                              className="text-[10px] px-1.5 py-0 h-4"
-                            >
-                              Archived
-                            </Badge>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
-                          <span className="truncate font-medium text-foreground/80">
-                            {associatedEmail}
-                          </span>
-                          <span>•</span>
-                          <span className="shrink-0">
-                            {workspace.memberCount} member
-                            {workspace.memberCount === 1 ? '' : 's'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {isSelected ? (
-                        <Badge
-                          variant="outline"
-                          className="gap-1 text-xs border-primary/40 text-primary bg-primary/10 font-medium px-2 py-0.5"
-                        >
-                          <UserCheck className="size-3.5" />
-                          <span>Active</span>
-                        </Badge>
-                      ) : (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handleSelectWorkspace(workspace)}
-                          className="h-7 text-xs font-medium px-2.5"
-                        >
-                          Switch
-                        </Button>
-                      )}
-
+            <div className="space-y-3">
+              {groups.map((group) => (
+                <div
+                  key={
+                    group.kind === 'active'
+                      ? `active:${group.email}`
+                      : `account:${group.accountId}`
+                  }
+                  className="space-y-1.5"
+                >
+                  <div className="px-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+                    <Mail className="size-3 shrink-0 text-muted-foreground/70" />
+                    <span className="truncate">{group.email}</span>
+                    {group.kind === 'background' ? (
                       <Button
                         variant="ghost"
-                        size="icon-sm"
+                        size="sm"
+                        disabled={accountsBusy}
                         onClick={() => {
                           onOpenChange(false);
-                          setInviteMembersOpen(true, workspace);
+                          switchAccount.mutate(group.accountId);
                         }}
-                        title={`Invite People to ${workspace.name}`}
-                        aria-label={`Invite people to ${workspace.name}`}
-                        className="size-7 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 cursor-pointer"
+                        className="ml-auto h-5 px-1.5 text-[10px] font-medium normal-case"
                       >
-                        <MailPlus className="size-3.5" />
+                        Switch account
                       </Button>
-
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => handleOpenSettings(workspace)}
-                        title="Workspace Settings"
-                        aria-label={`Settings for ${workspace.name}`}
-                        className="size-7 p-0 text-muted-foreground hover:text-foreground"
-                      >
-                        <Settings className="size-3.5" />
-                      </Button>
-                    </div>
+                    ) : null}
                   </div>
-                );
-              })}
+
+                  <div className="space-y-1.5">
+                    {group.kind === 'active'
+                      ? group.workspaces.map((workspace) => {
+                          const isSelected =
+                            workspace.id === currentWorkspace.id;
+                          const role = workspace.role;
+
+                          return (
+                            <div
+                              key={workspace.id}
+                              className={cn(
+                                'group/card p-3 rounded-xl border transition-all duration-150 flex items-center justify-between gap-3',
+                                isSelected
+                                  ? 'border-primary/40 bg-primary/5 shadow-xs'
+                                  : 'border-border/70 hover:border-border hover:bg-accent/40 bg-card/60',
+                              )}
+                            >
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <div className="relative shrink-0">
+                                  <WorkspaceAvatar
+                                    name={workspace.name}
+                                    src={workspace.avatarUrl}
+                                    icon={workspace.icon}
+                                    iconColor={workspace.iconColor}
+                                    seed={workspace.id}
+                                    size="md"
+                                    className="rounded-xl ring-1 ring-border/50"
+                                  />
+                                  {isSelected ? (
+                                    <span
+                                      className="absolute -bottom-1 -right-1 size-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center ring-2 ring-background"
+                                      title="Active workspace"
+                                    >
+                                      <Check className="size-2.5 stroke-[3]" />
+                                    </span>
+                                  ) : null}
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-sm text-foreground truncate">
+                                      {workspace.name}
+                                    </span>
+                                    {role && (
+                                      <Badge
+                                        variant={
+                                          role === 'OWNER'
+                                            ? 'primary'
+                                            : role === 'ADMIN'
+                                            ? 'secondary'
+                                            : 'neutral'
+                                        }
+                                        className="text-[10px] px-1.5 py-0 h-4 font-medium uppercase"
+                                      >
+                                        {role}
+                                      </Badge>
+                                    )}
+                                    {workspace.status === 'ARCHIVED' && (
+                                      <Badge
+                                        variant="destructive"
+                                        className="text-[10px] px-1.5 py-0 h-4"
+                                      >
+                                        Archived
+                                      </Badge>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
+                                    <span className="shrink-0">
+                                      {workspace.memberCount} member
+                                      {workspace.memberCount === 1 ? '' : 's'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {isSelected ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="gap-1 text-xs border-primary/40 text-primary bg-primary/10 font-medium px-2 py-0.5"
+                                  >
+                                    <UserCheck className="size-3.5" />
+                                    <span>Active</span>
+                                  </Badge>
+                                ) : (
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleSelectWorkspace(workspace)
+                                    }
+                                    className="h-7 text-xs font-medium px-2.5"
+                                  >
+                                    Switch
+                                  </Button>
+                                )}
+
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => {
+                                    onOpenChange(false);
+                                    setInviteMembersOpen(true, workspace);
+                                  }}
+                                  title={`Invite People to ${workspace.name}`}
+                                  aria-label={`Invite people to ${workspace.name}`}
+                                  className="size-7 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 cursor-pointer"
+                                >
+                                  <MailPlus className="size-3.5" />
+                                </Button>
+
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => handleOpenSettings(workspace)}
+                                  title="Workspace Settings"
+                                  aria-label={`Settings for ${workspace.name}`}
+                                  className="size-7 p-0 text-muted-foreground hover:text-foreground"
+                                >
+                                  <Settings className="size-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      : group.workspaces.map((workspace) => (
+                          <button
+                            key={workspace.id}
+                            type="button"
+                            disabled={accountsBusy}
+                            onClick={() => {
+                              onOpenChange(false);
+                              switchAccount.mutate({
+                                accountId: group.accountId,
+                                to: `/w/${workspace.slug}`,
+                              });
+                            }}
+                            className="group/card w-full p-3 rounded-xl border border-border/70 bg-card/60 hover:border-border hover:bg-accent/40 transition-all duration-150 flex items-center justify-between gap-3 text-left disabled:opacity-60"
+                          >
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <WorkspaceAvatar
+                                name={workspace.name}
+                                src={workspace.avatarUrl}
+                                icon={workspace.icon}
+                                iconColor={workspace.iconColor}
+                                seed={workspace.id}
+                                size="md"
+                                className="rounded-xl ring-1 ring-border/50 shrink-0"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <span className="font-semibold text-sm text-foreground truncate block">
+                                  {workspace.name}
+                                </span>
+                                <span className="mt-0.5 text-xs text-muted-foreground block">
+                                  {workspace.memberCount} member
+                                  {workspace.memberCount === 1 ? '' : 's'}
+                                </span>
+                              </div>
+                            </div>
+                            <span className="shrink-0 text-xs font-medium text-primary">
+                              Switch
+                            </span>
+                          </button>
+                        ))}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </ScrollArea>
 
         <div className="p-3.5 bg-surface-raised/50 border-t border-border flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            {onAddAccount ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  onOpenChange(false);
-                  onAddAccount();
-                }}
-                className="h-8 text-xs gap-1.5"
-              >
-                <Plus className="size-3.5" />
-                <span>Add another account</span>
-              </Button>
-            ) : null}
-
+          {onAddAccount ? (
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => {
                 onOpenChange(false);
-                navigate('/workspaces/new');
+                onAddAccount();
               }}
               className="h-8 text-xs gap-1.5"
             >
-              <Building2 className="size-3.5" />
-              <span>Create workspace</span>
+              <Plus className="size-3.5" />
+              <span>Add account</span>
             </Button>
-          </div>
+          ) : (
+            <span />
+          )}
 
           <Button
             variant="secondary"

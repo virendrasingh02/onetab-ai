@@ -14,9 +14,13 @@ import {
 import { registerSchema, type RegisterInput } from '@org/validation';
 import { Check } from 'lucide-react';
 import { useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AuthLayout } from '../auth-layout.js';
-import { formErrorMessage, useRegister } from '../use-auth.js';
+import {
+  formErrorMessage,
+  redirectPathFromAuthState,
+  useRegister,
+} from '../use-auth.js';
 
 /** Live checklist so the password rules are visible before submitting. */
 const PASSWORD_RULES = [
@@ -29,13 +33,15 @@ const PASSWORD_RULES = [
 export function RegisterPage() {
   const register = useRegister();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const form = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
     mode: 'onBlur',
     defaultValues: {
       name: '',
-      email: '',
+      email:
+        (location.state as { email?: string } | null)?.email ?? '',
       password: '',
       confirmPassword: '',
       acceptTerms: false as unknown as true,
@@ -47,8 +53,11 @@ export function RegisterPage() {
   const onSubmit = form.handleSubmit(async (values) => {
     try {
       await register.mutateAsync(values);
-      // A brand-new account has no workspace yet.
-      navigate('/workspaces/new', { replace: true });
+      // Honour where the user was headed (e.g. an invitation link); otherwise a
+      // brand-new account has no workspace yet, so send it to first-run setup.
+      navigate(redirectPathFromAuthState(location.state, '/workspaces/new'), {
+        replace: true,
+      });
     } catch {
       // Surfaced through <FormError> / field errors.
     }

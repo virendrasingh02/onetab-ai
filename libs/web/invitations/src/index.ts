@@ -5,6 +5,7 @@ export {
   useInvitationMutations,
   useInvitationPreview,
   useInvitations,
+  useIsWorkspaceMember,
 } from './lib/use-invitations.js';
 export {
   InviteMembersDialog,

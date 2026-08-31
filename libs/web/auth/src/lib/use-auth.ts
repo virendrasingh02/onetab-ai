@@ -349,6 +349,27 @@ export function useCurrentUser() {
   return useAuthStore((state) => state.user);
 }
 
+/**
+ * The path to send someone to after they authenticate.
+ *
+ * Router `state.from` is set by whatever gated them here — a protected route, or
+ * an invitation link that needs a session. Preserving `search`/`hash` matters:
+ * an invite token or a device-pair `?request=` lives there. Falls back to
+ * `fallback` when nothing was stashed.
+ */
+export function redirectPathFromAuthState(
+  state: unknown,
+  fallback = '/',
+): string {
+  const from = (
+    state as {
+      from?: { pathname?: string; search?: string; hash?: string };
+    } | null
+  )?.from;
+  if (!from?.pathname) return fallback;
+  return `${from.pathname}${from.search ?? ''}${from.hash ?? ''}`;
+}
+
 /** Extracts a form-level message from an ApiError, ignoring field errors. */
 export function formErrorMessage(error: unknown): string | null {
   if (!error) return null;

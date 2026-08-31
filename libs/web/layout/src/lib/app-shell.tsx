@@ -1,5 +1,5 @@
 import { userApi } from '@org/api-client';
-import { useAuthStore, useCurrentUser } from '@org/auth';
+import { useAccountStore, useAuthStore, useCurrentUser } from '@org/auth';
 import {
   Button,
   CommandPalette,
@@ -138,6 +138,31 @@ export function AppShell() {
     [workspacesQuery.data],
   );
   const workspaceActivity = useWorkspaceActivity(workspaceIds);
+
+  /*
+   * Keep the active account's cached workspace list current, so the switcher
+   * can group *every* linked account's workspaces by email — a background
+   * account's list can only be read with its own token, which is not the one
+   * on the wire. `setAccountWorkspaces` no-ops when nothing changed.
+   */
+  const setAccountWorkspaces = useAccountStore((s) => s.setAccountWorkspaces);
+  const activeAccountId = useAccountStore((s) => s.activeAccountId);
+  useEffect(() => {
+    if (!activeAccountId || !workspacesQuery.data) return;
+    setAccountWorkspaces(
+      activeAccountId,
+      workspacesQuery.data.map((w) => ({
+        id: w.id,
+        name: w.name,
+        slug: w.slug,
+        email: w.email ?? null,
+        icon: w.icon ?? null,
+        iconColor: w.iconColor ?? null,
+        avatarUrl: w.avatarUrl ?? null,
+        memberCount: w.memberCount,
+      })),
+    );
+  }, [activeAccountId, workspacesQuery.data, setAccountWorkspaces]);
 
   /*
    * Navigating dismisses the mobile drawers — on a phone they cover the page

@@ -16,6 +16,22 @@ import { create } from 'zustand';
  * the desktop shell already makes with its persisted `safeStorage` session.
  * The active account still also has its normal refresh cookie.
  */
+/**
+ * The slice of a workspace the switcher needs to list and open one that belongs
+ * to a *background* account — cached because that account's full list can only
+ * be fetched with its own token, which is not the one on the wire.
+ */
+export interface AccountWorkspace {
+  id: string;
+  name: string;
+  slug: string;
+  email: string | null;
+  icon: string | null;
+  iconColor: string | null;
+  avatarUrl: string | null;
+  memberCount: number;
+}
+
 export interface Account {
   /** The user id — stable, and what the switcher addresses an account by. */
   id: string;
@@ -28,6 +44,12 @@ export interface Account {
   refreshToken: string;
   /** Epoch ms; orders the list and picks a fallback when the active one leaves. */
   addedAt: number;
+  /**
+   * Last-known workspaces for this account, refreshed while it is active. Lets
+   * the switcher list every account's workspaces in one grouped menu; may be
+   * absent on rows written before this field existed.
+   */
+  workspaces?: AccountWorkspace[];
 }
 
 interface AccountState {
@@ -41,6 +63,8 @@ interface AccountState {
     id: string,
     tokens: { accessToken: string; refreshToken?: string },
   ) => void;
+  /** Caches the workspace list for one account (the active one, in practice). */
+  setAccountWorkspaces: (id: string, workspaces: AccountWorkspace[]) => void;
   removeAccount: (id: string) => void;
   setActiveAccountId: (id: string) => void;
   /** Full sign-out: drops every linked account. */
@@ -106,6 +130,21 @@ export const useAccountStore = create<AccountState>((set, get) => ({
             refreshToken: tokens.refreshToken ?? a.refreshToken,
           }
         : a,
+    );
+    persist({ accounts, activeAccountId: get().activeAccountId });
+    set({ accounts });
+  },
+
+  setAccountWorkspaces: (id, workspaces) => {
+    const current = get().accounts.find((a) => a.id === id);
+    if (!current) return;
+    // Skip a rewrite (and a localStorage hit) when nothing actually changed —
+    // the active account's list re-resolves on every refetch.
+    if (JSON.stringify(current.workspaces ?? []) === JSON.stringify(workspaces)) {
+      return;
+    }
+    const accounts = get().accounts.map((a) =>
+      a.id === id ? { ...a, workspaces } : a,
     );
     persist({ accounts, activeAccountId: get().activeAccountId });
     set({ accounts });

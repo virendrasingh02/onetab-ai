@@ -62,7 +62,7 @@ const mockWorkspaces: WorkspaceSummary[] = [
 ];
 
 describe('ManageAccountsDialog', () => {
-  it('renders all connected workspaces with distinct emails and active badges', () => {
+  it('groups the account’s workspaces under one account email with an active badge', () => {
     renderInProviders(
       <ManageAccountsDialog
         open={true}
@@ -74,11 +74,13 @@ describe('ManageAccountsDialog', () => {
     );
 
     expect(screen.getByText('Manage Workspaces & Accounts')).toBeInTheDocument();
+    // Account-centric: one section under the signed-in account's email.
+    expect(screen.getByText('virendra@gmail.com')).toBeInTheDocument();
     expect(screen.getByText('Mie Team')).toBeInTheDocument();
-    expect(screen.getByText('virendra@mie.ai')).toBeInTheDocument();
     expect(screen.getByText('Acme Corp')).toBeInTheDocument();
-    expect(screen.getByText('virendra@acme.com')).toBeInTheDocument();
     expect(screen.getByText('Active')).toBeInTheDocument();
+    // The removed workspace-creation affordance is gone from this surface.
+    expect(screen.queryByText(/create workspace/i)).toBeNull();
   });
 
   it('triggers onSwitchWorkspace when switch button is clicked', async () => {

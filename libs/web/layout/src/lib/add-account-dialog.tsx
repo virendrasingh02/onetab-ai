@@ -1,26 +1,36 @@
-import { useAddAccount } from '@org/auth';
-import { invitationApi } from '@org/api-client';
-import { isDesktop } from '@org/web-desktop';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { formErrorMessage, useAddAccount, useSignUpAccount } from '@org/auth';
 import {
   Button,
+  Checkbox,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  Form,
+  FormControl,
+  FormError,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
   Input,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
   toast,
 } from '@org/ui';
-import { useQueryClient } from '@tanstack/react-query';
 import {
-  Building2,
-  KeyRound,
-  LogIn,
-  Plus,
-  UserPlus,
-} from 'lucide-react';
+  loginSchema,
+  registerSchema,
+  type LoginInput,
+  type RegisterInput,
+} from '@org/validation';
+import { UserPlus } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
 
 export interface AddAccountDialogProps {
   open: boolean;
@@ -28,201 +38,268 @@ export interface AddAccountDialogProps {
 }
 
 export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) {
-  const [inviteToken, setInviteToken] = useState('');
-  const [isJoining, setIsJoining] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
   const addAccount = useAddAccount();
+  const signUp = useSignUpAccount();
 
-  const resetForms = () => {
-    setInviteToken('');
-    setEmail('');
-    setPassword('');
-    addAccount.reset();
-  };
+  const loginForm = useForm<LoginInput>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: '', password: '', rememberMe: true },
+  });
+
+  const signupForm = useForm<RegisterInput>({
+    resolver: zodResolver(registerSchema),
+    mode: 'onBlur',
+    defaultValues: {
+      name: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      acceptTerms: false as unknown as true,
+    },
+  });
 
   const close = () => {
     onOpenChange(false);
-    resetForms();
+    setMode('login');
+    loginForm.reset();
+    signupForm.reset();
+    addAccount.reset();
+    signUp.reset();
   };
 
-  const handleJoinByToken = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const token = inviteToken.trim();
-    if (!token) return;
-
-    // Handle full URLs pasted as well as bare tokens
-    let cleanToken = token;
-    if (token.includes('/invite/')) {
-      const parts = token.split('/invite/');
-      cleanToken = parts[parts.length - 1].split('?')[0].split('#')[0];
-    }
-
+  const handleLogin = loginForm.handleSubmit(async (values) => {
     try {
-      setIsJoining(true);
-      const res = await invitationApi.accept(cleanToken);
-      toast.success('Joined workspace successfully!');
-      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
-      close();
-      navigate(`/w/${res.workspaceSlug}`);
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : 'Could not join workspace with this token.';
-      toast.error(message);
-    } finally {
-      setIsJoining(false);
-    }
-  };
-
-  const handleAddAccount = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim() || !password) return;
-    try {
-      const data = await addAccount.mutateAsync({
-        email: email.trim(),
-        password,
-      });
+      const data = await addAccount.mutateAsync(values);
       toast.success(
         `Signed in as ${data.user.displayName ?? data.user.name}.`,
       );
-      // The hook switches to the new account and navigates; just dismiss.
       close();
     } catch {
-      // Error text is rendered inline from `addAccount.error` below.
+      // Shown inline from `addAccount.error` / field errors.
     }
-  };
+  });
 
-  const addAccountError =
-    addAccount.error instanceof Error ? addAccount.error.message : null;
+  const handleSignup = signupForm.handleSubmit(async (values) => {
+    try {
+      const data = await signUp.mutateAsync(values);
+      toast.success(
+        `Account created for ${data.user.displayName ?? data.user.name}.`,
+      );
+      close();
+    } catch {
+      // Shown inline from `signUp.error` / field errors.
+    }
+  });
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => (next ? onOpenChange(true) : close())}
     >
-      <DialogContent className="sm:max-w-lg p-0 gap-0 overflow-hidden bg-background border border-border shadow-2xl rounded-2xl">
+      <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden bg-background border border-border shadow-2xl rounded-2xl">
         <DialogHeader className="p-5 pb-4 border-b border-border bg-surface-raised/40">
           <DialogTitle className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
             <UserPlus className="size-5 text-primary" />
-            <span>Add Another Account or Workspace</span>
+            <span>Add another account</span>
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground mt-1">
-            Sign into another identity and switch between them, join a workspace
-            with an invitation, or create a new one.
+            Log in or sign up with another account. Your current account stays
+            signed in, and you can switch between them any time.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="p-5 space-y-5">
-          {/* Option 1: Sign in with another account (browser multi-account only) */}
-          {!isDesktop ? (
-            <div className="p-4 rounded-xl border border-border/80 bg-card/60 space-y-3">
-              <div className="flex items-center gap-2">
-                <LogIn className="size-4 text-primary shrink-0" />
-                <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">
-                  Sign in with another account
-                </h4>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Stay signed into this account and add a second one. Switch between
-                them any time from “Manage accounts”.
-              </p>
-              <form onSubmit={handleAddAccount} className="space-y-2">
-                <Input
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@company.com"
-                  className="h-8 text-xs bg-background"
-                  disabled={addAccount.isPending}
+        <Tabs
+          value={mode}
+          onValueChange={(value) => setMode(value as 'login' | 'signup')}
+          className="p-5"
+        >
+          <TabsList className="w-full">
+            <TabsTrigger value="login" className="flex-1">
+              Log in
+            </TabsTrigger>
+            <TabsTrigger value="signup" className="flex-1">
+              Sign up
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="login" className="mt-4">
+            <Form {...loginForm}>
+              <form onSubmit={handleLogin} className="space-y-3" noValidate>
+                <FormError error={formErrorMessage(addAccount.error)} />
+
+                <FormField
+                  control={loginForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email or username</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="text"
+                          autoComplete="username"
+                          placeholder="you@company.com"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                <Input
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
-                  className="h-8 text-xs bg-background"
-                  disabled={addAccount.isPending}
+
+                <FormField
+                  control={loginForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="password"
+                          autoComplete="current-password"
+                          placeholder="••••••••••"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {addAccountError ? (
-                  <p className="text-xs text-destructive">{addAccountError}</p>
-                ) : null}
+
                 <Button
                   type="submit"
-                  size="sm"
-                  className="h-8 text-xs w-full"
-                  loading={addAccount.isPending}
-                  disabled={!email.trim() || !password || addAccount.isPending}
+                  className="w-full"
+                  loading={
+                    loginForm.formState.isSubmitting || addAccount.isPending
+                  }
                 >
-                  Sign in &amp; switch
+                  Log in &amp; switch
                 </Button>
               </form>
-            </div>
-          ) : null}
+            </Form>
+          </TabsContent>
 
-          {/* Option 2: Join with Invitation Code */}
-          <div className="p-4 rounded-xl border border-border/80 bg-card/60 space-y-3">
-            <div className="flex items-center gap-2">
-              <KeyRound className="size-4 text-primary shrink-0" />
-              <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">
-                Join with Invitation Link or Code
-              </h4>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Paste an invitation URL or token sent to your email to link the
-              workspace to your account.
-            </p>
-            <form onSubmit={handleJoinByToken} className="gap-2 flex">
-              <Input
-                value={inviteToken}
-                onChange={(e) => setInviteToken(e.target.value)}
-                placeholder="e.g. inv_abc123 or https://app/invite/..."
-                className="h-8 text-xs flex-1 bg-background"
-                disabled={isJoining}
-              />
-              <Button
-                type="submit"
-                size="sm"
-                className="h-8 text-xs px-3"
-                disabled={!inviteToken.trim() || isJoining}
-              >
-                {isJoining ? 'Joining…' : 'Join'}
-              </Button>
-            </form>
-          </div>
+          <TabsContent value="signup" className="mt-4">
+            <Form {...signupForm}>
+              <form onSubmit={handleSignup} className="space-y-3" noValidate>
+                <FormError error={formErrorMessage(signUp.error)} />
 
-          {/* Option 3: Create Workspace */}
-          <div className="p-4 rounded-xl border border-border/80 bg-card/60 space-y-2.5 flex items-center justify-between gap-3">
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <Building2 className="size-4 text-primary shrink-0" />
-                <h4 className="text-xs font-semibold text-foreground">
-                  Create New Workspace
-                </h4>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Set up a fresh workspace for a new company, project, or team.
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                close();
-                navigate('/workspaces/new');
-              }}
-              className="h-8 text-xs gap-1.5 shrink-0"
-            >
-              <Plus className="size-3.5" />
-              <span>Create</span>
-            </Button>
-          </div>
-        </div>
+                <FormField
+                  control={signupForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Full name</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          autoComplete="name"
+                          placeholder="Ada Lovelace"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={signupForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Work email</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="email"
+                          autoComplete="email"
+                          placeholder="you@company.com"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={signupForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="password"
+                          autoComplete="new-password"
+                          placeholder="At least 10 characters"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={signupForm.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm password</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="password"
+                          autoComplete="new-password"
+                          placeholder="••••••••••"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={signupForm.control}
+                  name="acceptTerms"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex items-start gap-2.5 text-xs">
+                        <Checkbox
+                          id="add-account-terms"
+                          checked={!!field.value}
+                          onCheckedChange={(checked) =>
+                            field.onChange(!!checked)
+                          }
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          className="mt-0.5"
+                        />
+                        <label
+                          htmlFor="add-account-terms"
+                          className="cursor-pointer select-none text-muted-foreground"
+                        >
+                          I agree to the Terms of Service and Privacy Policy.
+                        </label>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  loading={
+                    signupForm.formState.isSubmitting || signUp.isPending
+                  }
+                >
+                  Create account &amp; switch
+                </Button>
+              </form>
+            </Form>
+          </TabsContent>
+        </Tabs>
 
         <div className="p-3 bg-surface-raised/50 border-t border-border flex justify-end">
           <Button

@@ -273,6 +273,23 @@ export const workspaceApi = {
       list.map(withResolvedAvatar),
     ),
 
+  /**
+   * The workspace list for a *specific* account, addressed by its own access
+   * token rather than the one on the wire. Powers the multi-account switcher,
+   * which shows every linked account's workspaces at once.
+   *
+   * `skipAuthRefresh` because a 401 here means *that* account's token lapsed —
+   * refreshing the active session and retrying would return the wrong
+   * identity's workspaces. The caller falls back to its cached list instead.
+   */
+  listForAccount: (accessToken: string) =>
+    request<WorkspaceSummary[]>(
+      http.get('/workspaces', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        skipAuthRefresh: true,
+      }),
+    ).then((list) => list.map(withResolvedAvatar)),
+
   bySlug: (slug: string) =>
     request<WorkspaceSummary>(http.get(`/workspaces/${slug}`)).then(
       withResolvedAvatar,
@@ -514,9 +531,12 @@ export const invitationApi = {
     ),
 
   accept: (token: string) =>
-    request<{ workspaceSlug: string; channelSlug?: string }>(
-      http.post('/invitations/accept', { token }),
-    ),
+    request<{
+      workspaceSlug: string;
+      channelSlug?: string;
+      /** True when the caller was already a member — acceptance is idempotent. */
+      alreadyMember?: boolean;
+    }>(http.post('/invitations/accept', { token })),
 
   decline: (token: string) =>
     request<void>(http.post('/invitations/decline', { token })),

@@ -13,18 +13,23 @@ export {
   selectActiveAccountId,
   getActiveAccount,
   type Account,
+  type AccountWorkspace,
 } from './lib/account-store.js';
 
 export {
   useAccounts,
   useAddAccount,
+  useSignUpAccount,
   useSwitchAccount,
   useRemoveAccount,
+  useLinkedAccountWorkspaces,
   type AddAccountInput,
+  type SignUpAccountInput,
 } from './lib/use-account-switcher.js';
 
 export {
   formErrorMessage,
+  redirectPathFromAuthState,
   useCurrentUser,
   useForgotPassword,
   useLogin,

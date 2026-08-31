@@ -1,3 +1,10 @@
+import {
+  useAccounts,
+  useCurrentUser,
+  useLinkedAccountWorkspaces,
+  useSwitchAccount,
+  type AccountWorkspace,
+} from '@org/auth';
 import type { ActivityIndicator } from '@org/notifications';
 import type { WorkspaceSummary } from '@org/types';
 import {
@@ -11,6 +18,7 @@ import {
   DropdownMenuTrigger,
   Hint,
   SearchInput,
+  UserAvatar,
   WorkspaceAvatar,
   type ActivityLevel,
 } from '@org/ui';
@@ -19,16 +27,43 @@ import { useWorkspaceStore, type WorkspaceState } from '@org/web-workspace';
 import {
   Check,
   ChevronDown,
-  Mail,
   MailPlus,
   PanelLeft,
-  Plus,
   Settings,
   UserPlus,
   Users,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+
+/** A row's shape is the common subset of a full summary and a cached slice. */
+type SwitcherWorkspace = Pick<
+  WorkspaceSummary,
+  'id' | 'name' | 'slug' | 'avatarUrl' | 'icon' | 'iconColor' | 'memberCount'
+>;
+
+/**
+ * One account and the workspaces it can reach. The active account carries full
+ * summaries (its rows also drive the per-workspace invite button); every other
+ * account carries the slimmer cached list fetched with its own token.
+ */
+type SwitcherGroup =
+  | {
+      kind: 'active';
+      accountId: string;
+      name: string;
+      email: string;
+      avatarUrl: string | null;
+      workspaces: WorkspaceSummary[];
+    }
+  | {
+      kind: 'background';
+      accountId: string;
+      name: string;
+      email: string;
+      avatarUrl: string | null;
+      workspaces: AccountWorkspace[];
+    };
 
 export interface WorkspaceMenuProps {
   workspaces: WorkspaceSummary[];
@@ -86,6 +121,13 @@ export function WorkspaceMenu({
     (s: WorkspaceState) => s.setInviteMembersOpen,
   );
 
+  const currentUser = useCurrentUser();
+  const { accounts, activeAccountId } = useAccounts();
+  const switchAccount = useSwitchAccount();
+  // Pull each linked account's workspaces (with its own token) so the menu can
+  // show every account's workspaces, not just the active one's.
+  useLinkedAccountWorkspaces();
+
   const othersLevel = summariseOthers(
     workspaces,
     current.id,
@@ -94,28 +136,92 @@ export function WorkspaceMenu({
 
   const currentEmail = current.email || userEmail;
 
-  const filteredWorkspaces = useMemo(() => {
+  /*
+   * The switcher is account-centric: one section per signed-in account, keyed by
+   * the authenticated user id (never the email string). The active account's
+   * workspaces come from the app's live query; every other account's come from
+   * its own token, cached in the account store. Backend membership is the only
+   * source of truth — nothing here merges or shares workspaces across accounts.
+   */
+  const groups = useMemo<SwitcherGroup[]>(() => {
     const term = searchQuery.trim().toLowerCase();
-    if (!term) return workspaces;
-    return workspaces.filter((w) => {
-      const email = (w.email || userEmail || '').toLowerCase();
-      const name = w.name.toLowerCase();
-      return name.includes(term) || email.includes(term);
-    });
-  }, [workspaces, searchQuery, userEmail]);
+    const nameHit = (name: string, slug: string) =>
+      !term ||
+      name.toLowerCase().includes(term) ||
+      slug.toLowerCase().includes(term);
 
-  // Group filtered workspaces by their associated email
-  const groupedWorkspaces = useMemo(() => {
-    const groups: Record<string, WorkspaceSummary[]> = {};
-    for (const ws of filteredWorkspaces) {
-      const email = ws.email || userEmail || 'Other Accounts';
-      if (!groups[email]) {
-        groups[email] = [];
-      }
-      groups[email].push(ws);
+    const result: SwitcherGroup[] = [];
+
+    const activeRow = activeAccountId
+      ? accounts.find((a) => a.id === activeAccountId)
+      : undefined;
+    const activeId =
+      activeAccountId ?? activeRow?.id ?? currentUser?.id ?? 'active';
+    const activeEmail =
+      activeRow?.user.email ?? currentUser?.email ?? userEmail ?? '';
+    const activeEmailHit = !term || activeEmail.toLowerCase().includes(term);
+
+    result.push({
+      kind: 'active',
+      accountId: activeId,
+      name:
+        activeRow?.user.displayName ??
+        activeRow?.user.name ??
+        currentUser?.displayName ??
+        currentUser?.name ??
+        'This account',
+      email: activeEmail,
+      avatarUrl: activeRow?.user.avatarUrl ?? currentUser?.avatarUrl ?? null,
+      workspaces: workspaces.filter(
+        (w) => nameHit(w.name, w.slug) || activeEmailHit,
+      ),
+    });
+
+    for (const account of accounts) {
+      if (account.id === activeId) continue;
+      const email = account.user.email;
+      const emailHit = !term || email.toLowerCase().includes(term);
+      const list = (account.workspaces ?? []).filter(
+        (w) => nameHit(w.name, w.slug) || emailHit,
+      );
+      if (term && list.length === 0 && !emailHit) continue;
+      result.push({
+        kind: 'background',
+        accountId: account.id,
+        name: account.user.displayName ?? account.user.name,
+        email,
+        avatarUrl: account.user.avatarUrl ?? null,
+        workspaces: list,
+      });
     }
-    return groups;
-  }, [filteredWorkspaces, userEmail]);
+
+    return result;
+  }, [
+    workspaces,
+    accounts,
+    activeAccountId,
+    currentUser,
+    searchQuery,
+    userEmail,
+  ]);
+
+  // Unfiltered count across every linked account — drives the header badge and
+  // whether the search box shows. (Using the *filtered* count there would make
+  // the box vanish mid-search as results narrow.)
+  const linkedWorkspaceCount = useMemo(
+    () =>
+      workspaces.length +
+      accounts.reduce(
+        (sum, account) =>
+          account.id === activeAccountId
+            ? sum
+            : sum + (account.workspaces?.length ?? 0),
+        0,
+      ),
+    [workspaces, accounts, activeAccountId],
+  );
+
+  const anyResults = groups.some((group) => group.workspaces.length > 0);
 
   const handleOpenManageAccounts = () => {
     setMenuOpen(false);
@@ -186,11 +292,6 @@ export function WorkspaceMenu({
                   aria-hidden
                 />
               </span>
-              {currentEmail ? (
-                <span className="truncate text-[10px] text-muted-foreground">
-                  {currentEmail}
-                </span>
-              ) : null}
             </span>
           </button>
         </DropdownMenuTrigger>
@@ -203,15 +304,15 @@ export function WorkspaceMenu({
           {/* Header Label */}
           <div className="px-2 py-1 flex items-center justify-between">
             <DropdownMenuLabel className="p-0 font-semibold tracking-wide text-[11px] text-muted-foreground uppercase">
-              Workspaces & Accounts
+              Accounts
             </DropdownMenuLabel>
             <span className="px-1.5 py-0.5 rounded bg-muted font-mono text-[10px] text-muted-foreground">
-              {workspaces.length}
+              {linkedWorkspaceCount}
             </span>
           </div>
 
           {/* Quick Search when 3 or more workspaces exist */}
-          {workspaces.length >= 3 && (
+          {linkedWorkspaceCount >= 3 && (
             <div className="px-1.5 py-1" onKeyDown={(e) => e.stopPropagation()}>
               <SearchInput
                 value={searchQuery}
@@ -223,46 +324,69 @@ export function WorkspaceMenu({
             </div>
           )}
 
-          {/* Workspaces List Grouped by Email */}
-          <div className="space-y-2 my-1 max-h-64 overflow-y-auto pr-0.5">
-            {filteredWorkspaces.length === 0 ? (
+          {/* One section per signed-in account */}
+          <div className="space-y-1 my-1 max-h-72 pr-0.5 overflow-y-auto">
+            {searchQuery && !anyResults ? (
               <div className="p-3 text-xs text-center text-muted-foreground">
                 No matching workspaces
               </div>
             ) : (
-              Object.entries(groupedWorkspaces).map(([groupEmail, groupWorkspaces]) => (
-                <div key={groupEmail} className="space-y-1">
-                  {/* Email Group Header */}
-                  <div className="px-2 pt-1 pb-0.5 text-[10px] font-semibold text-muted-foreground/80 flex items-center gap-1.5 uppercase tracking-wider border-t border-border/40 first:border-t-0 first:pt-0">
-                    <Mail className="size-3 text-muted-foreground/70 shrink-0" />
-                    <span className="truncate">{groupEmail}</span>
-                  </div>
+              groups.map((group) => {
+                const isActive = group.kind === 'active';
+                const rows: SwitcherWorkspace[] = group.workspaces;
 
-                  {/* Workspaces in this Email Group */}
-                  <div className="space-y-0.5">
-                    {groupWorkspaces.map((workspace) => {
-                      const isSelected = workspace.id === current.id;
-                      const indicator = workspaceActivity?.[workspace.id];
-
-                      return (
-                        <div
-                          key={workspace.id}
-                          className={cn(
-                            'group/ws-row gap-2 px-2 py-1 text-xs flex items-center justify-between rounded-lg transition-colors',
-                            isSelected
-                              ? 'font-medium border border-primary/20 bg-primary/10 text-foreground'
-                              : 'hover:bg-accent/60',
-                          )}
+                return (
+                  <div
+                    key={group.accountId}
+                    className="space-y-0.5 pt-1 first:pt-0 border-t border-border/40 first:border-t-0"
+                  >
+                    {/* Account identity */}
+                    <div className="px-2 py-1 gap-2 flex items-center">
+                      <div className="min-w-0 leading-tight flex-1">
+                        {group.email ? (
+                          <div className="truncate text-[10px] text-muted-foreground">
+                            {group.email}
+                          </div>
+                        ) : null}
+                      </div>
+                      {isActive ? (
+                        <span className="rounded px-1.5 py-0.5 font-semibold tracking-wide shrink-0 bg-primary/10 text-[9px] text-primary uppercase">
+                          Active
+                        </span>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={switchAccount.isPending}
+                          onClick={() => {
+                            setMenuOpen(false);
+                            switchAccount.mutate({
+                              accountId: group.accountId,
+                            });
+                          }}
+                          className="h-6 px-1.5 font-medium shrink-0 text-[10px]"
                         >
-                          <DropdownMenuItem
-                            asChild
-                            aria-current={isSelected ? 'true' : undefined}
-                            className="p-0 flex-1 hover:bg-transparent focus:bg-transparent cursor-pointer"
-                          >
-                            <Link
-                              to={`/w/${workspace.slug}`}
-                              className="gap-2.5 flex items-center flex-1 min-w-0 outline-none"
-                            >
+                          Switch
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* That account's workspaces */}
+                    {rows.length === 0 ? (
+                      <div className="px-2 pb-1 pl-9 text-[11px] text-muted-foreground">
+                        No workspaces yet in this account.
+                      </div>
+                    ) : (
+                      <div className="space-y-0.5 pl-1">
+                        {rows.map((workspace) => {
+                          const isSelected =
+                            isActive && workspace.id === current.id;
+                          const indicator = isActive
+                            ? workspaceActivity?.[workspace.id]
+                            : undefined;
+
+                          const body = (
+                            <>
                               <WorkspaceAvatar
                                 name={workspace.name}
                                 src={workspace.avatarUrl}
@@ -272,7 +396,6 @@ export function WorkspaceMenu({
                                 size="sm"
                                 className="shrink-0 rounded-sm"
                               />
-
                               <span className="min-w-0 leading-tight flex-1">
                                 <span className="font-semibold block truncate text-foreground">
                                   {workspace.name}
@@ -282,39 +405,85 @@ export function WorkspaceMenu({
                                   {workspace.memberCount === 1 ? '' : 's'}
                                 </span>
                               </span>
-                            </Link>
-                          </DropdownMenuItem>
+                            </>
+                          );
 
-                          {/* Action controls for this specific workspace */}
-                          <div className="flex items-center gap-1 shrink-0">
-                            {/* Invitation button specifically for this workspace */}
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setMenuOpen(false);
-                                setInviteMembersOpen(true, workspace);
-                              }}
-                              title={`Invite people to ${workspace.name}`}
-                              className="size-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-primary/15 transition-colors opacity-70 group-hover/ws-row:opacity-100 cursor-pointer"
+                          return (
+                            <div
+                              key={`${group.accountId}:${workspace.id}`}
+                              className={cn(
+                                'group/ws-row gap-2 px-2 py-1 text-xs flex items-center justify-between rounded-lg transition-colors',
+                                isSelected
+                                  ? 'font-medium border border-primary/20 bg-primary/10 text-foreground'
+                                  : 'hover:bg-accent/60',
+                              )}
                             >
-                              <MailPlus className="size-3.5" />
-                            </button>
+                              <DropdownMenuItem
+                                asChild
+                                aria-current={isSelected ? 'true' : undefined}
+                                className="p-0 flex-1 cursor-pointer hover:bg-transparent focus:bg-transparent"
+                              >
+                                {isActive ? (
+                                  <Link
+                                    to={`/w/${workspace.slug}`}
+                                    className="gap-2.5 min-w-0 flex flex-1 items-center outline-none"
+                                  >
+                                    {body}
+                                  </Link>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setMenuOpen(false);
+                                      switchAccount.mutate({
+                                        accountId: group.accountId,
+                                        to: `/w/${workspace.slug}`,
+                                      });
+                                    }}
+                                    className="gap-2.5 min-w-0 flex flex-1 items-center text-left outline-none"
+                                  >
+                                    {body}
+                                  </button>
+                                )}
+                              </DropdownMenuItem>
 
-                            <ActivityDot
-                              level={indicator?.level ?? 'none'}
-                              count={indicator?.mentionCount}
-                            />
-                            {isSelected ? (
-                              <Check className="size-3.5 shrink-0 text-primary" />
-                            ) : null}
-                          </div>
-                        </div>
-                      );
-                    })}
+                              <div className="gap-1 flex shrink-0 items-center">
+                                {isActive ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setMenuOpen(false);
+                                        setInviteMembersOpen(
+                                          true,
+                                          workspace as WorkspaceSummary,
+                                        );
+                                      }}
+                                      title={`Invite people to ${workspace.name}`}
+                                      className="size-6 flex cursor-pointer items-center justify-center rounded-md text-muted-foreground opacity-70 transition-colors group-hover/ws-row:opacity-100 hover:bg-primary/15 hover:text-primary"
+                                    >
+                                      <MailPlus className="size-3.5" />
+                                    </button>
+
+                                    <ActivityDot
+                                      level={indicator?.level ?? 'none'}
+                                      count={indicator?.mentionCount}
+                                    />
+                                    {isSelected ? (
+                                      <Check className="size-3.5 shrink-0 text-primary" />
+                                    ) : null}
+                                  </>
+                                ) : null}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 
@@ -336,7 +505,7 @@ export function WorkspaceMenu({
             </span>
           </DropdownMenuItem>
 
-          {/* Action: Add another account */}
+          {/* Action: Add another account — the only account-level action here */}
           <DropdownMenuItem
             onClick={handleOpenAddAccount}
             className="gap-2.5 px-2 py-1.5 text-xs flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
@@ -344,9 +513,7 @@ export function WorkspaceMenu({
             <span className="size-5 flex shrink-0 items-center justify-center rounded-md border border-dashed border-border text-primary">
               <UserPlus className="size-3" />
             </span>
-            <span className="font-medium text-foreground">
-              Add another account
-            </span>
+            <span className="font-medium text-foreground">Add account</span>
           </DropdownMenuItem>
 
           {/* Action: Manage accounts */}
@@ -372,19 +539,6 @@ export function WorkspaceMenu({
                 <Settings className="size-3" />
               </span>
               <span className="font-medium">Workspace Settings</span>
-            </Link>
-          </DropdownMenuItem>
-
-          {/* Action: Create New Workspace */}
-          <DropdownMenuItem
-            asChild
-            className="gap-2.5 px-2 py-1.5 text-xs flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
-          >
-            <Link to="/workspaces/new">
-              <span className="size-5 flex shrink-0 items-center justify-center rounded-md border border-dashed border-border text-subtle">
-                <Plus className="size-3" />
-              </span>
-              <span className="font-medium">Create New Workspace</span>
             </Link>
           </DropdownMenuItem>
         </DropdownMenuContent>

@@ -188,7 +188,9 @@ export function resolveMediaUrl(
 http.interceptors.request.use(async (config) => {
   config.baseURL = await resolveBaseURL();
 
-  if (accessToken) {
+  // A caller that set its own `Authorization` wins — the multi-account switcher
+  // reads another account's data with that account's token, not the active one.
+  if (accessToken && !config.headers.has('Authorization')) {
     config.headers.set('Authorization', `Bearer ${accessToken}`);
   }
   return config;
@@ -196,6 +198,17 @@ http.interceptors.request.use(async (config) => {
 
 interface RetriableRequest extends InternalAxiosRequestConfig {
   _retried?: boolean;
+}
+
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    /**
+     * Skip the shared 401 → refresh-and-retry. Set by a request made for a
+     * *non-active* account: refreshing the active session and retrying with its
+     * token would silently return the wrong identity's data.
+     */
+    skipAuthRefresh?: boolean;
+  }
 }
 
 /**
@@ -271,7 +284,11 @@ http.interceptors.response.use(
     const status = error.response?.status;
 
     const isAuthEndpoint = request?.url?.includes('/auth/');
-    const canRetry = !!request && !request._retried && !isAuthEndpoint;
+    const canRetry =
+      !!request &&
+      !request._retried &&
+      !isAuthEndpoint &&
+      !request.skipAuthRefresh;
 
     if (status === 401 && canRetry) {
       request._retried = true;

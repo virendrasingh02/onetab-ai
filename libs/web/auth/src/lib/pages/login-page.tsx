@@ -44,23 +44,12 @@ import {
   useSearchParams,
 } from 'react-router-dom';
 import { AuthLayout } from '../auth-layout.js';
-import { formErrorMessage, useLogin } from '../use-auth.js';
+import {
+  formErrorMessage,
+  redirectPathFromAuthState,
+  useLogin,
+} from '../use-auth.js';
 import { useAuthStore } from '../auth.store.js';
-
-/**
- * Resolves the post-login destination from router state, preserving the
- * query string. A bare `pathname` would drop e.g. `?request=...` on the
- * mobile device-pairing confirm page, stranding the user with no request id.
- */
-function redirectPathFromState(state: unknown): string {
-  const from = (
-    state as {
-      from?: { pathname?: string; search?: string; hash?: string };
-    } | null
-  )?.from;
-  if (!from?.pathname) return '/';
-  return `${from.pathname}${from.search ?? ''}${from.hash ?? ''}`;
-}
 
 export function LoginPage() {
   const login = useLogin();
@@ -97,7 +86,7 @@ export function LoginPage() {
   // If already authenticated and not in a browser handoff flow, redirect immediately to app root
   useEffect(() => {
     if (authStatus === 'authenticated' && !isDesktopHandoff) {
-      navigate(redirectPathFromState(location.state), { replace: true });
+      navigate(redirectPathFromAuthState(location.state), { replace: true });
     }
   }, [authStatus, isDesktopHandoff, location.state, navigate]);
 
@@ -237,7 +226,7 @@ export function LoginPage() {
         return;
       }
 
-      navigate(redirectPathFromState(location.state), { replace: true });
+      navigate(redirectPathFromAuthState(location.state), { replace: true });
     } catch {
       // Rendered by <FormError>
     }

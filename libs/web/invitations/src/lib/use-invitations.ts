@@ -1,4 +1,4 @@
-import { invitationApi, queryKeys } from '@org/api-client';
+import { invitationApi, queryKeys, workspaceApi } from '@org/api-client';
 import type {
   CreateInvitationLinkInput,
   InviteMembersInput,
@@ -33,6 +33,30 @@ export function useInvitationPreview(token: string | undefined) {
     enabled: !!token,
     retry: 1,
   });
+}
+
+/**
+ * Whether the signed-in account already belongs to a given workspace — resolved
+ * from the backend's own list, never from the invitation payload. Lets the
+ * accept screen offer "Open workspace" instead of "Accept" when there is
+ * nothing to accept. Shares the workspaces query key, so it is a cache read
+ * once the app has loaded.
+ */
+export function useIsWorkspaceMember(
+  workspaceId: string | undefined,
+  enabled = true,
+) {
+  const query = useQuery({
+    queryKey: queryKeys.workspaces.list(),
+    queryFn: () => workspaceApi.list(),
+    enabled: enabled && !!workspaceId,
+    staleTime: 30_000,
+  });
+  return {
+    isMember: !!query.data?.some((w) => w.id === workspaceId),
+    isResolved: query.isSuccess,
+    isLoading: query.isLoading,
+  };
 }
 
 export function useInvitationMutations(workspaceId: string | undefined) {

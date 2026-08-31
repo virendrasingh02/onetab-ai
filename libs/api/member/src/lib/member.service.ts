@@ -482,13 +482,57 @@ export class MemberService {
   async acceptInvitation(
     token: string,
     userId: string,
-  ): Promise<{ workspaceSlug: string; channelSlug?: string }> {
+  ): Promise<{
+    workspaceSlug: string;
+    channelSlug?: string;
+    alreadyMember?: boolean;
+  }> {
     const invitation = await this.prisma.invitation.findUnique({
       where: { tokenHash: hashToken(token) },
       include: INVITATION_INCLUDE,
     });
 
-    if (!invitation || invitation.status !== InvitationStatus.PENDING) {
+    if (!invitation) {
+      throw new NotFoundException('This invitation is no longer valid.');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true },
+    });
+    if (!user) throw new NotFoundException('User not found.');
+
+    // A targeted invitation may only be accepted by the address it was sent to
+    // (a shareable link carries no `email` and is exempt). Enforced here, on the
+    // server, never on the strength of what the UI shows.
+    if (
+      invitation.email &&
+      invitation.email.toLowerCase() !== user.email.toLowerCase()
+    ) {
+      throw new ForbiddenException(
+        'This invitation was sent to a different email address.',
+      );
+    }
+
+    // Idempotent: a repeat click, a page refresh, or an invite to someone who
+    // is already in the workspace all resolve to "you're already in" rather
+    // than a second membership or a confusing error. Checked before the status
+    // gate so it still works once the invite has been marked ACCEPTED.
+    const existingMembership = await this.prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: { workspaceId: invitation.workspaceId, userId },
+      },
+      select: { id: true },
+    });
+    if (existingMembership) {
+      return {
+        workspaceSlug: invitation.workspace.slug,
+        channelSlug: invitation.channel?.slug,
+        alreadyMember: true,
+      };
+    }
+
+    if (invitation.status !== InvitationStatus.PENDING) {
       throw new NotFoundException('This invitation is no longer valid.');
     }
 
@@ -513,12 +557,6 @@ export class MemberService {
         'This invitation link has reached its maximum uses.',
       );
     }
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, email: true },
-    });
-    if (!user) throw new NotFoundException('User not found.');
 
     const newUseCount = invitation.useCount + 1;
     const isExhausted =

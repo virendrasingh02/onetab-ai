@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { hashToken } from '@org/api-common';
 import type { PrismaService } from '@org/database';
 import { InvitationStatus, WorkspaceRole } from '@org/types';
@@ -247,12 +247,87 @@ describe('MemberService - Complete Invitation System', () => {
     it('rejects an expired or revoked invitation', async () => {
       mockPrisma.invitation.findUnique.mockResolvedValue({
         id: 'inv_revoked',
+        tokenHash: hashToken('revoked_token'),
+        workspaceId,
+        email: null,
         status: InvitationStatus.REVOKED,
+        expiresAt: new Date(Date.now() + 100000),
+        isLink: true,
+        useCount: 0,
+        maxUses: null,
+        workspace: { id: workspaceId, slug: 'acme' },
+        channel: null,
       });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: invitedUserId,
+        email: 'invited@example.com',
+      });
+      mockPrisma.workspaceMember.findUnique.mockResolvedValue(null);
 
       await expect(service.acceptInvitation('revoked_token', invitedUserId)).rejects.toThrow(
         NotFoundException,
       );
+    });
+
+    it('refuses an invitation sent to a different email address', async () => {
+      mockPrisma.invitation.findUnique.mockResolvedValue({
+        id: 'inv_wrong',
+        tokenHash: hashToken('wrong_token'),
+        workspaceId,
+        email: 'someone-else@example.com',
+        status: InvitationStatus.PENDING,
+        expiresAt: new Date(Date.now() + 100000),
+        isLink: false,
+        useCount: 0,
+        maxUses: null,
+        workspace: { id: workspaceId, slug: 'acme' },
+        channel: null,
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: invitedUserId,
+        email: 'invited@example.com',
+      });
+
+      await expect(
+        service.acceptInvitation('wrong_token', invitedUserId),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockPrisma.workspaceMember.upsert).not.toHaveBeenCalled();
+    });
+
+    it('is idempotent: an existing member gets alreadyMember without a second write', async () => {
+      const rawToken = 'already_member_token';
+      mockPrisma.invitation.findUnique.mockResolvedValue({
+        id: 'inv_2',
+        tokenHash: hashToken(rawToken),
+        workspaceId,
+        email: 'invited@example.com',
+        role: WorkspaceRole.MEMBER,
+        channelId: null,
+        // Already consumed once — the status gate would otherwise 404 here.
+        status: InvitationStatus.ACCEPTED,
+        expiresAt: new Date(Date.now() + 100000),
+        isLink: false,
+        useCount: 1,
+        maxUses: null,
+        workspace: { id: workspaceId, slug: 'acme' },
+        channel: null,
+        invitedBy: { id: actorId, name: 'Alice' },
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: invitedUserId,
+        email: 'invited@example.com',
+      });
+      mockPrisma.workspaceMember.findUnique.mockResolvedValue({ id: 'wm_1' });
+
+      const res = await service.acceptInvitation(rawToken, invitedUserId);
+
+      expect(res).toEqual({
+        workspaceSlug: 'acme',
+        channelSlug: undefined,
+        alreadyMember: true,
+      });
+      expect(mockPrisma.workspaceMember.upsert).not.toHaveBeenCalled();
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
     });
   });
 

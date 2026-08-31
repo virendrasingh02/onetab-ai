@@ -3,21 +3,30 @@ import {
   authApi,
   SessionRejectedError,
   setAccessToken,
+  workspaceApi,
+  type AuthResponse,
 } from '@org/api-client';
-import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import type { CurrentUser } from '@org/types';
+import type { LoginInput, RegisterInput } from '@org/validation';
+import {
+  useMutation,
+  useQueries,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query';
 import { useNavigate, type NavigateFunction } from 'react-router-dom';
 import {
   getActiveAccount,
   useAccountStore,
   type Account,
+  type AccountWorkspace,
 } from './account-store.js';
 import { useAuthStore } from './auth.store.js';
 
-/** Credentials for adding a second identity — login without `rememberMe`. */
-export interface AddAccountInput {
-  email: string;
-  password: string;
-}
+/** Credentials for the "Add account → Log in" path. */
+export type AddAccountInput = LoginInput;
+/** Fields for the "Add account → Sign up" path. */
+export type SignUpAccountInput = RegisterInput;
 
 /**
  * localStorage keys the workspace layer reads to restore the last-open
@@ -103,12 +112,14 @@ export async function refreshActiveAccountToken(): Promise<string> {
 /**
  * Makes `accountId` the active identity: swaps the access token, points the
  * auth store and api-client at it, resets account-scoped caches and routing,
- * and lands on the account's default workspace.
+ * and lands on `to` — the account's default workspace (`/`) unless a specific
+ * path is given (e.g. a workspace picked straight from the switcher).
  */
 async function activateAccount(
   accountId: string,
   queryClient: QueryClient,
   navigate: NavigateFunction,
+  to = '/',
 ): Promise<void> {
   const account = useAccountStore
     .getState()
@@ -125,17 +136,21 @@ async function activateAccount(
   useAccountStore.getState().setActiveAccountId(accountId);
   useAuthStore.getState().setSession(account.user, accessToken);
 
-  for (const key of ACTIVE_WORKSPACE_KEYS) {
-    try {
-      localStorage.removeItem(key);
-    } catch {
-      // ignore storage errors
+  if (to === '/') {
+    // Let the redirect resolve this account's first workspace rather than
+    // bouncing to one it cannot see.
+    for (const key of ACTIVE_WORKSPACE_KEYS) {
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        // ignore storage errors
+      }
     }
   }
 
   // Nothing cached under the previous identity may leak into this one.
   queryClient.clear();
-  navigate('/', { replace: true });
+  navigate(to, { replace: true });
 }
 
 /** The linked accounts and which one is active. */
@@ -145,49 +160,145 @@ export function useAccounts() {
   return { accounts, activeAccountId };
 }
 
+function toAccountWorkspace(w: {
+  id: string;
+  name: string;
+  slug: string;
+  email?: string | null;
+  icon?: string | null;
+  iconColor?: string | null;
+  avatarUrl?: string | null;
+  memberCount: number;
+}): AccountWorkspace {
+  return {
+    id: w.id,
+    name: w.name,
+    slug: w.slug,
+    email: w.email ?? null,
+    icon: w.icon ?? null,
+    iconColor: w.iconColor ?? null,
+    avatarUrl: w.avatarUrl ?? null,
+    memberCount: w.memberCount,
+  };
+}
+
 /**
- * Signs into a second identity without disturbing the current one, then
- * switches to it. Surfaces {@link ApiError} so a form can show field errors.
+ * Keeps every *background* account's cached workspace list fresh by fetching it
+ * with that account's own token. The active account's list is already kept
+ * current from the app shell's own `useWorkspaces` query.
+ *
+ * A failure (that account's token lapsed) is left alone — the switcher falls
+ * back to the last list written to the account store, so both accounts'
+ * workspaces stay visible regardless.
+ */
+export function useLinkedAccountWorkspaces(): void {
+  const accounts = useAccountStore((s) => s.accounts);
+  const activeAccountId = useAccountStore((s) => s.activeAccountId);
+  const setAccountWorkspaces = useAccountStore((s) => s.setAccountWorkspaces);
+
+  const background = accounts.filter((a) => a.id !== activeAccountId);
+
+  useQueries({
+    queries: background.map((account) => ({
+      queryKey: ['linked-account-workspaces', account.id, account.accessToken],
+      staleTime: 60_000,
+      gcTime: 5 * 60_000,
+      retry: false,
+      refetchOnWindowFocus: false,
+      queryFn: async () => {
+        const list = await workspaceApi.listForAccount(account.accessToken);
+        const slim = list.map(toAccountWorkspace);
+        setAccountWorkspaces(account.id, slim);
+        return slim;
+      },
+    })),
+  });
+}
+
+/**
+ * The current account may have been restored from the cookie this session and
+ * never given a client-side refresh token. A following `login`/`register`
+ * overwrites the browser's one refresh cookie, so the current account must
+ * capture its own token first — while the cookie is still hers — or it cannot
+ * be refreshed after the switch. Not best-effort: proceeding past a failure
+ * here strands the current session.
+ */
+async function protectCurrentSession(): Promise<void> {
+  const active = getActiveAccount();
+  if (active && !active.refreshToken) {
+    await rotateAccount(active);
+  }
+}
+
+function registerAuthedAccount(data: {
+  user: CurrentUser;
+  accessToken: string;
+  refreshToken?: string;
+}): void {
+  useAccountStore.getState().upsertAccount({
+    id: data.user.id,
+    user: data.user,
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken ?? '',
+    addedAt: Date.now(),
+  });
+}
+
+/**
+ * Signs into a second identity with an existing password without disturbing the
+ * current one, then switches to it. Surfaces {@link ApiError} so a form can show
+ * field errors.
  */
 export function useAddAccount() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   return useMutation({
-    mutationFn: async (input: AddAccountInput) => {
-      // The current account may have been restored from the cookie this session
-      // and never given a client-side refresh token. `authApi.login` below
-      // overwrites the browser's one refresh cookie, so the current account
-      // must capture its own token first — while the cookie is still hers — or
-      // it cannot be refreshed after the switch. Not best-effort: proceeding
-      // past a failure here strands the current session.
-      const active = getActiveAccount();
-      if (active && !active.refreshToken) {
-        await rotateAccount(active);
-      }
-
+    mutationFn: async (input: AddAccountInput): Promise<AuthResponse> => {
+      await protectCurrentSession();
       const data = await authApi.login({ ...input, rememberMe: true });
-      useAccountStore.getState().upsertAccount({
-        id: data.user.id,
-        user: data.user,
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken ?? '',
-        addedAt: Date.now(),
-      });
+      registerAuthedAccount(data);
       return data;
     },
     onSuccess: (data) => activateAccount(data.user.id, queryClient, navigate),
   });
 }
 
-/** Switches to an already-linked account. */
+/**
+ * Creates a brand-new account without disturbing the current one, then switches
+ * to it. A new account has no workspaces yet — the post-switch redirect lands on
+ * the app's own first-run screen, which is where workspace creation lives.
+ */
+export function useSignUpAccount() {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  return useMutation({
+    mutationFn: async (input: SignUpAccountInput): Promise<AuthResponse> => {
+      await protectCurrentSession();
+      const data = await authApi.register(input);
+      registerAuthedAccount(data);
+      return data;
+    },
+    onSuccess: (data) => activateAccount(data.user.id, queryClient, navigate),
+  });
+}
+
+/**
+ * Switches to an already-linked account. Pass a bare id to land on that
+ * account's default workspace, or `{ accountId, to }` to open a specific route
+ * (used when a workspace is picked straight from the switcher).
+ */
 export function useSwitchAccount() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   return useMutation({
-    mutationFn: (accountId: string) =>
-      activateAccount(accountId, queryClient, navigate),
+    mutationFn: (input: string | { accountId: string; to?: string }) => {
+      const { accountId, to } =
+        typeof input === 'string' ? { accountId: input, to: undefined } : input;
+      return activateAccount(accountId, queryClient, navigate, to);
+    },
   });
 }
 
