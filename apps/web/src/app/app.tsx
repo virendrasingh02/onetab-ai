@@ -67,6 +67,9 @@ const AcceptInvitationPage = lazy(() =>
 const ProfilePage = lazy(() =>
   import('@org/web-profile').then((m) => ({ default: m.ProfilePage })),
 );
+const ProfileSettingsPanel = lazy(() =>
+  import('@org/web-profile').then((m) => ({ default: m.ProfileSettingsPanel })),
+);
 const CreateWorkspacePage = lazy(() =>
   import('@org/web-workspace').then((m) => ({
     default: m.CreateWorkspacePage,
@@ -97,8 +100,8 @@ const ThemeSettings = lazy(() =>
  * The settings page with its borrowed tabs supplied.
  *
  * `@org/web-workspace` sits below `@org/web-integrations`,
- * `@org/web-work-tools`, and `@org/web-settings` in the dependency graph, so it cannot import either;
- * the route layer is the first place that may depend on all. See
+ * `@org/web-work-tools`, `@org/web-settings`, and `@org/web-profile` in the dependency graph,
+ * so it cannot import either; the route layer is the first place that may depend on all. See
  * `WorkspaceSettingsPageProps`.
  */
 function WorkspaceSettings() {
@@ -107,6 +110,7 @@ function WorkspaceSettings() {
       importPanel={<SlackNotionImportView embedded />}
       kanbanPanel={<WorkspaceKanbanSettings />}
       themePanel={<ThemeSettings />}
+      profilePanel={<ProfileSettingsPanel />}
     />
   );
 }
@@ -264,7 +268,7 @@ export function App() {
           />
           <Route
             path="/w/:workspaceSlug/profile"
-            element={<ProfilePage />}
+            element={<WorkspaceSettings />}
           />
           <Route
             path="/w/:workspaceSlug/billing"

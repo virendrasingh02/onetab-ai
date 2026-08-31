@@ -113,12 +113,15 @@ export interface WorkspaceSettingsPageProps {
   kanbanPanel?: ReactNode;
   /** The theme customization panel, from `@org/web-settings`. */
   themePanel?: ReactNode;
+  /** The full profile panel, from `@org/web-profile`. */
+  profilePanel?: ReactNode;
 }
 
 export function WorkspaceSettingsPage({
   importPanel,
   kanbanPanel,
   themePanel,
+  profilePanel,
 }: WorkspaceSettingsPageProps = {}) {
   const { workspace, workspaceId, isLoading } = useCurrentWorkspace();
   const updateWorkspace = useUpdateWorkspace(workspaceId);
@@ -143,6 +146,8 @@ export function WorkspaceSettingsPage({
   const isBillingRoute =
     location.pathname.endsWith('/billing') ||
     location.pathname.endsWith('/plans');
+  const isProfileRoute = location.pathname.endsWith('/profile');
+  const isPreferencesRoute = location.pathname.endsWith('/preferences');
 
   const currentTab = isImportExportRoute
     ? 'import-export'
@@ -154,7 +159,11 @@ export function WorkspaceSettingsPage({
           ? 'analytics'
           : isBillingRoute
             ? 'billing'
-            : searchParams.get('tab') || searchParams.get('section') || 'preferences';
+            : isProfileRoute
+              ? 'profile'
+              : isPreferencesRoute
+                ? 'preferences'
+                : searchParams.get('tab') || searchParams.get('section') || 'preferences';
 
   const handleTabChange = (val: string) => {
     setSearchParams(
@@ -551,14 +560,16 @@ export function WorkspaceSettingsPage({
       )}
 
       {/* ---------------- SECTION 2: PROFILE ---------------- */}
-      {currentTab === 'profile' && user && (
-        <div className="space-y-8">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Profile & Details</h1>
-            <p className="text-xs text-muted-foreground mt-1">
-              Manage your member avatar, display identity, and timezone.
-            </p>
-          </div>
+      {currentTab === 'profile' &&
+        (profilePanel ??
+          (user && (
+            <div className="space-y-8">
+              <div>
+                <h1 className="text-xl font-bold tracking-tight text-foreground">Profile & Details</h1>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Manage your member avatar, display identity, and timezone.
+                </p>
+              </div>
 
           <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border/40">
@@ -882,7 +893,7 @@ export function WorkspaceSettingsPage({
             </Form>
           </div>
         </div>
-      )}
+      )))}
 
       {/* ---------------- SECTION 2.5: TIME ZONE & REGION ---------------- */}
       {currentTab === 'timezone-region' && user && (

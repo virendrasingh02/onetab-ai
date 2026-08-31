@@ -184,7 +184,9 @@ export function AgentMarketplaceView() {
     avatarUrl: 'icon:bot',
   });
 
-  const [deletingAgent, setDeletingAgent] = useState<AIAgentDetail | null>(null);
+  const [deletingAgent, setDeletingAgent] = useState<AIAgentDetail | null>(
+    null,
+  );
   const [editingAgent, setEditingAgent] = useState<AIAgentDetail | null>(null);
   const [editForm, setEditForm] = useState({
     name: '',
@@ -210,7 +212,9 @@ export function AgentMarketplaceView() {
 
   const openBuilder = (agentId?: string, name?: string) => {
     if (agentId) {
-      navigate(`builder?agentId=${agentId}&name=${encodeURIComponent(name || '')}`);
+      navigate(
+        `builder?agentId=${agentId}&name=${encodeURIComponent(name || '')}`,
+      );
     } else {
       navigate('builder');
     }
@@ -336,7 +340,9 @@ export function AgentMarketplaceView() {
       },
       {
         onSuccess: () => {
-          toast.success(nextState ? `"${agent.name}" activated` : `"${agent.name}" paused`);
+          toast.success(
+            nextState ? `"${agent.name}" activated` : `"${agent.name}" paused`,
+          );
         },
         onError: () => {
           toast.error('Failed to update agent status');
@@ -402,29 +408,35 @@ export function AgentMarketplaceView() {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="min-h-0 flex flex-1 flex-col">
       {/* Channel-style Header */}
       <div className="border-b border-border bg-background">
-        <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 sm:px-6 py-2.5">
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="flex min-w-0 items-center gap-1.5">
-              <Bot className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-              <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+        <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
+          <div className="min-w-0 gap-2 flex items-center">
+            <div className="min-w-0 gap-1.5 flex items-center">
+              <Bot
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
                 AI Agents
               </h2>
-              <Badge variant="neutral" className="text-[11px] px-1.5 py-0 h-4.5">
+              <Badge
+                variant="neutral"
+                className="px-1.5 py-0 h-4.5 text-[11px]"
+              >
                 {installed.length} deployed
               </Badge>
             </div>
 
-            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
+            {/* <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
 
             <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
               Manage, build, and deploy autonomous intelligent agents
-            </p>
+            </p> */}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             <SearchInput
               value={searchQuery}
               onValueChange={setSearchQuery}
@@ -493,22 +505,22 @@ export function AgentMarketplaceView() {
             value={tab}
             onValueChange={(next) => handleTabChange(next as AgentTab)}
           >
-            <TabsList className="h-9 bg-transparent border-b-0 p-0 gap-4">
+            <TabsList className="h-9 p-0 gap-4 border-b-0 bg-transparent">
               <TabsTrigger
                 value="all"
-                className="h-8 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+                className="h-8 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
               >
                 All Agents ({installed.length + AGENT_TEMPLATES.length})
               </TabsTrigger>
               <TabsTrigger
                 value="mine"
-                className="h-8 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+                className="h-8 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
               >
                 Managed by you ({installed.length})
               </TabsTrigger>
               <TabsTrigger
                 value="templates"
-                className="h-8 px-2 text-xs font-medium border-b-2 rounded-none border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent cursor-pointer"
+                className="h-8 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
               >
                 Templates ({AGENT_TEMPLATES.length})
               </TabsTrigger>
@@ -517,24 +529,100 @@ export function AgentMarketplaceView() {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-        <div className="mx-auto max-w-7xl">
+      <div className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto">
+          {agents.isLoading ? (
+            <SkeletonList rows={3} />
+          ) : agents.isError ? (
+            <ErrorState
+              title="Could not load your agents"
+              description="Something went wrong reaching the server."
+              onRetry={() => agents.refetch()}
+            />
+          ) : tab === 'all' ? (
+            <>
+              {filteredInstalled.length > 0 ? (
+                <PageSection
+                  title={`Workspace Agents (${filteredInstalled.length})`}
+                >
+                  <ul className="gap-4 md:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">
+                    {filteredInstalled.map((agent) => (
+                      <li key={agent.id}>
+                        <ManagedAgentCard
+                          agent={agent}
+                          onChat={() => navigate(`chat?id=${agent.id}`)}
+                          onEditBuilder={() =>
+                            openBuilder(agent.id, agent.name)
+                          }
+                          onQuickEdit={() => openQuickEdit(agent)}
+                          onDuplicate={() => handleDuplicate(agent)}
+                          onToggleActive={() => handleToggleActive(agent)}
+                          onLogs={() => navigate('logs')}
+                          onDelete={() => setDeletingAgent(agent)}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </PageSection>
+              ) : installed.length === 0 ? (
+                <EmptyState
+                  icon={<Bot />}
+                  title="No agents deployed yet"
+                  description="Build a custom autonomous agent with custom avatar icons or pick a template below."
+                  action={
+                    <Button
+                      leadingIcon={<Plus />}
+                      onClick={() => setIsCreateOpen(true)}
+                    >
+                      Create your first agent
+                    </Button>
+                  }
+                />
+              ) : null}
 
-      {agents.isLoading ? (
-        <SkeletonList rows={3} />
-      ) : agents.isError ? (
-        <ErrorState
-          title="Could not load your agents"
-          description="Something went wrong reaching the server."
-          onRetry={() => agents.refetch()}
-        />
-      ) : tab === 'all' ? (
-        <>
-          {filteredInstalled.length > 0 ? (
-            <PageSection
-              title={`Workspace Agents (${filteredInstalled.length})`}
-            >
-              <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {filteredTemplates.length > 0 ? (
+                <PageSection
+                  title={`Templates catalogue (${filteredTemplates.length})`}
+                >
+                  <ul className="gap-4 md:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">
+                    {filteredTemplates.map((template) => (
+                      <li key={template.id}>
+                        <AgentTemplateCard
+                          template={template}
+                          onUse={() => handleUseTemplate(template)}
+                          isCreating={create.isPending}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </PageSection>
+              ) : null}
+            </>
+          ) : tab === 'mine' ? (
+            filteredInstalled.length === 0 ? (
+              <EmptyState
+                icon={<Bot />}
+                title={
+                  searchQuery
+                    ? 'No matching agents found'
+                    : 'No agents deployed yet'
+                }
+                description={
+                  searchQuery
+                    ? `No managed agents matched "${searchQuery}".`
+                    : 'Create a new agent with custom icons or open the visual builder.'
+                }
+                action={
+                  <Button
+                    leadingIcon={<Plus />}
+                    onClick={() => setIsCreateOpen(true)}
+                  >
+                    Create agent
+                  </Button>
+                }
+              />
+            ) : (
+              <ul className="gap-4 md:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">
                 {filteredInstalled.map((agent) => (
                   <li key={agent.id}>
                     <ManagedAgentCard
@@ -550,365 +638,336 @@ export function AgentMarketplaceView() {
                   </li>
                 ))}
               </ul>
-            </PageSection>
-          ) : installed.length === 0 ? (
+            )
+          ) : filteredTemplates.length === 0 ? (
             <EmptyState
-              icon={<Bot />}
-              title="No agents deployed yet"
-              description="Build a custom autonomous agent with custom avatar icons or pick a template below."
+              icon={<Sparkles />}
+              title="No matching templates"
+              description={`No pre-built templates matched "${searchQuery}".`}
               action={
-                <Button leadingIcon={<Plus />} onClick={() => setIsCreateOpen(true)}>
-                  Create your first agent
-                </Button>
+                <Button onClick={() => setSearchQuery('')}>Clear filter</Button>
               }
             />
-          ) : null}
+          ) : (
+            <ul className="gap-4 md:grid-cols-2 xl:grid-cols-3 grid grid-cols-1">
+              {filteredTemplates.map((template) => (
+                <li key={template.id}>
+                  <AgentTemplateCard
+                    template={template}
+                    onUse={() => handleUseTemplate(template)}
+                    isCreating={create.isPending}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
 
-          {filteredTemplates.length > 0 ? (
-            <PageSection
-              title={`Templates catalogue (${filteredTemplates.length})`}
-            >
-              <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {filteredTemplates.map((template) => (
-                  <li key={template.id}>
-                    <AgentTemplateCard
-                      template={template}
-                      onUse={() => handleUseTemplate(template)}
-                      isCreating={create.isPending}
+          {/* Create New Agent Dialog */}
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle className="gap-2 flex items-center">
+                  <Sparkles className="size-4 text-success-text" />
+                  Create New AI Agent
+                </DialogTitle>
+                <DialogDescription>
+                  Configure name, role, model parameters, and customize
+                  avatar/media icon.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-2 text-xs">
+                {/* Avatar / Icon Picker */}
+                <div className="space-y-1.5">
+                  <Label>Agent Avatar & Media Icon</Label>
+                  <AgentAvatarPicker
+                    value={createForm.avatarUrl}
+                    onChange={(avatar) =>
+                      setCreateForm((prev) => ({ ...prev, avatarUrl: avatar }))
+                    }
+                  />
+                </div>
+
+                <div className="sm:grid-cols-2 gap-3 grid grid-cols-1">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="create-agent-name">Agent Name *</Label>
+                    <Input
+                      id="create-agent-name"
+                      value={createForm.name}
+                      onChange={(e) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. Documentation Assistant"
                     />
-                  </li>
-                ))}
-              </ul>
-            </PageSection>
-          ) : null}
-        </>
-      ) : tab === 'mine' ? (
-        filteredInstalled.length === 0 ? (
-          <EmptyState
-            icon={<Bot />}
-            title={searchQuery ? 'No matching agents found' : 'No agents deployed yet'}
-            description={
-              searchQuery
-                ? `No managed agents matched "${searchQuery}".`
-                : 'Create a new agent with custom icons or open the visual builder.'
-            }
-            action={
-              <Button leadingIcon={<Plus />} onClick={() => setIsCreateOpen(true)}>
-                Create agent
-              </Button>
-            }
-          />
-        ) : (
-          <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filteredInstalled.map((agent) => (
-              <li key={agent.id}>
-                <ManagedAgentCard
-                  agent={agent}
-                  onChat={() => navigate(`chat?id=${agent.id}`)}
-                  onEditBuilder={() => openBuilder(agent.id, agent.name)}
-                  onQuickEdit={() => openQuickEdit(agent)}
-                  onDuplicate={() => handleDuplicate(agent)}
-                  onToggleActive={() => handleToggleActive(agent)}
-                  onLogs={() => navigate('logs')}
-                  onDelete={() => setDeletingAgent(agent)}
-                />
-              </li>
-            ))}
-          </ul>
-        )
-      ) : filteredTemplates.length === 0 ? (
-        <EmptyState
-          icon={<Sparkles />}
-          title="No matching templates"
-          description={`No pre-built templates matched "${searchQuery}".`}
-          action={<Button onClick={() => setSearchQuery('')}>Clear filter</Button>}
-        />
-      ) : (
-        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filteredTemplates.map((template) => (
-            <li key={template.id}>
-              <AgentTemplateCard
-                template={template}
-                onUse={() => handleUseTemplate(template)}
-                isCreating={create.isPending}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
+                  </div>
 
-      {/* Create New Agent Dialog */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="size-4 text-success-text" />
-              Create New AI Agent
-            </DialogTitle>
-            <DialogDescription>
-              Configure name, role, model parameters, and customize avatar/media icon.
-            </DialogDescription>
-          </DialogHeader>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="create-agent-role">Role / Job Title</Label>
+                    <Input
+                      id="create-agent-role"
+                      value={createForm.role}
+                      onChange={(e) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          role: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. Technical Writer"
+                    />
+                  </div>
+                </div>
 
-          <div className="space-y-4 py-2 text-xs">
-            {/* Avatar / Icon Picker */}
-            <div className="space-y-1.5">
-              <Label>Agent Avatar & Media Icon</Label>
-              <AgentAvatarPicker
-                value={createForm.avatarUrl}
-                onChange={(avatar) =>
-                  setCreateForm((prev) => ({ ...prev, avatarUrl: avatar }))
-                }
-              />
-            </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="create-agent-model">AI Model Provider</Label>
+                  <Select
+                    value={createForm.model}
+                    onValueChange={(val) =>
+                      setCreateForm((prev) => ({ ...prev, model: val }))
+                    }
+                  >
+                    <SelectTrigger id="create-agent-model">
+                      <SelectValue placeholder="Select model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AVAILABLE_MODELS.map((m) => (
+                        <SelectItem key={m.value} value={m.value}>
+                          {m.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="create-agent-name">Agent Name *</Label>
-                <Input
-                  id="create-agent-name"
-                  value={createForm.name}
-                  onChange={(e) =>
-                    setCreateForm((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                  placeholder="e.g. Documentation Assistant"
-                />
+                <div className="space-y-1.5">
+                  <Label htmlFor="create-agent-prompt">
+                    System Prompt / Instructions
+                  </Label>
+                  <Textarea
+                    id="create-agent-prompt"
+                    rows={3}
+                    value={createForm.systemPrompt}
+                    onChange={(e) =>
+                      setCreateForm((prev) => ({
+                        ...prev,
+                        systemPrompt: e.target.value,
+                      }))
+                    }
+                    placeholder="Describe how this agent reasons, constraints, and tasks..."
+                  />
+                </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="create-agent-role">Role / Job Title</Label>
-                <Input
-                  id="create-agent-role"
-                  value={createForm.role}
-                  onChange={(e) =>
-                    setCreateForm((prev) => ({ ...prev, role: e.target.value }))
-                  }
-                  placeholder="e.g. Technical Writer"
-                />
+              <DialogFooter className="gap-2 sm:gap-0 sm:flex-nowrap flex-wrap justify-between">
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => {
+                    setIsCreateOpen(false);
+                    openBuilder();
+                  }}
+                  leadingIcon={<Wrench className="size-3.5" />}
+                >
+                  Open in Visual Builder
+                </Button>
+
+                <div className="gap-2 flex items-center">
+                  <DialogClose asChild>
+                    <Button variant="ghost">Cancel</Button>
+                  </DialogClose>
+                  <Button
+                    variant="primary"
+                    onClick={handleCreateAgent}
+                    loading={create.isPending}
+                    leadingIcon={<Plus className="size-4" />}
+                  >
+                    Create Agent
+                  </Button>
+                </div>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete Confirmation Dialog */}
+          <Dialog
+            open={Boolean(deletingAgent)}
+            onOpenChange={(open) => {
+              if (!open) setDeletingAgent(null);
+            }}
+          >
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="gap-2 flex items-center text-destructive">
+                  <AlertTriangle className="size-5" />
+                  Delete Agent
+                </DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to delete{' '}
+                  <strong className="text-foreground">
+                    {deletingAgent?.name}
+                  </strong>
+                  ? This will permanently remove its capabilities,
+                  configurations, and scheduled runs.
+                </DialogDescription>
+              </DialogHeader>
+
+              <DialogFooter className="gap-2 sm:gap-0">
+                <DialogClose asChild>
+                  <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button
+                  variant="destructive"
+                  onClick={handleConfirmDelete}
+                  loading={remove.isPending}
+                  leadingIcon={<Trash2 className="size-4" />}
+                >
+                  Delete Agent
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Quick Edit Dialog */}
+          <Dialog
+            open={Boolean(editingAgent)}
+            onOpenChange={(open) => {
+              if (!open) setEditingAgent(null);
+            }}
+          >
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle className="gap-2 flex items-center">
+                  <Pencil className="size-4 text-primary" />
+                  Edit Agent Details
+                </DialogTitle>
+                <DialogDescription>
+                  Update basic information, avatar icon, primary role, and model
+                  parameters.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-2 text-xs">
+                {/* Avatar / Icon Picker */}
+                <div className="space-y-1.5">
+                  <Label>Agent Avatar & Media Icon</Label>
+                  <AgentAvatarPicker
+                    value={editForm.avatarUrl}
+                    onChange={(avatar) =>
+                      setEditForm((prev) => ({ ...prev, avatarUrl: avatar }))
+                    }
+                  />
+                </div>
+
+                <div className="sm:grid-cols-2 gap-3 grid grid-cols-1">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="agent-name">Agent Name</Label>
+                    <Input
+                      id="agent-name"
+                      value={editForm.name}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. Code Reviewer Agent"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="agent-role">Role / Job Title</Label>
+                    <Input
+                      id="agent-role"
+                      value={editForm.role}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          role: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. Engineering Assistant"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="agent-model">AI Model Provider</Label>
+                  <Select
+                    value={editForm.model}
+                    onValueChange={(val) =>
+                      setEditForm((prev) => ({ ...prev, model: val }))
+                    }
+                  >
+                    <SelectTrigger id="agent-model">
+                      <SelectValue placeholder="Select model" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AVAILABLE_MODELS.map((m) => (
+                        <SelectItem key={m.value} value={m.value}>
+                          {m.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="agent-prompt">
+                    System Prompt / Instructions
+                  </Label>
+                  <Textarea
+                    id="agent-prompt"
+                    rows={3}
+                    value={editForm.systemPrompt}
+                    onChange={(e) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        systemPrompt: e.target.value,
+                      }))
+                    }
+                    placeholder="Define how this agent behaves, reasoning constraints, and output format..."
+                  />
+                </div>
+
+                <div className="p-3 flex items-center justify-between rounded-lg border border-border bg-surface-raised">
+                  <div>
+                    <Label
+                      htmlFor="agent-active"
+                      className="font-medium cursor-pointer"
+                    >
+                      Agent Active Status
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      When active, this agent can be triggered and respond to
+                      events.
+                    </p>
+                  </div>
+                  <Switch
+                    id="agent-active"
+                    checked={editForm.isActive}
+                    onCheckedChange={(checked) =>
+                      setEditForm((prev) => ({ ...prev, isActive: checked }))
+                    }
+                  />
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="create-agent-model">AI Model Provider</Label>
-              <Select
-                value={createForm.model}
-                onValueChange={(val) =>
-                  setCreateForm((prev) => ({ ...prev, model: val }))
-                }
-              >
-                <SelectTrigger id="create-agent-model">
-                  <SelectValue placeholder="Select model" />
-                </SelectTrigger>
-                <SelectContent>
-                  {AVAILABLE_MODELS.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>
-                      {m.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="create-agent-prompt">System Prompt / Instructions</Label>
-              <Textarea
-                id="create-agent-prompt"
-                rows={3}
-                value={createForm.systemPrompt}
-                onChange={(e) =>
-                  setCreateForm((prev) => ({
-                    ...prev,
-                    systemPrompt: e.target.value,
-                  }))
-                }
-                placeholder="Describe how this agent reasons, constraints, and tasks..."
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0 flex-wrap sm:flex-nowrap justify-between">
-            <Button
-              variant="outline"
-              type="button"
-              onClick={() => {
-                setIsCreateOpen(false);
-                openBuilder();
-              }}
-              leadingIcon={<Wrench className="size-3.5" />}
-            >
-              Open in Visual Builder
-            </Button>
-
-            <div className="flex items-center gap-2">
-              <DialogClose asChild>
-                <Button variant="ghost">Cancel</Button>
-              </DialogClose>
-              <Button
-                variant="primary"
-                onClick={handleCreateAgent}
-                loading={create.isPending}
-                leadingIcon={<Plus className="size-4" />}
-              >
-                Create Agent
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={Boolean(deletingAgent)}
-        onOpenChange={(open) => {
-          if (!open) setDeletingAgent(null);
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="size-5" />
-              Delete Agent
-            </DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete{' '}
-              <strong className="text-foreground">{deletingAgent?.name}</strong>? This will
-              permanently remove its capabilities, configurations, and scheduled runs.
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDelete}
-              loading={remove.isPending}
-              leadingIcon={<Trash2 className="size-4" />}
-            >
-              Delete Agent
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Quick Edit Dialog */}
-      <Dialog
-        open={Boolean(editingAgent)}
-        onOpenChange={(open) => {
-          if (!open) setEditingAgent(null);
-        }}
-      >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Pencil className="size-4 text-primary" />
-              Edit Agent Details
-            </DialogTitle>
-            <DialogDescription>
-              Update basic information, avatar icon, primary role, and model parameters.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2 text-xs">
-            {/* Avatar / Icon Picker */}
-            <div className="space-y-1.5">
-              <Label>Agent Avatar & Media Icon</Label>
-              <AgentAvatarPicker
-                value={editForm.avatarUrl}
-                onChange={(avatar) =>
-                  setEditForm((prev) => ({ ...prev, avatarUrl: avatar }))
-                }
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="agent-name">Agent Name</Label>
-                <Input
-                  id="agent-name"
-                  value={editForm.name}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g. Code Reviewer Agent"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="agent-role">Role / Job Title</Label>
-                <Input
-                  id="agent-role"
-                  value={editForm.role}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, role: e.target.value }))}
-                  placeholder="e.g. Engineering Assistant"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="agent-model">AI Model Provider</Label>
-              <Select
-                value={editForm.model}
-                onValueChange={(val) => setEditForm((prev) => ({ ...prev, model: val }))}
-              >
-                <SelectTrigger id="agent-model">
-                  <SelectValue placeholder="Select model" />
-                </SelectTrigger>
-                <SelectContent>
-                  {AVAILABLE_MODELS.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>
-                      {m.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="agent-prompt">System Prompt / Instructions</Label>
-              <Textarea
-                id="agent-prompt"
-                rows={3}
-                value={editForm.systemPrompt}
-                onChange={(e) =>
-                  setEditForm((prev) => ({ ...prev, systemPrompt: e.target.value }))
-                }
-                placeholder="Define how this agent behaves, reasoning constraints, and output format..."
-              />
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg border border-border bg-surface-raised p-3">
-              <div>
-                <Label htmlFor="agent-active" className="font-medium cursor-pointer">
-                  Agent Active Status
-                </Label>
-                <p className="text-[11px] text-muted-foreground">
-                  When active, this agent can be triggered and respond to events.
-                </p>
-              </div>
-              <Switch
-                id="agent-active"
-                checked={editForm.isActive}
-                onCheckedChange={(checked) =>
-                  setEditForm((prev) => ({ ...prev, isActive: checked }))
-                }
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button
-              variant="primary"
-              onClick={handleSaveQuickEdit}
-              loading={update.isPending}
-            >
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <DialogClose asChild>
+                  <Button variant="outline">Cancel</Button>
+                </DialogClose>
+                <Button
+                  variant="primary"
+                  onClick={handleSaveQuickEdit}
+                  loading={update.isPending}
+                >
+                  Save Changes
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     </div>
@@ -940,11 +999,16 @@ export function AgentAvatar({
     lg: 'size-6',
   };
 
-  if (avatarUrl && (avatarUrl.startsWith('data:image/') || avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'))) {
+  if (
+    avatarUrl &&
+    (avatarUrl.startsWith('data:image/') ||
+      avatarUrl.startsWith('http://') ||
+      avatarUrl.startsWith('https://'))
+  ) {
     return (
       <div
         className={cn(
-          'relative overflow-hidden rounded-lg border border-border/80 bg-surface shadow-2xs shrink-0',
+          'shadow-2xs relative shrink-0 overflow-hidden rounded-lg border border-border/80 bg-surface',
           sizeClasses[size],
           className,
         )}
@@ -954,13 +1018,14 @@ export function AgentAvatar({
     );
   }
 
-  const preset = PRESET_ICONS.find((p) => p.id === avatarUrl) || PRESET_ICONS[0];
+  const preset =
+    PRESET_ICONS.find((p) => p.id === avatarUrl) || PRESET_ICONS[0];
   const IconComponent = preset.icon;
 
   return (
     <div
       className={cn(
-        'flex shrink-0 items-center justify-center rounded-lg border shadow-2xs transition-transform',
+        'shadow-2xs flex shrink-0 items-center justify-center rounded-lg border transition-transform',
         accentClasses[preset.accent].soft,
         accentClasses[preset.accent].border,
         sizeClasses[size],
@@ -1005,12 +1070,14 @@ function AgentAvatarPicker({
   };
 
   return (
-    <div className="space-y-2.5 rounded-lg border border-border bg-surface-raised p-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+    <div className="space-y-2.5 p-3 rounded-lg border border-border bg-surface-raised">
+      <div className="gap-3 flex items-center justify-between">
+        <div className="gap-3 flex items-center">
           <AgentAvatar avatarUrl={value} name="Agent" size="lg" />
           <div>
-            <p className="text-xs font-semibold text-foreground">Selected Avatar</p>
+            <p className="text-xs font-semibold text-foreground">
+              Selected Avatar
+            </p>
             <p className="text-[11px] text-muted-foreground">
               Choose from media presets below or upload an image file.
             </p>
@@ -1039,8 +1106,10 @@ function AgentAvatarPicker({
 
       {/* Preset Icons Selection */}
       <div className="space-y-1.5 pt-1 border-t border-border/60">
-        <span className="text-[11px] font-medium text-muted-foreground">Media & Bot Presets:</span>
-        <div className="flex flex-wrap gap-1.5">
+        <span className="font-medium text-[11px] text-muted-foreground">
+          Media & Bot Presets:
+        </span>
+        <div className="gap-1.5 flex flex-wrap">
           {PRESET_ICONS.map((preset) => {
             const Icon = preset.icon;
             const isSelected = value === preset.id;
@@ -1050,12 +1119,12 @@ function AgentAvatarPicker({
                 type="button"
                 onClick={() => onChange(preset.id)}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-lg border transition-all',
+                  'size-8 flex items-center justify-center rounded-lg border transition-all',
                   accentClasses[preset.accent].soft,
                   accentClasses[preset.accent].border,
                   isSelected
-                    ? 'ring-2 ring-primary ring-offset-1 border-primary shadow-xs scale-105'
-                    : 'opacity-70 hover:opacity-100 hover:scale-105',
+                    ? 'scale-105 border-primary shadow-xs ring-2 ring-primary ring-offset-1'
+                    : 'opacity-70 hover:scale-105 hover:opacity-100',
                 )}
                 aria-label={`${preset.label} icon`}
                 aria-pressed={isSelected}
@@ -1097,38 +1166,52 @@ function ManagedAgentCard({
   const fromCatalogue = agent.isMarketplace;
 
   return (
-    <Card className="group relative flex h-full flex-col justify-between p-4 transition-all duration-200 hover:border-border-strong hover:shadow-sm">
+    <Card className="group p-4 relative flex h-full flex-col justify-between transition-all duration-200 hover:border-border-strong hover:shadow-sm">
       <div>
         {/* Card Header: Avatar, Name, Status Pill & Context Menu */}
-        <div className="mb-3 flex items-start justify-between gap-2">
-          <div className="flex min-w-0 items-start gap-2.5">
-            <AgentAvatar avatarUrl={agent.avatarUrl} name={agent.name} size="md" />
+        <div className="mb-3 gap-2 flex items-start justify-between">
+          <div className="min-w-0 gap-2.5 flex items-start">
+            <AgentAvatar
+              avatarUrl={agent.avatarUrl}
+              name={agent.name}
+              size="md"
+            />
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <h3 className="truncate text-sm font-semibold tracking-tight text-foreground">
+              <div className="gap-1.5 flex items-center">
+                <h3 className="text-sm font-semibold tracking-tight truncate text-foreground">
                   {agent.name}
                 </h3>
               </div>
-              <p className="truncate text-xs text-muted-foreground">{agent.role || 'Autonomous Agent'}</p>
+              <p className="text-xs truncate text-muted-foreground">
+                {agent.role || 'Autonomous Agent'}
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
-            <Hint label={agent.isActive ? 'Agent is active (click to pause)' : 'Agent is paused (click to activate)'}>
+          <div className="gap-1 flex items-center">
+            <Hint
+              label={
+                agent.isActive
+                  ? 'Agent is active (click to pause)'
+                  : 'Agent is paused (click to activate)'
+              }
+            >
               <button
                 type="button"
                 onClick={onToggleActive}
                 className={cn(
-                  'flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors',
+                  'gap-1 px-2 py-0.5 font-medium flex items-center rounded-full text-[10px] transition-colors',
                   agent.isActive
                     ? 'border border-success/20 bg-success/10 text-success-text'
-                    : 'bg-muted text-muted-foreground border border-border',
+                    : 'border border-border bg-muted text-muted-foreground',
                 )}
               >
                 <span
                   className={cn(
                     'size-1.5 rounded-full',
-                    agent.isActive ? 'bg-success animate-pulse' : 'bg-muted-foreground',
+                    agent.isActive
+                      ? 'animate-pulse bg-success'
+                      : 'bg-muted-foreground',
                   )}
                 />
                 {agent.isActive ? 'Active' : 'Paused'}
@@ -1147,32 +1230,53 @@ function ManagedAgentCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={onChat} className="gap-2 text-xs font-semibold text-primary">
+                <DropdownMenuItem
+                  onClick={onChat}
+                  className="gap-2 text-xs font-semibold text-primary"
+                >
                   <MessageSquare className="size-3.5" />
                   <span>Chat with Agent</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={onEditBuilder} className="gap-2 text-xs">
+                <DropdownMenuItem
+                  onClick={onEditBuilder}
+                  className="gap-2 text-xs"
+                >
                   <Wrench className="size-3.5 text-muted-foreground" />
                   <span>Open in Builder</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={onQuickEdit} className="gap-2 text-xs">
+                <DropdownMenuItem
+                  onClick={onQuickEdit}
+                  className="gap-2 text-xs"
+                >
                   <Edit3 className="size-3.5 text-muted-foreground" />
                   <span>Quick Edit Details</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={onDuplicate} className="gap-2 text-xs">
+                <DropdownMenuItem
+                  onClick={onDuplicate}
+                  className="gap-2 text-xs"
+                >
                   <Copy className="size-3.5 text-muted-foreground" />
                   <span>Duplicate Agent</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={onToggleActive} className="gap-2 text-xs">
+                <DropdownMenuItem
+                  onClick={onToggleActive}
+                  className="gap-2 text-xs"
+                >
                   <Power className="size-3.5 text-muted-foreground" />
-                  <span>{agent.isActive ? 'Pause Agent' : 'Activate Agent'}</span>
+                  <span>
+                    {agent.isActive ? 'Pause Agent' : 'Activate Agent'}
+                  </span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={onLogs} className="gap-2 text-xs">
                   <Activity className="size-3.5 text-muted-foreground" />
                   <span>Execution Logs</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onDelete} variant="destructive" className="gap-2 text-xs">
+                <DropdownMenuItem
+                  onClick={onDelete}
+                  variant="destructive"
+                  className="gap-2 text-xs"
+                >
                   <Trash2 className="size-3.5" />
                   <span>Delete Agent</span>
                 </DropdownMenuItem>
@@ -1182,33 +1286,39 @@ function ManagedAgentCard({
         </div>
 
         {/* Model & Source tags */}
-        <div className="mb-3 flex flex-wrap items-center gap-1.5">
-          <Badge variant="neutral" className="text-[10px] px-1.5 py-0 font-mono">
+        <div className="mb-3 gap-1.5 flex flex-wrap items-center">
+          <Badge
+            variant="neutral"
+            className="px-1.5 py-0 font-mono text-[10px]"
+          >
             {agent.model || 'gpt-4o'}
           </Badge>
-          <Badge variant={fromCatalogue ? 'neutral' : 'primary'} className="text-[10px] px-1.5 py-0">
+          <Badge
+            variant={fromCatalogue ? 'neutral' : 'primary'}
+            className="px-1.5 py-0 text-[10px]"
+          >
             {fromCatalogue ? 'Template' : 'Custom'}
           </Badge>
         </div>
 
         {/* Description / System Prompt snippet */}
         {agent.description || agent.systemPrompt ? (
-          <p className="mb-4 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+          <p className="mb-4 text-xs leading-relaxed line-clamp-2 text-muted-foreground">
             {agent.description || agent.systemPrompt}
           </p>
         ) : (
-          <p className="mb-4 text-xs italic text-muted-foreground/60">
+          <p className="mb-4 text-xs text-muted-foreground/60 italic">
             No system prompt configured.
           </p>
         )}
       </div>
 
       {/* Card Actions Footer */}
-      <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+      <div className="gap-2 pt-2 flex items-center border-t border-border/60">
         <Button
           variant="primary"
           size="sm"
-          className="flex-1 text-xs"
+          className="text-xs flex-1"
           onClick={onChat}
           leadingIcon={<MessageSquare className="size-3.5" />}
         >
@@ -1217,7 +1327,7 @@ function ManagedAgentCard({
         <Button
           variant="outline"
           size="sm"
-          className="flex-1 text-xs"
+          className="text-xs flex-1"
           onClick={onEditBuilder}
           leadingIcon={<Pencil className="size-3.5" />}
         >
@@ -1237,7 +1347,7 @@ function ManagedAgentCard({
             variant="ghost"
             size="icon-sm"
             onClick={onDelete}
-            className="size-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            className="size-8 p-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
             aria-label={`Delete ${agent.name}`}
           >
             <Trash2 className="size-3.5" />
@@ -1258,9 +1368,9 @@ function AgentTemplateCard({
   isCreating: boolean;
 }) {
   return (
-    <Card className="group relative flex h-full flex-col justify-between p-4 transition-all duration-200 hover:border-border-strong hover:shadow-sm">
+    <Card className="group p-4 relative flex h-full flex-col justify-between transition-all duration-200 hover:border-border-strong hover:shadow-sm">
       <div>
-        <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="mb-3 gap-2 flex items-center justify-between">
           <Badge variant="neutral" className="text-[10px]">
             {template.category}
           </Badge>
@@ -1269,10 +1379,14 @@ function AgentTemplateCard({
           </Badge>
         </div>
 
-        <div className="flex items-start gap-2.5 mb-2">
-          <AgentAvatar avatarUrl={template.avatarUrl} name={template.name} size="sm" />
+        <div className="gap-2.5 mb-2 flex items-start">
+          <AgentAvatar
+            avatarUrl={template.avatarUrl}
+            name={template.name}
+            size="sm"
+          />
           <div>
-            <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+            <h3 className="text-sm font-semibold text-foreground transition-colors group-hover:text-primary">
               {template.name}
             </h3>
             <p className="text-xs font-medium text-muted-foreground">
@@ -1281,15 +1395,15 @@ function AgentTemplateCard({
           </div>
         </div>
 
-        <p className="mb-4 text-xs leading-relaxed text-muted-foreground line-clamp-2">
+        <p className="mb-4 text-xs leading-relaxed line-clamp-2 text-muted-foreground">
           {template.description}
         </p>
 
-        <div className="mb-4 flex flex-wrap items-center gap-1.5">
+        <div className="mb-4 gap-1.5 flex flex-wrap items-center">
           {template.tools.map((tool) => (
             <span
               key={tool}
-              className="rounded-md border border-border bg-surface-inset px-2 py-0.5 text-[10px] text-muted-foreground font-mono"
+              className="px-2 py-0.5 rounded-md border border-border bg-surface-inset font-mono text-[10px] text-muted-foreground"
             >
               {tool}
             </span>
@@ -1300,7 +1414,7 @@ function AgentTemplateCard({
       <Button
         variant="primary"
         size="sm"
-        className="w-full text-xs"
+        className="text-xs w-full"
         onClick={onUse}
         loading={isCreating}
         leadingIcon={<Zap className="size-3.5 text-accent-amber" />}

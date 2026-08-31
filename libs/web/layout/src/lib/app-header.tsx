@@ -331,7 +331,7 @@ export function AppHeader({
               {/* Header Identity Row: Avatar, name, handle, active status */}
               <div
                 onClick={() => {
-                  navigate(`/w/${workspaceSlug}/profile`);
+                  navigate(`/w/${workspaceSlug}/settings?tab=profile`);
                 }}
                 className="gap-3 p-2.5 flex items-center rounded-xl cursor-pointer hover:bg-accent/60 transition-colors"
               >
@@ -398,7 +398,7 @@ export function AppHeader({
 
               {/* View profile */}
               <DropdownMenuItem
-                onClick={() => navigate(`/w/${workspaceSlug}/profile`)}
+                onClick={() => navigate(`/w/${workspaceSlug}/settings?tab=profile`)}
                 className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60 gap-2.5"
               >
                 <User className="size-3.5 text-muted-foreground" />
@@ -407,7 +407,7 @@ export function AppHeader({
 
               {/* Edit profile */}
               <DropdownMenuItem
-                onClick={() => setEditProfileOpen(true)}
+                onClick={() => navigate(`/w/${workspaceSlug}/settings?tab=profile`)}
                 className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60 gap-2.5"
               >
                 <UserCheck className="size-3.5 text-primary" />

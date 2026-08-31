@@ -1,4 +1,5 @@
 export { ProfilePage } from './lib/pages/profile-page.js';
+export { ProfileSettingsPanel } from './lib/components/profile-settings-panel.js';
 export { ProfileHeader, type ProfileHeaderProps } from './lib/components/profile-header.js';
 export { ProfileAvatar, type ProfileAvatarProps } from './lib/components/profile-avatar.js';
 export { ProfileCover, type ProfileCoverProps } from './lib/components/profile-cover.js';
