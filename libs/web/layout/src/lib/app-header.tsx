@@ -16,7 +16,6 @@ import {
 import type { ActivityIndicator } from '@org/notifications';
 import { useLogout } from '@org/auth';
 import { cn } from '@org/utils';
-import { ProfileEditModal } from '@org/web-profile';
 import {
   DesktopTitleBarInset,
   DesktopUpdateIndicator,
@@ -33,16 +32,13 @@ import {
   ChevronLeft,
   ChevronRight,
   HelpCircle,
-  Keyboard,
   Laptop,
-  Palette,
   PanelLeft,
   Search,
   Settings,
+  Sliders,
   Smile,
   Sparkles,
-  User,
-  UserCheck,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -105,7 +101,6 @@ export function AppHeader({
   const dismissRightPanel = useRightPanelStore((s) => s.dismiss);
   const setRightPanelView = useRightPanelStore((s) => s.setView);
   const [isSelfAway, setIsSelfAway] = useState(false);
-  const [editProfileOpen, setEditProfileOpen] = useState(false);
 
   const isAssistantActive = isRightPanelOpen && rightPanelView === 'assistant';
 
@@ -115,10 +110,6 @@ export function AppHeader({
     } else {
       setRightPanelView('assistant');
     }
-  };
-
-  const handleShowShortcuts = () => {
-    toast.info('Shortcuts: ⌘K Search, ⌘Shift J Downloads, Esc Close dialogs');
   };
 
   const handle = `@${user.email.split('@')[0]}`;
@@ -396,40 +387,13 @@ export function AppHeader({
 
               <DropdownMenuSeparator className="my-1 border-border/60" />
 
-              {/* View profile */}
-              <DropdownMenuItem
-                onClick={() => navigate(`/w/${workspaceSlug}/settings?tab=profile`)}
-                className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60 gap-2.5"
-              >
-                <User className="size-3.5 text-muted-foreground" />
-                <span>View profile</span>
-              </DropdownMenuItem>
-
-              {/* Edit profile */}
-              <DropdownMenuItem
-                onClick={() => navigate(`/w/${workspaceSlug}/settings?tab=profile`)}
-                className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60 gap-2.5"
-              >
-                <UserCheck className="size-3.5 text-primary" />
-                <span>Edit profile</span>
-              </DropdownMenuItem>
-
               {/* Preferences */}
               <DropdownMenuItem
                 onClick={() => navigate(`/w/${workspaceSlug}/settings?tab=preferences`)}
                 className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60 gap-2.5"
               >
-                <Settings className="size-3.5 text-muted-foreground" />
+                <Sliders className="size-3.5 text-muted-foreground" />
                 <span>Preferences</span>
-              </DropdownMenuItem>
-
-              {/* Theme Customization */}
-              <DropdownMenuItem
-                onClick={() => navigate(`/w/${workspaceSlug}/settings?tab=theme`)}
-                className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60 gap-2.5"
-              >
-                <Palette className="size-3.5 text-primary" />
-                <span>Theme customization</span>
               </DropdownMenuItem>
 
               {/* Account settings */}
@@ -439,18 +403,6 @@ export function AppHeader({
               >
                 <Settings className="size-3.5 text-muted-foreground" />
                 <span>Account settings</span>
-              </DropdownMenuItem>
-
-              {/* Keyboard shortcuts */}
-              <DropdownMenuItem
-                onClick={handleShowShortcuts}
-                className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60 gap-2.5 justify-between"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Keyboard className="size-3.5 text-muted-foreground" />
-                  <span>Keyboard shortcuts</span>
-                </div>
-                <KbdShortcut keys={['mod', '/']} size="xs" variant="muted" />
               </DropdownMenuItem>
 
               <DropdownMenuSeparator className="my-1 border-border/60" />
@@ -485,13 +437,6 @@ export function AppHeader({
           <DesktopWindowControls />
         </div>
       </header>
-
-      {/* Profile Edit Dialog accessible directly from header */}
-      <ProfileEditModal
-        open={editProfileOpen}
-        onOpenChange={setEditProfileOpen}
-        user={user}
-      />
     </>
   );
 }
