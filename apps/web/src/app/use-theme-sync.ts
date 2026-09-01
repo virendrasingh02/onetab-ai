@@ -49,9 +49,35 @@ export function useThemeSync(enabled: boolean): void {
   const lastSavedRef = useRef<string>('');
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 1. Pull the server copy once and apply it over the local defaults.
+  const applyRemoteBlob = (r: ThemeBlob) => {
+    if (r.customTheme !== undefined) setCustomTheme(r.customTheme ?? null);
+    if (r.density) setDensity(r.density);
+    if (r.accent) setAccent(r.accent);
+    if (r.radius) setRadius(r.radius);
+    if (r.theme) setTheme(r.theme);
+    lastSavedRef.current = JSON.stringify(r);
+  };
+
+  const pullRemoteSettings = () => {
+    if (!enabled) return;
+    userApi
+      .themeSettings()
+      .then((remote) => {
+        if (!remote || typeof remote !== 'object') return;
+        const r = remote as ThemeBlob;
+        const serialized = JSON.stringify(r);
+        if (serialized !== lastSavedRef.current) {
+          applyRemoteBlob(r);
+        }
+      })
+      .catch(() => {
+        // Offline or unauthenticated — the localStorage copy stands in.
+      });
+  };
+
+  // 1. Pull the server copy on mount and apply it over the local defaults.
   useEffect(() => {
-    if (!enabled || hydratedRef.current) return;
+    if (!enabled) return;
     let cancelled = false;
 
     userApi
@@ -59,12 +85,7 @@ export function useThemeSync(enabled: boolean): void {
       .then((remote) => {
         if (cancelled || !remote || typeof remote !== 'object') return;
         const r = remote as ThemeBlob;
-        // customTheme carries its own mode, so apply it before setTheme.
-        if (r.customTheme !== undefined) setCustomTheme(r.customTheme ?? null);
-        if (r.density) setDensity(r.density);
-        if (r.accent) setAccent(r.accent);
-        if (r.radius) setRadius(r.radius);
-        if (r.theme) setTheme(r.theme);
+        applyRemoteBlob(r);
       })
       .catch(() => {
         // Offline or unauthenticated — the localStorage copy stands in.
@@ -76,9 +97,27 @@ export function useThemeSync(enabled: boolean): void {
     return () => {
       cancelled = true;
     };
-  }, [enabled, setTheme, setDensity, setAccent, setRadius, setCustomTheme]);
+  }, [enabled]);
 
-  // 2. Push local changes back, debounced, once hydrated.
+  // 2. Refetch when window regains focus or becomes visible (e.g. user changed theme in web browser and switched to desktop)
+  useEffect(() => {
+    if (!enabled) return;
+
+    const onFocus = () => pullRemoteSettings();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') pullRemoteSettings();
+    };
+
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [enabled]);
+
+  // 3. Push local changes back, debounced, once hydrated.
   useEffect(() => {
     if (!enabled || !hydratedRef.current) return;
 

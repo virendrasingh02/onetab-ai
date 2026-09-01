@@ -371,6 +371,13 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
     IPC.setThemeSource,
     guard((_event, source: 'system' | 'light' | 'dark') => {
       nativeTheme.themeSource = source;
+      setPreference('theme', source);
+      const window = getMainWindow();
+      if (window && !window.isDestroyed()) {
+        const isDark =
+          source === 'dark' || (source === 'system' && nativeTheme.shouldUseDarkColors);
+        window.setBackgroundColor(isDark ? '#0c0d0e' : '#fbfbfc');
+      }
     }),
   );
 

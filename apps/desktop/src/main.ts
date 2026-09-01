@@ -16,6 +16,7 @@ import { installAppMenu } from './main/menu.js';
 import { startStaticServer, type StaticServer } from './main/static-server.js';
 import { createTray, destroyTray } from './main/tray.js';
 import { scheduleUpdateChecks } from './main/updater.js';
+import { getPreference } from './main/store.js';
 import { createMainWindow, getMainWindow, markQuitting, showMainWindow } from './main/window.js';
 
 /** Directory of the compiled `dist/main.js`, not of this source file. */
@@ -154,7 +155,8 @@ async function bootstrap(): Promise<void> {
   registerIpcHandlers(isDev, appUrl);
   installAppMenu(isDev);
 
-  nativeTheme.themeSource = 'light';
+  const savedTheme = getPreference<'system' | 'light' | 'dark'>('theme', 'system');
+  nativeTheme.themeSource = savedTheme;
 
   const window = createMainWindow({ appUrl, preloadPath });
 
