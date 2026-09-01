@@ -17,7 +17,7 @@ import {
   ErrorState,
   Hint,
   toast,
-  UserAvatar,
+  UserAvatarGroup,
   usePromptDialog,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -162,30 +162,21 @@ export function GroupConversation({
   );
 }
 
+/** Adapts the group's member rows to the shared {@link UserAvatarGroup}. */
 function AvatarStack({
   members,
 }: {
   members: { userId: string; displayName: string; avatarUrl?: string }[];
 }) {
-  const shown = members.slice(0, 3);
   return (
-    <div className="flex -space-x-2">
-      {shown.map((member) => (
-        <UserAvatar
-          key={member.userId}
-          name={member.displayName || member.userId}
-          src={member.avatarUrl}
-          seed={member.userId}
-          size="sm"
-          className="size-6 ring-2 ring-background"
-        />
-      ))}
-      {members.length > shown.length ? (
-        <span className="size-6 text-[10px] font-semibold ring-2 ring-background flex items-center justify-center rounded-full bg-muted text-muted-foreground">
-          +{members.length - shown.length}
-        </span>
-      ) : null}
-    </div>
+    <UserAvatarGroup
+      size="sm"
+      users={members.map((m) => ({
+        id: m.userId,
+        name: m.displayName || m.userId,
+        avatarUrl: m.avatarUrl,
+      }))}
+    />
   );
 }
 

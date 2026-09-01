@@ -1,7 +1,4 @@
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
   Button,
   Dialog,
   DialogContent,
@@ -21,6 +18,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  UserAvatar,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -241,12 +239,12 @@ export function DocToolsDrawer({ doc, onAddComment }: DocToolsDrawerProps) {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
-                          <Avatar className="size-5">
-                            {cm.avatar && <AvatarImage src={cm.avatar} />}
-                            <AvatarFallback className="text-[9px]">
-                              {cm.author.slice(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
+                          <UserAvatar
+                            name={cm.author}
+                            src={cm.avatar}
+                            size="xs"
+                            indicator={false}
+                          />
                           <span className="text-xs font-semibold text-foreground">
                             {cm.author}
                           </span>

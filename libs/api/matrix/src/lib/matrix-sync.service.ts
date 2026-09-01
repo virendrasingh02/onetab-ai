@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AppEvent, resolveTextMentions } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import { MatrixAdminService } from './matrix-admin.service.js';
 import { MatrixInboundRouterService } from './matrix-inbound-router.service.js';
@@ -39,6 +41,7 @@ export class MatrixSyncService {
     private readonly prisma: PrismaService,
     private readonly admin: MatrixAdminService,
     private readonly router: MatrixInboundRouterService,
+    private readonly events: EventEmitter2,
   ) {}
 
   /**
@@ -140,7 +143,7 @@ export class MatrixSyncService {
   private async recordActivity(event: MatrixTimelineEvent): Promise<void> {
     const channel = await this.prisma.channel.findFirst({
       where: { matrixRoomId: event.room_id },
-      select: { id: true, workspaceId: true },
+      select: { id: true, workspaceId: true, name: true, slug: true },
     });
     if (!channel) return;
 
@@ -165,6 +168,22 @@ export class MatrixSyncService {
         occurredAt: new Date(event.origin_server_ts),
       },
     });
+
+    // A named person gets a bell-menu notification, not just a sidebar dot.
+    // The activity row above already carries the ids for the dot; this adds the
+    // per-recipient, read-tracked row. Still no message content leaves Matrix.
+    const targets = mentionedUserIds.filter((id) => id !== user?.id);
+    if (targets.length > 0) {
+      this.events.emit(AppEvent.MentionCreated, {
+        workspaceId: channel.workspaceId,
+        actorId: user?.id ?? null,
+        mentionedUserIds: targets,
+        contextType: 'channel',
+        contextId: channel.id,
+        contextLabel: `#${channel.slug || channel.name}`,
+        deepLink: `c/${channel.slug}`,
+      });
+    }
   }
 
   /**
@@ -207,22 +226,16 @@ export class MatrixSyncService {
         },
       },
     });
+    const users = members.map((m) => m.user);
 
-    const matched = new Set<string>();
-    const haystack = body.toLowerCase();
+    // Plain `@Display Name` text — the same matcher task-comment mentions use.
+    const matched = new Set<string>(resolveTextMentions(body, users));
 
-    for (const { user } of members) {
+    // Plus `m.mentions.user_ids`, the spec'd intentional-mentions field, which
+    // is authoritative when a Matrix client sends it.
+    for (const user of users) {
       if (user.matrixUserId && matrixUserIds.includes(user.matrixUserId)) {
         matched.add(user.id);
-        continue;
-      }
-
-      for (const name of [user.displayName, user.name]) {
-        if (!name) continue;
-        if (haystack.includes(`@${name.toLowerCase()}`)) {
-          matched.add(user.id);
-          break;
-        }
       }
     }
 

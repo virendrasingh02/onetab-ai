@@ -22,6 +22,12 @@ export const AppEvent = {
   ChannelCreated: 'channel.created',
   WorkspaceInvited: 'workspace.invited',
   MemberJoined: 'member.joined',
+  /**
+   * Someone was @named in free text — a channel message (via the Matrix
+   * bridge), a task comment, a document. Carries only resolved user ids and a
+   * deep link, never the text.
+   */
+  MentionCreated: 'mention.created',
 } as const;
 
 export type AppEventName = (typeof AppEvent)[keyof typeof AppEvent];
@@ -37,7 +43,10 @@ export interface TaskCreatedEvent extends BaseEvent {
   title: string;
   identifier: string | null;
   projectId: string | null;
+  /** Primary assignee — `assigneeIds[0]`, kept for consumers that want one. */
   assigneeId: string | null;
+  /** Every assignee, primary first. */
+  assigneeIds: string[];
 }
 
 export interface TaskAssignedEvent extends BaseEvent {
@@ -46,6 +55,10 @@ export interface TaskAssignedEvent extends BaseEvent {
   identifier: string | null;
   assigneeId: string | null;
   previousAssigneeId: string | null;
+  /** The full assignee set after the change. */
+  assigneeIds: string[];
+  /** Only the assignees added by this change — who to notify. */
+  addedAssigneeIds: string[];
 }
 
 export interface TaskCompletedEvent extends BaseEvent {
@@ -53,11 +66,43 @@ export interface TaskCompletedEvent extends BaseEvent {
   title: string;
   identifier: string | null;
   assigneeId: string | null;
+  assigneeIds: string[];
 }
 
 export interface ProjectCreatedEvent extends BaseEvent {
   projectId: string;
   name: string;
+  /** The lead the project was created with, if any — notified they now own it. */
+  leadId: string | null;
+}
+
+export interface WorkspaceInvitedEvent extends BaseEvent {
+  /** Emails invited in this batch. */
+  emails: string[];
+  role: string;
+}
+
+export interface MemberJoinedEvent extends BaseEvent {
+  /** The user who just joined (same identity as `actorId`, named explicitly). */
+  userId: string;
+  /** Channel they were also added to via a channel-scoped invite, if any. */
+  channelId: string | null;
+  /** Who invited them — notified that their invitation was accepted. */
+  invitedById: string | null;
+}
+
+export type MentionContextType = 'channel' | 'task' | 'document';
+
+export interface MentionCreatedEvent extends BaseEvent {
+  /** Resolved, deduped platform user ids the text named. */
+  mentionedUserIds: string[];
+  contextType: MentionContextType;
+  /** The row the mention lives on — used as the notification dedupe key. */
+  contextId: string;
+  /** Human label for the notification, e.g. `#general` or `PROJ-12 Fix login`. */
+  contextLabel: string;
+  /** Workspace-relative route the notification opens, e.g. `tasks/abc123`. */
+  deepLink: string;
 }
 
 export interface DocumentCreatedEvent extends BaseEvent {
@@ -92,4 +137,7 @@ export interface AppEventPayloads {
   [AppEvent.DocumentUpdated]: DocumentUpdatedEvent;
   [AppEvent.DocumentDeleted]: DocumentDeletedEvent;
   [AppEvent.ChannelCreated]: ChannelCreatedEvent;
+  [AppEvent.WorkspaceInvited]: WorkspaceInvitedEvent;
+  [AppEvent.MemberJoined]: MemberJoinedEvent;
+  [AppEvent.MentionCreated]: MentionCreatedEvent;
 }

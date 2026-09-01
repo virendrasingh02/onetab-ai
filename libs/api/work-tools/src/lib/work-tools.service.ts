@@ -4,7 +4,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { AppEvent, PUBLIC_USER_SELECT } from '@org/api-common';
+import {
+  AppEvent,
+  PUBLIC_USER_SELECT,
+  resolveTextMentions,
+} from '@org/api-common';
 import {
   CycleStatus,
   DocumentKind,
@@ -331,6 +335,7 @@ export class WorkToolsService {
       actorId: actorId ?? null,
       projectId: project.id,
       name: project.name,
+      leadId: project.leadId ?? null,
     });
 
     return project;
@@ -782,18 +787,45 @@ export class WorkToolsService {
     });
   }
 
+  /**
+   * De-dupes an assignee list, primary first, dropping empties. `assigneeIds[0]`
+   * is always the primary, and `Task.assigneeId` is kept in step with it.
+   */
+  private orderAssignees(
+    ids: readonly (string | null | undefined)[],
+    primary?: string | null,
+  ): string[] {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const id of [primary, ...ids]) {
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        out.push(id);
+      }
+    }
+    return out;
+  }
+
+  private sameStringSet(a: readonly string[], b: readonly string[]): boolean {
+    if (a.length !== b.length) return false;
+    const set = new Set(a);
+    return b.every((v) => set.has(v));
+  }
+
   async createTask(workspaceId: string, input: CreateTaskInput, actorId?: string) {
     await this.assertTaskLinks(workspaceId, input);
 
     const status = (input.status as TaskStatus) ?? TaskStatus.TODO;
     const projectId = input.projectId ?? null;
 
-    const assigneeIds = input.assigneeIds ?? (input.assigneeId ? [input.assigneeId] : []);
-    const primaryAssigneeId = assigneeIds[0] ?? input.assigneeId ?? null;
-    const customFields = {
-      ...((input.customFields as Record<string, unknown>) ?? {}),
-      ...(assigneeIds.length ? { assigneeIds } : {}),
-    };
+    const assigneeIds = this.orderAssignees(
+      input.assigneeIds ?? (input.assigneeId ? [input.assigneeId] : []),
+      input.assigneeId,
+    );
+    const primaryAssigneeId = assigneeIds[0] ?? null;
+    // `assigneeIds` is its own column now — no longer stashed in customFields.
+    const customFields =
+      (input.customFields as Record<string, unknown>) ?? {};
 
     const task = await this.prisma.$transaction(async (tx) => {
       let ticketNumber: number | null = null;
@@ -825,6 +857,7 @@ export class WorkToolsService {
         moduleId: input.moduleId ?? null,
         parentId: input.parentId ?? null,
         assigneeId: primaryAssigneeId,
+        assigneeIds,
         reporterId: input.reporterId ?? actorId ?? null,
         startDate: at(input.startDate) ?? null,
         dueDate: at(input.dueDate) ?? null,
@@ -871,6 +904,7 @@ export class WorkToolsService {
       identifier: task.identifier,
       projectId: task.projectId,
       assigneeId: task.assigneeId,
+      assigneeIds: task.assigneeIds,
     });
 
     return task;
@@ -885,26 +919,25 @@ export class WorkToolsService {
     const existing = await this.assertTask(workspaceId, taskId);
     await this.assertTaskLinks(workspaceId, input);
 
-    const hasAssigneeIds = input.assigneeIds !== undefined;
-    const hasAssigneeId = input.assigneeId !== undefined;
-    const assigneeIds = hasAssigneeIds
-      ? input.assigneeIds
-      : hasAssigneeId
-      ? input.assigneeId
-        ? [input.assigneeId]
-        : []
-      : undefined;
+    const nextAssigneeIds =
+      input.assigneeIds !== undefined
+        ? this.orderAssignees(input.assigneeIds, input.assigneeId)
+        : input.assigneeId !== undefined
+        ? this.orderAssignees(
+            input.assigneeId ? [input.assigneeId] : [],
+            input.assigneeId,
+          )
+        : undefined;
     const primaryAssigneeId =
-      assigneeIds !== undefined ? assigneeIds[0] ?? null : undefined;
+      nextAssigneeIds !== undefined ? nextAssigneeIds[0] ?? null : undefined;
 
     const existingCustom =
       (existing.customFields as Record<string, unknown>) ?? {};
     const updatedCustomFields =
-      assigneeIds !== undefined || input.customFields !== undefined
+      input.customFields !== undefined
         ? {
             ...existingCustom,
             ...((input.customFields as Record<string, unknown>) ?? {}),
-            ...(assigneeIds !== undefined ? { assigneeIds } : {}),
           }
         : undefined;
 
@@ -924,6 +957,9 @@ export class WorkToolsService {
       ...(input.parentId !== undefined ? { parentId: input.parentId } : {}),
       ...(primaryAssigneeId !== undefined
         ? { assigneeId: primaryAssigneeId }
+        : {}),
+      ...(nextAssigneeIds !== undefined
+        ? { assigneeIds: nextAssigneeIds }
         : {}),
       ...(input.reporterId !== undefined ? { reporterId: input.reporterId } : {}),
       ...(input.startDate !== undefined ? { startDate: at(input.startDate) } : {}),
@@ -948,6 +984,10 @@ export class WorkToolsService {
       },
     });
 
+    const assigneesChanged =
+      nextAssigneeIds !== undefined &&
+      !this.sameStringSet(nextAssigneeIds, existing.assigneeIds);
+
     if (actorId) {
       if (input.status && input.status !== existing.status) {
         await this.logActivity(workspaceId, taskId, actorId, 'STATUS_CHANGED', {
@@ -961,18 +1001,17 @@ export class WorkToolsService {
           newValue: input.priority,
         });
       }
-      if (input.assigneeId !== undefined && input.assigneeId !== existing.assigneeId) {
+      if (assigneesChanged) {
         await this.logActivity(workspaceId, taskId, actorId, 'ASSIGNED', {
-          oldValue: existing.assigneeId,
-          newValue: input.assigneeId,
+          oldValue: existing.assigneeIds.join(',') || null,
+          newValue: (nextAssigneeIds as string[]).join(',') || null,
         });
       }
     }
 
-    if (
-      input.assigneeId !== undefined &&
-      input.assigneeId !== existing.assigneeId
-    ) {
+    if (assigneesChanged) {
+      const next = nextAssigneeIds as string[];
+      const added = next.filter((id) => !existing.assigneeIds.includes(id));
       this.events.emit(AppEvent.TaskAssigned, {
         workspaceId,
         actorId: actorId ?? null,
@@ -981,6 +1020,8 @@ export class WorkToolsService {
         identifier: updated.identifier,
         assigneeId: updated.assigneeId,
         previousAssigneeId: existing.assigneeId,
+        assigneeIds: updated.assigneeIds,
+        addedAssigneeIds: added,
       });
     }
 
@@ -994,6 +1035,7 @@ export class WorkToolsService {
         title: updated.title,
         identifier: updated.identifier,
         assigneeId: updated.assigneeId,
+        assigneeIds: updated.assigneeIds,
       });
     }
 
@@ -1034,6 +1076,7 @@ export class WorkToolsService {
         title: updated.title,
         identifier: updated.identifier,
         assigneeId: updated.assigneeId,
+        assigneeIds: updated.assigneeIds,
       });
     }
 
@@ -1311,7 +1354,7 @@ export class WorkToolsService {
     authorId: string,
     input: CreateTaskCommentInput,
   ) {
-    await this.assertTask(workspaceId, taskId);
+    const task = await this.assertTask(workspaceId, taskId);
     const comment = await this.prisma.taskComment.create({
       data: {
         taskId,
@@ -1325,7 +1368,52 @@ export class WorkToolsService {
       commentId: comment.id,
     });
 
+    await this.notifyCommentMentions(workspaceId, task, authorId, input.content);
+
     return comment;
+  }
+
+  /**
+   * Fans a task comment's `@mentions` out to the notification bus.
+   * Best-effort: a resolution or emit failure must never fail the comment
+   * write that triggered it.
+   */
+  private async notifyCommentMentions(
+    workspaceId: string,
+    task: { id: string; title: string; identifier: string | null },
+    authorId: string,
+    content: string,
+  ): Promise<void> {
+    try {
+      if (!content.includes('@')) return;
+
+      const members = await this.prisma.workspaceMember.findMany({
+        where: { workspaceId, status: 'ACTIVE' },
+        select: {
+          user: { select: { id: true, name: true, displayName: true } },
+        },
+      });
+
+      const mentionedUserIds = resolveTextMentions(
+        content,
+        members.map((m) => m.user),
+      ).filter((id) => id !== authorId);
+      if (mentionedUserIds.length === 0) return;
+
+      this.events.emit(AppEvent.MentionCreated, {
+        workspaceId,
+        actorId: authorId,
+        mentionedUserIds,
+        contextType: 'task',
+        contextId: task.id,
+        contextLabel: task.identifier
+          ? `${task.identifier} ${task.title}`
+          : task.title,
+        deepLink: `tasks/${task.id}`,
+      });
+    } catch {
+      // Notification fan-out is never a correctness dependency of the comment.
+    }
   }
 
   async deleteTaskComment(
@@ -1701,6 +1789,7 @@ export class WorkToolsService {
       moduleId?: string | null;
       parentId?: string | null;
       assigneeId?: string | null;
+      assigneeIds?: string[];
       reporterId?: string | null;
     },
   ) {
@@ -1713,6 +1802,9 @@ export class WorkToolsService {
     if (input.moduleId) await this.assertModuleOwned(workspaceId, input.moduleId);
     if (input.parentId) await this.assertTask(workspaceId, input.parentId);
     if (input.assigneeId) await this.assertWorkspaceUser(workspaceId, input.assigneeId);
+    for (const id of new Set(input.assigneeIds ?? [])) {
+      if (id) await this.assertWorkspaceUser(workspaceId, id);
+    }
     if (input.reporterId) await this.assertWorkspaceUser(workspaceId, input.reporterId);
   }
 

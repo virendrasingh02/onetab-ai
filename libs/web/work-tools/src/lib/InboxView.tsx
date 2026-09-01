@@ -580,11 +580,12 @@ export function InboxView() {
   const myTasks = useMemo(() => {
     if (!user) return [];
     let list = (tasks.data ?? []).filter((task) => {
-      const memberIds = Array.isArray(
-        (task.customFields as Record<string, unknown> | null)?.assigneeIds,
-      )
-        ? ((task.customFields as Record<string, unknown>).assigneeIds as string[])
-        : task.assigneeIds ?? (task.assigneeId ? [task.assigneeId] : []);
+      const memberIds =
+        task.assigneeIds && task.assigneeIds.length > 0
+          ? task.assigneeIds
+          : task.assigneeId
+            ? [task.assigneeId]
+            : [];
       return (
         memberIds.includes(user.id) &&
         task.status !== TaskStatus.DONE &&

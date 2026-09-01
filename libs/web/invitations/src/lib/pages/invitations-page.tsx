@@ -48,7 +48,7 @@ const STATUS_BADGES: Record<
 };
 
 export function InvitationsPage() {
-  const { workspace, workspaceId, slug } = useCurrentWorkspace();
+  const { workspace, workspaceId } = useCurrentWorkspace();
   const { can } = useWorkspacePermission();
   const canManage = can(WorkspacePermission.MANAGE_MEMBERS);
 
@@ -58,6 +58,12 @@ export function InvitationsPage() {
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState<boolean>(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
+  /*
+   * One-time tokens surfaced by resend/copy this session, keyed by invitation
+   * id. The plaintext token is never stored server-side (only its hash), so
+   * this map is the only place it lives after issue time.
+   */
+  const [sessionTokens, setSessionTokens] = useState<Record<string, string>>({});
 
   // Queries
   const invitationsQuery = useInvitations(workspaceId, {
@@ -79,24 +85,47 @@ export function InvitationsPage() {
   );
   const allLinks = useMemo(() => linksQuery.data ?? [], [linksQuery.data]);
 
-  const handleCopyLink = (invitation: Invitation) => {
-    const url = invitation.token
-      ? `${window.location.origin}/invite/${invitation.token}`
-      : `${window.location.origin}/w/${slug}/join`;
-    navigator.clipboard.writeText(url);
-    setCopiedId(invitation.id);
-    setFeedbackToast('Invitation link copied to clipboard!');
-    setTimeout(() => {
-      setCopiedId(null);
-      setFeedbackToast(null);
-    }, 3000);
+  const handleCopyLink = async (invitation: Invitation) => {
+    try {
+      let token = invitation.token ?? sessionTokens[invitation.id];
+      if (!token) {
+        // No retrievable token for this row — rotate the invitation to mint a
+        // fresh one to copy. (Old behaviour pointed at `/w/:slug/join`, a route
+        // that does not exist.)
+        const res = await resend.mutateAsync(invitation.id);
+        if (res.token) {
+          token = res.token;
+          const fresh = res.token;
+          setSessionTokens((prev) => ({ ...prev, [invitation.id]: fresh }));
+        }
+      }
+      if (!token) {
+        setFeedbackToast('Could not generate an invite link. Try Resend.');
+        setTimeout(() => setFeedbackToast(null), 3000);
+        return;
+      }
+      await navigator.clipboard.writeText(
+        `${window.location.origin}/invite/${token}`,
+      );
+      setCopiedId(invitation.id);
+      setFeedbackToast('Invitation link copied to clipboard!');
+      setTimeout(() => {
+        setCopiedId(null);
+        setFeedbackToast(null);
+      }, 3000);
+    } catch {
+      setFeedbackToast('Could not copy the invite link.');
+      setTimeout(() => setFeedbackToast(null), 3000);
+    }
   };
 
   const handleResend = async (invitationId: string) => {
     try {
       const res = await resend.mutateAsync(invitationId);
       if (res.token) {
-        setFeedbackToast(`Invitation refreshed! Link: /invite/${res.token}`);
+        const fresh = res.token;
+        setSessionTokens((prev) => ({ ...prev, [invitationId]: fresh }));
+        setFeedbackToast('Invitation refreshed — use Copy Link to share it.');
       } else {
         setFeedbackToast('Invitation resent successfully!');
       }

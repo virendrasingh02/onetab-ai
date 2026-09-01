@@ -69,7 +69,6 @@ export function InviteMembersDialog({
   onOpenChange,
   workspaceId: propWorkspaceId,
   workspaceName: propWorkspaceName,
-  workspaceSlug: propWorkspaceSlug,
   defaultScope,
   defaultRole = WorkspaceRole.MEMBER,
 }: InviteMembersDialogProps) {
@@ -77,7 +76,6 @@ export function InviteMembersDialog({
   const workspaceId = propWorkspaceId || currentCtx.workspaceId;
   const workspace = currentCtx.workspace;
   const workspaceName = propWorkspaceName || workspace?.name || 'Onetab';
-  const slug = propWorkspaceSlug || currentCtx.slug;
 
   const [emails, setEmails] = useState<string[]>([]);
   const [emailInput, setEmailInput] = useState('');
@@ -88,6 +86,12 @@ export function InviteMembersDialog({
   const [showChannelDropdown, setShowChannelDropdown] = useState(false);
   const [showGoogleBanner, setShowGoogleBanner] = useState(true);
   const [copiedLink, setCopiedLink] = useState(false);
+  /*
+   * The shareable link is minted lazily on first copy (a real `isLink`
+   * invitation row) and reused for the life of the dialog, so repeated clicks
+   * don't spawn duplicate links. Cleared when the dialog closes.
+   */
+  const [shareableUrl, setShareableUrl] = useState<string | null>(null);
 
   const emailInputRef = useRef<HTMLInputElement>(null);
   const channelSearchRef = useRef<HTMLInputElement>(null);
@@ -99,7 +103,7 @@ export function InviteMembersDialog({
     enabled: !!workspaceId && open,
   });
 
-  const { invite } = useInvitationMutations(workspaceId);
+  const { invite, createLink } = useInvitationMutations(workspaceId);
 
   /*
    * Memoized: `channelsQuery.data ?? []` is a fresh array literal on every
@@ -122,6 +126,7 @@ export function InviteMembersDialog({
       setSelectedChannels((prev) => (prev.length ? [] : prev));
       setChannelSearch((prev) => (prev ? '' : prev));
       setShowChannelDropdown((prev) => (prev ? false : prev));
+      setShareableUrl((prev) => (prev ? null : prev));
     } else if (defaultScope?.type === 'CHANNEL' && defaultScope.id) {
       const matched = allChannels.find((c) => c.id === defaultScope.id);
       if (matched) {
@@ -171,12 +176,26 @@ export function InviteMembersDialog({
     toast.info('Google Workspace directory sync will be available soon.');
   };
 
-  const shareableUrl = `${window.location.origin}/w/${slug}/join`;
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(shareableUrl);
-    setCopiedLink(true);
-    toast.success('Invite link copied to clipboard!');
-    setTimeout(() => setCopiedLink(false), 2000);
+  const handleCopyLink = async () => {
+    try {
+      let url = shareableUrl;
+      if (!url) {
+        // Mint a real shareable invitation link; the backend returns the
+        // one-time token as `/invite/<token>`, the route AcceptInvitationPage
+        // serves.
+        const res = await createLink.mutateAsync({ role: defaultRole });
+        url = `${window.location.origin}${res.url}`;
+        setShareableUrl(url);
+      }
+      await navigator.clipboard.writeText(url);
+      setCopiedLink(true);
+      toast.success('Invite link copied to clipboard!');
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : 'Could not create an invite link',
+      );
+    }
   };
 
   const handleSend = async () => {

@@ -682,7 +682,13 @@ model Task {
   projectId       String?
   sprintId        String?
   milestoneId     String?
+  /// Primary assignee. Kept for the single-assignee relation and as
+  /// `assigneeIds[0]` — the two are always written together.
   assigneeId      String?
+  /// Every assignee, primary first. A task can have several; the tile draws an
+  /// avatar stack and each assignee is notified and can filter "assigned to me"
+  /// on it. Was previously stashed in `customFields.assigneeIds`.
+  assigneeIds     String[]                  @default([])
   reporterId      String?
   teamId          String?
   epicId          String?
@@ -738,6 +744,7 @@ model Task {
   @@index([parentId])
   @@index([identifier])
   @@index([workspaceId, deletedAt])
+  @@index([assigneeIds], type: Gin)
   @@index([searchVector], type: Gin)
   @@map("tasks")
 }

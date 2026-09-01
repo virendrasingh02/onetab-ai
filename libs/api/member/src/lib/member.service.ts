@@ -345,7 +345,10 @@ export class MemberService {
     this.events.emit(AppEvent.WorkspaceInvited, {
       workspaceId,
       actorId: invitedById,
-      count: invited.length,
+      emails: invited
+        .map((i) => i.email)
+        .filter((e): e is string => typeof e === 'string' && e.length > 0),
+      role: input.role,
     });
 
     return {
@@ -615,7 +618,9 @@ export class MemberService {
     this.events.emit(AppEvent.MemberJoined, {
       workspaceId: invitation.workspaceId,
       actorId: userId,
+      userId,
       channelId: invitation.channelId,
+      invitedById: invitation.invitedById ?? null,
     });
 
     return {

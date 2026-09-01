@@ -140,10 +140,14 @@ export function taskToCard(
   milestoneTitles: ReadonlyMap<string, string>,
   ticketPrefix?: string | null,
 ): KanbanCard {
-  const customAssigneeIds = (task.customFields as Record<string, unknown> | null)?.assigneeIds;
-  const memberIds = Array.isArray(customAssigneeIds)
-    ? (customAssigneeIds as string[])
-    : task.assigneeIds ?? (task.assigneeId ? [task.assigneeId] : []);
+  // `assigneeIds` is a first-class column now; the pre-column builds stashed it
+  // in `customFields` and the migration moved it out.
+  const memberIds =
+    task.assigneeIds && task.assigneeIds.length > 0
+      ? task.assigneeIds
+      : task.assigneeId
+        ? [task.assigneeId]
+        : [];
 
   return {
     id: task.id,

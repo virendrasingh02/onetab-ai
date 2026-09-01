@@ -13,7 +13,16 @@ export {
   type DocumentUpdatedEvent,
   type DocumentDeletedEvent,
   type ChannelCreatedEvent,
+  type WorkspaceInvitedEvent,
+  type MemberJoinedEvent,
+  type MentionCreatedEvent,
+  type MentionContextType,
 } from './lib/events.js';
+
+export {
+  resolveTextMentions,
+  type MentionCandidate,
+} from './lib/mentions.js';
 
 export {
   ALLOW_ARCHIVED_KEY,

@@ -7,6 +7,7 @@ import {
   Input,
   ScrollArea,
   UserAvatar,
+  UserAvatarGroup,
 } from '@org/ui';
 import { TaskStatus } from '@org/types';
 import { SkeletonList } from '@org/ui';
@@ -143,7 +144,10 @@ export function ProjectListView({
                   <tbody className="divide-y divide-border/30">
                     {filteredCards.map((card) => {
                       const dueInfo = describeDue(card);
-                      const assignedMember = board.members.find((m) => card.memberIds.includes(m.id));
+                      const assignedMembers = card.memberIds
+                        .map((id) => board.members.find((m) => m.id === id))
+                        .filter((m): m is (typeof board.members)[number] => !!m);
+                      const assignedMember = assignedMembers[0];
 
                       const cardProps = customStore.getCardProperties(card.id);
                       return (
@@ -234,12 +238,23 @@ export function ProjectListView({
                                 >
                                   {assignedMember ? (
                                     <>
-                                      <UserAvatar
-                                        name={assignedMember.name}
-                                        src={assignedMember.avatarUrl}
-                                        size="xs"
-                                      />
-                                      <span className="truncate max-w-[90px]">{assignedMember.name}</span>
+                                      {assignedMembers.length > 1 ? (
+                                        <UserAvatarGroup
+                                          users={assignedMembers}
+                                          size="xs"
+                                        />
+                                      ) : (
+                                        <UserAvatar
+                                          name={assignedMember.name}
+                                          src={assignedMember.avatarUrl}
+                                          size="xs"
+                                        />
+                                      )}
+                                      <span className="truncate max-w-[90px]">
+                                        {assignedMembers.length > 1
+                                          ? `${assignedMembers.length} assignees`
+                                          : assignedMember.name}
+                                      </span>
                                     </>
                                   ) : (
                                     <span className="text-muted-foreground/60 italic text-[11px]">Unassigned</span>

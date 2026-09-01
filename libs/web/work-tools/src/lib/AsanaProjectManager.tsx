@@ -394,6 +394,11 @@ export function AsanaProjectManager() {
         target.isContentEditable;
 
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        // The board owns ⌘K on its own routes. Registered in the capture phase
+        // and stopping immediate propagation so the always-mounted global
+        // command palette (AppShell's useCommandPalette, also on `window`)
+        // doesn't ALSO toggle — otherwise both dialogs open on one keystroke.
+        e.stopImmediatePropagation();
         e.preventDefault();
         setIsCommandMenuOpen((prev) => !prev);
         return;
@@ -422,8 +427,8 @@ export function AsanaProjectManager() {
       }
     }
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [handleQuickAddTask]);
 
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
