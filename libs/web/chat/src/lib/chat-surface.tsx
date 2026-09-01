@@ -194,6 +194,8 @@ const PRESENCE_FOR_AVATAR: Record<
   'online' | 'away' | 'offline'
 > = {
   online: 'online',
+  away: 'away',
+  busy: 'away',
   unavailable: 'away',
   offline: 'offline',
 };

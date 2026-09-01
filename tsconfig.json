@@ -106,6 +106,9 @@
       "path": "./libs/api/user"
     },
     {
+      "path": "./libs/api/realtime"
+    },
+    {
       "path": "./packages/matrix-client"
     },
     {

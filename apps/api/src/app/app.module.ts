@@ -24,6 +24,7 @@ import { MarketplaceModule } from '@org/api-marketplace';
 import { AdminModule } from '@org/api-admin';
 import { AIInfrastructureModule } from '@org/api-ai';
 import { NotificationsModule } from '@org/api-notifications';
+import { RealtimeModule } from '@org/api-realtime';
 import { SearchModule } from '@org/api-search';
 import { StorageModule } from '@org/api-storage';
 import { AppController } from './app.controller';
@@ -68,6 +69,7 @@ import { AppService } from './app.service';
     AdminModule,
     AIInfrastructureModule,
     NotificationsModule,
+    RealtimeModule,
     SearchModule,
     StorageModule,
   ],

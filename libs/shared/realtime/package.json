@@ -13,7 +13,12 @@
     },
     "./package.json": "./package.json"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@org/api-client": "*",
+    "@org/types": "*",
+    "@tanstack/react-query": "^5.101.4",
+    "react": "^19.0.0"
+  },
   "nx": {
     "tags": [
       "type:data-access",

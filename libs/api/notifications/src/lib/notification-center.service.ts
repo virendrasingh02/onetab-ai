@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { normalisePagination, toPage, type CursorQuery } from '@org/api-common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AppEvent, normalisePagination, toPage, type CursorQuery } from '@org/api-common';
 import { NotificationKind, PrismaService } from '@org/database';
 import type { Paginated } from '@org/types';
 
@@ -53,7 +54,10 @@ export interface NotificationView {
  */
 @Injectable()
 export class NotificationCenterService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly events: EventEmitter2,
+  ) {}
 
   /**
    * Creates one notification, unless it would duplicate one the recipient has
@@ -83,7 +87,7 @@ export class NotificationCenterService {
       if (existing) return existing;
     }
 
-    return this.prisma.notification.create({
+    const created = await this.prisma.notification.create({
       data: {
         workspaceId: input.workspaceId,
         recipientId: input.recipientId,
@@ -95,8 +99,36 @@ export class NotificationCenterService {
         resourceType: input.resourceType ?? null,
         resourceId: input.resourceId ?? null,
       },
-      select: { id: true },
+      select: {
+        id: true,
+        workspaceId: true,
+        recipientId: true,
+        actorId: true,
+        kind: true,
+        title: true,
+        body: true,
+        deepLink: true,
+        resourceType: true,
+        resourceId: true,
+        readAt: true,
+        createdAt: true,
+      },
     });
+
+    const unreadCount = await this.unreadCount(input.workspaceId, input.recipientId);
+
+    this.events.emit(AppEvent.NotificationCreated, {
+      recipientId: input.recipientId,
+      workspaceId: input.workspaceId,
+      notification: {
+        ...created,
+        read: false,
+        createdAt: created.createdAt.toISOString(),
+      },
+      unreadCount,
+    });
+
+    return { id: created.id };
   }
 
   async list(

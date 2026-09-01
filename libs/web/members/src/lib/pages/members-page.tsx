@@ -1,4 +1,5 @@
 import { useCurrentUser } from '@org/auth';
+import { useUserPresenceMap } from '@org/realtime';
 import { WorkspacePermission, WorkspaceRole } from '@org/types';
 import {
   Badge,
@@ -38,6 +39,7 @@ export function MembersPage() {
   const members = useMembers(workspaceId);
   const { updateRole, remove } = useMemberMutations(workspaceId);
   const currentUser = useCurrentUser();
+  const presenceMap = useUserPresenceMap();
   const openProfilePanel = useRightPanelStore((s) => s.openProfile);
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -79,12 +81,6 @@ export function MembersPage() {
                 {members.data?.length ?? 0} people
               </Badge>
             </div>
-            {/*
-            <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
-
-            <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
-              Everyone in {workspace?.name ?? 'this workspace'}
-            </p> */}
           </div>
 
           <div className="gap-2 flex items-center">
@@ -124,6 +120,16 @@ export function MembersPage() {
               {filtered.map((member) => {
                 const isSelf = member.user.id === currentUser?.id;
                 const isOwner = member.role === WorkspaceRole.OWNER;
+                const livePresence = presenceMap[member.user.id];
+                const memberStatus =
+                  livePresence?.status ??
+                  (member.user.presence === 'ONLINE'
+                    ? 'online'
+                    : member.user.presence === 'AWAY'
+                    ? 'away'
+                    : member.user.presence === 'BUSY'
+                    ? 'busy'
+                    : 'offline');
 
                 return (
                   <li
@@ -144,9 +150,9 @@ export function MembersPage() {
                           statusEmoji: member.user.statusEmoji,
                           statusText: member.user.statusText,
                           status:
-                            member.user.presence === 'ONLINE'
-                              ? 'online'
-                              : 'offline',
+                            memberStatus === 'away' || memberStatus === 'busy'
+                              ? 'unavailable'
+                              : memberStatus,
                         })
                       }
                       className="gap-3 min-w-0 flex flex-1 cursor-pointer items-center text-left transition-opacity hover:opacity-80"
@@ -155,11 +161,7 @@ export function MembersPage() {
                         name={member.user.displayName ?? member.user.name}
                         src={member.user.avatarUrl}
                         seed={member.user.id}
-                        presence={
-                          member.user.presence === 'ONLINE'
-                            ? 'online'
-                            : 'offline'
-                        }
+                        presence={memberStatus}
                       />
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium truncate hover:underline">
@@ -173,11 +175,6 @@ export function MembersPage() {
                         </p>
                         <p className="gap-1.5 text-xs flex items-center text-muted-foreground">
                           <span>Joined {formatRelative(member.joinedAt)}</span>
-                          {/*
-                        Their local time, ticking, from their own profile zone —
-                        the thing you actually want to know before pinging someone
-                        in a workspace spread across timezones.
-                      */}
                           <span aria-hidden>·</span>
                           <LocalTime
                             timezone={member.user.timezone}

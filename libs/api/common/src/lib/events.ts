@@ -13,15 +13,25 @@
  */
 export const AppEvent = {
   TaskCreated: 'task.created',
+  TaskUpdated: 'task.updated',
+  TaskDeleted: 'task.deleted',
+  TaskMoved: 'task.moved',
   TaskAssigned: 'task.assigned',
   TaskCompleted: 'task.completed',
+  TaskCommentCreated: 'task.comment.created',
   ProjectCreated: 'project.created',
+  ProjectUpdated: 'project.updated',
   DocumentCreated: 'document.created',
   DocumentUpdated: 'document.updated',
   DocumentDeleted: 'document.deleted',
   ChannelCreated: 'channel.created',
+  ChannelUpdated: 'channel.updated',
+  ChannelDeleted: 'channel.deleted',
   WorkspaceInvited: 'workspace.invited',
   MemberJoined: 'member.joined',
+  WorkspaceMemberUpdated: 'workspace.member.updated',
+  NotificationCreated: 'notification.created',
+  PresenceUpdated: 'presence.updated',
   /**
    * Someone was @named in free text — a channel message (via the Matrix
    * bridge), a task comment, a document. Carries only resolved user ids and a

@@ -238,4 +238,8 @@ export const queryKeys = {
     whiteboard: (workspaceId: string, whiteboardId: string) =>
       ['work-tools', workspaceId, 'whiteboards', whiteboardId] as const,
   },
+  realtime: {
+    all: () => ['realtime'] as const,
+    presence: (workspaceId: string) => ['realtime', 'presence', workspaceId] as const,
+  },
 } as const;

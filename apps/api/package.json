@@ -91,6 +91,7 @@
     "@org/api-admin": "*",
     "@org/api-ai": "*",
     "@org/api-notifications": "*",
+    "@org/api-realtime": "*",
     "@org/api-search": "*",
     "@org/api-storage": "*",
     "cookie-parser": "^1.4.7",

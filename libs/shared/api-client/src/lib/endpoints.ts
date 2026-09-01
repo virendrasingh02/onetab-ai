@@ -2,6 +2,7 @@ import type {
   ActivityFeedItem,
   NotificationView,
   Paginated,
+  UserPresence,
   AdminAuditLogEntry,
   AdminDepartment,
   AdminOrganization,
@@ -2129,3 +2130,27 @@ export const enterpriseApi = {
       http.get(`/enterprise/organizations/${organizationId}/audit-logs`),
     ),
 };
+
+/** Global Real-Time & Presence endpoints. */
+export const realtimeApi = {
+  heartbeat: (input: {
+    status?: 'online' | 'away' | 'busy' | 'offline';
+    workspaceId?: string | null;
+    statusText?: string | null;
+    statusEmoji?: string | null;
+  }) => request<{ ok: boolean }>(http.post('/realtime/heartbeat', input)),
+
+  setPresence: (
+    presence: 'online' | 'away' | 'busy' | 'offline',
+    workspaceId?: string | null,
+  ) =>
+    request<{ ok: boolean }>(
+      http.patch('/realtime/presence', { presence, workspaceId }),
+    ),
+
+  getWorkspacePresence: (workspaceId: string) =>
+    request<{ presence: UserPresence[] }>(
+      http.get(`/workspaces/${workspaceId}/presence`),
+    ),
+};
+

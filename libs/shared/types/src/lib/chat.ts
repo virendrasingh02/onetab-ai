@@ -456,7 +456,7 @@ export interface Timeline {
 
 // --- presence & receipts ---------------------------------------------------
 
-export type PresenceState = 'online' | 'unavailable' | 'offline';
+export type PresenceState = 'online' | 'away' | 'busy' | 'offline' | 'unavailable';
 
 export interface Presence {
   userId: MatrixUserId;

@@ -38,6 +38,18 @@ export interface PublicUser {
   timezone: string;
 }
 
+export interface UserPresence {
+  userId: string;
+  workspaceId?: string | null;
+  status: 'online' | 'away' | 'busy' | 'offline';
+  lastSeenAt?: IsoDateString | null;
+  lastActiveAt?: IsoDateString | null;
+  connectedAt?: IsoDateString | null;
+  statusText?: string | null;
+  statusEmoji?: string | null;
+  deviceId?: string | null;
+}
+
 /** Single stop within a linear or radial gradient. */
 export interface GradientStop {
   color: string;

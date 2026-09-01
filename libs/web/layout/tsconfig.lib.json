@@ -59,6 +59,9 @@
       "path": "../../shared/types/tsconfig.lib.json"
     },
     {
+      "path": "../../shared/realtime/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/validation/tsconfig.lib.json"
     },
     {

@@ -1066,8 +1066,14 @@ export class OneTabMatrixClient {
     statusMessage?: string,
   ): Promise<void> {
     const sdk = this.require();
+    const matrixPresence =
+      state === 'online'
+        ? 'online'
+        : state === 'offline'
+        ? 'offline'
+        : 'unavailable';
     await sdk.setPresence({
-      presence: state === 'unavailable' ? 'unavailable' : state,
+      presence: matrixPresence,
       status_msg: statusMessage,
     });
   }

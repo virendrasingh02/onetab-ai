@@ -1,5 +1,5 @@
 {
-  "name": "@org/web-members",
+  "name": "@org/api-realtime",
   "version": "0.0.1",
   "private": true,
   "main": "./src/index.ts",
@@ -15,18 +15,15 @@
   "nx": {
     "tags": [
       "type:feature",
-      "scope:web"
+      "scope:api"
     ]
   },
-  "type": "module",
   "dependencies": {
-    "@hookform/resolvers": "^5.7.1",
-    "@org/realtime": "*",
-    "@tanstack/react-query": "^5.101.4",
-    "lucide-react": "^1.28.0",
-    "react-hook-form": "^7.84.0",
-    "react-router-dom": "^6.30.3",
-    "zod": "^4.4.3",
-    "zustand": "^5.0.14"
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.4",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/event-emitter": "^3.1.0",
+    "@nestjs/schedule": "^6.1.3",
+    "rxjs": "^7.8.0"
   }
 }

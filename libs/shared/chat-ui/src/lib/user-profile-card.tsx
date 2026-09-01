@@ -55,7 +55,7 @@ export interface UserProfileCardProps {
   joinedAt?: string | number;
   bio?: string;
   timezone?: string;
-  status?: 'online' | 'unavailable' | 'offline';
+  status?: 'online' | 'unavailable' | 'offline' | 'away' | 'busy';
   statusEmoji?: string | null;
   statusText?: string | null;
   statusExpiresAt?: string | null;
@@ -125,7 +125,8 @@ export function UserProfileCard({
       joinedAt,
       bio,
       timezone,
-      status,
+      status:
+        status === 'away' || status === 'busy' ? 'unavailable' : status,
       statusEmoji,
       statusText,
     });

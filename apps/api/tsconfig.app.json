@@ -74,6 +74,9 @@
       "path": "../../libs/api/notifications/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/api/realtime/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/api/ai/tsconfig.lib.json"
     },
     {

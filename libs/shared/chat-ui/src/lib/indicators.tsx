@@ -37,12 +37,16 @@ export function getUserColor(userId: string): string {
 
 const PRESENCE_STYLES: Record<PresenceState, string> = {
   online: 'bg-success',
+  away: 'bg-warning',
+  busy: 'bg-destructive',
   unavailable: 'bg-warning',
   offline: 'bg-muted-foreground',
 };
 
 const PRESENCE_LABELS: Record<PresenceState, string> = {
   online: 'Online',
+  away: 'Away',
+  busy: 'Busy',
   unavailable: 'Away',
   offline: 'Offline',
 };

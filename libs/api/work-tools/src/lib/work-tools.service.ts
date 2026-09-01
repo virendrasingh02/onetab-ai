@@ -1039,6 +1039,13 @@ export class WorkToolsService {
       });
     }
 
+    this.events.emit(AppEvent.TaskUpdated, {
+      workspaceId,
+      actorId: actorId ?? null,
+      taskId: updated.id,
+      changes: input,
+    });
+
     return updated;
   }
 
@@ -1080,6 +1087,14 @@ export class WorkToolsService {
       });
     }
 
+    this.events.emit(AppEvent.TaskMoved, {
+      workspaceId,
+      actorId: actorId ?? null,
+      taskId: updated.id,
+      toStatus: input.status,
+      newOrder: input.orderIndex,
+    });
+
     return updated;
   }
 
@@ -1091,6 +1106,12 @@ export class WorkToolsService {
     await this.prisma.task.update({
       where: { id: taskId },
       data: { deletedAt: new Date() },
+    });
+
+    this.events.emit(AppEvent.TaskDeleted, {
+      workspaceId,
+      actorId: actorId ?? null,
+      taskId,
     });
   }
 
@@ -1366,6 +1387,14 @@ export class WorkToolsService {
 
     await this.logActivity(workspaceId, taskId, authorId, 'COMMENTED', {
       commentId: comment.id,
+    });
+
+    this.events.emit(AppEvent.TaskCommentCreated, {
+      workspaceId,
+      actorId: authorId,
+      taskId,
+      commentId: comment.id,
+      body: input.content,
     });
 
     await this.notifyCommentMentions(workspaceId, task, authorId, input.content);

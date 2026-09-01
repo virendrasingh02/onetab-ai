@@ -15,6 +15,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useCurrentUser } from '@org/auth';
+import { useUserPresenceMap } from '@org/realtime';
 import type { WorkspaceMember } from '@org/types';
 import {
   Button,
@@ -105,9 +106,10 @@ function DirectMessageRow({
   const navigate = useNavigate();
   const [unreadState, setUnreadState] = useState(false);
   const unreadTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-
+  const presenceMap = useUserPresenceMap();
   const name = member.user.displayName ?? member.user.name;
-  const presence = toPresenceStatus(member.user.presence);
+  const livePresence = presenceMap[member.user.id];
+  const presence = livePresence?.status ?? toPresenceStatus(member.user.presence);
   const hasUnread = !isMuted && !!activity && activity.level !== 'none';
   const to = `/w/${workspaceSlug}/dms?user=${member.user.id}`;
   const { copied, copy: handleCopyLink } = useCopyLink(

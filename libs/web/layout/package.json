@@ -40,6 +40,7 @@
     "@org/chat-ui": "*",
     "@org/hooks": "*",
     "@org/notifications": "*",
+    "@org/realtime": "*",
     "@org/web-ai": "*",
     "@org/web-chat": "*",
     "@org/web-desktop": "0.0.1",

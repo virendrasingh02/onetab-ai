@@ -4,6 +4,7 @@ import { store, useNotificationDisplayPreferences } from '@org/common';
 import { ThemeProvider } from '@org/design-system';
 import { MediaPreviewProvider } from '@org/media-preview';
 import { ErrorBoundary, Toaster, TooltipProvider, toast } from '@org/ui';
+import { RealtimeProvider } from '@org/realtime';
 import { MatrixProvider } from '@org/web-chat';
 import { DesktopChrome, DesktopProvider } from '@org/web-desktop';
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -30,6 +31,11 @@ function ThemeSync() {
   const user = useCurrentUser();
   useThemeSync(!!user);
   return null;
+}
+
+function RealtimeAppBridge({ children }: { children: ReactNode }) {
+  const user = useCurrentUser();
+  return <RealtimeProvider userId={user?.id}>{children}</RealtimeProvider>;
 }
 
 /**
@@ -95,12 +101,14 @@ export function Providers({ children }: { children: ReactNode }) {
             */}
             <DesktopProvider>
               <MatrixProvider>
-                <TooltipProvider>
-                  <MediaPreviewProvider>
-                    <DesktopChrome>{children}</DesktopChrome>
-                  </MediaPreviewProvider>
-                  <AppToaster />
-                </TooltipProvider>
+                <RealtimeAppBridge>
+                  <TooltipProvider>
+                    <MediaPreviewProvider>
+                      <DesktopChrome>{children}</DesktopChrome>
+                    </MediaPreviewProvider>
+                    <AppToaster />
+                  </TooltipProvider>
+                </RealtimeAppBridge>
               </MatrixProvider>
             </DesktopProvider>
           </ThemeProvider>
