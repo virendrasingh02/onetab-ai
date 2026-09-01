@@ -2,7 +2,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   useSidebarStore,
+  DEFAULT_ACTIVITY_INDICATORS,
   DEFAULT_SIDEBAR_SECTIONS,
+  toSidebarActivityConfig,
   type SidebarSectionId,
 } from './sidebar-store.js';
 
@@ -163,6 +165,70 @@ describe('Sidebar Store - Section Reordering & Customization', () => {
       'channel-1',
       'doc-2',
     ]);
+  });
+});
+
+describe('Sidebar Store - Activity Indicator Preferences', () => {
+  beforeEach(() => {
+    useSidebarStore.getState().resetAllPreferences();
+  });
+
+  it('starts from the defaults', () => {
+    expect(useSidebarStore.getState().activityIndicators).toEqual(
+      DEFAULT_ACTIVITY_INDICATORS,
+    );
+  });
+
+  it('updates a single preference without touching the others', () => {
+    const { setActivityIndicator } = useSidebarStore.getState();
+
+    setActivityIndicator('enabled', false);
+    setActivityIndicator('style', 'dot');
+
+    const prefs = useSidebarStore.getState().activityIndicators;
+    expect(prefs.enabled).toBe(false);
+    expect(prefs.style).toBe('dot');
+    expect(prefs.showForChannelsAndDms).toBe(true);
+  });
+
+  it('resets indicators on their own and via resetAllPreferences', () => {
+    const { setActivityIndicator, resetActivityIndicators } =
+      useSidebarStore.getState();
+
+    setActivityIndicator('showCounts', false);
+    resetActivityIndicators();
+    expect(useSidebarStore.getState().activityIndicators).toEqual(
+      DEFAULT_ACTIVITY_INDICATORS,
+    );
+
+    setActivityIndicator('showForNotifications', false);
+    useSidebarStore.getState().resetAllPreferences();
+    expect(useSidebarStore.getState().activityIndicators).toEqual(
+      DEFAULT_ACTIVITY_INDICATORS,
+    );
+  });
+
+  it('persists activity indicators through the zustand persist layer', () => {
+    useSidebarStore.getState().setActivityIndicator('style', 'badge');
+    const raw = localStorage.getItem('onetab:sidebar_preferences');
+    expect(raw).toBeTruthy();
+    expect(JSON.parse(raw as string).state.activityIndicators.style).toBe(
+      'badge',
+    );
+  });
+
+  it('maps preferences to the @org/ui indicator config', () => {
+    const cfg = toSidebarActivityConfig({
+      ...DEFAULT_ACTIVITY_INDICATORS,
+      showForChannelsAndDms: false,
+      showForNotifications: false,
+    });
+    expect(cfg.enabled).toBe(true);
+    expect(cfg.surfaces.channels).toBe(false);
+    expect(cfg.surfaces.dms).toBe(false);
+    expect(cfg.surfaces.notifications).toBe(false);
+    expect(cfg.surfaces.main).toBe(true);
+    expect(cfg.surfaces.workspace).toBe(true);
   });
 });
 

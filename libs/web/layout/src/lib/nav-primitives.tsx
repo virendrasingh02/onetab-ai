@@ -6,6 +6,9 @@ import {
   CollapsibleTrigger,
   DropdownMenuTrigger,
   Hint,
+  SidebarActivityIndicator,
+  type SidebarActivityState,
+  type SidebarActivitySurface,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -143,6 +146,8 @@ export function NavRow({
   depth = 0,
   onTogglePin,
   isActiveOverride,
+  activity,
+  surface = 'main',
 }: {
   entry: NavEntry;
   workspaceSlug: string;
@@ -153,6 +158,10 @@ export function NavRow({
    * lights up for any `/c/:slug`, which `NavLink`'s own match never covers.
    */
   isActiveOverride?: boolean;
+  /** Unread/mention state for this row's activity indicator. */
+  activity?: SidebarActivityState;
+  /** Which sidebar surface this row belongs to (gates the indicator). */
+  surface?: SidebarActivitySurface;
 }) {
   const Icon = entry.icon;
   const to = entry.path
@@ -173,14 +182,21 @@ export function NavRow({
       >
         <Icon className={navIconClass(depth)} aria-hidden />
         <span className="font-medium flex-1 truncate">{entry.label}</span>
-        {entry.badge !== undefined && (
+        {activity ? (
+          <SidebarActivityIndicator
+            state={activity}
+            surface={surface}
+            itemLabel={entry.label}
+            className="ml-auto"
+          />
+        ) : entry.badge !== undefined ? (
           <Badge
             variant="neutral"
             className="px-1.5 py-0 h-4 font-semibold ml-auto font-mono text-[10px]"
           >
             {entry.badge}
           </Badge>
-        )}
+        ) : null}
       </NavLink>
 
       {onTogglePin && entry.path !== '' ? (
@@ -210,20 +226,28 @@ export function IconOnlyNavRow({
   workspaceSlug,
   isActive,
   onClick,
+  activity,
+  surface = 'main',
 }: {
   entry: NavEntry;
   workspaceSlug: string;
   isActive?: boolean;
   onClick?: () => void;
+  /** Unread/mention state, shown as a dot/badge on the icon. */
+  activity?: SidebarActivityState;
+  /** Which sidebar surface this row belongs to (gates the indicator). */
+  surface?: SidebarActivitySurface;
 }) {
   const Icon = entry.icon;
   const to = entry.path
     ? `/w/${workspaceSlug}/${entry.path}`
     : `/w/${workspaceSlug}`;
 
-  const tooltipText = entry.badge !== undefined
-    ? `${entry.label} (${entry.badge})`
-    : entry.label;
+  const count = activity?.unreadCount ?? entry.badge;
+  const tooltipText =
+    count !== undefined && count !== 0
+      ? `${entry.label} (${count})`
+      : entry.label;
 
   return (
     <Hint side="right" label={tooltipText}>
@@ -243,9 +267,12 @@ export function IconOnlyNavRow({
         }}
       >
         <Icon className="size-4 shrink-0" aria-hidden />
-        {entry.badge !== undefined && (
-          <span className="absolute top-1 right-1 size-2 rounded-full bg-primary ring-2 ring-background" />
-        )}
+        <SidebarActivityIndicator
+          state={activity}
+          surface={surface}
+          itemLabel={entry.label}
+          collapsed
+        />
       </NavLink>
     </Hint>
   );

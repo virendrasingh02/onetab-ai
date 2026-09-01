@@ -11,6 +11,7 @@ import {
   Sheet,
   SheetContent,
   SheetTitle,
+  SidebarActivityConfigProvider,
   StatusModal,
   TeamWorldClockModal,
   TooltipProvider,
@@ -44,7 +45,10 @@ import { AppHeader } from './app-header.js';
 import { ChannelNav } from './channel-nav.js';
 import { ManageAccountsDialog } from './manage-accounts-dialog.js';
 import { useSidebarSync } from './navigation/use-sidebar-sync.js';
-import { useSidebarStore } from './navigation/sidebar-store.js';
+import {
+  toSidebarActivityConfig,
+  useSidebarStore,
+} from './navigation/sidebar-store.js';
 import { ResizeHandle } from './resize-handle.js';
 import { RightPanel } from './right-panel.js';
 import { useResizableLayout } from './use-resizable-layout.js';
@@ -62,6 +66,11 @@ export function AppShell() {
   const location = useLocation();
   const palette = useCommandPalette();
   const isSidebarCollapsed = useSidebarStore((s) => s.sidebarCollapsed);
+  const activityIndicatorPrefs = useSidebarStore((s) => s.activityIndicators);
+  const activityConfig = useMemo(
+    () => toSidebarActivityConfig(activityIndicatorPrefs),
+    [activityIndicatorPrefs],
+  );
   /* Creating a channel is a dialog, so the sidebar's "+" no longer navigates
      away from whatever the user was reading. */
   const [createChannelOpen, setCreateChannelOpen] = useState(false);
@@ -300,6 +309,7 @@ export function AppShell() {
 
   return (
     <TooltipProvider>
+      <SidebarActivityConfigProvider value={activityConfig}>
       <div className="flex h-full flex-col overflow-hidden bg-background bg-app-gradient font-sans text-foreground">
         {/* Top Header Bar spanning full width */}
         <AppHeader
@@ -522,6 +532,7 @@ export function AppShell() {
           members={membersQuery.data ?? []}
         />
       </div>
+      </SidebarActivityConfigProvider>
     </TooltipProvider>
   );
 }

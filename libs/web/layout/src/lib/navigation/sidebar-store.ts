@@ -1,3 +1,4 @@
+import type { SidebarActivityConfig } from '@org/ui';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { DEFAULT_NAV_ITEMS } from './navigation.config.js';
@@ -6,6 +7,59 @@ export interface SidebarItemPreference {
   visible: boolean;
   order: number;
   group?: string;
+}
+
+export type ActivityIndicatorStyle = 'dot' | 'badge' | 'auto';
+
+/**
+ * User controls for the sidebar activity dots and badges (brief §2). Persisted
+ * with the rest of the sidebar customization and synced to the server, so the
+ * choice follows the user between devices.
+ */
+export interface SidebarActivityPreferences {
+  /** Master switch for every dot and badge. */
+  enabled: boolean;
+  /** Dot, numeric badge, or auto (badge whenever a count is available). */
+  style: ActivityIndicatorStyle;
+  /** Show unread counts. When off, badges collapse to dots. */
+  showCounts: boolean;
+  showInMainSidebar: boolean;
+  showInWorkspaceSidebar: boolean;
+  showForChannelsAndDms: boolean;
+  showForNotifications: boolean;
+}
+
+export const DEFAULT_ACTIVITY_INDICATORS: SidebarActivityPreferences = {
+  enabled: true,
+  style: 'auto',
+  showCounts: true,
+  showInMainSidebar: true,
+  showInWorkspaceSidebar: true,
+  showForChannelsAndDms: true,
+  showForNotifications: true,
+};
+
+/** Bridge the stored preference shape to the `@org/ui` indicator config. */
+export function toSidebarActivityConfig(
+  prefs: SidebarActivityPreferences,
+): SidebarActivityConfig {
+  return {
+    enabled: prefs.enabled,
+    style: prefs.style,
+    showCounts: prefs.showCounts,
+    // Product convention, matched by ActivityDot / NotificationBadge / the
+    // Inbox nav badge.
+    maxCount: 99,
+    surfaces: {
+      main: prefs.showInMainSidebar,
+      // Resource sections (projects, docs, agents…) live in the main sidebar.
+      other: prefs.showInMainSidebar,
+      workspace: prefs.showInWorkspaceSidebar,
+      channels: prefs.showForChannelsAndDms,
+      dms: prefs.showForChannelsAndDms,
+      notifications: prefs.showForNotifications,
+    },
+  };
 }
 
 export type SidebarSectionId =
@@ -98,8 +152,8 @@ export interface SidebarState {
   collapsedGroups: Record<string, boolean>;
   /** Desktop sidebar collapsed (icon-only mode with tooltips) */
   sidebarCollapsed: boolean;
-  /** Whether customization dialog/modal is open */
-  customizerOpen: boolean;
+  /** Activity-indicator (dot/badge) preferences — brief §2. */
+  activityIndicators: SidebarActivityPreferences;
 
   // Actions for Navigation Items
   setItemVisibility: (id: string, visible: boolean) => void;
@@ -142,7 +196,11 @@ export interface SidebarState {
   setGroupCollapsed: (groupId: string, collapsed: boolean) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebarCollapsed: () => void;
-  setCustomizerOpen: (open: boolean) => void;
+  setActivityIndicator: <K extends keyof SidebarActivityPreferences>(
+    key: K,
+    value: SidebarActivityPreferences[K],
+  ) => void;
+  resetActivityIndicators: () => void;
   resetToDefaultOrder: () => void;
   resetAllVisibility: () => void;
   resetAllPreferences: () => void;
@@ -184,7 +242,7 @@ export const useSidebarStore = create<SidebarState>()(
       resourceOrders: {},
       collapsedGroups: {},
       sidebarCollapsed: false,
-      customizerOpen: false,
+      activityIndicators: { ...DEFAULT_ACTIVITY_INDICATORS },
 
       setItemVisibility: (id: string, visible: boolean) =>
         set((state) => ({
@@ -443,8 +501,15 @@ export const useSidebarStore = create<SidebarState>()(
       toggleSidebarCollapsed: () =>
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
 
-      setCustomizerOpen: (open: boolean) =>
-        set(() => ({ customizerOpen: open })),
+      setActivityIndicator: (key, value) =>
+        set((state) => ({
+          activityIndicators: { ...state.activityIndicators, [key]: value },
+        })),
+
+      resetActivityIndicators: () =>
+        set(() => ({
+          activityIndicators: { ...DEFAULT_ACTIVITY_INDICATORS },
+        })),
 
       resetToDefaultOrder: () =>
         set((state) => {
@@ -477,6 +542,7 @@ export const useSidebarStore = create<SidebarState>()(
           resourceOrders: {},
           collapsedGroups: {},
           sidebarCollapsed: false,
+          activityIndicators: { ...DEFAULT_ACTIVITY_INDICATORS },
         })),
     }),
     {
@@ -488,6 +554,7 @@ export const useSidebarStore = create<SidebarState>()(
         resourceOrders: state.resourceOrders,
         collapsedGroups: state.collapsedGroups,
         sidebarCollapsed: state.sidebarCollapsed,
+        activityIndicators: state.activityIndicators,
       }),
     },
   ),

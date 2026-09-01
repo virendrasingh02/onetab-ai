@@ -27,10 +27,13 @@ import {
   Hint,
   ScrollArea,
   Switch,
+  useSidebarCustomizerStore,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
+  Bell,
   Bot,
+  Circle,
   Eye,
   EyeOff,
   FileText,
@@ -47,7 +50,7 @@ import {
   Workflow,
   Zap,
 } from 'lucide-react';
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import {
   DEFAULT_NAV_GROUPS,
   DEFAULT_NAV_ITEMS,
@@ -57,6 +60,7 @@ import {
 import {
   DEFAULT_SIDEBAR_SECTIONS,
   useSidebarStore,
+  type SidebarActivityPreferences,
   type SidebarSectionConfig,
   type SidebarSectionId,
 } from './sidebar-store.js';
@@ -287,6 +291,168 @@ function SortableSectionRow({
   );
 }
 
+/* ---------------------------------------------------------------- Indicators */
+
+const INDICATOR_STYLES: ReadonlyArray<{
+  value: SidebarActivityPreferences['style'];
+  label: string;
+  hint: string;
+}> = [
+  {
+    value: 'auto',
+    label: 'Auto',
+    hint: 'Badge when a count is known, dot otherwise',
+  },
+  { value: 'dot', label: 'Dot', hint: 'Always a small unread dot' },
+  { value: 'badge', label: 'Badge', hint: 'Always a numeric count' },
+];
+
+const INDICATOR_TOGGLES: ReadonlyArray<{
+  key: keyof SidebarActivityPreferences;
+  label: string;
+  description: string;
+  icon: typeof Bell;
+}> = [
+  {
+    key: 'showCounts',
+    label: 'Show unread counts',
+    description: 'Numbers on badges. When off, badges become dots.',
+    icon: Circle,
+  },
+  {
+    key: 'showInMainSidebar',
+    label: 'Main sidebar',
+    description: 'Inbox, Threads, projects, docs, agents and other nav.',
+    icon: Layers,
+  },
+  {
+    key: 'showInWorkspaceSidebar',
+    label: 'Workspace switcher',
+    description: 'Activity in workspaces you are not currently viewing.',
+    icon: FolderKanban,
+  },
+  {
+    key: 'showForChannelsAndDms',
+    label: 'Channels & direct messages',
+    description: 'Unread and mention markers on conversation rows.',
+    icon: MessagesSquare,
+  },
+  {
+    key: 'showForNotifications',
+    label: 'Notifications',
+    description: 'The unread marker on the Inbox row.',
+    icon: Bell,
+  },
+];
+
+function IndicatorsPanel() {
+  const prefs = useSidebarStore((s) => s.activityIndicators);
+  const setActivityIndicator = useSidebarStore((s) => s.setActivityIndicator);
+
+  const disabled = !prefs.enabled;
+
+  return (
+    <div className="space-y-4">
+      {/* Master switch */}
+      <div className="flex items-center justify-between rounded-xl border border-border bg-surface px-3 py-2.5 text-xs">
+        <div className="gap-2.5 flex items-center min-w-0 flex-1">
+          <div className="size-7 rounded-lg bg-surface-raised border border-border/70 flex items-center justify-center shrink-0">
+            <Bell className="size-4 text-foreground" />
+          </div>
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="font-semibold text-foreground">
+              Show activity indicators
+            </span>
+            <span className="text-[11px] text-muted-foreground">
+              Dots and badges for unread and new activity across every sidebar.
+            </span>
+          </div>
+        </div>
+        <Switch
+          checked={prefs.enabled}
+          onCheckedChange={(checked) =>
+            setActivityIndicator('enabled', checked)
+          }
+          aria-label="Show activity indicators"
+        />
+      </div>
+
+      {/* Style */}
+      <div
+        className={cn(
+          'rounded-xl border border-border bg-surface px-3 py-2.5 space-y-2 transition-opacity',
+          disabled && 'pointer-events-none opacity-55',
+        )}
+      >
+        <div className="flex flex-col">
+          <span className="text-xs font-semibold text-foreground">
+            Indicator style
+          </span>
+          <span className="text-[11px] text-muted-foreground">
+            {INDICATOR_STYLES.find((s) => s.value === prefs.style)?.hint}
+          </span>
+        </div>
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-surface-raised border border-border">
+          {INDICATOR_STYLES.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setActivityIndicator('style', option.value)}
+              aria-pressed={prefs.style === option.value}
+              className={cn(
+                'flex-1 rounded-md px-2 py-1 text-[11px] font-medium transition-all',
+                prefs.style === option.value
+                  ? 'bg-background text-foreground shadow-2xs font-semibold'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Per-surface toggles */}
+      <div
+        className={cn(
+          'rounded-xl border border-border bg-surface divide-y divide-border/50 overflow-hidden transition-opacity',
+          disabled && 'pointer-events-none opacity-55',
+        )}
+      >
+        {INDICATOR_TOGGLES.map((row) => {
+          const RowIcon = row.icon;
+          const value = prefs[row.key] as boolean;
+          return (
+            <div
+              key={row.key}
+              className="gap-3 px-3 py-2.5 text-xs flex items-center justify-between hover:bg-accent/40 transition-colors"
+            >
+              <div className="gap-2.5 flex items-center min-w-0 flex-1">
+                <RowIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="font-medium text-foreground">
+                    {row.label}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground truncate">
+                    {row.description}
+                  </span>
+                </div>
+              </div>
+              <Switch
+                checked={value}
+                onCheckedChange={(checked) =>
+                  setActivityIndicator(row.key, checked)
+                }
+                aria-label={row.label}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export interface SidebarCustomizerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -296,10 +462,26 @@ export function SidebarCustomizerDialog({
   open,
   onOpenChange,
 }: SidebarCustomizerDialogProps) {
-  const [activeTab, setActiveTab] = useState<'sections' | 'items'>('sections');
+  const [activeTab, setActiveTab] = useState<
+    'sections' | 'items' | 'indicators'
+  >('sections');
   const [search, setSearch] = useState('');
   const [activeGroup, setActiveGroup] = useState<NavGroupId | 'all'>('all');
   const dndContextId = useId();
+
+  /*
+   * Screens outside this feature (the settings "App sidebar" row) pop the
+   * dialog open through `useSidebarCustomizerStore`, optionally naming a tab.
+   * Apply and clear that request once per open.
+   */
+  const requestedTab = useSidebarCustomizerStore((s) => s.requestedTab);
+  useEffect(() => {
+    if (open && requestedTab) {
+      setActiveTab(requestedTab);
+      setSearch('');
+      useSidebarCustomizerStore.setState({ requestedTab: undefined });
+    }
+  }, [open, requestedTab]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -321,6 +503,9 @@ export function SidebarCustomizerDialog({
   const reorderSections = useSidebarStore((s) => s.reorderSections);
   const resetToDefaultOrder = useSidebarStore((s) => s.resetToDefaultOrder);
   const resetSections = useSidebarStore((s) => s.resetSections);
+  const resetActivityIndicators = useSidebarStore(
+    (s) => s.resetActivityIndicators,
+  );
   const resetAllPreferences = useSidebarStore((s) => s.resetAllPreferences);
 
   // --- Ordered Sections ---
@@ -405,8 +590,8 @@ export function SidebarCustomizerDialog({
             </DialogTitle>
           </div>
           <DialogDescription className="text-xs text-muted-foreground">
-            Drag to reorder sidebar sections and navigation links, or toggle
-            visibility to keep your workspace focused.
+            Reorder sections and navigation links, toggle their visibility, and
+            control the unread dots and badges across every sidebar.
           </DialogDescription>
 
           {/* Segmented Tab Switcher */}
@@ -425,7 +610,7 @@ export function SidebarCustomizerDialog({
               )}
             >
               <Layers className="size-3.5" />
-              <span>Sidebar Sections (Channels, DMs, Projects, Docs...)</span>
+              <span>Sections</span>
             </button>
             <button
               type="button"
@@ -441,11 +626,28 @@ export function SidebarCustomizerDialog({
               )}
             >
               <Navigation className="size-3.5" />
-              <span>Primary Navigation Items</span>
+              <span>Navigation</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('indicators');
+                setSearch('');
+              }}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-2 py-1.5 px-3 rounded-lg text-xs font-medium transition-all duration-150',
+                activeTab === 'indicators'
+                  ? 'bg-background text-foreground shadow-sm font-semibold'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Bell className="size-3.5" />
+              <span>Activity Indicators</span>
             </button>
           </div>
 
-          {/* Search bar */}
+          {/* Search bar — not used by the Indicators tab */}
+          {activeTab !== 'indicators' && (
           <div className="relative mt-2">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
             <input
@@ -460,6 +662,7 @@ export function SidebarCustomizerDialog({
               className="w-full rounded-lg border border-border bg-surface-muted pl-8.5 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/40 transition-all"
             />
           </div>
+          )}
 
           {/* Filter Pills for Items Tab */}
           {activeTab === 'items' && !search && (
@@ -497,7 +700,9 @@ export function SidebarCustomizerDialog({
 
         {/* Content list */}
         <ScrollArea className="flex-1 min-h-[260px] max-h-[380px] p-4">
-          {activeTab === 'sections' ? (
+          {activeTab === 'indicators' ? (
+            <IndicatorsPanel />
+          ) : activeTab === 'sections' ? (
             <DndContext
               id={dndContextId}
               sensors={sensors}
@@ -555,6 +760,8 @@ export function SidebarCustomizerDialog({
               onClick={() => {
                 if (activeTab === 'sections') {
                   resetSections();
+                } else if (activeTab === 'indicators') {
+                  resetActivityIndicators();
                 } else {
                   resetToDefaultOrder();
                 }
@@ -563,7 +770,12 @@ export function SidebarCustomizerDialog({
             >
               <RotateCcw className="size-3.5" />
               <span>
-                Reset {activeTab === 'sections' ? 'Sections' : 'Items'} Order
+                Reset{' '}
+                {activeTab === 'sections'
+                  ? 'Sections'
+                  : activeTab === 'indicators'
+                    ? 'Indicators'
+                    : 'Items Order'}
               </span>
             </Button>
             <Button

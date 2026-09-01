@@ -25,6 +25,7 @@ export {
 
 export {
   useChannelActivity,
+  useDirectMessageActivity,
   useMarkChannelSeen,
   useMarkChannelUnread,
   useNotificationFeed,

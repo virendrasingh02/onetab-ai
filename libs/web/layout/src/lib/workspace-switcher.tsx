@@ -8,7 +8,6 @@ import {
 import type { ActivityIndicator } from '@org/notifications';
 import type { WorkspaceSummary } from '@org/types';
 import {
-  ActivityDot,
   Button,
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +17,7 @@ import {
   DropdownMenuTrigger,
   Hint,
   SearchInput,
+  WorkspaceActivityIndicator,
   WorkspaceAvatar,
   type ActivityLevel,
 } from '@org/ui';
@@ -283,14 +283,11 @@ export function WorkspaceMenu({
                 size="sm"
                 className="shadow-2xs rounded-sm"
               />
-              <ActivityDot
-                level={othersLevel}
-                label={
-                  othersLevel === 'mention'
-                    ? 'You were mentioned in another workspace'
-                    : 'Activity in another workspace'
-                }
-                className="-right-0.5 -top-0.5 absolute ring-2 ring-background"
+              <WorkspaceActivityIndicator
+                overlay
+                state={{ activityType: othersLevel }}
+                itemLabel="another workspace"
+                className="-right-0.5 -top-0.5 absolute"
               />
             </span>
 
@@ -477,9 +474,16 @@ export function WorkspaceMenu({
                                       <MailPlus className="size-3.5" />
                                     </button>
 
-                                    <ActivityDot
-                                      level={indicator?.level ?? 'none'}
-                                      count={indicator?.mentionCount}
+                                    <WorkspaceActivityIndicator
+                                      state={{
+                                        activityType: indicator?.level,
+                                        // Ambient workspace activity stays a
+                                        // dot; a count rides only on a mention,
+                                        // so workspace-level noise is never
+                                        // mistaken for one channel's unreads.
+                                        unreadCount: indicator?.mentionCount,
+                                      }}
+                                      itemLabel={workspace.name}
                                     />
                                     {isSelected ? (
                                       <Check className="size-3.5 shrink-0 text-primary" />

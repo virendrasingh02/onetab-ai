@@ -222,6 +222,7 @@ export const sidebarPreferencesSchema = z
       .optional(),
     collapsedGroups: z.record(z.string(), z.boolean()).optional(),
     sidebarCollapsed: z.boolean().optional(),
+    activityIndicators: z.record(z.string(), z.unknown()).optional(),
   })
   .refine((value) => JSON.stringify(value).length <= 64_000, {
     message: 'Sidebar preferences payload is too large.',

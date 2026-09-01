@@ -405,6 +405,48 @@ export function useChannelActivity(
 }
 
 /**
+ * An indicator per DM peer, bucketed from the same feed the channel dots use.
+ *
+ * The activity log records a row per message with its author; a direct-message
+ * row is one that has an author but no channel. Grouping those by `user.id`
+ * gives the people rows the same unread treatment as channels — no extra
+ * request, no second source of truth. Yields nothing until DM events reach the
+ * feed, so it is safe to wire in ahead of that.
+ */
+export function useDirectMessageActivity(
+  workspaceId: string | undefined,
+  feed: ActivityFeedItem[] | undefined,
+): Record<string, ActivityIndicator> {
+  const seenVersionValue = useSeenVersion();
+
+  return useMemo(() => {
+    const result: Record<string, ActivityIndicator> = {};
+    if (!workspaceId || !feed?.length) return result;
+
+    const workspaceSeen = Date.parse(readSeenAt(workspaceId) ?? '');
+    // A missing/unparseable marker means this browser has never stamped one;
+    // treating the whole backlog as unread would light up every person row.
+    if (Number.isNaN(workspaceSeen) || workspaceSeen === 0) return result;
+
+    const grouped = new Map<string, ActivityFeedItem[]>();
+    for (const item of feed) {
+      if (item.channel || !item.user?.id) continue;
+      if (Date.parse(item.occurredAt) <= workspaceSeen) continue;
+      const bucket = grouped.get(item.user.id);
+      if (bucket) bucket.push(item);
+      else grouped.set(item.user.id, [item]);
+    }
+
+    for (const [peerId, items] of grouped) {
+      result[peerId] = toIndicator(items);
+    }
+    return result;
+    /* `seenVersionValue` stands in for the markers read via `readSeenAt`. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId, feed, seenVersionValue]);
+}
+
+/**
  * Stamps a channel as read.
  *
  * Called when the channel page mounts, which is the moment the user has

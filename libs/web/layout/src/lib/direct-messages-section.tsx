@@ -25,10 +25,16 @@ import {
   DropdownMenuShortcut,
   Hint,
   PRESENCE_LABELS,
+  SidebarActivityIndicator,
   toPresenceStatus,
   UserAvatar,
   type PresenceStatus,
 } from '@org/ui';
+import {
+  useDirectMessageActivity,
+  useNotificationFeed,
+  type ActivityIndicator,
+} from '@org/notifications';
 import { cn } from '@org/utils';
 import { useChannels } from '@org/web-channels';
 import {
@@ -84,6 +90,7 @@ function DirectMessageRow({
   workspaceSlug,
   isFavorite,
   isMuted,
+  activity,
   onToggleFavorite,
   onToggleMuted,
 }: {
@@ -91,6 +98,7 @@ function DirectMessageRow({
   workspaceSlug: string;
   isFavorite: boolean;
   isMuted: boolean;
+  activity?: ActivityIndicator;
   onToggleFavorite: () => void;
   onToggleMuted: () => void;
 }) {
@@ -100,6 +108,7 @@ function DirectMessageRow({
 
   const name = member.user.displayName ?? member.user.name;
   const presence = toPresenceStatus(member.user.presence);
+  const hasUnread = !isMuted && !!activity && activity.level !== 'none';
   const to = `/w/${workspaceSlug}/dms?user=${member.user.id}`;
   const { copied, copy: handleCopyLink } = useCopyLink(
     `${window.location.origin}${to}`,
@@ -120,7 +129,11 @@ function DirectMessageRow({
         className={({ isActive }) =>
           navRowClass(isActive, {
             depth: 1,
-            extra: cn('pr-14', isMuted && 'text-muted-foreground'),
+            extra: cn(
+              'pr-14',
+              isMuted && 'text-muted-foreground',
+              hasUnread && 'font-semibold text-foreground',
+            ),
           })
         }
       >
@@ -145,6 +158,20 @@ function DirectMessageRow({
         </div>
 
         <span className="flex-1 truncate">{name}</span>
+
+        <SidebarActivityIndicator
+          surface="dms"
+          itemLabel={name}
+          state={{
+            activityType: activity?.level,
+            unreadCount:
+              activity?.level === 'mention'
+                ? activity?.mentionCount
+                : activity?.count,
+            isMuted,
+          }}
+          className="mr-1"
+        />
 
         {isMuted && (
           <Hint label="Notifications muted">
@@ -263,6 +290,7 @@ function SortableDirectMessageRow(props: {
   workspaceSlug: string;
   isFavorite: boolean;
   isMuted: boolean;
+  activity?: ActivityIndicator;
   onToggleFavorite: () => void;
   onToggleMuted: () => void;
 }) {
@@ -392,9 +420,12 @@ function GroupDmRow({
 
         <span className="flex-1 truncate">{group.name}</span>
 
-        {hasUnread ? (
-          <span className="mr-1 size-1.5 shrink-0 rounded-full bg-primary" />
-        ) : null}
+        <SidebarActivityIndicator
+          surface="dms"
+          itemLabel={group.name}
+          state={{ unreadCount: group.unreadCount, isMuted }}
+          className="mr-1"
+        />
         {isMuted ? (
           <Hint label="Notifications muted">
             <BellOff className="mr-1 size-3 shrink-0 text-muted-foreground/70" />
@@ -476,6 +507,17 @@ export function DirectMessagesSection({
   const { data: channels } = useChannels(workspaceId);
   const preferences = useDirectMessagePreferences(workspaceId);
   const dndId = useId();
+
+  /*
+   * Shares one query key with the feed AppShell already fetches, so this is a
+   * cache read, not a second request. `useDirectMessageActivity` buckets its
+   * rows by DM peer — the same data that drives the channel dots.
+   */
+  const notificationFeed = useNotificationFeed(workspaceId);
+  const dmActivity = useDirectMessageActivity(
+    workspaceId,
+    notificationFeed.data,
+  );
 
   const resourceOrders = useSidebarStore((s) => s.resourceOrders);
   const moveResourceItem = useSidebarStore((s) => s.moveResourceItem);
@@ -638,6 +680,7 @@ export function DirectMessagesSection({
               workspaceSlug={workspaceSlug}
               isFavorite={favoriteIds.includes(member.user.id)}
               isMuted={mutedIds.includes(member.user.id)}
+              activity={dmActivity[member.user.id]}
               onToggleFavorite={() => preferences.toggleFavorite(member.user.id)}
               onToggleMuted={() => preferences.toggleMuted(member.user.id)}
             />

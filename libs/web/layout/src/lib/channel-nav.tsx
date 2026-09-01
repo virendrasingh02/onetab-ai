@@ -1,5 +1,4 @@
 import {
-  ActivityDot,
   Button,
   DropdownMenu,
   DropdownMenuContent,
@@ -9,9 +8,12 @@ import {
   DropdownMenuTrigger,
   Hint,
   ScrollArea,
+  SidebarActivityIndicator,
   SkeletonList,
   usePromptDialog,
+  useSidebarCustomizerStore,
   type PromptDialog,
+  type SidebarActivityState,
 } from '@org/ui';
 import type { ActivityIndicator } from '@org/notifications';
 import { useMarkChannelUnread } from '@org/notifications';
@@ -253,14 +255,17 @@ function ChannelRow({
       >
         <Icon className={navIconClass(1)} aria-hidden />
         <span className="flex-1 truncate">{channel.name}</span>
-        <ActivityDot
-          level={level}
-          count={activity?.mentionCount}
-          label={
-            level === 'mention'
-              ? `You were mentioned in #${channel.name}`
-              : `Unread activity in #${channel.name}`
-          }
+        <SidebarActivityIndicator
+          surface="channels"
+          itemLabel={`#${channel.name}`}
+          state={{
+            activityType: activity?.level,
+            unreadCount:
+              activity?.level === 'mention'
+                ? activity?.mentionCount
+                : activity?.count,
+            isMuted,
+          }}
           className="mr-1"
         />
         {isMuted && (
@@ -537,8 +542,8 @@ export function ChannelNav({
 
   const itemsPrefs = useSidebarStore((s) => s.items);
   const sectionsPrefs = useSidebarStore((s) => s.sections);
-  const customizerOpen = useSidebarStore((s) => s.customizerOpen);
-  const setCustomizerOpen = useSidebarStore((s) => s.setCustomizerOpen);
+  const customizerOpen = useSidebarCustomizerStore((s) => s.open);
+  const setCustomizerOpen = useSidebarCustomizerStore((s) => s.setOpen);
 
   const resolvedNav = useMemo(
     () =>
@@ -548,6 +553,23 @@ export function ChannelNav({
       }),
     [itemsPrefs, workspaceSlug, inboxUnread],
   );
+
+  /*
+   * Activity state for the primary nav rows, keyed by item id. The Inbox row
+   * carries the workspace's unread feed count; other rows opt in here as their
+   * data sources land. Rows without an entry simply show no indicator.
+   */
+  const navActivity = useMemo<Record<string, SidebarActivityState>>(
+    () => ({
+      inbox: {
+        unreadCount: inboxUnread,
+        activityType: inboxUnread > 0 ? 'activity' : 'none',
+      },
+    }),
+    [inboxUnread],
+  );
+  const navSurfaceFor = (id: string) =>
+    id === 'inbox' ? ('notifications' as const) : ('main' as const);
 
   const activeSections = useMemo(() => {
     return [...DEFAULT_SIDEBAR_SECTIONS]
@@ -1006,6 +1028,8 @@ export function ChannelNav({
                 end: item.href === '',
               }}
               workspaceSlug={workspaceSlug}
+              activity={navActivity[item.id]}
+              surface={navSurfaceFor(item.id)}
             />
           ))}
         </ScrollArea>
@@ -1052,6 +1076,8 @@ export function ChannelNav({
                   end: item.href === '',
                 }}
                 workspaceSlug={workspaceSlug}
+                activity={navActivity[item.id]}
+                surface={navSurfaceFor(item.id)}
                 isActiveOverride={
                   item.id === 'channels'
                     ? location.pathname.includes('/c/')

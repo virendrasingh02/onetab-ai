@@ -11,6 +11,7 @@ type PersistedSidebar = Pick<
   | 'resourceOrders'
   | 'collapsedGroups'
   | 'sidebarCollapsed'
+  | 'activityIndicators'
 >;
 
 function snapshot(state: SidebarState): PersistedSidebar {
@@ -21,6 +22,7 @@ function snapshot(state: SidebarState): PersistedSidebar {
     resourceOrders: state.resourceOrders,
     collapsedGroups: state.collapsedGroups,
     sidebarCollapsed: state.sidebarCollapsed,
+    activityIndicators: state.activityIndicators,
   };
 }
 

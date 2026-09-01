@@ -36,6 +36,7 @@ import {
   UserAvatar,
   WorkspaceAvatar,
   useFocusStore,
+  useSidebarCustomizerStore,
   useWorldClockStore,
   FOCUS_SOUND_OPTIONS,
   FOCUS_DURATION_OPTIONS,
@@ -454,10 +455,18 @@ export function WorkspaceSettingsPage({
                 <div>
                   <h4 className="text-xs font-medium text-foreground">App sidebar</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Customize sidebar item visibility, ordering, and badge style
+                    Customize sidebar item visibility, ordering, and activity
+                    indicator (dot / badge) style
                   </p>
                 </div>
-                <Button variant="outline" size="sm" className="h-8 text-xs px-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs px-3"
+                  onClick={() =>
+                    useSidebarCustomizerStore.getState().openWith('indicators')
+                  }
+                >
                   Customize
                 </Button>
               </div>

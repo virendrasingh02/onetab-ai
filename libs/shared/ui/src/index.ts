@@ -367,6 +367,31 @@ export {
 } from './lib/components/activity-dot.js';
 
 export {
+  SidebarActivityIndicator,
+  SidebarBadge,
+  WorkspaceActivityIndicator,
+  SidebarActivityConfigProvider,
+  useSidebarActivityConfig,
+  resolveSidebarActivity,
+  hasSidebarActivity,
+  DEFAULT_SIDEBAR_ACTIVITY_CONFIG,
+  type SidebarActivityIndicatorProps,
+  type WorkspaceActivityIndicatorProps,
+  type SidebarBadgeProps,
+  type SidebarActivityState,
+  type SidebarActivityConfig,
+  type SidebarActivitySurface,
+  type ActivityIndicatorType,
+  type ResolvedSidebarActivity,
+} from './lib/components/sidebar-activity-indicator.js';
+
+export {
+  useSidebarCustomizerStore,
+  type SidebarCustomizerStore,
+  type SidebarCustomizerTab,
+} from './lib/components/use-sidebar-customizer-store.js';
+
+export {
   useRightPanelStore,
   type HostedPanel,
   type RightPanelHostedView,
