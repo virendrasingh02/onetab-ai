@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { MatrixAdminService, MatrixBotMessagingService } from '@org/api-matrix';
 import { PrismaService } from '@org/database';
 
 /**
@@ -13,6 +14,12 @@ export interface MCPToolContext {
   workspaceId: string;
   /** Null when the agent has no creator on record — write tools then refuse. */
   actingUserId: string | null;
+  /**
+   * The agent's own provisioned Matrix identity, for tools that speak in chat
+   * as the bot. Null until the agent has been messaged at least once — those
+   * tools then refuse rather than posting as nobody.
+   */
+  agentMatrixUserId?: string | null;
 }
 
 export interface MCPToolDefinition {
@@ -27,7 +34,11 @@ export class MCPToolRegistryService {
   private readonly logger = new Logger(MCPToolRegistryService.name);
   private tools = new Map<string, MCPToolDefinition>();
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly matrixAdmin: MatrixAdminService,
+    private readonly botMessaging: MatrixBotMessagingService,
+  ) {
     this.registerBuiltInTools();
   }
 
@@ -193,19 +204,63 @@ export class MCPToolRegistryService {
     // 7. Send Channel Message
     this.tools.set('send_channel_message', {
       name: 'send_channel_message',
-      description: 'Send a notification or update to a workspace channel',
+      description:
+        'Post a plain-text message to a workspace channel as this agent',
       parameters: {
         channelSlug: { type: 'string' },
         messageText: { type: 'string' },
       },
-      handler: async () => {
-        // This used to return `{ success: true, ... }` without touching Matrix
-        // or the database — a fabricated success the agent trace then recorded
-        // as a real send. It fails honestly until the Matrix bot path is wired
-        // up (tracked as Tier 3: real agent actions).
-        throw new Error(
-          'send_channel_message is not implemented yet — no message was sent.',
+      handler: async (
+        params: { channelSlug?: string; messageText?: string },
+        { workspaceId, actingUserId, agentMatrixUserId },
+      ) => {
+        const slug = params.channelSlug?.trim();
+        const text = params.messageText?.trim();
+        if (!slug || !text) {
+          throw new Error('channelSlug and messageText are both required.');
+        }
+        if (!agentMatrixUserId) {
+          throw new Error(
+            'This agent has no chat identity yet — message it directly once so it gets provisioned, then retry.',
+          );
+        }
+        // Attributed to a real person, like every other write tool.
+        await this.assertWorkspaceMember(workspaceId, actingUserId);
+
+        // The agent may only post to a channel its acting user belongs to —
+        // stricter than `list_channels`, which also surfaces public channels.
+        const channel = await this.prisma.channel.findFirst({
+          where: {
+            workspaceId,
+            slug,
+            isArchived: false,
+            members: { some: { userId: actingUserId as string } },
+          },
+          select: { id: true, name: true, matrixRoomId: true },
+        });
+        if (!channel) {
+          throw new Error(
+            `Channel '${slug}' does not exist or the agent's user is not a member of it.`,
+          );
+        }
+        if (!channel.matrixRoomId) {
+          throw new Error(
+            `Channel '${slug}' is not linked to a chat room yet.`,
+          );
+        }
+
+        // A bot must be a joined member to post; joining is idempotent.
+        await this.matrixAdmin.joinRoomAs(
+          agentMatrixUserId,
+          channel.matrixRoomId,
         );
+        const eventId = await this.botMessaging.sendText(
+          channel.matrixRoomId,
+          agentMatrixUserId,
+          text,
+        );
+
+        return { delivered: true, channel: channel.name, eventId };
       },
     });
   }

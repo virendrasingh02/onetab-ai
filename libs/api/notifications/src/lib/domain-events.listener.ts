@@ -66,7 +66,9 @@ export class DomainEventsListener {
           actorId: e.actorId,
           kind,
           title: title(label),
-          deepLink: `tasks/${e.taskId}`,
+          // `tasks` route + a query param the board reads to open the card
+          // dialog; there is no `tasks/:id` route.
+          deepLink: `tasks?taskId=${e.taskId}`,
           resourceType: 'task',
           resourceId: e.taskId,
         }),
@@ -154,7 +156,7 @@ export class DomainEventsListener {
           actorId: e.actorId,
           kind: NotificationKind.PROJECT_CREATED,
           title: `You were made lead of ${e.name}`,
-          deepLink: `projects/${e.projectId}`,
+          deepLink: `projects?project=${e.projectId}`,
           resourceType: 'project',
           resourceId: e.projectId,
         }),

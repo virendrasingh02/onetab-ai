@@ -216,8 +216,13 @@ export class AgentsService {
               input,
               // Tools act as the agent's creator, not as an anonymous
               // workspace-wide principal — writes are attributed to a real
-              // person and reads are narrowed to what they may see.
-              { workspaceId, actingUserId: agent.creatorId },
+              // person and reads are narrowed to what they may see. Chat tools
+              // also need the agent's own bot identity to post as.
+              {
+                workspaceId,
+                actingUserId: agent.creatorId,
+                agentMatrixUserId: agent.matrixUserId,
+              },
             );
             entry.status = 'success';
             entry.output = output;

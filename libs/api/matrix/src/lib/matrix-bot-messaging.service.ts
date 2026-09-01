@@ -40,6 +40,24 @@ function fallbackBodyFor(event: StructuredChatMessage): string {
 export class MatrixBotMessagingService {
   constructor(private readonly admin: MatrixAdminService) {}
 
+  /**
+   * Posts a plain `m.text` message as a bot identity, returning its event id.
+   *
+   * For the cases that don't need a structured card — an agent tool posting a
+   * status line into a channel, say. The bot must already be a joined member of
+   * the room; the caller arranges that (`MatrixAdminService.joinRoomAs`).
+   */
+  async sendText(
+    roomId: string,
+    senderMatrixId: string,
+    text: string,
+  ): Promise<string> {
+    return this.admin.sendEventAs(roomId, senderMatrixId, 'm.room.message', {
+      msgtype: 'm.text',
+      body: text,
+    });
+  }
+
   /** Posts a new structured message, returning its event id. */
   async sendStructured(
     roomId: string,

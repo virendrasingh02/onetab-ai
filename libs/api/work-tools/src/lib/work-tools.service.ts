@@ -1409,7 +1409,7 @@ export class WorkToolsService {
         contextLabel: task.identifier
           ? `${task.identifier} ${task.title}`
           : task.title,
-        deepLink: `tasks/${task.id}`,
+        deepLink: `tasks?taskId=${task.id}`,
       });
     } catch {
       // Notification fan-out is never a correctness dependency of the comment.
