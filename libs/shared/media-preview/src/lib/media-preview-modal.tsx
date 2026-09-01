@@ -99,7 +99,11 @@ export function MediaPreviewModal() {
               contentRef.current?.focus();
             }}
             className={cn(
-              'fixed inset-0 z-50 flex flex-col outline-none',
+              // Sits inside the same 6px gutter the app shell uses for its
+              // panels (see app-shell.tsx), framed the same way — rounded-xl
+              // with a 1px border — so the viewer reads as one of the app's
+              // surfaces rather than a full-bleed takeover.
+              'fixed inset-1.5 z-50 flex flex-col overflow-hidden rounded-xl border border-border outline-none',
               'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-98',
               'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-98',
               'duration-(--duration-base) ease-standard',
