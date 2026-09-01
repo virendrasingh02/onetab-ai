@@ -338,6 +338,13 @@ export function KanbanListColumn({
                   patch: { memberIds: memberId ? [memberId] : [] },
                 })
               }
+              onAssigneesChange={(memberIds) =>
+                dispatch({
+                  type: 'card/update',
+                  cardId: card.id,
+                  patch: { memberIds },
+                })
+              }
             />
           ))}
 

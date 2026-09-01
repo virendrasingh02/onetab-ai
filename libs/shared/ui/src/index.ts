@@ -43,6 +43,26 @@ export {
 } from './lib/components/avatar.js';
 
 export {
+  UserAvatarGroup,
+  type AvatarGroupUser,
+  type UserAvatarGroupProps,
+} from './lib/components/avatar-group.js';
+
+export {
+  UserIdentity,
+  type UserIdentityProps,
+} from './lib/components/user-identity.js';
+
+export {
+  UserSelector,
+  MultiUserSelector,
+  AssigneeSelector,
+  UserSearch,
+  type UserSelectorMember,
+  type UserSelectorProps,
+} from './lib/components/user-selector.js';
+
+export {
   ProjectGlyph,
   type ProjectGlyphProps,
   type ProjectGlyphSize,

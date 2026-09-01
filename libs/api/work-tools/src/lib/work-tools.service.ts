@@ -788,6 +788,13 @@ export class WorkToolsService {
     const status = (input.status as TaskStatus) ?? TaskStatus.TODO;
     const projectId = input.projectId ?? null;
 
+    const assigneeIds = input.assigneeIds ?? (input.assigneeId ? [input.assigneeId] : []);
+    const primaryAssigneeId = assigneeIds[0] ?? input.assigneeId ?? null;
+    const customFields = {
+      ...((input.customFields as Record<string, unknown>) ?? {}),
+      ...(assigneeIds.length ? { assigneeIds } : {}),
+    };
+
     const task = await this.prisma.$transaction(async (tx) => {
       let ticketNumber: number | null = null;
       let identifier: string | null = null;
@@ -817,13 +824,13 @@ export class WorkToolsService {
         cycleId: input.cycleId ?? null,
         moduleId: input.moduleId ?? null,
         parentId: input.parentId ?? null,
-        assigneeId: input.assigneeId ?? null,
+        assigneeId: primaryAssigneeId,
         reporterId: input.reporterId ?? actorId ?? null,
         startDate: at(input.startDate) ?? null,
         dueDate: at(input.dueDate) ?? null,
         estimate: input.estimate ?? null,
         labels: input.labels ?? [],
-        customFields: (input.customFields ?? {}) as Prisma.InputJsonValue,
+        customFields: customFields as Prisma.InputJsonValue,
         ticketNumber,
         identifier,
         orderIndex: await this.topOfColumn(tx, workspaceId, projectId, status),
@@ -878,6 +885,29 @@ export class WorkToolsService {
     const existing = await this.assertTask(workspaceId, taskId);
     await this.assertTaskLinks(workspaceId, input);
 
+    const hasAssigneeIds = input.assigneeIds !== undefined;
+    const hasAssigneeId = input.assigneeId !== undefined;
+    const assigneeIds = hasAssigneeIds
+      ? input.assigneeIds
+      : hasAssigneeId
+      ? input.assigneeId
+        ? [input.assigneeId]
+        : []
+      : undefined;
+    const primaryAssigneeId =
+      assigneeIds !== undefined ? assigneeIds[0] ?? null : undefined;
+
+    const existingCustom =
+      (existing.customFields as Record<string, unknown>) ?? {};
+    const updatedCustomFields =
+      assigneeIds !== undefined || input.customFields !== undefined
+        ? {
+            ...existingCustom,
+            ...((input.customFields as Record<string, unknown>) ?? {}),
+            ...(assigneeIds !== undefined ? { assigneeIds } : {}),
+          }
+        : undefined;
+
     const data: Prisma.TaskUncheckedUpdateInput = {
       ...(input.title !== undefined ? { title: input.title } : {}),
       ...(input.description !== undefined ? { description: input.description } : {}),
@@ -892,7 +922,9 @@ export class WorkToolsService {
       ...(input.cycleId !== undefined ? { cycleId: input.cycleId } : {}),
       ...(input.moduleId !== undefined ? { moduleId: input.moduleId } : {}),
       ...(input.parentId !== undefined ? { parentId: input.parentId } : {}),
-      ...(input.assigneeId !== undefined ? { assigneeId: input.assigneeId } : {}),
+      ...(primaryAssigneeId !== undefined
+        ? { assigneeId: primaryAssigneeId }
+        : {}),
       ...(input.reporterId !== undefined ? { reporterId: input.reporterId } : {}),
       ...(input.startDate !== undefined ? { startDate: at(input.startDate) } : {}),
       ...(input.dueDate !== undefined ? { dueDate: at(input.dueDate) } : {}),
@@ -900,8 +932,8 @@ export class WorkToolsService {
       ...(input.estimate !== undefined ? { estimate: input.estimate } : {}),
       ...(input.timeSpent !== undefined ? { timeSpent: input.timeSpent } : {}),
       ...(input.labels !== undefined ? { labels: input.labels } : {}),
-      ...(input.customFields !== undefined
-        ? { customFields: input.customFields as Prisma.InputJsonValue }
+      ...(updatedCustomFields !== undefined
+        ? { customFields: updatedCustomFields as Prisma.InputJsonValue }
         : {}),
       ...(input.orderIndex !== undefined ? { orderIndex: input.orderIndex } : {}),
     };

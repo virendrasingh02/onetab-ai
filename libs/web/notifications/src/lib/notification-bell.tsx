@@ -8,12 +8,12 @@ import {
   PopoverTrigger,
   ScrollArea,
   Skeleton,
-  UserAvatar,
 } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';
 import { Bell, Check, X } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { NotificationAvatar } from './notification-avatar.js';
 import {
   useNotificationList,
   useNotificationMutations,
@@ -143,12 +143,7 @@ export function NotificationBell({
                     )}
                   >
                     <span className="relative mt-0.5 shrink-0">
-                      <UserAvatar
-                        name={n.actor?.displayName ?? n.actor?.name ?? 'System'}
-                        src={n.actor?.avatarUrl ?? undefined}
-                        seed={n.actor?.id ?? n.id}
-                        size="sm"
-                      />
+                      <NotificationAvatar notification={n} size="sm" />
                       {!n.read ? (
                         <span className="absolute -left-1 top-1/2 size-2 -translate-y-1/2 rounded-full bg-primary" />
                       ) : null}

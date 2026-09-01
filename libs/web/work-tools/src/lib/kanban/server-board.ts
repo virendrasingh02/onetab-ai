@@ -140,6 +140,11 @@ export function taskToCard(
   milestoneTitles: ReadonlyMap<string, string>,
   ticketPrefix?: string | null,
 ): KanbanCard {
+  const customAssigneeIds = (task.customFields as Record<string, unknown> | null)?.assigneeIds;
+  const memberIds = Array.isArray(customAssigneeIds)
+    ? (customAssigneeIds as string[])
+    : task.assigneeIds ?? (task.assigneeId ? [task.assigneeId] : []);
+
   return {
     id: task.id,
     ticketId:
@@ -151,7 +156,7 @@ export function taskToCard(
     type: task.type,
     title: task.title,
     description: task.description ?? '',
-    memberIds: task.assigneeId ? [task.assigneeId] : [],
+    memberIds,
     milestone: task.milestoneId
       ? milestoneTitles.get(task.milestoneId)
       : undefined,
@@ -169,6 +174,8 @@ export function membersFrom(
   return (members ?? []).map((member) => ({
     id: member.user.id,
     name: member.user.displayName ?? member.user.name,
+    displayName: member.user.displayName,
+    email: member.user.email,
     avatarUrl: member.user.avatarUrl ?? undefined,
   }));
 }
@@ -289,7 +296,7 @@ function patchToInput(patch: CardPatch): UpdateTaskInput {
     input.dueDate = patch.dueDate ? dayToIso(patch.dueDate) : null;
   }
   if (patch.memberIds !== undefined) {
-    // One assignee per task: the first id wins, an empty list unassigns.
+    input.assigneeIds = patch.memberIds;
     input.assigneeId = patch.memberIds[0] ?? null;
   }
   return input;
@@ -507,10 +514,15 @@ export function useServerBoard({
         case 'card/toggleMember': {
           const found = findCard(action.cardId);
           if (!found) return;
-          const assigned = found.card.memberIds.includes(action.memberId);
+          const nextMemberIds = found.card.memberIds.includes(action.memberId)
+            ? found.card.memberIds.filter((id) => id !== action.memberId)
+            : [...found.card.memberIds, action.memberId];
           mutations.update.mutate({
             taskId: action.cardId,
-            input: { assigneeId: assigned ? null : action.memberId },
+            input: {
+              assigneeIds: nextMemberIds,
+              assigneeId: nextMemberIds[0] ?? null,
+            },
           });
           return;
         }

@@ -32,6 +32,16 @@ export interface NotificationView {
     displayName: string | null;
     avatarUrl: string | null;
   } | null;
+  workspace?: {
+    id: string;
+    name: string;
+    slug?: string;
+    avatarUrl?: string | null;
+    icon?: string | null;
+    iconColor?: string | null;
+  } | null;
+  workspaceName?: string | null;
+  workspaceIcon?: string | null;
 }
 
 /**
@@ -102,6 +112,18 @@ export class NotificationCenterService {
         recipientId: userId,
         ...(query.unreadOnly ? { readAt: null } : {}),
       },
+      include: {
+        workspace: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            avatarUrl: true,
+            icon: true,
+            iconColor: true,
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
       take: page.take,
       ...(page.cursor ? { cursor: page.cursor, skip: page.skip } : {}),
@@ -129,6 +151,18 @@ export class NotificationCenterService {
         read: row.readAt !== null,
         createdAt: row.createdAt.toISOString(),
         actor: row.actorId ? (actorById.get(row.actorId) ?? null) : null,
+        workspace: row.workspace
+          ? {
+              id: row.workspace.id,
+              name: row.workspace.name,
+              slug: row.workspace.slug,
+              avatarUrl: row.workspace.avatarUrl,
+              icon: row.workspace.icon,
+              iconColor: row.workspace.iconColor,
+            }
+          : null,
+        workspaceName: row.workspace?.name ?? null,
+        workspaceIcon: row.workspace?.icon ?? row.workspace?.avatarUrl ?? null,
       })),
       page.limit,
     );

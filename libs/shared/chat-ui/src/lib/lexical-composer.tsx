@@ -98,7 +98,7 @@ import {
   SquareCode,
   Strikethrough,
 } from 'lucide-react';
-import { Badge } from '@org/ui';
+import { Badge, UserAvatar } from '@org/ui';
 import {
   useCallback,
   useEffect,
@@ -665,20 +665,14 @@ function MentionsPlugin({
                   <Blocks className="size-3.5" />
                 </span>
               ) : (
-                <span
-                  className="size-6 font-bold flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-inset text-[10px] text-foreground"
-                  aria-hidden
-                >
-                  {option.candidate.avatarUrl ? (
-                    <img
-                      src={option.candidate.avatarUrl}
-                      alt=""
-                      className="size-full object-cover"
-                    />
-                  ) : (
-                    option.candidate.name.slice(0, 2).toUpperCase()
-                  )}
-                </span>
+                <UserAvatar
+                  name={option.candidate.name}
+                  seed={option.candidate.id}
+                  src={option.candidate.avatarUrl}
+                  size="xs"
+                  indicator={false}
+                  className="size-6 font-bold shrink-0"
+                />
               )}
               <span className="min-w-0 flex-1">
                 <span className="gap-1.5 font-semibold flex items-center text-foreground">

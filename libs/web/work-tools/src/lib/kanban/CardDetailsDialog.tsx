@@ -14,6 +14,7 @@ import {
   Textarea,
   toast,
   UserAvatar,
+  UserAvatarGroup,
   useRightPanelStore,
 } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';
@@ -335,6 +336,17 @@ function CardDetailsBody({
     });
   };
 
+  const handleAssigneesChange = (memberIds: string[]) => {
+    customStore.setCardProperties(card.id, {
+      leadId: memberIds[0] || undefined,
+    });
+    dispatch({
+      type: 'card/update',
+      cardId: card.id,
+      patch: { memberIds },
+    });
+  };
+
   const handleAddChecklist = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newChecklistText.trim()) return;
@@ -632,25 +644,31 @@ function CardDetailsBody({
                 <span>Assignees</span>
               </span>
               <KanbanLeadPicker
+                selectedMemberIds={card.memberIds}
                 currentMemberId={currentLeadId}
                 members={board.members}
+                multiple={true}
+                onSelectMembers={handleAssigneesChange}
                 onSelectMember={handleLeadChange}
                 trigger={
                   <button
                     type="button"
                     className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-border/70 hover:bg-accent/50 transition-colors cursor-pointer"
                   >
-                    {currentLead ? (
-                      <>
-                        <UserAvatar
-                          name={currentLead.name}
-                          seed={currentLead.id}
-                          src={currentLead.avatarUrl}
+                    {card.memberIds.length > 0 ? (
+                      <div className="flex items-center gap-1.5">
+                        <UserAvatarGroup
+                          users={card.memberIds
+                            .map((id) => board.members.find((m) => m.id === id))
+                            .filter((m): m is BoardMember => Boolean(m))}
                           size="xs"
-                          className="size-4.5 text-[9px] font-bold"
                         />
-                        <span className="font-medium text-foreground">{currentLead.name}</span>
-                      </>
+                        <span className="font-medium text-foreground text-xs">
+                          {card.memberIds.length === 1
+                            ? board.members.find((m) => m.id === card.memberIds[0])?.name
+                            : `${card.memberIds.length} assigned`}
+                        </span>
+                      </div>
                     ) : (
                       <>
                         <UnassignedLeadIcon className="size-4 text-muted-foreground" />

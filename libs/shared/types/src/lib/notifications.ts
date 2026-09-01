@@ -91,6 +91,15 @@ export type NotificationKind =
   | 'DOCUMENT_SHARED'
   | 'SYSTEM';
 
+export interface NotificationWorkspaceInfo {
+  id: string;
+  name: string;
+  slug?: string;
+  avatarUrl?: string | null;
+  icon?: string | null;
+  iconColor?: string | null;
+}
+
 /**
  * One row in the bell menu — a notification addressed to the signed-in user,
  * with server-side read state (unlike {@link ActivityFeedItem}, which is a
@@ -114,6 +123,9 @@ export interface NotificationView {
     displayName: string | null;
     avatarUrl: string | null;
   } | null;
+  workspace?: NotificationWorkspaceInfo | null;
+  workspaceName?: string | null;
+  workspaceIcon?: string | null;
 }
 
 /**

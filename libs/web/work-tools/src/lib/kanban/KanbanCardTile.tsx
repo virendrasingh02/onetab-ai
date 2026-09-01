@@ -49,6 +49,7 @@ export interface KanbanCardTileProps {
   onDelete: () => void;
   onMoveToList: (toListId: TaskStatus) => void;
   onAssigneeChange?: (memberId: string | null) => void;
+  onAssigneesChange?: (memberIds: string[]) => void;
 }
 
 function formatCardDate(dateStr?: string): string | null {
@@ -193,11 +194,23 @@ export function KanbanCardTile({
 
           {/* Assignee lead picker */}
           <KanbanLeadPicker
+            selectedMemberIds={card.memberIds}
             currentMemberId={currentLeadId}
             members={members}
+            multiple={true}
+            onSelectMembers={(memberIds) => {
+              customStore.setCardProperties(card.id, {
+                leadId: memberIds[0] || undefined,
+              });
+              onAssigneeChange?.(memberIds[0] ?? null);
+              onAssigneesChange?.(memberIds);
+            }}
             onSelectMember={(memberId) => {
-              customStore.setCardProperties(card.id, { leadId: memberId || undefined });
+              customStore.setCardProperties(card.id, {
+                leadId: memberId || undefined,
+              });
               onAssigneeChange?.(memberId);
+              onAssigneesChange?.(memberId ? [memberId] : []);
             }}
             align="end"
           />

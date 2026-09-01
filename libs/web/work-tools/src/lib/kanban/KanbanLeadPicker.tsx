@@ -5,85 +5,162 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   UserAvatar,
+  UserAvatarGroup,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { Check, Send } from 'lucide-react';
-import React, { useEffect } from 'react';
+import { Check, Search, Send, UserX, X } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { UnassignedLeadIcon } from './kanban-icons.js';
 import type { BoardMember } from './types.js';
 
 export interface KanbanLeadPickerProps {
-  currentMemberId?: string;
+  currentMemberId?: string | null;
+  selectedMemberIds?: string[];
   members: BoardMember[];
-  onSelectMember: (memberId: string | null) => void;
+  onSelectMember?: (memberId: string | null) => void;
+  onSelectMembers?: (memberIds: string[]) => void;
   onInvite?: () => void;
   trigger?: React.ReactNode;
   align?: 'start' | 'center' | 'end';
+  multiple?: boolean;
 }
 
 export function KanbanLeadPicker({
   currentMemberId,
+  selectedMemberIds,
   members,
   onSelectMember,
+  onSelectMembers,
   onInvite,
   trigger,
   align = 'end',
+  multiple = false,
 }: KanbanLeadPickerProps) {
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
 
-  // Keyboard shortcut listener when open (0 for No lead)
+  const activeIds = useMemo<string[]>(() => {
+    if (selectedMemberIds !== undefined) return selectedMemberIds;
+    if (currentMemberId) return [currentMemberId];
+    return [];
+  }, [selectedMemberIds, currentMemberId]);
+
+  const assignedMembers = useMemo(() => {
+    const memberMap = new Map(members.map((m) => [m.id, m]));
+    return activeIds
+      .map((id) => memberMap.get(id))
+      .filter((m): m is BoardMember => Boolean(m));
+  }, [members, activeIds]);
+
+  const filteredMembers = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return members;
+    return members.filter((m) => {
+      const name = (m.displayName ?? m.name).toLowerCase();
+      const rawName = m.name.toLowerCase();
+      const email = (m.email ?? '').toLowerCase();
+      return name.includes(q) || rawName.includes(q) || email.includes(q);
+    });
+  }, [members, query]);
+
+  // Keyboard shortcut listener when open (0 for No lead / clear)
   useEffect(() => {
     if (!open) return;
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === '0') {
         e.preventDefault();
-        onSelectMember(null);
+        onSelectMember?.(null);
+        onSelectMembers?.([]);
         setOpen(false);
       }
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, onSelectMember]);
+  }, [open, onSelectMember, onSelectMembers]);
 
-  const assignedMember = members.find((m) => m.id === currentMemberId);
+  const toggleMember = (memberId: string) => {
+    if (multiple || onSelectMembers) {
+      const next = activeIds.includes(memberId)
+        ? activeIds.filter((id) => id !== memberId)
+        : [...activeIds, memberId];
+      onSelectMembers?.(next);
+      onSelectMember?.(next[0] ?? null);
+    } else {
+      const isSelected = activeIds.includes(memberId);
+      const nextId = isSelected ? null : memberId;
+      onSelectMember?.(nextId);
+      onSelectMembers?.(nextId ? [nextId] : []);
+      setOpen(false);
+    }
+  };
+
+  const handleClear = () => {
+    onSelectMember?.(null);
+    onSelectMembers?.([]);
+    if (!multiple) setOpen(false);
+  };
+
+  const defaultTrigger = (
+    <button
+      type="button"
+      className="flex items-center justify-center rounded-full hover:ring-2 hover:ring-primary/40 transition-all cursor-pointer p-0.5"
+      aria-label="Change assignee"
+    >
+      {assignedMembers.length > 1 ? (
+        <UserAvatarGroup users={assignedMembers} size="xs" />
+      ) : assignedMembers.length === 1 ? (
+        <UserAvatar
+          name={assignedMembers[0].name}
+          seed={assignedMembers[0].id}
+          src={assignedMembers[0].avatarUrl}
+          size="xs"
+          className="size-5 text-[9px] font-bold ring-1 ring-surface"
+        />
+      ) : (
+        <div className="size-5 rounded-full border border-dashed border-muted-foreground/50 flex items-center justify-center bg-muted/20">
+          <UnassignedLeadIcon className="size-3 text-muted-foreground" />
+        </div>
+      )}
+    </button>
+  );
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
-        {trigger ?? (
-          <button
-            type="button"
-            className="flex items-center justify-center size-5.5 rounded-full hover:ring-2 hover:ring-primary/40 transition-all cursor-pointer"
-            aria-label="Change assignee"
-          >
-            {assignedMember ? (
-              <UserAvatar
-                name={assignedMember.name}
-                seed={assignedMember.id}
-                src={assignedMember.avatarUrl}
-                size="xs"
-                className="size-5 text-[9px] font-bold ring-1 ring-surface"
-              />
-            ) : (
-              <div className="size-5 rounded-full border border-dashed border-muted-foreground/50 flex items-center justify-center bg-muted/20">
-                <UnassignedLeadIcon className="size-3 text-muted-foreground" />
-              </div>
-            )}
-          </button>
-        )}
-      </DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild>{trigger ?? defaultTrigger}</DropdownMenuTrigger>
 
       <DropdownMenuContent
         align={align}
-        className="w-52 p-1.5 rounded-xl border border-border bg-popover text-popover-foreground shadow-xl animate-in fade-in zoom-in-95"
+        className="w-56 p-1.5 rounded-xl border border-border bg-popover text-popover-foreground shadow-xl animate-in fade-in zoom-in-95"
       >
+        {/* Search Input Box */}
+        <div className="relative flex items-center px-2 py-1 border-b border-border/60 mb-1">
+          <Search className="size-3.5 text-muted-foreground shrink-0 mr-2" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search users..."
+            className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none border-none p-0 focus:ring-0"
+            autoFocus
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              className="p-0.5 text-muted-foreground hover:text-foreground"
+            >
+              <X className="size-3" />
+            </button>
+          )}
+        </div>
+
         <div className="space-y-0.5">
-          {/* No lead option */}
+          {/* No lead / Clear option */}
           <DropdownMenuItem
-            onSelect={() => onSelectMember(null)}
+            onSelect={handleClear}
             className={cn(
               'flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer font-medium transition-colors',
-              !currentMemberId
+              activeIds.length === 0
                 ? 'bg-accent text-foreground'
                 : 'text-foreground/85 hover:bg-accent/60',
             )}
@@ -94,7 +171,7 @@ export function KanbanLeadPicker({
             </div>
 
             <div className="flex items-center gap-2 text-muted-foreground/80">
-              {!currentMemberId && (
+              {activeIds.length === 0 && (
                 <Check className="size-3.5 text-foreground shrink-0 stroke-[2.5]" />
               )}
               <span className="font-mono text-[11px] tabular-nums text-muted-foreground/70">
@@ -104,51 +181,77 @@ export function KanbanLeadPicker({
           </DropdownMenuItem>
 
           {/* Members list */}
-          {members.map((member) => {
-            const isSelected = member.id === currentMemberId;
-            return (
-              <DropdownMenuItem
-                key={member.id}
-                onSelect={() => onSelectMember(member.id)}
-                className={cn(
-                  'flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer font-medium transition-colors',
-                  isSelected
-                    ? 'bg-accent text-foreground'
-                    : 'text-foreground/85 hover:bg-accent/60',
-                )}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <UserAvatar
-                    name={member.name}
-                    seed={member.id}
-                    src={member.avatarUrl}
-                    size="xs"
-                    className="size-5 text-[9px] font-bold shrink-0"
-                  />
-                  <span className="truncate">{member.name}</span>
-                </div>
+          <div className="max-h-48 overflow-y-auto space-y-0.5">
+            {filteredMembers.length === 0 ? (
+              <div className="px-3 py-3 text-center text-xs text-muted-foreground">
+                No users found
+              </div>
+            ) : (
+              filteredMembers.map((member) => {
+                const isSelected = activeIds.includes(member.id);
+                return (
+                  <DropdownMenuItem
+                    key={member.id}
+                    onSelect={(e) => {
+                      if (multiple || onSelectMembers) {
+                        e.preventDefault();
+                      }
+                      toggleMember(member.id);
+                    }}
+                    className={cn(
+                      'flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer font-medium transition-colors',
+                      isSelected
+                        ? 'bg-accent text-foreground'
+                        : 'text-foreground/85 hover:bg-accent/60',
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <UserAvatar
+                        name={member.displayName ?? member.name}
+                        seed={member.id}
+                        src={member.avatarUrl}
+                        size="xs"
+                        className="size-5 text-[9px] font-bold shrink-0"
+                      />
+                      <div className="min-w-0 flex-1 leading-none">
+                        <span className="block truncate text-xs font-medium text-foreground">
+                          {member.displayName ?? member.name}
+                        </span>
+                        {member.email && (
+                          <span className="block truncate text-[10px] text-muted-foreground mt-0.5 font-mono">
+                            {member.email}
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
-                {isSelected && (
-                  <Check className="size-3.5 text-foreground shrink-0 stroke-[2.5]" />
-                )}
-              </DropdownMenuItem>
-            );
-          })}
+                    {isSelected && (
+                      <Check className="size-3.5 text-foreground shrink-0 stroke-[2.5]" />
+                    )}
+                  </DropdownMenuItem>
+                );
+              })
+            )}
+          </div>
         </div>
 
         {/* New user section */}
-        <DropdownMenuSeparator className="my-1.5" />
-        <div className="px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-          New user
-        </div>
+        {onInvite && (
+          <>
+            <DropdownMenuSeparator className="my-1.5" />
+            <div className="px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+              New user
+            </div>
 
-        <DropdownMenuItem
-          onSelect={() => onInvite?.()}
-          className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-foreground/85 hover:bg-accent/60 font-medium"
-        >
-          <Send className="size-3.5 text-muted-foreground shrink-0" />
-          <span>Invite and add...</span>
-        </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => onInvite?.()}
+              className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-foreground/85 hover:bg-accent/60 font-medium"
+            >
+              <Send className="size-3.5 text-muted-foreground shrink-0" />
+              <span>Invite and add...</span>
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

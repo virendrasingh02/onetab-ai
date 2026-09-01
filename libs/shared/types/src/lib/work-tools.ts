@@ -215,6 +215,8 @@ export interface Task {
   createdAt: IsoDateString;
   updatedAt: IsoDateString;
   assignee: PublicUser | null;
+  assignees?: PublicUser[];
+  assigneeIds?: string[];
   reporter?: PublicUser | null;
   project: TaskProjectRef | null;
   epic?: Epic | null;

@@ -1,6 +1,11 @@
 export { NotificationBadge } from './lib/notification-badge.js';
 
 export {
+  NotificationAvatar,
+  type NotificationAvatarProps,
+} from './lib/notification-avatar.js';
+
+export {
   NotificationBell,
   type NotificationBellProps,
 } from './lib/notification-bell.js';

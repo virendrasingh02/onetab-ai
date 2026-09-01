@@ -13,6 +13,10 @@ export interface NotificationPayload {
   priority?: 'low' | 'normal' | 'high' | 'critical';
   route?: string;
   silent?: boolean;
+  workspaceId?: string;
+  workspaceName?: string;
+  workspaceIcon?: string;
+  workspaceAvatarUrl?: string;
 }
 
 export interface NotificationResult {
@@ -127,7 +131,7 @@ class NotificationService {
         title: effectiveTitle,
         body: effectiveBody,
         id: payload.id,
-        icon: payload.icon,
+        icon: payload.icon ?? payload.workspaceAvatarUrl ?? payload.workspaceIcon,
         route: payload.route,
       });
     }

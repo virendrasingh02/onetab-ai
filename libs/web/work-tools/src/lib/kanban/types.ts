@@ -21,6 +21,8 @@ export interface BoardMember {
   /** The user's id, as `Task.assigneeId` refers to them. */
   id: string;
   name: string;
+  displayName?: string | null;
+  email?: string | null;
   avatarUrl?: string;
 }
 
