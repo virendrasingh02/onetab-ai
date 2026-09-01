@@ -1,4 +1,4 @@
-import type { ChannelMember, ChannelSummary } from '@org/types';
+import type { ChannelMember, ChannelSummary, TaskStatus } from '@org/types';
 import {
   Badge,
   Button,
@@ -23,7 +23,7 @@ import {
   useRightPanelStore,
 } from '@org/ui';
 import { cn, formatBytes } from '@org/utils';
-import { AddBookmarkDialog } from '@org/chat-ui';
+import { AddBookmarkDialog, ChatEntityManager, type ChatAppEntity } from '@org/chat-ui';
 import { useMarkChannelSeen } from '@org/notifications';
 import { ChannelChat } from '@org/web-chat';
 import { useCurrentWorkspace } from '@org/web-workspace';
@@ -36,6 +36,7 @@ import {
   Bookmark,
   Bot,
   Check,
+  CheckSquare,
   ChevronRight,
   Copy,
   Download,
@@ -61,9 +62,9 @@ import {
   Users,
   Workflow,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useCurrentUser } from '@org/auth';
 import { ChannelDetailsPanel } from '../components/channel-details-panel.js';
 import { AddAppDialog } from '../components/add-app-dialog.js';
@@ -77,7 +78,9 @@ import {
 import {
   useArchiveChannel,
   useChannel,
+  useChannelAppEntities,
   useChannelBookmarks,
+  useChannelEntityMutations,
   useChannelFiles,
   useChannelMembers,
   useChannelPins,
@@ -523,6 +526,54 @@ export function ChannelPage() {
     'all' | 'files' | 'media' | 'links'
   >('all');
 
+  const navigate = useNavigate();
+  const {
+    entities,
+    isLoading: isEntitiesLoading,
+    error: entitiesError,
+    refetch: refetchEntities,
+  } = useChannelAppEntities(workspaceId, channel?.id, channel?.name);
+  const entityMutations = useChannelEntityMutations(workspaceId);
+
+  const entityHandlers = useMemo(
+    () => ({
+      onOpen: (entity: ChatAppEntity) => {
+        if (entity.kind === 'document') {
+          navigate(`/w/${workspaceSlug}/docs?doc=${entity.id}`);
+        } else {
+          navigate(`/w/${workspaceSlug}/tasks`);
+        }
+      },
+      onStatusChange: (entity: ChatAppEntity, newStatus: TaskStatus | string) => {
+        if (entity.kind === 'task' || entity.kind === 'card') {
+          entityMutations.updateTask.mutate({
+            taskId: entity.id,
+            input: { status: newStatus as TaskStatus },
+          });
+        }
+      },
+      onAssignToMe: (entity: ChatAppEntity) => {
+        if ((entity.kind === 'task' || entity.kind === 'card') && currentUser?.id) {
+          entityMutations.updateTask.mutate({
+            taskId: entity.id,
+            input: { assigneeId: currentUser.id },
+          });
+        }
+      },
+      onDelete: (entity: ChatAppEntity) => {
+        if (entity.kind === 'task' || entity.kind === 'card') {
+          entityMutations.deleteTask.mutate(entity.id);
+        }
+      },
+      onCopyLink: (entity: ChatAppEntity) => {
+        const link = `${window.location.origin}/w/${workspaceSlug}/c/${channel?.slug}?entity=${entity.id}`;
+        void navigator.clipboard?.writeText(link);
+        toast.success('Link copied to clipboard');
+      },
+    }),
+    [navigate, workspaceSlug, channel?.slug, entityMutations, currentUser?.id],
+  );
+
   // Controlled so the welcome block's "Ask the AI copilot" card can switch to
   // that tab; the tabs are otherwise driven by the user.
   const [activeTab, setActiveTab] = useState('chat');
@@ -766,6 +817,17 @@ export function ChannelPage() {
                   className="ml-0.5 px-1 py-0 text-[10px]"
                 >
                   {pins.data?.length}
+                </Badge>
+              ) : null}
+            </TabsTrigger>
+            <TabsTrigger value="app-data" className="gap-1.5">
+              <CheckSquare className="size-4" /> App Data
+              {entities.length > 0 ? (
+                <Badge
+                  variant="neutral"
+                  className="ml-0.5 px-1 py-0 text-[10px]"
+                >
+                  {entities.length}
                 </Badge>
               ) : null}
             </TabsTrigger>
@@ -1172,6 +1234,22 @@ export function ChannelPage() {
                 ))}
               </ul>
             )}
+          </ScrollArea>
+        </TabsContent>
+
+        {/* App Data Tab: workspace tasks & docs surfaced in the channel */}
+        <TabsContent value="app-data" className="min-h-0 flex flex-1 flex-col">
+          <ScrollArea className="min-h-0 flex-1" contentClassName="px-6 py-4">
+            <ChatEntityManager
+              entities={entities}
+              isLoading={isEntitiesLoading}
+              error={entitiesError}
+              onRetry={refetchEntities}
+              channelName={channel.name}
+              handlers={entityHandlers}
+              onCreateTask={() => navigate(`/w/${workspaceSlug}/tasks`)}
+              onCreateDoc={() => navigate(`/w/${workspaceSlug}/docs`)}
+            />
           </ScrollArea>
         </TabsContent>
       </Tabs>

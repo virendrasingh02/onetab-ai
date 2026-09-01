@@ -236,3 +236,42 @@ export {
   type ActionExecutionResult,
   type ActionHandlerFn,
 } from './lib/cards/action-handler.js';
+
+/* --- Entity Management Primitives --- */
+export {
+  ChatEntityManager,
+  type ChatEntityManagerProps,
+} from './lib/entities/chat-entity-manager.js';
+
+export {
+  ChannelGroup,
+  type ChannelGroupProps,
+} from './lib/entities/channel-group.js';
+
+export {
+  EntityList,
+  type EntityListProps,
+} from './lib/entities/entity-list.js';
+
+export {
+  EntityItem,
+  type EntityItemProps,
+} from './lib/entities/entity-item.js';
+
+export {
+  EntityActions,
+  type EntityActionsProps,
+} from './lib/entities/entity-actions.js';
+
+export {
+  EntityPreviewDrawer,
+  type EntityPreviewDrawerProps,
+} from './lib/entities/entity-preview-drawer.js';
+
+export {
+  type ChatAppEntity,
+  type ChannelEntityGroup,
+  type EntityActionHandlers,
+  type EntityKind,
+} from './lib/entities/types.js';
+

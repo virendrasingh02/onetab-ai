@@ -270,12 +270,33 @@ export function MessageList({
     }
 
     if (wasAtBottom.current && grew) {
-      element.scrollTop = element.scrollHeight;
+      requestAnimationFrame(() => {
+        if (element && wasAtBottom.current) {
+          element.scrollTop = element.scrollHeight;
+        }
+      });
     } else if (!wasAtBottom.current && grew) {
       // User is reading older messages and new messages arrived
       setNewMessagesCount((prev) => prev + diff);
     }
   }, [messages.length]);
+
+  // Keep pinned to bottom when cards, images, or embeds dynamically expand heights
+  const virtualContainerRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const target = virtualContainerRef.current;
+    if (!target) return;
+
+    const observer = new ResizeObserver(() => {
+      const element = scrollRef.current;
+      if (element && wasAtBottom.current) {
+        element.scrollTop = element.scrollHeight;
+      }
+    });
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, []);
 
   if (error) {
     return (
@@ -342,7 +363,10 @@ export function MessageList({
         {/* Only once the history is exhausted is this actually the beginning. */}
         {introSlot && !hasMore && !isLoadingOlder ? introSlot : null}
 
-        <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+        <div
+          ref={virtualContainerRef}
+          style={{ height: virtualizer.getTotalSize(), position: 'relative' }}
+        >
           {virtualizer.getVirtualItems().map((virtualRow) => {
             const row = rows[virtualRow.index];
             if (!row) return null;

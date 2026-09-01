@@ -162,7 +162,13 @@ export function AppResponseCard({
               <MoreHorizontal className="size-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 text-xs">
+          <DropdownMenuContent
+            align="end"
+            side="bottom"
+            sideOffset={4}
+            collisionPadding={8}
+            className="w-48 text-xs border-border bg-popover text-popover-foreground z-50 shadow-overlay"
+          >
             {event.url && (
               <DropdownMenuItem
                 onClick={() => window.open(event.url, '_blank', 'noopener,noreferrer')}

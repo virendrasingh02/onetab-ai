@@ -46,6 +46,7 @@ export interface MessageRendererProps {
   onAskAI?: () => void;
   onAction?: (action: StructuredMessageAction) => void | Promise<void>;
   onRetry?: () => void;
+  entityKind?: 'app' | 'doc' | 'task' | 'kanban' | 'agent' | 'thread';
 }
 
 export const MessageRenderer = memo(function MessageRenderer(

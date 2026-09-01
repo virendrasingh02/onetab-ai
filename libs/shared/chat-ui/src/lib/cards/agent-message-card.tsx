@@ -417,7 +417,13 @@ export function AgentMessageCard({
                 <MoreHorizontal className="size-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52 text-xs">
+            <DropdownMenuContent
+              align="end"
+              side="bottom"
+              sideOffset={4}
+              collisionPadding={8}
+              className="w-52 text-xs border-border bg-popover text-popover-foreground z-50 shadow-overlay"
+            >
               <DropdownMenuItem onClick={handleCopyText} className="gap-2">
                 <Copy className="size-3.5" />
                 <span>Copy Response</span>

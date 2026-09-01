@@ -1,12 +1,16 @@
-import { channelApi, queryKeys } from '@org/api-client';
+import { channelApi, queryKeys, workToolsApi } from '@org/api-client';
 import type { ChannelBookmark, ChannelSummary } from '@org/types';
+import type { ChatAppEntity } from '@org/chat-ui';
 import { toast } from '@org/ui';
 import type {
   AddChannelMembersInput,
   ChannelPreferencesInput,
   CreateChannelInput,
+  CreateDocumentInput,
   CreatePinInput,
+  CreateTaskInput,
   UpdateChannelInput,
+  UpdateTaskInput,
 } from '@org/validation';
 import {
   keepPreviousData,
@@ -502,3 +506,148 @@ export function useChannelBookmarks(
     removeBookmark,
   };
 }
+
+/**
+ * Tasks and documents are workspace-scoped in the schema (no `channelId`), so
+ * these fetch the whole workspace set and the channel view surfaces them for
+ * context. The query keys match the canonical `queryKeys.workTools.*` shape so
+ * the cache is shared with the work-tools screens rather than fragmented.
+ */
+export function useChannelTasks(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.workTools.tasks(workspaceId ?? ''),
+    queryFn: () => workToolsApi.tasks(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 15_000,
+  });
+}
+
+export function useChannelDocuments(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.workTools.documents(workspaceId ?? ''),
+    queryFn: () => workToolsApi.documents(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+  });
+}
+
+export function useChannelAppEntities(
+  workspaceId: string | undefined,
+  channelId?: string,
+  channelName?: string,
+) {
+  const tasksQuery = useChannelTasks(workspaceId);
+  const docsQuery = useChannelDocuments(workspaceId);
+
+  const entities: ChatAppEntity[] = useMemo(() => {
+    const list: ChatAppEntity[] = [];
+
+    // Map tasks / kanban cards
+    for (const task of tasksQuery.data ?? []) {
+      list.push({
+        id: task.id,
+        kind: 'task',
+        title: task.title,
+        description: task.description ?? undefined,
+        channelId,
+        channelName: channelName ?? 'general',
+        status: task.status,
+        priority: task.priority ?? undefined,
+        assigneeId: task.assignee?.id,
+        assigneeName: task.assignee?.displayName ?? task.assignee?.name,
+        assigneeAvatarUrl: task.assignee?.avatarUrl ?? undefined,
+        updatedAt: task.updatedAt,
+        createdAt: task.createdAt,
+        raw: task,
+      });
+    }
+
+    // Map documents
+    for (const doc of docsQuery.data ?? []) {
+      list.push({
+        id: doc.id,
+        kind: 'document',
+        title: doc.title,
+        description: typeof doc.content === 'string' ? doc.content.slice(0, 160) : undefined,
+        channelId,
+        channelName: channelName ?? 'general',
+        authorName: doc.author?.displayName ?? doc.author?.name,
+        authorAvatarUrl: doc.author?.avatarUrl ?? undefined,
+        updatedAt: doc.updatedAt,
+        createdAt: doc.createdAt,
+        raw: doc,
+      });
+    }
+
+    return list;
+  }, [tasksQuery.data, docsQuery.data, channelId, channelName]);
+
+  return {
+    entities,
+    isLoading: tasksQuery.isLoading || docsQuery.isLoading,
+    isError: tasksQuery.isError || docsQuery.isError,
+    error: (tasksQuery.error?.message || docsQuery.error?.message) ?? null,
+    refetch: () => {
+      void tasksQuery.refetch();
+      void docsQuery.refetch();
+    },
+  };
+}
+
+export function useChannelEntityMutations(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  const ws = workspaceId ?? '';
+
+  const invalidate = () => {
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.workTools.all(ws),
+    });
+  };
+
+  const createTask = useMutation({
+    mutationFn: (input: CreateTaskInput) => workToolsApi.createTask(ws, input),
+    onSuccess: () => {
+      toast.success('Task created');
+      invalidate();
+    },
+  });
+
+  const updateTask = useMutation({
+    mutationFn: ({
+      taskId,
+      input,
+    }: {
+      taskId: string;
+      input: UpdateTaskInput;
+    }) => workToolsApi.updateTask(ws, taskId, input),
+    onSuccess: () => {
+      toast.success('Task updated');
+      invalidate();
+    },
+  });
+
+  const deleteTask = useMutation({
+    mutationFn: (taskId: string) => workToolsApi.deleteTask(ws, taskId),
+    onSuccess: () => {
+      toast.info('Task deleted');
+      invalidate();
+    },
+  });
+
+  const createDocument = useMutation({
+    mutationFn: (input: CreateDocumentInput) =>
+      workToolsApi.createDocument(ws, input),
+    onSuccess: () => {
+      toast.success('Document created');
+      invalidate();
+    },
+  });
+
+  return {
+    createTask,
+    updateTask,
+    deleteTask,
+    createDocument,
+  };
+}
+

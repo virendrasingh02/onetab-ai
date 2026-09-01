@@ -24,6 +24,7 @@ import {
   ChevronRight,
   Copy,
   FileText,
+  FolderKanban,
   Forward,
   Link2,
   Lock,
@@ -114,6 +115,7 @@ export interface ChatBubbleProps {
    * `@handles` are recognised, which cuts a name like "Ana Ruiz" in half.
    */
   mentionNames?: string[];
+  entityKind?: 'app' | 'doc' | 'task' | 'kanban' | 'agent' | 'thread';
 }
 
 export function formatShortTimestamp(timestamp: number): string {
@@ -169,7 +171,11 @@ export function ChatBubble({
   isHighlighted = false,
   density = 'comfy',
   mentionNames,
+  entityKind,
 }: ChatBubbleProps) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isReactionOpen, setIsReactionOpen] = useState(false);
+
   if (message.isRedacted) {
     return (
       <div
@@ -193,6 +199,7 @@ export function ChatBubble({
     : false;
 
   const isAgent =
+    entityKind === 'agent' ||
     message.senderId.startsWith('agent-') ||
     message.senderId.includes('copilot') ||
     message.senderId.includes('codereview') ||
@@ -204,9 +211,31 @@ export function ChatBubble({
       message.senderName,
     );
 
+  const isDoc =
+    entityKind === 'doc' ||
+    message.senderId.includes('doc') ||
+    /\b(docs|document|notion|wiki|specification|spec)\b/i.test(
+      message.senderName,
+    );
+
+  const isTask =
+    entityKind === 'task' ||
+    message.senderId.includes('task') ||
+    /\b(task|todo|issue|backlog)\b/i.test(message.senderName);
+
+  const isKanban =
+    entityKind === 'kanban' ||
+    message.senderId.includes('card') ||
+    message.senderId.includes('board') ||
+    /\b(kanban|board|sprint|epic)\b/i.test(message.senderName);
+
   const isApp =
     !isAgent &&
-    (message.senderId.startsWith('app-') ||
+    !isDoc &&
+    !isTask &&
+    !isKanban &&
+    (entityKind === 'app' ||
+      message.senderId.startsWith('app-') ||
       /\b(github|linear|sentry|jira|figma|gdrive|webhook|app)\b/i.test(
         message.senderName,
       ));
@@ -220,6 +249,30 @@ export function ChatBubble({
       >
         <Bot className="size-2.5 mr-0.5 inline-block" />
         <span>AI AGENT</span>
+      </Badge>
+    ) : isDoc ? (
+      <Badge
+        variant="neutral"
+        className="py-0 h-4 font-bold tracking-wider bg-info/15 text-info-text border-info/30 gap-0.5 text-[9px] uppercase"
+      >
+        <FileText className="size-2.5 mr-0.5 inline-block" />
+        <span>DOC</span>
+      </Badge>
+    ) : isTask ? (
+      <Badge
+        variant="neutral"
+        className="py-0 h-4 font-bold tracking-wider bg-success/15 text-success border-success/30 gap-0.5 text-[9px] uppercase"
+      >
+        <CheckSquare className="size-2.5 mr-0.5 inline-block" />
+        <span>TASK</span>
+      </Badge>
+    ) : isKanban ? (
+      <Badge
+        variant="neutral"
+        className="py-0 h-4 font-bold tracking-wider bg-warning/15 text-warning-text border-warning/30 gap-0.5 text-[9px] uppercase"
+      >
+        <FolderKanban className="size-2.5 mr-0.5 inline-block" />
+        <span>KANBAN</span>
       </Badge>
     ) : isApp ? (
       <Badge
@@ -285,6 +338,8 @@ export function ChatBubble({
                 'cursor-pointer rounded-full shadow-xs transition-transform hover:scale-105 hover:opacity-90',
                 isAgent && 'ring-2 ring-primary/40',
                 isApp && 'ring-accent-violet/40 ring-2',
+                isDoc && 'ring-info-text/40 ring-2',
+                (isTask || isKanban) && 'ring-success/40 ring-2',
               )}
             />
           </UserProfileCard>
@@ -369,6 +424,103 @@ export function ChatBubble({
           </>
         )}
 
+        {/* In-Chat Action Bar for App, Doc, Task, Kanban, AI Agent */}
+        {(isAgent || isApp || isDoc || isTask || isKanban) ? (
+          <div className="mt-2 gap-1.5 flex flex-wrap items-center pt-0.5">
+            {isTask || isKanban ? (
+              <>
+                {onAssignToMe ? (
+                  <button
+                    onClick={onAssignToMe}
+                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex items-center rounded-md border border-border bg-surface text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    <UserCheck className="size-3 text-primary" />
+                    <span>Assign to me</span>
+                  </button>
+                ) : null}
+                {onCreateTask ? (
+                  <button
+                    onClick={onCreateTask}
+                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex items-center rounded-md border border-border bg-surface text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    <CheckSquare className="size-3 text-success" />
+                    <span>Manage Task</span>
+                  </button>
+                ) : null}
+              </>
+            ) : null}
+
+            {isDoc ? (
+              <>
+                {onCreateDoc ? (
+                  <button
+                    onClick={onCreateDoc}
+                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex items-center rounded-md border border-info/30 bg-info/10 text-info-text hover:bg-info/20 transition-colors cursor-pointer"
+                  >
+                    <FileText className="size-3 text-info-text" />
+                    <span>Open Document</span>
+                  </button>
+                ) : null}
+              </>
+            ) : null}
+
+            {isAgent ? (
+              <>
+                {onAskAI ? (
+                  <button
+                    onClick={onAskAI}
+                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex items-center rounded-md border border-primary/30 bg-primary/10 text-primary-text hover:bg-primary/20 transition-colors cursor-pointer"
+                  >
+                    <Bot className="size-3 text-primary" />
+                    <span>Ask AI</span>
+                  </button>
+                ) : null}
+                {onCreateTask ? (
+                  <button
+                    onClick={onCreateTask}
+                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex items-center rounded-md border border-border bg-surface text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    <CheckSquare className="size-3 text-success" />
+                    <span>Create Task</span>
+                  </button>
+                ) : null}
+                {onCreateDoc ? (
+                  <button
+                    onClick={onCreateDoc}
+                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex items-center rounded-md border border-border bg-surface text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    <FileText className="size-3 text-info-text" />
+                    <span>Create Doc</span>
+                  </button>
+                ) : null}
+              </>
+            ) : null}
+
+            {isApp ? (
+              <>
+                {onOpenThread ? (
+                  <button
+                    onClick={onOpenThread}
+                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex items-center rounded-md border border-accent-violet/30 bg-accent-violet/10 text-accent-violet hover:bg-accent-violet/20 transition-colors cursor-pointer"
+                  >
+                    <Reply className="size-3 text-accent-violet" />
+                    <span>Reply in Thread</span>
+                  </button>
+                ) : null}
+                {onCreateTask ? (
+                  <button
+                    onClick={onCreateTask}
+                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex items-center rounded-md border border-border bg-surface text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    <CheckSquare className="size-3 text-success" />
+                    <span>Create Task</span>
+                  </button>
+                ) : null}
+              </>
+            ) : null}
+          </div>
+        ) : null}
+
         {/* Discord Reactions Row */}
         {message.reactions.length > 0 ? (
           <ul className="mt-1.5 gap-1 flex flex-wrap">
@@ -380,11 +532,7 @@ export function ChatBubble({
                   className={cn(
                     'gap-1.5 px-2 py-0.5 text-xs font-semibold flex items-center rounded-md border transition-colors',
                     reaction.reactedByMe
-                      ? /* `primary-foreground` is the deep green that rides the
-                         solid mint fill; over a 15% tint it would vanish in
-                         dark mode, so the tinted chip keeps body-text ink and
-                         lets the border carry the "you reacted" signal. */
-                        'border-primary bg-primary/15 text-foreground shadow-xs'
+                      ? 'border-primary bg-primary/15 text-foreground shadow-xs'
                       : 'border-border bg-surface text-muted-foreground hover:bg-accent hover:text-foreground',
                   )}
                 >
@@ -461,8 +609,10 @@ export function ChatBubble({
       {/* Floating Hover Toolbar */}
       <div
         className={cn(
-          '-top-3.5 right-4 p-0.5 absolute z-20 hidden items-center rounded-lg border border-border bg-surface-raised shadow-lg',
-          'group-focus-within/message:flex group-hover/message:flex',
+          '-top-3.5 right-4 p-0.5 absolute z-20 items-center rounded-lg border border-border bg-surface-raised shadow-lg',
+          isMenuOpen || isReactionOpen
+            ? 'flex'
+            : 'hidden group-focus-within/message:flex group-hover/message:flex',
         )}
       >
         {onReact
@@ -480,7 +630,11 @@ export function ChatBubble({
           : null}
 
         {onReact ? (
-          <ReactionPicker onSelect={onReact}>
+          <ReactionPicker
+            onSelect={onReact}
+            open={isReactionOpen}
+            onOpenChange={setIsReactionOpen}
+          >
             <button
               aria-label="Add a reaction"
               className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
@@ -516,21 +670,30 @@ export function ChatBubble({
           </Hint>
         ) : null}
 
-        <DropdownMenu>
+        <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
           <DropdownMenuTrigger asChild>
             <button
               aria-label="More actions"
-              className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className={cn(
+                'size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+                isMenuOpen && 'bg-accent text-foreground',
+              )}
             >
               <MoreHorizontal className="size-4" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="w-52 border-border bg-surface text-foreground"
+            side="bottom"
+            sideOffset={4}
+            collisionPadding={8}
+            className="w-56 border-border bg-popover text-popover-foreground z-50 shadow-overlay"
           >
             <DropdownMenuItem
-              onSelect={() => onOpenThread?.()}
+              onSelect={() => {
+                setIsMenuOpen(false);
+                onOpenThread?.();
+              }}
               className="hover:bg-accent"
             >
               <Reply className="mr-2 size-4" />
@@ -538,7 +701,10 @@ export function ChatBubble({
             </DropdownMenuItem>
             {onForward ? (
               <DropdownMenuItem
-                onSelect={() => onForward()}
+                onSelect={() => {
+                  setIsMenuOpen(false);
+                  onForward();
+                }}
                 className="hover:bg-accent"
               >
                 <Forward className="mr-2 size-4" />
@@ -547,7 +713,10 @@ export function ChatBubble({
             ) : null}
             {onToggleSave ? (
               <DropdownMenuItem
-                onSelect={() => onToggleSave()}
+                onSelect={() => {
+                  setIsMenuOpen(false);
+                  onToggleSave();
+                }}
                 className="hover:bg-accent"
               >
                 <Bookmark className="mr-2 size-4" />
@@ -556,7 +725,10 @@ export function ChatBubble({
             ) : null}
             {onTogglePin ? (
               <DropdownMenuItem
-                onSelect={() => onTogglePin()}
+                onSelect={() => {
+                  setIsMenuOpen(false);
+                  onTogglePin();
+                }}
                 className="cursor-pointer hover:bg-accent"
               >
                 {isPinned ? (
@@ -572,7 +744,10 @@ export function ChatBubble({
 
             {onAssignToMe ? (
               <DropdownMenuItem
-                onSelect={() => onAssignToMe()}
+                onSelect={() => {
+                  setIsMenuOpen(false);
+                  onAssignToMe();
+                }}
                 className="cursor-pointer hover:bg-accent"
               >
                 <UserCheck className="mr-2 size-4 text-primary" />
@@ -582,7 +757,10 @@ export function ChatBubble({
 
             {onCreateTask ? (
               <DropdownMenuItem
-                onSelect={() => onCreateTask()}
+                onSelect={() => {
+                  setIsMenuOpen(false);
+                  onCreateTask();
+                }}
                 className="cursor-pointer hover:bg-accent"
               >
                 <CheckSquare className="mr-2 size-4 text-success" />
@@ -591,7 +769,10 @@ export function ChatBubble({
             ) : null}
             {onCreateDoc ? (
               <DropdownMenuItem
-                onSelect={() => onCreateDoc()}
+                onSelect={() => {
+                  setIsMenuOpen(false);
+                  onCreateDoc();
+                }}
                 className="cursor-pointer hover:bg-accent"
               >
                 <FileText className="mr-2 size-4 text-info-text" />
@@ -600,7 +781,10 @@ export function ChatBubble({
             ) : null}
             {onAskAI ? (
               <DropdownMenuItem
-                onSelect={() => onAskAI()}
+                onSelect={() => {
+                  setIsMenuOpen(false);
+                  onAskAI();
+                }}
                 className="cursor-pointer hover:bg-accent"
               >
                 <Bot className="mr-2 size-4 text-primary" />
@@ -612,7 +796,10 @@ export function ChatBubble({
 
             {onCopyText ? (
               <DropdownMenuItem
-                onSelect={() => onCopyText()}
+                onSelect={() => {
+                  setIsMenuOpen(false);
+                  onCopyText();
+                }}
                 className="hover:bg-accent"
               >
                 <Copy className="mr-2 size-4" />
@@ -621,7 +808,10 @@ export function ChatBubble({
             ) : null}
             {onCopyLink ? (
               <DropdownMenuItem
-                onSelect={() => onCopyLink()}
+                onSelect={() => {
+                  setIsMenuOpen(false);
+                  onCopyLink();
+                }}
                 className="hover:bg-accent"
               >
                 <Link2 className="mr-2 size-4" />
@@ -633,7 +823,10 @@ export function ChatBubble({
               <>
                 <DropdownMenuSeparator className="bg-border" />
                 <DropdownMenuItem
-                  onSelect={() => onEdit?.()}
+                  onSelect={() => {
+                    setIsMenuOpen(false);
+                    onEdit?.();
+                  }}
                   className="hover:bg-accent"
                 >
                   <Pencil className="mr-2 size-4" />
@@ -641,7 +834,10 @@ export function ChatBubble({
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   variant="destructive"
-                  onSelect={() => onDelete?.()}
+                  onSelect={() => {
+                    setIsMenuOpen(false);
+                    onDelete?.();
+                  }}
                   className="hover:bg-destructive"
                 >
                   <Trash2 className="mr-2 size-4" />
@@ -658,17 +854,24 @@ export function ChatBubble({
 
 export function ReactionPicker({
   onSelect,
+  open,
+  onOpenChange,
   children,
 }: {
   onSelect: (key: string) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }) {
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent
         align="end"
-        className="p-2 w-auto border-border bg-surface text-foreground"
+        side="top"
+        sideOffset={4}
+        collisionPadding={8}
+        className="p-2 w-auto border-border bg-popover text-popover-foreground z-50 shadow-overlay"
       >
         <p className="mb-1 px-1 font-bold tracking-wider text-[10px] text-muted-foreground uppercase">
           React
@@ -677,9 +880,12 @@ export function ReactionPicker({
           {PICKER_REACTIONS.map((emoji) => (
             <button
               key={emoji}
-              onClick={() => onSelect(emoji)}
+              onClick={() => {
+                onSelect(emoji);
+                onOpenChange?.(false);
+              }}
               aria-label={`React with ${emoji}`}
-              className="size-8 rounded text-lg flex items-center justify-center transition-transform hover:scale-125 hover:bg-accent"
+              className="size-8 rounded text-lg flex items-center justify-center transition-transform hover:scale-125 hover:bg-accent cursor-pointer"
             >
               <span aria-hidden>{emoji}</span>
             </button>
