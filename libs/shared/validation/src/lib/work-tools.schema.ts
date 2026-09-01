@@ -4,6 +4,7 @@ import {
   DocumentKind,
   IdentifierPrefixMode,
   IntakeSource,
+  MeetingRsvp,
   ProjectHealth,
   ProjectStatus,
   RelationType,
@@ -258,6 +259,7 @@ export const createTaskSchema = z.object({
   cycleId: z.string().nullable().optional(),
   moduleId: z.string().nullable().optional(),
   parentId: z.string().nullable().optional(),
+  meetingId: z.string().nullable().optional(),
   startDate: isoDate.nullable().optional(),
   dueDate: isoDate.nullable().optional(),
   estimate: z.number().min(0).max(1000).nullable().optional(),
@@ -418,6 +420,68 @@ export const updateCalendarEventSchema = z
     { message: 'The event must end after it starts', path: ['endAt'] },
   );
 
+// --- meetings --------------------------------------------------------------
+
+export const createMeetingSchema = z
+  .object({
+    title: z.string().trim().min(1, 'A meeting needs a title').max(200),
+    description: optionalText(2000),
+    agenda: optionalText(10_000),
+    /** A join URL or a physical location. */
+    location: optionalText(500),
+    startAt: isoDate,
+    endAt: isoDate,
+    projectId: z.string().nullable().optional(),
+    /** Workspace members to invite, besides the organizer. */
+    participantIds: z.array(z.string()).max(100).optional(),
+    /** Also create a matching calendar event so it shows on the calendar. */
+    addToCalendar: z.boolean().optional(),
+  })
+  .refine((m) => Date.parse(m.endAt) > Date.parse(m.startAt), {
+    message: 'The meeting must end after it starts',
+    path: ['endAt'],
+  });
+
+export const updateMeetingSchema = z
+  .object({
+    title: z.string().trim().min(1).max(200).optional(),
+    description: optionalText(2000),
+    agenda: optionalText(10_000),
+    location: optionalText(500),
+    startAt: isoDate.optional(),
+    endAt: isoDate.optional(),
+    projectId: z.string().nullable().optional(),
+  })
+  .refine(
+    (m) =>
+      !m.startAt || !m.endAt || Date.parse(m.endAt) > Date.parse(m.startAt),
+    { message: 'The meeting must end after it starts', path: ['endAt'] },
+  );
+
+export const meetingParticipantsSchema = z.object({
+  userIds: z.array(z.string()).min(1).max(100),
+});
+
+export const meetingRsvpSchema = z.object({
+  rsvp: z.enum(MeetingRsvp),
+});
+
+export const createMeetingNoteSchema = z.object({
+  body: z.string().trim().min(1, 'The note is empty').max(10_000),
+});
+
+export const createMeetingDecisionSchema = z.object({
+  text: z.string().trim().min(1, 'The decision is empty').max(2000),
+});
+
+export const createMeetingActionItemSchema = z.object({
+  title: z.string().trim().min(1, 'An action item needs a title').max(300),
+  description: optionalText(2000),
+  assigneeId: z.string().nullable().optional(),
+  dueDate: isoDate.nullable().optional(),
+  priority: z.enum(TaskPriority).optional(),
+});
+
 // --- documents --------------------------------------------------------------
 
 export const createDocumentSchema = z.object({
@@ -490,6 +554,17 @@ export type CreateCalendarEventInput = z.infer<
 >;
 export type UpdateCalendarEventInput = z.infer<
   typeof updateCalendarEventSchema
+>;
+export type CreateMeetingInput = z.infer<typeof createMeetingSchema>;
+export type UpdateMeetingInput = z.infer<typeof updateMeetingSchema>;
+export type MeetingParticipantsInput = z.infer<typeof meetingParticipantsSchema>;
+export type MeetingRsvpInput = z.infer<typeof meetingRsvpSchema>;
+export type CreateMeetingNoteInput = z.infer<typeof createMeetingNoteSchema>;
+export type CreateMeetingDecisionInput = z.infer<
+  typeof createMeetingDecisionSchema
+>;
+export type CreateMeetingActionItemInput = z.infer<
+  typeof createMeetingActionItemSchema
 >;
 export type CreateDocumentInput = z.infer<typeof createDocumentSchema>;
 export type UpdateDocumentInput = z.infer<typeof updateDocumentSchema>;

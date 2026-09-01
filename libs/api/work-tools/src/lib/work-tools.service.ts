@@ -782,6 +782,7 @@ export class WorkToolsService {
           include: { actor: { select: PUBLIC_USER_SELECT } },
           orderBy: { createdAt: 'desc' },
         },
+        meeting: { select: { id: true, title: true, startAt: true, status: true } },
         _count: { select: { comments: true } },
       },
     });
@@ -856,6 +857,7 @@ export class WorkToolsService {
         cycleId: input.cycleId ?? null,
         moduleId: input.moduleId ?? null,
         parentId: input.parentId ?? null,
+        meetingId: input.meetingId ?? null,
         assigneeId: primaryAssigneeId,
         assigneeIds,
         reporterId: input.reporterId ?? actorId ?? null,
@@ -1790,6 +1792,14 @@ export class WorkToolsService {
     if (!cycle) throw new NotFoundException('Cycle not found');
   }
 
+  private async assertMeetingOwned(workspaceId: string, meetingId: string) {
+    const meeting = await this.prisma.meeting.findFirst({
+      where: { id: meetingId, workspaceId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!meeting) throw new NotFoundException('Meeting not found');
+  }
+
   /**
    * Confirms a user id belongs to this workspace before it is written onto a
    * row as an assignee, reporter, lead or owner. Without this a member of one
@@ -1817,6 +1827,7 @@ export class WorkToolsService {
       cycleId?: string | null;
       moduleId?: string | null;
       parentId?: string | null;
+      meetingId?: string | null;
       assigneeId?: string | null;
       assigneeIds?: string[];
       reporterId?: string | null;
@@ -1830,6 +1841,7 @@ export class WorkToolsService {
     if (input.cycleId) await this.assertCycleOwned(workspaceId, input.cycleId);
     if (input.moduleId) await this.assertModuleOwned(workspaceId, input.moduleId);
     if (input.parentId) await this.assertTask(workspaceId, input.parentId);
+    if (input.meetingId) await this.assertMeetingOwned(workspaceId, input.meetingId);
     if (input.assigneeId) await this.assertWorkspaceUser(workspaceId, input.assigneeId);
     for (const id of new Set(input.assigneeIds ?? [])) {
       if (id) await this.assertWorkspaceUser(workspaceId, id);

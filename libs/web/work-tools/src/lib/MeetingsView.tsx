@@ -1,5 +1,4 @@
-import { workToolsApi } from '@org/api-client';
-import type { CalendarEvent } from '@org/types';
+import type { Meeting } from '@org/types';
 import {
   accentClasses,
   Badge,
@@ -18,7 +17,7 @@ import {
   TabsList,
   TabsTrigger,
   toast,
-  UserAvatar,
+  UserAvatarGroup,
 } from '@org/ui';
 import { cn, formatDateTime } from '@org/utils';
 import {
@@ -29,22 +28,24 @@ import {
   CalendarClock,
   Check,
   ExternalLink,
-  FileText,
   Link2,
   MoreHorizontal,
+  Pencil,
   Plus,
   Radio,
   Share2,
   Trash2,
   TriangleAlert,
   Video,
+  X,
 } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { MeetingDetailSheet } from './meetings/meeting-detail-sheet.js';
+import { MeetingScheduleDialog } from './meetings/meeting-schedule-dialog.js';
 import {
-  useCalendarEvents,
-  useCalendarMutations,
   useCurrentWorkspace,
+  useMeetingMutations,
+  useMeetings,
 } from './use-work-tools.js';
 
 interface MeetingApp {
@@ -163,8 +164,8 @@ function humanizeProvider(provider: string): string {
     .join(' ');
 }
 
-/** How far ahead the meeting list reaches. */
-const HORIZON_DAYS = 30;
+/** How far ahead the "past" list reaches back and the "upcoming" list looks. */
+const HORIZON_DAYS = 60;
 
 function isoOffsetDays(days: number): string {
   const date = new Date();
@@ -172,33 +173,38 @@ function isoOffsetDays(days: number): string {
   return date.toISOString();
 }
 
-/**
- * The join link for an event, when there is one.
- *
- * `CalendarEvent` has no dedicated field, so the convention is the same one
- * every other calendar uses: a URL in `location` is the way in.
- */
-function joinUrlOf(event: CalendarEvent): string | null {
-  const location = event.location?.trim();
+/** The join link for a meeting, when `location` is a URL. */
+function joinUrlOf(meeting: Meeting): string | null {
+  const location = meeting.location?.trim();
   if (!location) return null;
   return /^https?:\/\//i.test(location) ? location : null;
 }
 
-function isLive(event: CalendarEvent): boolean {
+function isLive(meeting: Meeting): boolean {
+  if (meeting.status !== 'SCHEDULED') return false;
   const now = Date.now();
-  return Date.parse(event.startAt) <= now && now < Date.parse(event.endAt);
+  return Date.parse(meeting.startAt) <= now && now < Date.parse(meeting.endAt);
 }
 
-function durationLabel(event: CalendarEvent): string {
-  if (event.isAllDay) return 'All day';
+function durationLabel(meeting: Meeting): string {
   const minutes = Math.round(
-    (Date.parse(event.endAt) - Date.parse(event.startAt)) / 60_000,
+    (Date.parse(meeting.endAt) - Date.parse(meeting.startAt)) / 60_000,
   );
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
   return rest ? `${hours} h ${rest} min` : `${hours} h`;
 }
+
+const STATUS_META: Record<
+  Meeting['status'],
+  { label: string; variant: 'primary' | 'neutral' | 'destructive' }
+> = {
+  SCHEDULED: { label: 'Scheduled', variant: 'primary' },
+  LIVE: { label: 'Live now', variant: 'destructive' },
+  ENDED: { label: 'Ended', variant: 'neutral' },
+  CANCELLED: { label: 'Cancelled', variant: 'destructive' },
+};
 
 /**
  * One meeting app, connected or not.
@@ -272,49 +278,151 @@ function MeetingAppCard({
   );
 }
 
-/** Scheduled and live calls for the workspace, with connected meeting apps. */
-export function MeetingsView() {
-  const navigate = useNavigate();
-  const { workspaceId, slug } = useCurrentWorkspace();
-  const events = useCalendarEvents(
-    workspaceId,
-    new Date().toISOString(),
-    isoOffsetDays(HORIZON_DAYS),
+function MeetingCard({
+  meeting,
+  onOpen,
+  onEdit,
+  onCancel,
+  onDelete,
+}: {
+  meeting: Meeting;
+  onOpen: () => void;
+  onEdit: () => void;
+  onCancel: () => void;
+  onDelete: () => void;
+}) {
+  const joinUrl = joinUrlOf(meeting);
+  const live = isLive(meeting);
+  const status = live ? STATUS_META.LIVE : STATUS_META[meeting.status];
+  const attendees = meeting.participants.map((p) => p.user);
+
+  return (
+    <Panel className="flex flex-col justify-between">
+      <div>
+        <div className="gap-2 flex items-start justify-between">
+          <button type="button" onClick={onOpen} className="min-w-0 text-left">
+            <h3 className="text-sm font-semibold truncate text-foreground hover:underline">
+              {meeting.title}
+            </h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {formatDateTime(meeting.startAt)} · {durationLabel(meeting)}
+            </p>
+          </button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Actions for ${meeting.title}`}
+              >
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onSelect={onOpen}>
+                <CalendarClock className="size-4" aria-hidden />
+                Open details
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={onEdit}
+                disabled={
+                  meeting.status === 'CANCELLED' || meeting.status === 'ENDED'
+                }
+              >
+                <Pencil className="size-4" aria-hidden />
+                Edit meeting
+              </DropdownMenuItem>
+              {joinUrl ? (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    void navigator.clipboard.writeText(joinUrl);
+                    toast.success('Join link copied');
+                  }}
+                >
+                  <Link2 className="size-4" aria-hidden />
+                  Copy join link
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={onCancel}
+                disabled={meeting.status === 'CANCELLED'}
+              >
+                <X className="size-4" aria-hidden />
+                Cancel meeting
+              </DropdownMenuItem>
+              <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+                <Trash2 className="size-4" aria-hidden />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {meeting.description ? (
+          <p className="mt-2 text-xs line-clamp-2 text-muted-foreground">
+            {meeting.description}
+          </p>
+        ) : null}
+
+        <div className="mt-3 gap-2 flex flex-wrap items-center">
+          <Badge
+            variant={status.variant}
+            className={cn(live && 'animate-pulse')}
+          >
+            {status.label}
+          </Badge>
+          {meeting.project ? (
+            <Badge variant="outline">{meeting.project.name}</Badge>
+          ) : null}
+          {attendees.length > 0 ? (
+            <UserAvatarGroup users={attendees} size="xs" max={5} />
+          ) : null}
+          {meeting._count.actionItems > 0 ? (
+            <span className="text-[11px] text-muted-foreground">
+              {meeting._count.actionItems} action item
+              {meeting._count.actionItems === 1 ? '' : 's'}
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      {joinUrl ? (
+        <Button
+          asChild
+          className="mt-4 w-full"
+          variant={live ? 'primary' : 'outline'}
+        >
+          <a href={joinUrl} target="_blank" rel="noreferrer">
+            <ExternalLink className="size-4" aria-hidden />
+            {live ? 'Join now' : 'Open meeting link'}
+          </a>
+        </Button>
+      ) : (
+        <Button variant="outline" className="mt-4 w-full" onClick={onOpen}>
+          Open details
+        </Button>
+      )}
+    </Panel>
   );
-  const { remove } = useCalendarMutations(workspaceId);
+}
+
+/** Scheduled and live meetings for the workspace, with connected meeting apps. */
+export function MeetingsView() {
+  const { workspaceId } = useCurrentWorkspace();
+  const meetingsQuery = useMeetings(workspaceId, {
+    from: isoOffsetDays(-HORIZON_DAYS),
+    to: isoOffsetDays(HORIZON_DAYS),
+  });
+  const { cancel, remove } = useMeetingMutations(workspaceId);
   const integrations = useIntegrations(workspaceId);
   const { connect, disconnect } = useIntegrationMutations(workspaceId);
 
-  const [activeTab, setActiveTab] = useState('all');
-
-  const handleCreateDocFromMeeting = useCallback(
-    async (event: CalendarEvent) => {
-      if (!workspaceId) return;
-      try {
-        const title = `Meeting Notes: ${event.title}`;
-        const meetingDate = formatDateTime(event.startAt);
-        const organizerName =
-          event.organizer.displayName ?? event.organizer.name;
-        const content = `# ${title}\n\n**Date & Time:** ${meetingDate}\n**Organizer:** ${organizerName}\n${
-          event.description ? `\n**Description:**\n${event.description}\n` : ''
-        }\n## 🎯 Agenda & Objectives\n- Item 1\n- Item 2\n\n## 📝 Discussion Notes\n- Key point discussed\n\n## ✅ Action Items\n- [ ] Action item 1\n- [ ] Action item 2\n`;
-        const created = await workToolsApi.createDocument(workspaceId, {
-          title,
-          content,
-          kind: 'NOTE',
-        });
-        toast.success('Meeting notes doc created', {
-          description: `"${title}" added to Documents.`,
-        });
-        if (slug) {
-          navigate(`/w/${slug}/docs?doc=${created.id}`);
-        }
-      } catch {
-        toast.error('Failed to create meeting notes doc');
-      }
-    },
-    [workspaceId, slug, navigate],
-  );
+  const [activeTab, setActiveTab] = useState('upcoming');
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [editMeeting, setEditMeeting] = useState<Meeting | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const connectedProviders = useMemo(
     () =>
@@ -326,16 +434,45 @@ export function MeetingsView() {
     [integrations.data],
   );
 
-  const meetings = events.data ?? [];
+  const meetings = meetingsQuery.data ?? [];
+  const now = Date.now();
+  const upcoming = meetings.filter(
+    (mtg) =>
+      mtg.status !== 'CANCELLED' &&
+      mtg.status !== 'ENDED' &&
+      Date.parse(mtg.endAt) >= now,
+  );
   const liveMeetings = meetings.filter(isLive);
-  const linkedMeetings = meetings.filter((event) => joinUrlOf(event));
+  const past = meetings.filter(
+    (mtg) => mtg.status === 'ENDED' || Date.parse(mtg.endAt) < now,
+  );
 
   const visibleMeetings =
     activeTab === 'live'
       ? liveMeetings
-      : activeTab === 'linked'
-        ? linkedMeetings
-        : meetings;
+      : activeTab === 'past'
+        ? past
+        : upcoming;
+
+  const openEdit = (meeting: Meeting) => {
+    setDetailId(null);
+    setEditMeeting(meeting);
+    setScheduleOpen(true);
+  };
+
+  const confirmCancel = (meeting: Meeting) => {
+    void (async () => {
+      await cancel.mutateAsync(meeting.id);
+      toast.success('Meeting cancelled');
+    })();
+  };
+
+  const confirmDelete = (meeting: Meeting) => {
+    void (async () => {
+      await remove.mutateAsync(meeting.id);
+      toast.success('Meeting deleted');
+    })();
+  };
 
   /** Catalogue apps this workspace has actually linked. */
   const connectedCatalogApps = useMemo(
@@ -348,10 +485,6 @@ export function MeetingsView() {
     [connectedProviders],
   );
 
-  /**
-   * Connected meeting apps with no catalogue card — anything else someone
-   * links that looks like a meeting or calendar provider.
-   */
   const connectedOtherApps = useMemo<MeetingApp[]>(
     () =>
       [...connectedProviders]
@@ -371,7 +504,6 @@ export function MeetingsView() {
     [connectedProviders],
   );
 
-  /* Inbuilt first, then whatever the workspace connected. */
   const activeApps = [
     INBUILT_HUDDLE,
     ...connectedCatalogApps,
@@ -381,9 +513,14 @@ export function MeetingsView() {
     (app) => !connectedCatalogApps.includes(app),
   );
 
+  const emptyCopy: Record<string, string> = {
+    upcoming: 'Nothing scheduled. Use “Schedule meeting” to set one up.',
+    live: 'No meetings are happening right now.',
+    past: 'No meetings have wrapped up in the last 60 days.',
+  };
+
   return (
     <div className="min-h-0 flex flex-1 flex-col">
-      {/* Channel-style Header */}
       <div className="border-b border-border bg-background">
         <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
           <div className="min-w-0 gap-2 flex items-center">
@@ -393,18 +530,9 @@ export function MeetingsView() {
                 aria-hidden
               />
               <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
-                Meetings & Huddles
+                Meetings &amp; Huddles
               </h2>
-              {/* <Badge variant="neutral" className="text-[11px] px-1.5 py-0 h-4.5">
-                {liveMeetings.length > 0 ? `${liveMeetings.length} live` : `${meetings.length} scheduled`}
-              </Badge> */}
             </div>
-
-            {/* <div className="h-4 mx-1 sm:block hidden w-px bg-border" />
-
-            <p className="min-w-0 text-xs sm:block hidden max-w-[48ch] truncate text-muted-foreground">
-              Workspace calendar meetings and native Matrix video/audio huddles
-            </p> */}
           </div>
 
           <div className="gap-2 flex items-center">
@@ -412,28 +540,30 @@ export function MeetingsView() {
               size="sm"
               className="h-7 text-xs gap-1"
               leadingIcon={<Plus className="size-3.5" />}
-              disabled
+              onClick={() => {
+                setEditMeeting(null);
+                setScheduleOpen(true);
+              }}
             >
               Schedule meeting
             </Button>
           </div>
         </div>
 
-        {/* Tab Navigation */}
         <div className="px-3 sm:px-6 border-t border-border/40 bg-surface-muted/30">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="h-9 p-0 gap-4 border-b-0 bg-transparent">
               <TabsTrigger
-                value="all"
+                value="upcoming"
                 className="h-8 gap-1.5 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
               >
-                <Video className="size-3.5" />
-                <span>All meetings</span>
+                <CalendarClock className="size-3.5" />
+                <span>Upcoming</span>
                 <Badge
                   variant="neutral"
                   className="px-1 py-0 h-3.5 text-[10px]"
                 >
-                  {meetings.length}
+                  {upcoming.length}
                 </Badge>
               </TabsTrigger>
               <TabsTrigger
@@ -450,16 +580,16 @@ export function MeetingsView() {
                 </Badge>
               </TabsTrigger>
               <TabsTrigger
-                value="linked"
+                value="past"
                 className="h-8 gap-1.5 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
               >
-                <Link2 className="size-3.5 text-accent-blue" />
-                <span>With a join link</span>
+                <Check className="size-3.5 text-accent-blue" />
+                <span>Past</span>
                 <Badge
                   variant="neutral"
                   className="px-1 py-0 h-3.5 text-[10px]"
                 >
-                  {linkedMeetings.length}
+                  {past.length}
                 </Badge>
               </TabsTrigger>
               <TabsTrigger
@@ -483,26 +613,22 @@ export function MeetingsView() {
       <div className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto">
         <div className="max-w-6xl space-y-6 mx-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            {/*
-          One body shared by the three list tabs: they differ only in which
-          events they show, and `visibleMeetings` has already applied that.
-        */}
-            {(['all', 'live', 'linked'] as const).map((tab) => (
+            {(['upcoming', 'live', 'past'] as const).map((tab) => (
               <TabsContent key={tab} value={tab} className="mt-4 space-y-4">
-                {events.isLoading ? (
+                {meetingsQuery.isLoading ? (
                   <Panel>
                     <SkeletonList rows={4} />
                   </Panel>
-                ) : events.isError ? (
+                ) : meetingsQuery.isError ? (
                   <Panel>
                     <EmptyState
                       icon={<TriangleAlert />}
                       title="Could not load meetings"
-                      description="Something went wrong fetching the workspace calendar."
+                      description="Something went wrong fetching this workspace's meetings."
                       action={
                         <Button
                           variant="outline"
-                          onClick={() => void events.refetch()}
+                          onClick={() => void meetingsQuery.refetch()}
                         >
                           Try again
                         </Button>
@@ -513,139 +639,35 @@ export function MeetingsView() {
                   <Panel>
                     <EmptyState
                       icon={<CalendarClock />}
-                      title="No meetings scheduled"
-                      description={`Nothing on the calendar in the next ${HORIZON_DAYS} days.`}
+                      title="No meetings here"
+                      description={emptyCopy[tab]}
+                      action={
+                        tab === 'upcoming' ? (
+                          <Button
+                            onClick={() => {
+                              setEditMeeting(null);
+                              setScheduleOpen(true);
+                            }}
+                            leadingIcon={<Plus className="size-4" />}
+                          >
+                            Schedule meeting
+                          </Button>
+                        ) : undefined
+                      }
                     />
                   </Panel>
                 ) : (
                   <div className="gap-4 sm:grid-cols-2 xl:grid-cols-3 grid">
-                    {visibleMeetings.map((event) => {
-                      const joinUrl = joinUrlOf(event);
-                      const live = isLive(event);
-
-                      return (
-                        <Panel
-                          key={event.id}
-                          className="flex flex-col justify-between"
-                        >
-                          <div>
-                            <div className="gap-2 flex items-start justify-between">
-                              <div className="min-w-0">
-                                <h3 className="text-sm font-semibold truncate text-foreground">
-                                  {event.title}
-                                </h3>
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                  {formatDateTime(event.startAt)} ·{' '}
-                                  {durationLabel(event)}
-                                </p>
-                              </div>
-
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    aria-label={`Actions for ${event.title}`}
-                                  >
-                                    <MoreHorizontal className="size-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent
-                                  align="end"
-                                  className="w-56"
-                                >
-                                  <DropdownMenuItem
-                                    onSelect={() =>
-                                      void handleCreateDocFromMeeting(event)
-                                    }
-                                  >
-                                    <FileText
-                                      className="size-4 text-accent-blue"
-                                      aria-hidden
-                                    />
-                                    Create meeting notes doc
-                                  </DropdownMenuItem>
-                                  {joinUrl ? (
-                                    <DropdownMenuItem
-                                      onSelect={() => {
-                                        void navigator.clipboard.writeText(
-                                          joinUrl,
-                                        );
-                                      }}
-                                    >
-                                      <Link2 className="size-4" aria-hidden />
-                                      Copy join link
-                                    </DropdownMenuItem>
-                                  ) : null}
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    variant="destructive"
-                                    onSelect={() => remove.mutate(event.id)}
-                                  >
-                                    <Trash2 className="size-4" aria-hidden />
-                                    Cancel meeting
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-
-                            {event.description ? (
-                              <p className="mt-2 text-xs line-clamp-2 text-muted-foreground">
-                                {event.description}
-                              </p>
-                            ) : null}
-
-                            <div className="mt-3 gap-2 flex flex-wrap items-center">
-                              {live ? (
-                                <Badge
-                                  variant="destructive"
-                                  className="animate-pulse"
-                                >
-                                  Live now
-                                </Badge>
-                              ) : (
-                                <Badge variant="neutral">Scheduled</Badge>
-                              )}
-                              <span className="gap-1.5 text-xs flex items-center text-muted-foreground">
-                                <UserAvatar
-                                  name={
-                                    event.organizer.displayName ??
-                                    event.organizer.name
-                                  }
-                                  src={event.organizer.avatarUrl}
-                                  seed={event.organizer.id}
-                                  size="xs"
-                                />
-                                Hosted by{' '}
-                                {event.organizer.displayName ??
-                                  event.organizer.name}
-                              </span>
-                            </div>
-                          </div>
-
-                          {joinUrl ? (
-                            <Button
-                              asChild
-                              className="mt-4 w-full"
-                              variant={live ? 'primary' : 'outline'}
-                            >
-                              <a
-                                href={joinUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                <ExternalLink className="size-4" aria-hidden />
-                                {live ? 'Join now' : 'Open meeting link'}
-                              </a>
-                            </Button>
-                          ) : (
-                            <p className="mt-4 text-xs text-center text-subtle">
-                              No join link on this event
-                            </p>
-                          )}
-                        </Panel>
-                      );
-                    })}
+                    {visibleMeetings.map((meeting) => (
+                      <MeetingCard
+                        key={meeting.id}
+                        meeting={meeting}
+                        onOpen={() => setDetailId(meeting.id)}
+                        onEdit={() => openEdit(meeting)}
+                        onCancel={() => confirmCancel(meeting)}
+                        onDelete={() => confirmDelete(meeting)}
+                      />
+                    ))}
                   </div>
                 )}
               </TabsContent>
@@ -711,6 +733,27 @@ export function MeetingsView() {
           </Tabs>
         </div>
       </div>
+
+      <MeetingScheduleDialog
+        workspaceId={workspaceId}
+        open={scheduleOpen}
+        onOpenChange={(open) => {
+          setScheduleOpen(open);
+          if (!open) setEditMeeting(null);
+        }}
+        meeting={editMeeting}
+        onSaved={(id) => setDetailId(id)}
+      />
+
+      <MeetingDetailSheet
+        workspaceId={workspaceId}
+        meetingId={detailId}
+        open={detailId !== null}
+        onOpenChange={(open) => {
+          if (!open) setDetailId(null);
+        }}
+        onEdit={(meeting) => openEdit(meeting)}
+      />
     </div>
   );
 }

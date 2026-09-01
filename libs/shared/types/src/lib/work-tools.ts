@@ -5,6 +5,9 @@ import type {
   IdentifierPrefixMode,
   IntakeSource,
   IntakeStatus,
+  MeetingParticipantRole,
+  MeetingRsvp,
+  MeetingStatus,
   ProjectHealth,
   ProjectStatus,
   RelationType,
@@ -225,6 +228,14 @@ export interface Task {
   parent?: Task | null;
   subItems?: Task[];
   relations?: WorkItemRelation[];
+  /** Set when this task was captured as an action item from a meeting. */
+  meetingId?: string | null;
+  meeting?: {
+    id: string;
+    title: string;
+    startAt: IsoDateString;
+    status: MeetingStatus;
+  } | null;
   _count: { comments: number };
 }
 
@@ -251,6 +262,73 @@ export interface CalendarEvent {
   createdAt: IsoDateString;
   updatedAt: IsoDateString;
   organizer: PublicUser;
+}
+
+export interface MeetingParticipant {
+  id: string;
+  meetingId: string;
+  userId: string;
+  role: MeetingParticipantRole;
+  rsvp: MeetingRsvp;
+  addedAt: IsoDateString;
+  user: PublicUser;
+}
+
+export interface MeetingNote {
+  id: string;
+  meetingId: string;
+  body: string;
+  createdAt: IsoDateString;
+  updatedAt: IsoDateString;
+  author: PublicUser;
+}
+
+export interface MeetingDecision {
+  id: string;
+  meetingId: string;
+  text: string;
+  createdAt: IsoDateString;
+  author: PublicUser;
+}
+
+/** A meeting row as it appears in the list. */
+export interface Meeting {
+  id: string;
+  workspaceId: string;
+  organizerId: string;
+  projectId: string | null;
+  /** Set when a calendar event was created alongside the meeting. */
+  calendarEventId: string | null;
+  title: string;
+  description: string | null;
+  agenda: string | null;
+  /** A join URL or a physical location. */
+  location: string | null;
+  status: MeetingStatus;
+  startAt: IsoDateString;
+  endAt: IsoDateString;
+  endedAt: IsoDateString | null;
+  createdAt: IsoDateString;
+  updatedAt: IsoDateString;
+  deletedAt?: IsoDateString | null;
+  organizer: PublicUser;
+  project: TaskProjectRef | null;
+  participants: MeetingParticipant[];
+  _count: {
+    participants: number;
+    notes: number;
+    decisions: number;
+    actionItems: number;
+  };
+}
+
+/** The full meeting payload behind the detail view. */
+export interface MeetingDetail extends Meeting {
+  calendarEvent: { id: string } | null;
+  notes: MeetingNote[];
+  decisions: MeetingDecision[];
+  /** Action items are real tasks linked back through `Task.meetingId`. */
+  actionItems: Task[];
 }
 
 /** A child entry in the docs tree — enough to draw the sidebar row. */

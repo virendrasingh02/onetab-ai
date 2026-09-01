@@ -4,6 +4,10 @@ import {
   AppEvent,
   type ChannelCreatedEvent,
   type DocumentCreatedEvent,
+  type MeetingCancelledEvent,
+  type MeetingEndedEvent,
+  type MeetingScheduledEvent,
+  type MeetingUpdatedEvent,
   type MemberJoinedEvent,
   type MentionCreatedEvent,
   type ProjectCreatedEvent,
@@ -262,6 +266,113 @@ export class DomainEventsListener {
       resourceType: 'document',
       resourceId: e.documentId,
       summary: `created document ${e.title}`,
+    });
+  }
+
+  /** Notifies a set of meeting participants, dropping the actor and de-duping. */
+  private async notifyMeetingParticipants(
+    e: {
+      workspaceId: string;
+      actorId: string | null;
+      meetingId: string;
+    },
+    recipientIds: readonly string[],
+    kind: NotificationKind,
+    title: string,
+    body?: string,
+  ): Promise<void> {
+    for (const recipientId of new Set(recipientIds)) {
+      if (recipientId === e.actorId) continue;
+      await this.safeNotify(() =>
+        this.notifications.create({
+          workspaceId: e.workspaceId,
+          recipientId,
+          actorId: e.actorId,
+          kind,
+          title,
+          body,
+          deepLink: `meetings?meetingId=${e.meetingId}`,
+          resourceType: 'meeting',
+          resourceId: e.meetingId,
+        }),
+      );
+    }
+  }
+
+  @OnEvent(AppEvent.MeetingScheduled)
+  async onMeetingScheduled(e: MeetingScheduledEvent): Promise<void> {
+    await this.activity.write({
+      workspaceId: e.workspaceId,
+      kind: ActivityKind.MEETING_SCHEDULED,
+      actorId: e.actorId,
+      resourceType: 'meeting',
+      resourceId: e.meetingId,
+      summary: `scheduled meeting "${e.title}"`,
+      mentionedUserIds: e.participantIds,
+    });
+
+    await this.notifyMeetingParticipants(
+      e,
+      e.participantIds,
+      NotificationKind.MEETING_INVITE,
+      `You were invited to "${e.title}"`,
+    );
+  }
+
+  @OnEvent(AppEvent.MeetingUpdated)
+  async onMeetingUpdated(e: MeetingUpdatedEvent): Promise<void> {
+    // A fresh invite for anyone newly added…
+    await this.notifyMeetingParticipants(
+      e,
+      e.addedParticipantIds,
+      NotificationKind.MEETING_INVITE,
+      `You were invited to "${e.title}"`,
+    );
+    // …and a heads-up to everyone else only when the time actually moved.
+    if (e.scheduleChanged) {
+      const alreadyInvited = new Set(e.addedParticipantIds);
+      await this.notifyMeetingParticipants(
+        e,
+        e.participantIds.filter((id) => !alreadyInvited.has(id)),
+        NotificationKind.MEETING_UPDATED,
+        `"${e.title}" was rescheduled`,
+      );
+    }
+  }
+
+  @OnEvent(AppEvent.MeetingCancelled)
+  async onMeetingCancelled(e: MeetingCancelledEvent): Promise<void> {
+    await this.activity.write({
+      workspaceId: e.workspaceId,
+      kind: ActivityKind.MEETING_CANCELLED,
+      actorId: e.actorId,
+      resourceType: 'meeting',
+      resourceId: e.meetingId,
+      summary: `cancelled meeting "${e.title}"`,
+      mentionedUserIds: e.participantIds,
+    });
+
+    await this.notifyMeetingParticipants(
+      e,
+      e.participantIds,
+      NotificationKind.MEETING_CANCELLED,
+      `"${e.title}" was cancelled`,
+    );
+  }
+
+  @OnEvent(AppEvent.MeetingEnded)
+  async onMeetingEnded(e: MeetingEndedEvent): Promise<void> {
+    const items =
+      e.actionItemCount > 0
+        ? ` (${e.actionItemCount} action item${e.actionItemCount === 1 ? '' : 's'})`
+        : '';
+    await this.activity.write({
+      workspaceId: e.workspaceId,
+      kind: ActivityKind.MEETING_ENDED,
+      actorId: e.actorId,
+      resourceType: 'meeting',
+      resourceId: e.meetingId,
+      summary: `ended meeting "${e.title}"${items}`,
     });
   }
 

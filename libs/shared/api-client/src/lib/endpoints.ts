@@ -66,6 +66,10 @@ import type {
   MarketplaceReview,
   MarketplaceStorefrontStat,
   MarketplaceStorefronts,
+  Meeting,
+  MeetingDecision,
+  MeetingDetail,
+  MeetingNote,
   NotificationPreference,
   PerformanceMetrics,
   PluginCredentials,
@@ -134,6 +138,10 @@ import type {
   CreateEpicInput,
   CreateInitiativeInput,
   CreateIntakeRequestInput,
+  CreateMeetingActionItemInput,
+  CreateMeetingDecisionInput,
+  CreateMeetingInput,
+  CreateMeetingNoteInput,
   CreateModuleInput,
   CreatePinInput,
   CreateProjectInput,
@@ -159,6 +167,8 @@ import type {
   CreateInvitationLinkInput,
   UpdateInvitationLinkInput,
   LoginInput,
+  MeetingParticipantsInput,
+  MeetingRsvpInput,
   MoveTaskInput,
   PollDeviceAuthInput,
   ProjectIdentifierSettingsInput,
@@ -171,6 +181,7 @@ import type {
   UpdateDocumentInput,
   UpdateEpicInput,
   UpdateInitiativeInput,
+  UpdateMeetingInput,
   UpdateMemberRoleInput,
   UpdateModuleInput,
   UpdateProfileInput,
@@ -1320,14 +1331,14 @@ export const workToolsApi = {
 
   calendar: (workspaceId: string, from?: string, to?: string) =>
     request<CalendarEvent[]>(
-      http.get(`/workspaces/${workspaceId}/work-tools/calendar`, {
+      http.get(`/workspaces/${workspaceId}/work-tools/calendar/events`, {
         params: { ...(from ? { from } : {}), ...(to ? { to } : {}) },
       }),
     ),
 
   createEvent: (workspaceId: string, input: CreateCalendarEventInput) =>
     request<CalendarEvent>(
-      http.post(`/workspaces/${workspaceId}/work-tools/calendar`, input),
+      http.post(`/workspaces/${workspaceId}/work-tools/calendar/events`, input),
     ),
 
   updateEvent: (
@@ -1337,14 +1348,184 @@ export const workToolsApi = {
   ) =>
     request<CalendarEvent>(
       http.patch(
-        `/workspaces/${workspaceId}/work-tools/calendar/${eventId}`,
+        `/workspaces/${workspaceId}/work-tools/calendar/events/${eventId}`,
         input,
       ),
     ),
 
   deleteEvent: (workspaceId: string, eventId: string) =>
     request<void>(
-      http.delete(`/workspaces/${workspaceId}/work-tools/calendar/${eventId}`),
+      http.delete(
+        `/workspaces/${workspaceId}/work-tools/calendar/events/${eventId}`,
+      ),
+    ),
+
+  // --- meetings -----------------------------------------------------------
+
+  meetings: (
+    workspaceId: string,
+    filters: {
+      status?: string;
+      projectId?: string;
+      from?: string;
+      to?: string;
+      scope?: 'upcoming' | 'past' | 'all';
+    } = {},
+  ) =>
+    request<Meeting[]>(
+      http.get(`/workspaces/${workspaceId}/work-tools/meetings`, {
+        params: {
+          ...(filters.status ? { status: filters.status } : {}),
+          ...(filters.projectId ? { projectId: filters.projectId } : {}),
+          ...(filters.from ? { from: filters.from } : {}),
+          ...(filters.to ? { to: filters.to } : {}),
+          ...(filters.scope ? { scope: filters.scope } : {}),
+        },
+      }),
+    ),
+
+  meeting: (workspaceId: string, meetingId: string) =>
+    request<MeetingDetail>(
+      http.get(`/workspaces/${workspaceId}/work-tools/meetings/${meetingId}`),
+    ),
+
+  createMeeting: (workspaceId: string, input: CreateMeetingInput) =>
+    request<MeetingDetail>(
+      http.post(`/workspaces/${workspaceId}/work-tools/meetings`, input),
+    ),
+
+  updateMeeting: (
+    workspaceId: string,
+    meetingId: string,
+    input: UpdateMeetingInput,
+  ) =>
+    request<MeetingDetail>(
+      http.patch(
+        `/workspaces/${workspaceId}/work-tools/meetings/${meetingId}`,
+        input,
+      ),
+    ),
+
+  cancelMeeting: (workspaceId: string, meetingId: string) =>
+    request<MeetingDetail>(
+      http.post(
+        `/workspaces/${workspaceId}/work-tools/meetings/${meetingId}/cancel`,
+      ),
+    ),
+
+  endMeeting: (workspaceId: string, meetingId: string) =>
+    request<MeetingDetail>(
+      http.post(
+        `/workspaces/${workspaceId}/work-tools/meetings/${meetingId}/end`,
+      ),
+    ),
+
+  deleteMeeting: (workspaceId: string, meetingId: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/work-tools/meetings/${meetingId}`),
+    ),
+
+  restoreMeeting: (workspaceId: string, meetingId: string) =>
+    request<MeetingDetail>(
+      http.post(
+        `/workspaces/${workspaceId}/work-tools/meetings/${meetingId}/restore`,
+      ),
+    ),
+
+  addMeetingParticipants: (
+    workspaceId: string,
+    meetingId: string,
+    input: MeetingParticipantsInput,
+  ) =>
+    request<MeetingDetail>(
+      http.post(
+        `/workspaces/${workspaceId}/work-tools/meetings/${meetingId}/participants`,
+        input,
+      ),
+    ),
+
+  removeMeetingParticipant: (
+    workspaceId: string,
+    meetingId: string,
+    userId: string,
+  ) =>
+    request<MeetingDetail>(
+      http.delete(
+        `/workspaces/${workspaceId}/work-tools/meetings/${meetingId}/participants/${userId}`,
+      ),
+    ),
+
+  respondToMeeting: (
+    workspaceId: string,
+    meetingId: string,
+    input: MeetingRsvpInput,
+  ) =>
+    request<MeetingDetail>(
+      http.post(
+        `/workspaces/${workspaceId}/work-tools/meetings/${meetingId}/rsvp`,
+        input,
+      ),
+    ),
+
+  addMeetingNote: (
+    workspaceId: string,
+    meetingId: string,
+    input: CreateMeetingNoteInput,
+  ) =>
+    request<MeetingNote>(
+      http.post(
+        `/workspaces/${workspaceId}/work-tools/meetings/${meetingId}/notes`,
+        input,
+      ),
+    ),
+
+  deleteMeetingNote: (workspaceId: string, meetingId: string, noteId: string) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/work-tools/meetings/${meetingId}/notes/${noteId}`,
+      ),
+    ),
+
+  addMeetingDecision: (
+    workspaceId: string,
+    meetingId: string,
+    input: CreateMeetingDecisionInput,
+  ) =>
+    request<MeetingDecision>(
+      http.post(
+        `/workspaces/${workspaceId}/work-tools/meetings/${meetingId}/decisions`,
+        input,
+      ),
+    ),
+
+  deleteMeetingDecision: (
+    workspaceId: string,
+    meetingId: string,
+    decisionId: string,
+  ) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/work-tools/meetings/${meetingId}/decisions/${decisionId}`,
+      ),
+    ),
+
+  meetingActionItems: (workspaceId: string, meetingId: string) =>
+    request<Task[]>(
+      http.get(
+        `/workspaces/${workspaceId}/work-tools/meetings/${meetingId}/action-items`,
+      ),
+    ),
+
+  addMeetingActionItem: (
+    workspaceId: string,
+    meetingId: string,
+    input: CreateMeetingActionItemInput,
+  ) =>
+    request<Task>(
+      http.post(
+        `/workspaces/${workspaceId}/work-tools/meetings/${meetingId}/action-items`,
+        input,
+      ),
     ),
 
   // --- documents ------------------------------------------------------------

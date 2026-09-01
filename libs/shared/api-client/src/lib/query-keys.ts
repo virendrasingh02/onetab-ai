@@ -229,6 +229,12 @@ export const queryKeys = {
       ['work-tools', workspaceId, 'projects', projectId, 'updates'] as const,
     calendar: (workspaceId: string, from?: string, to?: string) =>
       ['work-tools', workspaceId, 'calendar', from ?? '', to ?? ''] as const,
+    meetings: (workspaceId: string, filters?: Record<string, unknown>) =>
+      ['work-tools', workspaceId, 'meetings', filters ?? {}] as const,
+    meeting: (workspaceId: string, meetingId: string) =>
+      ['work-tools', workspaceId, 'meetings', 'detail', meetingId] as const,
+    meetingActionItems: (workspaceId: string, meetingId: string) =>
+      ['work-tools', workspaceId, 'meetings', meetingId, 'action-items'] as const,
     documents: (workspaceId: string, kind?: string) =>
       ['work-tools', workspaceId, 'documents', kind ?? 'all'] as const,
     document: (workspaceId: string, docId: string) =>

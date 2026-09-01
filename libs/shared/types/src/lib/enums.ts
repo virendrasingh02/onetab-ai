@@ -242,6 +242,32 @@ export const IntakeSource = {
 } as const;
 export type IntakeSource = (typeof IntakeSource)[keyof typeof IntakeSource];
 
+/** Lifecycle of a {@link Meeting}. `LIVE` is reserved for a future presence
+ *  signal; today a scheduled meeting reads as "live" purely from its time
+ *  window on the client. */
+export const MeetingStatus = {
+  SCHEDULED: 'SCHEDULED',
+  LIVE: 'LIVE',
+  ENDED: 'ENDED',
+  CANCELLED: 'CANCELLED',
+} as const;
+export type MeetingStatus = (typeof MeetingStatus)[keyof typeof MeetingStatus];
+
+export const MeetingParticipantRole = {
+  ORGANIZER: 'ORGANIZER',
+  ATTENDEE: 'ATTENDEE',
+} as const;
+export type MeetingParticipantRole =
+  (typeof MeetingParticipantRole)[keyof typeof MeetingParticipantRole];
+
+export const MeetingRsvp = {
+  NEEDS_ACTION: 'NEEDS_ACTION',
+  ACCEPTED: 'ACCEPTED',
+  DECLINED: 'DECLINED',
+  TENTATIVE: 'TENTATIVE',
+} as const;
+export type MeetingRsvp = (typeof MeetingRsvp)[keyof typeof MeetingRsvp];
+
 /** True when `role` is at least as privileged as `minimum`. */
 export function hasWorkspaceRole(
   role: WorkspaceRole,

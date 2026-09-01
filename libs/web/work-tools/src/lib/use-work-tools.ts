@@ -12,6 +12,8 @@ import type {
   Epic,
   Initiative,
   IntakeRequest,
+  Meeting,
+  MeetingDetail,
   Module,
   ProjectDetail,
   ProjectUpdate,
@@ -31,6 +33,10 @@ import type {
   CreateEpicInput,
   CreateInitiativeInput,
   CreateIntakeRequestInput,
+  CreateMeetingActionItemInput,
+  CreateMeetingDecisionInput,
+  CreateMeetingInput,
+  CreateMeetingNoteInput,
   CreateModuleInput,
   CreateProjectInput,
   CreateProjectUpdateInput,
@@ -40,6 +46,8 @@ import type {
   CreateTeamInput,
   CreateWhiteboardInput,
   CreateWorkItemRelationInput,
+  MeetingParticipantsInput,
+  MeetingRsvpInput,
   MoveTaskInput,
   ProjectIdentifierSettingsInput,
   UpdateCalendarEventInput,
@@ -47,6 +55,7 @@ import type {
   UpdateDocumentInput,
   UpdateEpicInput,
   UpdateInitiativeInput,
+  UpdateMeetingInput,
   UpdateModuleInput,
   UpdateProjectInput,
   UpdateSavedViewInput,
@@ -717,6 +726,190 @@ export function useCalendarMutations(workspaceId: string | undefined) {
   });
 
   return { create, update, remove };
+}
+
+// --- meetings -------------------------------------------------------------
+
+export interface MeetingListFilters {
+  status?: string;
+  projectId?: string;
+  from?: string;
+  to?: string;
+  scope?: 'upcoming' | 'past' | 'all';
+}
+
+export function useMeetings(
+  workspaceId: string | undefined,
+  filters: MeetingListFilters = {},
+) {
+  return useQuery<Meeting[]>({
+    queryKey: queryKeys.workTools.meetings(
+      workspaceId ?? '',
+      filters as Record<string, unknown>,
+    ),
+    queryFn: () => workToolsApi.meetings(workspaceId as string, filters),
+    enabled: !!workspaceId,
+    staleTime: 30_000,
+  });
+}
+
+export function useMeeting(
+  workspaceId: string | undefined,
+  meetingId: string | null | undefined,
+) {
+  return useQuery<MeetingDetail>({
+    queryKey: queryKeys.workTools.meeting(workspaceId ?? '', meetingId ?? ''),
+    queryFn: () =>
+      workToolsApi.meeting(workspaceId as string, meetingId as string),
+    enabled: !!workspaceId && !!meetingId,
+    retry: false,
+  });
+}
+
+/**
+ * Every meeting write. The detail cache is refreshed from each mutation's own
+ * response, and the meeting list is invalidated so counts/status stay in step.
+ */
+export function useMeetingMutations(
+  workspaceId: string | undefined,
+  meetingId?: string,
+) {
+  const queryClient = useQueryClient();
+  const ws = workspaceId ?? '';
+
+  const invalidateList = () =>
+    queryClient.invalidateQueries({
+      queryKey: ['work-tools', ws, 'meetings'],
+    });
+
+  const syncDetail = (detail: MeetingDetail) => {
+    queryClient.setQueryData(
+      queryKeys.workTools.meeting(ws, detail.id),
+      detail,
+    );
+    invalidateList();
+    // Action items are real tasks — keep the board/list fresh too.
+    queryClient.invalidateQueries({ queryKey: queryKeys.workTools.all(ws) });
+  };
+
+  const create = useMutation({
+    mutationFn: (input: CreateMeetingInput) =>
+      workToolsApi.createMeeting(ws, input),
+    onSuccess: syncDetail,
+  });
+
+  const update = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateMeetingInput }) =>
+      workToolsApi.updateMeeting(ws, id, input),
+    onSuccess: syncDetail,
+  });
+
+  const cancel = useMutation({
+    mutationFn: (id: string) => workToolsApi.cancelMeeting(ws, id),
+    onSuccess: syncDetail,
+  });
+
+  const end = useMutation({
+    mutationFn: (id: string) => workToolsApi.endMeeting(ws, id),
+    onSuccess: syncDetail,
+  });
+
+  const remove = useMutation({
+    mutationFn: (id: string) => workToolsApi.deleteMeeting(ws, id),
+    onSuccess: invalidateList,
+  });
+
+  const addParticipants = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: MeetingParticipantsInput }) =>
+      workToolsApi.addMeetingParticipants(ws, id, input),
+    onSuccess: syncDetail,
+  });
+
+  const removeParticipant = useMutation({
+    mutationFn: ({ id, userId }: { id: string; userId: string }) =>
+      workToolsApi.removeMeetingParticipant(ws, id, userId),
+    onSuccess: syncDetail,
+  });
+
+  const respond = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: MeetingRsvpInput }) =>
+      workToolsApi.respondToMeeting(ws, id, input),
+    onSuccess: syncDetail,
+  });
+
+  const addNote = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: CreateMeetingNoteInput }) =>
+      workToolsApi.addMeetingNote(ws, id, input),
+    onSuccess: (_data, { id }) =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.workTools.meeting(ws, id),
+      }),
+  });
+
+  const deleteNote = useMutation({
+    mutationFn: ({ id, noteId }: { id: string; noteId: string }) =>
+      workToolsApi.deleteMeetingNote(ws, id, noteId),
+    onSuccess: (_data, { id }) =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.workTools.meeting(ws, id),
+      }),
+  });
+
+  const addDecision = useMutation({
+    mutationFn: ({
+      id,
+      input,
+    }: {
+      id: string;
+      input: CreateMeetingDecisionInput;
+    }) => workToolsApi.addMeetingDecision(ws, id, input),
+    onSuccess: (_data, { id }) =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.workTools.meeting(ws, id),
+      }),
+  });
+
+  const deleteDecision = useMutation({
+    mutationFn: ({ id, decisionId }: { id: string; decisionId: string }) =>
+      workToolsApi.deleteMeetingDecision(ws, id, decisionId),
+    onSuccess: (_data, { id }) =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.workTools.meeting(ws, id),
+      }),
+  });
+
+  const addActionItem = useMutation({
+    mutationFn: ({
+      id,
+      input,
+    }: {
+      id: string;
+      input: CreateMeetingActionItemInput;
+    }) => workToolsApi.addMeetingActionItem(ws, id, input),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.workTools.meeting(ws, id),
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.workTools.all(ws) });
+    },
+  });
+
+  return {
+    meetingId,
+    create,
+    update,
+    cancel,
+    end,
+    remove,
+    addParticipants,
+    removeParticipant,
+    respond,
+    addNote,
+    deleteNote,
+    addDecision,
+    deleteDecision,
+    addActionItem,
+  };
 }
 
 export function useDocuments(

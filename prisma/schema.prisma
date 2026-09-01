@@ -61,6 +61,10 @@ model User {
   notifications           Notification[]
   sidebarPreference       SidebarPreference?
   themeSetting            ThemeSetting?
+  organizedMeetings       Meeting[]                @relation("MeetingOrganizer")
+  meetingParticipations   MeetingParticipant[]
+  meetingNotes            MeetingNote[]
+  meetingDecisions        MeetingDecision[]
 
   @@map("users")
 }
@@ -152,6 +156,7 @@ model Workspace {
   notifications            Notification[]
   subscription             WorkspaceSubscription?
   enterpriseInquiries      EnterpriseSalesInquiry[]
+  meetings                 Meeting[]
   owner                    User                      @relation("WorkspaceOwner", fields: [ownerId], references: [id])
 
   @@index([ownerId])
@@ -562,6 +567,7 @@ model Project {
   updates              ProjectUpdate[]
   tasks                Task[]
   invitations          Invitation[]
+  meetings             Meeting[]
   /// Full-text index over name/description. Generated column — see the migration.
   searchVector         Unsupported("tsvector")?
 
@@ -690,13 +696,15 @@ model Task {
   /// Every assignee, primary first. A task can have several; the tile draws an
   /// avatar stack and each assignee is notified and can filter "assigned to me"
   /// on it. Was previously stashed in `customFields.assigneeIds`.
-  assigneeIds     String[]                  @default([])
+  assigneeIds     String[]                 @default([])
   reporterId      String?
   teamId          String?
   epicId          String?
   cycleId         String?
   moduleId        String?
   parentId        String?
+  /// Set when this task is an action item captured from a meeting.
+  meetingId       String?
   type            WorkItemType             @default(TASK)
   customTypeId    String?
   title           String
@@ -727,6 +735,7 @@ model Task {
   module          Module?                  @relation(fields: [moduleId], references: [id])
   parent          Task?                    @relation("TaskSubItems", fields: [parentId], references: [id])
   subItems        Task[]                   @relation("TaskSubItems")
+  meeting         Meeting?                 @relation("MeetingActionItems", fields: [meetingId], references: [id])
   sourceRelations WorkItemRelation[]       @relation("RelationSource")
   targetRelations WorkItemRelation[]       @relation("RelationTarget")
   activities      WorkItemActivity[]
@@ -744,6 +753,7 @@ model Task {
   @@index([epicId])
   @@index([moduleId])
   @@index([parentId])
+  @@index([meetingId])
   @@index([identifier])
   @@index([workspaceId, deletedAt])
   @@index([assigneeIds], type: Gin)
@@ -909,12 +919,104 @@ model CalendarEvent {
   updatedAt   DateTime  @updatedAt
   organizer   User      @relation(fields: [organizerId], references: [id], onDelete: Cascade)
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// The first-class meeting this row backs, when it was created alongside one.
+  meeting     Meeting?
   /// Soft delete — see Project.deletedAt.
   deletedAt   DateTime?
 
   @@index([workspaceId, startAt])
   @@index([workspaceId, deletedAt])
   @@map("calendar_events")
+}
+
+/// A first-class meeting: a scheduled call or huddle with participants, an
+/// agenda, running notes, recorded decisions and action items. Distinct from
+/// `CalendarEvent` (a bare calendar row) — a meeting can be backed by one via
+/// `calendarEventId` so it also appears on the calendar, and its action items
+/// are real `Task` rows linked back through `Task.meetingId`.
+model Meeting {
+  id              String               @id @default(cuid())
+  workspaceId     String
+  organizerId     String
+  projectId       String?
+  /// The calendar row this meeting also shows up on, when one was created with
+  /// it. One-to-one; deleting the meeting leaves the calendar event in place.
+  calendarEventId String?              @unique
+  title           String
+  description     String?
+  /// Free-form agenda (markdown), shown at the top of the meeting detail.
+  agenda          String?
+  /// A join URL (Zoom / Meet / native huddle) or a physical location.
+  location        String?
+  status          MeetingStatus        @default(SCHEDULED)
+  startAt         DateTime
+  endAt           DateTime
+  /// When the meeting was actually ended, set by "End meeting". Independent of
+  /// the scheduled `endAt`.
+  endedAt         DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  /// Soft delete — see Project.deletedAt.
+  deletedAt       DateTime?
+  organizer       User                 @relation("MeetingOrganizer", fields: [organizerId], references: [id], onDelete: Cascade)
+  workspace       Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project         Project?             @relation(fields: [projectId], references: [id])
+  calendarEvent   CalendarEvent?       @relation(fields: [calendarEventId], references: [id])
+  participants    MeetingParticipant[]
+  notes           MeetingNote[]
+  decisions       MeetingDecision[]
+  actionItems     Task[]               @relation("MeetingActionItems")
+
+  @@index([workspaceId, startAt])
+  @@index([workspaceId, status])
+  @@index([workspaceId, deletedAt])
+  @@index([projectId])
+  @@map("meetings")
+}
+
+/// One person invited to a meeting, with their role and RSVP.
+model MeetingParticipant {
+  id        String                 @id @default(cuid())
+  meetingId String
+  userId    String
+  role      MeetingParticipantRole @default(ATTENDEE)
+  rsvp      MeetingRsvp            @default(NEEDS_ACTION)
+  addedAt   DateTime               @default(now())
+  meeting   Meeting                @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user      User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, userId])
+  @@index([userId])
+  @@map("meeting_participants")
+}
+
+/// A running note taken during (or after) a meeting.
+model MeetingNote {
+  id        String   @id @default(cuid())
+  meetingId String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId, createdAt])
+  @@map("meeting_notes")
+}
+
+/// A decision recorded against a meeting.
+model MeetingDecision {
+  id        String   @id @default(cuid())
+  meetingId String
+  authorId  String
+  text      String
+  createdAt DateTime @default(now())
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId, createdAt])
+  @@map("meeting_decisions")
 }
 
 model WorkDocument {
@@ -1200,19 +1302,19 @@ model WorkspaceSubscription {
 }
 
 model EnterpriseSalesInquiry {
-  id                     String    @id @default(cuid())
-  workspaceId            String
-  userId                 String
-  name                   String
-  email                  String
-  companyName            String
-  teamSize               String?
+  id                    String    @id @default(cuid())
+  workspaceId           String
+  userId                String
+  name                  String
+  email                 String
+  companyName           String
+  teamSize              String?
   customLlmRequirements String?
-  message                String?
-  status                 String    @default("PENDING")
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
-  workspace              Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  message               String?
+  status                String    @default("PENDING")
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  workspace             Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
   @@map("enterprise_sales_inquiries")
@@ -1520,6 +1622,9 @@ enum ActivityKind {
   TASK_COMPLETED
   PROJECT_CREATED
   DOCUMENT_CREATED
+  MEETING_SCHEDULED
+  MEETING_CANCELLED
+  MEETING_ENDED
 }
 
 enum NotificationKind {
@@ -1530,6 +1635,9 @@ enum NotificationKind {
   WORKSPACE_INVITE
   PROJECT_CREATED
   DOCUMENT_SHARED
+  MEETING_INVITE
+  MEETING_CANCELLED
+  MEETING_UPDATED
   SYSTEM
 }
 
@@ -1561,6 +1669,25 @@ enum DocumentKind {
   NOTE
   DOC
   WIKI
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+  CANCELLED
+}
+
+enum MeetingParticipantRole {
+  ORGANIZER
+  ATTENDEE
+}
+
+enum MeetingRsvp {
+  NEEDS_ACTION
+  ACCEPTED
+  DECLINED
+  TENTATIVE
 }
 
 model AIProviderCredential {

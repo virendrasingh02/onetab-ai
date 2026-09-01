@@ -27,6 +27,10 @@ export const AppEvent = {
   ChannelCreated: 'channel.created',
   ChannelUpdated: 'channel.updated',
   ChannelDeleted: 'channel.deleted',
+  MeetingScheduled: 'meeting.scheduled',
+  MeetingUpdated: 'meeting.updated',
+  MeetingCancelled: 'meeting.cancelled',
+  MeetingEnded: 'meeting.ended',
   WorkspaceInvited: 'workspace.invited',
   MemberJoined: 'member.joined',
   WorkspaceMemberUpdated: 'workspace.member.updated',
@@ -138,6 +142,32 @@ export interface ChannelCreatedEvent extends BaseEvent {
   visibility: string;
 }
 
+interface MeetingEventBase extends BaseEvent {
+  meetingId: string;
+  title: string;
+  startAt: string;
+  /** Project the meeting is attached to, if any. */
+  projectId: string | null;
+  /** Every invited participant, excluding the organizer. */
+  participantIds: string[];
+}
+
+export type MeetingScheduledEvent = MeetingEventBase;
+
+export interface MeetingUpdatedEvent extends MeetingEventBase {
+  /** Participants added by this change — who gets a fresh invite notification. */
+  addedParticipantIds: string[];
+  /** True when the time window moved — the case worth telling everyone about. */
+  scheduleChanged: boolean;
+}
+
+export type MeetingCancelledEvent = MeetingEventBase;
+
+export interface MeetingEndedEvent extends MeetingEventBase {
+  /** Action items (tasks) created from the meeting by the time it ended. */
+  actionItemCount: number;
+}
+
 export interface AppEventPayloads {
   [AppEvent.TaskCreated]: TaskCreatedEvent;
   [AppEvent.TaskAssigned]: TaskAssignedEvent;
@@ -150,4 +180,8 @@ export interface AppEventPayloads {
   [AppEvent.WorkspaceInvited]: WorkspaceInvitedEvent;
   [AppEvent.MemberJoined]: MemberJoinedEvent;
   [AppEvent.MentionCreated]: MentionCreatedEvent;
+  [AppEvent.MeetingScheduled]: MeetingScheduledEvent;
+  [AppEvent.MeetingUpdated]: MeetingUpdatedEvent;
+  [AppEvent.MeetingCancelled]: MeetingCancelledEvent;
+  [AppEvent.MeetingEnded]: MeetingEndedEvent;
 }

@@ -17,6 +17,10 @@ export {
   type MemberJoinedEvent,
   type MentionCreatedEvent,
   type MentionContextType,
+  type MeetingScheduledEvent,
+  type MeetingUpdatedEvent,
+  type MeetingCancelledEvent,
+  type MeetingEndedEvent,
 } from './lib/events.js';
 
 export {

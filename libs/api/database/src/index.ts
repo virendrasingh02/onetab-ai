@@ -31,6 +31,9 @@ export {
   IntakeSource,
   ActivityKind,
   NotificationKind,
+  MeetingStatus,
+  MeetingParticipantRole,
+  MeetingRsvp,
 } from './generated/client.js';
 
 export type {
@@ -61,6 +64,10 @@ export type {
   ProjectUpdate,
   WorkItemActivity,
   CalendarEvent,
+  Meeting,
+  MeetingParticipant,
+  MeetingNote,
+  MeetingDecision,
   WorkDocument,
   Whiteboard,
   PromptTemplate,
