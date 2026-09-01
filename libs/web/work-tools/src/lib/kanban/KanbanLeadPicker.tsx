@@ -8,7 +8,7 @@ import {
   UserAvatarGroup,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { Check, Search, Send, UserX, X } from 'lucide-react';
+import { Check, Search, Send, X } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { UnassignedLeadIcon } from './kanban-icons.js';
 import type { BoardMember } from './types.js';
@@ -86,10 +86,11 @@ export function KanbanLeadPicker({
       onSelectMembers?.(next);
       onSelectMember?.(next[0] ?? null);
     } else {
+      // Single-select branch: this path is only reached when `onSelectMembers`
+      // is undefined (see the guard above), so only the single callback fires.
       const isSelected = activeIds.includes(memberId);
       const nextId = isSelected ? null : memberId;
       onSelectMember?.(nextId);
-      onSelectMembers?.(nextId ? [nextId] : []);
       setOpen(false);
     }
   };

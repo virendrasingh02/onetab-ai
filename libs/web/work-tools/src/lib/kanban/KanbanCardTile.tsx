@@ -87,6 +87,7 @@ export function KanbanCardTile({
   onDelete,
   onMoveToList,
   onAssigneeChange,
+  onAssigneesChange,
 }: KanbanCardTileProps) {
   const customStore = useKanbanCustomStore();
   const cardCustomProps = customStore.getCardProperties(card.id);

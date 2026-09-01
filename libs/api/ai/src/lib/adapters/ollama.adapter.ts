@@ -168,11 +168,18 @@ export class OllamaAdapter extends BaseProviderAdapter {
     }
   }
 
+  /**
+   * Real Ollama embeddings via `nomic-embed-text`. Never fabricates: a random
+   * vector is type-identical to a real embedding but semantically empty, so
+   * RAG built on it returns confident nonsense. A failure here (Ollama not
+   * running, model not pulled) must surface as an error.
+   */
   async generateEmbeddings(texts: string[]): Promise<number[][]> {
-    try {
-      const results: number[][] = [];
-      for (const text of texts) {
-        const res = await fetch(`${this.baseUrl}/api/embeddings`, {
+    const results: number[][] = [];
+    for (const text of texts) {
+      let res: globalThis.Response;
+      try {
+        res = await fetch(`${this.baseUrl}/api/embeddings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -180,17 +187,29 @@ export class OllamaAdapter extends BaseProviderAdapter {
             prompt: text,
           }),
         });
-
-        if (res.ok) {
-          const data = (await res.json()) as { embedding?: number[] };
-          results.push(data.embedding ?? new Array(384).fill(0).map(() => Math.random()));
-        } else {
-          results.push(new Array(384).fill(0).map(() => Math.random()));
-        }
+      } catch (err) {
+        throw this.handleCatchError(err);
       }
-      return results;
-    } catch {
-      return texts.map(() => new Array(384).fill(0).map(() => Math.random()));
+
+      if (!res.ok) {
+        let errBody: Record<string, unknown> = {};
+        try {
+          errBody = (await res.json()) as Record<string, unknown>;
+        } catch {
+          // ignore
+        }
+        throw this.normalizeHttpError(res.status, errBody);
+      }
+
+      const data = (await res.json()) as { embedding?: number[] };
+      if (!data.embedding || data.embedding.length === 0) {
+        throw this.normalizeHttpError(502, {
+          message:
+            'Ollama returned no embedding. Is `nomic-embed-text` pulled? (`ollama pull nomic-embed-text`)',
+        });
+      }
+      results.push(data.embedding);
     }
+    return results;
   }
 }

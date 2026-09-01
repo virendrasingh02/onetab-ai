@@ -458,31 +458,56 @@ export class OpenAIAdapter extends BaseProviderAdapter {
     }
   }
 
+  /**
+   * Real OpenAI embeddings. Never fabricates: a random vector is
+   * type-identical to a real embedding but semantically empty, so RAG built
+   * on it returns confident nonsense. Callers must get an error they can
+   * surface, not silent garbage.
+   */
   async generateEmbeddings(texts: string[]): Promise<number[][]> {
     if (!this.apiKey) {
-      return texts.map(() => new Array(1536).fill(0).map(() => Math.random()));
+      throw this.normalizeHttpError(401, {
+        message: 'OPENAI_API_KEY is not configured; cannot generate embeddings.',
+      });
     }
 
     const endpoint = `${this.baseUrl}/embeddings`;
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify({
-        input: texts,
-        model: 'text-embedding-3-small',
-      }),
-    });
+    let res: globalThis.Response;
+    try {
+      res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          input: texts,
+          model: 'text-embedding-3-small',
+        }),
+      });
+    } catch (err) {
+      throw this.handleCatchError(err);
+    }
 
     if (!res.ok) {
-      return texts.map(() => new Array(1536).fill(0).map(() => Math.random()));
+      let errBody: Record<string, unknown> = {};
+      try {
+        errBody = (await res.json()) as Record<string, unknown>;
+      } catch {
+        // ignore
+      }
+      throw this.normalizeHttpError(res.status, errBody);
     }
 
     const data = (await res.json()) as {
       data?: Array<{ embedding?: number[] }>;
     };
-    return data.data?.map((d) => d.embedding ?? []) ?? [];
+    const vectors = data.data?.map((d) => d.embedding ?? []) ?? [];
+    if (vectors.length === 0 || vectors.some((v) => v.length === 0)) {
+      throw this.normalizeHttpError(502, {
+        message: 'OpenAI returned no embeddings for the requested texts.',
+      });
+    }
+    return vectors;
   }
 }

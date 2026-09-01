@@ -133,6 +133,28 @@ export function SidebarFooterActions({
 }: SidebarFooterActionsProps) {
   const navigate = useNavigate();
 
+  // Keyboard shortcut listener for 'I' (Invite members). Registered
+  // unconditionally so hook order is stable across the collapsed/expanded
+  // early returns below; the body no-ops when there is no invite handler.
+  useEffect(() => {
+    if (!onOpenInvite) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'i' || e.key === 'I') {
+        const target = e.target as HTMLElement | null;
+        const isInput =
+          target?.tagName === 'INPUT' ||
+          target?.tagName === 'TEXTAREA' ||
+          target?.isContentEditable;
+        if (!isInput && !e.metaKey && !e.ctrlKey && !e.altKey) {
+          e.preventDefault();
+          onOpenInvite();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onOpenInvite]);
+
   const run = (action: CreateAction) => {
     if (action.path === null) {
       onCreateChannel();
@@ -307,26 +329,6 @@ export function SidebarFooterActions({
       </div>
     );
   }
-
-  // Keyboard shortcut listener for 'I' (Invite members)
-  useEffect(() => {
-    if (!onOpenInvite) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'i' || e.key === 'I') {
-        const target = e.target as HTMLElement | null;
-        const isInput =
-          target?.tagName === 'INPUT' ||
-          target?.tagName === 'TEXTAREA' ||
-          target?.isContentEditable;
-        if (!isInput && !e.metaKey && !e.ctrlKey && !e.altKey) {
-          e.preventDefault();
-          onOpenInvite();
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onOpenInvite]);
 
   // --- Expanded Sidebar Footer View (Refined Card UX) ---
   return (

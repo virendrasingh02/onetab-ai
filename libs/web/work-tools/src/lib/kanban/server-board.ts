@@ -175,7 +175,7 @@ export function membersFrom(
     id: member.user.id,
     name: member.user.displayName ?? member.user.name,
     displayName: member.user.displayName,
-    email: member.user.email,
+    email: member.email,
     avatarUrl: member.user.avatarUrl ?? undefined,
   }));
 }

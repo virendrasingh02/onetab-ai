@@ -81,7 +81,13 @@ import {
   UnassignedLeadIcon,
 } from './kanban-icons.js';
 import type { BoardAction } from './server-board.js';
-import type { BoardState, KanbanCard, KanbanList, Priority } from './types.js';
+import type {
+  BoardMember,
+  BoardState,
+  KanbanCard,
+  KanbanList,
+  Priority,
+} from './types.js';
 
 export interface CardDetailsDialogProps {
   workspaceId: string | undefined;

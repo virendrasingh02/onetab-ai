@@ -275,34 +275,59 @@ export class CohereAdapter extends BaseProviderAdapter {
     }
   }
 
+  /**
+   * Real Cohere embeddings. Never fabricates: a random vector is
+   * type-identical to a real embedding but semantically empty, so RAG built
+   * on it returns confident nonsense. Callers must get an error they can
+   * surface, not silent garbage.
+   */
   async generateEmbeddings(texts: string[]): Promise<number[][]> {
     if (!this.apiKey) {
-      return texts.map(() => new Array(1024).fill(0).map(() => Math.random()));
+      throw this.normalizeHttpError(401, {
+        message: 'COHERE_API_KEY is not configured; cannot generate embeddings.',
+      });
     }
 
     const endpoint = `${this.baseUrl}/embed`;
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify({
-        texts,
-        model: 'embed-multilingual-v3.0',
-        input_type: 'search_document',
-        embedding_types: ['float'],
-      }),
-    });
+    let res: Response;
+    try {
+      res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          texts,
+          model: 'embed-multilingual-v3.0',
+          input_type: 'search_document',
+          embedding_types: ['float'],
+        }),
+      });
+    } catch (err) {
+      throw this.handleCatchError(err);
+    }
 
     if (!res.ok) {
-      return texts.map(() => new Array(1024).fill(0).map(() => Math.random()));
+      let errBody: Record<string, unknown> = {};
+      try {
+        errBody = (await res.json()) as Record<string, unknown>;
+      } catch {
+        // ignore
+      }
+      throw this.normalizeHttpError(res.status, errBody);
     }
 
     const data = (await res.json()) as {
       embeddings?: { float?: number[][] };
     };
 
-    return data.embeddings?.float ?? texts.map(() => new Array(1024).fill(0).map(() => Math.random()));
+    const vectors = data.embeddings?.float;
+    if (!vectors || vectors.length === 0) {
+      throw this.normalizeHttpError(502, {
+        message: 'Cohere returned no embeddings for the requested texts.',
+      });
+    }
+    return vectors;
   }
 }

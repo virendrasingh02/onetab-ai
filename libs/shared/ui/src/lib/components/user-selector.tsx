@@ -10,7 +10,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './dropdown-menu.js';
-import { Hint } from './tooltip.js';
 
 export interface UserSelectorMember {
   id: string;

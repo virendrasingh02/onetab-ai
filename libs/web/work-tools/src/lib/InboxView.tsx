@@ -16,7 +16,6 @@ import {
 } from '@org/ui';
 import { cn, formatDate, formatRelative } from '@org/utils';
 import {
-  AlertTriangle,
   ArrowDown,
   ArrowRight,
   ArrowUp,
