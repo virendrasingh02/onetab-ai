@@ -382,6 +382,15 @@ export function resolveDirectMessageRoom(
     ) {
       return room.roomId;
     }
+
+    // A note-to-self DM: the caller is the peer, and the only party is them.
+    if (
+      peerUserId === myUserId &&
+      parties.length === 1 &&
+      parties[0] === myUserId
+    ) {
+      return room.roomId;
+    }
   }
 
   return null;

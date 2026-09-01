@@ -21,8 +21,13 @@ export interface PeoplePickerProps {
   /** Ids currently chosen. */
   selectedIds: string[];
   onToggle: (id: string) => void;
-  /** Ids to hide entirely — the current user, people already in the group. */
+  /** Ids to hide entirely — people already in the group. */
   excludeIds?: string[];
+  /**
+   * The viewer's own id. When set, that row is pinned to the top and tagged
+   * "You" — so a note-to-self conversation is easy to start.
+   */
+  currentUserId?: string;
   /** Shown when the roster (after exclusions) is empty. */
   emptyHint?: string;
   className?: string;
@@ -39,6 +44,7 @@ export function PeoplePicker({
   selectedIds,
   onToggle,
   excludeIds,
+  currentUserId,
   emptyHint = 'Invite someone to this workspace to start a conversation.',
   className,
 }: PeoplePickerProps) {
@@ -46,10 +52,16 @@ export function PeoplePicker({
   const excluded = useMemo(() => new Set(excludeIds ?? []), [excludeIds]);
   const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
 
-  const roster = useMemo(
-    () => members.filter((member) => !excluded.has(member.user.id)),
-    [members, excluded],
-  );
+  const roster = useMemo(() => {
+    const list = members.filter((member) => !excluded.has(member.user.id));
+    if (!currentUserId) return list;
+    // Keep the viewer's own row at the top so "message yourself" is one click.
+    return [...list].sort((a, b) => {
+      if (a.user.id === currentUserId) return -1;
+      if (b.user.id === currentUserId) return 1;
+      return 0;
+    });
+  }, [members, excluded, currentUserId]);
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -92,6 +104,7 @@ export function PeoplePicker({
             const name = member.user.displayName ?? member.user.name;
             const kind = peerKind(member.user.id);
             const isSelected = selected.has(member.user.id);
+            const isSelf = member.user.id === currentUserId;
 
             return (
               <li key={member.user.id}>
@@ -118,6 +131,14 @@ export function PeoplePicker({
                   <span className="min-w-0 flex-1">
                     <span className="text-sm font-medium gap-1.5 flex items-center truncate">
                       <span className="truncate">{name}</span>
+                      {isSelf ? (
+                        <Badge
+                          variant="neutral"
+                          className="py-0 h-3.5 font-bold tracking-wider text-[9px] uppercase"
+                        >
+                          You
+                        </Badge>
+                      ) : null}
                       {kind === 'agent' ? (
                         <Badge
                           variant="primary"

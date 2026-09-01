@@ -298,6 +298,43 @@ function SortableDirectMessageRow(props: {
 }
 
 /**
+ * The reader's own row — a note-to-self conversation, pinned to the top of the
+ * list the way every chat app keeps "you" reachable. No favorite / mute menu:
+ * there is no one else here to be notified about.
+ */
+function SelfDmRow({
+  member,
+  workspaceSlug,
+}: {
+  member: WorkspaceMember;
+  workspaceSlug: string;
+}) {
+  const name = member.user.displayName ?? member.user.name;
+  const to = `/w/${workspaceSlug}/dms?user=${member.user.id}`;
+
+  return (
+    <li className="group/row relative">
+      <NavLink
+        to={to}
+        className={({ isActive }) => navRowClass(isActive, { depth: 1 })}
+      >
+        <UserAvatar
+          name={name}
+          src={member.user.avatarUrl}
+          seed={member.user.id}
+          indicator={false}
+          className="size-4 shrink-0"
+        />
+        <span className="flex-1 truncate">{name}</span>
+        <span className="text-[10px] font-medium text-muted-foreground/70">
+          you
+        </span>
+      </NavLink>
+    </li>
+  );
+}
+
+/**
  * A group direct message's row — an avatar stack, its name, and the same
  * favorite / mute controls a 1:1 has, keyed on the room id.
  */
@@ -470,6 +507,16 @@ export function DirectMessagesSection({
     });
   }, [groups, channelNames]);
 
+  const selfMember = useMemo(
+    () =>
+      currentUser?.id
+        ? (members.data ?? []).find(
+            (member) => member.user.id === currentUser.id,
+          )
+        : undefined,
+    [members.data, currentUser?.id],
+  );
+
   const rawPeople = useMemo(() => {
     const seen = new Set<string>();
     const roster = (members.data ?? []).filter((member) => {
@@ -539,7 +586,9 @@ export function DirectMessagesSection({
   return (
     <Section
       title="Direct Messages"
-      count={people.length + filteredGroups.length}
+      count={
+        people.length + filteredGroups.length + (selfMember ? 1 : 0)
+      }
       action={
         <Hint label="New direct message">
           <Button
@@ -556,6 +605,10 @@ export function DirectMessagesSection({
         </Hint>
       }
     >
+      {selfMember ? (
+        <SelfDmRow member={selfMember} workspaceSlug={workspaceSlug} />
+      ) : null}
+
       {filteredGroups.map((group) => (
         <GroupDmRow
           key={group.roomId}

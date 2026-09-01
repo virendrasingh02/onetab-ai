@@ -544,17 +544,20 @@ function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
     [members.data, extraPeers],
   );
 
-  const excludeIds = useMemo(
-    () => (currentUser?.id ? [currentUser.id] : []),
-    [currentUser?.id],
-  );
-
   const selectedMembers = useMemo(
     () => allPeers.filter((member) => selected.includes(member.user.id)),
     [allPeers, selected],
   );
 
-  const isGroup = selected.length >= 2;
+  // The caller is implicit in every conversation, so they do not count toward
+  // "is this a group?" — picking yourself plus one person is still a 1:1, and
+  // picking only yourself is a note-to-self DM.
+  const peerSelection = useMemo(
+    () => selected.filter((id) => id !== currentUser?.id),
+    [selected, currentUser?.id],
+  );
+  const isSelfOnly = selected.length > 0 && peerSelection.length === 0;
+  const isGroup = peerSelection.length >= 2;
 
   const toggle = (id: string) =>
     setSelected((current) =>
@@ -635,7 +638,7 @@ function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
                   members={allPeers}
                   selectedIds={selected}
                   onToggle={toggle}
-                  excludeIds={excludeIds}
+                  currentUserId={currentUser?.id}
                 />
               </div>
 
@@ -656,11 +659,13 @@ function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
                 >
                   {createConversation.isPending
                     ? 'Starting…'
-                    : isGroup
-                      ? `Create group with ${selected.length}`
-                      : selected.length === 1
-                        ? 'Start conversation'
-                        : 'Select someone'}
+                    : isSelfOnly
+                      ? 'Message yourself'
+                      : isGroup
+                        ? `Create group with ${peerSelection.length}`
+                        : peerSelection.length === 1
+                          ? 'Start conversation'
+                          : 'Select someone'}
                 </Button>
               </div>
             </>

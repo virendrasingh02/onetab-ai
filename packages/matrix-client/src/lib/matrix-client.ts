@@ -572,9 +572,17 @@ export class OneTabMatrixClient {
     });
   }
 
-  /** Finds an existing DM with the user, or creates one. */
+  /**
+   * Finds an existing DM with the user, or creates one.
+   *
+   * `userId` may be the caller's own id — a note-to-self room. That room has a
+   * single member (you), so it is created with no invite: the homeserver
+   * rejects inviting yourself to a room you just made, and you are joined to it
+   * already. It is still tagged in `m.direct` so it groups as a DM everywhere.
+   */
   async getOrCreateDirectMessage(userId: string): Promise<RoomId> {
     const sdk = this.require();
+    const isSelf = userId === sdk.getUserId();
 
     const existing = resolveDirectMessageRoom(sdk, userId);
     if (existing) {
@@ -588,7 +596,7 @@ export class OneTabMatrixClient {
       name: '',
       isPrivate: true,
       encrypted: true,
-      inviteUserIds: [userId],
+      inviteUserIds: isSelf ? [] : [userId],
     });
 
     await this.recordDirectMessage(sdk, userId, roomId);
