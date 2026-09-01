@@ -10,6 +10,8 @@ export {
   type TaskCompletedEvent,
   type ProjectCreatedEvent,
   type DocumentCreatedEvent,
+  type DocumentUpdatedEvent,
+  type DocumentDeletedEvent,
   type ChannelCreatedEvent,
 } from './lib/events.js';
 

@@ -16,7 +16,7 @@ import type {
 export class AnthropicAdapter extends BaseProviderAdapter {
   protected readonly logger = new Logger(AnthropicAdapter.name);
   readonly provider: AIProvider = 'anthropic';
-  readonly defaultModel = 'claude-3-5-sonnet-20241022';
+  readonly defaultModel = 'claude-sonnet-4-5';
 
   private apiKey?: string;
   private baseUrl: string;
@@ -49,8 +49,8 @@ export class AnthropicAdapter extends BaseProviderAdapter {
       {
         id: 'claude-sonnet',
         provider: 'anthropic',
-        model: 'claude-3-5-sonnet-20241022',
-        name: 'Claude 3.5 Sonnet',
+        model: 'claude-sonnet-4-5',
+        name: 'Claude Sonnet 4.5',
         type: 'llm',
         enabled: true,
         default: true,
@@ -154,8 +154,12 @@ export class AnthropicAdapter extends BaseProviderAdapter {
 
     // Map model alias if needed
     let modelId = options.model;
-    if (modelId === 'claude-sonnet-4-5' || modelId === 'claude-sonnet') {
-      modelId = 'claude-3-5-sonnet-20241022';
+    // Normalise the internal id / any legacy id onto the current Sonnet.
+    if (
+      modelId === 'claude-sonnet' ||
+      modelId === 'claude-3-5-sonnet-20241022'
+    ) {
+      modelId = 'claude-sonnet-4-5';
     }
 
     const endpoint = `${baseUrl}/messages`;
@@ -291,8 +295,12 @@ export class AnthropicAdapter extends BaseProviderAdapter {
     }
 
     let modelId = options.model;
-    if (modelId === 'claude-sonnet-4-5' || modelId === 'claude-sonnet') {
-      modelId = 'claude-3-5-sonnet-20241022';
+    // Normalise the internal id / any legacy id onto the current Sonnet.
+    if (
+      modelId === 'claude-sonnet' ||
+      modelId === 'claude-3-5-sonnet-20241022'
+    ) {
+      modelId = 'claude-sonnet-4-5';
     }
 
     yield {

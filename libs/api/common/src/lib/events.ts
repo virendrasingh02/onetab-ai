@@ -17,6 +17,8 @@ export const AppEvent = {
   TaskCompleted: 'task.completed',
   ProjectCreated: 'project.created',
   DocumentCreated: 'document.created',
+  DocumentUpdated: 'document.updated',
+  DocumentDeleted: 'document.deleted',
   ChannelCreated: 'channel.created',
   WorkspaceInvited: 'workspace.invited',
   MemberJoined: 'member.joined',
@@ -63,6 +65,17 @@ export interface DocumentCreatedEvent extends BaseEvent {
   title: string;
 }
 
+export interface DocumentUpdatedEvent extends BaseEvent {
+  documentId: string;
+  title: string;
+  /** True when the body changed — the only case that needs a RAG re-index. */
+  contentChanged: boolean;
+}
+
+export interface DocumentDeletedEvent extends BaseEvent {
+  documentId: string;
+}
+
 export interface ChannelCreatedEvent extends BaseEvent {
   channelId: string;
   name: string;
@@ -76,5 +89,7 @@ export interface AppEventPayloads {
   [AppEvent.TaskCompleted]: TaskCompletedEvent;
   [AppEvent.ProjectCreated]: ProjectCreatedEvent;
   [AppEvent.DocumentCreated]: DocumentCreatedEvent;
+  [AppEvent.DocumentUpdated]: DocumentUpdatedEvent;
+  [AppEvent.DocumentDeleted]: DocumentDeletedEvent;
   [AppEvent.ChannelCreated]: ChannelCreatedEvent;
 }

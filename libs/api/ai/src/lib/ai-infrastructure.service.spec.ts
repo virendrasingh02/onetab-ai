@@ -8,6 +8,7 @@ import {
 import { ModelRegistryService } from './model-registry.service.js';
 import { ModelResolverService } from './model-resolver.service.js';
 import { ProviderRegistryService } from './provider-registry.service.js';
+import { QdrantVectorService } from './qdrant-vector.service.js';
 
 describe('AIInfrastructureService (Unified AI Gateway)', () => {
   let service: AIInfrastructureService;
@@ -30,11 +31,13 @@ describe('AIInfrastructureService (Unified AI Gateway)', () => {
     const providerRegistry = new ProviderRegistryService(configService);
     const modelRegistry = new ModelRegistryService(providerRegistry);
     const modelResolver = new ModelResolverService(configService, modelRegistry);
+    const vectorStore = new QdrantVectorService(configService);
 
     return new AIInfrastructureService(
       providerRegistry,
       modelRegistry,
-      modelResolver
+      modelResolver,
+      vectorStore
     );
   };
 
@@ -121,7 +124,7 @@ describe('AIInfrastructureService (Unified AI Gateway)', () => {
       const resolved = service.resolveProviderAndModel(undefined, 'claude-sonnet-4-5');
       expect(resolved).toEqual({
         provider: 'anthropic',
-        model: 'claude-3-5-sonnet-20241022',
+        model: 'claude-sonnet-4-5',
       });
     });
 
@@ -373,7 +376,7 @@ describe('AIInfrastructureService (Unified AI Gateway)', () => {
 
       const result = await service.chat({
         provider: 'anthropic',
-        model: 'claude-3-5-sonnet-20241022',
+        model: 'claude-sonnet-4-5',
         messages: [{ role: 'user', content: 'Hello' }],
       });
 

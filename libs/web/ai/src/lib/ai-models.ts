@@ -44,7 +44,7 @@ export const AI_MODELS = [
     value: 'anthropic',
     label: 'Claude Sonnet 4.5',
     provider: 'anthropic',
-    model: 'claude-3-5-sonnet-20241022',
+    model: 'claude-sonnet-4-5',
     category: 'Anthropic',
     badge: 'Coding & Agents',
   },
@@ -57,86 +57,21 @@ export const AI_MODELS = [
     category: 'Google',
     badge: '2M Context',
   },
-  // DeepSeek
-  {
-    value: 'deepseek',
-    label: 'DeepSeek-V3',
-    provider: 'deepseek',
-    model: 'deepseek-chat',
-    category: 'DeepSeek',
-    badge: 'Code & Math',
-  },
-  {
-    value: 'deepseek-r1',
-    label: 'DeepSeek-R1 (Reasoner)',
-    provider: 'deepseek',
-    model: 'deepseek-reasoner',
-    category: 'DeepSeek',
-    badge: 'Reasoning',
-  },
-  // Groq
-  {
-    value: 'groq',
-    label: 'Llama 3.3 70B (Groq LPU)',
-    provider: 'groq',
-    model: 'llama-3.3-70b-versatile',
-    category: 'Groq',
-    badge: 'Ultra Fast',
-  },
-  // Mistral
-  {
-    value: 'mistral',
-    label: 'Mistral Large',
-    provider: 'mistral',
-    model: 'mistral-large-latest',
-    category: 'Mistral',
-    badge: 'Multilingual',
-  },
-  // xAI
-  {
-    value: 'xai',
-    label: 'Grok 2 (xAI)',
-    provider: 'xai',
-    model: 'grok-2-1212',
-    category: 'xAI',
-    badge: 'Reasoning',
-  },
-  // Together AI
-  {
-    value: 'together',
-    label: 'Llama 3.1 70B Turbo (Together)',
-    provider: 'together',
-    model: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
-    category: 'Together AI',
-    badge: 'Open Source',
-  },
-  // OpenRouter
-  {
-    value: 'openrouter',
-    label: 'OpenRouter (Auto Routing)',
-    provider: 'openrouter',
-    model: 'auto',
-    category: 'OpenRouter',
-    badge: 'Multi-Model',
-  },
-  // Cohere
-  {
-    value: 'cohere',
-    label: 'Command R+ (Cohere)',
-    provider: 'cohere',
-    model: 'command-r-plus-08-2024',
-    category: 'Cohere',
-    badge: 'RAG & Tools',
-  },
-  // Ollama
-  {
-    value: 'ollama',
-    label: 'Ollama Llama 3 (Local)',
-    provider: 'ollama',
-    model: 'llama3',
-    category: 'Local',
-    badge: 'Offline',
-  },
+  // --- Enable later --------------------------------------------------------
+  // The following providers are wired end-to-end (adapters + credential
+  // resolution) but intentionally kept out of the picker for launch. Uncomment
+  // an entry — and add its provider to AI_ENABLED_PROVIDERS on the API — to
+  // switch it on. Nothing else needs to change.
+  //
+  // DeepSeek-V3 ......... provider: 'deepseek',   model: 'deepseek-chat'
+  // DeepSeek-R1 ......... provider: 'deepseek',   model: 'deepseek-reasoner'
+  // Groq Llama 3.3 70B .. provider: 'groq',       model: 'llama-3.3-70b-versatile'
+  // Mistral Large ....... provider: 'mistral',    model: 'mistral-large-latest'
+  // Grok 2 (xAI) ........ provider: 'xai',        model: 'grok-2-1212'
+  // Llama 3.1 70B Turbo . provider: 'together',   model: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo'
+  // OpenRouter (auto) ... provider: 'openrouter', model: 'auto'
+  // Command R+ (Cohere) . provider: 'cohere',     model: 'command-r-plus-08-2024'
+  // Ollama Llama 3 ...... provider: 'ollama',     model: 'llama3'
 ] as const satisfies ReadonlyArray<{
   value: string;
   label: string;

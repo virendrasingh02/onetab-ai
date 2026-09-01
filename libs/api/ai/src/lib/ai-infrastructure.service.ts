@@ -20,6 +20,7 @@ import {
 import { ModelRegistryService } from './model-registry.service.js';
 import { ModelResolverService } from './model-resolver.service.js';
 import { ProviderRegistryService } from './provider-registry.service.js';
+import { QdrantVectorService } from './qdrant-vector.service.js';
 
 export { NEMOTRON_MODEL_ID, NVIDIA_BASE_URL_DEFAULT };
 
@@ -54,6 +55,13 @@ export interface RAGQueryResult {
   score: number;
   metadata?: Record<string, unknown>;
 }
+
+/**
+ * Single Qdrant collection for every workspace's document chunks; tenant
+ * isolation is enforced by the `workspaceId` payload filter on every search,
+ * never by collection name.
+ */
+export const RAG_DOCS_COLLECTION = 'workspace_docs';
 
 export const AI_MODEL_REGISTRY: AIModelMetadata[] = [
   {
@@ -91,13 +99,22 @@ export const AI_MODEL_REGISTRY: AIModelMetadata[] = [
     ],
   },
   {
-    id: 'claude-sonnet',
-    provider: 'anthropic',
-    model: 'claude-3-5-sonnet-20241022',
-    name: 'Claude Sonnet 3.5',
+    id: 'openai-gpt-4o-mini',
+    provider: 'openai',
+    model: 'gpt-4o-mini',
+    name: 'OpenAI GPT-4o Mini',
     enabled: true,
     default: false,
-    capabilities: ['chat', 'reasoning', 'coding', 'agent', 'streaming'],
+    capabilities: ['chat', 'coding', 'agent', 'tool_calling', 'vision', 'streaming'],
+  },
+  {
+    id: 'claude-sonnet',
+    provider: 'anthropic',
+    model: 'claude-sonnet-4-5',
+    name: 'Claude Sonnet 4.5',
+    enabled: true,
+    default: false,
+    capabilities: ['chat', 'reasoning', 'coding', 'agent', 'tool_calling', 'streaming'],
   },
   {
     id: 'gemini-pro',
@@ -108,33 +125,10 @@ export const AI_MODEL_REGISTRY: AIModelMetadata[] = [
     default: false,
     capabilities: ['chat', 'coding', 'agent', 'rag', 'streaming'],
   },
-  {
-    id: 'deepseek-chat',
-    provider: 'deepseek',
-    model: 'deepseek-chat',
-    name: 'DeepSeek-V3',
-    enabled: true,
-    default: false,
-    capabilities: ['chat', 'coding', 'agent', 'streaming', 'reasoning'],
-  },
-  {
-    id: 'groq-llama-3-3-70b',
-    provider: 'groq',
-    model: 'llama-3.3-70b-versatile',
-    name: 'Groq Llama 3.3 70B',
-    enabled: true,
-    default: false,
-    capabilities: ['chat', 'coding', 'streaming'],
-  },
-  {
-    id: 'ollama-llama3',
-    provider: 'ollama',
-    model: 'llama3',
-    name: 'Ollama Llama 3 (Local)',
-    enabled: true,
-    default: false,
-    capabilities: ['chat', 'coding', 'streaming'],
-  },
+  // Additional providers (DeepSeek, Groq, Mistral, xAI, Together, OpenRouter,
+  // Cohere, Ollama) ship disabled for launch — their adapters are still
+  // registered and callable, they are just not advertised. Re-enable by adding
+  // them to AI_ENABLED_PROVIDERS / AI_ENABLED_MODELS and restoring entries here.
 ];
 
 @Injectable()
@@ -145,6 +139,7 @@ export class AIInfrastructureService implements OnModuleInit {
     private readonly providerRegistry: ProviderRegistryService,
     private readonly modelRegistry: ModelRegistryService,
     private readonly modelResolver: ModelResolverService,
+    private readonly vectorStore: QdrantVectorService,
   ) {}
 
   onModuleInit(): void {
@@ -176,7 +171,7 @@ export class AIInfrastructureService implements OnModuleInit {
   }
 
   getAllModels(): AIModelMetadata[] {
-    return this.modelRegistry.getAllModels();
+    return this.providerRegistry.getEnabledModels();
   }
 
   async testProviderConnection(
@@ -385,33 +380,57 @@ export class AIInfrastructureService implements OnModuleInit {
     text: string,
     _model = 'nomic-embed-text',
   ): Promise<number[]> {
-    this.logger.log(`Generating embedding for text of length ${text.length}`);
-    const openaiAdapter = this.providerRegistry.getAdapter('openai');
-    if (
-      openaiAdapter &&
-      openaiAdapter.isConfigured() &&
-      openaiAdapter.generateEmbeddings
-    ) {
-      const embeddings = await openaiAdapter.generateEmbeddings([text]);
-      if (embeddings[0] && embeddings[0].length > 0) {
-        return embeddings[0];
-      }
+    const [vector] = await this.generateEmbeddings([text]);
+    if (!vector || vector.length === 0) {
+      throw new ServiceUnavailableException(
+        'Embedding provider returned an empty vector.',
+      );
     }
+    return vector;
+  }
 
-    const cohereAdapter = this.providerRegistry.getAdapter('cohere');
-    if (
-      cohereAdapter &&
-      cohereAdapter.isConfigured() &&
-      cohereAdapter.generateEmbeddings
-    ) {
-      const embeddings = await cohereAdapter.generateEmbeddings([text]);
-      if (embeddings[0] && embeddings[0].length > 0) {
-        return embeddings[0];
+  /**
+   * Batch embedding. Tries the configured providers in order — a hosted key
+   * beats the local model on quality — and only falls through to the next on a
+   * hard failure. Throws when none can produce a vector rather than returning
+   * anything a caller could mistake for a real embedding.
+   */
+  async generateEmbeddings(texts: string[]): Promise<number[][]> {
+    if (texts.length === 0) return [];
+    this.logger.log(`Generating ${texts.length} embedding(s)`);
+
+    const order: AIProvider[] = ['openai', 'cohere', 'ollama'];
+    const errors: string[] = [];
+
+    for (const provider of order) {
+      const adapter = this.providerRegistry.getAdapter(provider);
+      if (
+        !adapter ||
+        !adapter.generateEmbeddings ||
+        (provider !== 'ollama' && !adapter.isConfigured())
+      ) {
+        continue;
+      }
+      try {
+        const vectors = await adapter.generateEmbeddings(texts);
+        if (
+          vectors.length === texts.length &&
+          vectors.every((v) => v.length > 0)
+        ) {
+          return vectors;
+        }
+        errors.push(`${provider}: returned ${vectors.length}/${texts.length} vectors`);
+      } catch (err) {
+        errors.push(
+          `${provider}: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
 
     throw new ServiceUnavailableException(
-      'No embedding-capable provider is configured (checked OpenAI, Cohere). Embeddings cannot be generated.',
+      `No embedding-capable provider succeeded (tried ${order.join(
+        ', ',
+      )}). ${errors.join(' | ') || 'None configured.'}`,
     );
   }
 
@@ -419,9 +438,13 @@ export class AIInfrastructureService implements OnModuleInit {
     collectionName: string,
     embedding: VectorEmbedding,
   ): Promise<void> {
-    this.logger.log(
-      `Upserting vector ${embedding.id} into Qdrant collection '${collectionName}'`,
-    );
+    await this.vectorStore.upsert(collectionName, [
+      {
+        key: embedding.id,
+        vector: embedding.vector,
+        payload: embedding.payload ?? {},
+      },
+    ]);
   }
 
   /**
@@ -435,11 +458,12 @@ export class AIInfrastructureService implements OnModuleInit {
   ): Promise<
     Array<{ id: string; score: number; payload?: Record<string, unknown> }>
   > {
-    this.logger.log(
-      `Searching Qdrant collection '${collectionName}' for workspace ${filter.workspaceId} ` +
-        `with vector size ${vector.length}, limit ${limit}`,
+    return this.vectorStore.search(
+      collectionName,
+      vector,
+      filter.workspaceId,
+      limit,
     );
-    return [];
   }
 
   chunkDocument(text: string, chunkSize = 500, overlap = 50): string[] {
@@ -454,23 +478,37 @@ export class AIInfrastructureService implements OnModuleInit {
     return chunks;
   }
 
+  /**
+   * (Re)indexes one document. Old chunks are dropped first so a shorter
+   * revision cannot leave stale tail chunks searchable, then every chunk is
+   * embedded in one batch and upserted together.
+   */
   async ingestDocumentForRAG(
     workspaceId: string,
     documentId: string,
     text: string,
     metadata: Record<string, unknown> = {},
   ): Promise<void> {
-    const chunks = this.chunkDocument(text);
-    this.logger.log(
-      `Ingesting document ${documentId} for workspace ${workspaceId} with ${chunks.length} chunks into RAG pipeline`,
-    );
+    await this.vectorStore.deleteByDocument(RAG_DOCS_COLLECTION, documentId);
 
-    for (let index = 0; index < chunks.length; index++) {
-      const chunkText = chunks[index]!;
-      const vector = await this.generateEmbedding(chunkText);
-      await this.upsertVector('workspace_docs', {
-        id: `${documentId}_chunk_${index}`,
-        vector,
+    const chunks = this.chunkDocument(text);
+    if (chunks.length === 0) {
+      this.logger.log(
+        `Document ${documentId} is empty — cleared from RAG index, nothing to add.`,
+      );
+      return;
+    }
+
+    this.logger.log(
+      `Ingesting document ${documentId} (workspace ${workspaceId}) — ${chunks.length} chunk(s)`,
+    );
+    const vectors = await this.generateEmbeddings(chunks);
+
+    await this.vectorStore.upsert(
+      RAG_DOCS_COLLECTION,
+      chunks.map((chunkText, index) => ({
+        key: `${documentId}:chunk:${index}`,
+        vector: vectors[index]!,
         payload: {
           ...metadata,
           workspaceId,
@@ -478,8 +516,13 @@ export class AIInfrastructureService implements OnModuleInit {
           chunkIndex: index,
           text: chunkText,
         },
-      });
-    }
+      })),
+    );
+  }
+
+  /** Drops a document from the RAG index — call on delete. */
+  async removeDocumentFromRAG(documentId: string): Promise<void> {
+    await this.vectorStore.deleteByDocument(RAG_DOCS_COLLECTION, documentId);
   }
 
   async queryRAG(
@@ -489,7 +532,7 @@ export class AIInfrastructureService implements OnModuleInit {
   ): Promise<RAGQueryResult[]> {
     const queryVector = await this.generateEmbedding(queryText);
     const rawResults = await this.searchVector(
-      'workspace_docs',
+      RAG_DOCS_COLLECTION,
       queryVector,
       { workspaceId },
       limit,

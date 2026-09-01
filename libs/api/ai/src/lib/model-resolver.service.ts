@@ -136,9 +136,10 @@ export class ModelResolverService {
     } else if (
       resolvedModel === 'claude-sonnet' ||
       resolvedModel === 'claude-sonnet-4-5' ||
+      resolvedModel === 'claude-3-5-sonnet-20241022' ||
       resolvedModel === 'anthropic'
     ) {
-      resolvedModel = 'claude-3-5-sonnet-20241022';
+      resolvedModel = 'claude-sonnet-4-5';
       resolvedProvider = 'anthropic';
     } else if (resolvedModel === 'gemini' || resolvedModel === 'gemini-pro') {
       resolvedModel = 'gemini-1.5-pro';

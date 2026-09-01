@@ -11,6 +11,8 @@ import { ModelResolverService } from './model-resolver.service.js';
 import { PromptTemplateController } from './prompt-template.controller.js';
 import { PromptTemplateService } from './prompt-template.service.js';
 import { ProviderRegistryService } from './provider-registry.service.js';
+import { QdrantVectorService } from './qdrant-vector.service.js';
+import { RagIngestListener } from './rag-ingest.listener.js';
 
 @Module({
   imports: [ConfigModule, AuthModule, PrismaModule],
@@ -21,8 +23,10 @@ import { ProviderRegistryService } from './provider-registry.service.js';
     ModelRegistryService,
     ModelResolverService,
     AICredentialService,
+    QdrantVectorService,
     AIInfrastructureService,
     PromptTemplateService,
+    RagIngestListener,
   ],
   exports: [
     AIEncryptionService,
@@ -30,6 +34,7 @@ import { ProviderRegistryService } from './provider-registry.service.js';
     ModelRegistryService,
     ModelResolverService,
     AICredentialService,
+    QdrantVectorService,
     AIInfrastructureService,
     PromptTemplateService,
   ],

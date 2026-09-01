@@ -28,7 +28,31 @@ export class ProviderRegistryService implements OnModuleInit {
   private readonly logger = new Logger(ProviderRegistryService.name);
   private readonly adapters = new Map<AIProvider, IProviderAdapter>();
 
+  /**
+   * Optional launch allowlists. Empty (env unset) means "surface everything" —
+   * so other environments are unaffected. When set, `getEnabled*` and the
+   * provider/model metadata the settings UI and model picker read are narrowed
+   * to these. Every adapter is still *registered* and directly callable; this
+   * only controls what is advertised. "Add the rest later" = extend the env
+   * lists (or clear them).
+   */
+  private readonly enabledProviders: Set<AIProvider>;
+  private readonly enabledModelIds: Set<string>;
+
   constructor(private readonly config: ConfigService) {
+    this.enabledProviders = new Set(
+      (this.config.get<string>('AI_ENABLED_PROVIDERS') ?? '')
+        .split(',')
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean) as AIProvider[],
+    );
+    this.enabledModelIds = new Set(
+      (this.config.get<string>('AI_ENABLED_MODELS') ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    );
+
     this.registerAdapter(new NvidiaAdapter(this.config));
     this.registerAdapter(new OpenAIAdapter(this.config));
     this.registerAdapter(new AnthropicAdapter(this.config));
@@ -51,6 +75,38 @@ export class ProviderRegistryService implements OnModuleInit {
     this.logger.log(
       `ProviderRegistry initialized with ${this.adapters.size} providers (Configured: [${configuredList.join(', ')}])`
     );
+    if (this.enabledProviders.size > 0) {
+      this.logger.log(
+        `AI provider allowlist active: [${Array.from(this.enabledProviders)
+          .join(', ')
+          .toUpperCase()}]`,
+      );
+    }
+    if (this.enabledModelIds.size > 0) {
+      this.logger.log(
+        `AI model allowlist active: [${Array.from(this.enabledModelIds).join(', ')}]`,
+      );
+    }
+  }
+
+  /** Whether a provider is surfaced in the UI (always true when no allowlist). */
+  isProviderEnabled(provider: AIProvider): boolean {
+    return (
+      this.enabledProviders.size === 0 || this.enabledProviders.has(provider)
+    );
+  }
+
+  private isModelEnabled(model: AIModelMetadata): boolean {
+    if (!this.isProviderEnabled(model.provider)) return false;
+    if (this.enabledModelIds.size === 0) return true;
+    return (
+      this.enabledModelIds.has(model.id) || this.enabledModelIds.has(model.model)
+    );
+  }
+
+  /** Models surfaced in the picker / settings, after the launch allowlists. */
+  getEnabledModels(): AIModelMetadata[] {
+    return this.getAllModels().filter((m) => this.isModelEnabled(m));
   }
 
   private registerAdapter(adapter: IProviderAdapter): void {
@@ -79,38 +135,42 @@ export class ProviderRegistryService implements OnModuleInit {
   }
 
   getAllProvidersMetadata(): AIProviderMetadata[] {
-    return Array.from(this.adapters.values()).map((adapter) => {
-      const isConfigured = adapter.isConfigured();
-      const models = adapter.getModels();
-      const capabilities = Array.from(
-        new Set(
-          models.flatMap((m) =>
-            Array.isArray(m.capabilities)
-              ? m.capabilities
-              : Object.entries(m.capabilities)
-                  .filter(([, v]) => Boolean(v))
-                  .map(([k]) => k)
+    return Array.from(this.adapters.values())
+      .filter((adapter) => this.isProviderEnabled(adapter.provider))
+      .map((adapter) => {
+        const isConfigured = adapter.isConfigured();
+        const models = adapter
+          .getModels()
+          .filter((m) => this.isModelEnabled(m));
+        const capabilities = Array.from(
+          new Set(
+            models.flatMap((m) =>
+              Array.isArray(m.capabilities)
+                ? m.capabilities
+                : Object.entries(m.capabilities)
+                    .filter(([, v]) => Boolean(v))
+                    .map(([k]) => k)
+            )
           )
-        )
-      );
+        );
 
-      const status: AIProviderStatus = isConfigured
-        ? 'CONNECTED'
-        : 'NOT_CONFIGURED';
+        const status: AIProviderStatus = isConfigured
+          ? 'CONNECTED'
+          : 'NOT_CONFIGURED';
 
-      return {
-        id: adapter.provider,
-        name: this.formatProviderName(adapter.provider),
-        type: 'llm',
-        configured: isConfigured,
-        requiresApiKey: adapter.provider !== 'ollama',
-        status,
-        capabilities,
-        defaultModel: adapter.defaultModel,
-        models,
-        description: `High performance multi-model integration for ${this.formatProviderName(adapter.provider)}`,
-      };
-    });
+        return {
+          id: adapter.provider,
+          name: this.formatProviderName(adapter.provider),
+          type: 'llm',
+          configured: isConfigured,
+          requiresApiKey: adapter.provider !== 'ollama',
+          status,
+          capabilities,
+          defaultModel: adapter.defaultModel,
+          models,
+          description: `High performance multi-model integration for ${this.formatProviderName(adapter.provider)}`,
+        };
+      });
   }
 
   getAllModels(): AIModelMetadata[] {

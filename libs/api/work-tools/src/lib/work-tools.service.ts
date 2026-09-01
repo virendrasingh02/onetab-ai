@@ -1465,7 +1465,7 @@ export class WorkToolsService {
     await this.assertDocument(workspaceId, docId);
     if (input.parentId) await this.assertDocument(workspaceId, input.parentId);
 
-    return this.prisma.workDocument.update({
+    const doc = await this.prisma.workDocument.update({
       where: { id: docId },
       data: {
         ...(input.title !== undefined ? { title: input.title } : {}),
@@ -1477,6 +1477,16 @@ export class WorkToolsService {
         children: { select: { id: true, title: true, kind: true } },
       },
     });
+
+    this.events.emit(AppEvent.DocumentUpdated, {
+      workspaceId,
+      actorId: doc.authorId,
+      documentId: doc.id,
+      title: doc.title,
+      contentChanged: input.content !== undefined,
+    });
+
+    return doc;
   }
 
   async deleteDocument(workspaceId: string, docId: string): Promise<void> {
@@ -1486,6 +1496,12 @@ export class WorkToolsService {
     await this.prisma.workDocument.update({
       where: { id: docId },
       data: { deletedAt: new Date() },
+    });
+
+    this.events.emit(AppEvent.DocumentDeleted, {
+      workspaceId,
+      actorId: null,
+      documentId: docId,
     });
   }
 
