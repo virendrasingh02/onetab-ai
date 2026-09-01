@@ -12,3 +12,5 @@ export * from './together.adapter.js';
 export * from './openrouter.adapter.js';
 export * from './cohere.adapter.js';
 export * from './ollama.adapter.js';
+export * from './custom-llm.adapter.js';
+

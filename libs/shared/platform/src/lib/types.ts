@@ -29,7 +29,7 @@ export type Distribution = 'direct' | 'microsoft-store' | 'mac-app-store' | 'web
  * §4-B2). The type and the `REQUIRES_PLAN` state exist so a real plan check
  * can be dropped into `evaluateFeature` later without a schema change.
  */
-export type PlanTier = 'free' | 'pro' | 'business' | 'enterprise';
+export type PlanTier = 'starter' | 'free' | 'pro' | 'business' | 'enterprise';
 
 /**
  * Boolean facts a runtime can report about itself. This mirrors

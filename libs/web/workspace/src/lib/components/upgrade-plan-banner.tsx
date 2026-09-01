@@ -1,6 +1,7 @@
 import { Badge, Button } from '@org/ui';
 import {
   ArrowRight,
+  Building2,
   CheckCircle2,
   Crown,
   Sparkles,
@@ -8,11 +9,12 @@ import {
   Zap,
 } from 'lucide-react';
 
+import { PLANS_CONFIG, type PlanTier } from '@org/types';
 
 export interface UpgradePlanBannerProps {
   totalMembers?: number;
   maxSeats?: number;
-  currentPlan?: 'starter' | 'pro' | 'enterprise';
+  currentPlan?: PlanTier | string;
   onUpgradeClick?: () => void;
   className?: string;
   variant?: 'card' | 'compact' | 'hero';
@@ -26,37 +28,45 @@ export function UpgradePlanBanner({
   className = '',
   variant = 'hero',
 }: UpgradePlanBannerProps) {
+  const normalizedPlan = (currentPlan?.toLowerCase().trim() || 'starter') as PlanTier;
+  const isPaid = normalizedPlan !== 'starter';
+  const effectiveMaxSeats = maxSeats === -1 ? 100 : maxSeats;
   const percentUsed = Math.min(
     100,
-    Math.round((totalMembers / maxSeats) * 100),
+    Math.round((totalMembers / effectiveMaxSeats) * 100),
   );
-  const seatsRemaining = Math.max(0, maxSeats - totalMembers);
+  const seatsRemaining = Math.max(0, effectiveMaxSeats - totalMembers);
   const isNearLimit = percentUsed >= 80;
 
-  if (currentPlan === 'pro' || currentPlan === 'enterprise') {
+  if (isPaid) {
+    const isEnterprise = normalizedPlan === 'enterprise';
+    const isBusiness = normalizedPlan === 'business';
+    const Icon = isEnterprise ? Crown : isBusiness ? Building2 : Sparkles;
+
     return (
       <div
-        className={`relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-surface p-5 text-card-foreground shadow-sm ${className}`}
+        className={`relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-surface p-5 text-card-foreground shadow-xs ${className}`}
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/20 text-primary ring-1 ring-primary/30">
-              <Crown className="size-5" />
+              <Icon className="size-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-semibold text-foreground">
-                  {currentPlan === 'enterprise'
-                    ? 'Enterprise Plan Active'
-                    : 'Pro Team Plan Active'}
+                  {PLANS_CONFIG[normalizedPlan]?.name || 'Pro'} Plan Active
                 </h3>
                 <Badge variant="primary" className="text-[10px] font-bold">
                   ACTIVE
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Your workspace has unlimited member seats, priority compute, and
-                advanced multi-agent workflows.
+                {isEnterprise
+                  ? 'Your workspace has custom private LLM integration, dedicated support, and enterprise governance.'
+                  : isBusiness
+                    ? 'Your workspace has organization controls, audit logs, SAML SSO, and advanced analytics.'
+                    : 'Your workspace has expanded member seats, priority compute, and advanced project views.'}
               </p>
             </div>
           </div>
@@ -81,12 +91,12 @@ export function UpgradePlanBanner({
         className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-border bg-surface-inset/60 p-3.5 text-xs ${className}`}
       >
         <div className="flex items-center gap-2.5">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-warning/10 text-warning-text">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Sparkles className="size-4" />
           </div>
           <div>
             <span className="font-medium text-foreground">
-              Free Starter Plan:
+              Free Starter Tier:
             </span>{' '}
             <span className="text-muted-foreground">
               {totalMembers} of {maxSeats} seats used ({seatsRemaining} left)
@@ -108,7 +118,7 @@ export function UpgradePlanBanner({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-surface to-surface-inset/80 p-5 md:p-6 shadow-sm transition-all ${className}`}
+      className={`relative overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/10 via-surface to-surface-inset/80 p-5 md:p-6 shadow-xs transition-all ${className}`}
     >
       {/* Background ambient decoration */}
       <div
@@ -124,7 +134,7 @@ export function UpgradePlanBanner({
               className="gap-1.5 px-2.5 py-0.5 text-xs font-semibold"
             >
               <Sparkles className="size-3.5 text-primary-foreground" />
-              PRO PLAN UPGRADE
+              UPGRADE YOUR WORKSPACE
             </Badge>
             {isNearLimit ? (
               <Badge
@@ -135,18 +145,17 @@ export function UpgradePlanBanner({
               </Badge>
             ) : (
               <span className="text-xs text-muted-foreground">
-                Current: <strong className="text-foreground">Free Starter Tier</strong>
+                Current: <strong className="text-foreground">Starter (Free)</strong>
               </span>
             )}
           </div>
 
           <div className="space-y-1">
             <h3 className="text-base md:text-lg font-semibold tracking-tight text-foreground">
-              Supercharge your team with unlimited members & AI agents
+              Supercharge your team with unlimited projects & AI power
             </h3>
             <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
-              Unlock unlimited member seats, GPT-4o & Claude 3.5 Sonnet agent
-              workflows, 500GB cloud storage, and granular channel permissions.
+              Unlock unlimited projects, Gantt/Timeline views, AI agent builder, 100GB cloud storage, and priority support.
             </p>
           </div>
 
@@ -178,15 +187,15 @@ export function UpgradePlanBanner({
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground pt-1">
             <div className="flex items-center gap-1">
               <CheckCircle2 className="size-3.5 text-primary" />
-              <span>Unlimited team members</span>
+              <span>Unlimited active projects</span>
             </div>
             <div className="flex items-center gap-1">
               <CheckCircle2 className="size-3.5 text-primary" />
-              <span>Priority AI compute</span>
+              <span>Timeline & Gantt views</span>
             </div>
             <div className="flex items-center gap-1">
               <CheckCircle2 className="size-3.5 text-primary" />
-              <span>Export & Slack/Notion sync</span>
+              <span>10,000 monthly AI requests</span>
             </div>
           </div>
         </div>
@@ -204,7 +213,7 @@ export function UpgradePlanBanner({
             <ArrowRight className="size-4 ml-1.5 transition-transform group-hover:translate-x-0.5" />
           </Button>
           <span className="text-center text-[11px] text-muted-foreground">
-            Cancel anytime · 14-day free trial
+            Cancel anytime · Save 20% on annual plans
           </span>
         </div>
       </div>

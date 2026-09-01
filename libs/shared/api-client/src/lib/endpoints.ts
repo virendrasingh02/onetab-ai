@@ -109,7 +109,19 @@ import type {
   Initiative,
   IntakeRequest,
   Module,
+  CustomLLMConfigDto,
+  DowngradeImpactSummary,
+  DowngradePlanInput,
+  EnterpriseInquiryInput,
+  InvoiceItemDto,
+  PlanTier,
+  SaveCustomLLMInput,
+  TestCustomLLMInput,
+  TestCustomLLMResponse,
+  UpgradePlanInput,
+  WorkspaceBillingSummary,
 } from '@org/types';
+
 import type {
   AddChannelMembersInput,
   ChannelPreferencesInput,
@@ -364,6 +376,59 @@ export const workspaceApi = {
       http.post(`/workspaces/${workspaceId}/transfer-ownership`, { userId }),
     ),
 };
+
+export const billingApi = {
+  summary: (workspaceId: string) =>
+    request<WorkspaceBillingSummary>(
+      http.get(`/workspaces/${workspaceId}/billing`),
+    ),
+
+  upgrade: (workspaceId: string, input: UpgradePlanInput) =>
+    request<WorkspaceBillingSummary>(
+      http.post(`/workspaces/${workspaceId}/billing/upgrade`, input),
+    ),
+
+  downgradeImpact: (workspaceId: string, targetPlan: PlanTier) =>
+    request<DowngradeImpactSummary>(
+      http.get(`/workspaces/${workspaceId}/billing/downgrade-impact`, {
+        params: { targetPlan },
+      }),
+    ),
+
+  downgrade: (workspaceId: string, input: DowngradePlanInput) =>
+    request<WorkspaceBillingSummary>(
+      http.post(`/workspaces/${workspaceId}/billing/downgrade`, input),
+    ),
+
+  submitEnterpriseInquiry: (
+    workspaceId: string,
+    input: EnterpriseInquiryInput,
+  ) =>
+    request<{ success: boolean; inquiryId: string; message: string }>(
+      http.post(`/workspaces/${workspaceId}/billing/enterprise-inquiry`, input),
+    ),
+
+  getCustomLLM: (workspaceId: string) =>
+    request<CustomLLMConfigDto | null>(
+      http.get(`/workspaces/${workspaceId}/billing/custom-llm`),
+    ),
+
+  saveCustomLLM: (workspaceId: string, input: SaveCustomLLMInput) =>
+    request<CustomLLMConfigDto>(
+      http.post(`/workspaces/${workspaceId}/billing/custom-llm`, input),
+    ),
+
+  testCustomLLM: (workspaceId: string, input: TestCustomLLMInput) =>
+    request<TestCustomLLMResponse>(
+      http.post(`/workspaces/${workspaceId}/billing/custom-llm/test`, input),
+    ),
+
+  invoices: (workspaceId: string) =>
+    request<InvoiceItemDto[]>(
+      http.get(`/workspaces/${workspaceId}/billing/invoices`),
+    ),
+};
+
 
 export const channelApi = {
   list: (workspaceId: string, includeArchived = false) =>

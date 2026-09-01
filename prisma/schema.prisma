@@ -150,6 +150,8 @@ model Workspace {
   workDocuments            WorkDocument[]
   members                  WorkspaceMember[]
   notifications            Notification[]
+  subscription             WorkspaceSubscription?
+  enterpriseInquiries      EnterpriseSalesInquiry[]
   owner                    User                      @relation("WorkspaceOwner", fields: [ownerId], references: [id])
 
   @@index([ownerId])
@@ -1173,6 +1175,47 @@ model OrganizationSubscription {
 
   @@index([organizationId])
   @@map("organization_subscriptions")
+}
+
+model WorkspaceSubscription {
+  id                 String    @id @default(cuid())
+  workspaceId        String    @unique
+  planTier           String    @default("STARTER")
+  billingInterval    String    @default("MONTHLY")
+  status             String    @default("ACTIVE")
+  seatsTotal         Int       @default(5)
+  seatsUsed          Int       @default(1)
+  customLlmConfig    String?
+  cancelAtPeriodEnd  Boolean   @default(false)
+  currentPeriodStart DateTime  @default(now())
+  currentPeriodEnd   DateTime  @default(now())
+  renewAt            DateTime  @default(now())
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([planTier, status])
+  @@map("workspace_subscriptions")
+}
+
+model EnterpriseSalesInquiry {
+  id                     String    @id @default(cuid())
+  workspaceId            String
+  userId                 String
+  name                   String
+  email                  String
+  companyName            String
+  teamSize               String?
+  customLlmRequirements String?
+  message                String?
+  status                 String    @default("PENDING")
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  workspace              Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("enterprise_sales_inquiries")
 }
 
 model ExternalIntegration {

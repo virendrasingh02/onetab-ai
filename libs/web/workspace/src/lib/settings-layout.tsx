@@ -11,7 +11,9 @@ import {
   Building2,
   Calendar,
   CreditCard,
+  Cpu,
   FileCode,
+
   FolderArchive,
   Globe,
   Kanban,
@@ -133,10 +135,17 @@ export function SettingsLayout({
           icon: Sparkles,
           badge: 'AI',
         },
+        {
+          id: 'enterprise-custom-llm',
+          label: 'Custom LLM (Enterprise)',
+          icon: Cpu,
+          badge: 'ENT',
+        },
         { id: 'agent-marketplace', label: 'Agent Marketplace', icon: Bot },
         { id: 'automations', label: 'Workflow Automations', icon: Workflow },
       ],
     },
+
     {
       section: 'workspace',
       title: 'Work Tools & Features',

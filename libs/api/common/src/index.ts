@@ -30,6 +30,11 @@ export {
   CurrentUser,
   IS_PUBLIC_KEY,
   Public,
+  REQUIRE_PLAN_KEY,
+  REQUIRE_PLAN_FEATURE_KEY,
+  RequirePlan,
+  RequirePlanFeature,
+  WorkspacePlan,
   RequireWorkspacePermissions,
   SYSTEM_ROLES_KEY,
   SystemRoles,
@@ -41,6 +46,7 @@ export {
   WorkspaceRoles,
   type AuthenticatedUser,
 } from './lib/decorators.js';
+
 
 export {
   expiresAt,

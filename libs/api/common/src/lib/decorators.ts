@@ -109,3 +109,28 @@ export const WorkspacePermissions = createParamDecorator(
       | undefined;
   },
 );
+
+export const REQUIRE_PLAN_KEY = 'requirePlan';
+/**
+ * Minimum plan tier required for this route (e.g. 'pro', 'business', 'enterprise').
+ */
+export const RequirePlan = (plan: 'starter' | 'pro' | 'business' | 'enterprise') =>
+  SetMetadata(REQUIRE_PLAN_KEY, plan);
+
+export const REQUIRE_PLAN_FEATURE_KEY = 'requirePlanFeature';
+/**
+ * Specific plan feature required for this route (e.g. 'custom_llm', 'audit_logs').
+ */
+export const RequirePlanFeature = (feature: string) =>
+  SetMetadata(REQUIRE_PLAN_FEATURE_KEY, feature);
+
+/**
+ * Injects the resolved workspace plan tier.
+ */
+export const WorkspacePlan = createParamDecorator(
+  (_data: unknown, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest();
+    return request.workspacePlan as string | undefined;
+  },
+);
+

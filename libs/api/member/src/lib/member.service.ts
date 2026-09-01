@@ -19,13 +19,16 @@ import { PrismaService } from '@org/database';
 import {
   InvitationStatus,
   WorkspaceRole,
+  getPlanLimit,
   hasWorkspaceRole,
+  normalizePlanTier,
   type Invitation,
   type InvitationPublicPreview,
   type InviteBatchResult,
   type MembershipStatus,
   type WorkspaceMember,
 } from '@org/types';
+
 import type {
   CreateInvitationLinkInput,
   InviteMembersInput,
@@ -286,8 +289,26 @@ export class MemberService {
       return { invited: [], alreadyMembers };
     }
 
+    // Enforce workspace subscription member limit
+    const sub = await this.prisma.workspaceSubscription.findUnique({
+      where: { workspaceId },
+      select: { planTier: true, seatsTotal: true },
+    });
+    const plan = normalizePlanTier(sub?.planTier ?? 'starter');
+    const maxLimit = getPlanLimit(plan, 'max_members');
+    const currentMemberCount = await this.prisma.workspaceMember.count({
+      where: { workspaceId, status: 'ACTIVE' },
+    });
+
+    if (maxLimit !== -1 && currentMemberCount + pendingEmails.length > maxLimit) {
+      throw new ForbiddenException(
+        `Cannot invite ${pendingEmails.length} member(s). Your current ${plan.toUpperCase()} plan limit is ${maxLimit} members (currently using ${currentMemberCount}). Please upgrade to add more members.`,
+      );
+    }
+
     const tokens: Record<string, string> = {};
     const invited: Invitation[] = [];
+
 
     for (const email of pendingEmails) {
       const token = generateToken(32);
@@ -561,7 +582,26 @@ export class MemberService {
       );
     }
 
+    // Verify workspace member limit
+    const sub = await this.prisma.workspaceSubscription.findUnique({
+      where: { workspaceId: invitation.workspaceId },
+      select: { planTier: true },
+    });
+    const plan = normalizePlanTier(sub?.planTier ?? 'starter');
+    const maxLimit = getPlanLimit(plan, 'max_members');
+    if (maxLimit !== -1) {
+      const currentMemberCount = await this.prisma.workspaceMember.count({
+        where: { workspaceId: invitation.workspaceId, status: 'ACTIVE' },
+      });
+      if (currentMemberCount >= maxLimit) {
+        throw new ForbiddenException(
+          `This workspace has reached its ${plan.toUpperCase()} plan limit of ${maxLimit} members. The workspace owner must upgrade the subscription to add more members.`,
+        );
+      }
+    }
+
     const newUseCount = invitation.useCount + 1;
+
     const isExhausted =
       !invitation.isLink ||
       (invitation.maxUses !== null &&

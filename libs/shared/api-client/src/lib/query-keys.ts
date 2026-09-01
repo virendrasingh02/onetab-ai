@@ -18,6 +18,15 @@ export const queryKeys = {
     list: () => ['workspaces', 'list'] as const,
     detail: (slug: string) => ['workspaces', 'detail', slug] as const,
   },
+  billing: {
+    all: (workspaceId: string) => ['billing', workspaceId] as const,
+    summary: (workspaceId: string) => ['billing', workspaceId, 'summary'] as const,
+    downgradeImpact: (workspaceId: string, targetPlan: string) =>
+      ['billing', workspaceId, 'downgrade-impact', targetPlan] as const,
+    customLLM: (workspaceId: string) => ['billing', workspaceId, 'custom-llm'] as const,
+    invoices: (workspaceId: string) => ['billing', workspaceId, 'invoices'] as const,
+  },
+
   channels: {
     all: (workspaceId: string) => ['channels', workspaceId] as const,
     list: (workspaceId: string, includeArchived: boolean) =>

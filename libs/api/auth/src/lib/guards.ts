@@ -10,6 +10,8 @@ import { AuthGuard } from '@nestjs/passport';
 import {
   ALLOW_ARCHIVED_KEY,
   IS_PUBLIC_KEY,
+  REQUIRE_PLAN_FEATURE_KEY,
+  REQUIRE_PLAN_KEY,
   SYSTEM_ROLES_KEY,
   WORKSPACE_PERMISSIONS_KEY,
   WORKSPACE_ROLES_KEY,
@@ -22,9 +24,14 @@ import {
   WorkspacePermission,
   WorkspaceRole,
   WorkspaceStatus,
+  hasFeature,
   hasWorkspaceRole,
+  isPlanAtLeast,
+  normalizePlanTier,
   permissionsForRole,
   roleHasPermission,
+  type PlanFeature,
+  type PlanTier,
 } from '@org/types';
 
 /** HTTP methods that change state, and so are refused on a frozen workspace. */
@@ -88,13 +95,8 @@ export class SystemRoleGuard implements CanActivate {
  * route, proves the caller belongs to it, and enforces what their role allows.
  *
  * Accepts either `:workspaceId` or `:workspaceSlug`, and caches the resolved
- * workspace id, role and permission set on the request so handlers do not
- * repeat the lookup.
- *
- * The workspace is only ever read from the route — never from a body or a
- * header — and membership is re-checked on every request rather than carried
- * in the JWT, so revoking someone takes effect on their next call instead of
- * at their next login.
+ * workspace id, role, permission set, and active subscription plan tier on the
+ * request so handlers do not repeat the lookup.
  */
 @Injectable()
 export class WorkspaceRoleGuard implements CanActivate {
@@ -115,7 +117,16 @@ export class WorkspaceRoleGuard implements CanActivate {
 
     const workspace = await this.prisma.workspace.findFirst({
       where: workspaceId ? { id: workspaceId } : { slug: workspaceSlug },
-      select: { id: true, status: true },
+      select: {
+        id: true,
+        status: true,
+        subscription: {
+          select: {
+            planTier: true,
+            status: true,
+          },
+        },
+      },
     });
     if (!workspace) throw new NotFoundException('Workspace not found.');
 
@@ -134,6 +145,7 @@ export class WorkspaceRoleGuard implements CanActivate {
     }
 
     const role = membership.role as WorkspaceRole;
+    const plan = normalizePlanTier(workspace.subscription?.planTier ?? 'starter');
 
     // An archived workspace stays readable so its history is not stranded, but
     // refuses writes. Checked on the HTTP method rather than per route, so a
@@ -153,10 +165,12 @@ export class WorkspaceRoleGuard implements CanActivate {
 
     this.assertRole(context, role);
     this.assertPermissions(context, role);
+    this.assertPlan(context, plan);
 
     request.workspaceId = workspace.id;
     request.workspaceRole = role;
     request.workspacePermissions = permissionsForRole(role);
+    request.workspacePlan = plan;
     return true;
   }
 
@@ -198,4 +212,28 @@ export class WorkspaceRoleGuard implements CanActivate {
       );
     }
   }
+
+  /** `@RequirePlan(...)` & `@RequirePlanFeature(...)` gate */
+  private assertPlan(context: ExecutionContext, plan: PlanTier): void {
+    const requiredTier = this.reflector.getAllAndOverride<PlanTier>(
+      REQUIRE_PLAN_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (requiredTier && !isPlanAtLeast(plan, requiredTier)) {
+      throw new ForbiddenException(
+        `This feature requires the ${requiredTier.toUpperCase()} plan or higher. Please upgrade your workspace subscription.`,
+      );
+    }
+
+    const requiredFeature = this.reflector.getAllAndOverride<PlanFeature>(
+      REQUIRE_PLAN_FEATURE_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (requiredFeature && !hasFeature(plan, requiredFeature)) {
+      throw new ForbiddenException(
+        `This feature (${requiredFeature}) is not available on your current plan (${plan.toUpperCase()}). Please upgrade to unlock this capability.`,
+      );
+    }
+  }
 }
+

@@ -672,3 +672,14 @@ export {
   navigationMenuTriggerStyle,
 } from './lib/components/navigation-menu.js';
 
+export {
+  PlanBadge,
+  type PlanBadgeProps,
+} from './lib/components/plan-badge.js';
+
+export {
+  UsageMeter,
+  type UsageMeterProps,
+} from './lib/components/usage-meter.js';
+
+

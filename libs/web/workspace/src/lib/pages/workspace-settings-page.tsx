@@ -96,8 +96,10 @@ import { WorkspaceBillingSettings } from '../components/workspace-billing-settin
 import { WorkspaceCompanyAnalytics } from '../components/workspace-company-analytics.js';
 import { UpgradePlanBanner } from '../components/upgrade-plan-banner.js';
 import { AIProvidersSettings } from '../components/ai-providers-settings.js';
+import { EnterpriseCustomLLMSettings } from '../components/enterprise-custom-llm-settings.js';
 import { ChatSettingsPanel } from '../components/chat-settings-panel.js';
 import { NotificationDisplaySettingsPanel } from '../components/notification-display-settings-panel.js';
+
 
 /**
  * Panels this page renders but does not own.
@@ -1651,8 +1653,13 @@ export function WorkspaceSettingsPage({
         <AIProvidersSettings workspaceId={workspaceId ?? ''} />
       )}
 
+      {/* ---------------- SECTION: ENTERPRISE CUSTOM LLM ---------------- */}
+      {currentTab === 'enterprise-custom-llm' && (
+        <EnterpriseCustomLLMSettings workspaceId={workspaceId ?? ''} />
+      )}
 
       {/* ---------------- SECTION 4: AI MODELS & PERSONA ---------------- */}
+
       {currentTab === 'ai-persona' && (
         <div className="space-y-8">
           <div>

@@ -109,14 +109,17 @@ export function evaluateFeature(
     };
   }
 
-  if (def.requiredPlan) {
-    // Billing/entitlements are not implemented anywhere in the product yet
-    // (see PLATFORM_AUDIT_REPORT.md §4-B2: billing is a client-side
-    // `useState` simulation). Until a real plan check exists, this is
-    // always satisfied — the field and the REQUIRES_PLAN state are wired so
-    // one can be dropped in later without touching every call site.
-    const planSatisfied = true;
-    if (!planSatisfied) {
+  if (def.requiredPlan && snapshot.planTier) {
+    const HIERARCHY: Record<string, number> = {
+      starter: 0,
+      free: 0,
+      pro: 1,
+      business: 2,
+      enterprise: 3,
+    };
+    const currentLevel = HIERARCHY[snapshot.planTier] ?? 0;
+    const requiredLevel = HIERARCHY[def.requiredPlan] ?? 0;
+    if (currentLevel < requiredLevel) {
       return {
         ...base,
         state: 'REQUIRES_PLAN',
@@ -128,6 +131,7 @@ export function evaluateFeature(
   }
 
   return { ...base, state: 'AVAILABLE', available: true, reason: null, fallback };
+
 }
 
 /** Looks a feature up in `FEATURE_REGISTRY` and evaluates it. */

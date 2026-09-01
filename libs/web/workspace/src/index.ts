@@ -27,7 +27,12 @@ export { WorkspaceBillingSettings } from './lib/components/workspace-billing-set
 export { WorkspaceCompanyAnalytics } from './lib/components/workspace-company-analytics.js';
 export { ChatSettingsPanel } from './lib/components/chat-settings-panel.js';
 export { NotificationDisplaySettingsPanel } from './lib/components/notification-display-settings-panel.js';
+export { EnterpriseCustomLLMSettings } from './lib/components/enterprise-custom-llm-settings.js';
+export { FeatureGateDialog } from './lib/components/feature-gate-dialog.js';
+export { usePlanEntitlements } from './lib/hooks/use-plan-entitlements.js';
 export { SettingsLayout } from './lib/settings-layout.js';
+
+
 export {
   useWorkspaceStore,
   getPersistedActiveWorkspaceId,

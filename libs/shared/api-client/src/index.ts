@@ -32,7 +32,9 @@ export {
   userApi,
   workToolsApi,
   workspaceApi,
+  billingApi,
   type AuthResponse,
 } from './lib/endpoints.js';
+
 
 export { queryKeys } from './lib/query-keys.js';
