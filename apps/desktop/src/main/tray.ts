@@ -42,6 +42,8 @@ export function buildTrayMenu(): Menu {
     { label: 'Search…', click: () => sendCommand('open-search') },
     { label: 'Ask AI Assistant', click: () => sendCommand('open-ai-assistant') },
     { label: 'New channel', click: () => sendCommand('new-channel') },
+    { label: 'Invite members…', click: () => sendCommand('open-invite') },
+    { label: 'Settings…', click: () => sendCommand('open-settings') },
     { type: 'separator' },
     {
       label: 'Keep running in the background',

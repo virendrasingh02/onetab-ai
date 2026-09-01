@@ -324,10 +324,15 @@ export function AsanaProjectManager() {
   const projectTasks = rawTasksQuery.data ?? [];
 
   useEffect(() => {
+    const cardParam = searchParams.get('card') ?? searchParams.get('taskId');
+    if (cardParam) {
+      setSelectedCardId(cardParam);
+    }
+
     const openNewProject = searchParams.get('newProject') === 'true';
     const openImport = searchParams.get('import') === 'true';
     const showProjects = searchParams.get('view') === 'projects';
-    if (!openNewProject && !openImport && !showProjects) return;
+    if (!openNewProject && !openImport && !showProjects && !cardParam) return;
 
     if (openNewProject) setIsNewProjectOpen(true);
     if (openImport) setIsImportOpen(true);
@@ -337,6 +342,8 @@ export function AsanaProjectManager() {
     next.delete('newProject');
     next.delete('import');
     next.delete('view');
+    next.delete('card');
+    next.delete('taskId');
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 

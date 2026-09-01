@@ -132,6 +132,14 @@ function reportFatal(error: unknown): void {
   dialog.showErrorBox('OneTab AI could not start', detail);
 }
 
+process.on('uncaughtException', (error) => {
+  logger.error('Process', 'Uncaught exception in main process', error);
+});
+
+process.on('unhandledRejection', (reason) => {
+  logger.error('Process', 'Unhandled rejection in main process', reason);
+});
+
 async function bootstrap(): Promise<void> {
   logger.info('App', `Starting OneTab AI Desktop (Platform: ${process.platform}, Dev: ${isDev})`);
 

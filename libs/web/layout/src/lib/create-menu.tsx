@@ -25,6 +25,7 @@ import {
   Workflow,
   type LucideIcon,
 } from 'lucide-react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 interface CreateAction {
@@ -307,9 +308,29 @@ export function SidebarFooterActions({
     );
   }
 
+  // Keyboard shortcut listener for 'I' (Invite members)
+  useEffect(() => {
+    if (!onOpenInvite) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'i' || e.key === 'I') {
+        const target = e.target as HTMLElement | null;
+        const isInput =
+          target?.tagName === 'INPUT' ||
+          target?.tagName === 'TEXTAREA' ||
+          target?.isContentEditable;
+        if (!isInput && !e.metaKey && !e.ctrlKey && !e.altKey) {
+          e.preventDefault();
+          onOpenInvite();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onOpenInvite]);
+
   // --- Expanded Sidebar Footer View (Refined Card UX) ---
   return (
-    <div className="gap-1.5 flex items-center">
+    <div className="gap-1.5 flex items-center w-full">
       {/* Primary Invite Members Button */}
       <button
         type="button"

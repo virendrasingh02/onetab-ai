@@ -1013,6 +1013,7 @@ export function ChannelNav({
         <SidebarFooterActions
           workspaceSlug={workspaceSlug}
           onCreateChannel={onCreateChannel}
+          onOpenInvite={() => setInviteMembersOpen(true)}
           onNewChat={startNewChat}
           onOpenCustomizer={() => setCustomizerOpen(true)}
           isCollapsed={true}

@@ -56,6 +56,11 @@ export function buildAppMenu(isDev: boolean): Menu {
           accelerator: 'CmdOrCtrl+Shift+N',
           click: () => send('new-channel'),
         },
+        {
+          label: 'Invite members…',
+          accelerator: 'CmdOrCtrl+Shift+I',
+          click: () => send('open-invite'),
+        },
         { type: 'separator' },
         ...(isMac
           ? [{ role: 'close' as const }]

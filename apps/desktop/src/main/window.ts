@@ -1,5 +1,6 @@
-import { BrowserWindow, screen, shell } from 'electron';
+import { app, BrowserWindow, clipboard, Menu, screen, shell } from 'electron';
 import { IPC_EVENT, type DesktopWindowState } from '../shared/ipc.js';
+import { logger } from './logger.js';
 import { getPreference, readStore, writeStore } from './store.js';
 
 /** macOS keeps its own traffic lights; other platforms get our own controls. */
@@ -110,6 +111,58 @@ function applyNavigationPolicy(window: BrowserWindow, appOrigin: string): void {
   window.webContents.on('will-attach-webview', (event) => event.preventDefault());
 }
 
+/**
+ * Native context menu for text fields, links, and selected text.
+ */
+function applyContextMenu(window: BrowserWindow): void {
+  window.webContents.on('context-menu', (_event, params) => {
+    const template: Electron.MenuItemConstructorOptions[] = [];
+
+    if (params.linkURL && /^https?:\/\//i.test(params.linkURL)) {
+      template.push(
+        {
+          label: 'Open link in browser',
+          click: () => void shell.openExternal(params.linkURL),
+        },
+        {
+          label: 'Copy link address',
+          click: () => clipboard.writeText(params.linkURL),
+        },
+        { type: 'separator' },
+      );
+    }
+
+    if (params.isEditable) {
+      template.push(
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' },
+      );
+    } else if (params.selectionText && params.selectionText.trim().length > 0) {
+      template.push(
+        { role: 'copy' },
+        { role: 'selectAll' },
+      );
+    }
+
+    if (!app.isPackaged) {
+      if (template.length > 0) template.push({ type: 'separator' });
+      template.push({
+        label: 'Inspect element',
+        click: () => window.webContents.inspectElement(params.x, params.y),
+      });
+    }
+
+    if (template.length > 0) {
+      Menu.buildFromTemplate(template).popup({ window });
+    }
+  });
+}
+
 export interface CreateWindowOptions {
   /** URL the renderer loads — Vite in dev, the internal static server in prod. */
   appUrl: string;
@@ -132,12 +185,7 @@ export function createMainWindow({ appUrl, preloadPath }: CreateWindowOptions): 
     minWidth: 940,
     minHeight: 600,
     title: 'OneTab AI',
-    // Painting the window only once the renderer has content avoids the white
-    // flash that `show: true` produces before first paint.
     show: false,
-    // The palette's light `--background`. This is what the OS paints during a
-    // resize, before the renderer has repainted — a dark value here flashed
-    // near-black around the edges of a light window on every drag.
     backgroundColor: '#fbfbfc',
     autoHideMenuBar: process.platform !== 'darwin',
     titleBarStyle: 'hidden',
@@ -150,8 +198,6 @@ export function createMainWindow({ appUrl, preloadPath }: CreateWindowOptions): 
       nodeIntegration: false,
       sandbox: true,
       webviewTag: false,
-      // The renderer only ever loads our own origin, and same-origin policy is
-      // what keeps the API calls honest — never relax this.
       webSecurity: true,
       spellcheck: true,
     },
@@ -163,6 +209,19 @@ export function createMainWindow({ appUrl, preloadPath }: CreateWindowOptions): 
 
   void window.loadURL(appUrl);
   applyNavigationPolicy(window, appUrl);
+  applyContextMenu(window);
+
+  window.webContents.on('render-process-gone', (_event, details) => {
+    logger.error('Window', `Renderer process gone (reason: ${details.reason}, exitCode: ${details.exitCode})`);
+    if (details.reason !== 'clean-exit' && !quitting) {
+      logger.info('Window', 'Attempting to reload main window after crash');
+      setTimeout(() => {
+        if (!window.isDestroyed()) {
+          void window.loadURL(appUrl);
+        }
+      }, 1000);
+    }
+  });
 
   window.once('ready-to-show', () => {
     window.show();

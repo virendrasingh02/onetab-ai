@@ -1,6 +1,6 @@
 import { useCurrentUser } from '@org/auth';
 import { useNotificationFeed, useNotificationUnread } from '@org/notifications';
-import { TaskStatus, type ActivityFeedItem } from '@org/types';
+import { TaskPriority, TaskStatus, type ActivityFeedItem } from '@org/types';
 import {
   Badge,
   Button,
@@ -16,17 +16,31 @@ import {
 } from '@org/ui';
 import { cn, formatDate, formatRelative } from '@org/utils';
 import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowRight,
+  ArrowUp,
   AtSign,
   Bell,
+  Calendar,
+  CheckCircle2,
   CheckSquare,
+  Clock,
+  FileText,
   FileUp,
+  Flame,
+  FolderPlus,
   Hash,
   Inbox,
   MessageSquare,
+  Minus,
+  Search,
   TriangleAlert,
+  UserMinus,
   UserPlus,
+  X,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   useCurrentWorkspace,
@@ -34,55 +48,291 @@ import {
   useWorkspaceChannels,
 } from './use-work-tools.js';
 
-const KIND_ICON = {
-  MESSAGE: MessageSquare,
-  MEMBER_JOINED: UserPlus,
-  MEMBER_LEFT: UserPlus,
-  CHANNEL_CREATED: Hash,
-  FILE_SHARED: FileUp,
-} as const;
+interface KindMeta {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  tone: string;
+}
 
-const KIND_TONE: Record<string, string> = {
-  MESSAGE: 'bg-accent-violet-soft text-accent-violet',
-  MEMBER_JOINED: 'bg-accent-green-soft text-accent-green',
-  MEMBER_LEFT: 'bg-muted text-muted-foreground',
-  CHANNEL_CREATED: 'bg-accent-blue-soft text-accent-blue',
-  FILE_SHARED: 'bg-accent-blue-soft text-accent-blue',
-};
-
-function headline(item: ActivityFeedItem): string {
-  const who = item.user?.displayName ?? item.user?.name ?? 'Someone';
-  const where = item.channel ? ` in #${item.channel.name}` : '';
+function getKindMeta(item: ActivityFeedItem): KindMeta {
+  if (item.isMention) {
+    return {
+      icon: AtSign,
+      label: 'Mention',
+      tone: 'bg-primary/10 text-primary',
+    };
+  }
 
   switch (item.kind) {
+    case 'TASK_ASSIGNED':
+      return {
+        icon: CheckSquare,
+        label: 'Task Assigned',
+        tone: 'bg-accent-violet-soft text-accent-violet',
+      };
+    case 'TASK_CREATED':
+      return {
+        icon: CheckSquare,
+        label: 'Task Created',
+        tone: 'bg-accent-blue-soft text-accent-blue',
+      };
+    case 'TASK_COMPLETED':
+      return {
+        icon: CheckCircle2,
+        label: 'Task Completed',
+        tone: 'bg-accent-green-soft text-accent-green',
+      };
     case 'MESSAGE':
-      return item.isMention
-        ? `${who} mentioned you${where}`
-        : `${who} posted a message${where}`;
+      return {
+        icon: MessageSquare,
+        label: 'Message',
+        tone: 'bg-accent-violet-soft text-accent-violet',
+      };
     case 'MEMBER_JOINED':
-      return `${who} joined the workspace`;
+      return {
+        icon: UserPlus,
+        label: 'Member Joined',
+        tone: 'bg-accent-green-soft text-accent-green',
+      };
     case 'MEMBER_LEFT':
-      return `${who} left the workspace`;
+      return {
+        icon: UserMinus,
+        label: 'Member Left',
+        tone: 'bg-muted text-muted-foreground',
+      };
     case 'CHANNEL_CREATED':
-      return `${who} created${where || ' a channel'}`;
+      return {
+        icon: Hash,
+        label: 'Channel',
+        tone: 'bg-accent-blue-soft text-accent-blue',
+      };
+    case 'DOCUMENT_CREATED':
+      return {
+        icon: FileText,
+        label: 'Document',
+        tone: 'bg-accent-amber-soft text-accent-amber',
+      };
+    case 'PROJECT_CREATED':
+      return {
+        icon: FolderPlus,
+        label: 'Project',
+        tone: 'bg-accent-violet-soft text-accent-violet',
+      };
     case 'FILE_SHARED':
-      return `${who} shared a file${where}`;
+      return {
+        icon: FileUp,
+        label: 'File Shared',
+        tone: 'bg-accent-blue-soft text-accent-blue',
+      };
     default:
-      return `${who} · ${item.kind.toLowerCase().replace(/_/g, ' ')}`;
+      return {
+        icon: Bell,
+        label: item.kind.toLowerCase().replace(/_/g, ' '),
+        tone: 'bg-muted text-muted-foreground',
+      };
+  }
+}
+
+function renderHeadlineDescription(
+  item: ActivityFeedItem,
+  userName: string,
+): React.ReactNode {
+  const where = item.channel ? ` in #${item.channel.name}` : '';
+
+  if (item.isMention) {
+    return (
+      <span>
+        <strong className="font-semibold text-foreground">{userName}</strong>{' '}
+        mentioned you{where}
+      </span>
+    );
+  }
+
+  switch (item.kind) {
+    case 'TASK_ASSIGNED': {
+      const taskTitle = item.summary
+        ? item.summary.replace(/^assigned\s*/i, '')
+        : 'a task';
+      return (
+        <span>
+          <strong className="font-semibold text-foreground">{userName}</strong>{' '}
+          assigned you to{' '}
+          <span className="font-semibold text-primary underline underline-offset-2">
+            {taskTitle}
+          </span>
+        </span>
+      );
+    }
+    case 'TASK_CREATED': {
+      const taskTitle = item.summary
+        ? item.summary.replace(/^created task\s*/i, '')
+        : 'a task';
+      return (
+        <span>
+          <strong className="font-semibold text-foreground">{userName}</strong>{' '}
+          created task{' '}
+          <span className="font-semibold text-foreground/90">{taskTitle}</span>
+        </span>
+      );
+    }
+    case 'TASK_COMPLETED': {
+      const taskTitle = item.summary
+        ? item.summary.replace(/^completed task\s*/i, '')
+        : 'a task';
+      return (
+        <span>
+          <strong className="font-semibold text-foreground">{userName}</strong>{' '}
+          completed task{' '}
+          <span className="font-semibold text-foreground/90">{taskTitle}</span>
+        </span>
+      );
+    }
+    case 'MESSAGE':
+      return (
+        <span>
+          <strong className="font-semibold text-foreground">{userName}</strong>{' '}
+          posted a message{where}
+        </span>
+      );
+    case 'MEMBER_JOINED':
+      return (
+        <span>
+          <strong className="font-semibold text-foreground">{userName}</strong>{' '}
+          joined the workspace
+        </span>
+      );
+    case 'MEMBER_LEFT':
+      return (
+        <span>
+          <strong className="font-semibold text-foreground">{userName}</strong>{' '}
+          left the workspace
+        </span>
+      );
+    case 'CHANNEL_CREATED':
+      return (
+        <span>
+          <strong className="font-semibold text-foreground">{userName}</strong>{' '}
+          created channel{' '}
+          <span className="font-semibold text-foreground">
+            #{item.channel?.name ?? 'new-channel'}
+          </span>
+        </span>
+      );
+    case 'DOCUMENT_CREATED': {
+      const docTitle = item.summary
+        ? item.summary.replace(/^created document\s*/i, '')
+        : 'a document';
+      return (
+        <span>
+          <strong className="font-semibold text-foreground">{userName}</strong>{' '}
+          created document{' '}
+          <span className="font-semibold text-foreground">{docTitle}</span>
+        </span>
+      );
+    }
+    case 'PROJECT_CREATED': {
+      const projTitle = item.summary
+        ? item.summary.replace(/^created project\s*/i, '')
+        : 'a project';
+      return (
+        <span>
+          <strong className="font-semibold text-foreground">{userName}</strong>{' '}
+          created project{' '}
+          <span className="font-semibold text-foreground">{projTitle}</span>
+        </span>
+      );
+    }
+    default:
+      return (
+        <span>
+          <strong className="font-semibold text-foreground">{userName}</strong>{' '}
+          {item.summary || item.kind.toLowerCase().replace(/_/g, ' ')}
+        </span>
+      );
   }
 }
 
 /**
- * Where a feed row opens. A chat row jumps to the exact message via `?msg=`
- * (see `ChatPanel`); everything else falls back to its channel or `null`.
+ * Where a feed row opens. A chat row jumps to the exact message via `?msg=`.
+ * Task rows jump to the board with `?card=`.
+ * Document rows jump to `/docs?doc=`.
  */
 function feedItemHref(
   item: ActivityFeedItem,
   workspaceSlug: string,
 ): string | null {
-  if (!item.channel) return null;
-  const base = `/w/${workspaceSlug}/c/${item.channel.slug}`;
-  return item.messageEventId ? `${base}?msg=${item.messageEventId}` : base;
+  if (item.channel) {
+    const base = `/w/${workspaceSlug}/c/${item.channel.slug}`;
+    return item.messageEventId ? `${base}?msg=${item.messageEventId}` : base;
+  }
+  if (
+    item.resourceType === 'task' ||
+    item.kind === 'TASK_CREATED' ||
+    item.kind === 'TASK_ASSIGNED' ||
+    item.kind === 'TASK_COMPLETED'
+  ) {
+    return `/w/${workspaceSlug}/tasks${
+      item.resourceId ? `?card=${item.resourceId}` : ''
+    }`;
+  }
+  if (item.resourceType === 'document') {
+    return `/w/${workspaceSlug}/docs${
+      item.resourceId ? `?doc=${item.resourceId}` : ''
+    }`;
+  }
+  if (item.resourceType === 'project') {
+    return `/w/${workspaceSlug}/tasks${
+      item.resourceId ? `?project=${item.resourceId}` : ''
+    }`;
+  }
+  return `/w/${workspaceSlug}/tasks`;
+}
+
+function PriorityBadge({ priority }: { priority: TaskPriority }) {
+  switch (priority) {
+    case TaskPriority.URGENT:
+      return (
+        <Badge
+          variant="neutral"
+          className="bg-accent-rose-soft text-accent-rose border-accent-rose/30 gap-1 text-[10px] px-1.5 py-0 h-4 font-semibold"
+        >
+          <Flame className="size-2.5 shrink-0" />
+          <span>Urgent</span>
+        </Badge>
+      );
+    case TaskPriority.HIGH:
+      return (
+        <Badge
+          variant="neutral"
+          className="bg-accent-amber-soft text-accent-amber border-accent-amber/30 gap-1 text-[10px] px-1.5 py-0 h-4 font-semibold"
+        >
+          <ArrowUp className="size-2.5 shrink-0" />
+          <span>High</span>
+        </Badge>
+      );
+    case TaskPriority.MEDIUM:
+      return (
+        <Badge
+          variant="neutral"
+          className="bg-accent-blue-soft text-accent-blue border-accent-blue/30 gap-1 text-[10px] px-1.5 py-0 h-4 font-semibold"
+        >
+          <Minus className="size-2.5 shrink-0" />
+          <span>Medium</span>
+        </Badge>
+      );
+    case TaskPriority.LOW:
+      return (
+        <Badge
+          variant="neutral"
+          className="bg-muted text-muted-foreground gap-1 text-[10px] px-1.5 py-0 h-4 font-semibold"
+        >
+          <ArrowDown className="size-2.5 shrink-0" />
+          <span>Low</span>
+        </Badge>
+      );
+    default:
+      return null;
+  }
 }
 
 function FeedRow({
@@ -94,61 +344,116 @@ function FeedRow({
   workspaceSlug: string;
   isUnread: boolean;
 }) {
-  const Icon = item.isMention
-    ? AtSign
-    : (KIND_ICON[item.kind as keyof typeof KIND_ICON] ?? Bell);
+  const user = item.user;
+  const userName = user?.displayName ?? user?.name ?? 'Someone';
   const href = feedItemHref(item, workspaceSlug);
-
-  const body = (
-    <Card
-      className={cn(
-        'p-4 gap-4 flex items-start justify-between transition-colors duration-(--duration-fast)',
-        isUnread ? 'border-primary/30 bg-selected/40' : 'bg-surface',
-        href && 'hover:border-border-strong',
-      )}
-    >
-      <div className="gap-3 min-w-0 flex items-start">
-        <span
-          className={cn(
-            'p-2 mt-0.5 shrink-0 rounded-lg',
-            item.isMention
-              ? 'bg-primary/10 text-primary'
-              : (KIND_TONE[item.kind] ?? 'bg-muted text-muted-foreground'),
-          )}
-          aria-hidden
-        >
-          <Icon className="size-4" />
-        </span>
-        <div className="min-w-0">
-          <div className="gap-2 flex items-center">
-            <h4 className="text-xs font-semibold truncate text-foreground">
-              {headline(item)}
-            </h4>
-            {isUnread ? <Badge variant="primary">New</Badge> : null}
-          </div>
-          {item.channel ? (
-            <span className="mt-1 gap-1 text-xs inline-flex items-center text-muted-foreground">
-              <Hash className="size-3" aria-hidden />
-              {item.channel.name}
-            </span>
-          ) : null}
-          <span className="mt-1.5 block font-mono text-[10px] text-subtle">
-            {formatRelative(item.occurredAt)}
-          </span>
-        </div>
-      </div>
-    </Card>
-  );
+  const { icon: KindIcon, label: kindLabel, tone } = getKindMeta(item);
 
   return (
     <li>
-      {href ? (
-        <Link to={href} className="block">
-          {body}
-        </Link>
-      ) : (
-        body
-      )}
+      <Card
+        className={cn(
+          'group relative p-3.5 sm:p-4 transition-all duration-(--duration-fast) rounded-xl border',
+          isUnread
+            ? 'border-primary/40 bg-primary/5 shadow-xs'
+            : 'border-border/70 bg-surface hover:bg-surface-raised hover:border-border-strong',
+          href && 'cursor-pointer hover:shadow-md',
+        )}
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5 min-w-0 flex-1">
+            {/* User Avatar with action badge overlay */}
+            <div className="relative shrink-0 mt-0.5">
+              {user ? (
+                <UserAvatar
+                  name={userName}
+                  src={user.avatarUrl}
+                  seed={user.id}
+                  size="sm"
+                  indicator={false}
+                  className="font-bold ring-2 ring-background shadow-xs"
+                />
+              ) : (
+                <div
+                  className={cn(
+                    'size-8 rounded-full flex items-center justify-center',
+                    tone,
+                  )}
+                >
+                  <KindIcon className="size-4" />
+                </div>
+              )}
+              {user ? (
+                <span
+                  className={cn(
+                    'absolute -bottom-1 -right-1 size-4 rounded-full flex items-center justify-center border-2 border-background shadow-xs',
+                    tone,
+                  )}
+                  title={kindLabel}
+                >
+                  <KindIcon className="size-2.5" />
+                </span>
+              ) : null}
+            </div>
+
+            {/* Content Details */}
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-semibold text-foreground truncate">
+                  {userName}
+                </span>
+                <Badge
+                  variant="neutral"
+                  className="text-[10px] px-1.5 py-0 h-4 font-semibold tracking-wide uppercase"
+                >
+                  {kindLabel}
+                </Badge>
+                {isUnread && (
+                  <Badge variant="primary" className="text-[10px] px-1.5 py-0 h-4 font-bold">
+                    New
+                  </Badge>
+                )}
+              </div>
+
+              {/* Main descriptive headline */}
+              <div className="text-xs text-foreground/90 leading-snug">
+                {renderHeadlineDescription(item, userName)}
+              </div>
+
+              {/* Meta information: Channel / Timestamp */}
+              <div className="flex items-center gap-3 text-[11px] text-muted-foreground pt-0.5 flex-wrap">
+                {item.channel ? (
+                  <span className="inline-flex items-center gap-1 font-medium text-primary">
+                    <Hash className="size-3" aria-hidden />
+                    <span>{item.channel.name}</span>
+                  </span>
+                ) : null}
+                <span className="inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground/80">
+                  <Clock className="size-3 text-muted-foreground/60" />
+                  <span>{formatRelative(item.occurredAt)}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Redirection Button */}
+          {href ? (
+            <div className="shrink-0 flex items-center self-center pl-2">
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="h-7 px-2.5 text-xs gap-1.5 rounded-lg border-border/80 group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary transition-all cursor-pointer font-medium"
+              >
+                <Link to={href}>
+                  <span>Open</span>
+                  <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      </Card>
     </li>
   );
 }
@@ -167,17 +472,14 @@ export function InboxView() {
 
   const [activeTab, setActiveTab] = useState('notifications');
 
+  // Search & category filters
+  const [notificationCategory, setNotificationCategory] = useState<string>('all');
+  const [notificationSearch, setNotificationSearch] = useState<string>('');
+  const [taskStatusFilter, setTaskStatusFilter] = useState<string>('all');
+  const [taskSearch, setTaskSearch] = useState<string>('');
+
   /*
    * The read marker as it stood when this page opened, frozen.
-   *
-   * This page is now the only place the activity feed is rendered — the header
-   * bell used to open a sheet over the same rows — so visiting it is what
-   * clears the badge. Deriving the boundary live from `unreadCount` would then
-   * be self-defeating: marking everything seen drops the count to zero, and the
-   * "New" pills would vanish from the very rows the visit was meant to show.
-   *
-   * `null` inside the snapshot means "no marker yet, treat everything as new";
-   * a `null` snapshot means the feed has not arrived.
    */
   const [snapshot, setSnapshot] = useState<{ seenAt: string | null } | null>(
     null,
@@ -185,15 +487,9 @@ export function InboxView() {
 
   useEffect(() => {
     if (snapshot || !feed.data) return;
-    // The feed is newest-first, so the (unreadCount)th row is the boundary.
     setSnapshot({ seenAt: feed.data[unreadCount]?.occurredAt ?? null });
   }, [feed.data, snapshot, unreadCount]);
 
-  /*
-   * Reading the activity tab is what marks it read, including rows that poll in
-   * while the page is open. Those still land above the frozen boundary, so they
-   * arrive highlighted rather than silently.
-   */
   useEffect(() => {
     if (activeTab !== 'notifications' || !snapshot || unreadCount === 0) return;
     markAllSeen();
@@ -201,12 +497,6 @@ export function InboxView() {
 
   const seenThreshold = snapshot?.seenAt ?? null;
 
-  /**
-   * How many rows are highlighted right now.
-   *
-   * Not `unreadCount`: that goes to zero the moment the tab is read, which
-   * would leave the header reading "0 new" over a list of "New" pills.
-   */
   const newCount = useMemo(() => {
     if (!feed.data?.length || !snapshot) return 0;
     if (!seenThreshold) return feed.data.length;
@@ -215,7 +505,6 @@ export function InboxView() {
       .length;
   }, [feed.data, seenThreshold, snapshot]);
 
-  /** Clears both the badge and the highlighting on this page. */
   const markAllRead = useCallback(() => {
     markAllSeen();
     setSnapshot({
@@ -223,13 +512,40 @@ export function InboxView() {
     });
   }, [feed.data, markAllSeen]);
 
-  /**
-   * Channels carrying messages the viewer has not read.
-   *
-   * Derived rather than fetched: the API exposes `membership.lastReadAt` and
-   * an activity log, but no per-channel unread counter, so the count is the
-   * number of feed messages in that channel since the member last read it.
-   */
+  const filteredFeed = useMemo(() => {
+    let list = feed.data ?? [];
+
+    if (notificationCategory === 'tasks') {
+      list = list.filter(
+        (item) => item.kind.startsWith('TASK_') || item.resourceType === 'task',
+      );
+    } else if (notificationCategory === 'mentions') {
+      list = list.filter((item) => item.isMention);
+    } else if (notificationCategory === 'channels') {
+      list = list.filter(
+        (item) => item.kind === 'MESSAGE' || item.kind === 'CHANNEL_CREATED',
+      );
+    }
+
+    if (notificationSearch.trim()) {
+      const q = notificationSearch.trim().toLowerCase();
+      list = list.filter((item) => {
+        const userName = (item.user?.displayName ?? item.user?.name ?? '').toLowerCase();
+        const summary = (item.summary ?? '').toLowerCase();
+        const channel = (item.channel?.name ?? '').toLowerCase();
+        const kind = item.kind.toLowerCase();
+        return (
+          userName.includes(q) ||
+          summary.includes(q) ||
+          channel.includes(q) ||
+          kind.includes(q)
+        );
+      });
+    }
+
+    return list;
+  }, [feed.data, notificationCategory, notificationSearch]);
+
   const unreadChannels = useMemo(() => {
     const messages = (feed.data ?? []).filter(
       (item) => item.kind === 'MESSAGE' && item.channel,
@@ -252,29 +568,60 @@ export function InboxView() {
   }, [channels.data, feed.data]);
 
   const mentions = useMemo(
-    () => (feed.data ?? []).filter((item) => item.isMention),
-    [feed.data],
+    () =>
+      (feed.data ?? []).filter(
+        (item) =>
+          item.isMention ||
+          item.kind === 'MENTION' ||
+          (item.summary && user && (item.summary.includes(`@${user.name}`) || item.summary.includes(`@${user.displayName}`))),
+      ),
+    [feed.data, user],
   );
 
   const myTasks = useMemo(() => {
     if (!user) return [];
-    return (tasks.data ?? [])
-      .filter(
-        (task) =>
-          task.assigneeId === user.id &&
-          task.status !== TaskStatus.DONE &&
-          task.status !== TaskStatus.CANCELLED,
+    let list = (tasks.data ?? []).filter((task) => {
+      const memberIds = Array.isArray(
+        (task.customFields as Record<string, unknown> | null)?.assigneeIds,
       )
-      .sort((a, b) => {
-        // Dated work first, soonest at the top; undated sinks to the bottom.
-        if (a.dueDate && b.dueDate) {
-          return Date.parse(a.dueDate) - Date.parse(b.dueDate);
-        }
-        if (a.dueDate) return -1;
-        if (b.dueDate) return 1;
-        return a.orderIndex - b.orderIndex;
-      });
-  }, [tasks.data, user]);
+        ? ((task.customFields as Record<string, unknown>).assigneeIds as string[])
+        : task.assigneeIds ?? (task.assigneeId ? [task.assigneeId] : []);
+      return (
+        memberIds.includes(user.id) &&
+        task.status !== TaskStatus.DONE &&
+        task.status !== TaskStatus.CANCELLED
+      );
+    });
+
+    if (taskStatusFilter === 'in_progress') {
+      list = list.filter((t) => t.status === TaskStatus.IN_PROGRESS);
+    } else if (taskStatusFilter === 'todo') {
+      list = list.filter((t) => t.status === TaskStatus.TODO || t.status === TaskStatus.BACKLOG);
+    } else if (taskStatusFilter === 'in_review') {
+      list = list.filter((t) => t.status === TaskStatus.IN_REVIEW);
+    } else if (taskStatusFilter === 'overdue') {
+      list = list.filter((t) => t.dueDate && Date.parse(t.dueDate) < Date.now());
+    }
+
+    if (taskSearch.trim()) {
+      const q = taskSearch.trim().toLowerCase();
+      list = list.filter(
+        (t) =>
+          t.title.toLowerCase().includes(q) ||
+          (t.identifier && t.identifier.toLowerCase().includes(q)) ||
+          (t.project?.name && t.project.name.toLowerCase().includes(q)),
+      );
+    }
+
+    return list.sort((a, b) => {
+      if (a.dueDate && b.dueDate) {
+        return Date.parse(a.dueDate) - Date.parse(b.dueDate);
+      }
+      if (a.dueDate) return -1;
+      if (b.dueDate) return 1;
+      return a.orderIndex - b.orderIndex;
+    });
+  }, [tasks.data, user, taskStatusFilter, taskSearch]);
 
   return (
     <div className="min-h-0 flex flex-1 flex-col">
@@ -290,12 +637,6 @@ export function InboxView() {
               <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
                 Inbox
               </h2>
-              {/* <Badge
-                variant={newCount > 0 ? 'primary' : 'neutral'}
-                className="px-1.5 py-0 h-4.5 text-[11px]"
-              >
-                {newCount > 0 ? `${newCount} new` : 'Caught up'}
-              </Badge> */}
             </div>
           </div>
 
@@ -305,7 +646,7 @@ export function InboxView() {
                 variant="outline"
                 size="sm"
                 onClick={markAllRead}
-                className="h-7 text-xs"
+                className="h-7 text-xs cursor-pointer rounded-lg"
               >
                 Mark all read
               </Button>
@@ -340,7 +681,7 @@ export function InboxView() {
                 <span>Mentions</span>
                 {mentions.length > 0 ? (
                   <Badge
-                    variant="neutral"
+                    variant="count"
                     className="px-1 py-0 h-3.5 text-[10px]"
                   >
                     {mentions.length}
@@ -355,7 +696,7 @@ export function InboxView() {
                 <span>Unread channels</span>
                 {unreadChannels.length > 0 ? (
                   <Badge
-                    variant="neutral"
+                    variant="count"
                     className="px-1 py-0 h-3.5 text-[10px]"
                   >
                     {unreadChannels.length}
@@ -383,9 +724,56 @@ export function InboxView() {
       </div>
 
       <div className="min-h-0 p-3 sm:p-6 flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-5xl mx-auto space-y-4">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsContent value="notifications" className="space-y-3 mt-0">
+            {/* 1. NOTIFICATIONS TAB */}
+            <TabsContent value="notifications" className="space-y-3.5 mt-0">
+              {/* Category & Search Toolbar */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pb-1">
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                  {[
+                    { id: 'all', label: 'All' },
+                    { id: 'tasks', label: 'Tasks' },
+                    { id: 'mentions', label: 'Mentions' },
+                    { id: 'channels', label: 'Channels & Chat' },
+                  ].map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setNotificationCategory(cat.id)}
+                      className={cn(
+                        'px-2.5 py-1 text-xs rounded-lg font-medium transition-colors cursor-pointer shrink-0',
+                        notificationCategory === cat.id
+                          ? 'bg-primary text-primary-foreground shadow-xs'
+                          : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground',
+                      )}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="relative flex items-center min-w-48 sm:w-60">
+                  <Search className="size-3.5 absolute left-2.5 text-muted-foreground pointer-events-none" />
+                  <input
+                    type="text"
+                    value={notificationSearch}
+                    onChange={(e) => setNotificationSearch(e.target.value)}
+                    placeholder="Filter notifications..."
+                    className="w-full pl-8 pr-7 py-1 text-xs rounded-lg border border-border/80 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  {notificationSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setNotificationSearch('')}
+                      className="absolute right-2 text-muted-foreground hover:text-foreground p-0.5"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {feed.isLoading ? (
                 <SkeletonList rows={5} withAvatar />
               ) : feed.isError ? (
@@ -402,23 +790,26 @@ export function InboxView() {
                     </Button>
                   }
                 />
-              ) : !feed.data?.length ? (
+              ) : filteredFeed.length === 0 ? (
                 <EmptyState
                   icon={<Bell />}
-                  title="You are all caught up!"
-                  description="No workspace activity yet."
+                  title={notificationSearch ? 'No matching notifications' : 'You are all caught up!'}
+                  description={
+                    notificationSearch
+                      ? 'Try clearing your search query.'
+                      : 'No workspace activity in this category yet.'
+                  }
                 />
               ) : (
                 <ul className="space-y-2.5">
-                  {feed.data.map((item) => (
+                  {filteredFeed.map((item) => (
                     <FeedRow
                       key={item.id}
                       item={item}
                       workspaceSlug={slug ?? ''}
                       isUnread={
                         !seenThreshold ||
-                        Date.parse(item.occurredAt) >
-                          Date.parse(seenThreshold)
+                        Date.parse(item.occurredAt) > Date.parse(seenThreshold)
                       }
                     />
                   ))}
@@ -426,14 +817,15 @@ export function InboxView() {
               )}
             </TabsContent>
 
-            <TabsContent value="mentions" className="space-y-3 mt-0">
+            {/* 2. MENTIONS TAB */}
+            <TabsContent value="mentions" className="space-y-3.5 mt-0">
               {feed.isLoading ? (
                 <SkeletonList rows={4} withAvatar />
               ) : mentions.length === 0 ? (
                 <EmptyState
                   icon={<AtSign />}
-                  title="No mentions"
-                  description="When someone @mentions you in a channel it shows up here."
+                  title="No mentions yet"
+                  description="When someone @mentions you in any channel or task comment, it will appear here."
                 />
               ) : (
                 <ul className="space-y-2.5">
@@ -444,8 +836,7 @@ export function InboxView() {
                       workspaceSlug={slug ?? ''}
                       isUnread={
                         !seenThreshold ||
-                        Date.parse(item.occurredAt) >
-                          Date.parse(seenThreshold)
+                        Date.parse(item.occurredAt) > Date.parse(seenThreshold)
                       }
                     />
                   ))}
@@ -453,46 +844,80 @@ export function InboxView() {
               )}
             </TabsContent>
 
-            <TabsContent value="unreads" className="mt-4 space-y-3">
+            {/* 3. UNREAD CHANNELS TAB */}
+            <TabsContent value="unreads" className="space-y-3.5 mt-0">
               {channels.isLoading || feed.isLoading ? (
                 <SkeletonList rows={4} />
               ) : unreadChannels.length === 0 ? (
                 <EmptyState
                   icon={<MessageSquare />}
                   title="No unread channels"
-                  description="Every channel you have joined is up to date."
+                  description="All channels you have joined are completely up to date."
                 />
               ) : (
                 <ul className="space-y-2.5">
                   {unreadChannels.map(({ channel, unread, latest }) => (
                     <li key={channel.id}>
-                      <Card className="p-4 bg-surface transition-colors hover:border-border-strong">
-                        <Link
-                          to={`/w/${slug}/c/${channel.slug}`}
-                          className="gap-4 flex items-center justify-between"
-                        >
+                      <Card className="group p-4 bg-surface transition-all duration-(--duration-fast) rounded-xl border border-border/70 hover:border-border-strong hover:bg-surface-raised hover:shadow-md">
+                        <div className="flex items-center justify-between gap-4">
                           <div className="min-w-0 flex-1">
-                            <div className="gap-2 flex items-center">
-                              <span className="text-xs font-semibold text-primary">
-                                #{channel.name}
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
+                                <Hash className="size-3.5" />
+                                <span>{channel.name}</span>
                               </span>
-                              <Badge variant="count">{unread}</Badge>
+                              <Badge variant="count" className="font-bold">
+                                {unread} unread
+                              </Badge>
                             </div>
+
                             {latest ? (
-                              <p className="mt-1 text-xs truncate text-muted-foreground">
-                                Latest from{' '}
-                                {latest.user?.displayName ??
-                                  latest.user?.name ??
-                                  'a teammate'}
-                              </p>
+                              <div className="mt-1.5 flex items-center gap-2 min-w-0">
+                                {latest.user ? (
+                                  <UserAvatar
+                                    name={
+                                      latest.user.displayName ??
+                                      latest.user.name
+                                    }
+                                    src={latest.user.avatarUrl}
+                                    seed={latest.user.id}
+                                    size="xs"
+                                    indicator={false}
+                                    className="shrink-0 font-bold"
+                                  />
+                                ) : null}
+                                <p className="text-xs truncate text-muted-foreground min-w-0">
+                                  <span className="font-semibold text-foreground/90 mr-1">
+                                    {latest.user?.displayName ??
+                                      latest.user?.name ??
+                                      'A teammate'}:
+                                  </span>
+                                  <span>
+                                    {latest.summary || 'sent a message'}
+                                  </span>
+                                </p>
+                              </div>
+                            ) : null}
+
+                            {latest ? (
+                              <span className="mt-1 block font-mono text-[10px] text-muted-foreground/70">
+                                {formatRelative(latest.occurredAt)}
+                              </span>
                             ) : null}
                           </div>
-                          {latest ? (
-                            <span className="ml-4 shrink-0 font-mono text-[10px] text-subtle">
-                              {formatRelative(latest.occurredAt)}
-                            </span>
-                          ) : null}
-                        </Link>
+
+                          <Button
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-3 text-xs gap-1.5 rounded-lg border-border/80 group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary transition-all shrink-0 cursor-pointer font-medium"
+                          >
+                            <Link to={`/w/${slug}/c/${channel.slug}`}>
+                              <span>Open channel</span>
+                              <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+                            </Link>
+                          </Button>
+                        </div>
                       </Card>
                     </li>
                   ))}
@@ -500,16 +925,68 @@ export function InboxView() {
               )}
             </TabsContent>
 
-            <TabsContent value="tasks" className="mt-4 space-y-3">
+            {/* 4. ASSIGNED TO YOU TAB */}
+            <TabsContent value="tasks" className="space-y-3.5 mt-0">
+              {/* Task Filters & Search */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pb-1">
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                  {[
+                    { id: 'all', label: 'All Assigned' },
+                    { id: 'in_progress', label: 'In Progress' },
+                    { id: 'todo', label: 'Planned' },
+                    { id: 'in_review', label: 'In Review' },
+                    { id: 'overdue', label: 'Overdue' },
+                  ].map((filter) => (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      onClick={() => setTaskStatusFilter(filter.id)}
+                      className={cn(
+                        'px-2.5 py-1 text-xs rounded-lg font-medium transition-colors cursor-pointer shrink-0',
+                        taskStatusFilter === filter.id
+                          ? 'bg-primary text-primary-foreground shadow-xs'
+                          : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground',
+                      )}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="relative flex items-center min-w-48 sm:w-60">
+                  <Search className="size-3.5 absolute left-2.5 text-muted-foreground pointer-events-none" />
+                  <input
+                    type="text"
+                    value={taskSearch}
+                    onChange={(e) => setTaskSearch(e.target.value)}
+                    placeholder="Search assigned tasks..."
+                    className="w-full pl-8 pr-7 py-1 text-xs rounded-lg border border-border/80 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  {taskSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setTaskSearch('')}
+                      className="absolute right-2 text-muted-foreground hover:text-foreground p-0.5"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {tasks.isLoading ? (
                 <SkeletonList rows={4} />
               ) : myTasks.length === 0 ? (
                 <EmptyState
                   icon={<CheckSquare />}
-                  title="Nothing assigned to you"
-                  description="Tasks assigned to you across every project will show up here."
+                  title={taskSearch ? 'No matching tasks' : 'Nothing assigned to you'}
+                  description={
+                    taskSearch
+                      ? 'Try clearing your search query.'
+                      : 'Tasks assigned to you across all projects will show up here.'
+                  }
                   action={
-                    <Button asChild size="sm" variant="outline">
+                    <Button asChild size="sm" variant="outline" className="rounded-lg">
                       <Link to={`/w/${slug}/tasks`}>Open the board</Link>
                     </Button>
                   }
@@ -519,59 +996,99 @@ export function InboxView() {
                   {myTasks.map((task) => {
                     const isOverdue =
                       !!task.dueDate && Date.parse(task.dueDate) < Date.now();
+                    const taskHref = `/w/${slug}/tasks?card=${task.id}`;
 
                     return (
                       <li key={task.id}>
-                        <Card className="p-4 gap-4 flex items-center justify-between bg-surface transition-colors hover:border-border-strong">
-                          <div className="min-w-0 flex-1">
-                            <div className="gap-2 flex items-center">
-                              <h4 className="text-xs font-semibold truncate text-foreground">
+                        <Card className="group p-3.5 sm:p-4 gap-4 flex items-center justify-between bg-surface transition-all duration-(--duration-fast) rounded-xl border border-border/70 hover:border-border-strong hover:bg-surface-raised hover:shadow-md">
+                          <Link to={taskHref} className="min-w-0 flex-1 block">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {task.identifier ? (
+                                <span className="font-mono text-[11px] font-bold text-primary px-1.5 py-0.2 rounded bg-primary/10">
+                                  {task.identifier}
+                                </span>
+                              ) : null}
+                              <h4 className="text-xs font-semibold truncate text-foreground group-hover:text-primary transition-colors">
                                 {task.title}
                               </h4>
-                              <Badge variant="neutral" className="capitalize">
+                              <Badge
+                                variant="neutral"
+                                className="capitalize text-[10px] px-1.5 py-0 h-4 font-medium"
+                              >
                                 {task.status.toLowerCase().replace(/_/g, ' ')}
                               </Badge>
+                              {task.priority ? (
+                                <PriorityBadge priority={task.priority} />
+                              ) : null}
                             </div>
-                            <p className="mt-1 text-xs truncate text-muted-foreground">
+
+                            <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                               {task.project ? (
-                                <span className="gap-1 inline-flex items-center align-middle">
+                                <span className="gap-1 inline-flex items-center align-middle font-medium">
                                   <ProjectGlyph
                                     icon={task.project.icon}
                                     iconColor={task.project.iconColor}
                                     color={task.project.color}
                                     size="xs"
                                   />
-                                  {task.project.name}
+                                  <span>{task.project.name}</span>
                                 </span>
                               ) : (
-                                'No project'
+                                <span>No project</span>
                               )}
+
                               {task.dueDate ? (
-                                <>
-                                  {' · '}
-                                  <span
-                                    className={cn(
-                                      isOverdue &&
-                                        'font-medium text-destructive',
-                                    )}
-                                  >
+                                <span
+                                  className={cn(
+                                    'inline-flex items-center gap-1 font-medium',
+                                    isOverdue
+                                      ? 'text-destructive font-semibold'
+                                      : 'text-muted-foreground',
+                                  )}
+                                >
+                                  <Calendar className="size-3" />
+                                  <span>
                                     Due {formatDate(task.dueDate)}
+                                    {isOverdue ? ' (Overdue)' : ''}
                                   </span>
-                                </>
+                                </span>
                               ) : null}
-                            </p>
+
+                              {task._count?.comments ? (
+                                <span className="inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground/80">
+                                  <MessageSquare className="size-3" />
+                                  <span>{task._count.comments}</span>
+                                </span>
+                              ) : null}
+                            </div>
+                          </Link>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            {task.assignee ? (
+                              <UserAvatar
+                                name={
+                                  task.assignee.displayName ??
+                                  task.assignee.name
+                                }
+                                src={task.assignee.avatarUrl}
+                                seed={task.assignee.id}
+                                size="xs"
+                                indicator={false}
+                                className="shrink-0 font-bold"
+                              />
+                            ) : null}
+                            <Button
+                              asChild
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2.5 text-xs gap-1 rounded-lg border-border/80 group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary transition-all font-medium cursor-pointer"
+                            >
+                              <Link to={taskHref}>
+                                <span>View task</span>
+                                <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+                              </Link>
+                            </Button>
                           </div>
-                          {task.assignee ? (
-                            <UserAvatar
-                              name={
-                                task.assignee.displayName ?? task.assignee.name
-                              }
-                              src={task.assignee.avatarUrl}
-                              seed={task.assignee.id}
-                              size="xs"
-                              className="shrink-0"
-                            />
-                          ) : null}
                         </Card>
                       </li>
                     );

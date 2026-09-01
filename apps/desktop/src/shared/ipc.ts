@@ -183,6 +183,7 @@ export type DesktopCommand =
   | 'open-search'
   | 'open-ai-assistant'
   | 'new-channel'
+  | 'open-invite'
   | 'toggle-sidebar'
   | 'open-settings'
   | 'open-shortcuts';

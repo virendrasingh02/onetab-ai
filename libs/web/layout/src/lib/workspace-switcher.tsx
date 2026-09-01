@@ -461,7 +461,7 @@ export function WorkspaceMenu({
                               <div className="gap-1 flex shrink-0 items-center">
                                 {isActive ? (
                                   <>
-                                    {/* <button
+                                    <button
                                       type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -475,7 +475,7 @@ export function WorkspaceMenu({
                                       className="size-6 flex cursor-pointer items-center justify-center rounded-md text-muted-foreground opacity-70 transition-colors group-hover/ws-row:opacity-100 hover:bg-primary/15 hover:text-primary"
                                     >
                                       <MailPlus className="size-3.5" />
-                                    </button> */}
+                                    </button>
 
                                     <ActivityDot
                                       level={indicator?.level ?? 'none'}
