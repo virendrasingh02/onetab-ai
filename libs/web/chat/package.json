@@ -22,6 +22,7 @@
   "dependencies": {
     "@org/auth": "*",
     "@org/media-preview": "*",
+    "@org/realtime": "*",
     "@org/web-members": "*",
     "@org/web-workspace": "*",
     "@tanstack/react-query": "^5.101.4",

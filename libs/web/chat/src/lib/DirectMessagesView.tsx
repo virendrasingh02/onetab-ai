@@ -1,5 +1,6 @@
 import { useCurrentUser } from '@org/auth';
-import type { WorkspaceMember } from '@org/types';
+import { useUserPresenceMap } from '@org/realtime';
+import type { Attachment, WorkspaceMember } from '@org/types';
 import {
   Badge,
   Button,
@@ -15,12 +16,18 @@ import {
   Input,
   LoadingState,
   Panel,
+  ScrollArea,
+  SkeletonList,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
   toast,
   toPresenceStatus,
   UserAvatar,
   useRightPanelStore,
 } from '@org/ui';
-import { cn } from '@org/utils';
+import { cn, formatBytes } from '@org/utils';
 import { useMembers } from '@org/web-members';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
@@ -31,10 +38,15 @@ import {
   Check,
   ChevronRight,
   Copy,
+  Download,
+  FileText,
+  FolderOpen,
+  Image as ImageIcon,
   Mail,
   MessageSquare,
   MessageSquareOff,
   MoreHorizontal,
+  Pin,
   RefreshCw,
   Star,
   UserRound,
@@ -46,6 +58,7 @@ import { ChatPanel } from './chat-panel.js';
 import { GroupConversation } from './GroupConversation.js';
 import { useMatrix } from './matrix-provider.js';
 import { PeoplePicker } from './people-picker.js';
+import { useRoom } from './use-chat.js';
 import { useCreateConversation } from './use-create-conversation.js';
 import { useDirectRoom } from './use-direct-room.js';
 import { useDirectMessagePreferences } from './use-dm-preferences.js';
@@ -118,6 +131,17 @@ function DirectConversation({
   const members = useMembers(workspaceId);
   const { enabled } = useMatrix();
 
+  // Resolved once here and reused: `DirectRoom` also calls `useDirectRoom` for
+  // the same peer, but it is one React Query keyed on the peer id with an
+  // infinite stale time, so the second call is a cache hit — not a second round
+  // of room provisioning. The tab strip's Files & Media panel needs the room id
+  // too, and hooks cannot run after the early returns below.
+  const { roomId } = useDirectRoom(peerId);
+
+  // Mirrors `ChannelPage`: the conversation is one tab beside Files & Media and
+  // Pins, so a DM and a channel carry the same chrome.
+  const [activeTab, setActiveTab] = useState('chat');
+
   // Callback ref, not `useRef`: the conversation only portals its tools into
   // this element once it exists, and a render has to be triggered when it does.
   const [chatActionsSlot, setChatActionsSlot] = useState<HTMLDivElement | null>(
@@ -164,22 +188,244 @@ function DirectConversation({
         chatActionsRef={setChatActionsSlot}
       />
 
-      {!enabled ? (
-        <EmptyState
-          size="lg"
-          icon={<MessageSquareOff />}
-          title="Chat is not configured"
-          description="This deployment has no Matrix homeserver. Set MATRIX_ENABLED and the homeserver settings to turn on direct messages."
-        />
-      ) : (
-        <DirectRoom
-          peerId={member.user.id}
-          name={name}
-          presence={member.user.presence}
-          headerActionsSlot={chatActionsSlot}
-        />
-      )}
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="min-h-0 flex flex-1 flex-col"
+      >
+        <div className="px-3 sm:px-6 py-1 gap-1 flex items-center border-b border-border bg-background">
+          <TabsList className="scrollbar-none overflow-x-auto">
+            <TabsTrigger value="chat" className="gap-1.5">
+              <MessageSquare className="size-4" /> Messages
+            </TabsTrigger>
+            <TabsTrigger value="files-media" className="gap-1.5">
+              <FolderOpen className="size-4" /> Files &amp; Media
+            </TabsTrigger>
+            <TabsTrigger value="pins" className="gap-1.5">
+              <Pin className="size-4" /> Pins
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent
+          value="chat"
+          className="min-h-0 flex flex-1 flex-col overflow-hidden"
+        >
+          {!enabled ? (
+            <EmptyState
+              size="lg"
+              icon={<MessageSquareOff />}
+              title="Chat is not configured"
+              description="This deployment has no Matrix homeserver. Set MATRIX_ENABLED and the homeserver settings to turn on direct messages."
+            />
+          ) : (
+            <DirectRoom
+              peerId={member.user.id}
+              name={name}
+              presence={member.user.presence}
+              headerActionsSlot={chatActionsSlot}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent
+          value="files-media"
+          className="min-h-0 flex flex-1 flex-col"
+        >
+          <DirectFilesPanel roomId={roomId} enabled={enabled} />
+        </TabsContent>
+
+        <TabsContent value="pins" className="min-h-0 flex flex-1 flex-col">
+          <ScrollArea className="min-h-0 flex-1" contentClassName="px-6 py-4">
+            <EmptyState
+              icon={<Pin />}
+              title="Nothing pinned"
+              description="Pin important messages in this conversation so they stay easy to find."
+            />
+          </ScrollArea>
+        </TabsContent>
+      </Tabs>
     </div>
+  );
+}
+
+/**
+ * The DM's Files & Media tab — `ChannelPage`'s counterpart, same toolbar, same
+ * media grid and document list, same empty state.
+ *
+ * A direct message has no files endpoint of its own, so the list is derived
+ * from the room's own timeline: every message that carried an attachment. The
+ * `useRoom` subscription here only runs while this tab is the active one —
+ * Radix unmounts the inactive `TabsContent`, and the Messages tab's own
+ * subscription stops in step — so the conversation is never subscribed twice.
+ */
+function DirectFilesPanel({
+  roomId,
+  enabled,
+}: {
+  roomId: string | null;
+  enabled: boolean;
+}) {
+  const room = useRoom(roomId ?? undefined);
+  const [filter, setFilter] = useState<'all' | 'files' | 'media'>('all');
+
+  const attachments = useMemo(
+    () =>
+      room.messages
+        .filter((message) => message.attachment && !message.isRedacted)
+        .map((message) => {
+          const file = message.attachment as Attachment;
+          return {
+            id: message.id,
+            senderName: message.senderName,
+            name: file.name,
+            mimeType: file.mimeType,
+            size: file.size,
+            url: file.url,
+            thumbnailUrl: file.thumbnailUrl,
+          };
+        })
+        .reverse(),
+    [room.messages],
+  );
+
+  const mediaFiles = useMemo(
+    () => attachments.filter((file) => file.mimeType.startsWith('image/')),
+    [attachments],
+  );
+  const documentFiles = useMemo(
+    () => attachments.filter((file) => !file.mimeType.startsWith('image/')),
+    [attachments],
+  );
+
+  if (!enabled) {
+    return (
+      <EmptyState
+        size="lg"
+        icon={<MessageSquareOff />}
+        title="Chat is not configured"
+        description="Files shared in this conversation will appear here once messaging is turned on."
+      />
+    );
+  }
+
+  const isResolving = !roomId || room.isLoading;
+
+  return (
+    <ScrollArea
+      className="min-h-0 flex-1"
+      contentClassName="px-4 sm:px-6 py-4 space-y-6"
+    >
+      <div className="gap-3 pb-3 flex flex-wrap items-center justify-between border-b border-border/60">
+        <div className="gap-1.5 flex flex-wrap items-center">
+          <Button
+            size="sm"
+            variant={filter === 'all' ? 'primary' : 'outline'}
+            onClick={() => setFilter('all')}
+            className="h-7 text-xs px-2.5"
+          >
+            All ({attachments.length})
+          </Button>
+          <Button
+            size="sm"
+            variant={filter === 'files' ? 'primary' : 'outline'}
+            onClick={() => setFilter('files')}
+            className="h-7 text-xs px-2.5 gap-1.5"
+          >
+            <FileText className="size-3.5" />
+            <span>Documents ({documentFiles.length})</span>
+          </Button>
+          <Button
+            size="sm"
+            variant={filter === 'media' ? 'primary' : 'outline'}
+            onClick={() => setFilter('media')}
+            className="h-7 text-xs px-2.5 gap-1.5"
+          >
+            <ImageIcon className="size-3.5" />
+            <span>Media ({mediaFiles.length})</span>
+          </Button>
+        </div>
+      </div>
+
+      {isResolving && attachments.length === 0 ? (
+        <SkeletonList rows={4} />
+      ) : attachments.length === 0 ? (
+        <EmptyState
+          icon={<FolderOpen />}
+          title="No files or media yet"
+          description="Documents and images you share in this conversation will show up here."
+        />
+      ) : null}
+
+      {(filter === 'all' || filter === 'media') && mediaFiles.length > 0 ? (
+        <div className="space-y-3">
+          <h4 className="text-xs font-bold tracking-wider gap-1.5 flex items-center text-muted-foreground uppercase">
+            <ImageIcon className="size-3.5 text-accent-amber" />
+            <span>Media &amp; Images ({mediaFiles.length})</span>
+          </h4>
+
+          <div className="gap-3 sm:grid-cols-4 grid grid-cols-2">
+            {mediaFiles.map((file) => (
+              <figure
+                key={file.id}
+                className="group relative aspect-square overflow-hidden rounded-lg border border-border bg-muted"
+              >
+                <img
+                  src={file.thumbnailUrl ?? file.url}
+                  alt={file.name}
+                  className="size-full object-cover transition-transform group-hover:scale-105"
+                  loading="lazy"
+                />
+                <div className="inset-0 bg-black/50 p-2 text-white absolute flex items-end opacity-0 transition-opacity group-hover:opacity-100">
+                  <span className="font-medium truncate text-[11px]">
+                    {file.name}
+                  </span>
+                </div>
+              </figure>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {(filter === 'all' || filter === 'files') && documentFiles.length > 0 ? (
+        <div className="space-y-3">
+          <h4 className="text-xs font-bold tracking-wider gap-1.5 flex items-center text-muted-foreground uppercase">
+            <FileText className="size-3.5 text-accent-violet" />
+            <span>Documents &amp; Files ({documentFiles.length})</span>
+          </h4>
+
+          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+            {documentFiles.map((file) => (
+              <li
+                key={file.id}
+                className="gap-3 px-4 py-3 flex items-center transition-colors hover:bg-surface-raised"
+              >
+                <FileText className="size-5 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate text-foreground">
+                    {file.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {file.size ? `${formatBytes(file.size)} · ` : ''}Shared by{' '}
+                    {file.senderName}
+                  </p>
+                </div>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  onClick={() =>
+                    window.open(file.url, '_blank', 'noopener,noreferrer')
+                  }
+                  title="Open file"
+                >
+                  <Download className="size-4" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </ScrollArea>
   );
 }
 
@@ -251,8 +497,16 @@ function DirectMessageHeader({
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
 
+  // Live presence, exactly as the sidebar's DM row reads it — the avatar's
+  // status dot was bound to `member.user.presence`, a snapshot from the members
+  // query that never updates, so it sat on whatever the peer's state was when
+  // the roster loaded (usually "offline"). The realtime map is the same source
+  // the sidebar dot uses; the snapshot stays as the fallback.
+  const presenceMap = useUserPresenceMap();
   const name = member.user.displayName ?? member.user.name;
-  const presence = toPresenceStatus(member.user.presence);
+  const presence =
+    presenceMap[member.user.id]?.status ??
+    toPresenceStatus(member.user.presence);
   const slug = workspaceSlug || 'default';
 
   const isFavorite = preferences.isFavorite(member.user.id);

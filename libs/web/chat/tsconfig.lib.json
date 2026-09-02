@@ -55,6 +55,9 @@
       "path": "../members/tsconfig.lib.json"
     },
     {
+      "path": "../../shared/realtime/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/media-preview/tsconfig.lib.json"
     },
     {
