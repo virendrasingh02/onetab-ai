@@ -1,4 +1,3 @@
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@org/ui';
 import { CheckCircle2, Laptop } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
@@ -9,7 +8,10 @@ export function DesktopAuthCallbackPage() {
   const state = searchParams.get('state');
   const [attempted, setAttempted] = useState(false);
 
-  const desktopDeepLink = code && state ? `onetab://auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}` : 'onetab://open';
+  const desktopDeepLink =
+    code && state
+      ? `onetab://auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`
+      : 'onetab://open';
 
   useEffect(() => {
     if (code && state && !attempted) {
@@ -19,39 +21,43 @@ export function DesktopAuthCallbackPage() {
   }, [code, state, attempted, desktopDeepLink]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md shadow-lg border-border">
-        <CardHeader className="text-center pb-2">
-          <div className="mx-auto size-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-            <CheckCircle2 className="size-6 text-primary" />
-          </div>
-          <CardTitle className="text-lg">Authentication Successful</CardTitle>
-          <CardDescription className="text-xs">
+    <div className="min-h-screen flex items-center justify-center bg-[#09090b] text-white p-4">
+      <div className="w-full max-w-md bg-[#121214] border border-zinc-800 rounded-xl p-6 shadow-2xl text-center space-y-4">
+        <div className="mx-auto size-12 rounded-full bg-zinc-800 border border-zinc-700/80 flex items-center justify-center text-emerald-400">
+          <CheckCircle2 className="size-6" />
+        </div>
+        <div>
+          <h1 className="text-lg font-bold text-white">Authentication Successful</h1>
+          <p className="text-xs text-zinc-400 mt-1">
             Redirecting to OneTab AI Desktop application…
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 pt-2 text-center">
-          <p className="text-xs text-muted-foreground">
-            If your desktop app did not open automatically, click the button below to complete sign-in.
           </p>
+        </div>
 
-          <Button
-            className="w-full gap-2"
-            onClick={() => {
-              window.location.href = desktopDeepLink;
-            }}
+        <p className="text-xs text-zinc-400">
+          If your desktop app did not open automatically, click the button below to complete sign-in.
+        </p>
+
+        <button
+          type="button"
+          className="w-full h-10 rounded-lg bg-white text-black hover:bg-zinc-200 font-medium text-xs sm:text-sm transition-colors flex items-center justify-center gap-2"
+          onClick={() => {
+            window.location.href = desktopDeepLink;
+          }}
+        >
+          <Laptop className="size-4" />
+          <span>Open Desktop App</span>
+        </button>
+
+        <div className="pt-1">
+          <Link
+            to="/"
+            className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
           >
-            <Laptop className="size-4" />
-            <span>Open Desktop App</span>
-          </Button>
-
-          <div className="pt-2">
-            <Button variant="ghost" size="sm" asChild className="text-xs text-muted-foreground">
-              <Link to="/">Continue in Web Browser instead</Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+            Continue in Web Browser instead
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }
+

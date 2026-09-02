@@ -1,9 +1,16 @@
+/// <reference lib="dom" />
 /**
  * @file device-environment.ts
  * Safe, comprehensive device, operating system, and runtime environment detector.
  *
  * Designed to be SSR-safe, defensive, and browser-capability aware rather than
  * relying exclusively on naive user-agent substring parsing.
+ *
+ * The `/// <reference lib="dom" />` above makes the file self-contained: it can
+ * be type-checked by a Node-only consumer (`@org/common`, `@org/api-*`) without
+ * that project adding `dom` to its own `lib`. Every `window`/`navigator` access
+ * is still guarded with `typeof … !== "undefined"` for real SSR/Node runtime
+ * safety.
  */
 
 export type DeviceType = "mobile" | "tablet" | "desktop";
@@ -83,12 +90,12 @@ export function detectOperatingSystem(input?: DetectionInput): OperatingSystem {
   }
 
   const ua =
-    input?.userAgent ??
-    (typeof navigator !== "undefined" ? navigator.userAgent : "") ||
+    (input?.userAgent ??
+      (typeof navigator !== "undefined" ? navigator.userAgent : "")) ||
     "";
   const platform =
-    input?.platform ??
-    (typeof navigator !== "undefined" ? navigator.platform : "") ||
+    (input?.platform ??
+      (typeof navigator !== "undefined" ? navigator.platform : "")) ||
     "";
   const maxTouchPoints =
     input?.maxTouchPoints ??
@@ -129,8 +136,8 @@ export function detectOperatingSystem(input?: DetectionInput): OperatingSystem {
 export function detectDeviceType(input?: DetectionInput, os?: OperatingSystem): DeviceType {
   const resolvedOS = os ?? detectOperatingSystem(input);
   const ua =
-    input?.userAgent ??
-    (typeof navigator !== "undefined" ? navigator.userAgent : "") ||
+    (input?.userAgent ??
+      (typeof navigator !== "undefined" ? navigator.userAgent : "")) ||
     "";
   const uaLower = ua.toLowerCase();
   const maxTouchPoints =
@@ -172,8 +179,8 @@ export function detectDeviceType(input?: DetectionInput, os?: OperatingSystem): 
 
 export function detectBrowser(input?: DetectionInput): BrowserName {
   const ua =
-    input?.userAgent ??
-    (typeof navigator !== "undefined" ? navigator.userAgent : "") ||
+    (input?.userAgent ??
+      (typeof navigator !== "undefined" ? navigator.userAgent : "")) ||
     "";
   const uaLower = ua.toLowerCase();
 

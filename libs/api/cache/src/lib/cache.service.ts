@@ -115,7 +115,7 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
         this.pubClient.connect(),
         this.subClient.connect(),
       ]);
-    } catch (error) {
+    } catch {
       this.logger.warn(
         `Could not connect to Redis at startup (${this.redisUrl}). CacheService will operate with resilient in-memory fallback.`,
       );

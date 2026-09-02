@@ -92,14 +92,15 @@ export function NotificationDisplaySettingsPanel({
       {/* Top Heading & Test Trigger */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Bell className="size-5 text-primary" />
+          <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
+            <Bell className="size-4.5 text-primary" />
             <span>Notification Display</span>
-          </h1>
-          <p className="text-xs text-muted-foreground mt-1">
-            Control alert appearance, on-screen positioning, privacy previews, and Windows taskbar flashing.
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Control toast appearance, on-screen positioning, privacy previews, and Windows taskbar flashing.
           </p>
         </div>
+
 
         <div className="flex items-center gap-2 shrink-0">
           <Button
@@ -121,7 +122,7 @@ export function NotificationDisplaySettingsPanel({
           >
             {testSuccess ? (
               <>
-                <CheckCircle2 className="size-3.5" />
+                <CheckCircle2 className="size-3.5 text-white" />
                 <span>Test Alert Sent!</span>
               </>
             ) : (
@@ -379,7 +380,7 @@ export function NotificationDisplaySettingsPanel({
               }
               onValueChange={handleDurationSelect}
             >
-              <SelectTrigger className="h-9 text-xs bg-surface border-border">
+              <SelectTrigger className="h-8 text-xs bg-surface border-border">
                 <div className="flex items-center gap-2">
                   <Clock className="size-3.5 text-muted-foreground" />
                   <SelectValue placeholder="5 seconds" />

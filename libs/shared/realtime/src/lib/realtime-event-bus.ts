@@ -1,4 +1,4 @@
-import { RealtimeEventType, type RealtimeEvent } from './types.js';
+import type { RealtimeEvent, RealtimeEventType } from './types.js';
 
 export type RealtimeEventHandler<T = any> = (event: RealtimeEvent<T>) => void;
 

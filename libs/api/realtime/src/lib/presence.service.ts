@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Interval } from '@nestjs/schedule';
 import { AppEvent } from '@org/api-common';
@@ -28,8 +28,6 @@ interface UserPresenceState {
 
 @Injectable()
 export class PresenceService {
-  private readonly logger = new Logger(PresenceService.name);
-
   // clientId -> ClientSession
   private readonly clientSessions = new Map<string, ClientSession>();
 

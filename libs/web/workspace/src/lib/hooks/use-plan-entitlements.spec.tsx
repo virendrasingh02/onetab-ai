@@ -39,7 +39,11 @@ describe('usePlanEntitlements', () => {
   );
 
   it('defaults to Starter plan before query loads', () => {
-    (billingApi.summary as any).mockReturnValue(new Promise(() => {}));
+    (billingApi.summary as any).mockReturnValue(
+      new Promise(() => {
+        /* never resolves — simulates a pending query */
+      }),
+    );
 
     const { result } = renderHook(() => usePlanEntitlements('ws_test_123'), {
       wrapper,

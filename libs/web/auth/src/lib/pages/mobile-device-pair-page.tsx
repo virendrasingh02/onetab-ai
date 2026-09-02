@@ -1,16 +1,7 @@
-import {
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-  Input,
-} from '@org/ui';
-import { ArrowRight, KeyRound } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { AuthLayout } from '../auth-layout.js';
 
 export function MobileDevicePairPage() {
   const navigate = useNavigate();
@@ -38,54 +29,43 @@ export function MobileDevicePairPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md shadow-lg border-border">
-        <CardHeader className="text-center pb-3">
-          <div className="mx-auto size-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-            <KeyRound className="size-6 text-primary" />
-          </div>
-          <CardTitle className="text-xl">Device Pairing</CardTitle>
-          <CardDescription className="text-xs">
-            Enter the 6-character code displayed on your desktop screen.
-          </CardDescription>
-        </CardHeader>
+    <AuthLayout
+      title="Device Pairing"
+      subtitle="Enter the 6-character code displayed on your desktop screen."
+      footer={
+        <Link to="/" className="text-zinc-500 hover:text-zinc-300 transition-colors">
+          Cancel
+        </Link>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4 text-center">
+        <div className="space-y-2">
+          <input
+            type="text"
+            autoFocus
+            placeholder="ABC-123"
+            value={code}
+            onChange={handleInputChange}
+            className="w-full text-center font-mono text-2xl font-bold tracking-widest h-14 uppercase rounded-lg bg-[#121214] border border-zinc-800 text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all"
+            maxLength={7}
+          />
+          {error && <p className="text-xs text-rose-400">{error}</p>}
+        </div>
 
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4 pt-1">
-            <div className="space-y-2 text-center">
-              <Input
-                type="text"
-                autoFocus
-                placeholder="ABC-123"
-                value={code}
-                onChange={handleInputChange}
-                className="text-center font-mono text-2xl font-bold tracking-widest h-14 uppercase"
-                maxLength={7}
-              />
-              {error && <p className="text-xs text-destructive">{error}</p>}
-            </div>
+        <p className="text-xs text-zinc-400">
+          On your desktop app login screen, choose <strong>Sign in with Mobile</strong> to generate a code.
+        </p>
 
-            <p className="text-xs text-muted-foreground text-center">
-              On your desktop app login screen, choose <strong>Sign in with Mobile</strong> to generate a code.
-            </p>
-          </CardContent>
-
-          <CardFooter className="flex flex-col gap-2 pt-2">
-            <Button
-              type="submit"
-              className="w-full gap-2 h-10"
-              disabled={code.replace(/[^A-Z0-9]/g, '').length < 6}
-            >
-              <span>Continue</span>
-              <ArrowRight className="size-4" />
-            </Button>
-
-            <Button variant="ghost" asChild className="w-full text-xs text-muted-foreground">
-              <Link to="/">Cancel</Link>
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
-    </div>
+        <button
+          type="submit"
+          disabled={code.replace(/[^A-Z0-9]/g, '').length < 6}
+          className="w-full h-10 rounded-lg bg-white text-black hover:bg-zinc-200 font-medium text-xs sm:text-sm transition-all duration-150 flex items-center justify-center gap-1.5 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+        >
+          <span>Continue</span>
+          <ArrowRight className="size-4" />
+        </button>
+      </form>
+    </AuthLayout>
   );
 }
+

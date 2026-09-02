@@ -8,8 +8,12 @@ export interface MobileStoreConfig {
   url: string;
   storeName: string;
   badgeLabel: string;
+  /** iOS bundle identifier, e.g. `ai.onetab.mobile`. */
   bundleId?: string;
+  /** iOS numeric App Store id. */
   appStoreId?: string;
+  /** Android application id, e.g. `ai.onetab.mobile`. */
+  packageName?: string;
 }
 
 export interface DesktopInstallerConfig {
@@ -37,8 +41,12 @@ export interface AppDownloadConfig {
 
 const getEnv = (key: string, fallback: string): string => {
   try {
-    if (typeof import.meta !== "undefined" && import.meta.env && typeof import.meta.env[key] === "string") {
-      return import.meta.env[key] as string;
+    // `import.meta.env` is Vite-only and absent from this lib's ambient types
+    // (it is Node-typed on purpose). Read it through a local structural view so
+    // the file still type-checks for a Node consumer.
+    const env = (import.meta as unknown as { env?: Record<string, unknown> }).env;
+    if (env && typeof env[key] === "string") {
+      return env[key] as string;
     }
   } catch {
     // ignore

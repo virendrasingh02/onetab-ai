@@ -165,7 +165,7 @@ export class RealtimeClient {
         this.handleIncomingRaw(e.data);
       });
 
-      this.eventSource.onerror = (err) => {
+      this.eventSource.onerror = () => {
         // SSE error or connection closed by server
         this.cleanupConnection();
         this.scheduleReconnect();

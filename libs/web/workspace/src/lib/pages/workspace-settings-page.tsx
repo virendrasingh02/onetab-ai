@@ -4,7 +4,6 @@ import { formErrorMessage, useAuthStore, useCurrentUser } from '@org/auth';
 import { useTheme } from '@org/design-system';
 import { WorkspaceIconPicker } from '@org/icons';
 import {
-  Badge,
   Button,
   Dialog,
   DialogClose,
@@ -37,7 +36,6 @@ import {
   WorkspaceAvatar,
   useFocusStore,
   useSidebarCustomizerStore,
-  useWorldClockStore,
   FOCUS_SOUND_OPTIONS,
   FOCUS_DURATION_OPTIONS,
   focusAudio,
@@ -73,11 +71,13 @@ import {
   Smile,
   Target,
   Clock,
-  Globe,
   Volume2,
   VolumeX,
   Play,
   Pause,
+  Inbox,
+  Mail,
+  Smartphone,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
@@ -186,8 +186,6 @@ export function WorkspaceSettingsPage({
   const [convertEmojis, setConvertEmojis] = useState(true);
   const [sendShortcut, setSendShortcut] = useState('ctrl-enter');
   const [fontSize, setFontSize] = useState('default');
-  const [pointerCursors, setPointerCursors] = useState(false);
-  const [underlineLinks, setUnderlineLinks] = useState(false);
 
   // AI & Persona Settings States
   const [defaultModel, setDefaultModel] = useState('gpt-4o');
@@ -201,11 +199,10 @@ export function WorkspaceSettingsPage({
     'You are Antigravity AI, an intelligent collaborative assistant designed for software development and workspace productivity.'
   );
 
-  // Notifications States
-  const [notifyMentions, setNotifyMentions] = useState(true);
-  const [notifyInvites, setNotifyInvites] = useState(true);
+  // Notifications States. Per-category toggles (mentions / invites / agent
+  // alerts) now live in <NotificationDisplaySettingsPanel>, which is backed by
+  // the notification-preferences API.
   const [notifyDigest, setNotifyDigest] = useState(false);
-  const [notifyAgentAlerts, setNotifyAgentAlerts] = useState(true);
   const [notifyDesktopPush, setNotifyDesktopPush] = useState(true);
   const [notifyChannelScope, setNotifyChannelScope] = useState('all');
   const [testNotifSending, setTestNotifSending] = useState(false);
@@ -246,7 +243,6 @@ export function WorkspaceSettingsPage({
   const [passwordChanged, setPasswordChanged] = useState(false);
   const openStatusModal = useFocusStore((s) => s.openStatusModal);
   const openFocusModal = useFocusStore((s) => s.openFocusModal);
-  const openWorldClock = useWorldClockStore((s) => s.openWorldClock);
   const focusStore = useFocusStore();
   const [testSoundPlaying, setTestSoundPlaying] = useState<FocusSoundType | null>(null);
 
@@ -493,26 +489,7 @@ export function WorkspaceSettingsPage({
               </div>
 
               <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">Use pointer cursors</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Change the cursor to a pointer when hovering over interactive elements
-                  </p>
-                </div>
-                <Switch checked={pointerCursors} onCheckedChange={setPointerCursors} />
-              </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">Underline links</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Always underline links in text content
-                  </p>
-                </div>
-                <Switch checked={underlineLinks} onCheckedChange={setUnderlineLinks} />
-              </div>
-
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
                 <div>
                   <h4 className="text-xs font-medium text-foreground">Interface theme</h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -1156,33 +1133,9 @@ export function WorkspaceSettingsPage({
               </div>
             </div>
           </div>
-
-          {/* Subsection: Team World Clock Shortcut */}
-          <div className="p-5 rounded-2xl border border-primary/25 bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                <Globe className="size-5" />
-              </div>
-              <div>
-                <h4 className="text-xs font-semibold text-foreground">Team World Clock & Meeting Planner</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  See where all teammates are located, their live local times, and schedule overlapping meetings.
-                </p>
-              </div>
-            </div>
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              onClick={openWorldClock}
-              className="text-xs gap-1.5 shrink-0"
-            >
-              <Globe className="size-3.5" />
-              Open World Clock
-            </Button>
-          </div>
         </div>
       )}
+
 
       {/* ---------------- SECTION 2.6: STATUS & FOCUS MODE ---------------- */}
       {currentTab === 'focus-status' && user && (
@@ -1475,178 +1428,224 @@ export function WorkspaceSettingsPage({
       {/* ---------------- SECTION 3: NOTIFICATIONS ---------------- */}
       {currentTab === 'notifications' && (
         <div className="space-y-10">
-          <NotificationDisplaySettingsPanel workspaceId={workspaceId} />
-
-          <div className="border-t border-border/70 pt-6">
-            <h2 className="text-lg font-bold tracking-tight text-foreground">Delivery Channels & Permissions</h2>
-            <p className="text-xs text-muted-foreground mt-1">
-              Configure browser permissions, triggers, and workspace notification routing.
+          {/* Main Reference Header */}
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-white mb-1">
+              Notification settings
+            </h1>
+            <p className="text-xs sm:text-sm text-zinc-400">
+              Choose how workspace updates reach you.
             </p>
           </div>
 
-          {/* Browser & Desktop Notification Status Card */}
-          <div className="bg-surface-inset rounded-2xl border border-border p-5 space-y-4 shadow-2xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <div className={cn(
-                  'size-10 rounded-xl flex items-center justify-center shrink-0 shadow-inner',
-                  notifBarState.permission === 'granted'
-                    ? 'bg-success/15 text-success-text border border-success/30'
-                    : notifBarState.permission === 'denied'
-                      ? 'bg-destructive/15 text-destructive border border-destructive/30'
-                      : 'bg-primary/15 text-primary border border-primary/30'
-                )}>
-                  <Bell className="size-5" />
+          {/* 1. Primary Notification Delivery Channels (matching reference design) */}
+          <div className="space-y-3">
+            {/* Inbox */}
+            <div className="bg-[#121214] border border-zinc-800/90 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4 transition-colors hover:border-zinc-700/80">
+              <div className="flex items-center gap-3.5">
+                <div className="size-9 rounded-xl bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-200 shrink-0">
+                  <Inbox className="size-4.5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-semibold text-foreground">Desktop & Browser Notifications</h3>
-                    <Badge
-                      variant={
-                        notifBarState.permission === 'granted'
-                          ? 'success'
-                          : notifBarState.permission === 'denied'
-                            ? 'destructive'
-                            : 'neutral'
-                      }
-                      className="text-[10px] uppercase font-bold"
-                    >
-                      {notifBarState.permission === 'granted'
-                        ? 'Active & Allowed'
-                        : notifBarState.permission === 'denied'
-                          ? 'Blocked in Browser'
-                          : 'Permission Required'}
-                    </Badge>
+                    <span className="text-sm font-semibold text-white">Inbox</span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {notifBarState.permission === 'granted'
-                      ? 'Desktop notifications are active. You will receive real-time push alerts for mentions and key workspace events.'
-                      : notifBarState.permission === 'denied'
-                        ? 'Notifications are blocked in your browser site permissions. Click your browser address bar lock icon to unblock.'
-                        : 'Enable notifications to receive background notifications and activity updates even when the tab is hidden.'}
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Approvals, handoffs, and follow-ups.
                   </p>
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 shrink-0">
-                {notifBarState.permission === 'default' && (
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    className="h-8 text-xs gap-1.5 shadow-sm"
-                    onClick={() => void notifBarState.requestPermission()}
-                  >
-                    <Bell className="size-3.5" />
-                    <span>Request Permission</span>
-                  </Button>
-                )}
+              <Select value={notifyChannelScope} onValueChange={setNotifyChannelScope}>
+                <SelectTrigger className="w-32 h-8 text-xs bg-[#18181b] border-zinc-700/60 text-zinc-200 rounded-lg">
+                  <SelectValue placeholder="Default" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#18181b] border-zinc-800 text-zinc-200">
+                  <SelectItem value="all" className="text-xs">Default (All)</SelectItem>
+                  <SelectItem value="mentions" className="text-xs">Mentions only</SelectItem>
+                  <SelectItem value="nothing" className="text-xs">Off</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Email */}
+            <div className="bg-[#121214] border border-zinc-800/90 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4 transition-colors hover:border-zinc-700/80">
+              <div className="flex items-center gap-3.5">
+                <div className="size-9 rounded-xl bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-200 shrink-0">
+                  <Mail className="size-4.5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-white">Email</span>
+                    <button
+                      type="button"
+                      disabled={testNotifSending}
+                      onClick={async () => {
+                        setTestNotifSending(true);
+                        await notify({
+                          title: 'OneTab AI Sample Digest',
+                          body: 'Sample email digest: 3 new mentions, 1 task completed.',
+                        });
+                        setTestNotifSending(false);
+                        setTestNotifSent(true);
+                        setTimeout(() => setTestNotifSent(false), 3000);
+                      }}
+                      className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 hover:bg-emerald-900/60 transition-colors cursor-pointer"
+                    >
+                      {testNotifSent ? 'Sample sent!' : 'Send sample'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Digests and direct alerts.
+                  </p>
+                </div>
+              </div>
+
+              <Select
+                value={notifyDigest ? 'weekly' : 'default'}
+                onValueChange={(val) => setNotifyDigest(val === 'weekly')}
+              >
+                <SelectTrigger className="w-32 h-8 text-xs bg-[#18181b] border-zinc-700/60 text-zinc-200 rounded-lg">
+                  <SelectValue placeholder="Default" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#18181b] border-zinc-800 text-zinc-200">
+                  <SelectItem value="default" className="text-xs">Default</SelectItem>
+                  <SelectItem value="weekly" className="text-xs">Weekly digest</SelectItem>
+                  <SelectItem value="off" className="text-xs">Off</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Browser */}
+            <div className="bg-[#121214] border border-zinc-800/90 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4 transition-colors hover:border-zinc-700/80">
+              <div className="flex items-center gap-3.5">
+                <div className="size-9 rounded-xl bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-200 shrink-0">
+                  <Monitor className="size-4.5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-white">Browser</span>
+                    {notifBarState.permission === 'granted' && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800/60">
+                        Active
+                      </span>
+                    )}
+                    {notifBarState.permission === 'denied' && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-rose-950/80 text-rose-400 border border-rose-800/60">
+                        Blocked
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    {notifBarState.permission === 'granted'
+                      ? 'Desktop push notifications are enabled and active.'
+                      : notifBarState.permission === 'denied'
+                        ? 'Notifications blocked in browser permissions.'
+                        : 'Desktop banners stay off until enabled.'}
+                  </p>
+                </div>
+              </div>
+
+              {notifBarState.permission === 'granted' ? (
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-8 text-xs gap-1.5 bg-surface border-border"
+                  className="h-8 px-3 text-xs bg-[#18181b] border-zinc-700/60 text-zinc-200 hover:text-white hover:bg-zinc-800 rounded-lg shrink-0"
                   disabled={testNotifSending}
                   onClick={async () => {
                     setTestNotifSending(true);
                     await notify({
-                      title: 'OneTab AI Test Notification',
-                      body: 'Your real-time notifications are working seamlessly!',
+                      title: 'OneTab AI Test Alert',
+                      body: 'Desktop notifications are working seamlessly!',
                     });
                     setTestNotifSending(false);
-                    setTestNotifSent(true);
-                    setTimeout(() => setTestNotifSent(false), 3000);
                   }}
                 >
-                  {testNotifSent ? (
-                    <>
-                      <CheckCircle2 className="size-3.5 text-success-text" />
-                      <span>Sent!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Bell className="size-3.5 text-muted-foreground" />
-                      <span>Send Test Alert</span>
-                    </>
-                  )}
+                  <Bell className="size-3.5 mr-1 text-zinc-400" />
+                  <span>Send Test Alert</span>
                 </Button>
-                {(notifBarState.isDismissed || notifBarState.isSnoozed) && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 text-xs text-muted-foreground hover:text-foreground"
-                    onClick={() => notifBarState.resetBarState()}
-                  >
-                    <span>Reset Bottom Bar Prompt</span>
-                  </Button>
-                )}
-              </div>
+              ) : notifBarState.permission === 'denied' ? (
+                <span className="text-xs text-zinc-500 italic shrink-0">
+                  Unblock in browser
+                </span>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 px-3 text-xs bg-[#18181b] border-zinc-700/60 text-zinc-200 hover:text-white hover:bg-zinc-800 rounded-lg shrink-0"
+                  onClick={() => void notifBarState.requestPermission()}
+                >
+                  <span>Enable notifications</span>
+                </Button>
+              )}
             </div>
-          </div>
 
-          <div className="space-y-3">
-            <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
-              Delivery Channels & Triggers
-            </h3>
-            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">Mentions and thread replies</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Get notified when tagged or when a thread you follow has updates</p>
+            {/* Mobile & Smart Notifications */}
+            <div className="bg-[#121214] border border-zinc-800/90 rounded-2xl p-4 sm:p-5 space-y-4 transition-colors hover:border-zinc-700/80">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="size-9 rounded-xl bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-200 shrink-0">
+                    <Smartphone className="size-4.5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-white">Mobile</span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await notify({
+                            title: 'Mobile Preview',
+                            body: 'Sarah replied to your thread in #engineering',
+                          });
+                        }}
+                        className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-950/80 text-purple-400 border border-purple-800/60 hover:bg-purple-900/60 transition-colors cursor-pointer"
+                      >
+                        Show example
+                      </button>
+                    </div>
+                    <p className="text-xs text-zinc-400 mt-0.5">
+                      Away-from-desk delivery.
+                    </p>
+                  </div>
                 </div>
-                <Switch checked={notifyMentions} onCheckedChange={setNotifyMentions} />
-              </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">Workspace invitations & requests</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Receive alerts when new members request to join the workspace</p>
-                </div>
-                <Switch checked={notifyInvites} onCheckedChange={setNotifyInvites} />
-              </div>
-
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">AI Agent task completion alerts</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Receive high-priority alerts when background AI tasks finish</p>
-                </div>
-                <Switch checked={notifyAgentAlerts} onCheckedChange={setNotifyAgentAlerts} />
-              </div>
-
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">Desktop push notifications</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Send native operating system notifications</p>
-                </div>
-                <Switch checked={notifyDesktopPush} onCheckedChange={setNotifyDesktopPush} />
-              </div>
-
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">Channel activity scope</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Filter volume of activity notifications</p>
-                </div>
-                <Select value={notifyChannelScope} onValueChange={setNotifyChannelScope}>
-                  <SelectTrigger className="w-36 h-8 text-xs bg-surface border-border">
-                    <SelectValue placeholder="All activity" />
+                <Select value="muted" onValueChange={() => undefined}>
+                  <SelectTrigger className="w-32 h-8 text-xs bg-[#18181b] border-zinc-700/60 text-zinc-200 rounded-lg">
+                    <SelectValue placeholder="Muted" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-[#18181b] border-zinc-800 text-zinc-200">
+                    <SelectItem value="muted" className="text-xs">Muted</SelectItem>
+                    <SelectItem value="default" className="text-xs">Default</SelectItem>
                     <SelectItem value="all" className="text-xs">All activity</SelectItem>
-                    <SelectItem value="mentions" className="text-xs">Mentions only</SelectItem>
-                    <SelectItem value="nothing" className="text-xs">Nothing</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+              {/* Sub-row: Smart notifications */}
+              <div className="pt-3 border-t border-zinc-800/60 flex items-center justify-between gap-4 pl-12">
                 <div>
-                  <h4 className="text-xs font-medium text-foreground">Weekly email digest</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Receive a summary of key weekly accomplishments and updates</p>
+                  <h4 className="text-xs font-medium text-white">Smart notifications</h4>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">
+                    Pause phone alerts while desktop stays active.
+                  </p>
                 </div>
-                <Switch checked={notifyDigest} onCheckedChange={setNotifyDigest} />
+                <Switch
+                  checked={notifyDesktopPush}
+                  onCheckedChange={setNotifyDesktopPush}
+                />
               </div>
             </div>
           </div>
+
+          {/* Display Preferences & Screen Positioning */}
+          <div className="border-t border-zinc-800/80 pt-8">
+            <NotificationDisplaySettingsPanel workspaceId={workspaceId} />
+          </div>
         </div>
       )}
+
+
+
 
       {/* ---------------- SECTION: APPS & DOWNLOADS ---------------- */}
       {currentTab === 'downloads' && (

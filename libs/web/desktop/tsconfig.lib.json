@@ -35,6 +35,7 @@
   "exclude": [
     "out-tsc",
     "dist",
+    "src/test-setup.ts",
     "**/*.spec.ts",
     "**/*.spec.tsx",
     "**/*.test.ts",

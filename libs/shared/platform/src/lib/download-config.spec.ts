@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
   buildAppDeepLink,
-  DEFAULT_APP_DOWNLOAD_CONFIG,
   getAllDesktopDownloadOptions,
   getAllMobileDownloadOptions,
   getDownloadOptionForOS,

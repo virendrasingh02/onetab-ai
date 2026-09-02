@@ -19,9 +19,8 @@ import {
   QrCode,
   ShieldCheck,
   Smartphone,
-  Sparkles,
 } from "lucide-react";
-import React, { useState } from "react";
+import { useState } from "react";
 import { openExternal } from "./desktop-api.js";
 import { useAppDownload, type UseAppDownloadOptions } from "./use-app-download.js";
 

@@ -1,6 +1,6 @@
 import { getAccessToken, http } from '@org/api-client';
 import type { UserPresence } from '@org/types';
-import { RealtimeEventBus } from './realtime-event-bus.js';
+import type { RealtimeEventBus } from './realtime-event-bus.js';
 import {
   RealtimeEventType,
   type PresenceUpdatedPayload,

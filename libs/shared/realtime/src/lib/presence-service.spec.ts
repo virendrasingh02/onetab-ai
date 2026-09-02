@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { PresenceService } from './presence-service.js';
 import { RealtimeEventBus } from './realtime-event-bus.js';
 import { RealtimeEventType } from './types.js';

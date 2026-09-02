@@ -1,4 +1,3 @@
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PresenceService } from './presence.service.js';
 

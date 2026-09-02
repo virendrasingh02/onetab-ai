@@ -6,6 +6,10 @@
     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
     "emitDeclarationOnly": true,
     "forceConsistentCasingInFileNames": true,
+    // Editors resolve @org/auth straight to src (the "@org/source" condition),
+    // so .d.ts.map files add no navigation value here — and every downstream
+    // `tsc --build` rewrites them, racing the on-access AV scanner (EBUSY).
+    "declarationMap": false,
     "types": [
       "node",
       "vite/client",

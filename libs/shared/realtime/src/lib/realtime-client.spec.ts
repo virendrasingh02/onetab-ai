@@ -15,14 +15,14 @@ describe('RealtimeClient', () => {
       onopen: (() => void) | null = null;
       onmessage: ((event: any) => void) | null = null;
       onerror: ((error: any) => void) | null = null;
-      listeners = new Map<string, Function>();
+      listeners = new Map<string, (event: unknown) => void>();
 
       constructor(url: string) {
         this.url = url;
         mockEventSourceInstances.push(this);
       }
 
-      addEventListener(type: string, handler: Function) {
+      addEventListener(type: string, handler: (event: unknown) => void) {
         this.listeners.set(type, handler);
       }
 

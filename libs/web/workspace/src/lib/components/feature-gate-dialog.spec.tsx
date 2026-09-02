@@ -6,7 +6,6 @@ import { FeatureGateDialog } from './feature-gate-dialog.js';
 describe('FeatureGateDialog', () => {
   it('renders required plan and feature name when open', () => {
     const onClose = vi.fn();
-    const onUpgradeClick = vi.fn();
 
     render(
       <FeatureGateDialog

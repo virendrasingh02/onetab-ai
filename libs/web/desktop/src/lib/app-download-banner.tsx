@@ -14,10 +14,8 @@ import {
   Download,
   Laptop,
   Smartphone,
-  Sparkles,
   X,
 } from "lucide-react";
-import React from "react";
 import { openExternal } from "./desktop-api.js";
 import { useAppDownload, type UseAppDownloadOptions } from "./use-app-download.js";
 

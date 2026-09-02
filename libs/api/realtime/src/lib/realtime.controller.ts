@@ -69,7 +69,7 @@ export class RealtimeController {
   async stream(
     @Query() query: StreamQuery,
     @Headers('authorization') authHeader: string | undefined,
-    @Req() req: Request,
+    @Req() _req: Request,
   ): Promise<Observable<MessageEvent>> {
     let token = query.token;
     if (!token && authHeader?.startsWith('Bearer ')) {

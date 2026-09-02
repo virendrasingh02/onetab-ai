@@ -184,7 +184,7 @@ export function RealtimeProvider({
 
     const unsubTaskDeleted = bus.on<TaskDeletedPayload>(
       RealtimeEventType.TaskDeleted,
-      (event: RealtimeEvent<TaskDeletedPayload>) => {
+      () => {
         queryClient.invalidateQueries({
           queryKey: ['work-tools', ws, 'tasks'],
         });

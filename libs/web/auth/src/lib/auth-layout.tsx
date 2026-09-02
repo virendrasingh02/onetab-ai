@@ -8,12 +8,15 @@ export interface AuthLayoutProps {
   children: ReactNode;
   footer?: ReactNode;
   className?: string;
+  brandName?: string;
+  brandLogoText?: string;
 }
 
 /**
- * Split shell for the unauthenticated routes: a branded panel on the left
- * (desktop only) and the form on the right. The form column is centred and
- * width-capped so it stays readable on ultrawide displays.
+ * Centered minimalist auth shell matching the modern dark theme design:
+ * - Top centered brand emblem & name
+ * - Center content area with title, subtitle, form and social logins
+ * - Bottom legal disclaimer and copyright footer links
  */
 export function AuthLayout({
   title,
@@ -21,66 +24,77 @@ export function AuthLayout({
   children,
   footer,
   className,
+  brandName = 'OneTab AI',
+  brandLogoText = 'O',
 }: AuthLayoutProps) {
   return (
-    <div className="lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] grid min-h-full">
-      <aside className="p-10 lg:flex relative hidden flex-col justify-between overflow-hidden bg-sidebar text-sidebar-foreground">
-        {/* Decorative wash — purely presentational, hidden from AT. */}
-        <div
-          aria-hidden
-          className="-top-24 -left-16 size-80 blur-3xl pointer-events-none absolute rounded-full bg-primary/25"
-        />
-        <div
-          aria-hidden
-          className="-right-20 bottom-0 size-96 blur-3xl pointer-events-none absolute rounded-full bg-info/20"
-        />
-
-        <Link to="/" className="gap-2.5 relative flex items-center">
-          <span className="size-8 font-semibold flex items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            O
-          </span>
-          <span className="text-base font-semibold tracking-tight">
-            OneTab AI
+    <div className="min-h-screen flex flex-col justify-between items-center bg-[#09090b] text-zinc-100 px-4 py-8 sm:py-10 selection:bg-zinc-800 selection:text-white">
+      {/* Top Brand Emblem */}
+      <header className="pt-2 sm:pt-4 flex items-center justify-center">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-700"
+          aria-label={`${brandName} Home`}
+        >
+          <div className="size-7 rounded-md bg-zinc-800/90 border border-zinc-700/80 flex items-center justify-center font-bold text-xs text-white shadow-xs">
+            {brandLogoText}
+          </div>
+          <span className="text-sm font-semibold tracking-tight text-white">
+            {brandName}
           </span>
         </Link>
+      </header>
 
-        <div className="max-w-md relative">
-          <p className="text-2xl leading-snug font-semibold text-balance">
-            One place for your team&apos;s channels, files and decisions.
-          </p>
-          <p className="mt-3 text-sm leading-relaxed text-sidebar-muted">
-            Organise work into workspaces and channels, bring the right people
-            in, and keep everything discoverable.
-          </p>
-        </div>
+      {/* Main Content Area */}
+      <main className="w-full max-w-[380px] my-auto py-8 flex flex-col items-center">
+        <div className={cn('w-full', className)}>
+          <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight text-white text-center leading-tight">
+            {title}
+          </h1>
 
-        <p className="text-xs relative text-sidebar-muted">
-          © {new Date().getFullYear()} OneTab AI
-        </p>
-      </aside>
-
-      <main className="px-6 py-12 flex items-center justify-center">
-        <div className={cn('max-w-sm w-full', className)}>
-          <div className="mb-8 lg:hidden">
-            <span className="size-9 font-semibold flex items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              O
-            </span>
-          </div>
-
-          <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
           {subtitle ? (
-            <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>
+            <p className="mt-2 text-xs sm:text-sm text-zinc-400 text-center text-balance leading-relaxed">
+              {subtitle}
+            </p>
           ) : null}
 
-          <div className="mt-7">{children}</div>
+          <div className="mt-6 w-full">{children}</div>
 
           {footer ? (
-            <div className="mt-6 text-sm text-center text-muted-foreground">
+            <div className="mt-5 text-xs text-center text-zinc-400 leading-normal">
               {footer}
             </div>
           ) : null}
         </div>
       </main>
+
+      {/* Bottom Legal Notice & Footer Links */}
+      <footer className="pt-6 pb-2 text-center max-w-md w-full px-2 space-y-2.5">
+        <p className="text-[11px] sm:text-xs text-zinc-500 leading-relaxed">
+          By proceeding, you acknowledge that you have read, understood, and agree to {brandName}&apos;s{' '}
+          <a
+            href="#terms"
+            className="text-zinc-400 underline underline-offset-2 hover:text-zinc-200 transition-colors"
+          >
+            Terms and Conditions
+          </a>
+          , including our sign-in and account access policies.
+        </p>
+
+        <div className="text-[11px] sm:text-xs text-zinc-500 flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
+          <span>© {new Date().getFullYear()} {brandName}</span>
+          <a href="#privacy" className="hover:text-zinc-300 transition-colors">
+            Privacy Policy
+          </a>
+          <a href="#docs" className="hover:text-zinc-300 transition-colors">
+            Docs
+          </a>
+          <a href="#support" className="hover:text-zinc-300 transition-colors">
+            Support
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }
+
