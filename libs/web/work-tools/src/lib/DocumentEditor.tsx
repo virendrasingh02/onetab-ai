@@ -14,9 +14,18 @@ import {
 } from '@org/ui';
 import { useCurrentUser } from '@org/auth';
 import { cn } from '@org/utils';
-import { CheckCircle, FileText, FolderPlus, Loader2, MoreHorizontal, Plus, TriangleAlert, Zap } from 'lucide-react';
+import {
+  CheckCircle,
+  FileText,
+  FolderPlus,
+  Loader2,
+  MoreHorizontal,
+  Plus,
+  TriangleAlert,
+  Zap,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useCurrentWorkspace } from './use-work-tools.js';
 import { DocHeader } from './docs/DocHeader.js';
 import { DocSidebar } from './docs/DocSidebar.js';
@@ -48,14 +57,16 @@ const DOC_TEMPLATES: DocTemplateItem[] = [
     id: 'prd',
     title: 'Product Requirement Document (PRD)',
     category: 'Product & Planning',
-    description: 'Structured PRD template with goals, user stories, requirements & success metrics.',
+    description:
+      'Structured PRD template with goals, user stories, requirements & success metrics.',
     icon: '📋',
   },
   {
     id: 'meeting',
     title: 'Meeting Notes & Actions',
     category: 'Team Collaboration',
-    description: 'Meeting recap template with agenda, discussion points, decisions & action items.',
+    description:
+      'Meeting recap template with agenda, discussion points, decisions & action items.',
     icon: '📝',
   },
 ];
@@ -63,7 +74,12 @@ const DOC_TEMPLATES: DocTemplateItem[] = [
 type DocTab = 'all' | 'templates' | 'mine';
 
 export function DocumentEditor() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { workspaceSlug, docId: routeDocId } = useParams<{
+    workspaceSlug: string;
+    docId?: string;
+  }>();
   const { workspaceId } = useCurrentWorkspace();
   const currentUser = useCurrentUser();
   const docsWorkspace = useDocsWorkspace(workspaceId);
@@ -104,15 +120,17 @@ export function DocumentEditor() {
     isSaving,
   } = docsWorkspace;
 
-  const docParam = searchParams.get('doc');
+  // `/docs/:docId` is the deep link; `?doc=` is the old query form, still
+  // honoured for links persisted server-side (search, notifications).
+  const docParam = routeDocId ?? searchParams.get('doc');
   const currentDoc = useMemo(
     () => docs.find((doc) => doc.id === docParam) ?? docs[0],
     [docs, docParam],
   );
 
   const openDoc = useCallback(
-    (docId: string) => setSearchParams({ doc: docId, tab: 'all' }),
-    [setSearchParams],
+    (docId: string) => navigate(`/w/${workspaceSlug}/docs/${docId}?tab=all`),
+    [navigate, workspaceSlug],
   );
 
   const handleNewDoc = useCallback(() => {
@@ -141,10 +159,12 @@ export function DocumentEditor() {
 
   const handleUseTemplate = useCallback(
     (templateKey: 'prd' | 'meeting') => {
-      void createDoc(undefined, undefined, undefined, templateKey).then((id) => {
-        if (id) openDoc(id);
-        setTab('all');
-      });
+      void createDoc(undefined, undefined, undefined, templateKey).then(
+        (id) => {
+          if (id) openDoc(id);
+          setTab('all');
+        },
+      );
     },
     [createDoc, openDoc],
   );
@@ -160,14 +180,16 @@ export function DocumentEditor() {
 
     handledNewDoc.current = true;
     void createDoc().then((id) => {
-      if (id) setSearchParams({ doc: id, tab: 'all' });
+      if (id) openDoc(id);
       setTab('all');
     });
-  }, [companies.length, createDoc, searchParams, setSearchParams, workspaceId]);
+  }, [companies.length, createDoc, openDoc, searchParams, workspaceId]);
 
   /* ------------------------------------------------------- block saving --- */
 
-  const [pendingBlocks, setPendingBlocks] = useState<NotionBlock[] | null>(null);
+  const [pendingBlocks, setPendingBlocks] = useState<NotionBlock[] | null>(
+    null,
+  );
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -247,13 +269,13 @@ export function DocumentEditor() {
   return (
     <Page width="full">
       {/* Header section matching reference image design */}
-      <div className="mb-6 border-b border-border/60 pb-0">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+      <div className="mb-6 pb-0 border-b border-border/60">
+        <div className="mb-4 gap-4 flex flex-wrap items-center justify-between">
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl text-foreground">
             Docs
           </h1>
 
-          <div className="flex items-center gap-2">
+          <div className="gap-2 flex items-center">
             {isSaving ? (
               <Badge variant="neutral" className="gap-1 px-3 py-1">
                 <Loader2 className="size-3.5 animate-spin" />
@@ -279,11 +301,7 @@ export function DocumentEditor() {
               />
             )}
 
-            <Button
-              onClick={handleNewDoc}
-              size="lg"
-              leadingIcon={<Plus />}
-            >
+            <Button onClick={handleNewDoc} size="lg" leadingIcon={<Plus />}>
               New
             </Button>
 
@@ -299,11 +317,17 @@ export function DocumentEditor() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={handleNewDoc} className="gap-2 text-xs">
+                <DropdownMenuItem
+                  onClick={handleNewDoc}
+                  className="gap-2 text-xs"
+                >
                   <Plus className="size-3.5 text-muted-foreground" />
                   <span>Create new document</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleNewFolder} className="gap-2 text-xs">
+                <DropdownMenuItem
+                  onClick={handleNewFolder}
+                  className="gap-2 text-xs"
+                >
                   <FolderPlus className="size-3.5 text-muted-foreground" />
                   <span>Create new folder</span>
                 </DropdownMenuItem>
@@ -315,7 +339,10 @@ export function DocumentEditor() {
                   <FileText className="size-3.5 text-muted-foreground" />
                   <span>Save changes</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTab('templates')} className="gap-2 text-xs">
+                <DropdownMenuItem
+                  onClick={() => setTab('templates')}
+                  className="gap-2 text-xs"
+                >
                   <Zap className="size-3.5 text-muted-foreground" />
                   <span>Browse templates</span>
                 </DropdownMenuItem>
@@ -325,14 +352,14 @@ export function DocumentEditor() {
         </div>
 
         {/* Underline tab strip */}
-        <div className="flex items-center gap-6 text-sm font-medium">
+        <div className="gap-6 text-sm font-medium flex items-center">
           <button
             type="button"
             onClick={() => setTab('all')}
             className={cn(
-              'relative pb-3 transition-colors',
+              'pb-3 relative transition-colors',
               tab === 'all'
-                ? 'border-b-2 border-primary font-semibold text-foreground'
+                ? 'font-semibold border-b-2 border-primary text-foreground'
                 : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
             )}
           >
@@ -343,9 +370,9 @@ export function DocumentEditor() {
             type="button"
             onClick={() => setTab('templates')}
             className={cn(
-              'relative pb-3 transition-colors',
+              'pb-3 relative transition-colors',
               tab === 'templates'
-                ? 'border-b-2 border-primary font-semibold text-foreground'
+                ? 'font-semibold border-b-2 border-primary text-foreground'
                 : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
             )}
           >
@@ -356,9 +383,9 @@ export function DocumentEditor() {
             type="button"
             onClick={() => setTab('mine')}
             className={cn(
-              'relative pb-3 transition-colors',
+              'pb-3 relative transition-colors',
               tab === 'mine'
-                ? 'border-b-2 border-primary font-semibold text-foreground'
+                ? 'font-semibold border-b-2 border-primary text-foreground'
                 : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
             )}
           >
@@ -369,21 +396,23 @@ export function DocumentEditor() {
 
       {tab === 'templates' ? (
         <div className="space-y-4">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
             Document Templates ({DOC_TEMPLATES.length})
           </h2>
-          <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <ul className="gap-4 md:grid-cols-2 grid grid-cols-1">
             {DOC_TEMPLATES.map((tmpl) => (
               <li key={tmpl.id}>
-                <Card className="h-full justify-between p-5 transition-colors duration-(--duration-fast) hover:border-border-strong">
+                <Card className="p-5 h-full justify-between transition-colors duration-(--duration-fast) hover:border-border-strong">
                   <div>
-                    <div className="mb-3 flex items-center justify-between gap-2">
+                    <div className="mb-3 gap-2 flex items-center justify-between">
                       <Badge variant="neutral">{tmpl.category}</Badge>
                       <Badge variant="primary">Template</Badge>
                     </div>
-                    <div className="mb-2 flex items-center gap-2">
+                    <div className="mb-2 gap-2 flex items-center">
                       <span className="text-lg">{tmpl.icon}</span>
-                      <h2 className="text-sm font-semibold text-foreground">{tmpl.title}</h2>
+                      <h2 className="text-sm font-semibold text-foreground">
+                        {tmpl.title}
+                      </h2>
                     </div>
                     <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
                       {tmpl.description}
@@ -428,7 +457,7 @@ export function DocumentEditor() {
           }
         />
       ) : (
-        <div className="gap-6 md:flex-row flex flex-1 flex-col items-start w-full">
+        <div className="gap-6 md:flex-row flex w-full flex-1 flex-col items-start">
           {/* Left Notion Docs Tree Sidebar */}
           <DocSidebar
             companies={companies}
@@ -475,11 +504,15 @@ export function DocumentEditor() {
                 });
             }}
             onCreateDoc={(companyId, title, category, template, parentId) => {
-              void createDoc(companyId, title, category, template, parentId).then(
-                (id) => {
-                  if (id) openDoc(id);
-                },
-              );
+              void createDoc(
+                companyId,
+                title,
+                category,
+                template,
+                parentId,
+              ).then((id) => {
+                if (id) openDoc(id);
+              });
             }}
             onMoveDocToCompany={moveDocToCompany}
             onDuplicateDoc={(docId) => {
@@ -493,16 +526,20 @@ export function DocumentEditor() {
           />
 
           {/* Main Workspace Area */}
-          <Panel className="flex-1 flex flex-col min-h-160 w-full">
+          <Panel className="min-h-160 flex w-full flex-1 flex-col">
             {currentDoc ? (
               <>
                 <DocHeader
                   doc={currentDoc}
-                  onUpdateTitle={(title) => updateDocTitle(currentDoc.id, title)}
+                  onUpdateTitle={(title) =>
+                    updateDocTitle(currentDoc.id, title)
+                  }
                   onUpdateIcon={(icon, color) =>
                     updateDocIcon(currentDoc.id, icon, color)
                   }
-                  onUpdateCover={(cover) => updateDocCover(currentDoc.id, cover)}
+                  onUpdateCover={(cover) =>
+                    updateDocCover(currentDoc.id, cover)
+                  }
                   onUpdateStatus={(status) =>
                     updateDocStatus(currentDoc.id, status)
                   }
@@ -512,7 +549,7 @@ export function DocumentEditor() {
                   onToggleFavorite={() => toggleFavorite(currentDoc.id)}
                 />
 
-                <div className="flex-1 rounded-xl border border-border bg-surface p-4 md:p-6 shadow-xs">
+                <div className="p-4 md:p-6 flex-1 rounded-xl border border-border bg-surface shadow-xs">
                   <NotionBlockEditor
                     key={currentDoc.id}
                     blocks={blocks}

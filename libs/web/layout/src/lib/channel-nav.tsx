@@ -791,7 +791,7 @@ export function ChannelNav({
             }}
             onDuplicate={async () => {
               const docId = await docsWorkspace.duplicateDoc(doc.id);
-              if (docId) navigate(`/w/${workspaceSlug}/docs?doc=${docId}`);
+              if (docId) navigate(`/w/${workspaceSlug}/docs/${docId}`);
             }}
             onMoveToCompany={(targetCompanyId) =>
               docsWorkspace.moveDocToCompany(doc.id, targetCompanyId)

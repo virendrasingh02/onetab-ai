@@ -160,7 +160,7 @@ export class DomainEventsListener {
           actorId: e.actorId,
           kind: NotificationKind.PROJECT_CREATED,
           title: `You were made lead of ${e.name}`,
-          deepLink: `projects?project=${e.projectId}`,
+          deepLink: `tasks/${e.projectId}`,
           resourceType: 'project',
           resourceId: e.projectId,
         }),

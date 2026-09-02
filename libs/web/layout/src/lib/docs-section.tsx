@@ -86,7 +86,7 @@ export function DocNavRow({
   depth?: NavDepth;
   children?: React.ReactNode;
 }) {
-  const docUrl = `${window.location.origin}/w/${workspaceSlug}/docs?doc=${doc.id}`;
+  const docUrl = `${window.location.origin}/w/${workspaceSlug}/docs/${doc.id}`;
   const { copied, copy: handleCopyLink } = useCopyLink(docUrl);
   /* "Share" copies the same link; it only differs in the confirmation it shows. */
   const { copied: shared, copy: handleShare } = useCopyLink(docUrl);
@@ -94,7 +94,7 @@ export function DocNavRow({
   return (
     <li className="group/row space-y-0.5 relative">
       <NavLink
-        to={`/w/${workspaceSlug}/docs?doc=${doc.id}`}
+        to={`/w/${workspaceSlug}/docs/${doc.id}`}
         className={navRowClass(isSelected, {
           depth,
           extra: 'pr-14',
@@ -292,7 +292,7 @@ export function DocsTreeSection({
       undefined,
       parentId,
     );
-    if (docId) navigate(`/w/${workspaceSlug}/docs?doc=${docId}`);
+    if (docId) navigate(`/w/${workspaceSlug}/docs/${docId}`);
   };
 
   const renameDoc = async (id: string, currentTitle: string) => {
@@ -308,7 +308,7 @@ export function DocsTreeSection({
 
   const duplicateDoc = async (id: string) => {
     const docId = await workspace.duplicateDoc(id);
-    if (docId) navigate(`/w/${workspaceSlug}/docs?doc=${docId}`);
+    if (docId) navigate(`/w/${workspaceSlug}/docs/${docId}`);
   };
 
   const deleteDoc = async (id: string, title: string) => {

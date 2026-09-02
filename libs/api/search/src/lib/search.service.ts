@@ -2,12 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma, PrismaService } from '@org/database';
 
 export type SearchCategory =
-  | 'channels'
-  | 'docs'
-  | 'files'
-  | 'tasks'
-  | 'projects'
-  | 'people';
+  'channels' | 'docs' | 'files' | 'tasks' | 'projects' | 'people';
 
 export interface SearchResultItem {
   id: string;
@@ -93,7 +88,12 @@ export class SearchService {
     userId: string,
     query: string,
   ): Promise<Record<SearchCategory, number>> {
-    const results = await this.search({ workspaceId, userId, query, limit: 100 });
+    const results = await this.search({
+      workspaceId,
+      userId,
+      query,
+      limit: 100,
+    });
     const counts = Object.fromEntries(
       CATEGORIES.map((category) => [category, 0]),
     ) as Record<SearchCategory, number>;
@@ -236,8 +236,10 @@ export class SearchService {
           id: row.id,
           category,
           title: row.title,
-          snippet: row.description ? snippet(row.description, query) : undefined,
-          href: row.projectId ? `tasks?project=${row.projectId}` : `tasks`,
+          snippet: row.description
+            ? snippet(row.description, query)
+            : undefined,
+          href: row.projectId ? `tasks/${row.projectId}` : `tasks`,
           score: Number(row.score),
           metadata: { status: row.status, priority: row.priority },
         }));
@@ -267,7 +269,7 @@ export class SearchService {
           category,
           title: row.name,
           snippet: row.description ?? undefined,
-          href: `tasks?project=${row.id}`,
+          href: `tasks/${row.id}`,
           score: Number(row.score),
           metadata: { status: row.status },
         }));
@@ -290,7 +292,12 @@ export class SearchService {
           },
           include: {
             user: {
-              select: { id: true, name: true, displayName: true, avatarUrl: true },
+              select: {
+                id: true,
+                name: true,
+                displayName: true,
+                avatarUrl: true,
+              },
             },
           },
           take,

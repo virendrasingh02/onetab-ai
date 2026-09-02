@@ -60,7 +60,7 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ProjectDashboardView } from './asana/ProjectDashboardView.js';
 import { ProjectListView } from './asana/ProjectListView.js';
 import { ProjectTimelineView } from './asana/ProjectTimelineView.js';
@@ -276,6 +276,11 @@ function slugify(text: string): string {
 
 export function AsanaProjectManager() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { workspaceSlug, projectId: routeProjectId } = useParams<{
+    workspaceSlug: string;
+    projectId?: string;
+  }>();
   const { workspaceId } = useCurrentWorkspace();
   const currentUser = useCurrentUser();
   const membersQuery = useWorkspaceMembers(workspaceId);
@@ -305,7 +310,9 @@ export function AsanaProjectManager() {
   );
   const [viewMode, setViewMode] = useState<ProjectViewMode>('board');
 
-  const projectParam = searchParams.get('project');
+  // `/tasks/:projectId` is the deep link; `?project=` is the old query form,
+  // still honoured for links persisted server-side (search, notifications).
+  const projectParam = routeProjectId ?? searchParams.get('project');
   const activeProject: ProjectDetail | undefined =
     projects.find(
       (project) => project.id === (projectParam ?? selectedProjectId),
@@ -349,7 +356,7 @@ export function AsanaProjectManager() {
 
   const openProject = (projectId: string) => {
     setSelectedProjectId(projectId);
-    setSearchParams({ project: projectId });
+    navigate(`/w/${workspaceSlug}/tasks/${projectId}`);
     setViewMode('board');
   };
 
@@ -434,9 +441,7 @@ export function AsanaProjectManager() {
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
   const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
-  const [, setImportProgress] = useState<ImportProgress | null>(
-    null,
-  );
+  const [, setImportProgress] = useState<ImportProgress | null>(null);
 
   const [draft, setDraft] = useState<ProjectDraft>({
     name: '',
@@ -560,7 +565,7 @@ export function AsanaProjectManager() {
           openProject(remaining[0].id);
         } else {
           setSelectedProjectId(null);
-          setSearchParams({});
+          navigate(`/w/${workspaceSlug}/tasks`);
         }
       }
       toast.success('Project deleted');
@@ -672,7 +677,9 @@ export function AsanaProjectManager() {
             const p = projects.find((x) => x.id === id);
             if (p && workspaceId) {
               const fileContent = await exportProjectBoard(workspaceId, p);
-              const blob = new Blob([fileContent], { type: 'application/json' });
+              const blob = new Blob([fileContent], {
+                type: 'application/json',
+              });
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
@@ -718,7 +725,7 @@ export function AsanaProjectManager() {
     <div className="flex h-full w-full flex-col overflow-hidden bg-background text-foreground">
       {/* Top Header */}
       <header className="px-6 py-3 gap-4 relative flex flex-wrap items-center justify-between border-b border-border/50 bg-card/60">
-        <div className="gap-2.5 flex items-center flex-wrap">
+        <div className="gap-2.5 flex flex-wrap items-center">
           {activeProject ? (
             <ProjectIconPicker
               workspaceId={workspaceId}
@@ -728,7 +735,7 @@ export function AsanaProjectManager() {
                 <button
                   type="button"
                   aria-label={`Change icon for ${activeProject.name}`}
-                  className="size-7 flex items-center justify-center rounded-md transition-colors hover:bg-muted cursor-pointer"
+                  className="size-7 flex cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-muted"
                 >
                   <ProjectGlyph
                     icon={activeProject.icon}
@@ -752,10 +759,12 @@ export function AsanaProjectManager() {
             <button
               type="button"
               onClick={() => {
-                navigator.clipboard.writeText(activeProject.ticketPrefix as string);
+                navigator.clipboard.writeText(
+                  activeProject.ticketPrefix as string,
+                );
                 toast.success(`Copied prefix ${activeProject.ticketPrefix}`);
               }}
-              className="inline-flex items-center gap-1 font-mono text-[11px] font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/30 px-2 py-0.5 rounded cursor-pointer transition-colors"
+              className="gap-1 font-bold px-2 py-0.5 rounded inline-flex cursor-pointer items-center border border-primary/30 bg-primary/10 font-mono text-[11px] text-primary transition-colors hover:bg-primary/20"
               title="Click to copy ticket prefix"
             >
               <Hash className="size-3" />
@@ -824,7 +833,12 @@ export function AsanaProjectManager() {
           >
             <Command className="size-3.5 text-muted-foreground" />
             <span className="sm:inline hidden">Search</span>
-            <KbdShortcut keys={['mod', 'K']} size="xs" variant="muted" responsive />
+            <KbdShortcut
+              keys={['mod', 'K']}
+              size="xs"
+              variant="muted"
+              responsive
+            />
           </button>
 
           <button
@@ -913,7 +927,7 @@ export function AsanaProjectManager() {
       </header>
 
       {/* Modern View Navigation Bar */}
-      <nav className="px-6 py-1.5 bg-muted/30 border-b border-border/50 flex items-center gap-1 overflow-x-auto scrollbar-none">
+      <nav className="px-6 py-1.5 gap-1 flex scrollbar-none items-center overflow-x-auto border-b border-border/50 bg-muted/30">
         {[
           { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
           { id: 'board', label: 'Board', icon: Kanban },
@@ -936,13 +950,18 @@ export function AsanaProjectManager() {
               type="button"
               onClick={() => setViewMode(v.id as ProjectViewMode)}
               className={cn(
-                'inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-colors shrink-0 cursor-pointer',
+                'gap-1.5 px-3 py-1 text-xs font-medium inline-flex shrink-0 cursor-pointer items-center rounded-md transition-colors',
                 isActive
-                  ? 'bg-card text-foreground font-semibold shadow-xs border border-border/70'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
+                  ? 'font-semibold border border-border/70 bg-card text-foreground shadow-xs'
+                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
               )}
             >
-              <Icon className={cn('size-3.5', isActive ? 'text-primary' : 'opacity-70')} />
+              <Icon
+                className={cn(
+                  'size-3.5',
+                  isActive ? 'text-primary' : 'opacity-70',
+                )}
+              />
               <span>{v.label}</span>
             </button>
           );
@@ -1221,7 +1240,7 @@ function ProjectDialog({
                     <button
                       type="button"
                       aria-label="Choose project icon"
-                      className="size-9 flex items-center justify-center rounded-md border border-border bg-surface-raised transition-colors hover:border-border-strong cursor-pointer"
+                      className="size-9 flex cursor-pointer items-center justify-center rounded-md border border-border bg-surface-raised transition-colors hover:border-border-strong"
                     >
                       <ProjectGlyph
                         icon={draft.icon}
@@ -1273,7 +1292,7 @@ function ProjectDialog({
                     slug: slugify(e.target.value),
                   }))
                 }
-                className="font-mono text-xs"
+                className="text-xs font-mono"
               />
             </div>
 
@@ -1301,8 +1320,10 @@ function ProjectDialog({
 
             {!showStatus && (
               <div className="gap-2 flex flex-col">
-                <label className="text-xs font-semibold">Starter Template</label>
-                <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs font-semibold">
+                  Starter Template
+                </label>
+                <div className="gap-2 grid grid-cols-2">
                   {PROJECT_TEMPLATES.map((tmpl) => (
                     <button
                       key={tmpl.id}
@@ -1311,7 +1332,7 @@ function ProjectDialog({
                         setDraft((prev) => ({ ...prev, template: tmpl.id }))
                       }
                       className={cn(
-                        'p-2.5 rounded-lg border text-left flex flex-col gap-1 transition-all cursor-pointer',
+                        'p-2.5 gap-1 flex cursor-pointer flex-col rounded-lg border text-left transition-all',
                         draft.template === tmpl.id
                           ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
                           : 'border-border/60 hover:bg-muted/40',
@@ -1320,7 +1341,7 @@ function ProjectDialog({
                       <span className="font-bold text-xs text-foreground">
                         {tmpl.name}
                       </span>
-                      <span className="text-[10px] text-muted-foreground line-clamp-2">
+                      <span className="line-clamp-2 text-[10px] text-muted-foreground">
                         {tmpl.description}
                       </span>
                     </button>
@@ -1357,7 +1378,10 @@ function ProjectDialog({
 
             {showStatus ? (
               <div className="gap-1.5 flex flex-col">
-                <label className="text-xs font-semibold" htmlFor="project-status">
+                <label
+                  className="text-xs font-semibold"
+                  htmlFor="project-status"
+                >
                   Status
                 </label>
                 <Select

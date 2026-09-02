@@ -74,7 +74,7 @@ export function ProjectNavRow({
   depth?: NavDepth;
 }) {
   const navigate = useNavigate();
-  const projectUrl = `${window.location.origin}/w/${workspaceSlug}/tasks?project=${project.id}`;
+  const projectUrl = `${window.location.origin}/w/${workspaceSlug}/tasks/${project.id}`;
   const { copied, copy: handleCopyLink } = useCopyLink(projectUrl);
   const { copied: shared, copy: handleShare } = useCopyLink(projectUrl);
 
@@ -104,7 +104,7 @@ export function ProjectNavRow({
   return (
     <li className="group/row relative">
       <NavLink
-        to={`/w/${workspaceSlug}/tasks?project=${project.id}`}
+        to={`/w/${workspaceSlug}/tasks/${project.id}`}
         className={navRowClass(isSelected, {
           depth,
           extra: 'pr-14',
@@ -151,7 +151,7 @@ export function ProjectNavRow({
 
             <DropdownMenuItem
               onSelect={() =>
-                navigate(`/w/${workspaceSlug}/tasks?project=${project.id}`)
+                navigate(`/w/${workspaceSlug}/tasks/${project.id}`)
               }
               className="gap-2.5"
             >
@@ -159,10 +159,7 @@ export function ProjectNavRow({
               <span>Project settings</span>
             </DropdownMenuItem>
 
-            <DropdownMenuItem
-              onSelect={handleShare}
-              className="gap-2.5"
-            >
+            <DropdownMenuItem onSelect={handleShare} className="gap-2.5">
               {shared ? (
                 <Check className="size-4 text-success-text" />
               ) : (
@@ -219,7 +216,7 @@ function SortableProjectRow(props: {
       className={cn(
         'relative',
         isDragging &&
-          'z-50 opacity-80 rounded-lg bg-surface-raised ring-1 ring-primary/40 shadow-sm',
+          'z-50 rounded-lg bg-surface-raised opacity-80 shadow-sm ring-1 ring-primary/40',
       )}
       {...attributes}
       {...listeners}

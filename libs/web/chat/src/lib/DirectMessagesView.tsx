@@ -41,7 +41,7 @@ import {
   X,
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChatPanel } from './chat-panel.js';
 import { GroupConversation } from './GroupConversation.js';
 import { useMatrix } from './matrix-provider.js';
@@ -78,11 +78,14 @@ export function DirectMessagesView({
   extraPeers,
 }: DirectMessagesViewProps = {}) {
   const [searchParams] = useSearchParams();
-  const peerId = searchParams.get('user');
+  const { peerId: routePeerId } = useParams<{ peerId?: string }>();
+  // `/dms/:peerId` is the 1:1 deep link; `?user=` is the old query form,
+  // still honoured for links persisted server-side (search, notifications).
+  const peerId = routePeerId ?? searchParams.get('user');
   const roomId = searchParams.get('room');
 
   // `?room=` is a group DM — it has no single peer to key on, so it is
-  // addressed by its Matrix room id. `?user=` stays the 1:1 deep link.
+  // addressed by its Matrix room id.
   if (roomId) {
     return <GroupConversation roomId={roomId} extraPeers={extraPeers} />;
   }
@@ -276,7 +279,7 @@ function DirectMessageHeader({
   };
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/w/${slug}/dms?user=${member.user.id}`;
+    const url = `${window.location.origin}/w/${slug}/dms/${member.user.id}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     toast.success('Link copied', {
@@ -535,7 +538,8 @@ function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
   const members = useMembers(workspaceId);
   const createConversation = useCreateConversation();
 
-  const [, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
   const [selected, setSelected] = useState<string[]>([]);
   const [groupName, setGroupName] = useState('');
 
@@ -572,10 +576,10 @@ function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
       { peerIds: selected, name: isGroup ? groupName : undefined },
       {
         onSuccess: (result) => {
-          setSearchParams(
+          navigate(
             result.kind === 'direct'
-              ? { user: result.peerId }
-              : { room: result.roomId },
+              ? `/w/${workspaceSlug}/dms/${result.peerId}`
+              : `/w/${workspaceSlug}/dms?room=${result.roomId}`,
             { replace: true },
           );
         },

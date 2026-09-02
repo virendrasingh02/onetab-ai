@@ -302,7 +302,9 @@ export function AgentNavRow({
 
             <DropdownMenuItem
               onSelect={() =>
-                navigate(`/w/${workspaceSlug}/agents?agent=${agent.id}`)
+                navigate(
+                  `/w/${workspaceSlug}/agents/builder?agentId=${agent.id}`,
+                )
               }
               className="gap-2.5"
             >

@@ -326,20 +326,28 @@ export function App() {
             <Route path="inbox" element={<InboxView />} />
             <Route path="schedule" element={<ScheduleView />} />
             <Route path="tasks" element={<AsanaProjectManager />} />
+            <Route path="tasks/:projectId" element={<AsanaProjectManager />} />
             <Route path="kanban" element={<AsanaProjectManager />} />
             <Route path="work" element={<AsanaProjectManager />} />
             <Route path="projects" element={<AsanaProjectManager />} />
+            <Route
+              path="projects/:projectId"
+              element={<AsanaProjectManager />}
+            />
             <Route path="cycles" element={<AsanaProjectManager />} />
             <Route path="intake" element={<AsanaProjectManager />} />
             <Route path="initiatives" element={<AsanaProjectManager />} />
             <Route path="notes" element={<DocumentEditor />} />
+            <Route path="notes/:docId" element={<DocumentEditor />} />
             <Route path="docs" element={<DocumentEditor />} />
+            <Route path="docs/:docId" element={<DocumentEditor />} />
             <Route path="files" element={<FileManagerView />} />
             <Route path="pulse" element={<ActivityTimelineView />} />
             <Route path="timeline" element={<ActivityTimelineView />} />
             <Route path="activity" element={<ActivityTimelineView />} />
             <Route path="meetings" element={<MeetingsView />} />
             <Route path="dms" element={<DirectMessagesPage />} />
+            <Route path="dms/:peerId" element={<DirectMessagesPage />} />
             <Route path="threads" element={<ThreadsView />} />
             <Route path="saved" element={<SavedView />} />
             <Route path="ai-chat" element={<AIChatView />} />

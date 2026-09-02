@@ -109,9 +109,10 @@ function DirectMessageRow({
   const presenceMap = useUserPresenceMap();
   const name = member.user.displayName ?? member.user.name;
   const livePresence = presenceMap[member.user.id];
-  const presence = livePresence?.status ?? toPresenceStatus(member.user.presence);
+  const presence =
+    livePresence?.status ?? toPresenceStatus(member.user.presence);
   const hasUnread = !isMuted && !!activity && activity.level !== 'none';
-  const to = `/w/${workspaceSlug}/dms?user=${member.user.id}`;
+  const to = `/w/${workspaceSlug}/dms/${member.user.id}`;
   const { copied, copy: handleCopyLink } = useCopyLink(
     `${window.location.origin}${to}`,
   );
@@ -152,7 +153,7 @@ function DirectMessageRow({
               title={PRESENCE_LABELS[presence]}
               aria-label={`${name} is ${PRESENCE_LABELS[presence]}`}
               className={cn(
-                'right-0 bottom-0 absolute size-1.5 rounded-full ring-1 ring-background cursor-default pointer-events-auto',
+                'right-0 bottom-0 size-1.5 pointer-events-auto absolute cursor-default rounded-full ring-1 ring-background',
                 PRESENCE_DOT[presence],
               )}
             />
@@ -183,23 +184,20 @@ function DirectMessageRow({
       </NavLink>
 
       <NavRowActions isPinned={isFavorite}>
-        <FavoriteToggle
-          isFavorite={isFavorite}
-          onToggle={onToggleFavorite}
-        />
+        <FavoriteToggle isFavorite={isFavorite} onToggle={onToggleFavorite} />
 
         <DropdownMenu modal={false}>
           <NavRowMenuTrigger label={`Options for ${name}`} />
           <DropdownMenuContent align="end" side="bottom" className="w-60">
             <div className="px-2 py-1.5 border-b border-border/60">
-              <div className="flex items-center gap-2">
+              <div className="gap-2 flex items-center">
                 <span
                   className={cn(
-                    'size-2 rounded-full shrink-0',
+                    'size-2 shrink-0 rounded-full',
                     PRESENCE_DOT[presence],
                   )}
                 />
-                <span className="text-xs font-semibold text-foreground truncate">
+                <span className="text-xs font-semibold truncate text-foreground">
                   {name}
                 </span>
               </div>
@@ -210,7 +208,7 @@ function DirectMessageRow({
 
             <DropdownMenuItem
               onSelect={handleMarkUnread}
-              className="justify-between mt-1"
+              className="mt-1 justify-between"
             >
               <div className="gap-2.5 flex items-center">
                 {unreadState ? (
@@ -317,7 +315,7 @@ function SortableDirectMessageRow(props: {
       className={cn(
         'relative',
         isDragging &&
-          'z-50 opacity-80 rounded-lg bg-surface-raised ring-1 ring-primary/40 shadow-sm',
+          'z-50 rounded-lg bg-surface-raised opacity-80 shadow-sm ring-1 ring-primary/40',
       )}
       {...attributes}
       {...listeners}
@@ -340,7 +338,7 @@ function SelfDmRow({
   workspaceSlug: string;
 }) {
   const name = member.user.displayName ?? member.user.name;
-  const to = `/w/${workspaceSlug}/dms?user=${member.user.id}`;
+  const to = `/w/${workspaceSlug}/dms/${member.user.id}`;
 
   return (
     <li className="group/row relative">
@@ -356,7 +354,7 @@ function SelfDmRow({
           className="size-4 shrink-0"
         />
         <span className="flex-1 truncate">{name}</span>
-        <span className="text-[10px] font-medium text-muted-foreground/70">
+        <span className="font-medium text-[10px] text-muted-foreground/70">
           you
         </span>
       </NavLink>
@@ -404,7 +402,7 @@ function GroupDmRow({
           })
         }
       >
-        <span className="shrink-0 flex -space-x-1.5">
+        <span className="-space-x-1.5 flex shrink-0">
           {(group.avatarMembers.length
             ? group.avatarMembers.slice(0, 2)
             : [{ userId: group.roomId, displayName: group.name }]
@@ -527,10 +525,7 @@ export function DirectMessagesSection({
   const { favoriteIds, mutedIds } = preferences;
 
   const channelNames = useMemo(
-    () =>
-      new Set(
-        (channels ?? []).map((c) => c.name.toLowerCase().trim()),
-      ),
+    () => new Set((channels ?? []).map((c) => c.name.toLowerCase().trim())),
     [channels],
   );
 
@@ -630,9 +625,7 @@ export function DirectMessagesSection({
   return (
     <Section
       title="Direct Messages"
-      count={
-        people.length + filteredGroups.length + (selfMember ? 1 : 0)
-      }
+      count={people.length + filteredGroups.length + (selfMember ? 1 : 0)}
       action={
         <Hint label="New direct message">
           <Button
@@ -683,7 +676,9 @@ export function DirectMessagesSection({
               isFavorite={favoriteIds.includes(member.user.id)}
               isMuted={mutedIds.includes(member.user.id)}
               activity={dmActivity[member.user.id]}
-              onToggleFavorite={() => preferences.toggleFavorite(member.user.id)}
+              onToggleFavorite={() =>
+                preferences.toggleFavorite(member.user.id)
+              }
               onToggleMuted={() => preferences.toggleMuted(member.user.id)}
             />
           ))}

@@ -53,7 +53,7 @@ export function RightPanel({
   const openDirectMessage = useCallback(
     (targetUserId?: string) => {
       if (targetUserId) {
-        navigate(`/w/${workspaceSlug}/dms?user=${targetUserId}`);
+        navigate(`/w/${workspaceSlug}/dms/${targetUserId}`);
       } else {
         navigate(`/w/${workspaceSlug}/dms`);
       }
@@ -139,7 +139,7 @@ export function RightPanel({
           statusText={person?.statusText ?? currentUser.statusText}
           onSendDirectMessage={openDirectMessage}
           onStartCall={(targetUserId) => {
-            navigate(`/w/${workspaceSlug}/dms?user=${targetUserId}&call=true`);
+            navigate(`/w/${workspaceSlug}/dms/${targetUserId}?call=true`);
           }}
         />
       </PanelFrame>

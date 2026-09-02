@@ -254,7 +254,7 @@ function renderHeadlineDescription(
 /**
  * Where a feed row opens. A chat row jumps to the exact message via `?msg=`.
  * Task rows jump to the board with `?card=`.
- * Document rows jump to `/docs?doc=`.
+ * Document rows jump to `/docs/:docId`.
  */
 function feedItemHref(
   item: ActivityFeedItem,
@@ -276,12 +276,12 @@ function feedItemHref(
   }
   if (item.resourceType === 'document') {
     return `/w/${workspaceSlug}/docs${
-      item.resourceId ? `?doc=${item.resourceId}` : ''
+      item.resourceId ? `/${item.resourceId}` : ''
     }`;
   }
   if (item.resourceType === 'project') {
     return `/w/${workspaceSlug}/tasks${
-      item.resourceId ? `?project=${item.resourceId}` : ''
+      item.resourceId ? `/${item.resourceId}` : ''
     }`;
   }
   return `/w/${workspaceSlug}/tasks`;
@@ -293,7 +293,7 @@ function PriorityBadge({ priority }: { priority: TaskPriority }) {
       return (
         <Badge
           variant="neutral"
-          className="bg-accent-rose-soft text-accent-rose border-accent-rose/30 gap-1 text-[10px] px-1.5 py-0 h-4 font-semibold"
+          className="gap-1 px-1.5 py-0 h-4 font-semibold border-accent-rose/30 bg-accent-rose-soft text-[10px] text-accent-rose"
         >
           <Flame className="size-2.5 shrink-0" />
           <span>Urgent</span>
@@ -303,7 +303,7 @@ function PriorityBadge({ priority }: { priority: TaskPriority }) {
       return (
         <Badge
           variant="neutral"
-          className="bg-accent-amber-soft text-accent-amber border-accent-amber/30 gap-1 text-[10px] px-1.5 py-0 h-4 font-semibold"
+          className="gap-1 px-1.5 py-0 h-4 font-semibold border-accent-amber/30 bg-accent-amber-soft text-[10px] text-accent-amber"
         >
           <ArrowUp className="size-2.5 shrink-0" />
           <span>High</span>
@@ -313,7 +313,7 @@ function PriorityBadge({ priority }: { priority: TaskPriority }) {
       return (
         <Badge
           variant="neutral"
-          className="bg-accent-blue-soft text-accent-blue border-accent-blue/30 gap-1 text-[10px] px-1.5 py-0 h-4 font-semibold"
+          className="gap-1 px-1.5 py-0 h-4 font-semibold border-accent-blue/30 bg-accent-blue-soft text-[10px] text-accent-blue"
         >
           <Minus className="size-2.5 shrink-0" />
           <span>Medium</span>
@@ -323,7 +323,7 @@ function PriorityBadge({ priority }: { priority: TaskPriority }) {
       return (
         <Badge
           variant="neutral"
-          className="bg-muted text-muted-foreground gap-1 text-[10px] px-1.5 py-0 h-4 font-semibold"
+          className="gap-1 px-1.5 py-0 h-4 font-semibold bg-muted text-[10px] text-muted-foreground"
         >
           <ArrowDown className="size-2.5 shrink-0" />
           <span>Low</span>
@@ -352,17 +352,17 @@ function FeedRow({
     <li>
       <Card
         className={cn(
-          'group relative p-3.5 sm:p-4 transition-all duration-(--duration-fast) rounded-xl border',
+          'group p-3.5 sm:p-4 relative rounded-xl border transition-all duration-(--duration-fast)',
           isUnread
             ? 'border-primary/40 bg-primary/5 shadow-xs'
-            : 'border-border/70 bg-surface hover:bg-surface-raised hover:border-border-strong',
+            : 'border-border/70 bg-surface hover:border-border-strong hover:bg-surface-raised',
           href && 'cursor-pointer hover:shadow-md',
         )}
       >
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-start gap-3.5 min-w-0 flex-1">
+        <div className="gap-4 flex items-center justify-between">
+          <div className="gap-3.5 min-w-0 flex flex-1 items-start">
             {/* User Avatar with action badge overlay */}
-            <div className="relative shrink-0 mt-0.5">
+            <div className="mt-0.5 relative shrink-0">
               {user ? (
                 <UserAvatar
                   name={userName}
@@ -370,12 +370,12 @@ function FeedRow({
                   seed={user.id}
                   size="sm"
                   indicator={false}
-                  className="font-bold ring-2 ring-background shadow-xs"
+                  className="font-bold shadow-xs ring-2 ring-background"
                 />
               ) : (
                 <div
                   className={cn(
-                    'size-8 rounded-full flex items-center justify-center',
+                    'size-8 flex items-center justify-center rounded-full',
                     tone,
                   )}
                 >
@@ -385,7 +385,7 @@ function FeedRow({
               {user ? (
                 <span
                   className={cn(
-                    'absolute -bottom-1 -right-1 size-4 rounded-full flex items-center justify-center border-2 border-background shadow-xs',
+                    '-bottom-1 -right-1 size-4 absolute flex items-center justify-center rounded-full border-2 border-background shadow-xs',
                     tone,
                   )}
                   title={kindLabel}
@@ -396,38 +396,41 @@ function FeedRow({
             </div>
 
             {/* Content Details */}
-            <div className="min-w-0 flex-1 space-y-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-semibold text-foreground truncate">
+            <div className="min-w-0 space-y-1 flex-1">
+              <div className="gap-2 flex flex-wrap items-center">
+                <span className="text-xs font-semibold truncate text-foreground">
                   {userName}
                 </span>
                 <Badge
                   variant="neutral"
-                  className="text-[10px] px-1.5 py-0 h-4 font-semibold tracking-wide uppercase"
+                  className="px-1.5 py-0 h-4 font-semibold tracking-wide text-[10px] uppercase"
                 >
                   {kindLabel}
                 </Badge>
                 {isUnread && (
-                  <Badge variant="primary" className="text-[10px] px-1.5 py-0 h-4 font-bold">
+                  <Badge
+                    variant="primary"
+                    className="px-1.5 py-0 h-4 font-bold text-[10px]"
+                  >
                     New
                   </Badge>
                 )}
               </div>
 
               {/* Main descriptive headline */}
-              <div className="text-xs text-foreground/90 leading-snug">
+              <div className="text-xs leading-snug text-foreground/90">
                 {renderHeadlineDescription(item, userName)}
               </div>
 
               {/* Meta information: Channel / Timestamp */}
-              <div className="flex items-center gap-3 text-[11px] text-muted-foreground pt-0.5 flex-wrap">
+              <div className="gap-3 pt-0.5 flex flex-wrap items-center text-[11px] text-muted-foreground">
                 {item.channel ? (
-                  <span className="inline-flex items-center gap-1 font-medium text-primary">
+                  <span className="gap-1 font-medium inline-flex items-center text-primary">
                     <Hash className="size-3" aria-hidden />
                     <span>{item.channel.name}</span>
                   </span>
                 ) : null}
-                <span className="inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground/80">
+                <span className="gap-1 inline-flex items-center font-mono text-[10px] text-muted-foreground/80">
                   <Clock className="size-3 text-muted-foreground/60" />
                   <span>{formatRelative(item.occurredAt)}</span>
                 </span>
@@ -437,16 +440,16 @@ function FeedRow({
 
           {/* Right Redirection Button */}
           {href ? (
-            <div className="shrink-0 flex items-center self-center pl-2">
+            <div className="pl-2 flex shrink-0 items-center self-center">
               <Button
                 asChild
                 variant="outline"
                 size="sm"
-                className="h-7 px-2.5 text-xs gap-1.5 rounded-lg border-border/80 group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary transition-all cursor-pointer font-medium"
+                className="h-7 px-2.5 text-xs gap-1.5 font-medium cursor-pointer rounded-lg border-border/80 transition-all group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary"
               >
                 <Link to={href}>
                   <span>Open</span>
-                  <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+                  <ArrowRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
                 </Link>
               </Button>
             </div>
@@ -472,7 +475,8 @@ export function InboxView() {
   const [activeTab, setActiveTab] = useState('notifications');
 
   // Search & category filters
-  const [notificationCategory, setNotificationCategory] = useState<string>('all');
+  const [notificationCategory, setNotificationCategory] =
+    useState<string>('all');
   const [notificationSearch, setNotificationSearch] = useState<string>('');
   const [taskStatusFilter, setTaskStatusFilter] = useState<string>('all');
   const [taskSearch, setTaskSearch] = useState<string>('');
@@ -529,7 +533,11 @@ export function InboxView() {
     if (notificationSearch.trim()) {
       const q = notificationSearch.trim().toLowerCase();
       list = list.filter((item) => {
-        const userName = (item.user?.displayName ?? item.user?.name ?? '').toLowerCase();
+        const userName = (
+          item.user?.displayName ??
+          item.user?.name ??
+          ''
+        ).toLowerCase();
         const summary = (item.summary ?? '').toLowerCase();
         const channel = (item.channel?.name ?? '').toLowerCase();
         const kind = item.kind.toLowerCase();
@@ -572,7 +580,10 @@ export function InboxView() {
         (item) =>
           item.isMention ||
           item.kind === 'MENTION' ||
-          (item.summary && user && (item.summary.includes(`@${user.name}`) || item.summary.includes(`@${user.displayName}`))),
+          (item.summary &&
+            user &&
+            (item.summary.includes(`@${user.name}`) ||
+              item.summary.includes(`@${user.displayName}`))),
       ),
     [feed.data, user],
   );
@@ -596,11 +607,15 @@ export function InboxView() {
     if (taskStatusFilter === 'in_progress') {
       list = list.filter((t) => t.status === TaskStatus.IN_PROGRESS);
     } else if (taskStatusFilter === 'todo') {
-      list = list.filter((t) => t.status === TaskStatus.TODO || t.status === TaskStatus.BACKLOG);
+      list = list.filter(
+        (t) => t.status === TaskStatus.TODO || t.status === TaskStatus.BACKLOG,
+      );
     } else if (taskStatusFilter === 'in_review') {
       list = list.filter((t) => t.status === TaskStatus.IN_REVIEW);
     } else if (taskStatusFilter === 'overdue') {
-      list = list.filter((t) => t.dueDate && Date.parse(t.dueDate) < Date.now());
+      list = list.filter(
+        (t) => t.dueDate && Date.parse(t.dueDate) < Date.now(),
+      );
     }
 
     if (taskSearch.trim()) {
@@ -724,13 +739,13 @@ export function InboxView() {
       </div>
 
       <div className="min-h-0 p-3 sm:p-6 flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto space-y-4">
+        <div className="max-w-5xl space-y-4 mx-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             {/* 1. NOTIFICATIONS TAB */}
             <TabsContent value="notifications" className="space-y-3.5 mt-0">
               {/* Category & Search Toolbar */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pb-1">
-                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+              <div className="sm:flex-row sm:items-center gap-2.5 pb-1 flex flex-col items-stretch justify-between">
+                <div className="gap-1.5 py-0.5 no-scrollbar flex items-center overflow-x-auto">
                   {[
                     { id: 'all', label: 'All' },
                     { id: 'tasks', label: 'Tasks' },
@@ -742,7 +757,7 @@ export function InboxView() {
                       type="button"
                       onClick={() => setNotificationCategory(cat.id)}
                       className={cn(
-                        'px-2.5 py-1 text-xs rounded-lg font-medium transition-colors cursor-pointer shrink-0',
+                        'px-2.5 py-1 text-xs font-medium shrink-0 cursor-pointer rounded-lg transition-colors',
                         notificationCategory === cat.id
                           ? 'bg-primary text-primary-foreground shadow-xs'
                           : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -753,20 +768,20 @@ export function InboxView() {
                   ))}
                 </div>
 
-                <div className="relative flex items-center min-w-48 sm:w-60">
-                  <Search className="size-3.5 absolute left-2.5 text-muted-foreground pointer-events-none" />
+                <div className="min-w-48 sm:w-60 relative flex items-center">
+                  <Search className="size-3.5 left-2.5 pointer-events-none absolute text-muted-foreground" />
                   <input
                     type="text"
                     value={notificationSearch}
                     onChange={(e) => setNotificationSearch(e.target.value)}
                     placeholder="Filter notifications..."
-                    className="w-full pl-8 pr-7 py-1 text-xs rounded-lg border border-border/80 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="pl-8 pr-7 py-1 text-xs w-full rounded-lg border border-border/80 bg-background text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary focus:outline-none"
                   />
                   {notificationSearch && (
                     <button
                       type="button"
                       onClick={() => setNotificationSearch('')}
-                      className="absolute right-2 text-muted-foreground hover:text-foreground p-0.5"
+                      className="right-2 p-0.5 absolute text-muted-foreground hover:text-foreground"
                     >
                       <X className="size-3" />
                     </button>
@@ -793,7 +808,11 @@ export function InboxView() {
               ) : filteredFeed.length === 0 ? (
                 <EmptyState
                   icon={<Bell />}
-                  title={notificationSearch ? 'No matching notifications' : 'You are all caught up!'}
+                  title={
+                    notificationSearch
+                      ? 'No matching notifications'
+                      : 'You are all caught up!'
+                  }
                   description={
                     notificationSearch
                       ? 'Try clearing your search query.'
@@ -858,11 +877,11 @@ export function InboxView() {
                 <ul className="space-y-2.5">
                   {unreadChannels.map(({ channel, unread, latest }) => (
                     <li key={channel.id}>
-                      <Card className="group p-4 bg-surface transition-all duration-(--duration-fast) rounded-xl border border-border/70 hover:border-border-strong hover:bg-surface-raised hover:shadow-md">
-                        <div className="flex items-center justify-between gap-4">
+                      <Card className="group p-4 rounded-xl border border-border/70 bg-surface transition-all duration-(--duration-fast) hover:border-border-strong hover:bg-surface-raised hover:shadow-md">
+                        <div className="gap-4 flex items-center justify-between">
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
+                            <div className="gap-2 flex items-center">
+                              <span className="gap-1 text-sm font-semibold inline-flex items-center text-primary">
                                 <Hash className="size-3.5" />
                                 <span>{channel.name}</span>
                               </span>
@@ -872,7 +891,7 @@ export function InboxView() {
                             </div>
 
                             {latest ? (
-                              <div className="mt-1.5 flex items-center gap-2 min-w-0">
+                              <div className="mt-1.5 gap-2 min-w-0 flex items-center">
                                 {latest.user ? (
                                   <UserAvatar
                                     name={
@@ -883,14 +902,15 @@ export function InboxView() {
                                     seed={latest.user.id}
                                     size="xs"
                                     indicator={false}
-                                    className="shrink-0 font-bold"
+                                    className="font-bold shrink-0"
                                   />
                                 ) : null}
-                                <p className="text-xs truncate text-muted-foreground min-w-0">
-                                  <span className="font-semibold text-foreground/90 mr-1">
+                                <p className="text-xs min-w-0 truncate text-muted-foreground">
+                                  <span className="font-semibold mr-1 text-foreground/90">
                                     {latest.user?.displayName ??
                                       latest.user?.name ??
-                                      'A teammate'}:
+                                      'A teammate'}
+                                    :
                                   </span>
                                   <span>
                                     {latest.summary || 'sent a message'}
@@ -910,11 +930,11 @@ export function InboxView() {
                             asChild
                             variant="outline"
                             size="sm"
-                            className="h-8 px-3 text-xs gap-1.5 rounded-lg border-border/80 group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary transition-all shrink-0 cursor-pointer font-medium"
+                            className="h-8 px-3 text-xs gap-1.5 font-medium shrink-0 cursor-pointer rounded-lg border-border/80 transition-all group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary"
                           >
                             <Link to={`/w/${slug}/c/${channel.slug}`}>
                               <span>Open channel</span>
-                              <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+                              <ArrowRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
                             </Link>
                           </Button>
                         </div>
@@ -928,8 +948,8 @@ export function InboxView() {
             {/* 4. ASSIGNED TO YOU TAB */}
             <TabsContent value="tasks" className="space-y-3.5 mt-0">
               {/* Task Filters & Search */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pb-1">
-                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+              <div className="sm:flex-row sm:items-center gap-2.5 pb-1 flex flex-col items-stretch justify-between">
+                <div className="gap-1.5 py-0.5 no-scrollbar flex items-center overflow-x-auto">
                   {[
                     { id: 'all', label: 'All Assigned' },
                     { id: 'in_progress', label: 'In Progress' },
@@ -942,7 +962,7 @@ export function InboxView() {
                       type="button"
                       onClick={() => setTaskStatusFilter(filter.id)}
                       className={cn(
-                        'px-2.5 py-1 text-xs rounded-lg font-medium transition-colors cursor-pointer shrink-0',
+                        'px-2.5 py-1 text-xs font-medium shrink-0 cursor-pointer rounded-lg transition-colors',
                         taskStatusFilter === filter.id
                           ? 'bg-primary text-primary-foreground shadow-xs'
                           : 'bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground',
@@ -953,20 +973,20 @@ export function InboxView() {
                   ))}
                 </div>
 
-                <div className="relative flex items-center min-w-48 sm:w-60">
-                  <Search className="size-3.5 absolute left-2.5 text-muted-foreground pointer-events-none" />
+                <div className="min-w-48 sm:w-60 relative flex items-center">
+                  <Search className="size-3.5 left-2.5 pointer-events-none absolute text-muted-foreground" />
                   <input
                     type="text"
                     value={taskSearch}
                     onChange={(e) => setTaskSearch(e.target.value)}
                     placeholder="Search assigned tasks..."
-                    className="w-full pl-8 pr-7 py-1 text-xs rounded-lg border border-border/80 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="pl-8 pr-7 py-1 text-xs w-full rounded-lg border border-border/80 bg-background text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary focus:outline-none"
                   />
                   {taskSearch && (
                     <button
                       type="button"
                       onClick={() => setTaskSearch('')}
-                      className="absolute right-2 text-muted-foreground hover:text-foreground p-0.5"
+                      className="right-2 p-0.5 absolute text-muted-foreground hover:text-foreground"
                     >
                       <X className="size-3" />
                     </button>
@@ -979,14 +999,21 @@ export function InboxView() {
               ) : myTasks.length === 0 ? (
                 <EmptyState
                   icon={<CheckSquare />}
-                  title={taskSearch ? 'No matching tasks' : 'Nothing assigned to you'}
+                  title={
+                    taskSearch ? 'No matching tasks' : 'Nothing assigned to you'
+                  }
                   description={
                     taskSearch
                       ? 'Try clearing your search query.'
                       : 'Tasks assigned to you across all projects will show up here.'
                   }
                   action={
-                    <Button asChild size="sm" variant="outline" className="rounded-lg">
+                    <Button
+                      asChild
+                      size="sm"
+                      variant="outline"
+                      className="rounded-lg"
+                    >
                       <Link to={`/w/${slug}/tasks`}>Open the board</Link>
                     </Button>
                   }
@@ -1000,20 +1027,20 @@ export function InboxView() {
 
                     return (
                       <li key={task.id}>
-                        <Card className="group p-3.5 sm:p-4 gap-4 flex items-center justify-between bg-surface transition-all duration-(--duration-fast) rounded-xl border border-border/70 hover:border-border-strong hover:bg-surface-raised hover:shadow-md">
-                          <Link to={taskHref} className="min-w-0 flex-1 block">
-                            <div className="flex items-center gap-2 flex-wrap">
+                        <Card className="group p-3.5 sm:p-4 gap-4 flex items-center justify-between rounded-xl border border-border/70 bg-surface transition-all duration-(--duration-fast) hover:border-border-strong hover:bg-surface-raised hover:shadow-md">
+                          <Link to={taskHref} className="min-w-0 block flex-1">
+                            <div className="gap-2 flex flex-wrap items-center">
                               {task.identifier ? (
-                                <span className="font-mono text-[11px] font-bold text-primary px-1.5 py-0.2 rounded bg-primary/10">
+                                <span className="font-bold px-1.5 py-0.2 rounded bg-primary/10 font-mono text-[11px] text-primary">
                                   {task.identifier}
                                 </span>
                               ) : null}
-                              <h4 className="text-xs font-semibold truncate text-foreground group-hover:text-primary transition-colors">
+                              <h4 className="text-xs font-semibold truncate text-foreground transition-colors group-hover:text-primary">
                                 {task.title}
                               </h4>
                               <Badge
                                 variant="neutral"
-                                className="capitalize text-[10px] px-1.5 py-0 h-4 font-medium"
+                                className="px-1.5 py-0 h-4 font-medium text-[10px] capitalize"
                               >
                                 {task.status.toLowerCase().replace(/_/g, ' ')}
                               </Badge>
@@ -1022,9 +1049,9 @@ export function InboxView() {
                               ) : null}
                             </div>
 
-                            <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                            <div className="mt-1.5 gap-3 text-xs flex flex-wrap items-center text-muted-foreground">
                               {task.project ? (
-                                <span className="gap-1 inline-flex items-center align-middle font-medium">
+                                <span className="gap-1 font-medium inline-flex items-center align-middle">
                                   <ProjectGlyph
                                     icon={task.project.icon}
                                     iconColor={task.project.iconColor}
@@ -1040,9 +1067,9 @@ export function InboxView() {
                               {task.dueDate ? (
                                 <span
                                   className={cn(
-                                    'inline-flex items-center gap-1 font-medium',
+                                    'gap-1 font-medium inline-flex items-center',
                                     isOverdue
-                                      ? 'text-destructive font-semibold'
+                                      ? 'font-semibold text-destructive'
                                       : 'text-muted-foreground',
                                   )}
                                 >
@@ -1055,7 +1082,7 @@ export function InboxView() {
                               ) : null}
 
                               {task._count?.comments ? (
-                                <span className="inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground/80">
+                                <span className="gap-1 inline-flex items-center font-mono text-[10px] text-muted-foreground/80">
                                   <MessageSquare className="size-3" />
                                   <span>{task._count.comments}</span>
                                 </span>
@@ -1063,7 +1090,7 @@ export function InboxView() {
                             </div>
                           </Link>
 
-                          <div className="flex items-center gap-2 shrink-0">
+                          <div className="gap-2 flex shrink-0 items-center">
                             {task.assignee ? (
                               <UserAvatar
                                 name={
@@ -1074,18 +1101,18 @@ export function InboxView() {
                                 seed={task.assignee.id}
                                 size="xs"
                                 indicator={false}
-                                className="shrink-0 font-bold"
+                                className="font-bold shrink-0"
                               />
                             ) : null}
                             <Button
                               asChild
                               variant="outline"
                               size="sm"
-                              className="h-7 px-2.5 text-xs gap-1 rounded-lg border-border/80 group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary transition-all font-medium cursor-pointer"
+                              className="h-7 px-2.5 text-xs gap-1 font-medium cursor-pointer rounded-lg border-border/80 transition-all group-hover:border-primary/40 group-hover:bg-primary/10 group-hover:text-primary"
                             >
                               <Link to={taskHref}>
                                 <span>View task</span>
-                                <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+                                <ArrowRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
                               </Link>
                             </Button>
                           </div>
