@@ -6,6 +6,7 @@ import { MatrixModule } from '@org/api-matrix';
 import { SearchModule } from '@org/api-search';
 import { StorageModule } from '@org/api-storage';
 import { PrismaModule } from '@org/database';
+import { DistributedThrottlerStorageService } from './distributed-throttler-storage.service.js';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { PrismaModule } from '@org/database';
     AIInfrastructureModule,
     MatrixModule,
   ],
+  providers: [DistributedThrottlerStorageService],
   exports: [
     PrismaModule,
     CacheModule,
@@ -24,6 +26,8 @@ import { PrismaModule } from '@org/database';
     SearchModule,
     AIInfrastructureModule,
     MatrixModule,
+    DistributedThrottlerStorageService,
   ],
 })
 export class InfrastructureModule {}
+

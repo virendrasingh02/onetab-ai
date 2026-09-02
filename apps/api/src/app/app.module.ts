@@ -13,7 +13,10 @@ import { UserModule } from '@org/api-user';
 import { WorkspaceModule } from '@org/api-workspace';
 import { validateApiEnv } from '@org/config';
 import { PrismaModule } from '@org/database';
-import { InfrastructureModule } from '@org/api-infrastructure';
+import {
+  InfrastructureModule,
+  DistributedThrottlerStorageService,
+} from '@org/api-infrastructure';
 import { WorkToolsModule } from '@org/api-work-tools';
 import { AgentsModule } from '@org/api-agents';
 import { AutomationsModule } from '@org/api-automations';
@@ -38,13 +41,20 @@ import { AppService } from './app.service';
       // Fails fast at boot with every misconfigured variable listed.
       validate: validateApiEnv,
     }),
-    ThrottlerModule.forRoot([
-      {
-        name: 'default',
-        ttl: Number(process.env['THROTTLE_TTL_MS'] ?? 60_000),
-        limit: Number(process.env['THROTTLE_LIMIT'] ?? 120),
-      },
-    ]),
+    ThrottlerModule.forRootAsync({
+      imports: [InfrastructureModule],
+      inject: [DistributedThrottlerStorageService],
+      useFactory: (storage: DistributedThrottlerStorageService) => ({
+        throttlers: [
+          {
+            name: 'default',
+            ttl: Number(process.env['THROTTLE_TTL_MS'] ?? 60_000),
+            limit: Number(process.env['THROTTLE_LIMIT'] ?? 120),
+          },
+        ],
+        storage,
+      }),
+    }),
     // In-process domain event bus. Producers emit `AppEvent.*`; listener
     // classes (`DomainEventsListener`, the Matrix reconciler) subscribe.
     EventEmitterModule.forRoot({ global: true }),

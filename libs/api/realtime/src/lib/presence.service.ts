@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Interval } from '@nestjs/schedule';
 import { AppEvent } from '@org/api-common';
+import { CacheService } from '@org/api-cache';
 import { PrismaService } from '@org/database';
 import type { UserPresence } from '@org/types';
 
@@ -27,6 +28,8 @@ interface UserPresenceState {
 
 @Injectable()
 export class PresenceService {
+  private readonly logger = new Logger(PresenceService.name);
+
   // clientId -> ClientSession
   private readonly clientSessions = new Map<string, ClientSession>();
 
@@ -38,6 +41,7 @@ export class PresenceService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
     private readonly events: EventEmitter2,
   ) {}
 
@@ -118,6 +122,7 @@ export class PresenceService {
     });
 
     const presenceResult = this.toUserPresence(state, wsId);
+    await this.cache.set(`presence:user:${userId}`, presenceResult, 300_000);
 
     if (wasOffline) {
       this.events.emit(AppEvent.PresenceUpdated, {
@@ -161,6 +166,7 @@ export class PresenceService {
       });
 
       const presenceResult = this.toUserPresence(state, workspaceId);
+      await this.cache.set(`presence:user:${userId}`, presenceResult, 300_000);
 
       this.events.emit(AppEvent.PresenceUpdated, {
         workspaceId,
@@ -207,6 +213,7 @@ export class PresenceService {
     }
 
     const presenceResult = this.toUserPresence(state, workspaceId);
+    await this.cache.set(`presence:user:${userId}`, presenceResult, 300_000);
 
     // If status changed, emit presence update
     if (previousStatus && previousStatus !== state.status) {
@@ -248,17 +255,28 @@ export class PresenceService {
   }
 
   /**
-   * Gets user presence snapshot.
+   * Gets user presence snapshot across cluster nodes.
    */
   async getUserPresence(
     userId: string,
     workspaceId?: string | null,
   ): Promise<UserPresence> {
+    // 1. Check local node state
     const state = this.userPresenceStates.get(userId);
     if (state) {
       return this.toUserPresence(state, workspaceId);
     }
 
+    // 2. Check cluster-wide Redis cache
+    const cached = await this.cache.get<UserPresence>(`presence:user:${userId}`);
+    if (cached) {
+      return {
+        ...cached,
+        workspaceId: workspaceId ?? cached.workspaceId,
+      };
+    }
+
+    // 3. Fallback to database
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -287,7 +305,7 @@ export class PresenceService {
         ? 'busy'
         : 'offline';
 
-    return {
+    const result: UserPresence = {
       userId: user.id,
       workspaceId: workspaceId ?? null,
       status: normalizedStatus,
@@ -295,6 +313,9 @@ export class PresenceService {
       statusText: user.statusText,
       statusEmoji: user.statusEmoji,
     };
+
+    await this.cache.set(`presence:user:${userId}`, result, 300_000);
+    return result;
   }
 
   /**
@@ -316,10 +337,18 @@ export class PresenceService {
       },
     });
 
-    return members.map((m) => {
+    const results: UserPresence[] = [];
+    for (const m of members) {
       const liveState = this.userPresenceStates.get(m.userId);
       if (liveState) {
-        return this.toUserPresence(liveState, workspaceId);
+        results.push(this.toUserPresence(liveState, workspaceId));
+        continue;
+      }
+
+      const cached = await this.cache.get<UserPresence>(`presence:user:${m.userId}`);
+      if (cached) {
+        results.push({ ...cached, workspaceId });
+        continue;
       }
 
       const status: 'online' | 'away' | 'busy' | 'offline' =
@@ -331,15 +360,17 @@ export class PresenceService {
           ? 'busy'
           : 'offline';
 
-      return {
+      results.push({
         userId: m.userId,
         workspaceId,
         status,
         lastSeenAt: m.user.lastSeenAt?.toISOString() ?? null,
         statusText: m.user.statusText,
         statusEmoji: m.user.statusEmoji,
-      };
-    });
+      });
+    }
+
+    return results;
   }
 
   /**

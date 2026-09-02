@@ -14,6 +14,9 @@
   "exclude": [],
   "references": [
     {
+      "path": "../../libs/api/cache/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/api/marketplace/tsconfig.lib.json"
     },
     {
@@ -71,10 +74,10 @@
       "path": "../../libs/api/search/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/api/notifications/tsconfig.lib.json"
+      "path": "../../libs/api/realtime/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/api/realtime/tsconfig.lib.json"
+      "path": "../../libs/api/notifications/tsconfig.lib.json"
     },
     {
       "path": "../../libs/api/ai/tsconfig.lib.json"

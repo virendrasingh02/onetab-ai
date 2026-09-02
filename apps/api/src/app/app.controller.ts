@@ -1,4 +1,5 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Res, HttpStatus } from '@nestjs/common';
+import { Response } from 'express';
 import { Public } from '@org/api-common';
 import { AppService } from './app.service';
 
@@ -6,10 +7,22 @@ import { AppService } from './app.service';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  /** Liveness probe. Public so orchestrators can poll it without a token. */
+  /** Liveness probe. Ultra-lightweight so orchestrators can poll frequently. */
   @Public()
   @Get('health')
   health() {
     return this.appService.health();
   }
+
+  /** Readiness probe. Returns 200 when ready to serve traffic, 503 when degraded. */
+  @Public()
+  @Get('ready')
+  async ready(@Res({ passthrough: true }) res: Response) {
+    const result = await this.appService.ready();
+    if (!result.ready) {
+      res.status(HttpStatus.SERVICE_UNAVAILABLE);
+    }
+    return result;
+  }
 }
+

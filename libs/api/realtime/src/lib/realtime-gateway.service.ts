@@ -1,4 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
+import { CacheService } from '@org/api-cache';
 import { PrismaService } from '@org/database';
 import type { UserPresence } from '@org/types';
 import { Subject } from 'rxjs';
@@ -18,9 +24,23 @@ interface ConnectedClient {
   connectedAt: Date;
 }
 
+interface RedisWorkspaceBroadcastPayload {
+  nodeId: string;
+  workspaceId: string;
+  event: { id?: string; type: string; payload: unknown; actorId?: string | null };
+  excludeClientId?: string;
+}
+
+interface RedisUserBroadcastPayload {
+  nodeId: string;
+  userId: string;
+  event: { id?: string; type: string; payload: unknown; workspaceId?: string | null };
+}
+
 @Injectable()
-export class RealtimeGatewayService {
+export class RealtimeGatewayService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RealtimeGatewayService.name);
+  private readonly nodeId = `${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
 
   // clientId -> ConnectedClient
   private readonly clients = new Map<string, ConnectedClient>();
@@ -31,7 +51,67 @@ export class RealtimeGatewayService {
   // workspaceId -> Set<clientId>
   private readonly workspaceClientMap = new Map<string, Set<string>>();
 
-  constructor(private readonly prisma: PrismaService) {}
+  private keepAliveTimer: NodeJS.Timeout | null = null;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
+
+  async onModuleInit(): Promise<void> {
+    // 1. Subscribe to Redis cluster channels for cross-instance broadcasts
+    await this.cache.subscribe('realtime:workspace', (msg) => {
+      try {
+        const data: RedisWorkspaceBroadcastPayload = JSON.parse(msg);
+        if (data.nodeId !== this.nodeId) {
+          void this.dispatchLocalWorkspaceBroadcast(
+            data.workspaceId,
+            data.event,
+            data.excludeClientId,
+          );
+        }
+      } catch (err) {
+        this.logger.error('Error handling Redis workspace broadcast', err);
+      }
+    });
+
+    await this.cache.subscribe('realtime:user', (msg) => {
+      try {
+        const data: RedisUserBroadcastPayload = JSON.parse(msg);
+        if (data.nodeId !== this.nodeId) {
+          this.dispatchLocalUserBroadcast(data.userId, data.event);
+        }
+      } catch (err) {
+        this.logger.error('Error handling Redis user broadcast', err);
+      }
+    });
+
+    // 2. Start SSE keep-alive heartbeat ping every 25 seconds
+    this.keepAliveTimer = setInterval(() => {
+      this.sendKeepAlivePing();
+    }, 25_000);
+
+    this.logger.log(`RealtimeGatewayService initialized on cluster node [${this.nodeId}]`);
+  }
+
+  onModuleDestroy(): void {
+    if (this.keepAliveTimer) {
+      clearInterval(this.keepAliveTimer);
+      this.keepAliveTimer = null;
+    }
+
+    // Drain and complete all active SSE subjects cleanly
+    for (const [clientId, client] of this.clients.entries()) {
+      try {
+        client.subject.complete();
+      } catch {
+        // Ignore
+      }
+      this.clients.delete(clientId);
+    }
+    this.userClientMap.clear();
+    this.workspaceClientMap.clear();
+  }
 
   /**
    * Registers a newly established SSE connection.
@@ -71,7 +151,7 @@ export class RealtimeGatewayService {
     }
 
     this.logger.debug(
-      `Client connected: ${clientId} (user: ${userId}, workspace: ${workspaceId})`,
+      `Client connected: ${clientId} (user: ${userId}, workspace: ${workspaceId}, total local: ${this.clients.size})`,
     );
   }
 
@@ -108,13 +188,31 @@ export class RealtimeGatewayService {
       // Ignore
     }
 
-    this.logger.debug(`Client disconnected: ${clientId}`);
+    this.logger.debug(`Client disconnected: ${clientId} (remaining local: ${this.clients.size})`);
   }
 
   /**
-   * Dispatches an event to all connected clients authorized for a workspace.
+   * Dispatches an event to all connected clients authorized for a workspace across all cluster instances.
    */
   async broadcastToWorkspace(
+    workspaceId: string,
+    event: { id?: string; type: string; payload: unknown; actorId?: string | null },
+    excludeClientId?: string,
+  ): Promise<void> {
+    // 1. Dispatch locally on this API node
+    await this.dispatchLocalWorkspaceBroadcast(workspaceId, event, excludeClientId);
+
+    // 2. Publish to Redis Pub/Sub so other API instances receive it
+    const redisPayload: RedisWorkspaceBroadcastPayload = {
+      nodeId: this.nodeId,
+      workspaceId,
+      event,
+      excludeClientId,
+    };
+    await this.cache.publish('realtime:workspace', redisPayload);
+  }
+
+  private async dispatchLocalWorkspaceBroadcast(
     workspaceId: string,
     event: { id?: string; type: string; payload: unknown; actorId?: string | null },
     excludeClientId?: string,
@@ -133,6 +231,9 @@ export class RealtimeGatewayService {
       id: event.id,
       type: 'event',
     };
+
+    // Fast path: Check if we have any active local subscribers for this workspace
+    if (this.clients.size === 0) return;
 
     // Get active workspace members
     const activeMembers = await this.prisma.workspaceMember.findMany({
@@ -160,9 +261,25 @@ export class RealtimeGatewayService {
   }
 
   /**
-   * Dispatches an event directly to a single user across all their connected devices/tabs.
+   * Dispatches an event directly to a single user across all their connected devices/tabs on any node.
    */
   broadcastToUser(
+    userId: string,
+    event: { id?: string; type: string; payload: unknown; workspaceId?: string | null },
+  ): void {
+    // 1. Dispatch locally
+    this.dispatchLocalUserBroadcast(userId, event);
+
+    // 2. Publish to Redis Pub/Sub
+    const redisPayload: RedisUserBroadcastPayload = {
+      nodeId: this.nodeId,
+      userId,
+      event,
+    };
+    void this.cache.publish('realtime:user', redisPayload);
+  }
+
+  private dispatchLocalUserBroadcast(
     userId: string,
     event: { id?: string; type: string; payload: unknown; workspaceId?: string | null },
   ): void {
@@ -210,7 +327,6 @@ export class RealtimeGatewayService {
         : [];
 
     if (wsIds.length === 0) {
-      // Find all user's active workspaces
       const memberships = await this.prisma.workspaceMember.findMany({
         where: { userId: presence.userId, status: 'ACTIVE' },
         select: { workspaceId: true },
@@ -230,10 +346,28 @@ export class RealtimeGatewayService {
     }
   }
 
+  private sendKeepAlivePing(): void {
+    if (this.clients.size === 0) return;
+
+    const pingEvent: SseMessageEvent = {
+      type: 'ping',
+      data: JSON.stringify({ ping: true, timestamp: Date.now() }),
+    };
+
+    for (const client of this.clients.values()) {
+      try {
+        client.subject.next(pingEvent);
+      } catch {
+        // Client may be terminating
+      }
+    }
+  }
+
   /**
-   * Returns active connection count across the platform.
+   * Returns active connection count on this node.
    */
   getConnectionCount(): number {
     return this.clients.size;
   }
 }
+

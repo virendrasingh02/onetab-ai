@@ -66,6 +66,7 @@ model User {
   meetingNotes            MeetingNote[]
   meetingDecisions        MeetingDecision[]
 
+  @@index([presence, lastSeenAt])
   @@map("users")
 }
 

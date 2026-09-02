@@ -156,6 +156,11 @@ export class RealtimeClient {
         this.handleHeartbeat(e.data);
       });
 
+      this.eventSource.addEventListener('ping', () => {
+        this.lastHeartbeatAt = Date.now();
+        this.armHeartbeatWatchdog();
+      });
+
       this.eventSource.addEventListener('event', (e: MessageEvent) => {
         this.handleIncomingRaw(e.data);
       });

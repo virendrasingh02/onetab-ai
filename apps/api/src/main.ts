@@ -2,7 +2,9 @@ import { Logger, type INestApplication, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { parseCorsOrigins } from '@org/config';
+import compression from 'compression';
 import cookieParser from 'cookie-parser';
+import { json, urlencoded } from 'express';
 import helmet from 'helmet';
 import { createServer } from 'node:net';
 import { AppModule } from './app/app.module';
@@ -83,6 +85,13 @@ async function bootstrap() {
   // URI versioning keeps old clients working when a contract has to change.
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 
+  // Response compression (gzip/deflate) for payloads > 1KB
+  app.use(compression({ threshold: 1024 }));
+
+  // Request body parsing limits
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ extended: true, limit: '50mb' }));
+
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   // Refresh tokens travel as httpOnly cookies, so the parser is required.
   app.use(cookieParser());
@@ -99,14 +108,38 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   });
 
-  // Lets Nest run onModuleDestroy hooks (closing the DB pool) on SIGTERM.
+  // Lets Nest run onModuleDestroy hooks (closing DB pool & Redis) on SIGTERM.
   app.enableShutdownHooks();
 
   const port = config.get<number>('PORT', 3000);
   const host = config.get<string>('HOST', 'localhost');
   const actualPort = await listen(app, port, host, isProduction);
 
-  Logger.log(`OneTab AI API listening on http://${host}:${actualPort}/api/v1`);
+  // Configure underlying HTTP server keepalive timeouts for load balancer proxying
+  const httpServer = app.getHttpServer();
+  if (httpServer && typeof httpServer.keepAliveTimeout === 'number') {
+    httpServer.keepAliveTimeout = 65000;
+    httpServer.headersTimeout = 66000;
+    httpServer.requestTimeout = 30000;
+  }
+
+  // Graceful shutdown handling
+  const signals: NodeJS.Signals[] = ['SIGTERM', 'SIGINT'];
+  for (const signal of signals) {
+    process.once(signal, async () => {
+      Logger.log(`Received ${signal}. Draining connections and initiating graceful shutdown...`);
+      try {
+        await app.close();
+        Logger.log('Graceful shutdown completed successfully.');
+        process.exit(0);
+      } catch (err) {
+        Logger.error('Error during graceful shutdown', err);
+        process.exit(1);
+      }
+    });
+  }
+
+  Logger.log(`OneTab AI API listening on http://${host}:${actualPort}/api/v1 (PID: ${process.pid})`);
   if (!isProduction) {
     Logger.log(`CORS origins: ${origins.join(', ') || '(none configured)'}`);
   }

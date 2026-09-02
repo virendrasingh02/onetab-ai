@@ -681,6 +681,9 @@ export class WorkToolsService {
       moduleId?: string;
       assigneeId?: string;
       search?: string;
+      limit?: number;
+      offset?: number;
+      cursor?: string;
     },
   ) {
     return this.prisma.task.findMany({
@@ -735,6 +738,9 @@ export class WorkToolsService {
         _count: { select: { comments: true } },
       },
       orderBy: [{ status: 'asc' }, { orderIndex: 'asc' }],
+      take: Math.min(options?.limit ? Number(options.limit) : 100, 250),
+      ...(options?.offset ? { skip: Number(options.offset) } : {}),
+      ...(options?.cursor ? { cursor: { id: options.cursor }, skip: 1 } : {}),
     });
   }
 
@@ -1517,7 +1523,7 @@ export class WorkToolsService {
     });
   }
 
-  async getDocuments(workspaceId: string) {
+  async getDocuments(workspaceId: string, options?: { limit?: number; offset?: number }) {
     return this.prisma.workDocument.findMany({
       where: { workspaceId, deletedAt: null },
       include: {
@@ -1528,6 +1534,8 @@ export class WorkToolsService {
         },
       },
       orderBy: { updatedAt: 'desc' },
+      take: Math.min(options?.limit ? Number(options.limit) : 100, 250),
+      ...(options?.offset ? { skip: Number(options.offset) } : {}),
     });
   }
 
