@@ -27,7 +27,7 @@ import { SavedView, ThreadsView } from '@org/web-chat';
  */
 import { PlatformDiagnosticsPage } from '@org/web-desktop';
 import { lazy, Suspense } from 'react';
-import { Link, Navigate, Route, Routes } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
 
 /**
  * Authenticated areas are lazily loaded so the initial bundle carries only the
@@ -115,7 +115,9 @@ const WorkspaceRedirect = lazy(() =>
   import('@org/web-workspace').then((m) => ({ default: m.WorkspaceRedirect })),
 );
 const AsanaProjectManager = lazy(() =>
-  import('@org/web-work-tools').then((m) => ({ default: m.AsanaProjectManager })),
+  import('@org/web-work-tools').then((m) => ({
+    default: m.AsanaProjectManager,
+  })),
 );
 const DocumentEditor = lazy(() =>
   import('@org/web-work-tools').then((m) => ({ default: m.DocumentEditor })),
@@ -124,7 +126,9 @@ const FileManagerView = lazy(() =>
   import('@org/web-work-tools').then((m) => ({ default: m.FileManagerView })),
 );
 const ActivityTimelineView = lazy(() =>
-  import('@org/web-work-tools').then((m) => ({ default: m.ActivityTimelineView })),
+  import('@org/web-work-tools').then((m) => ({
+    default: m.ActivityTimelineView,
+  })),
 );
 const InboxView = lazy(() =>
   import('@org/web-work-tools').then((m) => ({ default: m.InboxView })),
@@ -160,13 +164,19 @@ const WorkflowListView = lazy(() =>
   import('@org/web-automations').then((m) => ({ default: m.WorkflowListView })),
 );
 const WorkflowCanvasView = lazy(() =>
-  import('@org/web-automations').then((m) => ({ default: m.WorkflowCanvasView })),
+  import('@org/web-automations').then((m) => ({
+    default: m.WorkflowCanvasView,
+  })),
 );
 const WorkflowExecutionLogsView = lazy(() =>
-  import('@org/web-automations').then((m) => ({ default: m.WorkflowExecutionLogsView })),
+  import('@org/web-automations').then((m) => ({
+    default: m.WorkflowExecutionLogsView,
+  })),
 );
 const IntegrationHubView = lazy(() =>
-  import('@org/web-integrations').then((m) => ({ default: m.IntegrationHubView })),
+  import('@org/web-integrations').then((m) => ({
+    default: m.IntegrationHubView,
+  })),
 );
 const AppChatView = lazy(() =>
   import('@org/web-integrations').then((m) => ({ default: m.AppChatView })),
@@ -183,7 +193,15 @@ const DirectMessagesPage = lazy(() =>
   import('@org/web-layout').then((m) => ({ default: m.DirectMessagesPage })),
 );
 
-
+/**
+ * Redirects a pre-nesting settings URL (`/w/:slug/billing`, `/w/:slug/profile`,
+ * …) to its home under the nested surface (`/w/:slug/settings/<section>`), so
+ * old bookmarks and external links keep resolving.
+ */
+function LegacySettingsRedirect({ section }: { section: string }) {
+  const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
+  return <Navigate to={`/w/${workspaceSlug}/settings/${section}`} replace />;
+}
 
 function NotFoundPage() {
   return (
@@ -238,7 +256,10 @@ export function App() {
             PlatformDiagnosticsLink, the only thing that points here.
           */}
           {import.meta.env.DEV && (
-            <Route path="/dev/platform-diagnostics" element={<PlatformDiagnosticsPage />} />
+            <Route
+              path="/dev/platform-diagnostics"
+              element={<PlatformDiagnosticsPage />}
+            />
           )}
 
           {/* Bare "/" and "/open" resolve to the user's first workspace. */}
@@ -246,49 +267,54 @@ export function App() {
           <Route path="/open" element={<WorkspaceRedirect />} />
           <Route path="/settings" element={<WorkspaceRedirect />} />
 
-          {/* --- Separate Standalone Settings Routes --- */}
+          {/*
+            --- Settings ---
+            One nested surface: /w/:slug/settings/<section>. Bare /settings
+            lands on the first section; the pre-nesting top-level paths
+            (/billing, /profile, /analytics, …) redirect in so old bookmarks
+            keep working.
+          */}
           <Route
             path="/w/:workspaceSlug/settings"
-            element={<WorkspaceSettings />}
+            element={<Navigate to="appearance" replace />}
           />
           <Route
-            path="/w/:workspaceSlug/settings/*"
+            path="/w/:workspaceSlug/settings/:section"
             element={<WorkspaceSettings />}
           />
           <Route
             path="/w/:workspaceSlug/import-export"
-            element={<WorkspaceSettings />}
+            element={<LegacySettingsRedirect section="import-export" />}
           />
           <Route
             path="/w/:workspaceSlug/integrations/import"
-            element={<WorkspaceSettings />}
+            element={<LegacySettingsRedirect section="import-export" />}
           />
           <Route
             path="/w/:workspaceSlug/profile"
-            element={<WorkspaceSettings />}
+            element={<LegacySettingsRedirect section="profile" />}
           />
           <Route
             path="/w/:workspaceSlug/billing"
-            element={<WorkspaceSettings />}
+            element={<LegacySettingsRedirect section="billing" />}
           />
           <Route
             path="/w/:workspaceSlug/plans"
-            element={<WorkspaceSettings />}
-          />
-          <Route
-            path="/w/:workspaceSlug/analytics/*"
-            element={<WorkspaceSettings />}
+            element={<LegacySettingsRedirect section="billing" />}
           />
           <Route
             path="/w/:workspaceSlug/analytics"
-            element={<WorkspaceSettings />}
+            element={<LegacySettingsRedirect section="analytics" />}
           />
 
           {/* --- Main Workspace Shell with Navigation & Tools --- */}
           <Route path="/w/:workspaceSlug" element={<AppShell />}>
             <Route index element={<AIChatView />} />
             <Route path="home" element={<AIChatView />} />
-            <Route path="overview" element={<Navigate to="dashboard" replace />} />
+            <Route
+              path="overview"
+              element={<Navigate to="dashboard" replace />}
+            />
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="c/:channelSlug" element={<ChannelPage />} />
             <Route path="channels" element={<BrowseChannelsPage />} />
@@ -325,8 +351,14 @@ export function App() {
             <Route path="agents/builder" element={<AgentBuilderView />} />
             <Route path="agents/logs" element={<AgentMonitoringView />} />
             <Route path="automations" element={<WorkflowListView />} />
-            <Route path="automations/builder" element={<WorkflowCanvasView />} />
-            <Route path="automations/logs" element={<WorkflowExecutionLogsView />} />
+            <Route
+              path="automations/builder"
+              element={<WorkflowCanvasView />}
+            />
+            <Route
+              path="automations/logs"
+              element={<WorkflowExecutionLogsView />}
+            />
             <Route path="integrations" element={<IntegrationHubView />} />
             <Route path="apps" element={<AppChatView />} />
             <Route path="apps/chat" element={<AppChatView />} />

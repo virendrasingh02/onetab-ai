@@ -14,7 +14,12 @@ import {
   TrendBadge,
   UserAvatar,
 } from '@org/ui';
-import { formatBytes, formatCount, formatDate, formatRelative } from '@org/utils';
+import {
+  formatBytes,
+  formatCount,
+  formatDate,
+  formatRelative,
+} from '@org/utils';
 import {
   useAIUsageAnalytics,
   useDashboardAnalytics,
@@ -60,10 +65,10 @@ function QuickActionCard({
   return (
     <Link
       to={to}
-      className="group relative flex flex-col justify-between rounded-card border border-border bg-surface p-4 transition-all duration-200 hover:border-primary/50 hover:bg-accent/40 hover:shadow-xs"
+      className="group p-4 relative flex flex-col justify-between rounded-card border border-border bg-surface transition-all duration-200 hover:border-primary/50 hover:bg-accent/40 hover:shadow-xs"
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+      <div className="gap-2 flex items-start justify-between">
+        <div className="size-9 flex items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
           <Icon className="size-4" aria-hidden />
         </div>
         {badge ? (
@@ -73,11 +78,14 @@ function QuickActionCard({
         ) : null}
       </div>
       <div className="mt-3 space-y-0.5">
-        <div className="flex items-center gap-1 font-medium text-xs text-foreground group-hover:text-primary">
+        <div className="gap-1 font-medium text-xs flex items-center text-foreground group-hover:text-primary">
           <span>{title}</span>
-          <ChevronRight className="size-3 transition-transform group-hover:translate-x-0.5" aria-hidden />
+          <ChevronRight
+            className="size-3 group-hover:translate-x-0.5 transition-transform"
+            aria-hidden
+          />
         </div>
-        <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+        <p className="leading-relaxed line-clamp-2 text-[11px] text-muted-foreground">
           {description}
         </p>
       </div>
@@ -104,8 +112,8 @@ function MetricCard({
   return (
     <Card className="relative overflow-hidden">
       <CardContent className="p-4">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        <div className="gap-2 flex items-center justify-between">
+          <span className="font-medium tracking-wider text-[11px] text-muted-foreground uppercase">
             {title}
           </span>
           <Icon className="size-4 text-muted-foreground/70" aria-hidden />
@@ -116,7 +124,9 @@ function MetricCard({
           </span>
           {trend && !isLoading ? <TrendBadge trend={trend} /> : null}
         </div>
-        <p className="mt-1 text-[11px] text-muted-foreground truncate">{subtitle}</p>
+        <p className="mt-1 truncate text-[11px] text-muted-foreground">
+          {subtitle}
+        </p>
       </CardContent>
     </Card>
   );
@@ -142,13 +152,16 @@ export function DashboardPage() {
    * The workspace summary is already in cache when this screen mounts, so it
    * seeds the counters while the aggregation request is in flight.
    */
-  const channelCount = overview.data?.totals.channels ?? workspace?.channelCount ?? 0;
-  const memberCount = overview.data?.totals.members ?? workspace?.memberCount ?? 0;
+  const channelCount =
+    overview.data?.totals.channels ?? workspace?.channelCount ?? 0;
+  const memberCount =
+    overview.data?.totals.members ?? workspace?.memberCount ?? 0;
   const onlineCount =
     members.data?.filter((m) => m.user.presence === 'ONLINE').length ?? 0;
   const connectedIntegrations =
-    integrations.data?.filter((integration) => integration.status === 'CONNECTED')
-      .length ?? 0;
+    integrations.data?.filter(
+      (integration) => integration.status === 'CONNECTED',
+    ).length ?? 0;
 
   // Company onboarding progress metrics
   const onboardingSteps = [
@@ -181,33 +194,41 @@ export function DashboardPage() {
   ];
 
   const completedSteps = onboardingSteps.filter((s) => s.done).length;
-  const progressPercent = Math.round((completedSteps / onboardingSteps.length) * 100);
+  const progressPercent = Math.round(
+    (completedSteps / onboardingSteps.length) * 100,
+  );
 
   return (
-    <div className="max-w-6xl space-y-6 mx-auto pb-8">
+    <div className="max-w-6xl space-y-6 pb-8 mx-auto">
       {/* Top Banner: Company Workspace Hero */}
-      <div className="rounded-card border border-border bg-gradient-to-r from-surface via-surface-raised to-accent/20 p-5 lg:p-6 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-5 lg:p-6 rounded-card border border-border bg-gradient-to-r from-surface via-surface-raised to-accent/20 shadow-xs">
+        <div className="md:flex-row md:items-center gap-4 flex flex-col justify-between">
           <div className="space-y-1.5 max-w-2xl">
-            <div className="flex items-center gap-2">
-              <Badge variant="primary" className="gap-1 font-semibold text-[10px] uppercase">
+            <div className="gap-2 flex items-center">
+              <Badge
+                variant="primary"
+                className="gap-1 font-semibold text-[10px] uppercase"
+              >
                 <Shield className="size-3" aria-hidden />
                 Enterprise Workspace
               </Badge>
               <span className="text-xs text-muted-foreground">·</span>
-              <span className="text-xs text-muted-foreground font-medium">
+              <span className="text-xs font-medium text-muted-foreground">
                 {workspace?.name ?? 'Company Hub'}
               </span>
             </div>
             <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-foreground">
-              {firstName ? `Welcome back to ${workspace?.name}, ${firstName}` : `Welcome back to ${workspace?.name}`}
+              {firstName
+                ? `Welcome back to ${workspace?.name}, ${firstName}`
+                : `Welcome back to ${workspace?.name}`}
             </h1>
-            <p className="text-xs lg:text-sm text-muted-foreground leading-relaxed">
-              Your central company hub for real-time collaboration, team channels, AI copilots, and automated workflows.
+            <p className="text-xs lg:text-sm leading-relaxed text-muted-foreground">
+              Your central company hub for real-time collaboration, team
+              channels, AI copilots, and automated workflows.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="gap-2 flex shrink-0 flex-wrap items-center">
             <Button asChild size="sm" className="gap-1.5">
               <Link to={`/w/${slug}/invitations`}>
                 <UserPlus className="size-3.5" />
@@ -226,13 +247,14 @@ export function DashboardPage() {
         {/* Company Operational Progress Bar */}
         {showGuide ? (
           <div className="mt-5 pt-4 border-t border-border/60">
-            <div className="flex items-center justify-between text-xs mb-2">
-              <span className="font-medium text-foreground flex items-center gap-1.5">
+            <div className="text-xs mb-2 flex items-center justify-between">
+              <span className="font-medium gap-1.5 flex items-center text-foreground">
                 <CheckCircle2 className="size-3.5 text-primary" aria-hidden />
                 <span>Company Workspace Setup</span>
               </span>
-              <span className="text-subtle font-mono text-[11px]">
-                {completedSteps}/{onboardingSteps.length} Steps ({progressPercent}%)
+              <span className="font-mono text-[11px] text-subtle">
+                {completedSteps}/{onboardingSteps.length} Steps (
+                {progressPercent}%)
               </span>
             </div>
             <Progress value={progressPercent} className="h-1.5" />
@@ -241,7 +263,7 @@ export function DashboardPage() {
       </div>
 
       {/* Key Company Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="md:grid-cols-4 gap-3 grid grid-cols-2">
         <MetricCard
           title="Departments & Channels"
           value={formatCount(channelCount)}
@@ -278,10 +300,10 @@ export function DashboardPage() {
 
       {/* Company Quick Actions Matrix */}
       <div>
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+        <h2 className="text-xs font-semibold tracking-wider mb-3 text-muted-foreground uppercase">
           Company Quick Workflows
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="sm:grid-cols-2 lg:grid-cols-4 gap-3 grid grid-cols-1">
           <QuickActionCard
             icon={UserPlus}
             title="Invite Team Members"
@@ -312,26 +334,30 @@ export function DashboardPage() {
       </div>
 
       {/* Detailed Company Modules */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="lg:grid-cols-3 gap-6 grid grid-cols-1">
         {/* Column 1 & 2: Channels & Company Onboarding Journey */}
         <div className="lg:col-span-2 space-y-6">
           {/* Company Onboarding Journey Guide */}
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <LayoutDashboard className="size-4 text-primary" aria-hidden />
+                <CardTitle className="text-sm font-semibold gap-2 flex items-center">
+                  <LayoutDashboard
+                    className="size-4 text-primary"
+                    aria-hidden
+                  />
                   <span>Company Activation Checklist</span>
                 </CardTitle>
                 <button
                   onClick={() => setShowGuide((prev) => !prev)}
-                  className="text-xs text-subtle hover:text-foreground transition-colors"
+                  className="text-xs text-subtle transition-colors hover:text-foreground"
                 >
                   {showGuide ? 'Hide' : 'Show'}
                 </button>
               </div>
               <CardDescription className="text-xs">
-                Follow these essential steps to get your organization fully operational on OneTab AI.
+                Follow these essential steps to get your organization fully
+                operational on OneTab AI.
               </CardDescription>
             </CardHeader>
             {showGuide ? (
@@ -339,22 +365,34 @@ export function DashboardPage() {
                 {onboardingSteps.map((step) => (
                   <div
                     key={step.title}
-                    className="flex items-center justify-between p-3 rounded-card border border-border/80 bg-surface/50 hover:bg-surface transition-colors"
+                    className="p-3 flex items-center justify-between rounded-card border border-border/80 bg-surface/50 transition-colors hover:bg-surface"
                   >
-                    <div className="flex items-start gap-3 min-w-0">
+                    <div className="gap-3 min-w-0 flex items-start">
                       <div className="mt-0.5 shrink-0">
                         {step.done ? (
-                          <CheckCircle2 className="size-4 text-accent-green" aria-hidden />
+                          <CheckCircle2
+                            className="size-4 text-accent-green"
+                            aria-hidden
+                          />
                         ) : (
                           <div className="size-4 rounded-full border-2 border-muted-foreground/40" />
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs font-medium text-foreground">{step.title}</p>
-                        <p className="text-[11px] text-muted-foreground truncate">{step.desc}</p>
+                        <p className="text-xs font-medium text-foreground">
+                          {step.title}
+                        </p>
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {step.desc}
+                        </p>
                       </div>
                     </div>
-                    <Button asChild variant="ghost" size="icon-sm" className="shrink-0">
+                    <Button
+                      asChild
+                      variant="ghost"
+                      size="icon-sm"
+                      className="shrink-0"
+                    >
                       <Link to={step.link} aria-label={`Open ${step.title}`}>
                         <ArrowRight className="size-3.5" />
                       </Link>
@@ -370,13 +408,23 @@ export function DashboardPage() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-sm font-semibold">Active Company Channels</CardTitle>
+                  <CardTitle className="text-sm font-semibold">
+                    Active Company Channels
+                  </CardTitle>
                   <CardDescription className="text-xs">
-                    Channels &amp; department spaces you are currently joined in.
+                    Channels &amp; department spaces you are currently joined
+                    in.
                   </CardDescription>
                 </div>
-                <Button asChild variant="outline" size="sm" className="text-xs h-7">
-                  <Link to={`/w/${slug}/channels`}>Browse all ({channelCount})</Link>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-7"
+                >
+                  <Link to={`/w/${slug}/channels`}>
+                    Browse all ({channelCount})
+                  </Link>
                 </Button>
               </div>
             </CardHeader>
@@ -396,32 +444,38 @@ export function DashboardPage() {
                   }
                 />
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {[...groups.favorites, ...groups.joined].slice(0, 8).map((channel) => {
-                    const Icon = channel.visibility === 'PRIVATE' ? Lock : Hash;
-                    return (
-                      <Link
-                        key={channel.id}
-                        to={`/w/${slug}/c/${channel.slug}`}
-                        className="group flex items-center justify-between p-2.5 rounded-card border border-border/80 bg-surface/40 hover:bg-accent hover:border-primary/40 transition-colors"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Icon className="size-4 text-muted-foreground group-hover:text-primary shrink-0" />
-                          <span className="text-xs font-medium truncate text-foreground">
-                            {channel.name}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {channel.membership?.isFavorite ? (
-                            <Star className="size-3.5 fill-warning text-warning" />
-                          ) : null}
-                          <Badge variant="neutral" className="text-[10px] px-1.5 py-0">
-                            {channel.memberCount}
-                          </Badge>
-                        </div>
-                      </Link>
-                    );
-                  })}
+                <div className="sm:grid-cols-2 gap-2 grid grid-cols-1">
+                  {[...groups.favorites, ...groups.joined]
+                    .slice(0, 8)
+                    .map((channel) => {
+                      const Icon =
+                        channel.visibility === 'PRIVATE' ? Lock : Hash;
+                      return (
+                        <Link
+                          key={channel.id}
+                          to={`/w/${slug}/c/${channel.slug}`}
+                          className="group p-2.5 flex items-center justify-between rounded-card border border-border/80 bg-surface/40 transition-colors hover:border-primary/40 hover:bg-accent"
+                        >
+                          <div className="gap-2 min-w-0 flex items-center">
+                            <Icon className="size-4 shrink-0 text-muted-foreground group-hover:text-primary" />
+                            <span className="text-xs font-medium truncate text-foreground">
+                              {channel.name}
+                            </span>
+                          </div>
+                          <div className="gap-1.5 flex shrink-0 items-center">
+                            {channel.membership?.isFavorite ? (
+                              <Star className="size-3.5 fill-warning text-warning" />
+                            ) : null}
+                            <Badge
+                              variant="neutral"
+                              className="px-1.5 py-0 text-[10px]"
+                            >
+                              {channel.memberCount}
+                            </Badge>
+                          </div>
+                        </Link>
+                      );
+                    })}
                 </div>
               )}
             </CardContent>
@@ -434,7 +488,7 @@ export function DashboardPage() {
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                <CardTitle className="text-sm font-semibold gap-1.5 flex items-center">
                   <Users className="size-4 text-primary" aria-hidden />
                   <span>Team Directory</span>
                 </CardTitle>
@@ -453,20 +507,27 @@ export function DashboardPage() {
                 <>
                   <ul className="space-y-2">
                     {members.data?.slice(0, 5).map((member) => (
-                      <li key={member.id} className="flex items-center justify-between gap-2 text-xs">
-                        <div className="flex items-center gap-2.5 min-w-0">
+                      <li
+                        key={member.id}
+                        className="gap-2 text-xs flex items-center justify-between"
+                      >
+                        <div className="gap-2.5 min-w-0 flex items-center">
                           <UserAvatar
                             name={member.user.displayName ?? member.user.name}
                             src={member.user.avatarUrl}
                             seed={member.user.id}
                             size="sm"
-                            presence={member.user.presence === 'ONLINE' ? 'online' : 'offline'}
+                            presence={
+                              member.user.presence === 'ONLINE'
+                                ? 'online'
+                                : 'offline'
+                            }
                           />
                           <div className="min-w-0">
-                            <p className="font-medium truncate text-foreground leading-tight">
+                            <p className="font-medium leading-tight truncate text-foreground">
                               {member.user.displayName ?? member.user.name}
                             </p>
-                            <p className="text-[10px] text-subtle truncate">
+                            <p className="truncate text-[10px] text-subtle">
                               {member.user.presence === 'ONLINE'
                                 ? 'Online now'
                                 : member.user.lastSeenAt
@@ -475,21 +536,34 @@ export function DashboardPage() {
                             </p>
                           </div>
                         </div>
-                        <Badge variant="neutral" className="text-[10px] capitalize shrink-0">
+                        <Badge
+                          variant="neutral"
+                          className="shrink-0 text-[10px] capitalize"
+                        >
                           {member.role.toLowerCase()}
                         </Badge>
                       </li>
                     ))}
                   </ul>
 
-                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-border">
-                    <Button asChild variant="outline" size="sm" className="w-full text-xs h-7">
+                  <div className="pt-2 sm:flex-row gap-2 flex flex-col items-center justify-between border-t border-border">
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7 w-full"
+                    >
                       <Link to={`/w/${slug}/members`}>
                         <Users className="size-3.5 mr-1" />
                         View Directory
                       </Link>
                     </Button>
-                    <Button asChild variant="ghost" size="sm" className="w-full text-xs h-7">
+                    <Button
+                      asChild
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs h-7 w-full"
+                    >
                       <Link to={`/w/${slug}/invitations`}>
                         <UserPlus className="size-3.5 mr-1" />
                         Invite
@@ -504,7 +578,7 @@ export function DashboardPage() {
           {/* Company AI Ecosystem Status */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+              <CardTitle className="text-sm font-semibold gap-1.5 flex items-center">
                 <Sparkles className="size-4 text-primary" aria-hidden />
                 <span>Company AI &amp; Analytics</span>
               </CardTitle>
@@ -513,16 +587,19 @@ export function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="p-3 rounded-card bg-surface-raised border border-border space-y-2">
-                <div className="flex items-center justify-between text-xs font-medium">
+              <div className="p-3 space-y-2 rounded-card border border-border bg-surface-raised">
+                <div className="text-xs font-medium flex items-center justify-between">
                   <span className="text-foreground">Storage Used</span>
-                  <span className="text-primary font-mono text-[11px]">
+                  <span className="font-mono text-[11px] text-primary">
                     {storage.isLoading
                       ? '—'
                       : `${Math.round(storage.data?.usedPct ?? 0)}% of quota`}
                   </span>
                 </div>
-                <Progress value={storage.data?.usedPct ?? 0} className="h-1.5" />
+                <Progress
+                  value={storage.data?.usedPct ?? 0}
+                  className="h-1.5"
+                />
                 <p className="text-[10px] text-subtle">
                   {storage.data
                     ? `${formatBytes(storage.data.totalBytes)} across ${formatCount(
@@ -532,8 +609,8 @@ export function DashboardPage() {
                 </p>
               </div>
 
-              <div className="p-3 rounded-card bg-surface-raised border border-border space-y-2">
-                <div className="flex items-center justify-between text-xs font-medium">
+              <div className="p-3 space-y-2 rounded-card border border-border bg-surface-raised">
+                <div className="text-xs font-medium flex items-center justify-between">
                   <span className="text-foreground">AI Sessions</span>
                   {overview.data ? (
                     <TrendBadge trend={overview.data.headline.aiSessions} />
@@ -550,10 +627,10 @@ export function DashboardPage() {
 
               <div className="space-y-1.5 pt-1">
                 <Link
-                  to={`/w/${slug}/analytics`}
-                  className="flex items-center justify-between p-2 rounded-md hover:bg-accent text-xs font-medium text-foreground transition-colors"
+                  to={`/w/${slug}/settings/analytics`}
+                  className="p-2 text-xs font-medium flex items-center justify-between rounded-md text-foreground transition-colors hover:bg-accent"
                 >
-                  <span className="flex items-center gap-2">
+                  <span className="gap-2 flex items-center">
                     <BarChart3 className="size-3.5 text-muted-foreground" />
                     Company Analytics &amp; Reports
                   </span>
@@ -561,10 +638,10 @@ export function DashboardPage() {
                 </Link>
 
                 <Link
-                  to={`/w/${slug}/settings`}
-                  className="flex items-center justify-between p-2 rounded-md hover:bg-accent text-xs font-medium text-foreground transition-colors"
+                  to={`/w/${slug}/settings/appearance`}
+                  className="p-2 text-xs font-medium flex items-center justify-between rounded-md text-foreground transition-colors hover:bg-accent"
                 >
-                  <span className="flex items-center gap-2">
+                  <span className="gap-2 flex items-center">
                     <Shield className="size-3.5 text-muted-foreground" />
                     Workspace Settings &amp; Security
                   </span>

@@ -42,7 +42,7 @@ export function AnalyticsLayout() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const base = `/w/${workspaceSlug}/analytics`;
+  const base = `/w/${workspaceSlug}/settings/analytics`;
 
   // Everything after `…/analytics/`; the index route leaves this empty.
   const segment = location.pathname.startsWith(base)
@@ -52,7 +52,7 @@ export function AnalyticsLayout() {
     ANALYTICS_TABS.find((tab) => tab.value === segment)?.value ?? '';
 
   return (
-    <div className="min-h-full flex flex-col">
+    <div className="flex min-h-full flex-col">
       <div className="px-6 pt-4 pb-3 border-b border-border">
         <Tabs
           value={active}

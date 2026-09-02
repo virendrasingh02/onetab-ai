@@ -74,7 +74,9 @@ export interface DirectMessagesViewProps {
   extraPeers?: WorkspaceMember[];
 }
 
-export function DirectMessagesView({ extraPeers }: DirectMessagesViewProps = {}) {
+export function DirectMessagesView({
+  extraPeers,
+}: DirectMessagesViewProps = {}) {
   const [searchParams] = useSearchParams();
   const peerId = searchParams.get('user');
   const roomId = searchParams.get('room');
@@ -489,9 +491,7 @@ function DirectMessageHeader({
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
-                  onClick={() =>
-                    navigate(`/w/${slug}/settings?tab=notifications`)
-                  }
+                  onClick={() => navigate(`/w/${slug}/settings/notifications`)}
                   className="gap-2.5"
                 >
                   <Bell className="size-4" />
@@ -653,7 +653,9 @@ function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
                 ) : null}
                 <Button
                   className="w-full"
-                  disabled={selected.length === 0 || createConversation.isPending}
+                  disabled={
+                    selected.length === 0 || createConversation.isPending
+                  }
                   onClick={start}
                   leadingIcon={<MessageSquare className="size-4" />}
                 >

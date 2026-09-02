@@ -135,7 +135,10 @@ export function AppHeader({
           {leftActions ? <div style={NO_DRAG}>{leftActions}</div> : null}
 
           {currentWorkspace && workspaces ? (
-            <div style={NO_DRAG} className="max-w-52 sm:max-w-64 min-w-0 flex items-center">
+            <div
+              style={NO_DRAG}
+              className="max-w-52 sm:max-w-64 min-w-0 flex items-center"
+            >
               <WorkspaceMenu
                 workspaces={workspaces}
                 current={currentWorkspace}
@@ -167,7 +170,10 @@ export function AppHeader({
         </div>
 
         {/* Center Section: Both < > Arrows and Search Bar Centered Together */}
-        <div style={NO_DRAG} className="gap-1.5 sm:gap-2 flex shrink-0 items-center justify-center">
+        <div
+          style={NO_DRAG}
+          className="gap-1.5 sm:gap-2 flex shrink-0 items-center justify-center"
+        >
           <div className="gap-0.5 sm:flex hidden items-center">
             <Hint label="Go back">
               <Button
@@ -199,7 +205,7 @@ export function AppHeader({
             onClick={onOpenSearch}
             className={cn(
               'h-7.5 w-52 sm:w-64 md:w-80 gap-2 px-2.5 sm:flex hidden items-center rounded-lg',
-              'text-xs bg-card shadow-2xs border border-border/80 text-muted-foreground',
+              'text-xs shadow-2xs border border-border/80 bg-card text-muted-foreground',
               'cursor-pointer transition-colors duration-(--duration-fast) ease-standard',
               'hover:border-border-strong hover:bg-accent/40 hover:text-foreground',
               'outline-none focus-visible:ring-1 focus-visible:ring-ring',
@@ -273,7 +279,9 @@ export function AppHeader({
 
           {/* Ask AI Assistant Button placed near the Profile Icon */}
           <Hint
-            label={isAssistantActive ? 'Close AI Assistant' : 'Ask AI Assistant'}
+            label={
+              isAssistantActive ? 'Close AI Assistant' : 'Ask AI Assistant'
+            }
           >
             <Button
               variant={isAssistantActive ? 'primary' : 'outline'}
@@ -321,14 +329,14 @@ export function AppHeader({
             <DropdownMenuContent
               align="end"
               sideOffset={6}
-              className="w-68 sm:w-72 p-2 rounded-2xl border border-border bg-popover text-foreground shadow-2xl space-y-1 select-none animate-in fade-in zoom-in-95 duration-100"
+              className="w-68 sm:w-72 p-2 shadow-2xl space-y-1 animate-in fade-in zoom-in-95 rounded-2xl border border-border bg-popover text-foreground duration-100 select-none"
             >
               {/* Header Identity Row: Avatar, name, handle, active status */}
               <div
                 onClick={() => {
-                  navigate(`/w/${workspaceSlug}/settings?tab=profile`);
+                  navigate(`/w/${workspaceSlug}/settings/profile`);
                 }}
-                className="gap-3 p-2.5 flex items-center rounded-xl cursor-pointer hover:bg-accent/60 transition-colors"
+                className="gap-3 p-2.5 flex cursor-pointer items-center rounded-xl transition-colors hover:bg-accent/60"
               >
                 <UserAvatar
                   name={user.displayName ?? user.name}
@@ -336,16 +344,21 @@ export function AppHeader({
                   seed={user.id}
                   size="md"
                   presence={isSelfAway ? 'away' : 'online'}
-                  className="size-10 ring-1 ring-border/50 shrink-0"
+                  className="size-10 shrink-0 ring-1 ring-border/50"
                 />
                 <div className="min-w-0 flex-1">
-                  <h4 className="text-sm font-bold tracking-tight text-foreground truncate">
+                  <h4 className="text-sm font-bold tracking-tight truncate text-foreground">
                     {user.displayName ?? user.name}
                   </h4>
-                  <div className="gap-1.5 mt-0.5 flex items-center text-xs text-muted-foreground font-mono">
+                  <div className="gap-1.5 mt-0.5 text-xs flex items-center font-mono text-muted-foreground">
                     <span>{handle}</span>
                     <span>•</span>
-                    <span className={cn('font-sans font-medium', isSelfAway ? 'text-warning' : 'text-success')}>
+                    <span
+                      className={cn(
+                        'font-medium font-sans',
+                        isSelfAway ? 'text-warning' : 'text-success',
+                      )}
+                    >
                       {isSelfAway ? 'Away' : 'Active'}
                     </span>
                   </div>
@@ -357,7 +370,7 @@ export function AppHeader({
                 <button
                   type="button"
                   onClick={openStatusModal}
-                  className="gap-2.5 px-3 py-2 w-full flex items-center rounded-xl border border-border/80 bg-surface-inset/60 text-muted-foreground hover:text-foreground hover:bg-surface-inset hover:border-border transition-colors text-left"
+                  className="gap-2.5 px-3 py-2 flex w-full items-center rounded-xl border border-border/80 bg-surface-inset/60 text-left text-muted-foreground transition-colors hover:border-border hover:bg-surface-inset hover:text-foreground"
                 >
                   <Smile className="size-4 shrink-0 text-muted-foreground" />
                   <span className="text-xs font-medium truncate">
@@ -393,8 +406,10 @@ export function AppHeader({
 
               {/* Preferences */}
               <DropdownMenuItem
-                onClick={() => navigate(`/w/${workspaceSlug}/settings?tab=preferences`)}
-                className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60 gap-2.5"
+                onClick={() =>
+                  navigate(`/w/${workspaceSlug}/settings/appearance`)
+                }
+                className="px-2.5 py-2 text-xs font-medium gap-2.5 cursor-pointer rounded-lg hover:bg-accent/60"
               >
                 <Sliders className="size-3.5 text-muted-foreground" />
                 <span>Preferences</span>
@@ -402,8 +417,8 @@ export function AppHeader({
 
               {/* Account settings */}
               <DropdownMenuItem
-                onClick={() => navigate(`/w/${workspaceSlug}/settings?tab=profile`)}
-                className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60 gap-2.5"
+                onClick={() => navigate(`/w/${workspaceSlug}/settings/profile`)}
+                className="px-2.5 py-2 text-xs font-medium gap-2.5 cursor-pointer rounded-lg hover:bg-accent/60"
               >
                 <Settings className="size-3.5 text-muted-foreground" />
                 <span>Account settings</span>
@@ -411,15 +426,14 @@ export function AppHeader({
 
               {/* Plans & Billing */}
               <DropdownMenuItem
-                onClick={() => navigate(`/w/${workspaceSlug}/settings?tab=billing`)}
-                className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60 gap-2.5"
+                onClick={() => navigate(`/w/${workspaceSlug}/settings/billing`)}
+                className="px-2.5 py-2 text-xs font-medium gap-2.5 cursor-pointer rounded-lg hover:bg-accent/60"
               >
                 <CreditCard className="size-3.5 text-muted-foreground" />
                 <span>Plans & Billing</span>
               </DropdownMenuItem>
 
               <DropdownMenuSeparator className="my-1 border-border/60" />
-
 
               {/* App Download / Open Desktop App (web only) */}
               {!isDesktop && (
@@ -431,13 +445,13 @@ export function AppHeader({
                           trackDownload(primaryOption, 'account_menu');
                           void openExternal(primaryOption.url);
                         }}
-                        className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60 justify-between text-primary"
+                        className="px-2.5 py-2 text-xs font-medium cursor-pointer justify-between rounded-lg text-primary hover:bg-accent/60"
                       >
-                        <span className="flex items-center gap-2">
+                        <span className="gap-2 flex items-center">
                           <Smartphone className="size-3.5" />
                           <span>Get Mobile App</span>
                         </span>
-                        <span className="text-[10px] text-muted-foreground uppercase font-mono">
+                        <span className="font-mono text-[10px] text-muted-foreground uppercase">
                           {environment.os === 'ios' ? 'iOS' : 'Android'}
                         </span>
                       </DropdownMenuItem>
@@ -450,26 +464,28 @@ export function AppHeader({
                             trackDownload(primaryOption, 'account_menu');
                             void openExternal(primaryOption.url);
                           }}
-                          className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60 justify-between text-primary"
+                          className="px-2.5 py-2 text-xs font-medium cursor-pointer justify-between rounded-lg text-primary hover:bg-accent/60"
                         >
-                          <span className="flex items-center gap-2">
+                          <span className="gap-2 flex items-center">
                             <Download className="size-3.5" />
                             <span>Download Desktop App</span>
                           </span>
-                          <span className="text-[10px] text-muted-foreground uppercase font-mono">
+                          <span className="font-mono text-[10px] text-muted-foreground uppercase">
                             {primaryOption.storeOrFormat.split(' ')[0]}
                           </span>
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem
                         onClick={() => void openDesktopApp({ route: 'open' })}
-                        className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60 justify-between text-muted-foreground hover:text-foreground"
+                        className="px-2.5 py-2 text-xs font-medium cursor-pointer justify-between rounded-lg text-muted-foreground hover:bg-accent/60 hover:text-foreground"
                       >
-                        <span className="flex items-center gap-2">
+                        <span className="gap-2 flex items-center">
                           <Laptop className="size-3.5" />
                           <span>Open Desktop App</span>
                         </span>
-                        <span className="text-[10px] text-muted-foreground uppercase font-mono">App</span>
+                        <span className="font-mono text-[10px] text-muted-foreground uppercase">
+                          App
+                        </span>
                       </DropdownMenuItem>
                     </>
                   )}
@@ -479,7 +495,7 @@ export function AppHeader({
               {/* Sign out */}
               <DropdownMenuItem
                 onClick={() => logout.mutate()}
-                className="px-2.5 py-2 text-xs font-medium text-destructive cursor-pointer rounded-lg hover:bg-destructive/10"
+                className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg text-destructive hover:bg-destructive/10"
               >
                 <span>
                   Sign out of {currentWorkspace?.name ?? 'relibit labs'}

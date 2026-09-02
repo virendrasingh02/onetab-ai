@@ -101,8 +101,13 @@ import {
 } from 'lucide-react';
 import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
-import { useLocation, useSearchParams } from 'react-router-dom';
-import { AppDownloadCard, DesktopSettingsCard, PlatformDiagnosticsLink, notify } from '@org/web-desktop';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import {
+  AppDownloadCard,
+  DesktopSettingsCard,
+  PlatformDiagnosticsLink,
+  notify,
+} from '@org/web-desktop';
 import { useNotificationPermissionBar } from '@org/notifications';
 import {
   useCurrentWorkspace,
@@ -132,7 +137,6 @@ import { AIProvidersSettings } from '../components/ai-providers-settings.js';
 import { EnterpriseCustomLLMSettings } from '../components/enterprise-custom-llm-settings.js';
 import { ChatSettingsPanel } from '../components/chat-settings-panel.js';
 import { NotificationDisplaySettingsPanel } from '../components/notification-display-settings-panel.js';
-
 
 /**
  * Panels this page renders but does not own.
@@ -166,8 +170,12 @@ export function WorkspaceSettingsPage({
   const deleteWorkspace = useDeleteWorkspace();
   const setArchived = useSetWorkspaceArchived(workspaceId);
   const { theme, setTheme } = useTheme();
-  const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { workspaceSlug, section: routeSection } = useParams<{
+    workspaceSlug: string;
+    section: string;
+  }>();
+  const [searchParams] = useSearchParams();
 
   // Logo & slug states for General Settings
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -219,43 +227,30 @@ export function WorkspaceSettingsPage({
      when the saved profile disagrees with where the user actually is. */
   const systemTimezone = getSystemTimezone();
 
-  const isImportExportRoute =
-    location.pathname.endsWith('/import-export') ||
-    location.pathname.endsWith('/integrations/import');
-  const isMembersRoute = location.pathname.endsWith('/members');
-  const isInvitationsRoute = location.pathname.endsWith('/invitations');
-  const isAnalyticsRoute = location.pathname.includes('/analytics');
-  const isBillingRoute =
-    location.pathname.endsWith('/billing') ||
-    location.pathname.endsWith('/plans');
-  const isProfileRoute = location.pathname.endsWith('/profile');
-  const isPreferencesRoute = location.pathname.endsWith('/preferences');
-
-  const currentTab = isImportExportRoute
-    ? 'import-export'
-    : isMembersRoute
-      ? 'members'
-      : isInvitationsRoute
-        ? 'invitations'
-        : isAnalyticsRoute
-          ? 'analytics'
-          : isBillingRoute
-            ? 'billing'
-            : isProfileRoute
-              ? 'profile'
-              : isPreferencesRoute
-                ? 'preferences'
-                : searchParams.get('tab') || searchParams.get('section') || 'preferences';
+  /*
+   * The active section is the `:section` path segment
+   * (`/w/:slug/settings/<section>`). A handful of ids have older aliases that
+   * still arrive from deep links and redirects — fold them onto the canonical
+   * id so the sidebar highlights the right row.
+   */
+  const SECTION_ALIASES: Record<string, string> = {
+    preferences: 'appearance',
+    theme: 'appearance',
+    plans: 'billing',
+    'timezone-region': 'profile',
+    'focus-status': 'profile',
+    'integrations/import': 'import-export',
+  };
+  const rawSection =
+    routeSection ||
+    searchParams.get('tab') ||
+    searchParams.get('section') ||
+    'appearance';
+  const currentTab = SECTION_ALIASES[rawSection] ?? rawSection;
 
   const handleTabChange = (val: string) => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.set('tab', val);
-        return next;
-      },
-      { replace: true }
-    );
+    if (!workspaceSlug) return;
+    navigate(`/w/${workspaceSlug}/settings/${val}`);
   };
 
   // Preference Settings States
@@ -275,7 +270,7 @@ export function WorkspaceSettingsPage({
   const [allowFileSystem, setAllowFileSystem] = useState(true);
   const [maxTurns, setMaxTurns] = useState('25');
   const [systemPrompt, setSystemPrompt] = useState(
-    'You are Antigravity AI, an intelligent collaborative assistant designed for software development and workspace productivity.'
+    'You are Antigravity AI, an intelligent collaborative assistant designed for software development and workspace productivity.',
   );
 
   // Notifications States. Per-category toggles (mentions / invites / agent
@@ -322,11 +317,14 @@ export function WorkspaceSettingsPage({
   const openStatusModal = useFocusStore((s) => s.openStatusModal);
   const openFocusModal = useFocusStore((s) => s.openFocusModal);
   const focusStore = useFocusStore();
-  const [testSoundPlaying, setTestSoundPlaying] = useState<FocusSoundType | null>(null);
+  const [testSoundPlaying, setTestSoundPlaying] =
+    useState<FocusSoundType | null>(null);
 
   // Timezone & Regional Preferences States
   const [timeFormatPref, setTimeFormatPref] = useState<'12h' | '24h'>('12h');
-  const [dateFormatPref, setDateFormatPref] = useState<'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD'>('MM/DD/YYYY');
+  const [dateFormatPref, setDateFormatPref] = useState<
+    'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD'
+  >('MM/DD/YYYY');
   const [workStartHour, setWorkStartHour] = useState('09:00');
   const [workEndHour, setWorkEndHour] = useState('18:00');
   const [workdays, setWorkdays] = useState('mon-fri');
@@ -381,13 +379,16 @@ export function WorkspaceSettingsPage({
 
   // Dialog & Flow States for Security
   const [totpSetupModalOpen, setTotpSetupModalOpen] = useState(false);
-  const [totpSetupData, setTotpSetupData] = useState<TotpSetupResponse | null>(null);
+  const [totpSetupData, setTotpSetupData] = useState<TotpSetupResponse | null>(
+    null,
+  );
   const [totpCodeInput, setTotpCodeInput] = useState('');
   const [totpBackupCodes, setTotpBackupCodes] = useState<string[] | null>(null);
   const [totpCopiedSecret, setTotpCopiedSecret] = useState(false);
   const [recoveryCodesModalOpen, setRecoveryCodesModalOpen] = useState(false);
   const [recoveryCodesList, setRecoveryCodesList] = useState<string[]>([]);
-  const [revokeModalSession, setRevokeModalSession] = useState<UserSessionDto | null>(null);
+  const [revokeModalSession, setRevokeModalSession] =
+    useState<UserSessionDto | null>(null);
   const [revokeOtherModalOpen, setRevokeOtherModalOpen] = useState(false);
   const [changePasswordModalOpen, setChangePasswordModalOpen] = useState(false);
   const [addPasskeyModalOpen, setAddPasskeyModalOpen] = useState(false);
@@ -431,12 +432,11 @@ export function WorkspaceSettingsPage({
 
   const currentAvatarUrl = isLogoRemoved
     ? null
-    : logoPreview ?? (workspace?.avatarUrl || null);
+    : (logoPreview ?? (workspace?.avatarUrl || null));
 
   const isLogoChanged =
     logoFile !== null || (isLogoRemoved && Boolean(workspace?.avatarUrl));
-  const isWorkspaceDirty =
-    workspaceForm.formState.isDirty || isLogoChanged;
+  const isWorkspaceDirty = workspaceForm.formState.isDirty || isLogoChanged;
 
   const onWorkspaceSubmit = workspaceForm.handleSubmit(async (values) => {
     try {
@@ -483,7 +483,7 @@ export function WorkspaceSettingsPage({
       setTotpCodeInput('');
       setTotpBackupCodes(null);
       setTotpSetupModalOpen(true);
-    } catch (err) {
+    } catch {
       toast.error('Failed to initiate 2FA setup');
     }
   };
@@ -494,17 +494,23 @@ export function WorkspaceSettingsPage({
       return;
     }
     try {
-      const res = await verifyTotpMutation.mutateAsync({ code: totpCodeInput.trim() });
+      const res = await verifyTotpMutation.mutateAsync({
+        code: totpCodeInput.trim(),
+      });
       setTotpBackupCodes(res.backupCodes);
       toast.success('Two-factor authentication enabled!');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Invalid code. Please try again.');
+      toast.error(
+        err?.response?.data?.message || 'Invalid code. Please try again.',
+      );
     }
   };
 
   const handleConfirmDisableTotp = async () => {
     try {
-      await disableTotpMutation.mutateAsync({ currentPassword: disableTotpPassword });
+      await disableTotpMutation.mutateAsync({
+        currentPassword: disableTotpPassword,
+      });
       setDisableTotpModalOpen(false);
       setDisableTotpPassword('');
       toast.success('Two-factor authentication disabled');
@@ -520,7 +526,9 @@ export function WorkspaceSettingsPage({
       setRecoveryCodesModalOpen(true);
       toast.success('Recovery codes generated');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to generate recovery codes');
+      toast.error(
+        err?.response?.data?.message || 'Failed to generate recovery codes',
+      );
     }
   };
 
@@ -539,7 +547,7 @@ export function WorkspaceSettingsPage({
       setAddPasskeyModalOpen(false);
       setPasskeyDeviceName('');
       toast.success('Passkey added successfully');
-    } catch (err) {
+    } catch {
       toast.error('Failed to register passkey');
     }
   };
@@ -547,12 +555,17 @@ export function WorkspaceSettingsPage({
   return (
     <SettingsLayout activeTab={currentTab} onTabChange={handleTabChange}>
       {/* ---------------- SECTION 1: APPEARANCE & PREFERENCES ---------------- */}
-      {(currentTab === 'appearance' || currentTab === 'preferences' || currentTab === 'theme') && (
+      {(currentTab === 'appearance' ||
+        currentTab === 'preferences' ||
+        currentTab === 'theme') && (
         <div className="space-y-8">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Appearance & Preferences</h1>
-            <p className="text-xs text-muted-foreground mt-1">
-              Customize app themes, color palette, default home views, and keyboard interaction.
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Appearance & Preferences
+            </h1>
+            <p className="text-xs mt-1 text-muted-foreground">
+              Customize app themes, color palette, default home views, and
+              keyboard interaction.
             </p>
           </div>
 
@@ -560,93 +573,140 @@ export function WorkspaceSettingsPage({
 
           {/* Subsection: General */}
           <div className="space-y-3">
-            <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
+            <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
               General
             </h3>
-            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
+              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
                 <div>
-                  <h4 className="text-xs font-medium text-foreground">Default home view</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                  <h4 className="text-xs font-medium text-foreground">
+                    Default home view
+                  </h4>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
                     Select which view to display when launching Onetab-AI
                   </p>
                 </div>
                 <Select value={homeView} onValueChange={setHomeView}>
-                  <SelectTrigger className="w-52 h-8 text-xs bg-surface border-border">
+                  <SelectTrigger className="w-52 h-8 text-xs border-border bg-surface">
                     <SelectValue placeholder="Select view" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="agent" className="text-xs">AI Chat & Agent (default)</SelectItem>
-                    <SelectItem value="dashboard" className="text-xs">Dashboard Overview</SelectItem>
-                    <SelectItem value="kanban" className="text-xs">Tasks & Kanban</SelectItem>
-                    <SelectItem value="docs" className="text-xs">Notes & Documents</SelectItem>
+                    <SelectItem value="agent" className="text-xs">
+                      AI Chat & Agent (default)
+                    </SelectItem>
+                    <SelectItem value="dashboard" className="text-xs">
+                      Dashboard Overview
+                    </SelectItem>
+                    <SelectItem value="kanban" className="text-xs">
+                      Tasks & Kanban
+                    </SelectItem>
+                    <SelectItem value="docs" className="text-xs">
+                      Notes & Documents
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
                 <div>
-                  <h4 className="text-xs font-medium text-foreground">Display names</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                  <h4 className="text-xs font-medium text-foreground">
+                    Display names
+                  </h4>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
                     Select how names are displayed across the interface
                   </p>
                 </div>
-                <Select value={displayNamePref} onValueChange={setDisplayNamePref}>
-                  <SelectTrigger className="w-36 h-8 text-xs bg-surface border-border">
+                <Select
+                  value={displayNamePref}
+                  onValueChange={setDisplayNamePref}
+                >
+                  <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
                     <SelectValue placeholder="Username" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="username" className="text-xs">Username</SelectItem>
-                    <SelectItem value="fullname" className="text-xs">Full name</SelectItem>
-                    <SelectItem value="displayname" className="text-xs">Display name</SelectItem>
+                    <SelectItem value="username" className="text-xs">
+                      Username
+                    </SelectItem>
+                    <SelectItem value="fullname" className="text-xs">
+                      Full name
+                    </SelectItem>
+                    <SelectItem value="displayname" className="text-xs">
+                      Display name
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
                 <div>
-                  <h4 className="text-xs font-medium text-foreground">First day of the week</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                  <h4 className="text-xs font-medium text-foreground">
+                    First day of the week
+                  </h4>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
                     Used for date pickers and schedule views
                   </p>
                 </div>
                 <Select value={firstDay} onValueChange={setFirstDay}>
-                  <SelectTrigger className="w-36 h-8 text-xs bg-surface border-border">
+                  <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
                     <SelectValue placeholder="Monday" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="monday" className="text-xs">Monday</SelectItem>
-                    <SelectItem value="sunday" className="text-xs">Sunday</SelectItem>
-                    <SelectItem value="saturday" className="text-xs">Saturday</SelectItem>
+                    <SelectItem value="monday" className="text-xs">
+                      Monday
+                    </SelectItem>
+                    <SelectItem value="sunday" className="text-xs">
+                      Sunday
+                    </SelectItem>
+                    <SelectItem value="saturday" className="text-xs">
+                      Saturday
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
                 <div>
-                  <h4 className="text-xs font-medium text-foreground">Convert text emoticons into emojis</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Strings like <code className="bg-muted px-1 rounded text-[10px]">:)</code> will be converted to 😄
+                  <h4 className="text-xs font-medium text-foreground">
+                    Convert text emoticons into emojis
+                  </h4>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Strings like{' '}
+                    <code className="px-1 rounded bg-muted text-[10px]">
+                      :)
+                    </code>{' '}
+                    will be converted to 😄
                   </p>
                 </div>
-                <Switch checked={convertEmojis} onCheckedChange={setConvertEmojis} />
+                <Switch
+                  checked={convertEmojis}
+                  onCheckedChange={setConvertEmojis}
+                />
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
                 <div>
-                  <h4 className="text-xs font-medium text-foreground">Send comments on...</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Choose which key press is used to submit messages and comments
+                  <h4 className="text-xs font-medium text-foreground">
+                    Send comments on...
+                  </h4>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Choose which key press is used to submit messages and
+                    comments
                   </p>
                 </div>
                 <Select value={sendShortcut} onValueChange={setSendShortcut}>
-                  <SelectTrigger className="w-36 h-8 text-xs bg-surface border-border">
+                  <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
                     <SelectValue placeholder="Ctrl+Enter" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ctrl-enter" className="text-xs">Ctrl+Enter</SelectItem>
-                    <SelectItem value="enter" className="text-xs">Enter</SelectItem>
-                    <SelectItem value="cmd-enter" className="text-xs">Cmd+Enter</SelectItem>
+                    <SelectItem value="ctrl-enter" className="text-xs">
+                      Ctrl+Enter
+                    </SelectItem>
+                    <SelectItem value="enter" className="text-xs">
+                      Enter
+                    </SelectItem>
+                    <SelectItem value="cmd-enter" className="text-xs">
+                      Cmd+Enter
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -655,14 +715,16 @@ export function WorkspaceSettingsPage({
 
           {/* Subsection: Interface and theme */}
           <div className="space-y-3">
-            <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
+            <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
               Interface and theme
             </h3>
-            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
+              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
                 <div>
-                  <h4 className="text-xs font-medium text-foreground">App sidebar</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                  <h4 className="text-xs font-medium text-foreground">
+                    App sidebar
+                  </h4>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
                     Customize sidebar item visibility, ordering, and activity
                     indicator (dot / badge) style
                   </p>
@@ -679,39 +741,48 @@ export function WorkspaceSettingsPage({
                 </Button>
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
                 <div>
-                  <h4 className="text-xs font-medium text-foreground">Font size</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                  <h4 className="text-xs font-medium text-foreground">
+                    Font size
+                  </h4>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
                     Adjust the size of text across the app
                   </p>
                 </div>
                 <Select value={fontSize} onValueChange={setFontSize}>
-                  <SelectTrigger className="w-32 h-8 text-xs bg-surface border-border">
+                  <SelectTrigger className="w-32 h-8 text-xs border-border bg-surface">
                     <SelectValue placeholder="Default" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="default" className="text-xs">Default</SelectItem>
-                    <SelectItem value="compact" className="text-xs">Compact</SelectItem>
-                    <SelectItem value="large" className="text-xs">Large</SelectItem>
+                    <SelectItem value="default" className="text-xs">
+                      Default
+                    </SelectItem>
+                    <SelectItem value="compact" className="text-xs">
+                      Compact
+                    </SelectItem>
+                    <SelectItem value="large" className="text-xs">
+                      Large
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-
+              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
                 <div>
-                  <h4 className="text-xs font-medium text-foreground">Interface theme</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                  <h4 className="text-xs font-medium text-foreground">
+                    Interface theme
+                  </h4>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
                     Select your preferred appearance theme
                   </p>
                 </div>
-                <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-lg border border-border/50">
+                <div className="gap-1.5 p-1 flex items-center rounded-lg border border-border/50 bg-muted/40">
                   <button
                     onClick={() => setTheme('light')}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                    className={`gap-1.5 px-3 py-1 text-xs font-medium flex items-center rounded-md transition-all ${
                       theme === 'light'
-                        ? 'bg-background text-foreground shadow-2xs font-semibold'
+                        ? 'shadow-2xs font-semibold bg-background text-foreground'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
@@ -720,9 +791,9 @@ export function WorkspaceSettingsPage({
                   </button>
                   <button
                     onClick={() => setTheme('dark')}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                    className={`gap-1.5 px-3 py-1 text-xs font-medium flex items-center rounded-md transition-all ${
                       theme === 'dark'
-                        ? 'bg-background text-foreground shadow-2xs font-semibold'
+                        ? 'shadow-2xs font-semibold bg-background text-foreground'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
@@ -731,9 +802,9 @@ export function WorkspaceSettingsPage({
                   </button>
                   <button
                     onClick={() => setTheme('system')}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                    className={`gap-1.5 px-3 py-1 text-xs font-medium flex items-center rounded-md transition-all ${
                       theme === 'system'
-                        ? 'bg-background text-foreground shadow-2xs font-semibold'
+                        ? 'shadow-2xs font-semibold bg-background text-foreground'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
@@ -764,736 +835,52 @@ export function WorkspaceSettingsPage({
         user && (
           <div className="space-y-8">
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-foreground">Profile & Details</h1>
-              <p className="text-xs text-muted-foreground mt-1">
-                Manage your personal identity, status, focus preferences, and working hours.
+              <h1 className="text-xl font-bold tracking-tight text-foreground">
+                Profile & Details
+              </h1>
+              <p className="text-xs mt-1 text-muted-foreground">
+                Manage your personal identity, status, focus preferences, and
+                working hours.
               </p>
             </div>
 
             {profilePanel ?? (
-              <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border/40">
-              <div className="flex items-center gap-5">
-                <UserAvatar
-                  name={user.displayName ?? user.name}
-                  src={profileForm.watch('avatarUrl') || user.avatarUrl}
-                  seed={user.id}
-                  size="xl"
-                  statusEmoji={user.statusEmoji}
-                  statusText={user.statusText}
-                />
-                <div className="space-y-1">
-                  <h3 className="text-sm font-semibold text-foreground">
-                    {user.displayName ?? user.name}
-                  </h3>
-                  <p className="text-xs text-muted-foreground">{user.email}</p>
-                  <span className="inline-block text-[10px] bg-primary/10 text-primary px-2.5 py-0.5 rounded-full font-semibold">
-                    {workspace.role}
-                  </span>
-                </div>
-              </div>
-
-              {/* Quick Status & Focus Mode controls */}
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={openStatusModal}
-                  className="text-xs gap-1.5"
-                >
-                  <Smile className="size-3.5 text-primary" />
-                  {user.statusText ? 'Edit Status' : 'Set Status'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  onClick={openFocusModal}
-                  className="text-xs gap-1.5"
-                >
-                  <Target className="size-3.5" />
-                  Focus Mode
-                </Button>
-              </div>
-            </div>
-
-            {/* Active Status Highlight if set */}
-            {(user.statusText || user.statusEmoji) && (
-              <div className="flex items-center justify-between p-3 rounded-xl border border-primary/25 bg-primary/5 text-xs text-foreground">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-lg">{user.statusEmoji || '💬'}</span>
-                  <div className="min-w-0">
-                    <span className="font-semibold block truncate">
-                      {user.statusText}
-                    </span>
-                    {user.statusExpiresAt && (
-                      <span className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <Clock className="size-3" />
-                        Clears {new Date(user.statusExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={openStatusModal}
-                  className="h-7 text-xs text-primary"
-                >
-                  Change
-                </Button>
-              </div>
-            )}
-
-            <Form {...profileForm}>
-              <form onSubmit={onProfileSubmit} className="space-y-4 max-w-xl" noValidate>
-                <FormError error={formErrorMessage(updateProfile.error)} />
-
-                <FormField
-                  control={profileForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-medium">Full name</FormLabel>
-                      <FormControl>
-                        <Input {...field} value={field.value ?? ''} className="h-9 text-xs" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={profileForm.control}
-                  name="displayName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-medium">Display name</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          value={field.value ?? ''}
-                          placeholder="Optional"
-                          className="h-9 text-xs"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={profileForm.control}
-                  name="bio"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-medium">Bio</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          value={field.value ?? ''}
-                          rows={3}
-                          placeholder="What you work on..."
-                          className="text-xs"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={profileForm.control}
-                  name="avatarUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-medium">Avatar Image</FormLabel>
-                      <div className="flex items-center gap-3">
-                        <FormControl>
-                          <Input
-                            {...field}
-                            value={field.value ?? ''}
-                            placeholder="Image URL (https://...) or upload an image"
-                            className="h-9 text-xs font-mono flex-1"
-                          />
-                        </FormControl>
-                        <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium border border-border rounded-md hover:bg-accent transition-colors shrink-0">
-                          <Upload className="size-3.5 text-muted-foreground" />
-                          <span>Upload</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const reader = new FileReader();
-                                reader.onload = (evt) => {
-                                  if (evt.target?.result) {
-                                    profileForm.setValue('avatarUrl', evt.target.result as string, {
-                                      shouldDirty: true,
-                                    });
-                                  }
-                                };
-                                reader.readAsDataURL(file);
-                              }
-                            }}
-                          />
-                        </label>
-                        {field.value ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-9 text-xs text-destructive hover:text-destructive px-2.5"
-                            onClick={() =>
-                              profileForm.setValue('avatarUrl', '', { shouldDirty: true })
-                            }
-                          >
-                            <Trash2 className="size-3.5 mr-1" />
-                            Remove
-                          </Button>
-                        ) : null}
-                      </div>
-                      <FormDescription className="text-[11px] text-muted-foreground mt-1">
-                        Upload an image file or paste an image URL. If removed, fallback displays single letter initial &quot;{initials(profileForm.watch('name') || user.name)}&quot;.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/*
-                  The timezone was in the form's values and in the API contract
-                  all along, but had no control — so every account kept whatever
-                {/* Timezone & Region Settings */}
-                <div className="space-y-4 pt-2 border-t border-border/50">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Region / Country Picker */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-foreground">
-                        Region & Country
-                      </label>
-                      {(() => {
-                        const currentTz = profileForm.watch('timezone') || systemTimezone;
-                        const currentRegion = getRegionForTimezone(currentTz);
-
-                        return (
-                          <RegionSelect
-                            value={currentRegion.code}
-                            onChange={(region: RegionInfo) => {
-                              profileForm.setValue('timezone', region.defaultTimezone, {
-                                shouldDirty: true,
-                              });
-                            }}
-                          />
-                        );
-                      })()}
-                      <p className="text-[11px] text-muted-foreground">
-                        Sets country flag and regional formatting defaults.
-                      </p>
-                    </div>
-
-                    {/* Timezone Picker */}
-                    <FormField
-                      control={profileForm.control}
-                      name="timezone"
-                      render={({ field }) => {
-                        const zone = field.value || systemTimezone;
-                        return (
-                          <FormItem>
-                            <FormLabel className="text-xs font-medium">Timezone</FormLabel>
-                            <FormControl>
-                              <TimezoneSelect
-                                value={zone}
-                                onChange={(next) =>
-                                  profileForm.setValue('timezone', next, {
-                                    shouldDirty: true,
-                                  })
-                                }
-                              />
-                            </FormControl>
-                            <FormDescription className="text-[11px] text-muted-foreground">
-                              Used for team time synchronization and scheduling.
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        );
-                      }}
+              <div className="p-6 space-y-6 rounded-2xl border border-border bg-surface-inset shadow-xs">
+                <div className="sm:flex-row sm:items-center gap-4 pb-6 flex flex-col justify-between border-b border-border/40">
+                  <div className="gap-5 flex items-center">
+                    <UserAvatar
+                      name={user.displayName ?? user.name}
+                      src={profileForm.watch('avatarUrl') || user.avatarUrl}
+                      seed={user.id}
+                      size="xl"
+                      statusEmoji={user.statusEmoji}
+                      statusText={user.statusText}
                     />
-                  </div>
-
-                  {/* Live Time & Working Hours Preview Card */}
-                  {(() => {
-                    const currentTz = profileForm.watch('timezone') || systemTimezone;
-                    const region = getRegionForTimezone(currentTz);
-                    const workStatus = getWorkingHoursStatus(currentTz);
-
-                    return (
-                      <div className="p-3.5 rounded-xl border border-border bg-surface flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-2xl leading-none">{region.flag}</span>
-                          <div>
-                            <div className="font-semibold text-foreground flex items-center gap-2">
-                              <span>{region.name}</span>
-                              <span className="text-[10px] text-muted-foreground font-normal">
-                                ({describeTimezone(currentTz)})
-                              </span>
-                            </div>
-                            <div className="text-[11px] text-muted-foreground mt-0.5">
-                              {currentTz === systemTimezone
-                                ? '✓ Matches this device'
-                                : `Device timezone: ${describeTimezone(systemTimezone)}`}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3 self-end sm:self-auto">
-                          <span
-                            className={cn(
-                              'text-[11px] font-medium px-2 py-0.5 rounded-full flex items-center gap-1',
-                              workStatus.status === 'working'
-                                ? 'bg-success/15 text-success'
-                                : workStatus.status === 'sleeping'
-                                  ? 'bg-muted text-muted-foreground'
-                                  : 'bg-warning/15 text-warning',
-                            )}
-                          >
-                            <span>{workStatus.icon}</span>
-                            <span>{workStatus.label}</span>
-                          </span>
-
-                          <div className="text-right">
-                            <LocalTime
-                              timezone={currentTz}
-                              showOffset
-                              className="font-mono font-bold text-foreground text-sm"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                <div className="pt-2">
-                  <Button
-                    type="submit"
-                    size="sm"
-                    loading={updateProfile.isPending}
-                    disabled={!profileForm.formState.isDirty}
-                    className="text-xs"
-                  >
-                    Save profile
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </div>
-        )}
-
-        {/* Subsection: Region & Timezone */}
-        <div className="space-y-3">
-          <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
-            Regional & Timezone Settings
-          </h3>
-          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6 space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {/* Region Selector */}
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-foreground block">
-                    Region & Country
-                  </label>
-                  {(() => {
-                    const currentTz = profileForm.watch('timezone') || systemTimezone;
-                    const currentRegion = getRegionForTimezone(currentTz);
-
-                    return (
-                      <RegionSelect
-                        value={currentRegion.code}
-                        onChange={(region: RegionInfo) => {
-                          profileForm.setValue('timezone', region.defaultTimezone, {
-                            shouldDirty: true,
-                          });
-                        }}
-                      />
-                    );
-                  })()}
-                  <p className="text-[11px] text-muted-foreground">
-                    Determines country flag and regional default settings.
-                  </p>
-                </div>
-
-                {/* Timezone Selector */}
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-foreground block">
-                    Timezone (IANA)
-                  </label>
-                  {(() => {
-                    const zone = profileForm.watch('timezone') || systemTimezone;
-                    return (
-                      <TimezoneSelect
-                        value={zone}
-                        onChange={(next) =>
-                          profileForm.setValue('timezone', next, {
-                            shouldDirty: true,
-                          })
-                        }
-                      />
-                    );
-                  })()}
-                  <p className="text-[11px] text-muted-foreground">
-                    Used for schedule coordination and header clock.
-                  </p>
-                </div>
-              </div>
-
-              {/* Live Preview Card */}
-              {(() => {
-                const currentTz = profileForm.watch('timezone') || systemTimezone;
-                const region = getRegionForTimezone(currentTz);
-                const workStatus = getWorkingHoursStatus(currentTz);
-
-                return (
-                  <div className="p-4 rounded-xl border border-border bg-surface flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl leading-none">{region.flag}</span>
-                      <div>
-                        <div className="font-semibold text-foreground flex items-center gap-2">
-                          <span className="text-sm">{region.name}</span>
-                          <span className="text-[11px] text-muted-foreground font-mono">
-                            {describeTimezone(currentTz)}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-muted-foreground mt-0.5">
-                          {currentTz === systemTimezone
-                            ? '✓ Synchronized with this computer'
-                            : `Device timezone: ${describeTimezone(systemTimezone)}`}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 self-end sm:self-auto">
-                      <span
-                        className={cn(
-                          'text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5',
-                          workStatus.status === 'working'
-                            ? 'bg-success/15 text-success'
-                            : workStatus.status === 'sleeping'
-                              ? 'bg-muted text-muted-foreground'
-                              : 'bg-warning/15 text-warning',
-                        )}
-                      >
-                        <span>{workStatus.icon}</span>
-                        <span>{workStatus.label}</span>
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-semibold text-foreground">
+                        {user.displayName ?? user.name}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        {user.email}
+                      </p>
+                      <span className="px-2.5 py-0.5 font-semibold inline-block rounded-full bg-primary/10 text-[10px] text-primary">
+                        {workspace.role}
                       </span>
-
-                      <div className="text-right">
-                        <LocalTime
-                          timezone={currentTz}
-                          showOffset
-                          className="font-mono font-bold text-foreground text-base"
-                        />
-                      </div>
                     </div>
                   </div>
-                );
-              })()}
 
-              <div className="flex items-center justify-between pt-2 border-t border-border/40">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    profileForm.setValue('timezone', systemTimezone, {
-                      shouldDirty: true,
-                    })
-                  }
-                  className="text-xs"
-                >
-                  Reset to device timezone ({describeTimezone(systemTimezone)})
-                </Button>
-
-                <Button
-                  type="button"
-                  size="sm"
-                  loading={updateProfile.isPending}
-                  disabled={!profileForm.formState.isDirty}
-                  onClick={profileForm.handleSubmit((data) => updateProfile.mutate(data))}
-                  className="text-xs"
-                >
-                  Save timezone changes
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Subsection: Date & Time Formatting */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
-              Date & Time Formats
-            </h3>
-            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">Time display format</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Choose 12-hour AM/PM or 24-hour military clock
-                  </p>
-                </div>
-                <Select value={timeFormatPref} onValueChange={(v: '12h' | '24h') => setTimeFormatPref(v)}>
-                  <SelectTrigger className="w-36 h-8 text-xs bg-surface border-border">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="12h" className="text-xs">12-hour (2:30 PM)</SelectItem>
-                    <SelectItem value="24h" className="text-xs">24-hour (14:30)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">Date display format</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Preferred order for calendar dates
-                  </p>
-                </div>
-                <Select value={dateFormatPref} onValueChange={(v: 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD') => setDateFormatPref(v)}>
-                  <SelectTrigger className="w-44 h-8 text-xs bg-surface border-border">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="MM/DD/YYYY" className="text-xs">MM/DD/YYYY (US)</SelectItem>
-                    <SelectItem value="DD/MM/YYYY" className="text-xs">DD/MM/YYYY (UK/EU/IN)</SelectItem>
-                    <SelectItem value="YYYY-MM-DD" className="text-xs">YYYY-MM-DD (ISO)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-
-          {/* Subsection: Working Hours */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
-              Working Hours & Schedule
-            </h3>
-            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">Daily working hours</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Lets teammates know when you are actively at your desk
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <Select value={workStartHour} onValueChange={setWorkStartHour}>
-                    <SelectTrigger className="w-24 h-8 text-xs bg-surface border-border">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="08:00" className="text-xs">08:00 AM</SelectItem>
-                      <SelectItem value="09:00" className="text-xs">09:00 AM</SelectItem>
-                      <SelectItem value="10:00" className="text-xs">10:00 AM</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <span className="text-muted-foreground">to</span>
-                  <Select value={workEndHour} onValueChange={setWorkEndHour}>
-                    <SelectTrigger className="w-24 h-8 text-xs bg-surface border-border">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="17:00" className="text-xs">05:00 PM</SelectItem>
-                      <SelectItem value="18:00" className="text-xs">06:00 PM</SelectItem>
-                      <SelectItem value="19:00" className="text-xs">07:00 PM</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">Working days</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Active days of the week
-                  </p>
-                </div>
-                <Select value={workdays} onValueChange={setWorkdays}>
-                  <SelectTrigger className="w-40 h-8 text-xs bg-surface border-border">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="mon-fri" className="text-xs">Monday – Friday</SelectItem>
-                    <SelectItem value="mon-sat" className="text-xs">Monday – Saturday</SelectItem>
-                    <SelectItem value="sun-thu" className="text-xs">Sunday – Thursday</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-
-        {/* Subsection: Slack Status */}
-        <div className="space-y-3">
-            <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
-              Slack-Style Status
-            </h3>
-            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6 space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-surface">
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl">{user.statusEmoji || '💬'}</span>
-                  <div>
-                    <h4 className="text-xs font-semibold text-foreground">
-                      {user.statusText || 'No active status'}
-                    </h4>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      {user.statusExpiresAt
-                        ? `Clears automatically at ${new Date(user.statusExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                        : 'Visible to all teammates across channels and direct messages'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={openStatusModal}
-                    className="text-xs gap-1.5"
-                  >
-                    <Smile className="size-3.5 text-primary" />
-                    {user.statusText ? 'Edit Status' : 'Set Status'}
-                  </Button>
-                  {user.statusText && (
+                  {/* Quick Status & Focus Mode controls */}
+                  <div className="gap-2 flex items-center">
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      onClick={() => {
-                        userApi.clearStatus().then((updated) => {
-                          setUser(updated);
-                        });
-                      }}
-                      className="text-xs text-muted-foreground hover:text-destructive"
+                      onClick={openStatusModal}
+                      className="text-xs gap-1.5"
                     >
-                      Clear
+                      <Smile className="size-3.5 text-primary" />
+                      {user.statusText ? 'Edit Status' : 'Set Status'}
                     </Button>
-                  )}
-                </div>
-              </div>
-
-              {/* Quick Status Presets */}
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-foreground block">
-                  Quick 1-Click Status Presets
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                  {[
-                    { emoji: '💬', text: 'In a meeting' },
-                    { emoji: '🚗', text: 'Commuting' },
-                    { emoji: '🤒', text: 'Out sick' },
-                    { emoji: '🌴', text: 'Vacationing' },
-                    { emoji: '🍱', text: 'Out for lunch' },
-                    { emoji: '🏠', text: 'Working remotely' },
-                    { emoji: '🎯', text: 'Deep focus' },
-                    { emoji: '☕', text: 'Taking a break' },
-                  ].map((preset) => (
-                    <button
-                      key={preset.text}
-                      type="button"
-                      onClick={() => {
-                        userApi.updateStatus({
-                          statusText: preset.text,
-                          statusEmoji: preset.emoji,
-                          statusExpiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-                        }).then((updated) => {
-                          setUser(updated);
-                        });
-                      }}
-                      className="flex items-center gap-2 p-2.5 rounded-xl border border-border bg-surface hover:border-primary/40 hover:bg-accent/50 text-xs text-foreground text-left transition-all"
-                    >
-                      <span className="text-base leading-none">{preset.emoji}</span>
-                      <span className="truncate font-medium">{preset.text}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Subsection: Focus Mode & Pomodoro */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
-              Focus Mode & Ambient Zen Audio
-            </h3>
-            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6 space-y-6">
-              {/* Active Session Bar or Launch Trigger */}
-              {focusStore.isActive ? (
-                <div className="p-4 rounded-xl border border-primary/40 bg-primary/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="size-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-mono font-bold text-sm">
-                      {Math.floor(focusStore.remainingSeconds / 60)}m
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-foreground flex items-center gap-2">
-                        <span>Active Focus Session</span>
-                        <span className="text-[10px] bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-bold">
-                          {focusStore.isPaused ? 'PAUSED' : 'IN PROGRESS'}
-                        </span>
-                      </h4>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {focusStore.taskObjective || 'Deep work session'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {focusStore.isPaused ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={focusStore.resumeFocus}
-                        className="text-xs gap-1.5"
-                      >
-                        <Play className="size-3.5" />
-                        Resume
-                      </Button>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={focusStore.pauseFocus}
-                        className="text-xs gap-1.5"
-                      >
-                        <Pause className="size-3.5" />
-                        Pause
-                      </Button>
-                    )}
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => focusStore.stopFocus()}
-                      className="text-xs"
-                    >
-                      Stop Session
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-semibold text-foreground">Launch a Focus Session</h4>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Blocks distractions, generates ambient focus audio, and updates your Slack status.
-                      </p>
-                    </div>
                     <Button
                       type="button"
                       variant="primary"
@@ -1502,113 +889,932 @@ export function WorkspaceSettingsPage({
                       className="text-xs gap-1.5"
                     >
                       <Target className="size-3.5" />
-                      Start Focus Session
+                      Focus Mode
                     </Button>
                   </div>
-
-                  {/* Preset Buttons */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {FOCUS_DURATION_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.minutes}
-                        type="button"
-                        onClick={() => {
-                          focusStore.startFocus({
-                            durationMinutes: opt.minutes,
-                            taskObjective: opt.label,
-                          });
-                        }}
-                        className="p-3.5 rounded-xl border border-border bg-surface hover:border-primary/50 hover:bg-accent/40 text-left transition-all space-y-1"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-lg">{opt.icon}</span>
-                          <span className="font-mono text-xs font-bold text-primary">{opt.minutes}m</span>
-                        </div>
-                        <div className="text-xs font-semibold text-foreground">{opt.label}</div>
-                      </button>
-                    ))}
-                  </div>
                 </div>
-              )}
 
-              {/* Ambient Audio Synthesizer */}
-              <div className="space-y-3 pt-4 border-t border-border/40">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                      <Volume2 className="size-3.5 text-primary" />
-                      Ambient Audio Soundscape
-                    </h4>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Native Web Audio synthesized noise and alpha wave beat generators.
-                    </p>
-                  </div>
-                  {testSoundPlaying && (
+                {/* Active Status Highlight if set */}
+                {(user.statusText || user.statusEmoji) && (
+                  <div className="p-3 text-xs flex items-center justify-between rounded-xl border border-primary/25 bg-primary/5 text-foreground">
+                    <div className="gap-2 min-w-0 flex items-center">
+                      <span className="text-lg">
+                        {user.statusEmoji || '💬'}
+                      </span>
+                      <div className="min-w-0">
+                        <span className="font-semibold block truncate">
+                          {user.statusText}
+                        </span>
+                        {user.statusExpiresAt && (
+                          <span className="gap-1 mt-0.5 flex items-center text-[11px] text-muted-foreground">
+                            <Clock className="size-3" />
+                            Clears{' '}
+                            {new Date(user.statusExpiresAt).toLocaleTimeString(
+                              [],
+                              { hour: '2-digit', minute: '2-digit' },
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
-                        focusAudio.stop();
-                        setTestSoundPlaying(null);
-                      }}
-                      className="h-7 text-xs text-destructive gap-1"
+                      onClick={openStatusModal}
+                      className="h-7 text-xs text-primary"
                     >
-                      <VolumeX className="size-3" />
-                      Stop Audio
+                      Change
                     </Button>
-                  )}
-                </div>
+                  </div>
+                )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                  {FOCUS_SOUND_OPTIONS.filter((s) => s.id !== 'none').map((sound) => {
-                    const isTesting = testSoundPlaying === sound.id;
-                    const isSelected = focusStore.soundType === sound.id;
+                <Form {...profileForm}>
+                  <form
+                    onSubmit={onProfileSubmit}
+                    className="space-y-4 max-w-xl"
+                    noValidate
+                  >
+                    <FormError error={formErrorMessage(updateProfile.error)} />
 
-                    return (
-                      <div
-                        key={sound.id}
-                        className={cn(
-                          'p-3 rounded-xl border flex items-center justify-between gap-2 text-xs transition-all',
-                          isSelected
-                            ? 'border-primary/50 bg-primary/5'
-                            : 'border-border bg-surface hover:bg-accent/30',
-                        )}
-                      >
-                        <div
-                          className="flex items-center gap-2 cursor-pointer truncate flex-1"
-                          onClick={() => focusStore.setSound(sound.id)}
-                        >
-                          <span className="text-base">{sound.icon}</span>
-                          <span className="font-medium text-foreground truncate">{sound.name}</span>
+                    <FormField
+                      control={profileForm.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs font-medium">
+                            Full name
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value ?? ''}
+                              className="h-9 text-xs"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={profileForm.control}
+                      name="displayName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs font-medium">
+                            Display name
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              value={field.value ?? ''}
+                              placeholder="Optional"
+                              className="h-9 text-xs"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={profileForm.control}
+                      name="bio"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs font-medium">
+                            Bio
+                          </FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              value={field.value ?? ''}
+                              rows={3}
+                              placeholder="What you work on..."
+                              className="text-xs"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={profileForm.control}
+                      name="avatarUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs font-medium">
+                            Avatar Image
+                          </FormLabel>
+                          <div className="gap-3 flex items-center">
+                            <FormControl>
+                              <Input
+                                {...field}
+                                value={field.value ?? ''}
+                                placeholder="Image URL (https://...) or upload an image"
+                                className="h-9 text-xs flex-1 font-mono"
+                              />
+                            </FormControl>
+                            <label className="gap-1.5 px-3 py-2 text-xs font-medium inline-flex shrink-0 cursor-pointer items-center rounded-md border border-border transition-colors hover:bg-accent">
+                              <Upload className="size-3.5 text-muted-foreground" />
+                              <span>Upload</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = (evt) => {
+                                      if (evt.target?.result) {
+                                        profileForm.setValue(
+                                          'avatarUrl',
+                                          evt.target.result as string,
+                                          {
+                                            shouldDirty: true,
+                                          },
+                                        );
+                                      }
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                }}
+                              />
+                            </label>
+                            {field.value ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-9 text-xs px-2.5 text-destructive hover:text-destructive"
+                                onClick={() =>
+                                  profileForm.setValue('avatarUrl', '', {
+                                    shouldDirty: true,
+                                  })
+                                }
+                              >
+                                <Trash2 className="size-3.5 mr-1" />
+                                Remove
+                              </Button>
+                            ) : null}
+                          </div>
+                          <FormDescription className="mt-1 text-[11px] text-muted-foreground">
+                            Upload an image file or paste an image URL. If
+                            removed, fallback displays single letter initial
+                            &quot;
+                            {initials(profileForm.watch('name') || user.name)}
+                            &quot;.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/*
+                  The timezone was in the form's values and in the API contract
+                  all along, but had no control — so every account kept whatever
+                {/* Timezone & Region Settings */}
+                    <div className="space-y-4 pt-2 border-t border-border/50">
+                      <div className="sm:grid-cols-2 gap-4 grid grid-cols-1">
+                        {/* Region / Country Picker */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-medium text-foreground">
+                            Region & Country
+                          </label>
+                          {(() => {
+                            const currentTz =
+                              profileForm.watch('timezone') || systemTimezone;
+                            const currentRegion =
+                              getRegionForTimezone(currentTz);
+
+                            return (
+                              <RegionSelect
+                                value={currentRegion.code}
+                                onChange={(region: RegionInfo) => {
+                                  profileForm.setValue(
+                                    'timezone',
+                                    region.defaultTimezone,
+                                    {
+                                      shouldDirty: true,
+                                    },
+                                  );
+                                }}
+                              />
+                            );
+                          })()}
+                          <p className="text-[11px] text-muted-foreground">
+                            Sets country flag and regional formatting defaults.
+                          </p>
                         </div>
 
+                        {/* Timezone Picker */}
+                        <FormField
+                          control={profileForm.control}
+                          name="timezone"
+                          render={({ field }) => {
+                            const zone = field.value || systemTimezone;
+                            return (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium">
+                                  Timezone
+                                </FormLabel>
+                                <FormControl>
+                                  <TimezoneSelect
+                                    value={zone}
+                                    onChange={(next) =>
+                                      profileForm.setValue('timezone', next, {
+                                        shouldDirty: true,
+                                      })
+                                    }
+                                  />
+                                </FormControl>
+                                <FormDescription className="text-[11px] text-muted-foreground">
+                                  Used for team time synchronization and
+                                  scheduling.
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            );
+                          }}
+                        />
+                      </div>
+
+                      {/* Live Time & Working Hours Preview Card */}
+                      {(() => {
+                        const currentTz =
+                          profileForm.watch('timezone') || systemTimezone;
+                        const region = getRegionForTimezone(currentTz);
+                        const workStatus = getWorkingHoursStatus(currentTz);
+
+                        return (
+                          <div className="p-3.5 sm:flex-row sm:items-center gap-3 text-xs flex flex-col justify-between rounded-xl border border-border bg-surface">
+                            <div className="gap-2.5 flex items-center">
+                              <span className="text-2xl leading-none">
+                                {region.flag}
+                              </span>
+                              <div>
+                                <div className="font-semibold gap-2 flex items-center text-foreground">
+                                  <span>{region.name}</span>
+                                  <span className="font-normal text-[10px] text-muted-foreground">
+                                    ({describeTimezone(currentTz)})
+                                  </span>
+                                </div>
+                                <div className="mt-0.5 text-[11px] text-muted-foreground">
+                                  {currentTz === systemTimezone
+                                    ? '✓ Matches this device'
+                                    : `Device timezone: ${describeTimezone(systemTimezone)}`}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="gap-3 sm:self-auto flex items-center self-end">
+                              <span
+                                className={cn(
+                                  'font-medium px-2 py-0.5 gap-1 flex items-center rounded-full text-[11px]',
+                                  workStatus.status === 'working'
+                                    ? 'bg-success/15 text-success'
+                                    : workStatus.status === 'sleeping'
+                                      ? 'bg-muted text-muted-foreground'
+                                      : 'bg-warning/15 text-warning',
+                                )}
+                              >
+                                <span>{workStatus.icon}</span>
+                                <span>{workStatus.label}</span>
+                              </span>
+
+                              <div className="text-right">
+                                <LocalTime
+                                  timezone={currentTz}
+                                  showOffset
+                                  className="font-bold text-sm font-mono text-foreground"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    <div className="pt-2">
+                      <Button
+                        type="submit"
+                        size="sm"
+                        loading={updateProfile.isPending}
+                        disabled={!profileForm.formState.isDirty}
+                        className="text-xs"
+                      >
+                        Save profile
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </div>
+            )}
+
+            {/* Subsection: Region & Timezone */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
+                Regional & Timezone Settings
+              </h3>
+              <div className="p-6 space-y-6 rounded-2xl border border-border bg-surface-inset shadow-xs">
+                <div className="sm:grid-cols-2 gap-5 grid grid-cols-1">
+                  {/* Region Selector */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium block text-foreground">
+                      Region & Country
+                    </label>
+                    {(() => {
+                      const currentTz =
+                        profileForm.watch('timezone') || systemTimezone;
+                      const currentRegion = getRegionForTimezone(currentTz);
+
+                      return (
+                        <RegionSelect
+                          value={currentRegion.code}
+                          onChange={(region: RegionInfo) => {
+                            profileForm.setValue(
+                              'timezone',
+                              region.defaultTimezone,
+                              {
+                                shouldDirty: true,
+                              },
+                            );
+                          }}
+                        />
+                      );
+                    })()}
+                    <p className="text-[11px] text-muted-foreground">
+                      Determines country flag and regional default settings.
+                    </p>
+                  </div>
+
+                  {/* Timezone Selector */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium block text-foreground">
+                      Timezone (IANA)
+                    </label>
+                    {(() => {
+                      const zone =
+                        profileForm.watch('timezone') || systemTimezone;
+                      return (
+                        <TimezoneSelect
+                          value={zone}
+                          onChange={(next) =>
+                            profileForm.setValue('timezone', next, {
+                              shouldDirty: true,
+                            })
+                          }
+                        />
+                      );
+                    })()}
+                    <p className="text-[11px] text-muted-foreground">
+                      Used for schedule coordination and header clock.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Live Preview Card */}
+                {(() => {
+                  const currentTz =
+                    profileForm.watch('timezone') || systemTimezone;
+                  const region = getRegionForTimezone(currentTz);
+                  const workStatus = getWorkingHoursStatus(currentTz);
+
+                  return (
+                    <div className="p-4 sm:flex-row sm:items-center gap-4 text-xs flex flex-col justify-between rounded-xl border border-border bg-surface">
+                      <div className="gap-3 flex items-center">
+                        <span className="text-3xl leading-none">
+                          {region.flag}
+                        </span>
+                        <div>
+                          <div className="font-semibold gap-2 flex items-center text-foreground">
+                            <span className="text-sm">{region.name}</span>
+                            <span className="font-mono text-[11px] text-muted-foreground">
+                              {describeTimezone(currentTz)}
+                            </span>
+                          </div>
+                          <div className="mt-0.5 text-[11px] text-muted-foreground">
+                            {currentTz === systemTimezone
+                              ? '✓ Synchronized with this computer'
+                              : `Device timezone: ${describeTimezone(systemTimezone)}`}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="gap-3 sm:self-auto flex items-center self-end">
+                        <span
+                          className={cn(
+                            'text-xs font-medium px-2.5 py-1 gap-1.5 flex items-center rounded-full',
+                            workStatus.status === 'working'
+                              ? 'bg-success/15 text-success'
+                              : workStatus.status === 'sleeping'
+                                ? 'bg-muted text-muted-foreground'
+                                : 'bg-warning/15 text-warning',
+                          )}
+                        >
+                          <span>{workStatus.icon}</span>
+                          <span>{workStatus.label}</span>
+                        </span>
+
+                        <div className="text-right">
+                          <LocalTime
+                            timezone={currentTz}
+                            showOffset
+                            className="font-bold text-base font-mono text-foreground"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <div className="pt-2 flex items-center justify-between border-t border-border/40">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      profileForm.setValue('timezone', systemTimezone, {
+                        shouldDirty: true,
+                      })
+                    }
+                    className="text-xs"
+                  >
+                    Reset to device timezone ({describeTimezone(systemTimezone)}
+                    )
+                  </Button>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    loading={updateProfile.isPending}
+                    disabled={!profileForm.formState.isDirty}
+                    onClick={profileForm.handleSubmit((data) =>
+                      updateProfile.mutate(data),
+                    )}
+                    className="text-xs"
+                  >
+                    Save timezone changes
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Subsection: Date & Time Formatting */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
+                Date & Time Formats
+              </h3>
+              <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
+                <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
+                  <div>
+                    <h4 className="text-xs font-medium text-foreground">
+                      Time display format
+                    </h4>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Choose 12-hour AM/PM or 24-hour military clock
+                    </p>
+                  </div>
+                  <Select
+                    value={timeFormatPref}
+                    onValueChange={(v: '12h' | '24h') => setTimeFormatPref(v)}
+                  >
+                    <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="12h" className="text-xs">
+                        12-hour (2:30 PM)
+                      </SelectItem>
+                      <SelectItem value="24h" className="text-xs">
+                        24-hour (14:30)
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
+                  <div>
+                    <h4 className="text-xs font-medium text-foreground">
+                      Date display format
+                    </h4>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Preferred order for calendar dates
+                    </p>
+                  </div>
+                  <Select
+                    value={dateFormatPref}
+                    onValueChange={(
+                      v: 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD',
+                    ) => setDateFormatPref(v)}
+                  >
+                    <SelectTrigger className="w-44 h-8 text-xs border-border bg-surface">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MM/DD/YYYY" className="text-xs">
+                        MM/DD/YYYY (US)
+                      </SelectItem>
+                      <SelectItem value="DD/MM/YYYY" className="text-xs">
+                        DD/MM/YYYY (UK/EU/IN)
+                      </SelectItem>
+                      <SelectItem value="YYYY-MM-DD" className="text-xs">
+                        YYYY-MM-DD (ISO)
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Subsection: Working Hours */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
+                Working Hours & Schedule
+              </h3>
+              <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
+                <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
+                  <div>
+                    <h4 className="text-xs font-medium text-foreground">
+                      Daily working hours
+                    </h4>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Lets teammates know when you are actively at your desk
+                    </p>
+                  </div>
+                  <div className="gap-2 text-xs flex items-center">
+                    <Select
+                      value={workStartHour}
+                      onValueChange={setWorkStartHour}
+                    >
+                      <SelectTrigger className="w-24 h-8 text-xs border-border bg-surface">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="08:00" className="text-xs">
+                          08:00 AM
+                        </SelectItem>
+                        <SelectItem value="09:00" className="text-xs">
+                          09:00 AM
+                        </SelectItem>
+                        <SelectItem value="10:00" className="text-xs">
+                          10:00 AM
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="text-muted-foreground">to</span>
+                    <Select value={workEndHour} onValueChange={setWorkEndHour}>
+                      <SelectTrigger className="w-24 h-8 text-xs border-border bg-surface">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="17:00" className="text-xs">
+                          05:00 PM
+                        </SelectItem>
+                        <SelectItem value="18:00" className="text-xs">
+                          06:00 PM
+                        </SelectItem>
+                        <SelectItem value="19:00" className="text-xs">
+                          07:00 PM
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
+                  <div>
+                    <h4 className="text-xs font-medium text-foreground">
+                      Working days
+                    </h4>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Active days of the week
+                    </p>
+                  </div>
+                  <Select value={workdays} onValueChange={setWorkdays}>
+                    <SelectTrigger className="w-40 h-8 text-xs border-border bg-surface">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mon-fri" className="text-xs">
+                        Monday – Friday
+                      </SelectItem>
+                      <SelectItem value="mon-sat" className="text-xs">
+                        Monday – Saturday
+                      </SelectItem>
+                      <SelectItem value="sun-thu" className="text-xs">
+                        Sunday – Thursday
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Subsection: Slack Status */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
+                Slack-Style Status
+              </h3>
+              <div className="p-6 space-y-5 rounded-2xl border border-border bg-surface-inset shadow-xs">
+                <div className="sm:flex-row sm:items-center gap-4 p-4 flex flex-col justify-between rounded-xl border border-border bg-surface">
+                  <div className="gap-3 flex items-center">
+                    <span className="text-3xl">{user.statusEmoji || '💬'}</span>
+                    <div>
+                      <h4 className="text-xs font-semibold text-foreground">
+                        {user.statusText || 'No active status'}
+                      </h4>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        {user.statusExpiresAt
+                          ? `Clears automatically at ${new Date(user.statusExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                          : 'Visible to all teammates across channels and direct messages'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="gap-2 flex items-center">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={openStatusModal}
+                      className="text-xs gap-1.5"
+                    >
+                      <Smile className="size-3.5 text-primary" />
+                      {user.statusText ? 'Edit Status' : 'Set Status'}
+                    </Button>
+                    {user.statusText && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          userApi.clearStatus().then((updated) => {
+                            setUser(updated);
+                          });
+                        }}
+                        className="text-xs text-muted-foreground hover:text-destructive"
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Quick Status Presets */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium block text-foreground">
+                    Quick 1-Click Status Presets
+                  </label>
+                  <div className="sm:grid-cols-3 md:grid-cols-4 gap-2 grid grid-cols-2">
+                    {[
+                      { emoji: '💬', text: 'In a meeting' },
+                      { emoji: '🚗', text: 'Commuting' },
+                      { emoji: '🤒', text: 'Out sick' },
+                      { emoji: '🌴', text: 'Vacationing' },
+                      { emoji: '🍱', text: 'Out for lunch' },
+                      { emoji: '🏠', text: 'Working remotely' },
+                      { emoji: '🎯', text: 'Deep focus' },
+                      { emoji: '☕', text: 'Taking a break' },
+                    ].map((preset) => (
+                      <button
+                        key={preset.text}
+                        type="button"
+                        onClick={() => {
+                          userApi
+                            .updateStatus({
+                              statusText: preset.text,
+                              statusEmoji: preset.emoji,
+                              statusExpiresAt: new Date(
+                                Date.now() + 60 * 60 * 1000,
+                              ).toISOString(),
+                            })
+                            .then((updated) => {
+                              setUser(updated);
+                            });
+                        }}
+                        className="gap-2 p-2.5 text-xs flex items-center rounded-xl border border-border bg-surface text-left text-foreground transition-all hover:border-primary/40 hover:bg-accent/50"
+                      >
+                        <span className="text-base leading-none">
+                          {preset.emoji}
+                        </span>
+                        <span className="font-medium truncate">
+                          {preset.text}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Subsection: Focus Mode & Pomodoro */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
+                Focus Mode & Ambient Zen Audio
+              </h3>
+              <div className="p-6 space-y-6 rounded-2xl border border-border bg-surface-inset shadow-xs">
+                {/* Active Session Bar or Launch Trigger */}
+                {focusStore.isActive ? (
+                  <div className="p-4 sm:flex-row sm:items-center gap-4 flex flex-col justify-between rounded-xl border border-primary/40 bg-primary/10">
+                    <div className="gap-3 flex items-center">
+                      <div className="size-10 font-bold text-sm flex items-center justify-center rounded-xl bg-primary font-mono text-primary-foreground">
+                        {Math.floor(focusStore.remainingSeconds / 60)}m
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold gap-2 flex items-center text-foreground">
+                          <span>Active Focus Session</span>
+                          <span className="px-2 py-0.5 font-bold rounded-full bg-primary text-[10px] text-primary-foreground">
+                            {focusStore.isPaused ? 'PAUSED' : 'IN PROGRESS'}
+                          </span>
+                        </h4>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          {focusStore.taskObjective || 'Deep work session'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="gap-2 flex items-center">
+                      {focusStore.isPaused ? (
                         <Button
                           type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => {
-                            if (isTesting) {
-                              focusAudio.stop();
-                              setTestSoundPlaying(null);
-                            } else {
-                              focusAudio.play(sound.id, focusStore.soundVolume);
-                              setTestSoundPlaying(sound.id);
-                            }
-                          }}
-                          className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
+                          variant="outline"
+                          size="sm"
+                          onClick={focusStore.resumeFocus}
+                          className="text-xs gap-1.5"
                         >
-                          {isTesting ? <Pause className="size-3.5 text-primary" /> : <Play className="size-3.5" />}
+                          <Play className="size-3.5" />
+                          Resume
                         </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={focusStore.pauseFocus}
+                          className="text-xs gap-1.5"
+                        >
+                          <Pause className="size-3.5" />
+                          Pause
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => focusStore.stopFocus()}
+                        className="text-xs"
+                      >
+                        Stop Session
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-semibold text-foreground">
+                          Launch a Focus Session
+                        </h4>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          Blocks distractions, generates ambient focus audio,
+                          and updates your Slack status.
+                        </p>
                       </div>
-                    );
-                  })}
+                      <Button
+                        type="button"
+                        variant="primary"
+                        size="sm"
+                        onClick={openFocusModal}
+                        className="text-xs gap-1.5"
+                      >
+                        <Target className="size-3.5" />
+                        Start Focus Session
+                      </Button>
+                    </div>
+
+                    {/* Preset Buttons */}
+                    <div className="sm:grid-cols-4 gap-3 grid grid-cols-2">
+                      {FOCUS_DURATION_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.minutes}
+                          type="button"
+                          onClick={() => {
+                            focusStore.startFocus({
+                              durationMinutes: opt.minutes,
+                              taskObjective: opt.label,
+                            });
+                          }}
+                          className="p-3.5 space-y-1 rounded-xl border border-border bg-surface text-left transition-all hover:border-primary/50 hover:bg-accent/40"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-lg">{opt.icon}</span>
+                            <span className="text-xs font-bold font-mono text-primary">
+                              {opt.minutes}m
+                            </span>
+                          </div>
+                          <div className="text-xs font-semibold text-foreground">
+                            {opt.label}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Ambient Audio Synthesizer */}
+                <div className="space-y-3 pt-4 border-t border-border/40">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-medium gap-1.5 flex items-center text-foreground">
+                        <Volume2 className="size-3.5 text-primary" />
+                        Ambient Audio Soundscape
+                      </h4>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        Native Web Audio synthesized noise and alpha wave beat
+                        generators.
+                      </p>
+                    </div>
+                    {testSoundPlaying && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          focusAudio.stop();
+                          setTestSoundPlaying(null);
+                        }}
+                        className="h-7 text-xs gap-1 text-destructive"
+                      >
+                        <VolumeX className="size-3" />
+                        Stop Audio
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="sm:grid-cols-2 md:grid-cols-3 gap-2.5 grid grid-cols-1">
+                    {FOCUS_SOUND_OPTIONS.filter((s) => s.id !== 'none').map(
+                      (sound) => {
+                        const isTesting = testSoundPlaying === sound.id;
+                        const isSelected = focusStore.soundType === sound.id;
+
+                        return (
+                          <div
+                            key={sound.id}
+                            className={cn(
+                              'p-3 gap-2 text-xs flex items-center justify-between rounded-xl border transition-all',
+                              isSelected
+                                ? 'border-primary/50 bg-primary/5'
+                                : 'border-border bg-surface hover:bg-accent/30',
+                            )}
+                          >
+                            <div
+                              className="gap-2 flex flex-1 cursor-pointer items-center truncate"
+                              onClick={() => focusStore.setSound(sound.id)}
+                            >
+                              <span className="text-base">{sound.icon}</span>
+                              <span className="font-medium truncate text-foreground">
+                                {sound.name}
+                              </span>
+                            </div>
+
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => {
+                                if (isTesting) {
+                                  focusAudio.stop();
+                                  setTestSoundPlaying(null);
+                                } else {
+                                  focusAudio.play(
+                                    sound.id,
+                                    focusStore.soundVolume,
+                                  );
+                                  setTestSoundPlaying(sound.id);
+                                }
+                              }}
+                              className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
+                            >
+                              {isTesting ? (
+                                <Pause className="size-3.5 text-primary" />
+                              ) : (
+                                <Play className="size-3.5" />
+                              )}
+                            </Button>
+                          </div>
+                        );
+                      },
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* ---------------- SECTION: CHAT & MESSAGING ---------------- */}
       {currentTab === 'chat' && <ChatSettingsPanel />}
@@ -1629,14 +1835,16 @@ export function WorkspaceSettingsPage({
           {/* 1. Primary Notification Delivery Channels (matching reference design) */}
           <div className="space-y-3">
             {/* Inbox */}
-            <div className="bg-[#121214] border border-zinc-800/90 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4 transition-colors hover:border-zinc-700/80">
-              <div className="flex items-center gap-3.5">
-                <div className="size-9 rounded-xl bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-200 shrink-0">
+            <div className="border-zinc-800/90 p-4 sm:p-5 gap-4 hover:border-zinc-700/80 flex items-center justify-between rounded-2xl border bg-[#121214] transition-colors">
+              <div className="gap-3.5 flex items-center">
+                <div className="size-9 bg-zinc-800/80 border-zinc-700/60 text-zinc-200 flex shrink-0 items-center justify-center rounded-xl border">
                   <Inbox className="size-4.5" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-white">Inbox</span>
+                  <div className="gap-2 flex items-center">
+                    <span className="text-sm font-semibold text-white">
+                      Inbox
+                    </span>
                   </div>
                   <p className="text-xs text-zinc-400 mt-0.5">
                     Approvals, handoffs, and follow-ups.
@@ -1644,27 +1852,38 @@ export function WorkspaceSettingsPage({
                 </div>
               </div>
 
-              <Select value={notifyChannelScope} onValueChange={setNotifyChannelScope}>
-                <SelectTrigger className="w-32 h-8 text-xs bg-[#18181b] border-zinc-700/60 text-zinc-200 rounded-lg">
+              <Select
+                value={notifyChannelScope}
+                onValueChange={setNotifyChannelScope}
+              >
+                <SelectTrigger className="w-32 h-8 text-xs border-zinc-700/60 text-zinc-200 rounded-lg bg-[#18181b]">
                   <SelectValue placeholder="Default" />
                 </SelectTrigger>
-                <SelectContent className="bg-[#18181b] border-zinc-800 text-zinc-200">
-                  <SelectItem value="all" className="text-xs">Default (All)</SelectItem>
-                  <SelectItem value="mentions" className="text-xs">Mentions only</SelectItem>
-                  <SelectItem value="nothing" className="text-xs">Off</SelectItem>
+                <SelectContent className="border-zinc-800 text-zinc-200 bg-[#18181b]">
+                  <SelectItem value="all" className="text-xs">
+                    Default (All)
+                  </SelectItem>
+                  <SelectItem value="mentions" className="text-xs">
+                    Mentions only
+                  </SelectItem>
+                  <SelectItem value="nothing" className="text-xs">
+                    Off
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {/* Email */}
-            <div className="bg-[#121214] border border-zinc-800/90 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4 transition-colors hover:border-zinc-700/80">
-              <div className="flex items-center gap-3.5">
-                <div className="size-9 rounded-xl bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-200 shrink-0">
+            <div className="border-zinc-800/90 p-4 sm:p-5 gap-4 hover:border-zinc-700/80 flex items-center justify-between rounded-2xl border bg-[#121214] transition-colors">
+              <div className="gap-3.5 flex items-center">
+                <div className="size-9 bg-zinc-800/80 border-zinc-700/60 text-zinc-200 flex shrink-0 items-center justify-center rounded-xl border">
                   <Mail className="size-4.5" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-white">Email</span>
+                  <div className="gap-2 flex items-center">
+                    <span className="text-sm font-semibold text-white">
+                      Email
+                    </span>
                     <button
                       type="button"
                       disabled={testNotifSending}
@@ -1678,7 +1897,7 @@ export function WorkspaceSettingsPage({
                         setTestNotifSent(true);
                         setTimeout(() => setTestNotifSent(false), 3000);
                       }}
-                      className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 hover:bg-emerald-900/60 transition-colors cursor-pointer"
+                      className="px-2 py-0.5 font-medium bg-emerald-950/80 text-emerald-400 border-emerald-800/60 hover:bg-emerald-900/60 cursor-pointer rounded-full border text-[10px] transition-colors"
                     >
                       {testNotifSent ? 'Sample sent!' : 'Send sample'}
                     </button>
@@ -1693,33 +1912,41 @@ export function WorkspaceSettingsPage({
                 value={notifyDigest ? 'weekly' : 'default'}
                 onValueChange={(val) => setNotifyDigest(val === 'weekly')}
               >
-                <SelectTrigger className="w-32 h-8 text-xs bg-[#18181b] border-zinc-700/60 text-zinc-200 rounded-lg">
+                <SelectTrigger className="w-32 h-8 text-xs border-zinc-700/60 text-zinc-200 rounded-lg bg-[#18181b]">
                   <SelectValue placeholder="Default" />
                 </SelectTrigger>
-                <SelectContent className="bg-[#18181b] border-zinc-800 text-zinc-200">
-                  <SelectItem value="default" className="text-xs">Default</SelectItem>
-                  <SelectItem value="weekly" className="text-xs">Weekly digest</SelectItem>
-                  <SelectItem value="off" className="text-xs">Off</SelectItem>
+                <SelectContent className="border-zinc-800 text-zinc-200 bg-[#18181b]">
+                  <SelectItem value="default" className="text-xs">
+                    Default
+                  </SelectItem>
+                  <SelectItem value="weekly" className="text-xs">
+                    Weekly digest
+                  </SelectItem>
+                  <SelectItem value="off" className="text-xs">
+                    Off
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {/* Browser */}
-            <div className="bg-[#121214] border border-zinc-800/90 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4 transition-colors hover:border-zinc-700/80">
-              <div className="flex items-center gap-3.5">
-                <div className="size-9 rounded-xl bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-200 shrink-0">
+            <div className="border-zinc-800/90 p-4 sm:p-5 gap-4 hover:border-zinc-700/80 flex items-center justify-between rounded-2xl border bg-[#121214] transition-colors">
+              <div className="gap-3.5 flex items-center">
+                <div className="size-9 bg-zinc-800/80 border-zinc-700/60 text-zinc-200 flex shrink-0 items-center justify-center rounded-xl border">
                   <Monitor className="size-4.5" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-white">Browser</span>
+                  <div className="gap-2 flex items-center">
+                    <span className="text-sm font-semibold text-white">
+                      Browser
+                    </span>
                     {notifBarState.permission === 'granted' && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800/60">
+                      <span className="px-2 py-0.5 font-medium bg-emerald-950/80 text-emerald-400 border-emerald-800/60 rounded-full border text-[10px]">
                         Active
                       </span>
                     )}
                     {notifBarState.permission === 'denied' && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-rose-950/80 text-rose-400 border border-rose-800/60">
+                      <span className="px-2 py-0.5 font-medium bg-rose-950/80 text-rose-400 border-rose-800/60 rounded-full border text-[10px]">
                         Blocked
                       </span>
                     )}
@@ -1738,7 +1965,7 @@ export function WorkspaceSettingsPage({
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-8 px-3 text-xs bg-[#18181b] border-zinc-700/60 text-zinc-200 hover:text-white hover:bg-zinc-800 rounded-lg shrink-0"
+                  className="h-8 px-3 text-xs border-zinc-700/60 text-zinc-200 hover:text-white hover:bg-zinc-800 shrink-0 rounded-lg bg-[#18181b]"
                   disabled={testNotifSending}
                   onClick={async () => {
                     setTestNotifSending(true);
@@ -1753,14 +1980,14 @@ export function WorkspaceSettingsPage({
                   <span>Send Test Alert</span>
                 </Button>
               ) : notifBarState.permission === 'denied' ? (
-                <span className="text-xs text-zinc-500 italic shrink-0">
+                <span className="text-xs text-zinc-500 shrink-0 italic">
                   Unblock in browser
                 </span>
               ) : (
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-8 px-3 text-xs bg-[#18181b] border-zinc-700/60 text-zinc-200 hover:text-white hover:bg-zinc-800 rounded-lg shrink-0"
+                  className="h-8 px-3 text-xs border-zinc-700/60 text-zinc-200 hover:text-white hover:bg-zinc-800 shrink-0 rounded-lg bg-[#18181b]"
                   onClick={() => void notifBarState.requestPermission()}
                 >
                   <span>Enable notifications</span>
@@ -1769,15 +1996,17 @@ export function WorkspaceSettingsPage({
             </div>
 
             {/* Mobile & Smart Notifications */}
-            <div className="bg-[#121214] border border-zinc-800/90 rounded-2xl p-4 sm:p-5 space-y-4 transition-colors hover:border-zinc-700/80">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3.5">
-                  <div className="size-9 rounded-xl bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-200 shrink-0">
+            <div className="border-zinc-800/90 p-4 sm:p-5 space-y-4 hover:border-zinc-700/80 rounded-2xl border bg-[#121214] transition-colors">
+              <div className="gap-4 flex items-center justify-between">
+                <div className="gap-3.5 flex items-center">
+                  <div className="size-9 bg-zinc-800/80 border-zinc-700/60 text-zinc-200 flex shrink-0 items-center justify-center rounded-xl border">
                     <Smartphone className="size-4.5" />
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-white">Mobile</span>
+                    <div className="gap-2 flex items-center">
+                      <span className="text-sm font-semibold text-white">
+                        Mobile
+                      </span>
                       <button
                         type="button"
                         onClick={async () => {
@@ -1786,7 +2015,7 @@ export function WorkspaceSettingsPage({
                             body: 'Sarah replied to your thread in #engineering',
                           });
                         }}
-                        className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-950/80 text-purple-400 border border-purple-800/60 hover:bg-purple-900/60 transition-colors cursor-pointer"
+                        className="px-2 py-0.5 font-medium bg-purple-950/80 text-purple-400 border-purple-800/60 hover:bg-purple-900/60 cursor-pointer rounded-full border text-[10px] transition-colors"
                       >
                         Show example
                       </button>
@@ -1798,22 +2027,30 @@ export function WorkspaceSettingsPage({
                 </div>
 
                 <Select value="muted" onValueChange={() => undefined}>
-                  <SelectTrigger className="w-32 h-8 text-xs bg-[#18181b] border-zinc-700/60 text-zinc-200 rounded-lg">
+                  <SelectTrigger className="w-32 h-8 text-xs border-zinc-700/60 text-zinc-200 rounded-lg bg-[#18181b]">
                     <SelectValue placeholder="Muted" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#18181b] border-zinc-800 text-zinc-200">
-                    <SelectItem value="muted" className="text-xs">Muted</SelectItem>
-                    <SelectItem value="default" className="text-xs">Default</SelectItem>
-                    <SelectItem value="all" className="text-xs">All activity</SelectItem>
+                  <SelectContent className="border-zinc-800 text-zinc-200 bg-[#18181b]">
+                    <SelectItem value="muted" className="text-xs">
+                      Muted
+                    </SelectItem>
+                    <SelectItem value="default" className="text-xs">
+                      Default
+                    </SelectItem>
+                    <SelectItem value="all" className="text-xs">
+                      All activity
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {/* Sub-row: Smart notifications */}
-              <div className="pt-3 border-t border-zinc-800/60 flex items-center justify-between gap-4 pl-12">
+              <div className="pt-3 border-zinc-800/60 gap-4 pl-12 flex items-center justify-between border-t">
                 <div>
-                  <h4 className="text-xs font-medium text-white">Smart notifications</h4>
-                  <p className="text-[11px] text-zinc-400 mt-0.5">
+                  <h4 className="text-xs font-medium text-white">
+                    Smart notifications
+                  </h4>
+                  <p className="text-zinc-400 mt-0.5 text-[11px]">
                     Pause phone alerts while desktop stays active.
                   </p>
                 </div>
@@ -1826,14 +2063,11 @@ export function WorkspaceSettingsPage({
           </div>
 
           {/* Display Preferences & Screen Positioning */}
-          <div className="border-t border-zinc-800/80 pt-8">
+          <div className="border-zinc-800/80 pt-8 border-t">
             <NotificationDisplaySettingsPanel workspaceId={workspaceId} />
           </div>
         </div>
       )}
-
-
-
 
       {/* ---------------- SECTION: APPS & DOWNLOADS ---------------- */}
       {currentTab === 'downloads' && (
@@ -1842,8 +2076,9 @@ export function WorkspaceSettingsPage({
             <h1 className="text-xl font-bold tracking-tight text-foreground">
               Apps & Downloads
             </h1>
-            <p className="text-xs text-muted-foreground mt-1">
-              Download native OneTab AI applications for desktop and mobile devices.
+            <p className="text-xs mt-1 text-muted-foreground">
+              Download native OneTab AI applications for desktop and mobile
+              devices.
             </p>
           </div>
 
@@ -1866,67 +2101,101 @@ export function WorkspaceSettingsPage({
       {currentTab === 'ai-persona' && (
         <div className="space-y-8">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">AI Models & Persona</h1>
-            <p className="text-xs text-muted-foreground mt-1">
-              Configure primary LLM engines, agent execution permissions, and workspace prompts.
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              AI Models & Persona
+            </h1>
+            <p className="text-xs mt-1 text-muted-foreground">
+              Configure primary LLM engines, agent execution permissions, and
+              workspace prompts.
             </p>
           </div>
 
           <div className="space-y-3">
-            <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
+            <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
               Model & Reasoning
             </h3>
-            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
+              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
                 <div>
-                  <h4 className="text-xs font-medium text-foreground">Primary AI Model</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Select the main LLM powering chat, code assistance, and agent workflows
+                  <h4 className="text-xs font-medium text-foreground">
+                    Primary AI Model
+                  </h4>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Select the main LLM powering chat, code assistance, and
+                    agent workflows
                   </p>
                 </div>
                 <Select value={defaultModel} onValueChange={setDefaultModel}>
-                  <SelectTrigger className="w-56 h-8 text-xs bg-surface border-border">
+                  <SelectTrigger className="w-56 h-8 text-xs border-border bg-surface">
                     <SelectValue placeholder="Select model" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="gpt-4o" className="text-xs">GPT-4o (Default Recommended)</SelectItem>
-                    <SelectItem value="claude-3-5-sonnet" className="text-xs">Claude 3.5 Sonnet</SelectItem>
-                    <SelectItem value="gemini-1-5-pro" className="text-xs">Gemini 1.5 Pro</SelectItem>
-                    <SelectItem value="deepseek-r1" className="text-xs">DeepSeek R1</SelectItem>
+                    <SelectItem value="gpt-4o" className="text-xs">
+                      GPT-4o (Default Recommended)
+                    </SelectItem>
+                    <SelectItem value="claude-3-5-sonnet" className="text-xs">
+                      Claude 3.5 Sonnet
+                    </SelectItem>
+                    <SelectItem value="gemini-1-5-pro" className="text-xs">
+                      Gemini 1.5 Pro
+                    </SelectItem>
+                    <SelectItem value="deepseek-r1" className="text-xs">
+                      DeepSeek R1
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
                 <div>
-                  <h4 className="text-xs font-medium text-foreground">Creativity / Temperature</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Control LLM randomness and precision</p>
+                  <h4 className="text-xs font-medium text-foreground">
+                    Creativity / Temperature
+                  </h4>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Control LLM randomness and precision
+                  </p>
                 </div>
                 <Select value={tempSetting} onValueChange={setTempSetting}>
-                  <SelectTrigger className="w-40 h-8 text-xs bg-surface border-border">
+                  <SelectTrigger className="w-40 h-8 text-xs border-border bg-surface">
                     <SelectValue placeholder="Balanced" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="balanced" className="text-xs">Balanced (0.7)</SelectItem>
-                    <SelectItem value="precise" className="text-xs">Precise (0.2)</SelectItem>
-                    <SelectItem value="creative" className="text-xs">Creative (1.0)</SelectItem>
+                    <SelectItem value="balanced" className="text-xs">
+                      Balanced (0.7)
+                    </SelectItem>
+                    <SelectItem value="precise" className="text-xs">
+                      Precise (0.2)
+                    </SelectItem>
+                    <SelectItem value="creative" className="text-xs">
+                      Creative (1.0)
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
                 <div>
-                  <h4 className="text-xs font-medium text-foreground">Context Window Size</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Maximum token length retained during conversations</p>
+                  <h4 className="text-xs font-medium text-foreground">
+                    Context Window Size
+                  </h4>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Maximum token length retained during conversations
+                  </p>
                 </div>
                 <Select value={contextWindow} onValueChange={setContextWindow}>
-                  <SelectTrigger className="w-40 h-8 text-xs bg-surface border-border">
+                  <SelectTrigger className="w-40 h-8 text-xs border-border bg-surface">
                     <SelectValue placeholder="128k Tokens" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="128k" className="text-xs">128k Tokens (Default)</SelectItem>
-                    <SelectItem value="200k" className="text-xs">200k Tokens</SelectItem>
-                    <SelectItem value="32k" className="text-xs">32k Tokens</SelectItem>
+                    <SelectItem value="128k" className="text-xs">
+                      128k Tokens (Default)
+                    </SelectItem>
+                    <SelectItem value="200k" className="text-xs">
+                      200k Tokens
+                    </SelectItem>
+                    <SelectItem value="32k" className="text-xs">
+                      32k Tokens
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1934,47 +2203,78 @@ export function WorkspaceSettingsPage({
           </div>
 
           <div className="space-y-3">
-            <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
+            <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
               Autonomous Agent Permissions
             </h3>
-            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
+              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
                 <div>
-                  <h4 className="text-xs font-medium text-foreground">Auto-approve Agent Code Execution</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Allow agents to run shell and code commands automatically</p>
+                  <h4 className="text-xs font-medium text-foreground">
+                    Auto-approve Agent Code Execution
+                  </h4>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Allow agents to run shell and code commands automatically
+                  </p>
                 </div>
-                <Switch checked={agentAutoApprove} onCheckedChange={setAgentAutoApprove} />
+                <Switch
+                  checked={agentAutoApprove}
+                  onCheckedChange={setAgentAutoApprove}
+                />
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
                 <div>
-                  <h4 className="text-xs font-medium text-foreground">Web Search & Browsing Access</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Enable subagents to fetch live web content and documentation</p>
+                  <h4 className="text-xs font-medium text-foreground">
+                    Web Search & Browsing Access
+                  </h4>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Enable subagents to fetch live web content and documentation
+                  </p>
                 </div>
-                <Switch checked={allowWebSearch} onCheckedChange={setAllowWebSearch} />
+                <Switch
+                  checked={allowWebSearch}
+                  onCheckedChange={setAllowWebSearch}
+                />
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
                 <div>
-                  <h4 className="text-xs font-medium text-foreground">Workspace File Modification</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Permit AI agents to edit codebase files directly</p>
+                  <h4 className="text-xs font-medium text-foreground">
+                    Workspace File Modification
+                  </h4>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Permit AI agents to edit codebase files directly
+                  </p>
                 </div>
-                <Switch checked={allowFileSystem} onCheckedChange={setAllowFileSystem} />
+                <Switch
+                  checked={allowFileSystem}
+                  onCheckedChange={setAllowFileSystem}
+                />
               </div>
 
-              <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
                 <div>
-                  <h4 className="text-xs font-medium text-foreground">Max Agent Loop Turn Limit</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Maximum iteration steps per single task prompt</p>
+                  <h4 className="text-xs font-medium text-foreground">
+                    Max Agent Loop Turn Limit
+                  </h4>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Maximum iteration steps per single task prompt
+                  </p>
                 </div>
                 <Select value={maxTurns} onValueChange={setMaxTurns}>
-                  <SelectTrigger className="w-32 h-8 text-xs bg-surface border-border">
+                  <SelectTrigger className="w-32 h-8 text-xs border-border bg-surface">
                     <SelectValue placeholder="25 turns" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="25" className="text-xs">25 turns</SelectItem>
-                    <SelectItem value="50" className="text-xs">50 turns</SelectItem>
-                    <SelectItem value="10" className="text-xs">10 turns</SelectItem>
+                    <SelectItem value="25" className="text-xs">
+                      25 turns
+                    </SelectItem>
+                    <SelectItem value="50" className="text-xs">
+                      50 turns
+                    </SelectItem>
+                    <SelectItem value="10" className="text-xs">
+                      10 turns
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1982,10 +2282,10 @@ export function WorkspaceSettingsPage({
           </div>
 
           <div className="space-y-3">
-            <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
+            <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
               Workspace System Persona
             </h3>
-            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-4 space-y-3">
+            <div className="p-4 space-y-3 rounded-2xl border border-border bg-surface-inset shadow-xs">
               <Textarea
                 value={systemPrompt}
                 onChange={(e) => setSystemPrompt(e.target.value)}
@@ -1993,7 +2293,8 @@ export function WorkspaceSettingsPage({
                 className="text-xs font-mono"
               />
               <p className="text-[11px] text-muted-foreground">
-                This system prompt is injected into all AI chat sessions within this workspace.
+                This system prompt is injected into all AI chat sessions within
+                this workspace.
               </p>
             </div>
           </div>
@@ -2004,25 +2305,53 @@ export function WorkspaceSettingsPage({
       {currentTab === 'agent-marketplace' && (
         <div className="space-y-8">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Agent Marketplace & Tools</h1>
-            <p className="text-xs text-muted-foreground mt-1">
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Agent Marketplace & Tools
+            </h1>
+            <p className="text-xs mt-1 text-muted-foreground">
               Manage active AI agents, custom MCP tools, and external API keys.
             </p>
           </div>
 
-          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+          <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
             {[
-              { id: 'code-reviewer', name: 'Code Reviewer Agent', desc: 'Analyzes pull requests and identifies lint or security defects', active: true },
-              { id: 'support-bot', name: 'Customer Support Bot', desc: 'Answers member questions using documentation context', active: true },
-              { id: 'doc-summarizer', name: 'Doc Summarizer Agent', desc: 'Generates daily summaries of channel messages and notes', active: false },
+              {
+                id: 'code-reviewer',
+                name: 'Code Reviewer Agent',
+                desc: 'Analyzes pull requests and identifies lint or security defects',
+                active: true,
+              },
+              {
+                id: 'support-bot',
+                name: 'Customer Support Bot',
+                desc: 'Answers member questions using documentation context',
+                active: true,
+              },
+              {
+                id: 'doc-summarizer',
+                name: 'Doc Summarizer Agent',
+                desc: 'Generates daily summaries of channel messages and notes',
+                active: false,
+              },
             ].map((agent) => (
-              <div key={agent.id} className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+              <div
+                key={agent.id}
+                className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40"
+              >
                 <div>
-                  <h4 className="text-xs font-medium text-foreground">{agent.name}</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">{agent.desc}</p>
+                  <h4 className="text-xs font-medium text-foreground">
+                    {agent.name}
+                  </h4>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    {agent.desc}
+                  </p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Button variant="outline" size="sm" className="h-7 text-[11px] px-2.5">
+                <div className="gap-3 flex items-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2.5 text-[11px]"
+                  >
                     Configure
                   </Button>
                   <Switch defaultChecked={agent.active} />
@@ -2031,20 +2360,43 @@ export function WorkspaceSettingsPage({
             ))}
           </div>
 
-          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6 space-y-4">
-            <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide">Custom API Keys</h3>
+          <div className="p-6 space-y-4 rounded-2xl border border-border bg-surface-inset shadow-xs">
+            <h3 className="text-xs font-semibold tracking-wide text-foreground uppercase">
+              Custom API Keys
+            </h3>
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-foreground">NVIDIA API Key (Default Provider)</label>
-                <Input type="password" value="nvapi-••••••••••••••••" readOnly className="h-8 text-xs font-mono mt-1" />
+                <label className="text-xs font-medium text-foreground">
+                  NVIDIA API Key (Default Provider)
+                </label>
+                <Input
+                  type="password"
+                  value="nvapi-••••••••••••••••"
+                  readOnly
+                  className="h-8 text-xs mt-1 font-mono"
+                />
               </div>
               <div>
-                <label className="text-xs font-medium text-foreground">OpenAI API Key</label>
-                <Input type="password" value="sk-proj-••••••••••••••••" readOnly className="h-8 text-xs font-mono mt-1" />
+                <label className="text-xs font-medium text-foreground">
+                  OpenAI API Key
+                </label>
+                <Input
+                  type="password"
+                  value="sk-proj-••••••••••••••••"
+                  readOnly
+                  className="h-8 text-xs mt-1 font-mono"
+                />
               </div>
               <div>
-                <label className="text-xs font-medium text-foreground">Anthropic API Key</label>
-                <Input type="password" value="sk-ant-••••••••••••••••" readOnly className="h-8 text-xs font-mono mt-1" />
+                <label className="text-xs font-medium text-foreground">
+                  Anthropic API Key
+                </label>
+                <Input
+                  type="password"
+                  value="sk-ant-••••••••••••••••"
+                  readOnly
+                  className="h-8 text-xs mt-1 font-mono"
+                />
               </div>
             </div>
           </div>
@@ -2054,52 +2406,89 @@ export function WorkspaceSettingsPage({
       {currentTab === 'automations' && (
         <div className="space-y-8">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Workflow Automations</h1>
-            <p className="text-xs text-muted-foreground mt-1">
-              Configure event triggers, webhooks, and multi-step workflow execution logs.
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Workflow Automations
+            </h1>
+            <p className="text-xs mt-1 text-muted-foreground">
+              Configure event triggers, webhooks, and multi-step workflow
+              execution logs.
             </p>
           </div>
 
-          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+          <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
+            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
               <div>
-                <h4 className="text-xs font-medium text-foreground">GitHub PR Event Webhook</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Trigger automation workflows on incoming GitHub pull requests</p>
+                <h4 className="text-xs font-medium text-foreground">
+                  GitHub PR Event Webhook
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Trigger automation workflows on incoming GitHub pull requests
+                </p>
               </div>
-              <Switch checked={githubPRWebhook} onCheckedChange={setGithubPRWebhook} />
+              <Switch
+                checked={githubPRWebhook}
+                onCheckedChange={setGithubPRWebhook}
+              />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
               <div>
-                <h4 className="text-xs font-medium text-foreground">Channel Message Keywords Trigger</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Fire workflows when specific key phrases appear in channels</p>
+                <h4 className="text-xs font-medium text-foreground">
+                  Channel Message Keywords Trigger
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Fire workflows when specific key phrases appear in channels
+                </p>
               </div>
-              <Switch checked={channelTrigger} onCheckedChange={setChannelTrigger} />
+              <Switch
+                checked={channelTrigger}
+                onCheckedChange={setChannelTrigger}
+              />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
               <div>
-                <h4 className="text-xs font-medium text-foreground">Max Concurrent Workflow Runs</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Limit parallel execution capacity</p>
+                <h4 className="text-xs font-medium text-foreground">
+                  Max Concurrent Workflow Runs
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Limit parallel execution capacity
+                </p>
               </div>
-              <Select value={maxConcurrentRuns} onValueChange={setMaxConcurrentRuns}>
-                <SelectTrigger className="w-36 h-8 text-xs bg-surface border-border">
+              <Select
+                value={maxConcurrentRuns}
+                onValueChange={setMaxConcurrentRuns}
+              >
+                <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
                   <SelectValue placeholder="5 runs" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="5" className="text-xs">5 parallel runs</SelectItem>
-                  <SelectItem value="10" className="text-xs">10 parallel runs</SelectItem>
-                  <SelectItem value="1" className="text-xs">1 parallel run</SelectItem>
+                  <SelectItem value="5" className="text-xs">
+                    5 parallel runs
+                  </SelectItem>
+                  <SelectItem value="10" className="text-xs">
+                    10 parallel runs
+                  </SelectItem>
+                  <SelectItem value="1" className="text-xs">
+                    1 parallel run
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
               <div>
-                <h4 className="text-xs font-medium text-foreground">Auto-retry failed workflow steps</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Retry failed HTTP steps up to 3 times automatically</p>
+                <h4 className="text-xs font-medium text-foreground">
+                  Auto-retry failed workflow steps
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Retry failed HTTP steps up to 3 times automatically
+                </p>
               </div>
-              <Switch checked={retryFailedSteps} onCheckedChange={setRetryFailedSteps} />
+              <Switch
+                checked={retryFailedSteps}
+                onCheckedChange={setRetryFailedSteps}
+              />
             </div>
           </div>
         </div>
@@ -2109,77 +2498,128 @@ export function WorkspaceSettingsPage({
       {currentTab === 'channels' && (
         <div className="space-y-8">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Channels & DMs</h1>
-            <p className="text-xs text-muted-foreground mt-1">
-              Configure default channels, member creation rules, and message privacy.
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Channels & DMs
+            </h1>
+            <p className="text-xs mt-1 text-muted-foreground">
+              Configure default channels, member creation rules, and message
+              privacy.
             </p>
           </div>
 
-          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+          <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
+            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
               <div>
-                <h4 className="text-xs font-medium text-foreground">Default Join Channel</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Channel automatically joined by new workspace members</p>
+                <h4 className="text-xs font-medium text-foreground">
+                  Default Join Channel
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Channel automatically joined by new workspace members
+                </p>
               </div>
               <Select value={defaultChannel} onValueChange={setDefaultChannel}>
-                <SelectTrigger className="w-36 h-8 text-xs bg-surface border-border">
+                <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
                   <SelectValue placeholder="#general" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="general" className="text-xs">#general</SelectItem>
-                  <SelectItem value="announcements" className="text-xs">#announcements</SelectItem>
-                  <SelectItem value="random" className="text-xs">#random</SelectItem>
+                  <SelectItem value="general" className="text-xs">
+                    #general
+                  </SelectItem>
+                  <SelectItem value="announcements" className="text-xs">
+                    #announcements
+                  </SelectItem>
+                  <SelectItem value="random" className="text-xs">
+                    #random
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
               <div>
-                <h4 className="text-xs font-medium text-foreground">Allow Public Channel Creation</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Regular members can create public channels</p>
+                <h4 className="text-xs font-medium text-foreground">
+                  Allow Public Channel Creation
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Regular members can create public channels
+                </p>
               </div>
-              <Switch checked={allowPublicCreation} onCheckedChange={setAllowPublicCreation} />
+              <Switch
+                checked={allowPublicCreation}
+                onCheckedChange={setAllowPublicCreation}
+              />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
               <div>
-                <h4 className="text-xs font-medium text-foreground">Allow Private Channel Creation</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Regular members can create private invite-only channels</p>
+                <h4 className="text-xs font-medium text-foreground">
+                  Allow Private Channel Creation
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Regular members can create private invite-only channels
+                </p>
               </div>
-              <Switch checked={allowPrivateCreation} onCheckedChange={setAllowPrivateCreation} />
+              <Switch
+                checked={allowPrivateCreation}
+                onCheckedChange={setAllowPrivateCreation}
+              />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
               <div>
-                <h4 className="text-xs font-medium text-foreground">Auto-archive Inactive Channels</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Archive channels after a period of zero activity</p>
+                <h4 className="text-xs font-medium text-foreground">
+                  Auto-archive Inactive Channels
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Archive channels after a period of zero activity
+                </p>
               </div>
-              <Select value={archiveInactiveDays} onValueChange={setArchiveInactiveDays}>
-                <SelectTrigger className="w-32 h-8 text-xs bg-surface border-border">
+              <Select
+                value={archiveInactiveDays}
+                onValueChange={setArchiveInactiveDays}
+              >
+                <SelectTrigger className="w-32 h-8 text-xs border-border bg-surface">
                   <SelectValue placeholder="90 days" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="90" className="text-xs">90 days</SelectItem>
-                  <SelectItem value="30" className="text-xs">30 days</SelectItem>
-                  <SelectItem value="never" className="text-xs">Never</SelectItem>
+                  <SelectItem value="90" className="text-xs">
+                    90 days
+                  </SelectItem>
+                  <SelectItem value="30" className="text-xs">
+                    30 days
+                  </SelectItem>
+                  <SelectItem value="never" className="text-xs">
+                    Never
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
               <div>
-                <h4 className="text-xs font-medium text-foreground">Direct Message End-to-End Encryption</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Encrypt DM content between 1-on-1 team members</p>
+                <h4 className="text-xs font-medium text-foreground">
+                  Direct Message End-to-End Encryption
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Encrypt DM content between 1-on-1 team members
+                </p>
               </div>
               <Switch checked={encryptedDM} onCheckedChange={setEncryptedDM} />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
               <div>
-                <h4 className="text-xs font-medium text-foreground">Direct Message Read Receipts</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Show when messages have been seen by recipient</p>
+                <h4 className="text-xs font-medium text-foreground">
+                  Direct Message Read Receipts
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Show when messages have been seen by recipient
+                </p>
               </div>
-              <Switch checked={readReceipts} onCheckedChange={setReadReceipts} />
+              <Switch
+                checked={readReceipts}
+                onCheckedChange={setReadReceipts}
+              />
             </div>
           </div>
         </div>
@@ -2190,43 +2630,72 @@ export function WorkspaceSettingsPage({
       {currentTab === 'documents' && (
         <div className="space-y-8">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Notes & Documents</h1>
-            <p className="text-xs text-muted-foreground mt-1">
-              Document editor preferences, auto-save, and Markdown syntax themes.
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Notes & Documents
+            </h1>
+            <p className="text-xs mt-1 text-muted-foreground">
+              Document editor preferences, auto-save, and Markdown syntax
+              themes.
             </p>
           </div>
 
-          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+          <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
+            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
               <div>
-                <h4 className="text-xs font-medium text-foreground">Auto-save Drafts</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Automatically save document edits as you type</p>
+                <h4 className="text-xs font-medium text-foreground">
+                  Auto-save Drafts
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Automatically save document edits as you type
+                </p>
               </div>
               <Switch checked={docAutoSave} onCheckedChange={setDocAutoSave} />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
               <div>
-                <h4 className="text-xs font-medium text-foreground">Grammar & Spellcheck Assistance</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Highlight spelling defects and grammar suggestions in editor</p>
+                <h4 className="text-xs font-medium text-foreground">
+                  Grammar & Spellcheck Assistance
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Highlight spelling defects and grammar suggestions in editor
+                </p>
               </div>
-              <Switch checked={grammarAssistance} onCheckedChange={setGrammarAssistance} />
+              <Switch
+                checked={grammarAssistance}
+                onCheckedChange={setGrammarAssistance}
+              />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
               <div>
-                <h4 className="text-xs font-medium text-foreground">Code Syntax Highlighting Theme</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Theme used for code snippets inside document blocks</p>
+                <h4 className="text-xs font-medium text-foreground">
+                  Code Syntax Highlighting Theme
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Theme used for code snippets inside document blocks
+                </p>
               </div>
-              <Select value={codeSyntaxTheme} onValueChange={setCodeSyntaxTheme}>
-                <SelectTrigger className="w-40 h-8 text-xs bg-surface border-border">
+              <Select
+                value={codeSyntaxTheme}
+                onValueChange={setCodeSyntaxTheme}
+              >
+                <SelectTrigger className="w-40 h-8 text-xs border-border bg-surface">
                   <SelectValue placeholder="Github Dark" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="github-dark" className="text-xs">Github Dark</SelectItem>
-                  <SelectItem value="one-dark" className="text-xs">One Dark</SelectItem>
-                  <SelectItem value="dracula" className="text-xs">Dracula</SelectItem>
-                  <SelectItem value="vs-light" className="text-xs">VS Light</SelectItem>
+                  <SelectItem value="github-dark" className="text-xs">
+                    Github Dark
+                  </SelectItem>
+                  <SelectItem value="one-dark" className="text-xs">
+                    One Dark
+                  </SelectItem>
+                  <SelectItem value="dracula" className="text-xs">
+                    Dracula
+                  </SelectItem>
+                  <SelectItem value="vs-light" className="text-xs">
+                    VS Light
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -2237,44 +2706,68 @@ export function WorkspaceSettingsPage({
       {currentTab === 'files' && (
         <div className="space-y-8">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Files & Storage</h1>
-            <p className="text-xs text-muted-foreground mt-1">
-              Workspace storage allocation, high quality media previews, and retention.
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Files & Storage
+            </h1>
+            <p className="text-xs mt-1 text-muted-foreground">
+              Workspace storage allocation, high quality media previews, and
+              retention.
             </p>
           </div>
 
-          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6 space-y-4">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-medium text-foreground">Workspace Storage Used</span>
-              <span className="text-muted-foreground font-mono">12.4 GB / 50.0 GB</span>
+          <div className="p-6 space-y-4 rounded-2xl border border-border bg-surface-inset shadow-xs">
+            <div className="text-xs flex items-center justify-between">
+              <span className="font-medium text-foreground">
+                Workspace Storage Used
+              </span>
+              <span className="font-mono text-muted-foreground">
+                12.4 GB / 50.0 GB
+              </span>
             </div>
-            <div className="w-full bg-muted/50 rounded-full h-2 overflow-hidden">
-              <div className="bg-primary h-full w-[25%] rounded-full transition-all" />
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted/50">
+              <div className="h-full w-[25%] rounded-full bg-primary transition-all" />
             </div>
           </div>
 
-          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+          <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
+            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
               <div>
-                <h4 className="text-xs font-medium text-foreground">High Quality Video & Media Previews</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Generate high-res video thumbnails and audio waveform previews</p>
+                <h4 className="text-xs font-medium text-foreground">
+                  High Quality Video & Media Previews
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Generate high-res video thumbnails and audio waveform previews
+                </p>
               </div>
-              <Switch checked={highQualityVideo} onCheckedChange={setHighQualityVideo} />
+              <Switch
+                checked={highQualityVideo}
+                onCheckedChange={setHighQualityVideo}
+              />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
               <div>
-                <h4 className="text-xs font-medium text-foreground">File Retention Policy</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Duration to keep deleted files in workspace trash</p>
+                <h4 className="text-xs font-medium text-foreground">
+                  File Retention Policy
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Duration to keep deleted files in workspace trash
+                </p>
               </div>
               <Select value={fileRetention} onValueChange={setFileRetention}>
-                <SelectTrigger className="w-32 h-8 text-xs bg-surface border-border">
+                <SelectTrigger className="w-32 h-8 text-xs border-border bg-surface">
                   <SelectValue placeholder="Forever" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="forever" className="text-xs">Forever</SelectItem>
-                  <SelectItem value="1year" className="text-xs">1 Year</SelectItem>
-                  <SelectItem value="6months" className="text-xs">6 Months</SelectItem>
+                  <SelectItem value="forever" className="text-xs">
+                    Forever
+                  </SelectItem>
+                  <SelectItem value="1year" className="text-xs">
+                    1 Year
+                  </SelectItem>
+                  <SelectItem value="6months" className="text-xs">
+                    6 Months
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -2285,44 +2778,75 @@ export function WorkspaceSettingsPage({
       {currentTab === 'schedule' && (
         <div className="space-y-8">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Schedule & Meetings</h1>
-            <p className="text-xs text-muted-foreground mt-1">
-              Configure calendar integrations, default meeting provider, and auto-record settings.
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Schedule & Meetings
+            </h1>
+            <p className="text-xs mt-1 text-muted-foreground">
+              Configure calendar integrations, default meeting provider, and
+              auto-record settings.
             </p>
           </div>
 
-          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+          <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
+            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
               <div>
-                <h4 className="text-xs font-medium text-foreground">Google Calendar Sync</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Synchronize schedule events with your Google Calendar</p>
+                <h4 className="text-xs font-medium text-foreground">
+                  Google Calendar Sync
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Synchronize schedule events with your Google Calendar
+                </p>
               </div>
-              <Switch checked={googleCalendarSync} onCheckedChange={setGoogleCalendarSync} />
+              <Switch
+                checked={googleCalendarSync}
+                onCheckedChange={setGoogleCalendarSync}
+              />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
               <div>
-                <h4 className="text-xs font-medium text-foreground">Default Meeting Room Provider</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Provider used when generating instant meeting links</p>
+                <h4 className="text-xs font-medium text-foreground">
+                  Default Meeting Room Provider
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Provider used when generating instant meeting links
+                </p>
               </div>
-              <Select value={meetingProvider} onValueChange={setMeetingProvider}>
-                <SelectTrigger className="w-44 h-8 text-xs bg-surface border-border">
+              <Select
+                value={meetingProvider}
+                onValueChange={setMeetingProvider}
+              >
+                <SelectTrigger className="w-44 h-8 text-xs border-border bg-surface">
                   <SelectValue placeholder="Onetab Meet" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="onetab-meet" className="text-xs">Onetab Native Meet</SelectItem>
-                  <SelectItem value="google-meet" className="text-xs">Google Meet</SelectItem>
-                  <SelectItem value="zoom" className="text-xs">Zoom Meetings</SelectItem>
+                  <SelectItem value="onetab-meet" className="text-xs">
+                    Onetab Native Meet
+                  </SelectItem>
+                  <SelectItem value="google-meet" className="text-xs">
+                    Google Meet
+                  </SelectItem>
+                  <SelectItem value="zoom" className="text-xs">
+                    Zoom Meetings
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
               <div>
-                <h4 className="text-xs font-medium text-foreground">Auto-record Team Meetings</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Automatically save video transcript and recording to workspace docs</p>
+                <h4 className="text-xs font-medium text-foreground">
+                  Auto-record Team Meetings
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Automatically save video transcript and recording to workspace
+                  docs
+                </p>
               </div>
-              <Switch checked={autoRecordMeetings} onCheckedChange={setAutoRecordMeetings} />
+              <Switch
+                checked={autoRecordMeetings}
+                onCheckedChange={setAutoRecordMeetings}
+              />
             </div>
           </div>
         </div>
@@ -2331,27 +2855,44 @@ export function WorkspaceSettingsPage({
       {currentTab === 'pulse' && (
         <div className="space-y-8">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Pulse Activity Feed</h1>
-            <p className="text-xs text-muted-foreground mt-1">
-              Configure online status tracking and workspace activity event filters.
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Pulse Activity Feed
+            </h1>
+            <p className="text-xs mt-1 text-muted-foreground">
+              Configure online status tracking and workspace activity event
+              filters.
             </p>
           </div>
 
-          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+          <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
+            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
               <div>
-                <h4 className="text-xs font-medium text-foreground">Track Member Online Status</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Show active presence indicators across channel list</p>
+                <h4 className="text-xs font-medium text-foreground">
+                  Track Member Online Status
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Show active presence indicators across channel list
+                </p>
               </div>
-              <Switch checked={trackOnlineStatus} onCheckedChange={setTrackOnlineStatus} />
+              <Switch
+                checked={trackOnlineStatus}
+                onCheckedChange={setTrackOnlineStatus}
+              />
             </div>
 
-            <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
               <div>
-                <h4 className="text-xs font-medium text-foreground">Include GitHub Commit Events in Pulse</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Display code commit events inside workspace pulse feed</p>
+                <h4 className="text-xs font-medium text-foreground">
+                  Include GitHub Commit Events in Pulse
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Display code commit events inside workspace pulse feed
+                </p>
               </div>
-              <Switch checked={trackCommitsInPulse} onCheckedChange={setTrackCommitsInPulse} />
+              <Switch
+                checked={trackCommitsInPulse}
+                onCheckedChange={setTrackCommitsInPulse}
+              />
             </div>
           </div>
         </div>
@@ -2361,31 +2902,64 @@ export function WorkspaceSettingsPage({
       {currentTab === 'integrations' && (
         <div className="space-y-8">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Integration Hub</h1>
-            <p className="text-xs text-muted-foreground mt-1">
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Integration Hub
+            </h1>
+            <p className="text-xs mt-1 text-muted-foreground">
               Connect external web services, OAuth providers, and dev tools.
             </p>
           </div>
 
-          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+          <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
             {[
-              { id: 'slack', name: 'Slack Integration', desc: 'Sync channel messages and notifications', connected: true },
-              { id: 'notion', name: 'Notion Workspace', desc: 'Import and sync Notion documents', connected: true },
-              { id: 'github', name: 'GitHub OAuth', desc: 'Pull request reviews and commit triggers', connected: true },
-              { id: 'google', name: 'Google Workspace', desc: 'Calendar sync and Drive attachment previews', connected: false },
+              {
+                id: 'slack',
+                name: 'Slack Integration',
+                desc: 'Sync channel messages and notifications',
+                connected: true,
+              },
+              {
+                id: 'notion',
+                name: 'Notion Workspace',
+                desc: 'Import and sync Notion documents',
+                connected: true,
+              },
+              {
+                id: 'github',
+                name: 'GitHub OAuth',
+                desc: 'Pull request reviews and commit triggers',
+                connected: true,
+              },
+              {
+                id: 'google',
+                name: 'Google Workspace',
+                desc: 'Calendar sync and Drive attachment previews',
+                connected: false,
+              },
             ].map((item) => (
-              <div key={item.id} className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+              <div
+                key={item.id}
+                className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40"
+              >
                 <div>
-                  <h4 className="text-xs font-medium text-foreground">{item.name}</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">{item.desc}</p>
+                  <h4 className="text-xs font-medium text-foreground">
+                    {item.name}
+                  </h4>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    {item.desc}
+                  </p>
                 </div>
                 {item.connected ? (
-                  <span className="inline-flex items-center gap-1 text-[11px] text-success-text bg-success/10 px-2 py-0.5 rounded font-medium">
+                  <span className="gap-1 px-2 py-0.5 rounded font-medium inline-flex items-center bg-success/10 text-[11px] text-success-text">
                     <CheckCircle2 className="size-3" />
                     Connected
                   </span>
                 ) : (
-                  <Button variant="outline" size="sm" className="h-7 text-xs px-2.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs px-2.5"
+                  >
                     Connect
                   </Button>
                 )}
@@ -2398,13 +2972,15 @@ export function WorkspaceSettingsPage({
       {currentTab === 'import-export' && (
         <div className="space-y-8">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Import & Export</h1>
-            <p className="text-xs text-muted-foreground mt-1">
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Import & Export
+            </h1>
+            <p className="text-xs mt-1 text-muted-foreground">
               Migrate channels, messages, and documents from Slack or Notion.
             </p>
           </div>
 
-          <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6">
+          <div className="p-6 rounded-2xl border border-border bg-surface-inset shadow-xs">
             {importPanel}
           </div>
         </div>
@@ -2447,8 +3023,10 @@ export function WorkspaceSettingsPage({
             onUpgradeClick={() => handleTabChange('billing')}
           />
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Workspace General Settings</h1>
-            <p className="text-xs text-muted-foreground mt-1">
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Workspace General Settings
+            </h1>
+            <p className="text-xs mt-1 text-muted-foreground">
               Configure your workspace identity, branding, and core preferences.
             </p>
           </div>
@@ -2458,8 +3036,8 @@ export function WorkspaceSettingsPage({
               <FormError error={formErrorMessage(updateWorkspace.error)} />
 
               {/* CARD 1: Workspace Details */}
-              <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6 space-y-6">
-                <div className="flex items-center gap-5 pb-6 border-b border-border/40">
+              <div className="p-6 space-y-6 rounded-2xl border border-border bg-surface-inset shadow-xs">
+                <div className="gap-5 pb-6 flex items-center border-b border-border/40">
                   <WorkspaceAvatar
                     name={workspaceForm.watch('name') || workspace.name}
                     src={currentAvatarUrl}
@@ -2473,17 +3051,21 @@ export function WorkspaceSettingsPage({
                       {workspaceForm.watch('name') || workspace.name}
                     </h3>
                     <p className="text-xs text-muted-foreground">
-                      Workspace Details — identity, branding logo, and contact info.
+                      Workspace Details — identity, branding logo, and contact
+                      info.
                     </p>
                   </div>
                 </div>
 
                 {/* Workspace Logo Upload */}
                 <div>
-                  <label className="text-xs font-medium text-foreground mb-2 block">
-                    Workspace Logo <span className="font-normal text-muted-foreground">(Optional)</span>
+                  <label className="text-xs font-medium mb-2 block text-foreground">
+                    Workspace Logo{' '}
+                    <span className="font-normal text-muted-foreground">
+                      (Optional)
+                    </span>
                   </label>
-                  <div className="gap-4 p-4 flex items-center rounded-xl border border-border bg-background max-w-xl">
+                  <div className="gap-4 p-4 max-w-xl flex items-center rounded-xl border border-border bg-background">
                     <button
                       type="button"
                       disabled={!isAdmin}
@@ -2510,7 +3092,7 @@ export function WorkspaceSettingsPage({
                             size="sm"
                             variant="outline"
                             onClick={() => logoInputRef.current?.click()}
-                            className="border-border-strong bg-surface-raised text-foreground hover:bg-selected h-8 text-xs"
+                            className="h-8 text-xs border-border-strong bg-surface-raised text-foreground hover:bg-selected"
                           >
                             <ImagePlus className="h-3.5 w-3.5 mr-1.5" />
                             {currentAvatarUrl ? 'Replace' : 'Upload image'}
@@ -2521,7 +3103,7 @@ export function WorkspaceSettingsPage({
                               size="sm"
                               variant="ghost"
                               onClick={handleRemoveLogo}
-                              className="text-muted-foreground hover:text-destructive h-8 text-xs"
+                              className="h-8 text-xs text-muted-foreground hover:text-destructive"
                             >
                               <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Remove
                             </Button>
@@ -2534,7 +3116,9 @@ export function WorkspaceSettingsPage({
                           : 'PNG, JPEG, WebP or GIF · 256×256 px · up to 2 MB'}
                       </p>
                       {logoError && (
-                        <p className="text-xs mt-1 text-destructive">{logoError}</p>
+                        <p className="text-xs mt-1 text-destructive">
+                          {logoError}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -2545,7 +3129,9 @@ export function WorkspaceSettingsPage({
                     accept={WORKSPACE_LOGO_MIME_TYPES.join(',')}
                     className="hidden"
                     disabled={!isAdmin}
-                    onChange={(event) => handleSelectLogo(event.target.files?.[0])}
+                    onChange={(event) =>
+                      handleSelectLogo(event.target.files?.[0])
+                    }
                   />
                 </div>
 
@@ -2555,7 +3141,9 @@ export function WorkspaceSettingsPage({
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-medium">Workspace Name</FormLabel>
+                        <FormLabel className="text-xs font-medium">
+                          Workspace Name
+                        </FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -2572,7 +3160,7 @@ export function WorkspaceSettingsPage({
 
                   {/* Workspace URL Slug */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-foreground block">
+                    <label className="text-xs font-medium block text-foreground">
                       Workspace URL
                     </label>
                     <div className="relative">
@@ -2582,7 +3170,7 @@ export function WorkspaceSettingsPage({
                         disabled
                         className="pl-3 pr-24 text-xs border-border bg-background/50 font-mono text-foreground select-all"
                       />
-                      <span className="right-3 text-[11px] px-2 py-0.5 rounded absolute top-1/2 -translate-y-1/2 border border-border-strong bg-surface-raised font-mono text-muted-foreground">
+                      <span className="right-3 px-2 py-0.5 rounded absolute top-1/2 -translate-y-1/2 border border-border-strong bg-surface-raised font-mono text-[11px] text-muted-foreground">
                         .onetab.ai
                       </span>
                     </div>
@@ -2599,7 +3187,7 @@ export function WorkspaceSettingsPage({
                         variant="ghost"
                         size="sm"
                         onClick={handleCopySlugUrl}
-                        className="h-6 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+                        className="h-6 px-2 gap-1 text-[11px] text-muted-foreground hover:text-foreground"
                       >
                         {copiedSlug ? (
                           <>
@@ -2619,7 +3207,9 @@ export function WorkspaceSettingsPage({
                     name="supportEmail"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-medium">Support / Contact Email</FormLabel>
+                        <FormLabel className="text-xs font-medium">
+                          Support / Contact Email
+                        </FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -2631,7 +3221,8 @@ export function WorkspaceSettingsPage({
                           />
                         </FormControl>
                         <FormDescription className="text-[11px]">
-                          Contact address displayed to invited members and helpdesk notifications.
+                          Contact address displayed to invited members and
+                          helpdesk notifications.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -2644,19 +3235,38 @@ export function WorkspaceSettingsPage({
                     name="accentColor"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-medium">Workspace Accent Color</FormLabel>
+                        <FormLabel className="text-xs font-medium">
+                          Workspace Accent Color
+                        </FormLabel>
                         <FormControl>
-                          <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                          <div className="gap-2.5 pt-1 flex flex-wrap items-center">
                             {[
-                              { id: 'indigo', label: 'Indigo', bg: 'bg-indigo-600' },
+                              {
+                                id: 'indigo',
+                                label: 'Indigo',
+                                bg: 'bg-indigo-600',
+                              },
                               { id: 'blue', label: 'Blue', bg: 'bg-blue-600' },
-                              { id: 'emerald', label: 'Emerald', bg: 'bg-emerald-600' },
-                              { id: 'amber', label: 'Amber', bg: 'bg-amber-600' },
+                              {
+                                id: 'emerald',
+                                label: 'Emerald',
+                                bg: 'bg-emerald-600',
+                              },
+                              {
+                                id: 'amber',
+                                label: 'Amber',
+                                bg: 'bg-amber-600',
+                              },
                               { id: 'rose', label: 'Rose', bg: 'bg-rose-600' },
-                              { id: 'purple', label: 'Purple', bg: 'bg-purple-600' },
+                              {
+                                id: 'purple',
+                                label: 'Purple',
+                                bg: 'bg-purple-600',
+                              },
                               { id: 'cyan', label: 'Cyan', bg: 'bg-cyan-600' },
                             ].map((col) => {
-                              const isSelected = (field.value || 'indigo') === col.id;
+                              const isSelected =
+                                (field.value || 'indigo') === col.id;
                               return (
                                 <button
                                   key={col.id}
@@ -2664,23 +3274,26 @@ export function WorkspaceSettingsPage({
                                   disabled={!isAdmin}
                                   onClick={() => field.onChange(col.id)}
                                   className={cn(
-                                    'h-7 w-7 rounded-full flex items-center justify-center transition-all',
+                                    'h-7 w-7 flex items-center justify-center rounded-full transition-all',
                                     col.bg,
                                     isSelected
-                                      ? 'ring-2 ring-offset-2 ring-foreground/60 scale-110'
-                                      : 'opacity-80 hover:opacity-100 hover:scale-105'
+                                      ? 'scale-110 ring-2 ring-foreground/60 ring-offset-2'
+                                      : 'opacity-80 hover:scale-105 hover:opacity-100',
                                   )}
                                   aria-label={col.label}
                                   title={col.label}
                                 >
-                                  {isSelected && <Check className="h-3.5 w-3.5 text-white" />}
+                                  {isSelected && (
+                                    <Check className="h-3.5 w-3.5 text-white" />
+                                  )}
                                 </button>
                               );
                             })}
                           </div>
                         </FormControl>
                         <FormDescription className="text-[11px]">
-                          Primary brand tone used in sidebar accents, buttons, and highlights.
+                          Primary brand tone used in sidebar accents, buttons,
+                          and highlights.
                         </FormDescription>
                       </FormItem>
                     )}
@@ -2691,7 +3304,9 @@ export function WorkspaceSettingsPage({
                     name="description"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-medium">Description</FormLabel>
+                        <FormLabel className="text-xs font-medium">
+                          Description
+                        </FormLabel>
                         <FormControl>
                           <Textarea
                             {...field}
@@ -2710,13 +3325,14 @@ export function WorkspaceSettingsPage({
               </div>
 
               {/* CARD 2: Workspace Preferences */}
-              <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-6 space-y-6">
+              <div className="p-6 space-y-6 rounded-2xl border border-border bg-surface-inset shadow-xs">
                 <div>
                   <h3 className="text-sm font-semibold text-foreground">
                     Workspace Preferences
                   </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Customize default navigation and sharing capabilities across your team.
+                  <p className="text-xs mt-0.5 text-muted-foreground">
+                    Customize default navigation and sharing capabilities across
+                    your team.
                   </p>
                 </div>
 
@@ -2726,7 +3342,9 @@ export function WorkspaceSettingsPage({
                     name="defaultLandingView"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-medium">Default Landing View</FormLabel>
+                        <FormLabel className="text-xs font-medium">
+                          Default Landing View
+                        </FormLabel>
                         <Select
                           value={field.value ?? 'home'}
                           onValueChange={field.onChange}
@@ -2738,34 +3356,46 @@ export function WorkspaceSettingsPage({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="home">Workspace Home (Dashboard)</SelectItem>
-                            <SelectItem value="projects">Projects & Sprints</SelectItem>
+                            <SelectItem value="home">
+                              Workspace Home (Dashboard)
+                            </SelectItem>
+                            <SelectItem value="projects">
+                              Projects & Sprints
+                            </SelectItem>
                             <SelectItem value="tasks">Kanban Tasks</SelectItem>
                             <SelectItem value="chat">Chat Channels</SelectItem>
-                            <SelectItem value="docs">Documents & Knowledge Base</SelectItem>
-                            <SelectItem value="meetings">Video Meetings</SelectItem>
-                            <SelectItem value="agents">AI Agents & Workflows</SelectItem>
+                            <SelectItem value="docs">
+                              Documents & Knowledge Base
+                            </SelectItem>
+                            <SelectItem value="meetings">
+                              Video Meetings
+                            </SelectItem>
+                            <SelectItem value="agents">
+                              AI Agents & Workflows
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                         <FormDescription className="text-[11px]">
-                          The initial view members see upon switching to or opening this workspace.
+                          The initial view members see upon switching to or
+                          opening this workspace.
                         </FormDescription>
                       </FormItem>
                     )}
                   />
 
-                  <div className="pt-2 border-t border-border/40 space-y-4">
+                  <div className="pt-2 space-y-4 border-t border-border/40">
                     <FormField
                       control={workspaceForm.control}
                       name="allowExternalSharing"
                       render={({ field }) => (
-                        <FormItem className="flex items-center justify-between rounded-xl border border-border p-4 bg-background">
+                        <FormItem className="p-4 flex items-center justify-between rounded-xl border border-border bg-background">
                           <div className="space-y-0.5 pr-4">
                             <FormLabel className="text-xs font-medium cursor-pointer">
                               External Public Sharing
                             </FormLabel>
                             <FormDescription className="text-[11px]">
-                              Allow members to create view-only public links for documents, canvases, and roadmaps.
+                              Allow members to create view-only public links for
+                              documents, canvases, and roadmaps.
                             </FormDescription>
                           </div>
                           <FormControl>
@@ -2783,13 +3413,14 @@ export function WorkspaceSettingsPage({
                       control={workspaceForm.control}
                       name="aiProjectRecaps"
                       render={({ field }) => (
-                        <FormItem className="flex items-center justify-between rounded-xl border border-border p-4 bg-background">
+                        <FormItem className="p-4 flex items-center justify-between rounded-xl border border-border bg-background">
                           <div className="space-y-0.5 pr-4">
                             <FormLabel className="text-xs font-medium cursor-pointer">
                               AI Project Recaps & Activity Digest
                             </FormLabel>
                             <FormDescription className="text-[11px]">
-                              Automatically generate weekly AI project progress digests and action item summaries.
+                              Automatically generate weekly AI project progress
+                              digests and action item summaries.
                             </FormDescription>
                           </div>
                           <FormControl>
@@ -2832,35 +3463,45 @@ export function WorkspaceSettingsPage({
       {currentTab === 'security' && (
         <div className="space-y-8">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Account Security & Access</h1>
-            <p className="text-xs text-muted-foreground mt-1">
-              Manage authentication credentials, two-factor factors, and active sessions across your devices.
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Account Security & Access
+            </h1>
+            <p className="text-xs mt-1 text-muted-foreground">
+              Manage authentication credentials, two-factor factors, and active
+              sessions across your devices.
             </p>
           </div>
 
           {/* 1. SIGN-IN SECURITY CARDS */}
           <div className="space-y-4">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
               Sign-In Security
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:grid-cols-3 gap-4 grid grid-cols-1">
               {/* Password Card */}
-              <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-5 flex flex-col justify-between space-y-4">
+              <div className="p-5 space-y-4 flex flex-col justify-between rounded-2xl border border-border bg-surface-inset shadow-xs">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                    <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-primary/10 text-primary">
                       <Lock className="h-4 w-4" />
                     </div>
-                    <Badge variant="outline" className="text-[10px] uppercase font-semibold text-emerald-600 bg-emerald-500/10 border-emerald-500/20">
+                    <Badge
+                      variant="outline"
+                      className="font-semibold text-emerald-600 bg-emerald-500/10 border-emerald-500/20 text-[10px] uppercase"
+                    >
                       Strong
                     </Badge>
                   </div>
                   <div>
-                    <h4 className="text-xs font-semibold text-foreground">Password</h4>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                    <h4 className="text-xs font-semibold text-foreground">
+                      Password
+                    </h4>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
                       Last changed on{' '}
                       {securityOverviewQuery.data?.password.lastChangedAt
-                        ? new Date(securityOverviewQuery.data.password.lastChangedAt).toLocaleDateString()
+                        ? new Date(
+                            securityOverviewQuery.data.password.lastChangedAt,
+                          ).toLocaleDateString()
                         : 'Recently'}
                     </p>
                   </div>
@@ -2869,34 +3510,38 @@ export function WorkspaceSettingsPage({
                   variant="outline"
                   size="sm"
                   onClick={() => setChangePasswordModalOpen(true)}
-                  className="w-full text-xs h-8"
+                  className="text-xs h-8 w-full"
                 >
                   Change password
                 </Button>
               </div>
 
               {/* Single Sign-On (SSO) Card */}
-              <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-5 flex flex-col justify-between space-y-4">
+              <div className="p-5 space-y-4 flex flex-col justify-between rounded-2xl border border-border bg-surface-inset shadow-xs">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="h-8 w-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                    <div className="h-8 w-8 bg-indigo-500/10 text-indigo-500 flex items-center justify-center rounded-lg">
                       <Globe className="h-4 w-4" />
                     </div>
                     <Badge
                       variant="outline"
                       className={cn(
-                        'text-[10px] uppercase font-semibold',
+                        'font-semibold text-[10px] uppercase',
                         securityOverviewQuery.data?.sso.isConnected
                           ? 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20'
-                          : 'text-muted-foreground bg-muted/40 border-border'
+                          : 'border-border bg-muted/40 text-muted-foreground',
                       )}
                     >
-                      {securityOverviewQuery.data?.sso.isConnected ? 'Connected' : 'Not Connected'}
+                      {securityOverviewQuery.data?.sso.isConnected
+                        ? 'Connected'
+                        : 'Not Connected'}
                     </Badge>
                   </div>
                   <div>
-                    <h4 className="text-xs font-semibold text-foreground">Single Sign-On (SSO)</h4>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                    <h4 className="text-xs font-semibold text-foreground">
+                      Single Sign-On (SSO)
+                    </h4>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
                       {securityOverviewQuery.data?.sso.isConnected
                         ? `Connected via ${securityOverviewQuery.data.sso.providerType || 'Enterprise SAML/OIDC'}`
                         : 'Organization identity provider sign-in'}
@@ -2907,34 +3552,38 @@ export function WorkspaceSettingsPage({
                   variant="outline"
                   size="sm"
                   onClick={() => handleTabChange('members')}
-                  className="w-full text-xs h-8 text-muted-foreground"
+                  className="text-xs h-8 w-full text-muted-foreground"
                 >
                   Manage SSO in Enterprise
                 </Button>
               </div>
 
               {/* 2FA Status Card */}
-              <div className="bg-surface-inset rounded-2xl border border-border shadow-xs p-5 flex flex-col justify-between space-y-4">
+              <div className="p-5 space-y-4 flex flex-col justify-between rounded-2xl border border-border bg-surface-inset shadow-xs">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500">
+                    <div className="h-8 w-8 bg-amber-500/10 text-amber-500 flex items-center justify-center rounded-lg">
                       <Shield className="h-4 w-4" />
                     </div>
                     <Badge
                       variant="outline"
                       className={cn(
-                        'text-[10px] uppercase font-semibold',
+                        'font-semibold text-[10px] uppercase',
                         securityOverviewQuery.data?.twoFactor.isEnabled
                           ? 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20'
-                          : 'text-amber-600 bg-amber-500/10 border-amber-500/20'
+                          : 'text-amber-600 bg-amber-500/10 border-amber-500/20',
                       )}
                     >
-                      {securityOverviewQuery.data?.twoFactor.isEnabled ? 'Enabled' : 'Disabled'}
+                      {securityOverviewQuery.data?.twoFactor.isEnabled
+                        ? 'Enabled'
+                        : 'Disabled'}
                     </Badge>
                   </div>
                   <div>
-                    <h4 className="text-xs font-semibold text-foreground">Two-Factor Authentication</h4>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                    <h4 className="text-xs font-semibold text-foreground">
+                      Two-Factor Authentication
+                    </h4>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
                       {securityOverviewQuery.data?.twoFactor.isEnabled
                         ? 'Enforced with authenticator app'
                         : 'Add a second layer of defense'}
@@ -2946,7 +3595,7 @@ export function WorkspaceSettingsPage({
                     variant="outline"
                     size="sm"
                     onClick={() => setDisableTotpModalOpen(true)}
-                    className="w-full text-xs h-8 text-destructive hover:text-destructive"
+                    className="text-xs h-8 w-full text-destructive hover:text-destructive"
                   >
                     Disable 2FA
                   </Button>
@@ -2956,7 +3605,7 @@ export function WorkspaceSettingsPage({
                     size="sm"
                     onClick={handleStartTotpSetup}
                     loading={setupTotpMutation.isPending}
-                    className="w-full text-xs h-8"
+                    className="text-xs h-8 w-full"
                   >
                     Set up 2FA
                   </Button>
@@ -2967,37 +3616,42 @@ export function WorkspaceSettingsPage({
 
           {/* 2. AUTHENTICATION FACTORS SECTION */}
           <div className="space-y-4">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
               Authentication Factors
             </h2>
-            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+            <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
               {/* Authenticator TOTP Row */}
-              <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-start gap-4">
-                  <div className="h-10 w-10 rounded-xl bg-surface-raised border border-border flex shrink-0 items-center justify-center text-foreground">
+              <div className="p-5 sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
+                <div className="gap-4 flex items-start">
+                  <div className="h-10 w-10 flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface-raised text-foreground">
                     <Smartphone className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-xs font-semibold text-foreground">Authenticator App (TOTP)</h4>
+                    <div className="gap-2 flex items-center">
+                      <h4 className="text-xs font-semibold text-foreground">
+                        Authenticator App (TOTP)
+                      </h4>
                       <Badge
                         variant="outline"
                         className={cn(
-                          'text-[10px] font-medium',
+                          'font-medium text-[10px]',
                           securityOverviewQuery.data?.twoFactor.isEnabled
                             ? 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20'
-                            : 'text-muted-foreground bg-muted/40 border-border'
+                            : 'border-border bg-muted/40 text-muted-foreground',
                         )}
                       >
-                        {securityOverviewQuery.data?.twoFactor.isEnabled ? 'Configured' : 'Not configured'}
+                        {securityOverviewQuery.data?.twoFactor.isEnabled
+                          ? 'Configured'
+                          : 'Not configured'}
                       </Badge>
                     </div>
-                    <p className="text-[11px] text-muted-foreground mt-1 max-w-lg">
-                      Use apps like Google Authenticator, 1Password, Authy, or Apple Keychain to generate verification codes.
+                    <p className="mt-1 max-w-lg text-[11px] text-muted-foreground">
+                      Use apps like Google Authenticator, 1Password, Authy, or
+                      Apple Keychain to generate verification codes.
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="gap-2 flex shrink-0 items-center">
                   {securityOverviewQuery.data?.twoFactor.isEnabled ? (
                     <Button
                       variant="outline"
@@ -3022,37 +3676,51 @@ export function WorkspaceSettingsPage({
               </div>
 
               {/* Passkeys / WebAuthn Row */}
-              <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-start gap-4">
-                  <div className="h-10 w-10 rounded-xl bg-surface-raised border border-border flex shrink-0 items-center justify-center text-foreground">
+              <div className="p-5 sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
+                <div className="gap-4 flex items-start">
+                  <div className="h-10 w-10 flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface-raised text-foreground">
                     <Key className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-xs font-semibold text-foreground">Passkeys & Security Keys (WebAuthn)</h4>
-                      <Badge variant="outline" className="text-[10px] font-medium text-muted-foreground bg-muted/40 border-border">
+                    <div className="gap-2 flex items-center">
+                      <h4 className="text-xs font-semibold text-foreground">
+                        Passkeys & Security Keys (WebAuthn)
+                      </h4>
+                      <Badge
+                        variant="outline"
+                        className="font-medium border-border bg-muted/40 text-[10px] text-muted-foreground"
+                      >
                         {webAuthnQuery.data?.length ?? 0} registered
                       </Badge>
                     </div>
-                    <p className="text-[11px] text-muted-foreground mt-1 max-w-lg">
-                      Sign in seamlessly using biometric hardware (Touch ID, Face ID, Windows Hello) or physical FIDO2 keys.
+                    <p className="mt-1 max-w-lg text-[11px] text-muted-foreground">
+                      Sign in seamlessly using biometric hardware (Touch ID,
+                      Face ID, Windows Hello) or physical FIDO2 keys.
                     </p>
                     {/* List registered passkeys */}
                     {webAuthnQuery.data && webAuthnQuery.data.length > 0 && (
                       <div className="mt-3 space-y-2">
                         {webAuthnQuery.data.map((key) => (
-                          <div key={key.id} className="flex items-center justify-between text-xs p-2 rounded-lg bg-background border border-border max-w-md">
-                            <div className="flex items-center gap-2">
+                          <div
+                            key={key.id}
+                            className="text-xs p-2 max-w-md flex items-center justify-between rounded-lg border border-border bg-background"
+                          >
+                            <div className="gap-2 flex items-center">
                               <Key className="h-3.5 w-3.5 text-primary" />
-                              <span className="font-medium text-foreground">{key.deviceName || 'Security Key'}</span>
+                              <span className="font-medium text-foreground">
+                                {key.deviceName || 'Security Key'}
+                              </span>
                               <span className="text-[10px] text-muted-foreground">
-                                • Added {new Date(key.createdAt).toLocaleDateString()}
+                                • Added{' '}
+                                {new Date(key.createdAt).toLocaleDateString()}
                               </span>
                             </div>
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => deleteWebAuthnMutation.mutate(key.id)}
+                              onClick={() =>
+                                deleteWebAuthnMutation.mutate(key.id)
+                              }
                               className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -3076,20 +3744,26 @@ export function WorkspaceSettingsPage({
               </div>
 
               {/* Recovery Codes Row */}
-              <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-start gap-4">
-                  <div className="h-10 w-10 rounded-xl bg-surface-raised border border-border flex shrink-0 items-center justify-center text-foreground">
+              <div className="p-5 sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
+                <div className="gap-4 flex items-start">
+                  <div className="h-10 w-10 flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface-raised text-foreground">
                     <ShieldCheck className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-xs font-semibold text-foreground">Backup Recovery Codes</h4>
-                      <Badge variant="outline" className="text-[10px] font-medium text-muted-foreground bg-muted/40 border-border">
+                    <div className="gap-2 flex items-center">
+                      <h4 className="text-xs font-semibold text-foreground">
+                        Backup Recovery Codes
+                      </h4>
+                      <Badge
+                        variant="outline"
+                        className="font-medium border-border bg-muted/40 text-[10px] text-muted-foreground"
+                      >
                         Emergency access
                       </Badge>
                     </div>
-                    <p className="text-[11px] text-muted-foreground mt-1 max-w-lg">
-                      One-time use backup codes for account recovery when your phone or authenticator device is unavailable.
+                    <p className="mt-1 max-w-lg text-[11px] text-muted-foreground">
+                      One-time use backup codes for account recovery when your
+                      phone or authenticator device is unavailable.
                     </p>
                   </div>
                 </div>
@@ -3110,18 +3784,22 @@ export function WorkspaceSettingsPage({
 
           {/* 3. ACTIVE SESSIONS SECTION */}
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="sm:flex-row sm:items-center gap-3 flex flex-col justify-between">
               <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="gap-2 flex items-center">
+                  <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                     Active Sessions
                   </h2>
-                  <Badge variant="outline" className="text-[10px] font-medium text-primary bg-primary/10 border-primary/20">
+                  <Badge
+                    variant="outline"
+                    className="font-medium border-primary/20 bg-primary/10 text-[10px] text-primary"
+                  >
                     {sessionsQuery.data?.length ?? 1} signed in
                   </Badge>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Devices authenticated with your account. Revoke any unrecognized sessions immediately.
+                <p className="text-xs mt-0.5 text-muted-foreground">
+                  Devices authenticated with your account. Revoke any
+                  unrecognized sessions immediately.
                 </p>
               </div>
               {(sessionsQuery.data?.length ?? 0) > 1 && (
@@ -3129,7 +3807,7 @@ export function WorkspaceSettingsPage({
                   variant="outline"
                   size="sm"
                   onClick={() => setRevokeOtherModalOpen(true)}
-                  className="text-xs h-8 text-destructive hover:text-destructive border-destructive/30"
+                  className="text-xs h-8 border-destructive/30 text-destructive hover:text-destructive"
                 >
                   <LogOut className="h-3.5 w-3.5 mr-1.5" />
                   Revoke other sessions
@@ -3137,53 +3815,65 @@ export function WorkspaceSettingsPage({
               )}
             </div>
 
-            <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+            <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
               {sessionsQuery.isLoading ? (
-                <div className="p-8 text-center text-xs text-muted-foreground">Loading active sessions...</div>
+                <div className="p-8 text-xs text-center text-muted-foreground">
+                  Loading active sessions...
+                </div>
               ) : sessionsQuery.data && sessionsQuery.data.length > 0 ? (
                 sessionsQuery.data.map((sess) => {
                   const DeviceIcon =
                     sess.deviceType === 'mobile'
                       ? Smartphone
                       : sess.deviceType === 'tablet'
-                      ? Tablet
-                      : Laptop;
+                        ? Tablet
+                        : Laptop;
 
                   return (
-                    <div key={sess.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex items-start gap-4">
-                        <div className="h-10 w-10 rounded-xl bg-surface-raised border border-border flex shrink-0 items-center justify-center text-foreground">
+                    <div
+                      key={sess.id}
+                      className="p-5 sm:flex-row sm:items-center gap-4 flex flex-col justify-between"
+                    >
+                      <div className="gap-4 flex items-start">
+                        <div className="h-10 w-10 flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface-raised text-foreground">
                           <DeviceIcon className="h-5 w-5 text-muted-foreground" />
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="gap-2 flex items-center">
                             <h4 className="text-xs font-semibold text-foreground">
                               {sess.browser} on {sess.os}
                             </h4>
                             {sess.isCurrent && (
-                              <Badge className="text-[10px] bg-primary text-primary-foreground font-semibold">
+                              <Badge className="font-semibold bg-primary text-[10px] text-primary-foreground">
                                 Current session
                               </Badge>
                             )}
                           </div>
-                          <div className="text-[11px] text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
+                          <div className="mt-1 gap-2 flex flex-wrap items-center text-[11px] text-muted-foreground">
                             <span>{sess.location}</span>
                             <span>•</span>
-                            <span className="font-mono">{sess.ipAddress || '127.0.0.1'}</span>
+                            <span className="font-mono">
+                              {sess.ipAddress || '127.0.0.1'}
+                            </span>
                             <span>•</span>
-                            <span>Signed in {new Date(sess.createdAt).toLocaleDateString()}</span>
+                            <span>
+                              Signed in{' '}
+                              {new Date(sess.createdAt).toLocaleDateString()}
+                            </span>
                           </div>
                         </div>
                       </div>
-                      <div className="shrink-0 flex items-center gap-2">
+                      <div className="gap-2 flex shrink-0 items-center">
                         {sess.isCurrent ? (
-                          <span className="text-xs text-muted-foreground italic px-2">This device</span>
+                          <span className="text-xs px-2 text-muted-foreground italic">
+                            This device
+                          </span>
                         ) : (
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => setRevokeModalSession(sess)}
-                            className="text-xs h-8 text-destructive hover:text-destructive border-border"
+                            className="text-xs h-8 border-border text-destructive hover:text-destructive"
                           >
                             Revoke
                           </Button>
@@ -3193,7 +3883,9 @@ export function WorkspaceSettingsPage({
                   );
                 })
               ) : (
-                <div className="p-8 text-center text-xs text-muted-foreground">No active sessions found.</div>
+                <div className="p-8 text-xs text-center text-muted-foreground">
+                  No active sessions found.
+                </div>
               )}
             </div>
           </div>
@@ -3203,8 +3895,10 @@ export function WorkspaceSettingsPage({
       {currentTab === 'danger' && isOwner && (
         <div className="space-y-8">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-destructive">Danger Zone</h1>
-            <p className="text-xs text-muted-foreground mt-1">
+            <h1 className="text-xl font-bold tracking-tight text-destructive">
+              Danger Zone
+            </h1>
+            <p className="text-xs mt-1 text-muted-foreground">
               Archiving is reversible. Deletion is not.
             </p>
           </div>
@@ -3215,14 +3909,14 @@ export function WorkspaceSettingsPage({
             so it should be the one the eye reaches first.
           */}
           {isArchived ? (
-            <div className="bg-muted/40 border border-border rounded-xl p-6 space-y-4">
+            <div className="p-6 space-y-4 rounded-xl border border-border bg-muted/40">
               <div>
                 <h3 className="text-sm font-semibold text-foreground">
                   Restore Workspace
                 </h3>
-                <p className="text-xs text-muted-foreground mt-1 max-w-lg">
-                  <strong className="text-foreground">{workspace.name}</strong> is
-                  archived. Everyone can still read it, but nobody can make
+                <p className="text-xs mt-1 max-w-lg text-muted-foreground">
+                  <strong className="text-foreground">{workspace.name}</strong>{' '}
+                  is archived. Everyone can still read it, but nobody can make
                   changes until it is restored.
                 </p>
               </div>
@@ -3237,13 +3931,14 @@ export function WorkspaceSettingsPage({
               </Button>
             </div>
           ) : (
-            <div className="bg-muted/40 border border-border rounded-xl p-6 space-y-4">
+            <div className="p-6 space-y-4 rounded-xl border border-border bg-muted/40">
               <div>
                 <h3 className="text-sm font-semibold text-foreground">
                   Archive Workspace
                 </h3>
-                <p className="text-xs text-muted-foreground mt-1 max-w-lg">
-                  Freeze <strong className="text-foreground">{workspace.name}</strong>.
+                <p className="text-xs mt-1 max-w-lg text-muted-foreground">
+                  Freeze{' '}
+                  <strong className="text-foreground">{workspace.name}</strong>.
                   Members keep read access to every channel, document and file,
                   but no one can make changes. Nothing is deleted, and you can
                   restore it at any time.
@@ -3261,12 +3956,16 @@ export function WorkspaceSettingsPage({
             </div>
           )}
 
-          <div className="bg-destructive/5 border border-destructive/30 rounded-xl p-6 space-y-4">
+          <div className="p-6 space-y-4 rounded-xl border border-destructive/30 bg-destructive/5">
             <div>
-              <h3 className="text-sm font-semibold text-destructive">Delete Workspace</h3>
-              <p className="text-xs text-muted-foreground mt-1 max-w-lg">
-                Permanently delete <strong className="text-foreground">{workspace.name}</strong>,
-                including all channels, activity logs, documents, and integrations.
+              <h3 className="text-sm font-semibold text-destructive">
+                Delete Workspace
+              </h3>
+              <p className="text-xs mt-1 max-w-lg text-muted-foreground">
+                Permanently delete{' '}
+                <strong className="text-foreground">{workspace.name}</strong>,
+                including all channels, activity logs, documents, and
+                integrations.
               </p>
             </div>
             <Button
@@ -3287,8 +3986,9 @@ export function WorkspaceSettingsPage({
           <DialogHeader>
             <DialogTitle>Delete {workspace.name}?</DialogTitle>
             <DialogDescription>
-              This permanently deletes {workspace.channelCount} channels and removes{' '}
-              {workspace.memberCount} members. Type the workspace slug to confirm.
+              This permanently deletes {workspace.channelCount} channels and
+              removes {workspace.memberCount} members. Type the workspace slug
+              to confirm.
             </DialogDescription>
           </DialogHeader>
 
@@ -3323,7 +4023,10 @@ export function WorkspaceSettingsPage({
       </Dialog>
 
       {/* 1. Change Password Dialog */}
-      <Dialog open={changePasswordModalOpen} onOpenChange={setChangePasswordModalOpen}>
+      <Dialog
+        open={changePasswordModalOpen}
+        onOpenChange={setChangePasswordModalOpen}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Change Password</DialogTitle>
@@ -3341,7 +4044,9 @@ export function WorkspaceSettingsPage({
                 name="currentPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-medium">Current password</FormLabel>
+                    <FormLabel className="text-xs font-medium">
+                      Current password
+                    </FormLabel>
                     <FormControl>
                       <Input
                         {...field}
@@ -3360,7 +4065,9 @@ export function WorkspaceSettingsPage({
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-medium">New password</FormLabel>
+                    <FormLabel className="text-xs font-medium">
+                      New password
+                    </FormLabel>
                     <FormControl>
                       <Input
                         {...field}
@@ -3379,7 +4086,9 @@ export function WorkspaceSettingsPage({
                 name="confirmPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-medium">Confirm new password</FormLabel>
+                    <FormLabel className="text-xs font-medium">
+                      Confirm new password
+                    </FormLabel>
                     <FormControl>
                       <Input
                         {...field}
@@ -3395,7 +4104,12 @@ export function WorkspaceSettingsPage({
 
               <DialogFooter className="pt-3">
                 <DialogClose asChild>
-                  <Button type="button" variant="ghost" size="sm" className="text-xs">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs"
+                  >
                     Cancel
                   </Button>
                 </DialogClose>
@@ -3420,18 +4134,23 @@ export function WorkspaceSettingsPage({
           <DialogHeader>
             <DialogTitle>Set Up Two-Factor Authentication</DialogTitle>
             <DialogDescription>
-              Scan the setup code or enter the key manually into your authenticator app.
+              Scan the setup code or enter the key manually into your
+              authenticator app.
             </DialogDescription>
           </DialogHeader>
 
           {totpBackupCodes ? (
             <div className="space-y-4 pt-2">
-              <div className="p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-700 text-xs">
-                Two-factor authentication is now active! Please save these emergency recovery codes in a safe place.
+              <div className="p-3 border-emerald-500/20 bg-emerald-500/10 text-emerald-700 text-xs rounded-lg border">
+                Two-factor authentication is now active! Please save these
+                emergency recovery codes in a safe place.
               </div>
-              <div className="grid grid-cols-2 gap-2 p-3 bg-muted/40 rounded-xl border border-border font-mono text-xs text-center">
+              <div className="gap-2 p-3 text-xs grid grid-cols-2 rounded-xl border border-border bg-muted/40 text-center font-mono">
                 {totpBackupCodes.map((code, idx) => (
-                  <div key={idx} className="p-1.5 bg-background rounded border border-border/60">
+                  <div
+                    key={idx}
+                    className="p-1.5 rounded border border-border/60 bg-background"
+                  >
                     {code}
                   </div>
                 ))}
@@ -3462,12 +4181,12 @@ export function WorkspaceSettingsPage({
             </div>
           ) : (
             <div className="space-y-4 pt-2">
-              <div className="p-3 bg-muted/40 rounded-xl border border-border space-y-2">
+              <div className="p-3 space-y-2 rounded-xl border border-border bg-muted/40">
                 <p className="text-xs text-muted-foreground">
                   Manual secret key:
                 </p>
-                <div className="flex items-center justify-between gap-2 p-2 bg-background rounded-lg border border-border">
-                  <code className="font-mono text-xs text-primary select-all break-all">
+                <div className="gap-2 p-2 flex items-center justify-between rounded-lg border border-border bg-background">
+                  <code className="text-xs font-mono break-all text-primary select-all">
                     {totpSetupData?.secret || 'Generating secret...'}
                   </code>
                   <Button
@@ -3484,21 +4203,29 @@ export function WorkspaceSettingsPage({
                     }}
                     className="h-7 px-2 text-xs shrink-0"
                   >
-                    {totpCopiedSecret ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+                    {totpCopiedSecret ? (
+                      <Check className="h-3.5 w-3.5 text-success" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
                   </Button>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-medium text-foreground block">
+                <label className="text-xs font-medium block text-foreground">
                   6-Digit Verification Code
                 </label>
                 <Input
                   value={totpCodeInput}
-                  onChange={(e) => setTotpCodeInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  onChange={(e) =>
+                    setTotpCodeInput(
+                      e.target.value.replace(/\D/g, '').slice(0, 6),
+                    )
+                  }
                   placeholder="000000"
                   maxLength={6}
-                  className="h-10 text-center font-mono text-base tracking-widest"
+                  className="h-10 text-base tracking-widest text-center font-mono"
                 />
               </div>
 
@@ -3529,18 +4256,22 @@ export function WorkspaceSettingsPage({
       </Dialog>
 
       {/* 3. Disable TOTP Dialog */}
-      <Dialog open={disableTotpModalOpen} onOpenChange={setDisableTotpModalOpen}>
+      <Dialog
+        open={disableTotpModalOpen}
+        onOpenChange={setDisableTotpModalOpen}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Disable Two-Factor Authentication?</DialogTitle>
             <DialogDescription>
-              Turning off 2FA reduces your account security. Confirm your password to proceed.
+              Turning off 2FA reduces your account security. Confirm your
+              password to proceed.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground block">
+              <label className="text-xs font-medium block text-foreground">
                 Current Password
               </label>
               <Input
@@ -3578,7 +4309,10 @@ export function WorkspaceSettingsPage({
       </Dialog>
 
       {/* 4. Recovery Codes Dialog */}
-      <Dialog open={recoveryCodesModalOpen} onOpenChange={setRecoveryCodesModalOpen}>
+      <Dialog
+        open={recoveryCodesModalOpen}
+        onOpenChange={setRecoveryCodesModalOpen}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Backup Recovery Codes</DialogTitle>
@@ -3588,9 +4322,12 @@ export function WorkspaceSettingsPage({
           </DialogHeader>
 
           <div className="space-y-4 pt-2">
-            <div className="grid grid-cols-2 gap-2 p-3 bg-muted/40 rounded-xl border border-border font-mono text-xs text-center">
+            <div className="gap-2 p-3 text-xs grid grid-cols-2 rounded-xl border border-border bg-muted/40 text-center font-mono">
               {recoveryCodesList.map((code, idx) => (
-                <div key={idx} className="p-1.5 bg-background rounded border border-border/60">
+                <div
+                  key={idx}
+                  className="p-1.5 rounded border border-border/60 bg-background"
+                >
                   {code}
                 </div>
               ))}
@@ -3629,13 +4366,14 @@ export function WorkspaceSettingsPage({
           <DialogHeader>
             <DialogTitle>Register New Passkey</DialogTitle>
             <DialogDescription>
-              Assign a recognizable device name for this biometric or physical key.
+              Assign a recognizable device name for this biometric or physical
+              key.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground block">
+              <label className="text-xs font-medium block text-foreground">
                 Device / Key Name
               </label>
               <Input
@@ -3705,7 +4443,9 @@ export function WorkspaceSettingsPage({
               onClick={async () => {
                 if (revokeModalSession) {
                   try {
-                    await revokeSessionMutation.mutateAsync(revokeModalSession.id);
+                    await revokeSessionMutation.mutateAsync(
+                      revokeModalSession.id,
+                    );
                     setRevokeModalSession(null);
                     toast.success('Session revoked successfully');
                   } catch {
@@ -3722,12 +4462,16 @@ export function WorkspaceSettingsPage({
       </Dialog>
 
       {/* 7. Revoke Other Sessions Confirmation Dialog */}
-      <Dialog open={revokeOtherModalOpen} onOpenChange={setRevokeOtherModalOpen}>
+      <Dialog
+        open={revokeOtherModalOpen}
+        onOpenChange={setRevokeOtherModalOpen}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Revoke All Other Sessions?</DialogTitle>
             <DialogDescription>
-              This will sign out your account from all other browsers and devices. Only your current session will remain active.
+              This will sign out your account from all other browsers and
+              devices. Only your current session will remain active.
             </DialogDescription>
           </DialogHeader>
 
