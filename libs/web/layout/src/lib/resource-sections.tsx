@@ -49,7 +49,14 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   FavoriteToggle,
@@ -196,13 +203,13 @@ export function AgentNavRow({
 }) {
   const navigate = useNavigate();
   const { copied, copy } = useCopyLink(
-    `${window.location.origin}/w/${workspaceSlug}/agents/chat?id=${agent.id}`,
+    `${window.location.origin}/w/${workspaceSlug}/agents/${agent.id}/chat`,
   );
 
   return (
     <li className="group/row relative">
       <NavLink
-        to={`/w/${workspaceSlug}/agents/chat?id=${agent.id}`}
+        to={`/w/${workspaceSlug}/agents/${agent.id}/chat`}
         className={({ isActive }) =>
           navRowClass(isSelected || isActive, {
             depth,
@@ -241,7 +248,7 @@ export function AgentNavRow({
           <DropdownMenuContent align="end" side="bottom" className="w-64">
             <DropdownMenuItem
               onSelect={() =>
-                navigate(`/w/${workspaceSlug}/agents/chat?id=${agent.id}`)
+                navigate(`/w/${workspaceSlug}/agents/${agent.id}/chat`)
               }
               className="gap-2.5"
             >
@@ -370,7 +377,7 @@ export function AppNavRow({
   return (
     <li className="group/row relative">
       <NavLink
-        to={`/w/${workspaceSlug}/apps/chat?app=${app.id}`}
+        to={`/w/${workspaceSlug}/apps/${app.id}/chat`}
         className={navRowClass(isSelected, {
           depth,
           extra: 'pr-14',
@@ -423,7 +430,9 @@ export function AppNavRow({
                 {synced ? (
                   <Check className="size-4 text-success-text" />
                 ) : (
-                  <RefreshCw className={cn('size-4', syncing && 'animate-spin')} />
+                  <RefreshCw
+                    className={cn('size-4', syncing && 'animate-spin')}
+                  />
                 )}
                 <span>
                   {synced
@@ -632,7 +641,9 @@ export function WorkflowNavRow({
                 ) : (
                   <Play className="size-4" />
                 )}
-                <span>{isActive ? 'Pause automation' : 'Resume automation'}</span>
+                <span>
+                  {isActive ? 'Pause automation' : 'Resume automation'}
+                </span>
               </DropdownMenuItem>
             ) : null}
 
@@ -698,7 +709,7 @@ function SortableAgentNavRow(props: {
       className={cn(
         'relative',
         isDragging &&
-          'z-50 opacity-80 rounded-lg bg-surface-raised ring-1 ring-primary/40 shadow-sm',
+          'z-50 rounded-lg bg-surface-raised opacity-80 shadow-sm ring-1 ring-primary/40',
       )}
       {...attributes}
       {...listeners}
@@ -739,7 +750,7 @@ function SortableAppNavRow(props: {
       className={cn(
         'relative',
         isDragging &&
-          'z-50 opacity-80 rounded-lg bg-surface-raised ring-1 ring-primary/40 shadow-sm',
+          'z-50 rounded-lg bg-surface-raised opacity-80 shadow-sm ring-1 ring-primary/40',
       )}
       {...attributes}
       {...listeners}
@@ -781,7 +792,7 @@ function SortableWorkflowNavRow(props: {
       className={cn(
         'relative',
         isDragging &&
-          'z-50 opacity-80 rounded-lg bg-surface-raised ring-1 ring-primary/40 shadow-sm',
+          'z-50 rounded-lg bg-surface-raised opacity-80 shadow-sm ring-1 ring-primary/40',
       )}
       {...attributes}
       {...listeners}
@@ -897,7 +908,7 @@ export function AgentsSection({
             aria-label="Add agent"
             className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
           >
-            <NavLink to={`/w/${workspaceSlug}/agents?tab=all`}>
+            <NavLink to={`/w/${workspaceSlug}/agents`}>
               <Plus className="size-3.5" />
             </NavLink>
           </Button>
@@ -940,7 +951,7 @@ export function AgentsSection({
 
       <li>
         <NavLink
-          to={`/w/${workspaceSlug}/agents?tab=all`}
+          to={`/w/${workspaceSlug}/agents`}
           className={navActionClass({ depth: 1 })}
         >
           <Plus className={navIconClass(1)} aria-hidden />
@@ -1136,13 +1147,15 @@ export function WorkflowsSection({
   const resourceOrders = useSidebarStore((s) => s.resourceOrders);
   const moveResourceItem = useSidebarStore((s) => s.moveResourceItem);
 
-  const rawItems: ResourceItemData[] = (workflows.data ?? []).map((workflow) => ({
-    id: workflow.id,
-    name: workflow.name,
-    icon: TRIGGER_ICON[workflow.triggerType] ?? 'Zap',
-    detail: workflow.triggerType,
-    isActive: workflow.isActive,
-  }));
+  const rawItems: ResourceItemData[] = (workflows.data ?? []).map(
+    (workflow) => ({
+      id: workflow.id,
+      name: workflow.name,
+      icon: TRIGGER_ICON[workflow.triggerType] ?? 'Zap',
+      detail: workflow.triggerType,
+      isActive: workflow.isActive,
+    }),
+  );
 
   const customOrder = workspaceId
     ? resourceOrders[workspaceId]?.workflows
@@ -1224,7 +1237,7 @@ export function WorkflowsSection({
             aria-label="Add workflow"
             className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
           >
-            <NavLink to={`/w/${workspaceSlug}/automations?tab=all`}>
+            <NavLink to={`/w/${workspaceSlug}/automations`}>
               <Plus className="size-3.5" />
             </NavLink>
           </Button>
@@ -1276,7 +1289,7 @@ export function WorkflowsSection({
 
       <li>
         <NavLink
-          to={`/w/${workspaceSlug}/automations?tab=all`}
+          to={`/w/${workspaceSlug}/automations`}
           className={navActionClass({ depth: 1 })}
         >
           <Plus className={navIconClass(1)} aria-hidden />
@@ -1286,4 +1299,3 @@ export function WorkflowsSection({
     </Section>
   );
 }
-

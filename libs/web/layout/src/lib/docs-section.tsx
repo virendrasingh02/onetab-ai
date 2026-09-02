@@ -539,7 +539,7 @@ export function DocsTreeSection({
 
       <li>
         <NavLink
-          to={`/w/${workspaceSlug}/docs?tab=all&newDoc=true`}
+          to={`/w/${workspaceSlug}/docs?newDoc=true`}
           className={navActionClass({ depth: 1 })}
         >
           <Plus className={navIconClass(1)} aria-hidden />

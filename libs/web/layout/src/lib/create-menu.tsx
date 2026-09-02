@@ -98,7 +98,7 @@ const CREATE_ACTIONS: readonly CreateAction[] = [
     icon: Bot,
     tone: 'bg-accent-cyan/15 border-accent-cyan/30 text-accent-cyan',
     category: 'work',
-    path: 'agents?tab=all',
+    path: 'agents',
   },
   {
     label: 'Workflow',
@@ -106,7 +106,7 @@ const CREATE_ACTIONS: readonly CreateAction[] = [
     icon: Workflow,
     tone: 'bg-accent-rose/15 border-accent-rose/30 text-accent-rose',
     category: 'work',
-    path: 'automations?tab=all',
+    path: 'automations',
   },
 ];
 
@@ -179,13 +179,13 @@ export function SidebarFooterActions({
   // --- Collapsed Sidebar View (Clean vertical action buttons with tooltips) ---
   if (isCollapsed) {
     return (
-      <div className="pt-2 pb-1 border-t border-border/70 flex flex-col items-center gap-1.5 shrink-0 w-full px-1">
+      <div className="pt-2 pb-1 gap-1.5 px-1 flex w-full shrink-0 flex-col items-center border-t border-border/70">
         <Hint side="right" label="Invite members (I)">
           <button
             type="button"
             onClick={onOpenInvite}
             aria-label="Invite members (I)"
-            className="size-9 flex items-center justify-center rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-colors duration-150 outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
+            className="size-9 flex cursor-pointer items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors duration-150 outline-none hover:bg-primary hover:text-primary-foreground focus-visible:ring-1 focus-visible:ring-ring"
           >
             <UserPlus className="size-4" />
           </button>
@@ -197,7 +197,7 @@ export function SidebarFooterActions({
               <button
                 type="button"
                 aria-label="Create new item"
-                className="size-9 flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-150 outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="size-9 flex items-center justify-center rounded-xl text-muted-foreground transition-colors duration-150 outline-none hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <Plus className="size-4" />
               </button>
@@ -210,7 +210,7 @@ export function SidebarFooterActions({
             sideOffset={8}
             className="w-80 p-1.5 shadow-xl border border-border bg-popover"
           >
-            <DropdownMenuLabel className="px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <DropdownMenuLabel className="px-2.5 py-1 font-semibold tracking-wider text-[11px] text-muted-foreground uppercase">
               Communicate
             </DropdownMenuLabel>
             <DropdownMenuGroup>
@@ -220,7 +220,7 @@ export function SidebarFooterActions({
                   <DropdownMenuItem
                     key={action.label}
                     onSelect={() => run(action)}
-                    className="gap-3 px-2.5 py-2 flex items-center cursor-pointer"
+                    className="gap-3 px-2.5 py-2 flex cursor-pointer items-center"
                   >
                     <span
                       aria-hidden
@@ -237,7 +237,11 @@ export function SidebarFooterActions({
                           {action.label}
                         </span>
                         {action.shortcut ? (
-                          <KbdShortcut shortcut={action.shortcut} size="xs" variant="muted" />
+                          <KbdShortcut
+                            shortcut={action.shortcut}
+                            size="xs"
+                            variant="muted"
+                          />
                         ) : null}
                       </span>
                       <span className="block truncate text-[11px] text-muted-foreground">
@@ -251,7 +255,7 @@ export function SidebarFooterActions({
 
             <DropdownMenuSeparator className="my-1" />
 
-            <DropdownMenuLabel className="px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <DropdownMenuLabel className="px-2.5 py-1 font-semibold tracking-wider text-[11px] text-muted-foreground uppercase">
               Work & Tools
             </DropdownMenuLabel>
             <DropdownMenuGroup>
@@ -261,7 +265,7 @@ export function SidebarFooterActions({
                   <DropdownMenuItem
                     key={action.label}
                     onSelect={() => run(action)}
-                    className="gap-3 px-2.5 py-2 flex items-center cursor-pointer"
+                    className="gap-3 px-2.5 py-2 flex cursor-pointer items-center"
                   >
                     <span
                       aria-hidden
@@ -278,7 +282,11 @@ export function SidebarFooterActions({
                           {action.label}
                         </span>
                         {action.shortcut ? (
-                          <KbdShortcut shortcut={action.shortcut} size="xs" variant="muted" />
+                          <KbdShortcut
+                            shortcut={action.shortcut}
+                            size="xs"
+                            variant="muted"
+                          />
                         ) : null}
                       </span>
                       <span className="block truncate text-[11px] text-muted-foreground">
@@ -294,7 +302,7 @@ export function SidebarFooterActions({
 
             <DropdownMenuItem
               onSelect={() => navigate(`/w/${workspaceSlug}/directory`)}
-              className="gap-3 px-2.5 py-2 flex items-center cursor-pointer"
+              className="gap-3 px-2.5 py-2 flex cursor-pointer items-center"
             >
               <span
                 aria-hidden
@@ -320,7 +328,7 @@ export function SidebarFooterActions({
               type="button"
               onClick={onOpenCustomizer}
               aria-label="Customize sidebar"
-              className="size-9 flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-colors duration-150 outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="size-9 flex items-center justify-center rounded-xl text-muted-foreground transition-colors duration-150 outline-none hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
             >
               <SlidersHorizontal className="size-4" />
             </button>
@@ -332,21 +340,21 @@ export function SidebarFooterActions({
 
   // --- Expanded Sidebar Footer View (Refined Card UX) ---
   return (
-    <div className="gap-1.5 flex items-center w-full">
+    <div className="gap-1.5 flex w-full items-center">
       {/* Primary Invite Members Button */}
       <button
         type="button"
         onClick={onOpenInvite}
         className={cn(
           'group/invite-btn gap-2 px-2.5 py-1.5 flex flex-1 items-center justify-between',
-          'rounded-lg border border-border/70 bg-surface-raised/80 hover:bg-primary/10 hover:border-primary/30',
+          'rounded-lg border border-border/70 bg-surface-raised/80 hover:border-primary/30 hover:bg-primary/10',
           'text-xs font-medium text-foreground transition-all duration-150 ease-standard',
           'cursor-pointer outline-none select-none focus-visible:ring-1 focus-visible:ring-ring',
         )}
       >
         <span className="gap-2 flex items-center truncate">
           <UserPlus
-            className="size-3.5 shrink-0 text-primary group-hover/invite-btn:text-primary transition-colors"
+            className="size-3.5 shrink-0 text-primary transition-colors group-hover/invite-btn:text-primary"
             aria-hidden
           />
           <span className="truncate">Invite members</span>
@@ -364,8 +372,8 @@ export function SidebarFooterActions({
               type="button"
               className={cn(
                 'size-8 flex shrink-0 items-center justify-center rounded-lg border border-border/70',
-                'bg-surface-raised/80 text-muted-foreground hover:bg-accent/80 hover:text-foreground hover:border-border',
-                'transition-all duration-150 ease-standard cursor-pointer outline-none select-none focus-visible:ring-1 focus-visible:ring-ring',
+                'bg-surface-raised/80 text-muted-foreground hover:border-border hover:bg-accent/80 hover:text-foreground',
+                'cursor-pointer transition-all duration-150 ease-standard outline-none select-none focus-visible:ring-1 focus-visible:ring-ring',
               )}
               aria-label="Create new item"
             >
@@ -380,7 +388,7 @@ export function SidebarFooterActions({
           sideOffset={8}
           className="w-80 p-1.5 shadow-xl border border-border bg-popover"
         >
-          <DropdownMenuLabel className="px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <DropdownMenuLabel className="px-2.5 py-1 font-semibold tracking-wider text-[11px] text-muted-foreground uppercase">
             Communicate
           </DropdownMenuLabel>
           <DropdownMenuGroup>
@@ -390,7 +398,7 @@ export function SidebarFooterActions({
                 <DropdownMenuItem
                   key={action.label}
                   onSelect={() => run(action)}
-                  className="gap-3 px-2.5 py-2 flex items-center cursor-pointer"
+                  className="gap-3 px-2.5 py-2 flex cursor-pointer items-center"
                 >
                   <span
                     aria-hidden
@@ -407,7 +415,11 @@ export function SidebarFooterActions({
                         {action.label}
                       </span>
                       {action.shortcut ? (
-                        <KbdShortcut shortcut={action.shortcut} size="xs" variant="muted" />
+                        <KbdShortcut
+                          shortcut={action.shortcut}
+                          size="xs"
+                          variant="muted"
+                        />
                       ) : null}
                     </span>
                     <span className="block truncate text-[11px] text-muted-foreground">
@@ -421,7 +433,7 @@ export function SidebarFooterActions({
 
           <DropdownMenuSeparator className="my-1" />
 
-          <DropdownMenuLabel className="px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <DropdownMenuLabel className="px-2.5 py-1 font-semibold tracking-wider text-[11px] text-muted-foreground uppercase">
             Work & Tools
           </DropdownMenuLabel>
           <DropdownMenuGroup>
@@ -431,7 +443,7 @@ export function SidebarFooterActions({
                 <DropdownMenuItem
                   key={action.label}
                   onSelect={() => run(action)}
-                  className="gap-3 px-2.5 py-2 flex items-center cursor-pointer"
+                  className="gap-3 px-2.5 py-2 flex cursor-pointer items-center"
                 >
                   <span
                     aria-hidden
@@ -448,7 +460,11 @@ export function SidebarFooterActions({
                         {action.label}
                       </span>
                       {action.shortcut ? (
-                        <KbdShortcut shortcut={action.shortcut} size="xs" variant="muted" />
+                        <KbdShortcut
+                          shortcut={action.shortcut}
+                          size="xs"
+                          variant="muted"
+                        />
                       ) : null}
                     </span>
                     <span className="block truncate text-[11px] text-muted-foreground">
@@ -470,7 +486,7 @@ export function SidebarFooterActions({
                 navigate(`/w/${workspaceSlug}/invitations`);
               }
             }}
-            className="gap-3 px-2.5 py-2 flex items-center cursor-pointer"
+            className="gap-3 px-2.5 py-2 flex cursor-pointer items-center"
           >
             <span
               aria-hidden
@@ -493,7 +509,7 @@ export function SidebarFooterActions({
               <DropdownMenuSeparator className="my-1" />
               <DropdownMenuItem
                 onSelect={onOpenCustomizer}
-                className="gap-3 px-2.5 py-2 flex items-center cursor-pointer"
+                className="gap-3 px-2.5 py-2 flex cursor-pointer items-center"
               >
                 <span
                   aria-hidden
@@ -523,8 +539,8 @@ export function SidebarFooterActions({
             onClick={onOpenCustomizer}
             className={cn(
               'size-8 flex shrink-0 items-center justify-center rounded-lg border border-border/70',
-              'bg-surface-raised/80 text-muted-foreground hover:bg-accent/80 hover:text-foreground hover:border-border',
-              'transition-all duration-150 ease-standard cursor-pointer outline-none select-none focus-visible:ring-1 focus-visible:ring-ring',
+              'bg-surface-raised/80 text-muted-foreground hover:border-border hover:bg-accent/80 hover:text-foreground',
+              'cursor-pointer transition-all duration-150 ease-standard outline-none select-none focus-visible:ring-1 focus-visible:ring-ring',
             )}
             aria-label="Customize sidebar navigation"
           >

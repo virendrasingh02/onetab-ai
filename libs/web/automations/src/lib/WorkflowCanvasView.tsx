@@ -220,7 +220,7 @@ export function WorkflowCanvasView() {
     if (window.history.length > 1) {
       navigate(-1);
     } else {
-      navigate(`/w/${slug}/automations?tab=all`);
+      navigate(`/w/${slug}/automations`);
     }
   };
 
