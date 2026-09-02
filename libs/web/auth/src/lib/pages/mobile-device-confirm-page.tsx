@@ -74,28 +74,28 @@ export function MobileDeviceConfirmPage() {
   // If user is unauthenticated, redirect to login while preserving device request parameters
   if (authStatus === 'anonymous' || (!authUser && authStatus !== 'authenticating' && authStatus !== 'idle')) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#09090b] text-white p-4">
-        <div className="w-full max-w-md bg-[#121214] border border-zinc-800 rounded-xl p-6 shadow-2xl text-center space-y-4">
-          <div className="mx-auto size-12 rounded-full bg-zinc-800 border border-zinc-700/80 flex items-center justify-center text-white">
-            <Laptop className="size-6 text-white" />
+      <div className="dark min-h-screen flex items-center justify-center bg-background text-foreground p-4">
+        <div className="w-full max-w-md bg-surface border border-border rounded-xl p-6 shadow-2xl text-center space-y-4">
+          <div className="mx-auto size-12 rounded-full bg-surface-raised border border-border flex items-center justify-center text-foreground">
+            <Laptop className="size-6 text-foreground" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white">Sign in to Desktop</h1>
-            <p className="text-xs text-zinc-400 mt-1">
+            <h1 className="text-lg font-bold text-foreground">Sign in to Desktop</h1>
+            <p className="text-xs text-muted-foreground mt-1">
               Please sign in on your mobile device to authorize this desktop connection.
             </p>
           </div>
           {userCode && (
-            <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-lg font-mono text-sm font-semibold tracking-wider text-white">
+            <div className="p-3 bg-surface-raised border border-border rounded-lg font-mono text-sm font-semibold tracking-wider text-foreground">
               Pairing Code: {userCode}
             </div>
           )}
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-muted-foreground">
             Sign in with your OneTab AI account to link this desktop application session.
           </p>
           <button
             type="button"
-            className="w-full h-10 rounded-lg bg-white text-black hover:bg-zinc-200 font-medium text-xs sm:text-sm transition-colors"
+            className="w-full h-10 rounded-btn bg-primary text-primary-foreground hover:bg-primary-hover font-medium text-xs sm:text-sm transition-colors"
             onClick={() => {
               navigate('/login', { state: { from: location } });
             }}
@@ -144,35 +144,35 @@ export function MobileDeviceConfirmPage() {
   // SUCCESS STATE
   if (approved) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#09090b] text-white p-4">
-        <div className="w-full max-w-md bg-[#121214] border border-zinc-800 rounded-xl p-6 shadow-2xl text-center space-y-4">
-          <div className="mx-auto size-14 rounded-full bg-zinc-800 border border-zinc-700/80 flex items-center justify-center text-emerald-400">
+      <div className="dark min-h-screen flex items-center justify-center bg-background text-foreground p-4">
+        <div className="w-full max-w-md bg-surface border border-border rounded-xl p-6 shadow-2xl text-center space-y-4">
+          <div className="mx-auto size-14 rounded-full bg-surface-raised border border-border flex items-center justify-center text-success-text">
             <CheckCircle2 className="size-8" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">Desktop Signed In</h1>
-            <p className="text-xs text-zinc-400 mt-1">
+            <h1 className="text-xl font-bold text-foreground">Desktop Signed In</h1>
+            <p className="text-xs text-muted-foreground mt-1">
               You&apos;re now signed in to OneTab AI Desktop.
             </p>
           </div>
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-4 text-xs space-y-2 text-left">
+          <div className="rounded-lg border border-border bg-surface-raised/60 p-4 text-xs space-y-2 text-left">
             <div className="flex justify-between items-center">
-              <span className="text-zinc-500">Signed in as</span>
-              <span className="font-medium text-white">{authUser?.email}</span>
+              <span className="text-subtle">Signed in as</span>
+              <span className="font-medium text-foreground">{authUser?.email}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-zinc-500">Device</span>
-              <span className="font-medium text-white">
+              <span className="text-subtle">Device</span>
+              <span className="font-medium text-foreground">
                 {deviceInfo?.deviceInfo.platform || 'Desktop Client'}
               </span>
             </div>
           </div>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-muted-foreground">
             You can safely close this browser window or return to your mobile app.
           </p>
           <button
             type="button"
-            className="w-full h-10 rounded-lg bg-white text-black hover:bg-zinc-200 font-medium text-xs sm:text-sm transition-colors"
+            className="w-full h-10 rounded-btn bg-primary text-primary-foreground hover:bg-primary-hover font-medium text-xs sm:text-sm transition-colors"
             onClick={() => navigate('/')}
           >
             Done
@@ -185,20 +185,20 @@ export function MobileDeviceConfirmPage() {
   // REJECTED STATE
   if (rejected) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#09090b] text-white p-4">
-        <div className="w-full max-w-md bg-[#121214] border border-zinc-800 rounded-xl p-6 shadow-2xl text-center space-y-4">
-          <div className="mx-auto size-12 rounded-full bg-zinc-800 border border-zinc-700/80 flex items-center justify-center text-rose-400">
+      <div className="dark min-h-screen flex items-center justify-center bg-background text-foreground p-4">
+        <div className="w-full max-w-md bg-surface border border-border rounded-xl p-6 shadow-2xl text-center space-y-4">
+          <div className="mx-auto size-12 rounded-full bg-surface-raised border border-border flex items-center justify-center text-destructive">
             <XCircle className="size-6" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white">Sign In Cancelled</h1>
-            <p className="text-xs text-zinc-400 mt-1">
+            <h1 className="text-lg font-bold text-foreground">Sign In Cancelled</h1>
+            <p className="text-xs text-muted-foreground mt-1">
               The desktop authentication request was cancelled.
             </p>
           </div>
           <button
             type="button"
-            className="w-full h-10 rounded-lg border border-zinc-800 hover:bg-zinc-800 text-zinc-200 text-xs sm:text-sm font-medium transition-colors"
+            className="w-full h-10 rounded-btn border border-border hover:bg-selected text-foreground text-xs sm:text-sm font-medium transition-colors"
             onClick={() => navigate('/')}
           >
             Back to Home
@@ -211,30 +211,30 @@ export function MobileDeviceConfirmPage() {
   // ERROR / EXPIRED STATE
   if (error || !deviceInfo) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#09090b] text-white p-4">
-        <div className="w-full max-w-md bg-[#121214] border border-zinc-800 rounded-xl p-6 shadow-2xl text-center space-y-4">
-          <div className="mx-auto size-12 rounded-full bg-zinc-800 border border-zinc-700/80 flex items-center justify-center text-amber-400">
+      <div className="dark min-h-screen flex items-center justify-center bg-background text-foreground p-4">
+        <div className="w-full max-w-md bg-surface border border-border rounded-xl p-6 shadow-2xl text-center space-y-4">
+          <div className="mx-auto size-12 rounded-full bg-surface-raised border border-border flex items-center justify-center text-warning">
             <AlertCircle className="size-6" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white">Sign-In Request Unavailable</h1>
-            <p className="text-xs text-rose-400 mt-1">
+            <h1 className="text-lg font-bold text-foreground">Sign-In Request Unavailable</h1>
+            <p className="text-xs text-destructive mt-1">
               {error || 'This device sign-in request is invalid or has expired.'}
             </p>
           </div>
-          <p className="text-xs text-zinc-400">
+          <p className="text-xs text-muted-foreground">
             Please generate a new QR code or pairing code on your desktop computer and try again.
           </p>
           <div className="flex flex-col gap-2 pt-1">
             <Link
               to="/auth/pair"
-              className="w-full h-10 rounded-lg border border-zinc-800 hover:bg-zinc-800 text-zinc-200 text-xs sm:text-sm font-medium transition-colors flex items-center justify-center"
+              className="w-full h-10 rounded-btn border border-border hover:bg-selected text-foreground text-xs sm:text-sm font-medium transition-colors flex items-center justify-center"
             >
               Enter a Pairing Code
             </Link>
             <Link
               to="/"
-              className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors py-1"
+              className="text-xs text-subtle hover:text-foreground transition-colors py-1"
             >
               Return to Home
             </Link>
@@ -247,63 +247,63 @@ export function MobileDeviceConfirmPage() {
 
   // CONFIRMATION UI
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#09090b] text-white p-4">
-      <div className="w-full max-w-md bg-[#121214] border border-zinc-800 rounded-xl p-6 shadow-2xl space-y-4">
+    <div className="dark min-h-screen flex items-center justify-center bg-background text-foreground p-4">
+      <div className="w-full max-w-md bg-surface border border-border rounded-xl p-6 shadow-2xl space-y-4">
         <div className="text-center pb-2">
-          <div className="mx-auto size-14 rounded-full bg-zinc-800 border border-zinc-700/80 flex items-center justify-center mb-3 text-white">
-            <Monitor className="size-7 text-white" />
+          <div className="mx-auto size-14 rounded-full bg-surface-raised border border-border flex items-center justify-center mb-3 text-foreground">
+            <Monitor className="size-7 text-foreground" />
           </div>
-          <h1 className="text-xl font-bold text-white">Sign in to Desktop</h1>
-          <p className="text-xs text-zinc-400 mt-1">
+          <h1 className="text-xl font-bold text-foreground">Sign in to Desktop</h1>
+          <p className="text-xs text-muted-foreground mt-1">
             You&apos;re authorizing a sign-in session for OneTab AI Desktop.
           </p>
         </div>
 
         <div className="space-y-4 pt-1">
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 space-y-3">
-            <div className="flex items-center justify-between text-xs pb-2 border-b border-zinc-800">
-              <span className="text-zinc-400 flex items-center gap-1.5">
-                <ShieldCheck className="size-4 text-emerald-400" /> Account
+          <div className="rounded-xl border border-border bg-surface-raised/60 p-4 space-y-3">
+            <div className="flex items-center justify-between text-xs pb-2 border-b border-border">
+              <span className="text-muted-foreground flex items-center gap-1.5">
+                <ShieldCheck className="size-4 text-success-text" /> Account
               </span>
-              <span className="font-semibold text-white truncate max-w-[200px]">
+              <span className="font-semibold text-foreground truncate max-w-[200px]">
                 {authUser?.email}
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="space-y-0.5">
-                <span className="text-zinc-500 text-[11px]">Device</span>
-                <p className="font-medium text-white flex items-center gap-1">
-                  <Laptop className="size-3.5 text-zinc-400" />
+                <span className="text-subtle text-[11px]">Device</span>
+                <p className="font-medium text-foreground flex items-center gap-1">
+                  <Laptop className="size-3.5 text-muted-foreground" />
                   <span>{deviceInfo.deviceInfo.platform}</span>
                 </p>
               </div>
 
               <div className="space-y-0.5">
-                <span className="text-zinc-500 text-[11px]">Client</span>
-                <p className="font-medium text-white">
+                <span className="text-subtle text-[11px]">Client</span>
+                <p className="font-medium text-foreground">
                   {deviceInfo.deviceInfo.clientName}
                 </p>
               </div>
 
               <div className="space-y-0.5">
-                <span className="text-zinc-500 text-[11px]">Pairing Code</span>
-                <p className="font-mono font-bold text-white tracking-wider">
+                <span className="text-subtle text-[11px]">Pairing Code</span>
+                <p className="font-mono font-bold text-foreground tracking-wider">
                   {deviceInfo.userCode}
                 </p>
               </div>
 
               <div className="space-y-0.5">
-                <span className="text-zinc-500 text-[11px]">Network</span>
-                <p className="text-zinc-300 flex items-center gap-1 truncate">
-                  <Globe className="size-3.5 text-zinc-500" />
+                <span className="text-subtle text-[11px]">Network</span>
+                <p className="text-foreground flex items-center gap-1 truncate">
+                  <Globe className="size-3.5 text-subtle" />
                   <span>{deviceInfo.deviceInfo.ip || 'Local Network'}</span>
                 </p>
               </div>
             </div>
           </div>
 
-          <p className="text-[11px] text-zinc-500 text-center px-2">
+          <p className="text-[11px] text-subtle text-center px-2">
             Only confirm this request if you initiated it on your own computer.
           </p>
         </div>
@@ -311,7 +311,7 @@ export function MobileDeviceConfirmPage() {
         <div className="flex flex-col gap-2 pt-2">
           <button
             type="button"
-            className="w-full h-10 rounded-lg bg-white text-black hover:bg-zinc-200 font-semibold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full h-10 rounded-btn bg-primary text-primary-foreground hover:bg-primary-hover font-semibold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
             onClick={handleApprove}
             disabled={approving || rejecting}
           >
@@ -321,7 +321,7 @@ export function MobileDeviceConfirmPage() {
 
           <button
             type="button"
-            className="w-full h-9 rounded-lg text-xs text-zinc-400 hover:text-rose-400 transition-colors"
+            className="w-full h-9 rounded-lg text-xs text-muted-foreground hover:text-destructive transition-colors"
             onClick={handleReject}
             disabled={approving || rejecting}
           >

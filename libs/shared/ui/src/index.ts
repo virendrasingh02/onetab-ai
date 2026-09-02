@@ -191,6 +191,8 @@ export {
   type TextareaProps,
 } from './lib/components/input.js';
 
+export { Field, type FieldProps } from './lib/components/field.js';
+
 
 export {
   SearchInput,

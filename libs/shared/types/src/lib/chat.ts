@@ -354,6 +354,12 @@ export interface FormFieldDefinition {
   placeholder?: string;
   required?: boolean;
   defaultValue?: unknown;
+  /** Muted helper text shown under the control. */
+  helpText?: string;
+  /** Inline text affix inside the field, before the value — e.g. `@`. */
+  prefix?: string;
+  /** Inline text affix inside the field, after the value — e.g. `@gmail.com`. */
+  suffix?: string;
   options?: Array<{ label: string; value: string; description?: string }>;
   validation?: {
     min?: number;

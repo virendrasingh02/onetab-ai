@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { authApi, setAccessToken } from '@org/api-client';
 import {
+  Button,
   Card,
   CardContent,
   CardDescription,
@@ -14,6 +15,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  Input,
   QRCode,
 } from '@org/ui';
 import { getDesktopApi, isDesktop } from '@org/web-desktop';
@@ -266,27 +268,28 @@ export function LoginPage() {
 
   if (desktopHandoffRunning) {
     return (
-      <div className="p-4 flex min-h-screen items-center justify-center bg-[#09090b]">
-        <Card className="max-w-md w-full bg-[#121214] border-zinc-800 text-zinc-100 shadow-2xl rounded-xl">
+      <div className="dark p-4 flex min-h-screen items-center justify-center bg-background">
+        <Card className="max-w-md w-full bg-surface border-border text-foreground shadow-2xl">
           <CardHeader className="pb-2 text-center">
-            <div className="size-12 mb-3 mx-auto flex items-center justify-center rounded-full bg-zinc-800 text-white">
-              <Laptop className="size-6 text-white" />
+            <div className="size-12 mb-3 mx-auto flex items-center justify-center rounded-full bg-surface-raised text-foreground">
+              <Laptop className="size-6" />
             </div>
-            <CardTitle className="text-lg font-semibold text-white">
+            <CardTitle className="text-lg font-semibold text-foreground">
               Connecting to Desktop App
             </CardTitle>
-            <CardDescription className="text-xs text-zinc-400">
+            <CardDescription className="text-xs text-muted-foreground">
               Handing off authenticated session to OneTab AI Desktop…
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 pt-2 text-center">
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-muted-foreground">
               Please check your desktop application. If it didn&apos;t focus
               automatically, click below:
             </p>
-            <button
+            <Button
               type="button"
-              className="w-full h-10 rounded-lg bg-white text-black hover:bg-zinc-200 font-medium text-sm transition-colors"
+              size="lg"
+              className="w-full"
               onClick={() => {
                 if (stateParam) {
                   window.location.href = `onetab://open`;
@@ -294,7 +297,7 @@ export function LoginPage() {
               }}
             >
               Open Desktop Client
-            </button>
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -311,7 +314,7 @@ export function LoginPage() {
           <button
             type="button"
             onClick={cancelMobileQRLogin}
-            className="text-xs text-zinc-400 hover:text-white transition-colors"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             Back to standard sign in
           </button>
@@ -320,44 +323,45 @@ export function LoginPage() {
         <div className="space-y-4 text-center">
           {deviceAuthLoading ? (
             <div className="py-12 gap-3 flex flex-col items-center justify-center">
-              <Loader2 className="size-8 animate-spin text-white" />
-              <p className="text-xs text-zinc-400">
+              <Loader2 className="size-8 animate-spin text-foreground" />
+              <p className="text-xs text-muted-foreground">
                 Generating secure pairing code…
               </p>
             </div>
           ) : deviceAuthError ? (
             <div className="py-6 space-y-4">
-              <p className="text-xs text-rose-400">{deviceAuthError}</p>
-              <button
+              <p className="text-xs text-destructive">{deviceAuthError}</p>
+              <Button
                 type="button"
-                className="h-9 px-4 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-medium"
+                variant="secondary"
+                size="lg"
                 onClick={startMobileQRLogin}
               >
                 Try Again
-              </button>
+              </Button>
             </div>
           ) : deviceAuthData ? (
             <div className="space-y-4">
-              <div className="p-3.5 bg-white shadow-inner mx-auto flex w-fit justify-center rounded-xl border border-zinc-700">
+              <div className="p-3.5 bg-white shadow-inner mx-auto flex w-fit justify-center rounded-xl border border-border">
                 <QRCode value={deviceAuthData.verificationUrl} size={180} />
               </div>
 
               <div className="space-y-1.5">
-                <p className="text-xs text-zinc-400">
+                <p className="text-xs text-muted-foreground">
                   Or enter this code on mobile:
                 </p>
                 <div className="gap-2 flex items-center justify-center">
-                  <span className="text-xl font-bold tracking-wider px-3 py-1 rounded-lg border border-zinc-800 bg-[#121214] font-mono text-white">
+                  <span className="text-xl font-bold tracking-wider px-3 py-1 rounded-lg border border-border bg-surface font-mono text-foreground">
                     {deviceAuthData.userCode}
                   </span>
                   <button
                     type="button"
                     onClick={handleCopyCode}
                     aria-label="Copy code"
-                    className="p-2 rounded-lg border border-zinc-800 bg-[#121214] hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+                    className="p-2 rounded-lg border border-border bg-surface hover:bg-surface-raised text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {copiedCode ? (
-                      <CheckCircle2 className="size-4 text-emerald-400" />
+                      <CheckCircle2 className="size-4 text-success-text" />
                     ) : (
                       <Copy className="size-4" />
                     )}
@@ -365,18 +369,20 @@ export function LoginPage() {
                 </div>
               </div>
 
-              <div className="gap-2 pt-1 text-xs flex items-center justify-center text-zinc-400">
-                <Loader2 className="size-3.5 animate-spin text-zinc-400" />
+              <div className="gap-2 pt-1 text-xs flex items-center justify-center text-muted-foreground">
+                <Loader2 className="size-3.5 animate-spin" />
                 <span>Waiting for mobile confirmation…</span>
               </div>
 
-              <button
+              <Button
                 type="button"
-                className="w-full h-9 rounded-lg border border-zinc-800 hover:bg-zinc-900 text-zinc-300 hover:text-white text-xs font-medium transition-colors"
+                variant="outline"
+                size="lg"
+                className="w-full"
                 onClick={cancelMobileQRLogin}
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           ) : null}
         </div>
@@ -397,7 +403,7 @@ export function LoginPage() {
           Don&apos;t have an account?{' '}
           <Link
             to="/register"
-            className="font-medium text-white hover:underline transition-colors"
+            className="font-medium text-foreground hover:underline transition-colors"
           >
             Create one
           </Link>
@@ -407,28 +413,28 @@ export function LoginPage() {
       {/* Desktop-only helpers: browser hand-off + mobile QR sign-in. */}
       {isDesktop && (
         <div className="space-y-2.5 mb-4">
-          <button
+          <Button
             type="button"
-            className="w-full h-8 px-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-medium transition-colors flex items-center justify-center gap-2"
+            variant="secondary"
+            size="md"
+            className="w-full"
             onClick={onBrowserLoginClick}
-            disabled={browserLoginStarting}
+            loading={browserLoginStarting}
+            leadingIcon={<Globe className="size-3.5" />}
           >
-            {browserLoginStarting ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Globe className="size-3.5" />
-            )}
-            <span>Continue with Browser (Recommended)</span>
-          </button>
+            Continue with Browser (Recommended)
+          </Button>
 
-          <button
+          <Button
             type="button"
-            className="w-full h-8 px-3 rounded-lg bg-[#121214] hover:bg-zinc-800 border border-zinc-800 text-zinc-200 text-xs font-medium transition-colors flex items-center justify-center gap-2"
+            variant="outline"
+            size="md"
+            className="w-full"
             onClick={startMobileQRLogin}
+            leadingIcon={<Smartphone className="size-3.5 text-muted-foreground" />}
           >
-            <Smartphone className="size-3.5 text-zinc-400" />
-            <span>Sign in with Mobile (QR)</span>
-          </button>
+            Sign in with Mobile (QR)
+          </Button>
         </div>
       )}
 
@@ -436,37 +442,34 @@ export function LoginPage() {
       {authMode === 'magic-link' ? (
         <form onSubmit={handleMagicLinkSubmit} className="space-y-3.5" noValidate>
           <div className="space-y-1.5">
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5">
-                <Mail className="size-3.5 text-zinc-500" />
-              </div>
-              <input
-                type="email"
-                required
-                autoComplete="email"
-                placeholder="your@company.com"
-                value={form.watch('email')}
-                onChange={(e) => form.setValue('email', e.target.value)}
-                className="w-full h-8 pl-8 pr-3 rounded-lg bg-[#121214] border border-zinc-800 text-white placeholder:text-zinc-500 text-xs focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all"
-              />
-            </div>
+            <Input
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="your@company.com"
+              value={form.watch('email')}
+              onChange={(e) => form.setValue('email', e.target.value)}
+              leadingIcon={<Mail />}
+              invalid={!!form.formState.errors.email}
+            />
             {form.formState.errors.email && (
-              <p className="text-[11px] text-rose-400">
+              <p className="text-[11px] text-destructive">
                 {form.formState.errors.email.message}
               </p>
             )}
-            <p className="text-[11px] text-zinc-400 text-left pt-0.5">
+            <p className="text-[11px] text-muted-foreground text-left pt-0.5">
               We&apos;ll email a secure sign-in link.
             </p>
           </div>
 
-          <button
+          <Button
             type="submit"
-            className="w-full h-8 rounded-lg bg-white text-black hover:bg-zinc-200 font-medium text-xs transition-all duration-150 flex items-center justify-center gap-1.5 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 disabled:opacity-70 disabled:cursor-not-allowed"
+            size="md"
+            className="w-full"
+            trailingIcon={<ArrowRight className="size-3.5" />}
           >
-            <span>Continue with magic link</span>
-            <ArrowRight className="size-3.5" />
-          </button>
+            Continue with magic link
+          </Button>
         </form>
       ) : (
         /* FORM: PASSWORD SIGN-IN MODE */
@@ -483,24 +486,17 @@ export function LoginPage() {
               name="email"
               render={({ field }) => (
                 <FormItem className="space-y-1 text-left">
-                  <FormLabel className="text-xs text-zinc-300 font-medium">
-                    Work Email
-                  </FormLabel>
+                  <FormLabel className="text-xs">Work Email</FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5">
-                        <Mail className="size-3.5 text-zinc-500" />
-                      </div>
-                      <input
-                        {...field}
-                        type="email"
-                        autoComplete="username"
-                        placeholder="your@company.com"
-                        className="w-full h-8 pl-8 pr-3 rounded-lg bg-[#121214] border border-zinc-800 text-white placeholder:text-zinc-500 text-xs focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all"
-                      />
-                    </div>
+                    <Input
+                      {...field}
+                      type="email"
+                      autoComplete="username"
+                      placeholder="your@company.com"
+                      leadingIcon={<Mail />}
+                    />
                   </FormControl>
-                  <FormMessage className="text-[11px] text-rose-400" />
+                  <FormMessage className="text-[11px]" />
                 </FormItem>
               )}
             />
@@ -511,42 +507,39 @@ export function LoginPage() {
               render={({ field }) => (
                 <FormItem className="space-y-1 text-left">
                   <div className="flex items-center justify-between">
-                    <FormLabel className="text-xs text-zinc-300 font-medium">
-                      Password
-                    </FormLabel>
+                    <FormLabel className="text-xs">Password</FormLabel>
                     <Link
                       to="/forgot-password"
-                      className="text-xs text-zinc-400 hover:text-white transition-colors"
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                     >
                       Forgot password?
                     </Link>
                   </div>
                   <FormControl>
-                    <div className="relative">
-                      <input
-                        {...field}
-                        type={showPassword ? 'text' : 'password'}
-                        autoComplete="current-password"
-                        placeholder="••••••••••"
-                        className="w-full h-8 pl-3 pr-8 rounded-lg bg-[#121214] border border-zinc-800 text-white placeholder:text-zinc-500 text-xs focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((v) => !v)}
-                        aria-label={
-                          showPassword ? 'Hide password' : 'Show password'
-                        }
-                        className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-zinc-500 hover:text-zinc-300 transition-colors"
-                      >
-                        {showPassword ? (
-                          <EyeOff className="size-3.5" />
-                        ) : (
-                          <Eye className="size-3.5" />
-                        )}
-                      </button>
-                    </div>
+                    <Input
+                      {...field}
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
+                      placeholder="••••••••••"
+                      trailingSlot={
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword((v) => !v)}
+                          aria-label={
+                            showPassword ? 'Hide password' : 'Show password'
+                          }
+                          className="flex items-center text-subtle hover:text-foreground transition-colors"
+                        >
+                          {showPassword ? (
+                            <EyeOff className="size-3.5" />
+                          ) : (
+                            <Eye className="size-3.5" />
+                          )}
+                        </button>
+                      }
+                    />
                   </FormControl>
-                  <FormMessage className="text-[11px] text-rose-400" />
+                  <FormMessage className="text-[11px]" />
                 </FormItem>
               )}
             />
@@ -561,12 +554,11 @@ export function LoginPage() {
                       id="rememberMe"
                       checked={field.value}
                       onCheckedChange={field.onChange}
-                      className="border-zinc-700 data-[state=checked]:bg-white data-[state=checked]:text-black"
                     />
                   </FormControl>
                   <FormLabel
                     htmlFor="rememberMe"
-                    className="text-xs font-normal cursor-pointer text-zinc-400 select-none"
+                    className="text-xs font-normal cursor-pointer text-muted-foreground select-none"
                   >
                     Remember me for 30 days
                   </FormLabel>
@@ -574,20 +566,15 @@ export function LoginPage() {
               )}
             />
 
-            <button
+            <Button
               type="submit"
-              disabled={form.formState.isSubmitting || login.isPending}
-              className="w-full h-8 rounded-lg bg-white text-black hover:bg-zinc-200 font-medium text-xs transition-all duration-150 flex items-center justify-center gap-1.5 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 disabled:opacity-70 disabled:cursor-not-allowed mt-1"
+              size="md"
+              className="w-full mt-1"
+              loading={form.formState.isSubmitting || login.isPending}
+              trailingIcon={<ArrowRight className="size-3.5" />}
             >
-              {form.formState.isSubmitting || login.isPending ? (
-                <Loader2 className="size-3.5 animate-spin text-black" />
-              ) : (
-                <>
-                  <span>Sign in</span>
-                  <ArrowRight className="size-3.5" />
-                </>
-              )}
-            </button>
+              Sign in
+            </Button>
           </form>
         </Form>
       )}
@@ -599,7 +586,7 @@ export function LoginPage() {
           <button
             type="button"
             onClick={() => setAuthMode('password')}
-            className="text-xs text-zinc-400 hover:text-white inline-flex items-center gap-1.5 transition-colors"
+            className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors"
           >
             <KeyRound className="size-3.5" />
             <span>Sign in with password instead</span>
@@ -608,7 +595,7 @@ export function LoginPage() {
           <button
             type="button"
             onClick={() => setAuthMode('magic-link')}
-            className="text-xs text-zinc-400 hover:text-white inline-flex items-center gap-1.5 transition-colors"
+            className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors"
           >
             <Sparkles className="size-3.5" />
             <span>Sign in with magic link instead</span>

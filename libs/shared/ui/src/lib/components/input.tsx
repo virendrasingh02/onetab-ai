@@ -4,10 +4,17 @@ import TextareaAutosize, {
   type TextareaAutosizeProps,
 } from 'react-textarea-autosize';
 
-export interface InputProps extends ComponentProps<'input'> {
-  /** Decoration rendered inside the field, before the text. */
+export interface InputProps extends Omit<ComponentProps<'input'>, 'prefix'> {
+  /** Icon rendered inside the field, before the text. */
   leadingIcon?: ReactNode;
   trailingSlot?: ReactNode;
+  /**
+   * Inline text affix shown inside the field, before the value — e.g. `@` for a
+   * handle. Muted and non-interactive; sits inside the same bordered box.
+   */
+  prefix?: ReactNode;
+  /** Inline text affix shown inside the field, after the value — e.g. `@gmail.com`. */
+  suffix?: ReactNode;
   invalid?: boolean;
   inputSize?: 'sm' | 'md' | 'lg';
   /**
@@ -21,6 +28,8 @@ export function Input({
   type = 'text',
   leadingIcon,
   trailingSlot,
+  prefix,
+  suffix,
   invalid,
   inputSize = 'md',
   wrapperClassName,
@@ -31,6 +40,48 @@ export function Input({
     md: 'h-8 px-3 text-xs',
     lg: 'h-9 px-3.5 text-sm',
   }[inputSize];
+
+  // Inline text affixes render inside a shared bordered box so `@` / `@gmail.com`
+  // sit flush with the value, matching the platform field spec.
+  if (prefix != null || suffix != null) {
+    return (
+      <div
+        data-slot="input-affix"
+        aria-invalid={invalid || undefined}
+        className={cn(
+          'flex w-full items-center gap-1.5 rounded-input border border-input bg-surface text-foreground',
+          sizeClasses,
+          'transition-[color,background-color,border-color,box-shadow] duration-(--duration-fast)',
+          'focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25',
+          'has-[input:disabled]:cursor-not-allowed has-[input:disabled]:bg-surface-muted has-[input:disabled]:text-disabled has-[input:disabled]:opacity-100',
+          invalid && 'border-destructive ring-2 ring-destructive/20',
+          wrapperClassName,
+        )}
+      >
+        {prefix != null ? (
+          <span className="pointer-events-none shrink-0 select-none text-subtle [&_svg]:size-3.5">
+            {prefix}
+          </span>
+        ) : null}
+        <input
+          type={type}
+          data-slot="input"
+          aria-invalid={invalid || undefined}
+          className={cn(
+            'min-w-0 flex-1 border-0 bg-transparent p-0 text-inherit outline-none',
+            'placeholder:text-subtle disabled:cursor-not-allowed',
+            className,
+          )}
+          {...props}
+        />
+        {suffix != null ? (
+          <span className="pointer-events-none shrink-0 select-none text-subtle [&_svg]:size-3.5">
+            {suffix}
+          </span>
+        ) : null}
+      </div>
+    );
+  }
 
   const field = (
     <input

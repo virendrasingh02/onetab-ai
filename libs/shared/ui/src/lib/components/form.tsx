@@ -98,7 +98,10 @@ export function FormLabel({
   return (
     <Label
       data-error={!!error}
-      className={cn('data-[error=true]:text-destructive', className)}
+      className={cn(
+        'text-xs font-semibold text-foreground data-[error=true]:text-destructive',
+        className,
+      )}
       htmlFor={formItemId}
       {...props}
     />

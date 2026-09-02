@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  Button,
   Form,
   FormControl,
   FormError,
@@ -7,12 +8,13 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  Input,
 } from '@org/ui';
 import {
   forgotPasswordSchema,
   type ForgotPasswordInput,
 } from '@org/validation';
-import { ArrowRight, CheckCircle2, Loader2, Mail } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Mail } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
 import { AuthLayout } from '../auth-layout.js';
@@ -43,29 +45,29 @@ export function ForgotPasswordPage() {
         footer={
           <Link
             to="/login"
-            className="font-medium text-white hover:underline transition-colors"
+            className="font-medium text-foreground hover:underline transition-colors"
           >
             Back to sign in
           </Link>
         }
       >
         <div className="gap-4 py-4 flex flex-col items-center text-center">
-          <div className="size-12 flex items-center justify-center rounded-full bg-zinc-800 border border-zinc-700/80 text-emerald-400">
+          <div className="size-12 flex items-center justify-center rounded-full bg-surface-raised border border-border text-success-text">
             <CheckCircle2 className="size-6" />
           </div>
-          <p className="text-xs text-zinc-400 leading-relaxed max-w-xs">
+          <p className="text-xs text-muted-foreground leading-relaxed max-w-xs">
             If an account exists for that address, we have sent a link to reset
             your password. The link expires in one hour.
           </p>
 
           {devToken ? (
-            <div className="mt-2 p-3 w-full rounded-lg bg-[#121214] border border-zinc-800 text-left">
-              <p className="mb-1 text-[11px] font-medium text-zinc-400">
+            <div className="mt-2 p-3 w-full rounded-lg bg-surface border border-border text-left">
+              <p className="mb-1 text-[11px] font-medium text-muted-foreground">
                 Development only:
               </p>
               <Link
                 to={`/reset-password?token=${devToken}`}
-                className="text-[11px] font-mono break-all text-white hover:underline"
+                className="text-[11px] font-mono break-all text-foreground hover:underline"
               >
                 /reset-password?token={devToken}
               </Link>
@@ -83,7 +85,7 @@ export function ForgotPasswordPage() {
       footer={
         <Link
           to="/login"
-          className="font-medium text-white hover:underline transition-colors"
+          className="font-medium text-foreground hover:underline transition-colors"
         >
           Back to sign in
         </Link>
@@ -98,42 +100,30 @@ export function ForgotPasswordPage() {
             name="email"
             render={({ field }) => (
               <FormItem className="space-y-1 text-left">
-                <FormLabel className="text-xs text-zinc-300 font-medium">
-                  Work email
-                </FormLabel>
+                <FormLabel className="text-xs">Work email</FormLabel>
                 <FormControl>
-                  <div className="relative">
-                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5">
-                      <Mail className="size-3.5 text-zinc-500" />
-                    </div>
-                    <input
-                      {...field}
-                      type="email"
-                      autoComplete="email"
-                      placeholder="you@company.com"
-                      className="w-full h-8 pl-8 pr-3 rounded-lg bg-[#121214] border border-zinc-800 text-white placeholder:text-zinc-500 text-xs focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all"
-                    />
-                  </div>
+                  <Input
+                    {...field}
+                    type="email"
+                    autoComplete="email"
+                    placeholder="you@company.com"
+                    leadingIcon={<Mail />}
+                  />
                 </FormControl>
-                <FormMessage className="text-[11px] text-rose-400" />
+                <FormMessage className="text-[11px]" />
               </FormItem>
             )}
           />
 
-          <button
+          <Button
             type="submit"
-            disabled={form.formState.isSubmitting || forgotPassword.isPending}
-            className="w-full h-8 rounded-lg bg-white text-black hover:bg-zinc-200 font-medium text-xs transition-all duration-150 flex items-center justify-center gap-1.5 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 disabled:opacity-70 disabled:cursor-not-allowed mt-1"
+            size="md"
+            className="w-full mt-1"
+            loading={form.formState.isSubmitting || forgotPassword.isPending}
+            trailingIcon={<ArrowRight className="size-3.5" />}
           >
-            {form.formState.isSubmitting || forgotPassword.isPending ? (
-              <Loader2 className="size-3.5 animate-spin text-black" />
-            ) : (
-              <>
-                <span>Send reset link</span>
-                <ArrowRight className="size-3.5" />
-              </>
-            )}
-          </button>
+            Send reset link
+          </Button>
         </form>
       </Form>
     </AuthLayout>

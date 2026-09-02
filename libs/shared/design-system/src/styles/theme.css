@@ -175,8 +175,8 @@
    * rather than picking a t-shirt size and drifting from the spec.
    */
   --radius-card: var(--radius-md);
-  --radius-btn: var(--radius-sm);
-  --radius-input: var(--radius-sm);
+  --radius-btn: var(--radius-lg);
+  --radius-input: var(--radius-lg);
   --radius-popup: var(--radius-md);
   --radius-dialog: var(--radius-xl);
 
@@ -555,8 +555,8 @@
   --radius-lg: 8px;
   --radius-xl: 10px;
   --radius-card: 6px;
-  --radius-btn: 4px;
-  --radius-input: 4px;
+  --radius-btn: 6px;
+  --radius-input: 6px;
   --radius-popup: 6px;
   --radius-dialog: 8px;
 }
@@ -568,8 +568,8 @@
   --radius-lg: 10px;
   --radius-xl: 12px;
   --radius-card: 8px;
-  --radius-btn: 6px;
-  --radius-input: 6px;
+  --radius-btn: 10px;
+  --radius-input: 10px;
   --radius-popup: 8px;
   --radius-dialog: 12px;
 }
@@ -581,8 +581,8 @@
   --radius-lg: 12px;
   --radius-xl: 16px;
   --radius-card: 10px;
-  --radius-btn: 8px;
-  --radius-input: 8px;
+  --radius-btn: 12px;
+  --radius-input: 12px;
   --radius-popup: 10px;
   --radius-dialog: 14px;
 }
@@ -594,8 +594,8 @@
   --radius-lg: 18px;
   --radius-xl: 20px;
   --radius-card: 14px;
-  --radius-btn: 10px;
-  --radius-input: 10px;
+  --radius-btn: 14px;
+  --radius-input: 14px;
   --radius-popup: 14px;
   --radius-dialog: 18px;
 }

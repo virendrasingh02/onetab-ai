@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  Button,
   Checkbox,
   Form,
   FormControl,
@@ -8,9 +9,10 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  Input,
 } from '@org/ui';
 import { registerSchema, type RegisterInput } from '@org/validation';
-import { ArrowRight, Check, Eye, EyeOff, Loader2, Mail, User } from 'lucide-react';
+import { ArrowRight, Check, Eye, EyeOff, Mail, User } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -72,7 +74,7 @@ export function RegisterPage() {
           Already have an account?{' '}
           <Link
             to="/login"
-            className="font-medium text-white hover:underline transition-colors"
+            className="font-medium text-foreground hover:underline transition-colors"
           >
             Sign in
           </Link>
@@ -89,23 +91,16 @@ export function RegisterPage() {
             name="name"
             render={({ field }) => (
               <FormItem className="space-y-1 text-left">
-                <FormLabel className="text-xs text-zinc-300 font-medium">
-                  Full name
-                </FormLabel>
+                <FormLabel className="text-xs">Full name</FormLabel>
                 <FormControl>
-                  <div className="relative">
-                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5">
-                      <User className="size-3.5 text-zinc-500" />
-                    </div>
-                    <input
-                      {...field}
-                      autoComplete="name"
-                      placeholder="Ada Lovelace"
-                      className="w-full h-8 pl-8 pr-3 rounded-lg bg-[#121214] border border-zinc-800 text-white placeholder:text-zinc-500 text-xs focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all"
-                    />
-                  </div>
+                  <Input
+                    {...field}
+                    autoComplete="name"
+                    placeholder="Ada Lovelace"
+                    leadingIcon={<User />}
+                  />
                 </FormControl>
-                <FormMessage className="text-[11px] text-rose-400" />
+                <FormMessage className="text-[11px]" />
               </FormItem>
             )}
           />
@@ -115,24 +110,17 @@ export function RegisterPage() {
             name="email"
             render={({ field }) => (
               <FormItem className="space-y-1 text-left">
-                <FormLabel className="text-xs text-zinc-300 font-medium">
-                  Work email
-                </FormLabel>
+                <FormLabel className="text-xs">Work email</FormLabel>
                 <FormControl>
-                  <div className="relative">
-                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5">
-                      <Mail className="size-3.5 text-zinc-500" />
-                    </div>
-                    <input
-                      {...field}
-                      type="email"
-                      autoComplete="email"
-                      placeholder="you@company.com"
-                      className="w-full h-8 pl-8 pr-3 rounded-lg bg-[#121214] border border-zinc-800 text-white placeholder:text-zinc-500 text-xs focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all"
-                    />
-                  </div>
+                  <Input
+                    {...field}
+                    type="email"
+                    autoComplete="email"
+                    placeholder="you@company.com"
+                    leadingIcon={<Mail />}
+                  />
                 </FormControl>
-                <FormMessage className="text-[11px] text-rose-400" />
+                <FormMessage className="text-[11px]" />
               </FormItem>
             )}
           />
@@ -142,27 +130,24 @@ export function RegisterPage() {
             name="password"
             render={({ field }) => (
               <FormItem className="space-y-1 text-left">
-                <FormLabel className="text-xs text-zinc-300 font-medium">
-                  Password
-                </FormLabel>
+                <FormLabel className="text-xs">Password</FormLabel>
                 <FormControl>
-                  <div className="relative">
-                    <input
-                      {...field}
-                      type={showPassword ? 'text' : 'password'}
-                      autoComplete="new-password"
-                      placeholder="••••••••••"
-                      className="w-full h-8 pl-3 pr-8 rounded-lg bg-[#121214] border border-zinc-800 text-white placeholder:text-zinc-500 text-xs focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((v) => !v)}
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-zinc-500 hover:text-zinc-300 transition-colors"
-                    >
-                      {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                    </button>
-                  </div>
+                  <Input
+                    {...field}
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    placeholder="••••••••••"
+                    trailingSlot={
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        className="flex items-center text-subtle hover:text-foreground transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                      </button>
+                    }
+                  />
                 </FormControl>
                 <ul className="mt-1 gap-1.5 grid grid-cols-2">
                   {PASSWORD_RULES.map((rule) => {
@@ -172,12 +157,12 @@ export function RegisterPage() {
                         key={rule.label}
                         className={
                           met
-                            ? 'gap-1 text-[11px] flex items-center text-emerald-400'
-                            : 'gap-1 text-[11px] flex items-center text-zinc-500'
+                            ? 'gap-1 text-[11px] flex items-center text-success-text'
+                            : 'gap-1 text-[11px] flex items-center text-muted-foreground'
                         }
                       >
                         <Check
-                          className={met ? 'size-3 text-emerald-400' : 'size-3 opacity-30'}
+                          className={met ? 'size-3 text-success-text' : 'size-3 opacity-30'}
                           aria-hidden
                         />
                         {rule.label}
@@ -185,7 +170,7 @@ export function RegisterPage() {
                     );
                   })}
                 </ul>
-                <FormMessage className="text-[11px] text-rose-400" />
+                <FormMessage className="text-[11px]" />
               </FormItem>
             )}
           />
@@ -195,29 +180,26 @@ export function RegisterPage() {
             name="confirmPassword"
             render={({ field }) => (
               <FormItem className="space-y-1 text-left">
-                <FormLabel className="text-xs text-zinc-300 font-medium">
-                  Confirm password
-                </FormLabel>
+                <FormLabel className="text-xs">Confirm password</FormLabel>
                 <FormControl>
-                  <div className="relative">
-                    <input
-                      {...field}
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      autoComplete="new-password"
-                      placeholder="••••••••••"
-                      className="w-full h-8 pl-3 pr-8 rounded-lg bg-[#121214] border border-zinc-800 text-white placeholder:text-zinc-500 text-xs focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword((v) => !v)}
-                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                      className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-zinc-500 hover:text-zinc-300 transition-colors"
-                    >
-                      {showConfirmPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                    </button>
-                  </div>
+                  <Input
+                    {...field}
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    placeholder="••••••••••"
+                    trailingSlot={
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword((v) => !v)}
+                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                        className="flex items-center text-subtle hover:text-foreground transition-colors"
+                      >
+                        {showConfirmPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                      </button>
+                    }
+                  />
                 </FormControl>
-                <FormMessage className="text-[11px] text-rose-400" />
+                <FormMessage className="text-[11px]" />
               </FormItem>
             )}
           />
@@ -234,34 +216,29 @@ export function RegisterPage() {
                     onCheckedChange={(checked) => field.onChange(!!checked)}
                     onBlur={field.onBlur}
                     name={field.name}
-                    className="mt-0.5 border-zinc-700 data-[state=checked]:bg-white data-[state=checked]:text-black"
+                    className="mt-0.5"
                   />
                   <label
                     htmlFor="acceptTerms"
-                    className="text-zinc-400 cursor-pointer select-none leading-tight"
+                    className="text-muted-foreground cursor-pointer select-none leading-tight"
                   >
                     I agree to the Terms of Service and Privacy Policy.
                   </label>
                 </div>
-                <FormMessage className="text-[11px] text-rose-400" />
+                <FormMessage className="text-[11px]" />
               </FormItem>
             )}
           />
 
-          <button
+          <Button
             type="submit"
-            disabled={form.formState.isSubmitting || register.isPending}
-            className="w-full h-8 rounded-lg bg-white text-black hover:bg-zinc-200 font-medium text-xs transition-all duration-150 flex items-center justify-center gap-1.5 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 disabled:opacity-70 disabled:cursor-not-allowed mt-1"
+            size="md"
+            className="w-full mt-1"
+            loading={form.formState.isSubmitting || register.isPending}
+            trailingIcon={<ArrowRight className="size-3.5" />}
           >
-            {form.formState.isSubmitting || register.isPending ? (
-              <Loader2 className="size-3.5 animate-spin text-black" />
-            ) : (
-              <>
-                <span>Create account</span>
-                <ArrowRight className="size-3.5" />
-              </>
-            )}
-          </button>
+            Create account
+          </Button>
         </form>
       </Form>
     </AuthLayout>

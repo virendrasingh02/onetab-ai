@@ -3,8 +3,8 @@ import {
   Badge,
   Button,
   Checkbox,
+  Field,
   Input,
-  Label,
   Select,
   SelectContent,
   SelectItem,
@@ -21,6 +21,7 @@ export interface FormCardProps {
   event: FormMessageContent;
   isHighlighted?: boolean;
   onSubmit?: (values: Record<string, unknown>) => void | Promise<void>;
+  onCancel?: () => void;
 }
 
 export function FormCard({
@@ -28,6 +29,7 @@ export function FormCard({
   event,
   isHighlighted = false,
   onSubmit,
+  onCancel,
 }: FormCardProps) {
   const [formData, setFormData] = useState<Record<string, any>>(() => {
     const initial: Record<string, any> = {};
@@ -60,6 +62,15 @@ export function FormCard({
       }
     }
     return null;
+  };
+
+  const clearError = (name: string) => {
+    if (!errors[name]) return;
+    setErrors((prev) => {
+      const copy = { ...prev };
+      delete copy[name];
+      return copy;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -139,83 +150,98 @@ export function FormCard({
           </div>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="mt-3.5 space-y-3 text-xs">
-          {event.fields.map((field) => (
-            <div key={field.id} className="space-y-1">
-              <Label className="text-xs font-semibold text-foreground flex items-center gap-1">
-                <span>{field.label}</span>
-                {field.required && <span className="text-destructive">*</span>}
-              </Label>
+        <form onSubmit={handleSubmit} className="mt-3.5 space-y-3.5 text-xs">
+          {event.fields.map((field) => {
+            const error = errors[field.name];
 
-              {field.type === 'text' || field.type === 'email' || field.type === 'number' ? (
-                <Input
-                  type={field.type}
-                  placeholder={field.placeholder}
-                  value={formData[field.name] || ''}
-                  onChange={(e) => {
-                    setFormData((prev) => ({ ...prev, [field.name]: e.target.value }));
-                    if (errors[field.name]) {
-                      setErrors((prev) => {
-                        const copy = { ...prev };
-                        delete copy[field.name];
-                        return copy;
-                      });
-                    }
-                  }}
-                  className={cn('text-xs h-8', errors[field.name] && 'border-destructive')}
-                />
-              ) : field.type === 'select' && field.options ? (
-                <Select
-                  value={formData[field.name] || ''}
-                  onValueChange={(val) => {
-                    setFormData((prev) => ({ ...prev, [field.name]: val }));
-                    if (errors[field.name]) {
-                      setErrors((prev) => {
-                        const copy = { ...prev };
-                        delete copy[field.name];
-                        return copy;
-                      });
-                    }
-                  }}
-                >
-                  <SelectTrigger className="text-xs h-8 bg-surface">
-                    <SelectValue placeholder={field.placeholder || 'Select an option…'} />
-                  </SelectTrigger>
-                  <SelectContent className="text-xs">
-                    {field.options.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : field.type === 'checkbox' ? (
-                <div className="flex items-center gap-2 pt-1">
-                  <Checkbox
-                    id={field.id}
-                    checked={!!formData[field.name]}
-                    onCheckedChange={(checked) =>
-                      setFormData((prev) => ({ ...prev, [field.name]: !!checked }))
-                    }
+            if (field.type === 'checkbox') {
+              return (
+                <Field key={field.id} error={error}>
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <Checkbox
+                      id={field.id}
+                      checked={!!formData[field.name]}
+                      onCheckedChange={(checked) => {
+                        setFormData((prev) => ({ ...prev, [field.name]: !!checked }));
+                        clearError(field.name);
+                      }}
+                    />
+                    <label htmlFor={field.id} className="text-xs text-muted-foreground cursor-pointer">
+                      {field.placeholder || field.label}
+                      {field.required && <span className="text-destructive"> *</span>}
+                    </label>
+                  </div>
+                </Field>
+              );
+            }
+
+            return (
+              <Field
+                key={field.id}
+                label={field.label}
+                required={field.required}
+                hint={field.helpText}
+                error={error}
+              >
+                {field.type === 'select' && field.options ? (
+                  <Select
+                    value={formData[field.name] || ''}
+                    onValueChange={(val) => {
+                      setFormData((prev) => ({ ...prev, [field.name]: val }));
+                      clearError(field.name);
+                    }}
+                  >
+                    <SelectTrigger
+                      className={cn('text-xs h-8 bg-surface', error && 'border-destructive')}
+                    >
+                      <SelectValue placeholder={field.placeholder || 'Select an option…'} />
+                    </SelectTrigger>
+                    <SelectContent className="text-xs">
+                      {field.options.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    type={field.type === 'number' ? 'number' : field.type === 'email' ? 'email' : 'text'}
+                    inputSize="md"
+                    placeholder={field.placeholder}
+                    prefix={field.prefix}
+                    suffix={field.suffix}
+                    invalid={!!error}
+                    value={formData[field.name] || ''}
+                    onChange={(e) => {
+                      setFormData((prev) => ({ ...prev, [field.name]: e.target.value }));
+                      clearError(field.name);
+                    }}
                   />
-                  <label htmlFor={field.id} className="text-xs text-muted-foreground cursor-pointer">
-                    {field.placeholder || field.label}
-                  </label>
-                </div>
-              ) : null}
+                )}
+              </Field>
+            );
+          })}
 
-              {errors[field.name] && (
-                <p className="text-[11px] text-destructive mt-0.5">{errors[field.name]}</p>
-              )}
-            </div>
-          ))}
-
-          <div className="pt-2 flex items-center justify-end gap-2 border-t border-border/60">
+          <div className="pt-2.5 flex items-center justify-end gap-2 border-t border-border/60">
+            {onCancel && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                disabled={isSubmitting}
+                onClick={onCancel}
+                className="text-xs px-4"
+              >
+                {event.cancelLabel || 'Cancel'}
+              </Button>
+            )}
             <Button
               type="submit"
-              size="sm"
+              variant="primary"
+              size="md"
               disabled={isSubmitting}
-              className="h-8 text-xs px-4 gap-1.5 shadow-xs"
+              className="text-xs px-4 gap-1.5 shadow-xs"
             >
               {isSubmitting ? (
                 <Loader2 className="size-3.5 animate-spin" />

@@ -28,18 +28,18 @@ export function AuthLayout({
   brandLogoText = 'O',
 }: AuthLayoutProps) {
   return (
-    <div className="min-h-screen flex flex-col justify-between items-center bg-[#09090b] text-zinc-100 px-4 py-8 sm:py-10 selection:bg-zinc-800 selection:text-white">
+    <div className="dark min-h-screen flex flex-col justify-between items-center bg-background text-foreground px-4 py-8 sm:py-10 selection:bg-primary/25">
       {/* Top Brand Emblem */}
       <header className="pt-2 sm:pt-4 flex items-center justify-center">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-700"
+          className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           aria-label={`${brandName} Home`}
         >
-          <div className="size-7 rounded-md bg-zinc-800/90 border border-zinc-700/80 flex items-center justify-center font-bold text-xs text-white shadow-xs">
+          <div className="size-7 rounded-md bg-surface-raised border border-border flex items-center justify-center font-bold text-xs text-foreground shadow-xs">
             {brandLogoText}
           </div>
-          <span className="text-sm font-semibold tracking-tight text-white">
+          <span className="text-sm font-semibold tracking-tight text-foreground">
             {brandName}
           </span>
         </Link>
@@ -48,12 +48,12 @@ export function AuthLayout({
       {/* Main Content Area */}
       <main className="w-full max-w-[380px] my-auto py-8 flex flex-col items-center">
         <div className={cn('w-full', className)}>
-          <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight text-white text-center leading-tight">
+          <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight text-foreground text-center leading-tight">
             {title}
           </h1>
 
           {subtitle ? (
-            <p className="mt-2 text-xs sm:text-sm text-zinc-400 text-center text-balance leading-relaxed">
+            <p className="mt-2 text-xs sm:text-sm text-muted-foreground text-center text-balance leading-relaxed">
               {subtitle}
             </p>
           ) : null}
@@ -61,7 +61,7 @@ export function AuthLayout({
           <div className="mt-6 w-full">{children}</div>
 
           {footer ? (
-            <div className="mt-5 text-xs text-center text-zinc-400 leading-normal">
+            <div className="mt-5 text-xs text-center text-muted-foreground leading-normal">
               {footer}
             </div>
           ) : null}
@@ -70,26 +70,26 @@ export function AuthLayout({
 
       {/* Bottom Legal Notice & Footer Links */}
       <footer className="pt-6 pb-2 text-center max-w-md w-full px-2 space-y-2.5">
-        <p className="text-[11px] sm:text-xs text-zinc-500 leading-relaxed">
+        <p className="text-[11px] sm:text-xs text-subtle leading-relaxed">
           By proceeding, you acknowledge that you have read, understood, and agree to {brandName}&apos;s{' '}
           <a
             href="#terms"
-            className="text-zinc-400 underline underline-offset-2 hover:text-zinc-200 transition-colors"
+            className="text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
           >
             Terms and Conditions
           </a>
           , including our sign-in and account access policies.
         </p>
 
-        <div className="text-[11px] sm:text-xs text-zinc-500 flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
+        <div className="text-[11px] sm:text-xs text-subtle flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
           <span>© {new Date().getFullYear()} {brandName}</span>
-          <a href="#privacy" className="hover:text-zinc-300 transition-colors">
+          <a href="#privacy" className="hover:text-foreground transition-colors">
             Privacy Policy
           </a>
-          <a href="#docs" className="hover:text-zinc-300 transition-colors">
+          <a href="#docs" className="hover:text-foreground transition-colors">
             Docs
           </a>
-          <a href="#support" className="hover:text-zinc-300 transition-colors">
+          <a href="#support" className="hover:text-foreground transition-colors">
             Support
           </a>
         </div>

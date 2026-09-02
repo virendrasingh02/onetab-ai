@@ -10,6 +10,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Field,
   Form,
   FormControl,
   FormDescription,
@@ -257,29 +258,23 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
 
                 {/* 3-Column Responsive Name Grid: First Name, Last Name, Display Name */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground">
-                      First Name <span className="text-destructive">*</span>
-                    </label>
+                  <Field label="First Name" required>
                     <Input
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
                       placeholder="e.g. Virendra"
                       className="h-9 text-xs"
                     />
-                  </div>
+                  </Field>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground">
-                      Last Name <span className="text-destructive">*</span>
-                    </label>
+                  <Field label="Last Name" required>
                     <Input
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
                       placeholder="e.g. Singh"
                       className="h-9 text-xs"
                     />
-                  </div>
+                  </Field>
 
                   <FormField
                     control={form.control}
@@ -302,34 +297,38 @@ export function ProfileEditModal({ open, onOpenChange, user }: ProfileEditModalP
                 </div>
 
                 {/* Email Field (Guarded / Read-Only per Auth Specs) */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <Field
+                  label={
+                    <>
                       <Lock className="size-3 text-muted-foreground" />
                       <span>Email Address</span>
-                    </label>
+                    </>
+                  }
+                  labelAside={
                     <span className="text-[11px] text-muted-foreground">Primary Login</span>
-                  </div>
+                  }
+                  hint={
+                    <>
+                      <Info className="size-3 text-muted-foreground shrink-0" />
+                      <span>To change your verified email, visit Account Security settings.</span>
+                    </>
+                  }
+                >
                   <Input
                     value={user.email}
                     disabled
                     className="h-9 text-xs bg-surface-muted border-border font-mono text-muted-foreground cursor-not-allowed"
                   />
-                  <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                    <Info className="size-3 text-muted-foreground shrink-0" />
-                    <span>To change your verified email, visit Account Security settings.</span>
-                  </p>
-                </div>
+                </Field>
 
                 {/* Username / Handle */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">Username / Handle</label>
+                <Field label="Username / Handle">
                   <Input
                     value={usernameHandle}
                     disabled
                     className="h-9 text-xs bg-surface-muted border-border font-mono text-muted-foreground"
                   />
-                </div>
+                </Field>
 
                 {/* Bio */}
                 <FormField
