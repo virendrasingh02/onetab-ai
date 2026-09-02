@@ -90,19 +90,19 @@ export function NotificationDisplaySettingsPanel({
   return (
     <div className="space-y-8 animate-in fade-in duration-200">
       {/* Top Heading & Test Trigger */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
         <div>
-          <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
+          <h2 className="text-lg font-bold tracking-tight gap-2 flex items-center text-foreground">
             <Bell className="size-4.5 text-primary" />
             <span>Notification Display</span>
           </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Control toast appearance, on-screen positioning, privacy previews, and Windows taskbar flashing.
+          <p className="text-xs mt-0.5 text-muted-foreground">
+            Control toast appearance, on-screen positioning, privacy previews,
+            and Windows taskbar flashing.
           </p>
         </div>
 
-
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="gap-2 flex shrink-0 items-center">
           <Button
             variant="outline"
             size="sm"
@@ -122,7 +122,7 @@ export function NotificationDisplaySettingsPanel({
           >
             {testSuccess ? (
               <>
-                <CheckCircle2 className="size-3.5 text-white" />
+                <CheckCircle2 className="size-3.5" />
                 <span>Test Alert Sent!</span>
               </>
             ) : (
@@ -137,15 +137,15 @@ export function NotificationDisplaySettingsPanel({
 
       {/* 1. Privacy, Preview & Call Suppression */}
       <div className="space-y-3">
-        <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
+        <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
           Privacy & Focus Rules
         </h3>
 
-        <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+        <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
           {/* Content Preview Switch */}
-          <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-            <div className="flex items-start gap-3">
-              <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+          <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
+            <div className="gap-3 flex items-start">
+              <div className="size-8 mt-0.5 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 {notifications.showContentPreview ? (
                   <Eye className="size-4" />
                 ) : (
@@ -156,8 +156,9 @@ export function NotificationDisplaySettingsPanel({
                 <h4 className="text-xs font-medium text-foreground">
                   Show notification message previews
                 </h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  When turned off, notification body contents are redacted to protect sensitive messages from passersby.
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  When turned off, notification body contents are redacted to
+                  protect sensitive messages from passersby.
                 </p>
               </div>
             </div>
@@ -170,17 +171,18 @@ export function NotificationDisplaySettingsPanel({
           </div>
 
           {/* During Calls & Meetings Switch */}
-          <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-            <div className="flex items-start gap-3">
-              <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+          <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
+            <div className="gap-3 flex items-start">
+              <div className="size-8 mt-0.5 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <PhoneCall className="size-4" />
               </div>
               <div>
                 <h4 className="text-xs font-medium text-foreground">
                   Show notifications during calls & meetings
                 </h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  When turned off, non-critical alerts are silenced while you are active in a voice call, huddle, or video meeting.
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  When turned off, non-critical alerts are silenced while you
+                  are active in a voice call, huddle, or video meeting.
                 </p>
               </div>
             </div>
@@ -193,33 +195,35 @@ export function NotificationDisplaySettingsPanel({
           </div>
 
           {/* Flash Taskbar Switch */}
-          <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
-            <div className="flex items-start gap-3">
-              <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+          <div className="p-4 sm:flex-row sm:items-center gap-4 flex flex-col justify-between transition-colors hover:bg-accent/40">
+            <div className="gap-3 flex items-start">
+              <div className="size-8 mt-0.5 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Laptop className="size-4" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="gap-2 flex items-center">
                   <h4 className="text-xs font-medium text-foreground">
                     Flash taskbar when notification arrives
                   </h4>
                   {capabilities.isDesktop && (
-                    <Badge variant="neutral" className="text-[9px] py-0 px-1.5">
+                    <Badge variant="neutral" className="py-0 px-1.5 text-[9px]">
                       Windows Desktop
                     </Badge>
                   )}
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Flashes the desktop application icon when you receive a message in the background.
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Flashes the desktop application icon when you receive a
+                  message in the background.
                 </p>
                 {!isTaskbarFlashSupported && (
-                  <p className="text-[10.5px] text-warning-text mt-1 italic">
-                    Note: Taskbar flashing requires the OneTab Windows desktop app.
+                  <p className="mt-1 text-[10.5px] text-warning-text italic">
+                    Note: Taskbar flashing requires the OneTab Windows desktop
+                    app.
                   </p>
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2.5 self-end sm:self-auto">
+            <div className="gap-2.5 sm:self-auto flex items-center self-end">
               {isSystemSettingsSupported && (
                 <Button
                   variant="outline"
@@ -245,15 +249,15 @@ export function NotificationDisplaySettingsPanel({
       {/* 2. Position on Screen */}
       <div className="space-y-3">
         <div>
-          <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
+          <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
             Position on Screen
           </h3>
-          <p className="text-xs text-muted-foreground mt-0.5 px-1">
+          <p className="text-xs mt-0.5 px-1 text-muted-foreground">
             Choose which corner of the display in-app toast banners appear.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 max-w-lg">
+        <div className="gap-3 max-w-lg grid grid-cols-2">
           {(
             [
               { id: 'top-left', label: 'Top Left', defaultBadge: false },
@@ -275,22 +279,22 @@ export function NotificationDisplaySettingsPanel({
                   }
                 }}
                 className={cn(
-                  'p-3 rounded-xl border transition-all cursor-pointer select-none text-left flex items-center justify-between gap-2',
+                  'p-3 gap-2 flex cursor-pointer items-center justify-between rounded-xl border text-left transition-all select-none',
                   isSelected
-                    ? 'border-primary/80 bg-primary/5 ring-2 ring-primary/20 shadow-xs font-semibold text-foreground'
-                    : 'border-border bg-surface-inset hover:border-border-focus hover:bg-accent/30 text-muted-foreground',
+                    ? 'font-semibold border-primary/80 bg-primary/5 text-foreground shadow-xs ring-2 ring-primary/20'
+                    : 'hover:border-border-focus border-border bg-surface-inset text-muted-foreground hover:bg-accent/30',
                 )}
               >
-                <div className="flex items-center gap-2">
+                <div className="gap-2 flex items-center">
                   <span className="text-xs">{pos.label}</span>
                   {pos.defaultBadge && (
-                    <Badge variant="neutral" className="text-[9px] py-0 px-1">
+                    <Badge variant="neutral" className="py-0 px-1 text-[9px]">
                       Default
                     </Badge>
                   )}
                 </div>
                 {isSelected && (
-                  <CheckCircle2 className="size-4 text-primary shrink-0" />
+                  <CheckCircle2 className="size-4 shrink-0 text-primary" />
                 )}
               </div>
             );
@@ -299,36 +303,39 @@ export function NotificationDisplaySettingsPanel({
       </div>
 
       {/* 3. Notification Size & Dismiss Duration */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div className="sm:grid-cols-2 gap-6 grid grid-cols-1">
         {/* Size Selection */}
         <div className="space-y-3">
           <div>
-            <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
+            <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
               Banner Size
             </h3>
-            <p className="text-xs text-muted-foreground mt-0.5 px-1">
+            <p className="text-xs mt-0.5 px-1 text-muted-foreground">
               Choose compact or relaxed toast banners.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="gap-3 grid grid-cols-2">
             <div
               role="button"
               tabIndex={0}
               onClick={() => handleSizeSelect('comfy')}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') handleSizeSelect('comfy');
+                if (e.key === 'Enter' || e.key === ' ')
+                  handleSizeSelect('comfy');
               }}
               className={cn(
-                'p-3 rounded-xl border transition-all cursor-pointer select-none text-left flex items-center justify-between',
+                'p-3 flex cursor-pointer items-center justify-between rounded-xl border text-left transition-all select-none',
                 notifications.size === 'comfy'
-                  ? 'border-primary/80 bg-primary/5 ring-2 ring-primary/20 shadow-xs'
-                  : 'border-border bg-surface-inset hover:border-border-focus hover:bg-accent/30',
+                  ? 'border-primary/80 bg-primary/5 shadow-xs ring-2 ring-primary/20'
+                  : 'hover:border-border-focus border-border bg-surface-inset hover:bg-accent/30',
               )}
             >
-              <div className="flex items-center gap-2">
+              <div className="gap-2 flex items-center">
                 <AlignJustify className="size-4 text-primary" />
-                <span className="text-xs font-medium text-foreground">Comfy</span>
+                <span className="text-xs font-medium text-foreground">
+                  Comfy
+                </span>
               </div>
               {notifications.size === 'comfy' && (
                 <CheckCircle2 className="size-4 text-primary" />
@@ -340,18 +347,21 @@ export function NotificationDisplaySettingsPanel({
               tabIndex={0}
               onClick={() => handleSizeSelect('compact')}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') handleSizeSelect('compact');
+                if (e.key === 'Enter' || e.key === ' ')
+                  handleSizeSelect('compact');
               }}
               className={cn(
-                'p-3 rounded-xl border transition-all cursor-pointer select-none text-left flex items-center justify-between',
+                'p-3 flex cursor-pointer items-center justify-between rounded-xl border text-left transition-all select-none',
                 notifications.size === 'compact'
-                  ? 'border-primary/80 bg-primary/5 ring-2 ring-primary/20 shadow-xs'
-                  : 'border-border bg-surface-inset hover:border-border-focus hover:bg-accent/30',
+                  ? 'border-primary/80 bg-primary/5 shadow-xs ring-2 ring-primary/20'
+                  : 'hover:border-border-focus border-border bg-surface-inset hover:bg-accent/30',
               )}
             >
-              <div className="flex items-center gap-2">
+              <div className="gap-2 flex items-center">
                 <Sparkles className="size-4 text-primary" />
-                <span className="text-xs font-medium text-foreground">Compact</span>
+                <span className="text-xs font-medium text-foreground">
+                  Compact
+                </span>
               </div>
               {notifications.size === 'compact' && (
                 <CheckCircle2 className="size-4 text-primary" />
@@ -363,15 +373,15 @@ export function NotificationDisplaySettingsPanel({
         {/* Dismiss Duration */}
         <div className="space-y-3">
           <div>
-            <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
+            <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
               Dismiss Duration
             </h3>
-            <p className="text-xs text-muted-foreground mt-0.5 px-1">
+            <p className="text-xs mt-0.5 px-1 text-muted-foreground">
               How long alerts stay visible before fading away.
             </p>
           </div>
 
-          <div className="bg-surface-inset rounded-xl border border-border p-2">
+          <div className="p-2 rounded-xl border border-border bg-surface-inset">
             <Select
               value={
                 notifications.dismissDuration === null
@@ -380,8 +390,8 @@ export function NotificationDisplaySettingsPanel({
               }
               onValueChange={handleDurationSelect}
             >
-              <SelectTrigger className="h-8 text-xs bg-surface border-border">
-                <div className="flex items-center gap-2">
+              <SelectTrigger className="h-8 text-xs border-border bg-surface">
+                <div className="gap-2 flex items-center">
                   <Clock className="size-3.5 text-muted-foreground" />
                   <SelectValue placeholder="5 seconds" />
                 </div>

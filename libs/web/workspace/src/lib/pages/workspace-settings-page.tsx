@@ -1821,13 +1821,12 @@ export function WorkspaceSettingsPage({
 
       {/* ---------------- SECTION 3: NOTIFICATIONS ---------------- */}
       {currentTab === 'notifications' && (
-        <div className="space-y-10">
-          {/* Main Reference Header */}
+        <div className="space-y-8">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white mb-1">
-              Notification settings
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Notifications & Alerts
             </h1>
-            <p className="text-xs sm:text-sm text-zinc-400">
+            <p className="text-xs mt-1 text-muted-foreground">
               Choose how workspace updates reach you.
             </p>
           </div>
@@ -1835,18 +1834,18 @@ export function WorkspaceSettingsPage({
           {/* 1. Primary Notification Delivery Channels (matching reference design) */}
           <div className="space-y-3">
             {/* Inbox */}
-            <div className="border-zinc-800/90 p-4 sm:p-5 gap-4 hover:border-zinc-700/80 flex items-center justify-between rounded-2xl border bg-[#121214] transition-colors">
+            <div className="p-4 sm:p-5 gap-4 flex items-center justify-between rounded-xl border border-border bg-surface transition-colors hover:bg-accent/40">
               <div className="gap-3.5 flex items-center">
-                <div className="size-9 bg-zinc-800/80 border-zinc-700/60 text-zinc-200 flex shrink-0 items-center justify-center rounded-xl border">
+                <div className="size-9 flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-inset text-muted-foreground">
                   <Inbox className="size-4.5" />
                 </div>
                 <div>
                   <div className="gap-2 flex items-center">
-                    <span className="text-sm font-semibold text-white">
+                    <span className="text-sm font-semibold text-foreground">
                       Inbox
                     </span>
                   </div>
-                  <p className="text-xs text-zinc-400 mt-0.5">
+                  <p className="text-xs mt-0.5 text-muted-foreground">
                     Approvals, handoffs, and follow-ups.
                   </p>
                 </div>
@@ -1856,10 +1855,10 @@ export function WorkspaceSettingsPage({
                 value={notifyChannelScope}
                 onValueChange={setNotifyChannelScope}
               >
-                <SelectTrigger className="w-32 h-8 text-xs border-zinc-700/60 text-zinc-200 rounded-lg bg-[#18181b]">
+                <SelectTrigger className="w-32 h-8 text-xs border-border bg-surface">
                   <SelectValue placeholder="Default" />
                 </SelectTrigger>
-                <SelectContent className="border-zinc-800 text-zinc-200 bg-[#18181b]">
+                <SelectContent>
                   <SelectItem value="all" className="text-xs">
                     Default (All)
                   </SelectItem>
@@ -1874,14 +1873,14 @@ export function WorkspaceSettingsPage({
             </div>
 
             {/* Email */}
-            <div className="border-zinc-800/90 p-4 sm:p-5 gap-4 hover:border-zinc-700/80 flex items-center justify-between rounded-2xl border bg-[#121214] transition-colors">
+            <div className="p-4 sm:p-5 gap-4 flex items-center justify-between rounded-xl border border-border bg-surface transition-colors hover:bg-accent/40">
               <div className="gap-3.5 flex items-center">
-                <div className="size-9 bg-zinc-800/80 border-zinc-700/60 text-zinc-200 flex shrink-0 items-center justify-center rounded-xl border">
+                <div className="size-9 flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-inset text-muted-foreground">
                   <Mail className="size-4.5" />
                 </div>
                 <div>
                   <div className="gap-2 flex items-center">
-                    <span className="text-sm font-semibold text-white">
+                    <span className="text-sm font-semibold text-foreground">
                       Email
                     </span>
                     <button
@@ -1897,12 +1896,12 @@ export function WorkspaceSettingsPage({
                         setTestNotifSent(true);
                         setTimeout(() => setTestNotifSent(false), 3000);
                       }}
-                      className="px-2 py-0.5 font-medium bg-emerald-950/80 text-emerald-400 border-emerald-800/60 hover:bg-emerald-900/60 cursor-pointer rounded-full border text-[10px] transition-colors"
+                      className="px-2 py-0.5 font-medium cursor-pointer rounded-full border border-success/30 bg-success/10 text-[10px] text-success-text transition-colors hover:bg-success/20"
                     >
                       {testNotifSent ? 'Sample sent!' : 'Send sample'}
                     </button>
                   </div>
-                  <p className="text-xs text-zinc-400 mt-0.5">
+                  <p className="text-xs mt-0.5 text-muted-foreground">
                     Digests and direct alerts.
                   </p>
                 </div>
@@ -1912,10 +1911,10 @@ export function WorkspaceSettingsPage({
                 value={notifyDigest ? 'weekly' : 'default'}
                 onValueChange={(val) => setNotifyDigest(val === 'weekly')}
               >
-                <SelectTrigger className="w-32 h-8 text-xs border-zinc-700/60 text-zinc-200 rounded-lg bg-[#18181b]">
+                <SelectTrigger className="w-32 h-8 text-xs border-border bg-surface">
                   <SelectValue placeholder="Default" />
                 </SelectTrigger>
-                <SelectContent className="border-zinc-800 text-zinc-200 bg-[#18181b]">
+                <SelectContent>
                   <SelectItem value="default" className="text-xs">
                     Default
                   </SelectItem>
@@ -1930,28 +1929,28 @@ export function WorkspaceSettingsPage({
             </div>
 
             {/* Browser */}
-            <div className="border-zinc-800/90 p-4 sm:p-5 gap-4 hover:border-zinc-700/80 flex items-center justify-between rounded-2xl border bg-[#121214] transition-colors">
+            <div className="p-4 sm:p-5 gap-4 flex items-center justify-between rounded-xl border border-border bg-surface transition-colors hover:bg-accent/40">
               <div className="gap-3.5 flex items-center">
-                <div className="size-9 bg-zinc-800/80 border-zinc-700/60 text-zinc-200 flex shrink-0 items-center justify-center rounded-xl border">
+                <div className="size-9 flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-inset text-muted-foreground">
                   <Monitor className="size-4.5" />
                 </div>
                 <div>
                   <div className="gap-2 flex items-center">
-                    <span className="text-sm font-semibold text-white">
+                    <span className="text-sm font-semibold text-foreground">
                       Browser
                     </span>
                     {notifBarState.permission === 'granted' && (
-                      <span className="px-2 py-0.5 font-medium bg-emerald-950/80 text-emerald-400 border-emerald-800/60 rounded-full border text-[10px]">
+                      <span className="px-2 py-0.5 font-medium rounded-full border border-success/30 bg-success/10 text-[10px] text-success-text">
                         Active
                       </span>
                     )}
                     {notifBarState.permission === 'denied' && (
-                      <span className="px-2 py-0.5 font-medium bg-rose-950/80 text-rose-400 border-rose-800/60 rounded-full border text-[10px]">
+                      <span className="px-2 py-0.5 font-medium rounded-full border border-destructive/30 bg-destructive/10 text-[10px] text-destructive-text">
                         Blocked
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-zinc-400 mt-0.5">
+                  <p className="text-xs mt-0.5 text-muted-foreground">
                     {notifBarState.permission === 'granted'
                       ? 'Desktop push notifications are enabled and active.'
                       : notifBarState.permission === 'denied'
@@ -1965,7 +1964,7 @@ export function WorkspaceSettingsPage({
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-8 px-3 text-xs border-zinc-700/60 text-zinc-200 hover:text-white hover:bg-zinc-800 shrink-0 rounded-lg bg-[#18181b]"
+                  className="h-8 px-3 text-xs shrink-0"
                   disabled={testNotifSending}
                   onClick={async () => {
                     setTestNotifSending(true);
@@ -1976,18 +1975,18 @@ export function WorkspaceSettingsPage({
                     setTestNotifSending(false);
                   }}
                 >
-                  <Bell className="size-3.5 mr-1 text-zinc-400" />
+                  <Bell className="size-3.5 mr-1 text-muted-foreground" />
                   <span>Send Test Alert</span>
                 </Button>
               ) : notifBarState.permission === 'denied' ? (
-                <span className="text-xs text-zinc-500 shrink-0 italic">
+                <span className="text-xs shrink-0 text-muted-foreground italic">
                   Unblock in browser
                 </span>
               ) : (
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-8 px-3 text-xs border-zinc-700/60 text-zinc-200 hover:text-white hover:bg-zinc-800 shrink-0 rounded-lg bg-[#18181b]"
+                  className="h-8 px-3 text-xs shrink-0"
                   onClick={() => void notifBarState.requestPermission()}
                 >
                   <span>Enable notifications</span>
@@ -1996,15 +1995,15 @@ export function WorkspaceSettingsPage({
             </div>
 
             {/* Mobile & Smart Notifications */}
-            <div className="border-zinc-800/90 p-4 sm:p-5 space-y-4 hover:border-zinc-700/80 rounded-2xl border bg-[#121214] transition-colors">
+            <div className="p-4 sm:p-5 space-y-4 rounded-xl border border-border bg-surface transition-colors">
               <div className="gap-4 flex items-center justify-between">
                 <div className="gap-3.5 flex items-center">
-                  <div className="size-9 bg-zinc-800/80 border-zinc-700/60 text-zinc-200 flex shrink-0 items-center justify-center rounded-xl border">
+                  <div className="size-9 flex shrink-0 items-center justify-center rounded-lg border border-border bg-surface-inset text-muted-foreground">
                     <Smartphone className="size-4.5" />
                   </div>
                   <div>
                     <div className="gap-2 flex items-center">
-                      <span className="text-sm font-semibold text-white">
+                      <span className="text-sm font-semibold text-foreground">
                         Mobile
                       </span>
                       <button
@@ -2015,22 +2014,22 @@ export function WorkspaceSettingsPage({
                             body: 'Sarah replied to your thread in #engineering',
                           });
                         }}
-                        className="px-2 py-0.5 font-medium bg-purple-950/80 text-purple-400 border-purple-800/60 hover:bg-purple-900/60 cursor-pointer rounded-full border text-[10px] transition-colors"
+                        className="px-2 py-0.5 font-medium cursor-pointer rounded-full border border-accent-violet/30 bg-accent-violet-soft text-[10px] text-accent-violet transition-colors hover:bg-accent-violet/20"
                       >
                         Show example
                       </button>
                     </div>
-                    <p className="text-xs text-zinc-400 mt-0.5">
+                    <p className="text-xs mt-0.5 text-muted-foreground">
                       Away-from-desk delivery.
                     </p>
                   </div>
                 </div>
 
                 <Select value="muted" onValueChange={() => undefined}>
-                  <SelectTrigger className="w-32 h-8 text-xs border-zinc-700/60 text-zinc-200 rounded-lg bg-[#18181b]">
+                  <SelectTrigger className="w-32 h-8 text-xs border-border bg-surface">
                     <SelectValue placeholder="Muted" />
                   </SelectTrigger>
-                  <SelectContent className="border-zinc-800 text-zinc-200 bg-[#18181b]">
+                  <SelectContent>
                     <SelectItem value="muted" className="text-xs">
                       Muted
                     </SelectItem>
@@ -2045,12 +2044,12 @@ export function WorkspaceSettingsPage({
               </div>
 
               {/* Sub-row: Smart notifications */}
-              <div className="pt-3 border-zinc-800/60 gap-4 pl-12 flex items-center justify-between border-t">
+              <div className="pt-3 gap-4 pl-12 flex items-center justify-between border-t border-border/60">
                 <div>
-                  <h4 className="text-xs font-medium text-white">
+                  <h4 className="text-xs font-medium text-foreground">
                     Smart notifications
                   </h4>
-                  <p className="text-zinc-400 mt-0.5 text-[11px]">
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
                     Pause phone alerts while desktop stays active.
                   </p>
                 </div>
@@ -2063,7 +2062,7 @@ export function WorkspaceSettingsPage({
           </div>
 
           {/* Display Preferences & Screen Positioning */}
-          <div className="border-zinc-800/80 pt-8 border-t">
+          <div className="pt-8 border-t border-border">
             <NotificationDisplaySettingsPanel workspaceId={workspaceId} />
           </div>
         </div>

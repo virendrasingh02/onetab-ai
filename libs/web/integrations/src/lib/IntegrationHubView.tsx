@@ -87,7 +87,7 @@ function IntegrationAppIcon({ id }: { id: string; name: string }) {
 
     case 'stripe':
       return (
-        <div className="size-5 rounded-md bg-[#635BFF] flex items-center justify-center text-white font-bold text-xs tracking-tighter">
+        <div className="size-5 text-white font-bold text-xs tracking-tighter flex items-center justify-center rounded-md bg-[#635BFF]">
           <svg className="size-3.5 fill-current" viewBox="0 0 24 24">
             <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z" />
           </svg>
@@ -116,8 +116,10 @@ function IntegrationAppIcon({ id }: { id: string; name: string }) {
 
     case 'zoom':
       return (
-        <div className="size-5 rounded-full bg-[#2D8CFF] flex items-center justify-center text-white font-bold text-xs">
-          <span className="font-sans font-black text-white text-[11px] leading-none">Z</span>
+        <div className="size-5 text-white font-bold text-xs flex items-center justify-center rounded-full bg-[#2D8CFF]">
+          <span className="font-black text-white font-sans text-[11px] leading-none">
+            Z
+          </span>
         </div>
       );
 
@@ -170,7 +172,7 @@ function IntegrationAppIcon({ id }: { id: string; name: string }) {
       );
 
     default:
-      return <Webhook className="size-5 text-zinc-300" />;
+      return <Webhook className="size-5 text-muted-foreground" />;
   }
 }
 
@@ -559,155 +561,155 @@ export function IntegrationHubView() {
             </p>
           </div>
 
+          {/* 3-Columns Grid of Cards matching Reference Design */}
+          {filteredCards.length > 0 ? (
+            <div className="md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 grid grid-cols-1">
+              {filteredCards.map((card) => {
+                const connectedInfo = connectedMap.get(card.id.toUpperCase());
+                const isConnected = Boolean(connectedInfo);
+                const showQuickActions =
+                  isConnected && REAL_PROVIDERS.has(card.id);
 
-        {/* 3-Columns Grid of Cards matching Reference Design */}
-        {filteredCards.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-            {filteredCards.map((card) => {
-              const connectedInfo = connectedMap.get(card.id.toUpperCase());
-              const isConnected = Boolean(connectedInfo);
-              const showQuickActions = isConnected && REAL_PROVIDERS.has(card.id);
+                return (
+                  <div
+                    key={card.id}
+                    className="group p-5 flex min-h-[175px] flex-col justify-between rounded-2xl border border-border bg-surface-inset shadow-xs transition-all hover:border-border-strong"
+                  >
+                    {/* Top Row: App Icon & External Link / Action Menu */}
+                    <div className="flex items-start justify-between">
+                      <div className="size-10 p-2 flex items-center justify-center rounded-xl border border-border bg-surface text-foreground shadow-xs">
+                        <IntegrationAppIcon id={card.id} name={card.name} />
+                      </div>
 
-              return (
-                <div
-                  key={card.id}
-                  className="group p-5 rounded-2xl bg-[#121214] border border-zinc-800/90 hover:border-zinc-700/80 transition-all flex flex-col justify-between min-h-[175px] shadow-xs"
-                >
-                  {/* Top Row: App Icon & External Link / Action Menu */}
-                  <div className="flex items-start justify-between">
-                    <div className="size-10 rounded-xl bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center p-2 text-white shadow-xs">
-                      <IntegrationAppIcon id={card.id} name={card.name} />
+                      <div className="gap-1.5 flex items-center">
+                        {showQuickActions && connectedInfo && (
+                          <>
+                            {card.id === 'gmail' && (
+                              <Hint label="Open inbox">
+                                <button
+                                  type="button"
+                                  aria-label="Open inbox"
+                                  onClick={() =>
+                                    setActiveGmailModal({
+                                      integrationId: connectedInfo.id,
+                                      email:
+                                        connectedInfo.displayName ?? undefined,
+                                    })
+                                  }
+                                  className="p-1 rounded-md text-muted-foreground transition-colors hover:text-foreground"
+                                >
+                                  <Inbox className="size-3.5" />
+                                </button>
+                              </Hint>
+                            )}
+
+                            {card.id === 'custom_api' && (
+                              <Hint label="Edit API config">
+                                <button
+                                  type="button"
+                                  aria-label="Edit API config"
+                                  onClick={() => setIsCustomApiModalOpen(true)}
+                                  className="p-1 rounded-md text-muted-foreground transition-colors hover:text-foreground"
+                                >
+                                  <Code2 className="size-3.5" />
+                                </button>
+                              </Hint>
+                            )}
+
+                            <Hint label="Sync now">
+                              <button
+                                type="button"
+                                aria-label="Sync now"
+                                disabled={sync.isPending}
+                                onClick={() => sync.mutate(connectedInfo.id)}
+                                className="p-1 rounded-md text-muted-foreground transition-colors hover:text-foreground"
+                              >
+                                <RefreshCw
+                                  className={cn(
+                                    'size-3.5',
+                                    sync.isPending && 'animate-spin',
+                                  )}
+                                />
+                              </button>
+                            </Hint>
+
+                            <Hint label="Activity log">
+                              <button
+                                type="button"
+                                aria-label="Activity log"
+                                onClick={() => setLogsCard(card)}
+                                className="p-1 rounded-md text-muted-foreground transition-colors hover:text-foreground"
+                              >
+                                <Activity className="size-3.5" />
+                              </button>
+                            </Hint>
+                          </>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => toggleConnection(card)}
+                          aria-label={`Open ${card.name}`}
+                          className="p-1 rounded-md text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          <ExternalLink className="size-4" />
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
-                      {showQuickActions && connectedInfo && (
-                        <>
-                          {card.id === 'gmail' && (
-                            <Hint label="Open inbox">
-                              <button
-                                type="button"
-                                aria-label="Open inbox"
-                                onClick={() =>
-                                  setActiveGmailModal({
-                                    integrationId: connectedInfo.id,
-                                    email:
-                                      connectedInfo.displayName ?? undefined,
-                                  })
-                                }
-                                className="p-1 rounded-md text-zinc-500 hover:text-zinc-200 transition-colors"
-                              >
-                                <Inbox className="size-3.5" />
-                              </button>
-                            </Hint>
-                          )}
+                    {/* Middle Row: Description text */}
+                    <p className="py-2.5 text-xs sm:text-[13px] font-normal leading-relaxed my-auto line-clamp-2 text-muted-foreground">
+                      {card.description}
+                    </p>
 
-                          {card.id === 'custom_api' && (
-                            <Hint label="Edit API config">
-                              <button
-                                type="button"
-                                aria-label="Edit API config"
-                                onClick={() => setIsCustomApiModalOpen(true)}
-                                className="p-1 rounded-md text-zinc-500 hover:text-zinc-200 transition-colors"
-                              >
-                                <Code2 className="size-3.5" />
-                              </button>
-                            </Hint>
-                          )}
-
-                          <Hint label="Sync now">
-                            <button
-                              type="button"
-                              aria-label="Sync now"
-                              disabled={sync.isPending}
-                              onClick={() => sync.mutate(connectedInfo.id)}
-                              className="p-1 rounded-md text-zinc-500 hover:text-zinc-200 transition-colors"
-                            >
-                              <RefreshCw
-                                className={cn(
-                                  'size-3.5',
-                                  sync.isPending && 'animate-spin',
-                                )}
-                              />
-                            </button>
-                          </Hint>
-
-                          <Hint label="Activity log">
-                            <button
-                              type="button"
-                              aria-label="Activity log"
-                              onClick={() => setLogsCard(card)}
-                              className="p-1 rounded-md text-zinc-500 hover:text-zinc-200 transition-colors"
-                            >
-                              <Activity className="size-3.5" />
-                            </button>
-                          </Hint>
-                        </>
+                    {/* Bottom Row: Action Button & Toggle Switch */}
+                    <div className="pt-1 flex items-center justify-between">
+                      {isConnected ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleConnection(card)}
+                          className="px-3.5 py-1.5 text-xs font-semibold rounded-lg border border-border bg-surface text-foreground transition-colors hover:bg-accent"
+                        >
+                          Disconnect
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => toggleConnection(card)}
+                          className="px-3.5 py-1.5 text-xs font-semibold gap-1.5 flex items-center rounded-lg bg-primary text-primary-foreground shadow-xs transition-colors hover:bg-primary/90"
+                        >
+                          <Zap className="size-3" />
+                          <span>Connect</span>
+                        </button>
                       )}
 
+                      {/* Pill Switch matching reference design */}
                       <button
                         type="button"
+                        role="switch"
+                        aria-checked={isConnected}
                         onClick={() => toggleConnection(card)}
-                        aria-label={`Open ${card.name}`}
-                        className="p-1 rounded-md text-zinc-500 hover:text-zinc-300 transition-colors"
+                        aria-label={`Toggle ${card.name} connection`}
+                        className={cn(
+                          'w-9 h-5 px-0.5 flex cursor-pointer items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          isConnected
+                            ? 'justify-end bg-primary'
+                            : 'justify-start border border-border bg-muted',
+                        )}
                       >
-                        <ExternalLink className="size-4" />
+                        <span className="size-3.5 rounded-full bg-background shadow-xs transition-transform" />
                       </button>
                     </div>
                   </div>
-
-                  {/* Middle Row: Description text */}
-                  <p className="my-auto py-2.5 text-xs sm:text-[13px] text-zinc-400 font-normal leading-relaxed line-clamp-2">
-                    {card.description}
-                  </p>
-
-                  {/* Bottom Row: Action Button & Toggle Switch */}
-                  <div className="flex items-center justify-between pt-1">
-                    {isConnected ? (
-                      <button
-                        type="button"
-                        onClick={() => toggleConnection(card)}
-                        className="px-3.5 py-1.5 rounded-lg bg-[#18181b] hover:bg-zinc-800 border border-zinc-700/60 text-zinc-200 hover:text-white text-xs font-semibold transition-colors"
-                      >
-                        Disconnect
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => toggleConnection(card)}
-                        className="px-3.5 py-1.5 rounded-lg bg-white hover:bg-zinc-200 text-black text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
-                      >
-                        <Zap className="size-3 fill-black text-black" />
-                        <span>Connect</span>
-                      </button>
-                    )}
-
-                    {/* Pill Switch matching reference design */}
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={isConnected}
-                      onClick={() => toggleConnection(card)}
-                      aria-label={`Toggle ${card.name} connection`}
-                      className={cn(
-                        'w-9 h-5 rounded-full flex items-center px-0.5 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-600',
-                        isConnected
-                          ? 'bg-zinc-700 justify-end'
-                          : 'bg-zinc-800/90 border border-zinc-700/60 justify-start',
-                      )}
-                    >
-                      <span className="size-3.5 rounded-full bg-white shadow-xs transition-transform" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <EmptyState
-            title="No integrations found"
-            description="Try adjusting your search query or selecting a different category to see available apps."
-          />
-        )}
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState
+              title="No integrations found"
+              description="Try adjusting your search query or selecting a different category to see available apps."
+            />
+          )}
         </div>
       </div>
 
@@ -737,9 +739,9 @@ export function IntegrationHubView() {
           if (!open) setLogsCard(null);
         }}
       >
-        <DialogContent className="max-w-2xl bg-[#121214] border-zinc-800 text-white">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-white">
+            <DialogTitle>
               {logsCard
                 ? `Sync & Activity — ${logsCard.name}`
                 : 'Sync & Activity'}
@@ -761,4 +763,3 @@ export function IntegrationHubView() {
     </div>
   );
 }
-
