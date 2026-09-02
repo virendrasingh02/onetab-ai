@@ -137,6 +137,11 @@ import { AIProvidersSettings } from '../components/ai-providers-settings.js';
 import { EnterpriseCustomLLMSettings } from '../components/enterprise-custom-llm-settings.js';
 import { ChatSettingsPanel } from '../components/chat-settings-panel.js';
 import { NotificationDisplaySettingsPanel } from '../components/notification-display-settings-panel.js';
+import {
+  SettingsCard,
+  SettingsRow,
+  SettingsSectionHeader,
+} from '../components/settings-primitives.js';
 
 /**
  * Panels this page renders but does not own.
@@ -559,15 +564,15 @@ export function WorkspaceSettingsPage({
         currentTab === 'preferences' ||
         currentTab === 'theme') && (
         <div className="space-y-8">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Appearance & Preferences
-            </h1>
-            <p className="text-xs mt-1 text-muted-foreground">
-              Customize app themes, color palette, default home views, and
-              keyboard interaction.
-            </p>
-          </div>
+          <SettingsSectionHeader
+            title={<>Appearance & Preferences</>}
+            description={
+              <>
+                Customize app themes, color palette, default home views, and
+                keyboard interaction.
+              </>
+            }
+          />
 
           {themePanel}
 
@@ -576,16 +581,13 @@ export function WorkspaceSettingsPage({
             <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
               General
             </h3>
-            <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
-              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">
-                    Default home view
-                  </h4>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Select which view to display when launching Onetab-AI
-                  </p>
-                </div>
+            <SettingsCard divided>
+              <SettingsRow
+                title={<>Default home view</>}
+                description={
+                  <>Select which view to display when launching Onetab-AI</>
+                }
+              >
                 <Select value={homeView} onValueChange={setHomeView}>
                   <SelectTrigger className="w-52 h-8 text-xs border-border bg-surface">
                     <SelectValue placeholder="Select view" />
@@ -605,17 +607,14 @@ export function WorkspaceSettingsPage({
                     </SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </SettingsRow>
 
-              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">
-                    Display names
-                  </h4>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Select how names are displayed across the interface
-                  </p>
-                </div>
+              <SettingsRow
+                title={<>Display names</>}
+                description={
+                  <>Select how names are displayed across the interface</>
+                }
+              >
                 <Select
                   value={displayNamePref}
                   onValueChange={setDisplayNamePref}
@@ -635,17 +634,12 @@ export function WorkspaceSettingsPage({
                     </SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </SettingsRow>
 
-              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">
-                    First day of the week
-                  </h4>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Used for date pickers and schedule views
-                  </p>
-                </div>
+              <SettingsRow
+                title={<>First day of the week</>}
+                description={<>Used for date pickers and schedule views</>}
+              >
                 <Select value={firstDay} onValueChange={setFirstDay}>
                   <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
                     <SelectValue placeholder="Monday" />
@@ -662,37 +656,35 @@ export function WorkspaceSettingsPage({
                     </SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </SettingsRow>
 
-              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">
-                    Convert text emoticons into emojis
-                  </h4>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+              <SettingsRow
+                title={<>Convert text emoticons into emojis</>}
+                description={
+                  <>
                     Strings like{' '}
                     <code className="px-1 rounded bg-muted text-[10px]">
                       :)
                     </code>{' '}
                     will be converted to 😄
-                  </p>
-                </div>
+                  </>
+                }
+              >
                 <Switch
                   checked={convertEmojis}
                   onCheckedChange={setConvertEmojis}
                 />
-              </div>
+              </SettingsRow>
 
-              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">
-                    Send comments on...
-                  </h4>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+              <SettingsRow
+                title={<>Send comments on...</>}
+                description={
+                  <>
                     Choose which key press is used to submit messages and
                     comments
-                  </p>
-                </div>
+                  </>
+                }
+              >
                 <Select value={sendShortcut} onValueChange={setSendShortcut}>
                   <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
                     <SelectValue placeholder="Ctrl+Enter" />
@@ -709,8 +701,8 @@ export function WorkspaceSettingsPage({
                     </SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-            </div>
+              </SettingsRow>
+            </SettingsCard>
           </div>
 
           {/* Subsection: Interface and theme */}
@@ -718,17 +710,16 @@ export function WorkspaceSettingsPage({
             <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
               Interface and theme
             </h3>
-            <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
-              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">
-                    App sidebar
-                  </h4>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+            <SettingsCard divided>
+              <SettingsRow
+                title={<>App sidebar</>}
+                description={
+                  <>
                     Customize sidebar item visibility, ordering, and activity
                     indicator (dot / badge) style
-                  </p>
-                </div>
+                  </>
+                }
+              >
                 <Button
                   variant="outline"
                   size="sm"
@@ -739,17 +730,12 @@ export function WorkspaceSettingsPage({
                 >
                   Customize
                 </Button>
-              </div>
+              </SettingsRow>
 
-              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">
-                    Font size
-                  </h4>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Adjust the size of text across the app
-                  </p>
-                </div>
+              <SettingsRow
+                title={<>Font size</>}
+                description={<>Adjust the size of text across the app</>}
+              >
                 <Select value={fontSize} onValueChange={setFontSize}>
                   <SelectTrigger className="w-32 h-8 text-xs border-border bg-surface">
                     <SelectValue placeholder="Default" />
@@ -766,17 +752,12 @@ export function WorkspaceSettingsPage({
                     </SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </SettingsRow>
 
-              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">
-                    Interface theme
-                  </h4>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Select your preferred appearance theme
-                  </p>
-                </div>
+              <SettingsRow
+                title={<>Interface theme</>}
+                description={<>Select your preferred appearance theme</>}
+              >
                 <div className="gap-1.5 p-1 flex items-center rounded-lg border border-border/50 bg-muted/40">
                   <button
                     onClick={() => setTheme('light')}
@@ -812,8 +793,8 @@ export function WorkspaceSettingsPage({
                     <span>System</span>
                   </button>
                 </div>
-              </div>
-            </div>
+              </SettingsRow>
+            </SettingsCard>
           </div>
 
           <DesktopSettingsCard />
@@ -834,18 +815,18 @@ export function WorkspaceSettingsPage({
         currentTab === 'focus-status') &&
         user && (
           <div className="space-y-8">
-            <div>
-              <h1 className="text-xl font-bold tracking-tight text-foreground">
-                Profile & Details
-              </h1>
-              <p className="text-xs mt-1 text-muted-foreground">
-                Manage your personal identity, status, focus preferences, and
-                working hours.
-              </p>
-            </div>
+            <SettingsSectionHeader
+              title={<>Profile & Details</>}
+              description={
+                <>
+                  Manage your personal identity, status, focus preferences, and
+                  working hours.
+                </>
+              }
+            />
 
             {profilePanel ?? (
-              <div className="p-6 space-y-6 rounded-2xl border border-border bg-surface-inset shadow-xs">
+              <SettingsCard>
                 <div className="sm:flex-row sm:items-center gap-4 pb-6 flex flex-col justify-between border-b border-border/40">
                   <div className="gap-5 flex items-center">
                     <UserAvatar
@@ -1211,7 +1192,7 @@ export function WorkspaceSettingsPage({
                     </div>
                   </form>
                 </Form>
-              </div>
+              </SettingsCard>
             )}
 
             {/* Subsection: Region & Timezone */}
@@ -1219,7 +1200,7 @@ export function WorkspaceSettingsPage({
               <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
                 Regional & Timezone Settings
               </h3>
-              <div className="p-6 space-y-6 rounded-2xl border border-border bg-surface-inset shadow-xs">
+              <SettingsCard>
                 <div className="sm:grid-cols-2 gap-5 grid grid-cols-1">
                   {/* Region Selector */}
                   <div className="space-y-2">
@@ -1360,7 +1341,7 @@ export function WorkspaceSettingsPage({
                     Save timezone changes
                   </Button>
                 </div>
-              </div>
+              </SettingsCard>
             </div>
 
             {/* Subsection: Date & Time Formatting */}
@@ -1368,16 +1349,13 @@ export function WorkspaceSettingsPage({
               <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
                 Date & Time Formats
               </h3>
-              <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
-                <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-                  <div>
-                    <h4 className="text-xs font-medium text-foreground">
-                      Time display format
-                    </h4>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      Choose 12-hour AM/PM or 24-hour military clock
-                    </p>
-                  </div>
+              <SettingsCard divided>
+                <SettingsRow
+                  title={<>Time display format</>}
+                  description={
+                    <>Choose 12-hour AM/PM or 24-hour military clock</>
+                  }
+                >
                   <Select
                     value={timeFormatPref}
                     onValueChange={(v: '12h' | '24h') => setTimeFormatPref(v)}
@@ -1394,17 +1372,12 @@ export function WorkspaceSettingsPage({
                       </SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
+                </SettingsRow>
 
-                <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-                  <div>
-                    <h4 className="text-xs font-medium text-foreground">
-                      Date display format
-                    </h4>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      Preferred order for calendar dates
-                    </p>
-                  </div>
+                <SettingsRow
+                  title={<>Date display format</>}
+                  description={<>Preferred order for calendar dates</>}
+                >
                   <Select
                     value={dateFormatPref}
                     onValueChange={(
@@ -1426,8 +1399,8 @@ export function WorkspaceSettingsPage({
                       </SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-              </div>
+                </SettingsRow>
+              </SettingsCard>
             </div>
 
             {/* Subsection: Working Hours */}
@@ -1435,16 +1408,13 @@ export function WorkspaceSettingsPage({
               <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
                 Working Hours & Schedule
               </h3>
-              <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
-                <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-                  <div>
-                    <h4 className="text-xs font-medium text-foreground">
-                      Daily working hours
-                    </h4>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      Lets teammates know when you are actively at your desk
-                    </p>
-                  </div>
+              <SettingsCard divided>
+                <SettingsRow
+                  title={<>Daily working hours</>}
+                  description={
+                    <>Lets teammates know when you are actively at your desk</>
+                  }
+                >
                   <div className="gap-2 text-xs flex items-center">
                     <Select
                       value={workStartHour}
@@ -1483,17 +1453,12 @@ export function WorkspaceSettingsPage({
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
+                </SettingsRow>
 
-                <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-                  <div>
-                    <h4 className="text-xs font-medium text-foreground">
-                      Working days
-                    </h4>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      Active days of the week
-                    </p>
-                  </div>
+                <SettingsRow
+                  title={<>Working days</>}
+                  description={<>Active days of the week</>}
+                >
                   <Select value={workdays} onValueChange={setWorkdays}>
                     <SelectTrigger className="w-40 h-8 text-xs border-border bg-surface">
                       <SelectValue />
@@ -1510,8 +1475,8 @@ export function WorkspaceSettingsPage({
                       </SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-              </div>
+                </SettingsRow>
+              </SettingsCard>
             </div>
 
             {/* Subsection: Slack Status */}
@@ -1616,7 +1581,7 @@ export function WorkspaceSettingsPage({
               <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
                 Focus Mode & Ambient Zen Audio
               </h3>
-              <div className="p-6 space-y-6 rounded-2xl border border-border bg-surface-inset shadow-xs">
+              <SettingsCard>
                 {/* Active Session Bar or Launch Trigger */}
                 {focusStore.isActive ? (
                   <div className="p-4 sm:flex-row sm:items-center gap-4 flex flex-col justify-between rounded-xl border border-primary/40 bg-primary/10">
@@ -1811,7 +1776,7 @@ export function WorkspaceSettingsPage({
                     )}
                   </div>
                 </div>
-              </div>
+              </SettingsCard>
             </div>
           </div>
         )}
@@ -1822,14 +1787,10 @@ export function WorkspaceSettingsPage({
       {/* ---------------- SECTION 3: NOTIFICATIONS ---------------- */}
       {currentTab === 'notifications' && (
         <div className="space-y-8">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Notifications & Alerts
-            </h1>
-            <p className="text-xs mt-1 text-muted-foreground">
-              Choose how workspace updates reach you.
-            </p>
-          </div>
+          <SettingsSectionHeader
+            title={<>Notifications & Alerts</>}
+            description={<>Choose how workspace updates reach you.</>}
+          />
 
           {/* 1. Primary Notification Delivery Channels (matching reference design) */}
           <div className="space-y-3">
@@ -2071,15 +2032,15 @@ export function WorkspaceSettingsPage({
       {/* ---------------- SECTION: APPS & DOWNLOADS ---------------- */}
       {currentTab === 'downloads' && (
         <div className="space-y-8">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Apps & Downloads
-            </h1>
-            <p className="text-xs mt-1 text-muted-foreground">
-              Download native OneTab AI applications for desktop and mobile
-              devices.
-            </p>
-          </div>
+          <SettingsSectionHeader
+            title={<>Apps & Downloads</>}
+            description={
+              <>
+                Download native OneTab AI applications for desktop and mobile
+                devices.
+              </>
+            }
+          />
 
           <AppDownloadCard workspaceId={workspaceId} />
         </div>
@@ -2099,31 +2060,30 @@ export function WorkspaceSettingsPage({
 
       {currentTab === 'ai-persona' && (
         <div className="space-y-8">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              AI Models & Persona
-            </h1>
-            <p className="text-xs mt-1 text-muted-foreground">
-              Configure primary LLM engines, agent execution permissions, and
-              workspace prompts.
-            </p>
-          </div>
+          <SettingsSectionHeader
+            title={<>AI Models & Persona</>}
+            description={
+              <>
+                Configure primary LLM engines, agent execution permissions, and
+                workspace prompts.
+              </>
+            }
+          />
 
           <div className="space-y-3">
             <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
               Model & Reasoning
             </h3>
-            <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
-              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">
-                    Primary AI Model
-                  </h4>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+            <SettingsCard divided>
+              <SettingsRow
+                title={<>Primary AI Model</>}
+                description={
+                  <>
                     Select the main LLM powering chat, code assistance, and
                     agent workflows
-                  </p>
-                </div>
+                  </>
+                }
+              >
                 <Select value={defaultModel} onValueChange={setDefaultModel}>
                   <SelectTrigger className="w-56 h-8 text-xs border-border bg-surface">
                     <SelectValue placeholder="Select model" />
@@ -2143,17 +2103,12 @@ export function WorkspaceSettingsPage({
                     </SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </SettingsRow>
 
-              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">
-                    Creativity / Temperature
-                  </h4>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Control LLM randomness and precision
-                  </p>
-                </div>
+              <SettingsRow
+                title={<>Creativity / Temperature</>}
+                description={<>Control LLM randomness and precision</>}
+              >
                 <Select value={tempSetting} onValueChange={setTempSetting}>
                   <SelectTrigger className="w-40 h-8 text-xs border-border bg-surface">
                     <SelectValue placeholder="Balanced" />
@@ -2170,17 +2125,14 @@ export function WorkspaceSettingsPage({
                     </SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </SettingsRow>
 
-              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">
-                    Context Window Size
-                  </h4>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Maximum token length retained during conversations
-                  </p>
-                </div>
+              <SettingsRow
+                title={<>Context Window Size</>}
+                description={
+                  <>Maximum token length retained during conversations</>
+                }
+              >
                 <Select value={contextWindow} onValueChange={setContextWindow}>
                   <SelectTrigger className="w-40 h-8 text-xs border-border bg-surface">
                     <SelectValue placeholder="128k Tokens" />
@@ -2197,69 +2149,59 @@ export function WorkspaceSettingsPage({
                     </SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-            </div>
+              </SettingsRow>
+            </SettingsCard>
           </div>
 
           <div className="space-y-3">
             <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
               Autonomous Agent Permissions
             </h3>
-            <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
-              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">
-                    Auto-approve Agent Code Execution
-                  </h4>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Allow agents to run shell and code commands automatically
-                  </p>
-                </div>
+            <SettingsCard divided>
+              <SettingsRow
+                title={<>Auto-approve Agent Code Execution</>}
+                description={
+                  <>Allow agents to run shell and code commands automatically</>
+                }
+              >
                 <Switch
                   checked={agentAutoApprove}
                   onCheckedChange={setAgentAutoApprove}
                 />
-              </div>
+              </SettingsRow>
 
-              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">
-                    Web Search & Browsing Access
-                  </h4>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+              <SettingsRow
+                title={<>Web Search & Browsing Access</>}
+                description={
+                  <>
                     Enable subagents to fetch live web content and documentation
-                  </p>
-                </div>
+                  </>
+                }
+              >
                 <Switch
                   checked={allowWebSearch}
                   onCheckedChange={setAllowWebSearch}
                 />
-              </div>
+              </SettingsRow>
 
-              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">
-                    Workspace File Modification
-                  </h4>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Permit AI agents to edit codebase files directly
-                  </p>
-                </div>
+              <SettingsRow
+                title={<>Workspace File Modification</>}
+                description={
+                  <>Permit AI agents to edit codebase files directly</>
+                }
+              >
                 <Switch
                   checked={allowFileSystem}
                   onCheckedChange={setAllowFileSystem}
                 />
-              </div>
+              </SettingsRow>
 
-              <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">
-                    Max Agent Loop Turn Limit
-                  </h4>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Maximum iteration steps per single task prompt
-                  </p>
-                </div>
+              <SettingsRow
+                title={<>Max Agent Loop Turn Limit</>}
+                description={
+                  <>Maximum iteration steps per single task prompt</>
+                }
+              >
                 <Select value={maxTurns} onValueChange={setMaxTurns}>
                   <SelectTrigger className="w-32 h-8 text-xs border-border bg-surface">
                     <SelectValue placeholder="25 turns" />
@@ -2276,8 +2218,8 @@ export function WorkspaceSettingsPage({
                     </SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-            </div>
+              </SettingsRow>
+            </SettingsCard>
           </div>
 
           <div className="space-y-3">
@@ -2303,16 +2245,17 @@ export function WorkspaceSettingsPage({
       {/* ---------------- SECTION 5: AGENT MARKETPLACE & AUTOMATIONS ---------------- */}
       {currentTab === 'agent-marketplace' && (
         <div className="space-y-8">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Agent Marketplace & Tools
-            </h1>
-            <p className="text-xs mt-1 text-muted-foreground">
-              Manage active AI agents, custom MCP tools, and external API keys.
-            </p>
-          </div>
+          <SettingsSectionHeader
+            title={<>Agent Marketplace & Tools</>}
+            description={
+              <>
+                Manage active AI agents, custom MCP tools, and external API
+                keys.
+              </>
+            }
+          />
 
-          <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
+          <SettingsCard divided>
             {[
               {
                 id: 'code-reviewer',
@@ -2333,18 +2276,11 @@ export function WorkspaceSettingsPage({
                 active: false,
               },
             ].map((agent) => (
-              <div
+              <SettingsRow
                 key={agent.id}
-                className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40"
+                title={agent.name}
+                description={agent.desc}
               >
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">
-                    {agent.name}
-                  </h4>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    {agent.desc}
-                  </p>
-                </div>
                 <div className="gap-3 flex items-center">
                   <Button
                     variant="outline"
@@ -2355,9 +2291,9 @@ export function WorkspaceSettingsPage({
                   </Button>
                   <Switch defaultChecked={agent.active} />
                 </div>
-              </div>
+              </SettingsRow>
             ))}
-          </div>
+          </SettingsCard>
 
           <div className="p-6 space-y-4 rounded-2xl border border-border bg-surface-inset shadow-xs">
             <h3 className="text-xs font-semibold tracking-wide text-foreground uppercase">
@@ -2404,56 +2340,47 @@ export function WorkspaceSettingsPage({
 
       {currentTab === 'automations' && (
         <div className="space-y-8">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Workflow Automations
-            </h1>
-            <p className="text-xs mt-1 text-muted-foreground">
-              Configure event triggers, webhooks, and multi-step workflow
-              execution logs.
-            </p>
-          </div>
+          <SettingsSectionHeader
+            title={<>Workflow Automations</>}
+            description={
+              <>
+                Configure event triggers, webhooks, and multi-step workflow
+                execution logs.
+              </>
+            }
+          />
 
-          <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
-            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  GitHub PR Event Webhook
-                </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+          <SettingsCard divided>
+            <SettingsRow
+              title={<>GitHub PR Event Webhook</>}
+              description={
+                <>
                   Trigger automation workflows on incoming GitHub pull requests
-                </p>
-              </div>
+                </>
+              }
+            >
               <Switch
                 checked={githubPRWebhook}
                 onCheckedChange={setGithubPRWebhook}
               />
-            </div>
+            </SettingsRow>
 
-            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Channel Message Keywords Trigger
-                </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Fire workflows when specific key phrases appear in channels
-                </p>
-              </div>
+            <SettingsRow
+              title={<>Channel Message Keywords Trigger</>}
+              description={
+                <>Fire workflows when specific key phrases appear in channels</>
+              }
+            >
               <Switch
                 checked={channelTrigger}
                 onCheckedChange={setChannelTrigger}
               />
-            </div>
+            </SettingsRow>
 
-            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Max Concurrent Workflow Runs
-                </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Limit parallel execution capacity
-                </p>
-              </div>
+            <SettingsRow
+              title={<>Max Concurrent Workflow Runs</>}
+              description={<>Limit parallel execution capacity</>}
+            >
               <Select
                 value={maxConcurrentRuns}
                 onValueChange={setMaxConcurrentRuns}
@@ -2473,49 +2400,43 @@ export function WorkspaceSettingsPage({
                   </SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </SettingsRow>
 
-            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Auto-retry failed workflow steps
-                </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Retry failed HTTP steps up to 3 times automatically
-                </p>
-              </div>
+            <SettingsRow
+              title={<>Auto-retry failed workflow steps</>}
+              description={
+                <>Retry failed HTTP steps up to 3 times automatically</>
+              }
+            >
               <Switch
                 checked={retryFailedSteps}
                 onCheckedChange={setRetryFailedSteps}
               />
-            </div>
-          </div>
+            </SettingsRow>
+          </SettingsCard>
         </div>
       )}
 
       {/* ---------------- SECTION 6: WORK TOOLS ---------------- */}
       {currentTab === 'channels' && (
         <div className="space-y-8">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Channels & DMs
-            </h1>
-            <p className="text-xs mt-1 text-muted-foreground">
-              Configure default channels, member creation rules, and message
-              privacy.
-            </p>
-          </div>
+          <SettingsSectionHeader
+            title={<>Channels & DMs</>}
+            description={
+              <>
+                Configure default channels, member creation rules, and message
+                privacy.
+              </>
+            }
+          />
 
-          <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
-            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Default Join Channel
-                </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Channel automatically joined by new workspace members
-                </p>
-              </div>
+          <SettingsCard divided>
+            <SettingsRow
+              title={<>Default Join Channel</>}
+              description={
+                <>Channel automatically joined by new workspace members</>
+              }
+            >
               <Select value={defaultChannel} onValueChange={setDefaultChannel}>
                 <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
                   <SelectValue placeholder="#general" />
@@ -2532,47 +2453,36 @@ export function WorkspaceSettingsPage({
                   </SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </SettingsRow>
 
-            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Allow Public Channel Creation
-                </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Regular members can create public channels
-                </p>
-              </div>
+            <SettingsRow
+              title={<>Allow Public Channel Creation</>}
+              description={<>Regular members can create public channels</>}
+            >
               <Switch
                 checked={allowPublicCreation}
                 onCheckedChange={setAllowPublicCreation}
               />
-            </div>
+            </SettingsRow>
 
-            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Allow Private Channel Creation
-                </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Regular members can create private invite-only channels
-                </p>
-              </div>
+            <SettingsRow
+              title={<>Allow Private Channel Creation</>}
+              description={
+                <>Regular members can create private invite-only channels</>
+              }
+            >
               <Switch
                 checked={allowPrivateCreation}
                 onCheckedChange={setAllowPrivateCreation}
               />
-            </div>
+            </SettingsRow>
 
-            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Auto-archive Inactive Channels
-                </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Archive channels after a period of zero activity
-                </p>
-              </div>
+            <SettingsRow
+              title={<>Auto-archive Inactive Channels</>}
+              description={
+                <>Archive channels after a period of zero activity</>
+              }
+            >
               <Select
                 value={archiveInactiveDays}
                 onValueChange={setArchiveInactiveDays}
@@ -2592,35 +2502,25 @@ export function WorkspaceSettingsPage({
                   </SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </SettingsRow>
 
-            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Direct Message End-to-End Encryption
-                </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Encrypt DM content between 1-on-1 team members
-                </p>
-              </div>
+            <SettingsRow
+              title={<>Direct Message End-to-End Encryption</>}
+              description={<>Encrypt DM content between 1-on-1 team members</>}
+            >
               <Switch checked={encryptedDM} onCheckedChange={setEncryptedDM} />
-            </div>
+            </SettingsRow>
 
-            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Direct Message Read Receipts
-                </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Show when messages have been seen by recipient
-                </p>
-              </div>
+            <SettingsRow
+              title={<>Direct Message Read Receipts</>}
+              description={<>Show when messages have been seen by recipient</>}
+            >
               <Switch
                 checked={readReceipts}
                 onCheckedChange={setReadReceipts}
               />
-            </div>
-          </div>
+            </SettingsRow>
+          </SettingsCard>
         </div>
       )}
 
@@ -2628,53 +2528,44 @@ export function WorkspaceSettingsPage({
 
       {currentTab === 'documents' && (
         <div className="space-y-8">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Notes & Documents
-            </h1>
-            <p className="text-xs mt-1 text-muted-foreground">
-              Document editor preferences, auto-save, and Markdown syntax
-              themes.
-            </p>
-          </div>
+          <SettingsSectionHeader
+            title={<>Notes & Documents</>}
+            description={
+              <>
+                Document editor preferences, auto-save, and Markdown syntax
+                themes.
+              </>
+            }
+          />
 
-          <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
-            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Auto-save Drafts
-                </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Automatically save document edits as you type
-                </p>
-              </div>
+          <SettingsCard divided>
+            <SettingsRow
+              title={<>Auto-save Drafts</>}
+              description={<>Automatically save document edits as you type</>}
+            >
               <Switch checked={docAutoSave} onCheckedChange={setDocAutoSave} />
-            </div>
+            </SettingsRow>
 
-            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Grammar & Spellcheck Assistance
-                </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+            <SettingsRow
+              title={<>Grammar & Spellcheck Assistance</>}
+              description={
+                <>
                   Highlight spelling defects and grammar suggestions in editor
-                </p>
-              </div>
+                </>
+              }
+            >
               <Switch
                 checked={grammarAssistance}
                 onCheckedChange={setGrammarAssistance}
               />
-            </div>
+            </SettingsRow>
 
-            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Code Syntax Highlighting Theme
-                </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Theme used for code snippets inside document blocks
-                </p>
-              </div>
+            <SettingsRow
+              title={<>Code Syntax Highlighting Theme</>}
+              description={
+                <>Theme used for code snippets inside document blocks</>
+              }
+            >
               <Select
                 value={codeSyntaxTheme}
                 onValueChange={setCodeSyntaxTheme}
@@ -2697,22 +2588,22 @@ export function WorkspaceSettingsPage({
                   </SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-          </div>
+            </SettingsRow>
+          </SettingsCard>
         </div>
       )}
 
       {currentTab === 'files' && (
         <div className="space-y-8">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Files & Storage
-            </h1>
-            <p className="text-xs mt-1 text-muted-foreground">
-              Workspace storage allocation, high quality media previews, and
-              retention.
-            </p>
-          </div>
+          <SettingsSectionHeader
+            title={<>Files & Storage</>}
+            description={
+              <>
+                Workspace storage allocation, high quality media previews, and
+                retention.
+              </>
+            }
+          />
 
           <div className="p-6 space-y-4 rounded-2xl border border-border bg-surface-inset shadow-xs">
             <div className="text-xs flex items-center justify-between">
@@ -2728,31 +2619,27 @@ export function WorkspaceSettingsPage({
             </div>
           </div>
 
-          <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
-            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  High Quality Video & Media Previews
-                </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+          <SettingsCard divided>
+            <SettingsRow
+              title={<>High Quality Video & Media Previews</>}
+              description={
+                <>
                   Generate high-res video thumbnails and audio waveform previews
-                </p>
-              </div>
+                </>
+              }
+            >
               <Switch
                 checked={highQualityVideo}
                 onCheckedChange={setHighQualityVideo}
               />
-            </div>
+            </SettingsRow>
 
-            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  File Retention Policy
-                </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Duration to keep deleted files in workspace trash
-                </p>
-              </div>
+            <SettingsRow
+              title={<>File Retention Policy</>}
+              description={
+                <>Duration to keep deleted files in workspace trash</>
+              }
+            >
               <Select value={fileRetention} onValueChange={setFileRetention}>
                 <SelectTrigger className="w-32 h-8 text-xs border-border bg-surface">
                   <SelectValue placeholder="Forever" />
@@ -2769,48 +2656,42 @@ export function WorkspaceSettingsPage({
                   </SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-          </div>
+            </SettingsRow>
+          </SettingsCard>
         </div>
       )}
 
       {currentTab === 'schedule' && (
         <div className="space-y-8">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Schedule & Meetings
-            </h1>
-            <p className="text-xs mt-1 text-muted-foreground">
-              Configure calendar integrations, default meeting provider, and
-              auto-record settings.
-            </p>
-          </div>
+          <SettingsSectionHeader
+            title={<>Schedule & Meetings</>}
+            description={
+              <>
+                Configure calendar integrations, default meeting provider, and
+                auto-record settings.
+              </>
+            }
+          />
 
-          <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
-            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Google Calendar Sync
-                </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Synchronize schedule events with your Google Calendar
-                </p>
-              </div>
+          <SettingsCard divided>
+            <SettingsRow
+              title={<>Google Calendar Sync</>}
+              description={
+                <>Synchronize schedule events with your Google Calendar</>
+              }
+            >
               <Switch
                 checked={googleCalendarSync}
                 onCheckedChange={setGoogleCalendarSync}
               />
-            </div>
+            </SettingsRow>
 
-            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Default Meeting Room Provider
-                </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Provider used when generating instant meeting links
-                </p>
-              </div>
+            <SettingsRow
+              title={<>Default Meeting Room Provider</>}
+              description={
+                <>Provider used when generating instant meeting links</>
+              }
+            >
               <Select
                 value={meetingProvider}
                 onValueChange={setMeetingProvider}
@@ -2830,86 +2711,79 @@ export function WorkspaceSettingsPage({
                   </SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </SettingsRow>
 
-            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Auto-record Team Meetings
-                </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+            <SettingsRow
+              title={<>Auto-record Team Meetings</>}
+              description={
+                <>
                   Automatically save video transcript and recording to workspace
                   docs
-                </p>
-              </div>
+                </>
+              }
+            >
               <Switch
                 checked={autoRecordMeetings}
                 onCheckedChange={setAutoRecordMeetings}
               />
-            </div>
-          </div>
+            </SettingsRow>
+          </SettingsCard>
         </div>
       )}
 
       {currentTab === 'pulse' && (
         <div className="space-y-8">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Pulse Activity Feed
-            </h1>
-            <p className="text-xs mt-1 text-muted-foreground">
-              Configure online status tracking and workspace activity event
-              filters.
-            </p>
-          </div>
+          <SettingsSectionHeader
+            title={<>Pulse Activity Feed</>}
+            description={
+              <>
+                Configure online status tracking and workspace activity event
+                filters.
+              </>
+            }
+          />
 
-          <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
-            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Track Member Online Status
-                </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Show active presence indicators across channel list
-                </p>
-              </div>
+          <SettingsCard divided>
+            <SettingsRow
+              title={<>Track Member Online Status</>}
+              description={
+                <>Show active presence indicators across channel list</>
+              }
+            >
               <Switch
                 checked={trackOnlineStatus}
                 onCheckedChange={setTrackOnlineStatus}
               />
-            </div>
+            </SettingsRow>
 
-            <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
-              <div>
-                <h4 className="text-xs font-medium text-foreground">
-                  Include GitHub Commit Events in Pulse
-                </h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Display code commit events inside workspace pulse feed
-                </p>
-              </div>
+            <SettingsRow
+              title={<>Include GitHub Commit Events in Pulse</>}
+              description={
+                <>Display code commit events inside workspace pulse feed</>
+              }
+            >
               <Switch
                 checked={trackCommitsInPulse}
                 onCheckedChange={setTrackCommitsInPulse}
               />
-            </div>
-          </div>
+            </SettingsRow>
+          </SettingsCard>
         </div>
       )}
 
       {/* ---------------- SECTION 7: INTEGRATIONS & IMPORT ---------------- */}
       {currentTab === 'integrations' && (
         <div className="space-y-8">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Integration Hub
-            </h1>
-            <p className="text-xs mt-1 text-muted-foreground">
-              Connect external web services, OAuth providers, and dev tools.
-            </p>
-          </div>
+          <SettingsSectionHeader
+            title={<>Integration Hub</>}
+            description={
+              <>
+                Connect external web services, OAuth providers, and dev tools.
+              </>
+            }
+          />
 
-          <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
+          <SettingsCard divided>
             {[
               {
                 id: 'slack',
@@ -2936,18 +2810,11 @@ export function WorkspaceSettingsPage({
                 connected: false,
               },
             ].map((item) => (
-              <div
+              <SettingsRow
                 key={item.id}
-                className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40"
+                title={item.name}
+                description={item.desc}
               >
-                <div>
-                  <h4 className="text-xs font-medium text-foreground">
-                    {item.name}
-                  </h4>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    {item.desc}
-                  </p>
-                </div>
                 {item.connected ? (
                   <span className="gap-1 px-2 py-0.5 rounded font-medium inline-flex items-center bg-success/10 text-[11px] text-success-text">
                     <CheckCircle2 className="size-3" />
@@ -2962,22 +2829,22 @@ export function WorkspaceSettingsPage({
                     Connect
                   </Button>
                 )}
-              </div>
+              </SettingsRow>
             ))}
-          </div>
+          </SettingsCard>
         </div>
       )}
 
       {currentTab === 'import-export' && (
         <div className="space-y-8">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Import & Export
-            </h1>
-            <p className="text-xs mt-1 text-muted-foreground">
-              Migrate channels, messages, and documents from Slack or Notion.
-            </p>
-          </div>
+          <SettingsSectionHeader
+            title={<>Import & Export</>}
+            description={
+              <>
+                Migrate channels, messages, and documents from Slack or Notion.
+              </>
+            }
+          />
 
           <div className="p-6 rounded-2xl border border-border bg-surface-inset shadow-xs">
             {importPanel}
@@ -3021,21 +2888,22 @@ export function WorkspaceSettingsPage({
             currentPlan="starter"
             onUpgradeClick={() => handleTabChange('billing')}
           />
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Workspace General Settings
-            </h1>
-            <p className="text-xs mt-1 text-muted-foreground">
-              Configure your workspace identity, branding, and core preferences.
-            </p>
-          </div>
+          <SettingsSectionHeader
+            title={<>Workspace General Settings</>}
+            description={
+              <>
+                Configure your workspace identity, branding, and core
+                preferences.
+              </>
+            }
+          />
 
           <Form {...workspaceForm}>
             <form onSubmit={onWorkspaceSubmit} className="space-y-8" noValidate>
               <FormError error={formErrorMessage(updateWorkspace.error)} />
 
               {/* CARD 1: Workspace Details */}
-              <div className="p-6 space-y-6 rounded-2xl border border-border bg-surface-inset shadow-xs">
+              <SettingsCard>
                 <div className="gap-5 pb-6 flex items-center border-b border-border/40">
                   <WorkspaceAvatar
                     name={workspaceForm.watch('name') || workspace.name}
@@ -3321,10 +3189,10 @@ export function WorkspaceSettingsPage({
                     )}
                   />
                 </div>
-              </div>
+              </SettingsCard>
 
               {/* CARD 2: Workspace Preferences */}
-              <div className="p-6 space-y-6 rounded-2xl border border-border bg-surface-inset shadow-xs">
+              <SettingsCard>
                 <div>
                   <h3 className="text-sm font-semibold text-foreground">
                     Workspace Preferences
@@ -3452,7 +3320,7 @@ export function WorkspaceSettingsPage({
                     </Button>
                   </div>
                 ) : null}
-              </div>
+              </SettingsCard>
             </form>
           </Form>
         </div>
@@ -3461,15 +3329,15 @@ export function WorkspaceSettingsPage({
       {/* ---------------- SECTION 9: ACCOUNT SECURITY ---------------- */}
       {currentTab === 'security' && (
         <div className="space-y-8">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Account Security & Access
-            </h1>
-            <p className="text-xs mt-1 text-muted-foreground">
-              Manage authentication credentials, two-factor factors, and active
-              sessions across your devices.
-            </p>
-          </div>
+          <SettingsSectionHeader
+            title={<>Account Security & Access</>}
+            description={
+              <>
+                Manage authentication credentials, two-factor factors, and
+                active sessions across your devices.
+              </>
+            }
+          />
 
           {/* 1. SIGN-IN SECURITY CARDS */}
           <div className="space-y-4">
@@ -3618,7 +3486,7 @@ export function WorkspaceSettingsPage({
             <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
               Authentication Factors
             </h2>
-            <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
+            <SettingsCard divided>
               {/* Authenticator TOTP Row */}
               <div className="p-5 sm:flex-row sm:items-center gap-4 flex flex-col justify-between">
                 <div className="gap-4 flex items-start">
@@ -3778,7 +3646,7 @@ export function WorkspaceSettingsPage({
                   </Button>
                 </div>
               </div>
-            </div>
+            </SettingsCard>
           </div>
 
           {/* 3. ACTIVE SESSIONS SECTION */}
@@ -3814,7 +3682,7 @@ export function WorkspaceSettingsPage({
               )}
             </div>
 
-            <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
+            <SettingsCard divided>
               {sessionsQuery.isLoading ? (
                 <div className="p-8 text-xs text-center text-muted-foreground">
                   Loading active sessions...
@@ -3886,7 +3754,7 @@ export function WorkspaceSettingsPage({
                   No active sessions found.
                 </div>
               )}
-            </div>
+            </SettingsCard>
           </div>
         </div>
       )}
