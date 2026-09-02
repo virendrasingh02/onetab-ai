@@ -226,7 +226,12 @@ export {
   TabsContent,
   TabsList,
   TabsTrigger,
+  type TabsProps,
+  type TabsListProps,
+  type TabsTriggerProps,
+  type TabsContentProps,
   type TabsVariant,
+  type TabsSize,
 } from './lib/components/primitives.js';
 
 export { Checkbox } from './lib/components/checkbox.js';
@@ -478,13 +483,27 @@ export {
   ContextMenuTrigger,
   ContextMenuContent,
   ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuLabel,
   ContextMenuCheckboxItem,
+  ContextMenuRadioGroup,
+  ContextMenuRadioItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuGroup,
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent,
   type ContextMenuProps,
   type ContextMenuTriggerProps,
   type ContextMenuContentProps,
   type ContextMenuItemProps,
+  type ContextMenuCheckboxItemProps,
+  type ContextMenuRadioItemProps,
+  type ContextMenuLabelProps,
+  type ContextMenuSeparatorProps,
+  type ContextMenuShortcutProps,
+  type ContextMenuSubTriggerProps,
+  type ContextMenuSubContentProps,
 } from './lib/components/context-menu.js';
 
 export {
@@ -502,6 +521,8 @@ export {
   Combobox,
   type ComboboxProps,
   type ComboboxOption,
+  type ComboboxGroup,
+  type ComboboxRef,
 } from './lib/components/combobox.js';
 
 export {
@@ -639,6 +660,16 @@ export {
   HoverCardTrigger,
   HoverCardPortal,
   HoverCardContent,
+  UserHoverCard,
+  ProjectHoverCard,
+  KanbanCardHoverCard,
+  ChannelHoverCard,
+  type HoverCardProps,
+  type HoverCardContentProps,
+  type UserHoverCardProps,
+  type ProjectHoverCardProps,
+  type KanbanCardHoverCardProps,
+  type ChannelHoverCardProps,
 } from './lib/components/hover-card.js';
 
 export {

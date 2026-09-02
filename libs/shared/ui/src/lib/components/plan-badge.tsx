@@ -1,5 +1,5 @@
 import { cn } from '@org/utils';
-import { Bot, Building2, Crown, Sparkles, Zap } from 'lucide-react';
+import { Bot, Building2, Crown, Sparkles } from 'lucide-react';
 import type { PlanTier } from '@org/types';
 
 
@@ -32,9 +32,9 @@ export function PlanBadge({
     md: 'size-3.5',
   }[size];
 
-  let label = 'Starter';
-  let Icon = Zap;
-  let styleClasses = 'bg-muted text-muted-foreground border-border';
+  let label: string;
+  let Icon: typeof Bot;
+  let styleClasses: string;
 
   switch (normalized) {
     case 'enterprise':

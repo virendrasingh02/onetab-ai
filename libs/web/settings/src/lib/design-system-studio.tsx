@@ -53,6 +53,10 @@ import {
   Input,
   InputGroup,
   KanbanBoard,
+  KanbanCardHoverCard,
+  Kbd,
+  KbdShortcut,
+  ProjectHoverCard,
   RadioGroup,
   RadioGroupItem,
   Select,
@@ -74,6 +78,8 @@ import {
   ToggleGroupItem,
   TreeView,
   UniversalCard,
+  UserHoverCard,
+  ChannelHoverCard,
   type DataGridColumn,
   type KanbanColumn,
   type TimelineItem,
@@ -917,6 +923,209 @@ export function DesignSystemStudio() {
                       </Button>
                     </DrawerFooter>
                   </Drawer>
+                </div>
+              </div>
+            </section>
+
+            {/* ReUI / c-tabs-7 Styled Tabs Showcase */}
+            <section className="space-y-3">
+              <h2 className="text-base font-bold text-foreground">Tabs &amp; Navigation (c-tabs-7 Experience)</h2>
+              <p className="text-xs text-muted-foreground">
+                Accessible Radix tabs supporting animated sliding indicators, counter badges, leading icons, horizontal overflow scrolling, and multiple visual variants.
+              </p>
+              <div className="rounded-card border border-border bg-surface p-4 shadow-xs space-y-6">
+                {/* Variant: c-tabs-7 with icons and counts */}
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold text-foreground">c-tabs-7 Experience (Animated Active Indicator + Badges)</span>
+                  <Tabs defaultValue="all">
+                    <TabsList variant="c-tabs-7">
+                      <TabsTrigger value="all" icon={<Layers className="size-3.5" />} count={24}>
+                        All Items
+                      </TabsTrigger>
+                      <TabsTrigger value="active" icon={<Play className="size-3.5" />} count={8}>
+                        Active
+                      </TabsTrigger>
+                      <TabsTrigger value="archived" icon={<Archive className="size-3.5" />} count={16}>
+                        Archived
+                      </TabsTrigger>
+                      <TabsTrigger value="settings" icon={<Settings className="size-3.5" />}>
+                        Settings
+                      </TabsTrigger>
+                      <TabsTrigger value="locked" disabled count={0}>
+                        Disabled Tab
+                      </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="all" className="p-3 rounded-md bg-surface-raised border border-border text-xs text-muted-foreground">
+                      Displaying all 24 items in unified view.
+                    </TabsContent>
+                    <TabsContent value="active" className="p-3 rounded-md bg-surface-raised border border-border text-xs text-muted-foreground">
+                      Displaying 8 running agent workflows and background tasks.
+                    </TabsContent>
+                    <TabsContent value="archived" className="p-3 rounded-md bg-surface-raised border border-border text-xs text-muted-foreground">
+                      Displaying 16 historical snapshots and preserved runs.
+                    </TabsContent>
+                    <TabsContent value="settings" className="p-3 rounded-md bg-surface-raised border border-border text-xs text-muted-foreground">
+                      Tab-specific configuration and telemetry settings.
+                    </TabsContent>
+                  </Tabs>
+                </div>
+
+                {/* Underline & Segmented variants */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                  <div className="space-y-2">
+                    <span className="text-xs font-semibold text-foreground">Underline Navigation Strip</span>
+                    <Tabs defaultValue="overview">
+                      <TabsList variant="underline">
+                        <TabsTrigger value="overview">Overview</TabsTrigger>
+                        <TabsTrigger value="analytics" count={3}>Analytics</TabsTrigger>
+                        <TabsTrigger value="audit">Audit Log</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </div>
+
+                  <div className="space-y-2">
+                    <span className="text-xs font-semibold text-foreground">Segmented Control Variant</span>
+                    <Tabs defaultValue="day">
+                      <TabsList variant="segmented">
+                        <TabsTrigger value="day">Day</TabsTrigger>
+                        <TabsTrigger value="week">Week</TabsTrigger>
+                        <TabsTrigger value="month">Month</TabsTrigger>
+                        <TabsTrigger value="year">Year</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Contextual Hover Cards Showcase */}
+            <section className="space-y-3">
+              <h2 className="text-base font-bold text-foreground">Contextual Hover Cards</h2>
+              <p className="text-xs text-muted-foreground">
+                Lightweight popover previews for users, projects, kanban cards, and channels with calibrated open/close delays (300ms/150ms) to eliminate flickering.
+              </p>
+              <div className="rounded-card border border-border bg-surface p-4 shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* User Hover Card */}
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold text-foreground">User Context Card</span>
+                  <div>
+                    <UserHoverCard
+                      user={{
+                        name: 'Ada Lovelace',
+                        email: 'ada@onetab.ai',
+                        role: 'Principal Engineer',
+                        status: 'online',
+                        bio: 'Working on autonomous reasoning workflows and agent tooling.',
+                        timezone: 'London (UTC+1)',
+                      }}
+                    >
+                      <button className="inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:underline cursor-pointer">
+                        @ada.lovelace
+                      </button>
+                    </UserHoverCard>
+                  </div>
+                </div>
+
+                {/* Project Hover Card */}
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold text-foreground">Project Context Card</span>
+                  <div>
+                    <ProjectHoverCard
+                      project={{
+                        name: 'Apollo Matrix Hub',
+                        identifier: 'APO-2026',
+                        description: 'Real-time Matrix federation and E2EE communication bridge.',
+                        status: 'In Development',
+                        membersCount: 14,
+                        updatedAt: '20 mins ago',
+                      }}
+                    >
+                      <button className="inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:underline cursor-pointer">
+                        Project Apollo
+                      </button>
+                    </ProjectHoverCard>
+                  </div>
+                </div>
+
+                {/* Kanban Card Hover Card */}
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold text-foreground">Kanban Card Preview</span>
+                  <div>
+                    <KanbanCardHoverCard
+                      card={{
+                        title: 'Optimize Radix Popover viewport flipping',
+                        identifier: 'TSK-408',
+                        status: 'in progress',
+                        priority: 'high',
+                        assignee: 'Antigravity',
+                        dueDate: 'Tomorrow',
+                      }}
+                    >
+                      <button className="inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:underline cursor-pointer">
+                        TASK-408
+                      </button>
+                    </KanbanCardHoverCard>
+                  </div>
+                </div>
+
+                {/* Channel Hover Card */}
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold text-foreground">Channel Context Card</span>
+                  <div>
+                    <ChannelHoverCard
+                      channel={{
+                        name: 'engineering-general',
+                        description: 'Cross-functional discussions, platform releases, and CI alerts.',
+                        isPrivate: false,
+                        membersCount: 52,
+                      }}
+                    >
+                      <button className="inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:underline cursor-pointer">
+                        #engineering-general
+                      </button>
+                    </ChannelHoverCard>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Keyboard Shortcuts & Kbd Showcase */}
+            <section className="space-y-3">
+              <h2 className="text-base font-bold text-foreground">Kbd &amp; Keyboard Shortcuts</h2>
+              <p className="text-xs text-muted-foreground">
+                Platform-aware keyboard glyphs (⌘ on macOS, Ctrl on Windows/Linux), standardized sizes, and design token borders.
+              </p>
+              <div className="rounded-card border border-border bg-surface p-4 shadow-xs space-y-4">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Command Palette:</span>
+                    <KbdShortcut keys={['mod', 'K']} size="sm" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Quick Action:</span>
+                    <KbdShortcut shortcut="mod+shift+p" size="sm" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Sequential:</span>
+                    <KbdShortcut shortcut="G then U" size="sm" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Escape:</span>
+                    <KbdShortcut keys={['esc']} size="sm" />
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border/50">
+                  <span className="text-xs text-muted-foreground">Sizes:</span>
+                  <Kbd size="xs">XS</Kbd>
+                  <Kbd size="sm">SM</Kbd>
+                  <Kbd size="md">MD</Kbd>
+                  <Kbd size="lg">LG</Kbd>
+                  <span className="text-xs text-muted-foreground ml-4">Variants:</span>
+                  <Kbd variant="default">Default</Kbd>
+                  <Kbd variant="outline">Outline</Kbd>
+                  <Kbd variant="muted">Muted</Kbd>
+                  <Kbd variant="elevated">Elevated</Kbd>
                 </div>
               </div>
             </section>

@@ -2,6 +2,15 @@ import { cn } from '@org/utils';
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronRight, Circle } from 'lucide-react';
 import type { ComponentProps, ReactNode } from 'react';
+import {
+  menuDestructiveClasses,
+  menuIndicator,
+  menuIndicatorInset,
+  menuItemClasses,
+  menuLabelClasses,
+  menuSeparatorClasses,
+  menuSurfaceBase,
+} from './menu-styles.js';
 
 export const DropdownMenu = DropdownMenuPrimitive.Root;
 export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
@@ -9,49 +18,6 @@ export const DropdownMenuGroup = DropdownMenuPrimitive.Group;
 export const DropdownMenuPortal = DropdownMenuPrimitive.Portal;
 export const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 export const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
-
-/*
- * Menus are built from the same tokens as everything else on the page:
- * `rounded-popup` for the surface, `rounded-btn` for the rows, `shadow-overlay`
- * for the lift. They used to carry a hand-picked `rounded-2xl` / `shadow-2xl`
- * of their own, so a menu opened from an 8px-cornered button dropped a 16px
- * pill under it and read as a different design system.
- */
-const menuSurface = [
-  'z-50 min-w-44 bg-popover text-popover-foreground',
-  // Never spill past the viewport: Radix reports the room it has in
-  // `--radix-dropdown-menu-content-available-height`, so a menu taller than
-  // the screen (the channel "⋯" actions menu is ~15 rows) scrolls its
-  // overflow instead of clipping rows off the bottom where they can't be
-  // clicked. `overflow-x-hidden` keeps the horizontal box tight.
-  'max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto overflow-x-hidden overscroll-contain scrollbar-subtle',
-  'rounded-popup border border-border p-1 shadow-overlay',
-  'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
-  'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
-  'duration-(--duration-fast) ease-standard',
-  'data-[side=bottom]:slide-in-from-top-1.5 data-[side=top]:slide-in-from-bottom-1.5',
-  'data-[side=left]:slide-in-from-right-1.5 data-[side=right]:slide-in-from-left-1.5',
-];
-
-/*
- * One row is 28px — the same box a `size="sm"` Button occupies, and the same
- * `text-xs` the command palette, composer and every toolbar already use. The
- * previous 13px/`py-2` row was a size that appears nowhere else in the app.
- */
-const menuItem = [
-  'group relative flex cursor-pointer select-none items-center gap-2 rounded-btn px-2 py-1.5 text-xs font-medium outline-none',
-  'transition-colors duration-(--duration-fast) ease-standard',
-  'focus:bg-accent focus:text-accent-foreground',
-  'data-[disabled]:pointer-events-none data-[disabled]:opacity-40',
-  // Leading icons stay 16px: that is what call sites pass explicitly almost
-  // everywhere, so a smaller default would only mismatch its own neighbours.
-  "[&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground focus:[&_svg]:text-accent-foreground",
-];
-
-/** Left gutter reserved for a check/dot indicator, and the indicator itself. */
-const menuIndicatorInset = 'pl-7';
-const menuIndicator =
-  'absolute left-2 flex size-3.5 items-center justify-center';
 
 export function DropdownMenuContent({
   className,
@@ -65,7 +31,11 @@ export function DropdownMenuContent({
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
-        className={cn(menuSurface, className)}
+        className={cn(
+          menuSurfaceBase,
+          'max-h-(--radix-dropdown-menu-content-available-height)',
+          className,
+        )}
         {...props}
       />
     </DropdownMenuPrimitive.Portal>
@@ -97,11 +67,10 @@ export function DropdownMenuItem({
       data-slot="dropdown-menu-item"
       data-variant={variant}
       className={cn(
-        menuItem,
+        menuItemClasses,
         inset && menuIndicatorInset,
         description && 'py-1.5 items-start',
-        variant === 'destructive' &&
-          'text-destructive focus:bg-destructive/10 focus:text-destructive [&_svg]:text-destructive focus:[&_svg]:text-destructive',
+        variant === 'destructive' && menuDestructiveClasses,
         className,
       )}
       {...props}
@@ -133,7 +102,7 @@ export function DropdownMenuCheckboxItem({
 }: ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem>) {
   return (
     <DropdownMenuPrimitive.CheckboxItem
-      className={cn(menuItem, menuIndicatorInset, className)}
+      className={cn(menuItemClasses, menuIndicatorInset, className)}
       checked={checked}
       {...props}
     >
@@ -154,7 +123,7 @@ export function DropdownMenuRadioItem({
 }: ComponentProps<typeof DropdownMenuPrimitive.RadioItem>) {
   return (
     <DropdownMenuPrimitive.RadioItem
-      className={cn(menuItem, menuIndicatorInset, className)}
+      className={cn(menuItemClasses, menuIndicatorInset, className)}
       {...props}
     >
       <span className={menuIndicator}>
@@ -174,11 +143,7 @@ export function DropdownMenuLabel({
 }: ComponentProps<typeof DropdownMenuPrimitive.Label> & { inset?: boolean }) {
   return (
     <DropdownMenuPrimitive.Label
-      className={cn(
-        'px-2 py-1 font-semibold tracking-wider text-[10px] text-subtle uppercase',
-        inset && menuIndicatorInset,
-        className,
-      )}
+      className={cn(menuLabelClasses, inset && menuIndicatorInset, className)}
       {...props}
     />
   );
@@ -190,7 +155,7 @@ export function DropdownMenuSeparator({
 }: ComponentProps<typeof DropdownMenuPrimitive.Separator>) {
   return (
     <DropdownMenuPrimitive.Separator
-      className={cn('-mx-1 my-1 h-px bg-border', className)}
+      className={cn(menuSeparatorClasses, className)}
       {...props}
     />
   );
@@ -244,7 +209,7 @@ export function DropdownMenuSubTrigger({
   return (
     <DropdownMenuPrimitive.SubTrigger
       className={cn(
-        menuItem,
+        menuItemClasses,
         'data-[state=open]:bg-accent',
         inset && menuIndicatorInset,
         className,
@@ -265,7 +230,11 @@ export function DropdownMenuSubContent({
   return (
     <DropdownMenuPrimitive.SubContent
       collisionPadding={collisionPadding}
-      className={cn(menuSurface, className)}
+      className={cn(
+        menuSurfaceBase,
+        'max-h-(--radix-dropdown-menu-content-available-height)',
+        className,
+      )}
       {...props}
     />
   );

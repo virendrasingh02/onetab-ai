@@ -1,237 +1,390 @@
 import { cn } from '@org/utils';
-import { Check } from 'lucide-react';
-
+import * as MenuPrimitive from '@radix-ui/react-menu';
+import { Check, ChevronRight, Circle } from 'lucide-react';
 import {
   createContext,
+  forwardRef,
   useCallback,
   useContext,
-  useEffect,
   useRef,
   useState,
   type ComponentProps,
+  type ComponentPropsWithoutRef,
+  type ElementRef,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react';
+import { KbdShortcut } from './kbd.js';
+import {
+  menuDestructiveClasses,
+  menuIndicator,
+  menuIndicatorInset,
+  menuItemClasses,
+  menuLabelClasses,
+  menuSeparatorClasses,
+  menuSurfaceBase,
+} from './menu-styles.js';
+
+/* -------------------------------------------------------------------------- */
+/* Context Menu State & Trigger                                               */
+/* -------------------------------------------------------------------------- */
+
+interface Point {
+  x: number;
+  y: number;
+}
 
 interface ContextMenuContextValue {
-  isOpen: boolean;
-  position: { x: number; y: number };
-  openMenu: (e: React.MouseEvent) => void;
-  closeMenu: () => void;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  position: Point;
+  setPosition: (point: Point) => void;
+  handleContextMenu: (e: ReactMouseEvent) => void;
 }
 
 const ContextMenuContext = createContext<ContextMenuContextValue | null>(null);
 
 export interface ContextMenuProps {
   children: ReactNode;
+  modal?: boolean;
+  dir?: 'ltr' | 'rtl';
 }
 
-export function ContextMenu({ children }: ContextMenuProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
+export function ContextMenu({ children, modal = true, dir }: ContextMenuProps) {
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<Point>({ x: 0, y: 0 });
 
-  const openMenu = useCallback((e: React.MouseEvent) => {
+  const handleContextMenu = useCallback((e: ReactMouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setPosition({ x: e.clientX, y: e.clientY });
-    setIsOpen(true);
+    setOpen(true);
   }, []);
-
-  const closeMenu = useCallback(() => {
-    setIsOpen(false);
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleClose = () => closeMenu();
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeMenu();
-    };
-
-    window.addEventListener('click', handleClose);
-    window.addEventListener('contextmenu', handleClose);
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('scroll', handleClose, true);
-
-    return () => {
-      window.removeEventListener('click', handleClose);
-      window.removeEventListener('contextmenu', handleClose);
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('scroll', handleClose, true);
-    };
-  }, [isOpen, closeMenu]);
 
   return (
-    <ContextMenuContext.Provider value={{ isOpen, position, openMenu, closeMenu }}>
-      {children}
+    <ContextMenuContext.Provider
+      value={{ open, setOpen, position, setPosition, handleContextMenu }}
+    >
+      <MenuPrimitive.Root open={open} onOpenChange={setOpen} modal={modal} dir={dir}>
+        {children}
+      </MenuPrimitive.Root>
     </ContextMenuContext.Provider>
   );
 }
 
-export interface ContextMenuTriggerProps extends ComponentProps<'div'> {
+export interface ContextMenuTriggerProps extends ComponentPropsWithoutRef<'div'> {
   disabled?: boolean;
 }
 
-export function ContextMenuTrigger({
-  disabled = false,
-  onContextMenu,
-  className,
-  children,
-  ...props
-}: ContextMenuTriggerProps) {
-  const context = useContext(ContextMenuContext);
+export const ContextMenuTrigger = forwardRef<HTMLDivElement, ContextMenuTriggerProps>(
+  ({ disabled = false, onContextMenu, className, children, ...props }, ref) => {
+    const context = useContext(ContextMenuContext);
 
-  const handleContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (disabled) return;
-    onContextMenu?.(e);
-    context?.openMenu(e);
-  };
+    const handleContextMenu = (e: ReactMouseEvent<HTMLDivElement>) => {
+      if (disabled) return;
+      onContextMenu?.(e);
+      context?.handleContextMenu(e);
+    };
 
-  return (
-    <div onContextMenu={handleContextMenu} className={cn('select-none', className)} {...props}>
-      {children}
-    </div>
-  );
+    return (
+      <div
+        ref={ref}
+        data-slot="context-menu-trigger"
+        onContextMenu={handleContextMenu}
+        className={cn('select-none', className)}
+        {...props}
+      >
+        {children}
+      </div>
+    );
+  },
+);
+
+ContextMenuTrigger.displayName = 'ContextMenuTrigger';
+
+/* -------------------------------------------------------------------------- */
+/* Context Menu Content & Sub-components                                      */
+/* -------------------------------------------------------------------------- */
+
+export interface ContextMenuContentProps
+  extends ComponentPropsWithoutRef<typeof MenuPrimitive.Content> {
+  collisionPadding?: number;
 }
 
-export type ContextMenuContentProps = ComponentProps<'div'>;
-
-export function ContextMenuContent({ className, children, ...props }: ContextMenuContentProps) {
+export const ContextMenuContent = forwardRef<
+  ElementRef<typeof MenuPrimitive.Content>,
+  ContextMenuContentProps
+>(({ className, collisionPadding = 8, align = 'start', ...props }, ref) => {
   const context = useContext(ContextMenuContext);
-  const menuRef = useRef<HTMLDivElement>(null);
 
-  if (!context?.isOpen) return null;
-
-  // Ensure menu doesn't overflow viewport boundaries
-  const { x, y } = context.position;
-  const clampedX = Math.min(x, window.innerWidth - 220);
-  const clampedY = Math.min(y, window.innerHeight - 300);
+  const virtualRef = useRef({
+    getBoundingClientRect: () => {
+      const { x, y } = context?.position ?? { x: 0, y: 0 };
+      return {
+        width: 0,
+        height: 0,
+        top: y,
+        right: x,
+        bottom: y,
+        left: x,
+        x,
+        y,
+        toJSON: () => ({}),
+      } as DOMRect;
+    },
+  });
 
   return (
-    <div
-      ref={menuRef}
-      style={{ top: `${clampedY}px`, left: `${clampedX}px` }}
-      className={cn(
-        'fixed z-50 min-w-48 overflow-hidden rounded-popup border border-border bg-popover p-1 text-popover-foreground shadow-overlay',
-        'animate-in fade-in-80 zoom-in-95 duration-100',
-        className,
-      )}
-      onClick={(e) => e.stopPropagation()}
-      {...props}
-    >
-      {children}
-    </div>
+    <>
+      <MenuPrimitive.Anchor virtualRef={virtualRef} />
+      <MenuPrimitive.Portal>
+        <MenuPrimitive.Content
+          ref={ref}
+          data-slot="context-menu-content"
+          align={align}
+          collisionPadding={collisionPadding}
+          className={cn(
+            menuSurfaceBase,
+            'max-h-(--radix-menu-content-available-height)',
+            className,
+          )}
+          {...props}
+        />
+      </MenuPrimitive.Portal>
+    </>
   );
-}
+});
 
-import { KbdShortcut } from './kbd.js';
+ContextMenuContent.displayName = 'ContextMenuContent';
 
-export interface ContextMenuItemProps extends ComponentProps<'button'> {
+export const ContextMenuGroup = MenuPrimitive.Group;
+export const ContextMenuPortal = MenuPrimitive.Portal;
+export const ContextMenuSub = MenuPrimitive.Sub;
+export const ContextMenuRadioGroup = MenuPrimitive.RadioGroup;
+
+export interface ContextMenuItemProps
+  extends ComponentPropsWithoutRef<typeof MenuPrimitive.Item> {
   inset?: boolean;
   destructive?: boolean;
-  shortcut?: string | string[];
   icon?: ReactNode;
+  shortcut?: string | string[];
 }
 
-export function ContextMenuItem({
-  className,
-  inset,
-  destructive,
-  shortcut,
-  icon,
-  children,
-  onClick,
-  disabled,
-  ...props
-}: ContextMenuItemProps) {
-  const context = useContext(ContextMenuContext);
-
-  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (disabled) return;
-    onClick?.(e);
-    context?.closeMenu();
-  };
-
+export const ContextMenuItem = forwardRef<
+  ElementRef<typeof MenuPrimitive.Item>,
+  ContextMenuItemProps
+>(({ className, inset, destructive, icon, shortcut, children, ...props }, ref) => {
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={handleClick}
+    <MenuPrimitive.Item
+      ref={ref}
+      data-slot="context-menu-item"
+      data-variant={destructive ? 'destructive' : 'default'}
       className={cn(
-        'relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-xs outline-none transition-colors duration-(--duration-fast)',
-        'hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground',
-        destructive && 'text-destructive hover:bg-destructive/10 hover:text-destructive',
-        disabled && 'pointer-events-none opacity-50',
-        inset && 'pl-8',
+        menuItemClasses,
+        inset && menuIndicatorInset,
+        destructive && menuDestructiveClasses,
         className,
       )}
       {...props}
     >
-      {icon && <span className="mr-2 size-4 shrink-0 text-muted-foreground [&_svg]:size-4">{icon}</span>}
-      <span className="flex-1 text-left">{children}</span>
+      {icon && (
+        <span className="size-4 shrink-0 text-muted-foreground [&_svg]:size-4 flex items-center justify-center">
+          {icon}
+        </span>
+      )}
+      <span className="flex-1 text-left truncate">{children}</span>
       {shortcut && (
-        <span className="ml-auto inline-flex items-center pl-2">
+        <span className="ml-auto inline-flex items-center pl-3">
           <KbdShortcut keys={shortcut} size="xs" variant="muted" />
         </span>
       )}
-    </button>
+    </MenuPrimitive.Item>
   );
-}
+});
 
-export function ContextMenuSeparator({ className, ...props }: ComponentProps<'div'>) {
-  return <div className={cn('-mx-1 my-1 h-px bg-border', className)} {...props} />;
-}
+ContextMenuItem.displayName = 'ContextMenuItem';
 
-export function ContextMenuLabel({
-  className,
-  inset,
-  children,
-  ...props
-}: ComponentProps<'div'> & { inset?: boolean }) {
+export type ContextMenuCheckboxItemProps =
+  ComponentPropsWithoutRef<typeof MenuPrimitive.CheckboxItem>;
+
+export const ContextMenuCheckboxItem = forwardRef<
+  ElementRef<typeof MenuPrimitive.CheckboxItem>,
+  ContextMenuCheckboxItemProps
+>(({ className, children, checked, ...props }, ref) => {
   return (
-    <div
-      className={cn('px-2 py-1 text-[11px] font-semibold text-subtle uppercase tracking-wider', inset && 'pl-8', className)}
+    <MenuPrimitive.CheckboxItem
+      ref={ref}
+      data-slot="context-menu-checkbox-item"
+      className={cn(menuItemClasses, menuIndicatorInset, className)}
+      checked={checked}
       {...props}
     >
+      <span className={menuIndicator}>
+        <MenuPrimitive.ItemIndicator>
+          <Check className="size-3.5 text-foreground" />
+        </MenuPrimitive.ItemIndicator>
+      </span>
       {children}
-    </div>
+    </MenuPrimitive.CheckboxItem>
   );
+});
+
+ContextMenuCheckboxItem.displayName = 'ContextMenuCheckboxItem';
+
+export type ContextMenuRadioItemProps =
+  ComponentPropsWithoutRef<typeof MenuPrimitive.RadioItem>;
+
+export const ContextMenuRadioItem = forwardRef<
+  ElementRef<typeof MenuPrimitive.RadioItem>,
+  ContextMenuRadioItemProps
+>(({ className, children, ...props }, ref) => {
+  return (
+    <MenuPrimitive.RadioItem
+      ref={ref}
+      data-slot="context-menu-radio-item"
+      className={cn(menuItemClasses, menuIndicatorInset, className)}
+      {...props}
+    >
+      <span className={menuIndicator}>
+        <MenuPrimitive.ItemIndicator>
+          <Circle className="size-1.5 fill-current text-foreground" />
+        </MenuPrimitive.ItemIndicator>
+      </span>
+      {children}
+    </MenuPrimitive.RadioItem>
+  );
+});
+
+ContextMenuRadioItem.displayName = 'ContextMenuRadioItem';
+
+export interface ContextMenuLabelProps
+  extends ComponentPropsWithoutRef<typeof MenuPrimitive.Label> {
+  inset?: boolean;
 }
 
-export function ContextMenuCheckboxItem({
-  checked,
-  onCheckedChange,
-  children,
+export const ContextMenuLabel = forwardRef<
+  ElementRef<typeof MenuPrimitive.Label>,
+  ContextMenuLabelProps
+>(({ className, inset, ...props }, ref) => {
+  return (
+    <MenuPrimitive.Label
+      ref={ref}
+      data-slot="context-menu-label"
+      className={cn(menuLabelClasses, inset && menuIndicatorInset, className)}
+      {...props}
+    />
+  );
+});
+
+ContextMenuLabel.displayName = 'ContextMenuLabel';
+
+export type ContextMenuSeparatorProps =
+  ComponentPropsWithoutRef<typeof MenuPrimitive.Separator>;
+
+export const ContextMenuSeparator = forwardRef<
+  ElementRef<typeof MenuPrimitive.Separator>,
+  ContextMenuSeparatorProps
+>(({ className, ...props }, ref) => {
+  return (
+    <MenuPrimitive.Separator
+      ref={ref}
+      data-slot="context-menu-separator"
+      className={cn(menuSeparatorClasses, className)}
+      {...props}
+    />
+  );
+});
+
+ContextMenuSeparator.displayName = 'ContextMenuSeparator';
+
+export interface ContextMenuShortcutProps extends ComponentProps<'span'> {
+  keys?: string[] | string;
+}
+
+export function ContextMenuShortcut({
   className,
-  disabled,
+  keys,
+  children,
   ...props
-}: Omit<ComponentProps<'button'>, 'onChange'> & {
-  checked?: boolean;
-  onCheckedChange?: (checked: boolean) => void;
-}) {
-  const context = useContext(ContextMenuContext);
+}: ContextMenuShortcutProps) {
+  if (keys) {
+    return (
+      <span className={cn('pl-3 ml-auto inline-flex items-center', className)} {...props}>
+        <KbdShortcut keys={keys} size="xs" variant="muted" />
+      </span>
+    );
+  }
 
   return (
-    <button
-      type="button"
-      role="menuitemcheckbox"
-      aria-checked={checked}
-      disabled={disabled}
-      onClick={() => {
-        onCheckedChange?.(!checked);
-        context?.closeMenu();
-      }}
+    <span
       className={cn(
-        'relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-xs outline-none transition-colors duration-(--duration-fast)',
-        'hover:bg-accent hover:text-accent-foreground',
-        disabled && 'pointer-events-none opacity-50',
+        'pl-3 font-normal tracking-wide ml-auto font-mono text-[10px] text-subtle inline-flex items-center gap-1',
         className,
       )}
       {...props}
     >
-      <span className="absolute left-2 flex size-3.5 items-center justify-center">
-        {checked && <Check className="size-4 text-primary" />}
-      </span>
-      <span>{children}</span>
-    </button>
+      {typeof children === 'string' ? (
+        <KbdShortcut shortcut={children} size="xs" variant="muted" />
+      ) : (
+        children
+      )}
+    </span>
   );
 }
+
+export interface ContextMenuSubTriggerProps
+  extends ComponentPropsWithoutRef<typeof MenuPrimitive.SubTrigger> {
+  inset?: boolean;
+}
+
+export const ContextMenuSubTrigger = forwardRef<
+  ElementRef<typeof MenuPrimitive.SubTrigger>,
+  ContextMenuSubTriggerProps
+>(({ className, inset, children, ...props }, ref) => {
+  return (
+    <MenuPrimitive.SubTrigger
+      ref={ref}
+      data-slot="context-menu-sub-trigger"
+      className={cn(
+        menuItemClasses,
+        'data-[state=open]:bg-accent',
+        inset && menuIndicatorInset,
+        className,
+      )}
+      {...props}
+    >
+      {children}
+      <ChevronRight className="size-3.5 ml-auto shrink-0 text-subtle" />
+    </MenuPrimitive.SubTrigger>
+  );
+});
+
+ContextMenuSubTrigger.displayName = 'ContextMenuSubTrigger';
+
+export interface ContextMenuSubContentProps
+  extends ComponentPropsWithoutRef<typeof MenuPrimitive.SubContent> {
+  collisionPadding?: number;
+}
+
+export const ContextMenuSubContent = forwardRef<
+  ElementRef<typeof MenuPrimitive.SubContent>,
+  ContextMenuSubContentProps
+>(({ className, collisionPadding = 8, ...props }, ref) => {
+  return (
+    <MenuPrimitive.Portal>
+      <MenuPrimitive.SubContent
+        ref={ref}
+        data-slot="context-menu-sub-content"
+        collisionPadding={collisionPadding}
+        className={cn(
+          menuSurfaceBase,
+          'max-h-(--radix-menu-content-available-height)',
+          className,
+        )}
+        {...props}
+      />
+    </MenuPrimitive.Portal>
+  );
+});
+
+ContextMenuSubContent.displayName = 'ContextMenuSubContent';
