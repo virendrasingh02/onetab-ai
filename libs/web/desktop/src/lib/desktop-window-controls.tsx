@@ -15,15 +15,17 @@ import { useDesktop } from './desktop-provider.js';
  * be a dead cluster floating over an otherwise borderless window).
  */
 export function DesktopWindowControls() {
-  const { isDesktop, appInfo, windowState, minimize, toggleMaximize, close } = useDesktop();
+  const { isDesktop, appInfo, windowState, minimize, toggleMaximize, close } =
+    useDesktop();
 
-  if (!isDesktop || !appInfo?.usesCustomTitleBar || windowState.isFullScreen) return null;
+  if (!isDesktop || !appInfo?.usesCustomTitleBar || windowState.isFullScreen)
+    return null;
   if (appInfo.platform === 'darwin') return null;
 
   return (
     // Every interactive child must opt out of the drag region or the click
     // is swallowed by the window move handler.
-    <div style={NO_DRAG} className="flex items-center gap-0.5">
+    <div style={NO_DRAG} className="gap-0.5 flex items-center">
       <Hint label="Minimise">
         <Button
           variant="ghost"
@@ -42,7 +44,9 @@ export function DesktopWindowControls() {
           size="icon-sm"
           className="size-7 rounded-sm"
           onClick={toggleMaximize}
-          aria-label={windowState.isMaximized ? 'Restore window' : 'Maximise window'}
+          aria-label={
+            windowState.isMaximized ? 'Restore window' : 'Maximise window'
+          }
         >
           {windowState.isMaximized ? (
             <Copy className="size-3" />
