@@ -1,15 +1,9 @@
 import { cn } from '@org/utils';
+import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { Check, Search, Send, UserX, X } from 'lucide-react';
-import React, { useMemo, useState } from 'react';
+import React, { useId, useMemo, useRef, useState } from 'react';
 import { UserAvatarGroup } from './avatar-group.js';
 import { UserAvatar } from './avatar.js';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from './dropdown-menu.js';
 
 export interface UserSelectorMember {
   id: string;
@@ -17,6 +11,10 @@ export interface UserSelectorMember {
   displayName?: string | null;
   avatarUrl?: string | null;
   email?: string | null;
+  role?: string | null;
+  title?: string | null;
+  subtitle?: string | null;
+  description?: string | null;
 }
 
 export interface UserSelectorProps {
@@ -32,24 +30,30 @@ export interface UserSelectorProps {
   onSelectMember?: (memberId: string | null) => void;
   /** Whether to allow multiple assigned users. Default: true. */
   multiple?: boolean;
+  /** Variant of the trigger: 'input' (chips + inline search) or 'avatar' (compact button). */
+  variant?: 'input' | 'avatar' | 'button';
   /** Optional custom trigger node. */
   trigger?: React.ReactNode;
   /** Alignment of the popover content. */
   align?: 'start' | 'center' | 'end';
-  /** Placeholder text for the search input. */
+  /** Placeholder text for the search input or empty state. */
   searchPlaceholder?: string;
+  placeholder?: string;
   /** Label for the trigger or accessibility aria-label. */
   label?: string;
   /** Optional callback when "Invite and add..." is clicked. */
   onInvite?: () => void;
   /** Disabled state. */
   disabled?: boolean;
+  /** Maximum chips to show before "+N more" badge. */
+  maxSelectedChips?: number;
   className?: string;
+  popoverClassName?: string;
 }
 
 /**
  * Universal user search and selector component supporting both single and
- * multi-user assignment with fast search, keyboard navigation, and consistent avatars.
+ * multi-user assignment with fast search, keyboard navigation, chips input, and consistent avatars.
  */
 export function UserSelector({
   members,
@@ -58,16 +62,25 @@ export function UserSelector({
   onChange,
   onSelectMember,
   multiple = true,
+  variant,
   trigger,
-  align = 'end',
+  align = 'start',
   searchPlaceholder = 'Search users...',
+  placeholder = 'Add members...',
   label = 'Change assignees',
   onInvite,
   disabled = false,
+  maxSelectedChips,
   className,
+  popoverClassName,
 }: UserSelectorProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const inputId = useId();
+
+  // Determine effective trigger variant: default to 'input' for multi-mode, 'avatar' if specified or single without custom trigger
+  const effectiveVariant = variant ?? (multiple ? 'input' : 'avatar');
 
   // Normalize selected IDs
   const activeSelectedIds = useMemo<string[]>(() => {
@@ -90,7 +103,13 @@ export function UserSelector({
       const name = (m.displayName ?? m.name).toLowerCase();
       const rawName = m.name.toLowerCase();
       const email = (m.email ?? '').toLowerCase();
-      return name.includes(q) || rawName.includes(q) || email.includes(q);
+      const role = (m.role || m.title || m.subtitle || m.description || '').toLowerCase();
+      return (
+        name.includes(q) ||
+        rawName.includes(q) ||
+        email.includes(q) ||
+        role.includes(q)
+      );
     });
   }, [members, query]);
 
@@ -101,25 +120,134 @@ export function UserSelector({
         : [...activeSelectedIds, userId];
       onChange?.(next);
       onSelectMember?.(next[0] ?? null);
+      setQuery('');
     } else {
       const isCurrent = activeSelectedIds.includes(userId);
       const next = isCurrent ? [] : [userId];
       onChange?.(next);
       onSelectMember?.(isCurrent ? null : userId);
       setOpen(false);
+      setQuery('');
     }
   };
 
-  const clearSelection = () => {
-    onChange?.([]);
-    onSelectMember?.(null);
-    if (!multiple) setOpen(false);
+  const removeUser = (e: React.MouseEvent, userId: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const next = activeSelectedIds.filter((id) => id !== userId);
+    onChange?.(next);
+    onSelectMember?.(next[0] ?? null);
   };
 
-  const defaultTrigger = (
+  const visibleChips = maxSelectedChips
+    ? selectedMembers.slice(0, maxSelectedChips)
+    : selectedMembers;
+  const remainingCount = maxSelectedChips
+    ? Math.max(0, selectedMembers.length - maxSelectedChips)
+    : 0;
+
+  const activePlaceholder = query ? '' : (searchPlaceholder || placeholder);
+
+  // Render input-style trigger (Chips with avatar, label, remove X + inline search input)
+  const inputTrigger = (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={label}
+      aria-expanded={open}
+      onClick={() => {
+        if (!disabled) {
+          setOpen(true);
+          inputRef.current?.focus();
+        }
+      }}
+      className={cn(
+        'min-h-[42px] w-full px-2.5 py-1.5 rounded-xl border border-border bg-surface-raised flex flex-wrap items-center gap-1.5 cursor-text transition-colors',
+        'hover:border-border-strong focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/25',
+        open && 'border-primary ring-1 ring-primary/25',
+        disabled && 'opacity-50 cursor-not-allowed pointer-events-none bg-muted/40',
+        className,
+      )}
+    >
+      <div
+        role="group"
+        aria-label="Selected members"
+        className="flex flex-wrap items-center gap-1.5"
+      >
+        {visibleChips.map((member) => {
+          const displayName = member.displayName ?? member.name;
+          return (
+            <span
+              key={member.id}
+              className="inline-flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-full bg-surface border border-border/80 text-xs font-medium text-foreground shadow-2xs transition-all hover:bg-accent/40"
+            >
+              <UserAvatar
+                name={displayName}
+                seed={member.id}
+                src={member.avatarUrl}
+                size="xs"
+                className="size-5 font-bold shrink-0"
+              />
+              <span className="truncate max-w-[140px] text-xs font-medium">
+                {displayName}
+              </span>
+              {!disabled && (
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  aria-label={`Remove ${displayName}`}
+                  onClick={(e) => removeUser(e, member.id)}
+                  className="text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-full p-0.5 transition-colors cursor-pointer"
+                >
+                  <X className="size-3" />
+                </button>
+              )}
+            </span>
+          );
+        })}
+
+        {remainingCount > 0 && (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-surface border border-border text-[11px] font-medium text-muted-foreground">
+            +{remainingCount} more
+          </span>
+        )}
+      </div>
+
+      <input
+        ref={inputRef}
+        id={inputId}
+        type="text"
+        value={query}
+        disabled={disabled}
+        placeholder={activePlaceholder}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          if (!open) setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === 'Backspace' && !query && selectedMembers.length > 0) {
+            const last = selectedMembers[selectedMembers.length - 1];
+            if (last) {
+              toggleUser(last.id);
+            }
+          } else if (e.key === 'Escape') {
+            setOpen(false);
+          }
+        }}
+        className="flex-1 min-w-[120px] bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none border-none p-0 focus:ring-0"
+      />
+    </div>
+  );
+
+  // Render compact avatar trigger
+  const avatarTrigger = (
     <button
       type="button"
       disabled={disabled}
+      onClick={() => {
+        if (!disabled) setOpen((prev) => !prev);
+      }}
       className={cn(
         'inline-flex items-center gap-1.5 p-0.5 rounded-full transition-all cursor-pointer outline-none select-none',
         'hover:ring-2 hover:ring-primary/40 focus-visible:ring-2 focus-visible:ring-primary',
@@ -138,132 +266,134 @@ export function UserSelector({
     </button>
   );
 
+  const activeTrigger = trigger ?? (effectiveVariant === 'input' ? inputTrigger : avatarTrigger);
+
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>{trigger ?? defaultTrigger}</DropdownMenuTrigger>
+    <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+      <PopoverPrimitive.Anchor asChild>{activeTrigger}</PopoverPrimitive.Anchor>
 
-      <DropdownMenuContent
-        align={align}
-        sideOffset={6}
-        className="w-60 p-1.5 rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl space-y-1 select-none animate-in fade-in zoom-in-95"
-      >
-        {/* Search Input Box */}
-        <div className="relative flex items-center px-2 py-1 border-b border-border/60">
-          <Search className="size-3.5 text-muted-foreground shrink-0 mr-2" />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={searchPlaceholder}
-            className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none border-none p-0 focus:ring-0"
-            autoFocus
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery('')}
-              className="p-0.5 text-muted-foreground hover:text-foreground"
-            >
-              <X className="size-3" />
-            </button>
+      <PopoverPrimitive.Portal>
+        <PopoverPrimitive.Content
+          align={align}
+          sideOffset={6}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+          className={cn(
+            'z-50 w-72 sm:w-80 p-1.5 rounded-2xl border border-border bg-popover text-popover-foreground shadow-2xl space-y-0.5 select-none outline-none',
+            'data-[state=open]:animate-in data-[state=closed]:animate-out',
+            'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+            'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+            'duration-(--duration-fast) ease-standard',
+            popoverClassName,
           )}
-        </div>
-
-        {/* Action Header: Clear selection / Count */}
-        <div className="flex items-center justify-between px-2 pt-1 pb-0.5 text-[11px] text-muted-foreground">
-          <span>{multiple ? 'Assignees' : 'Assignee'}</span>
-          {activeSelectedIds.length > 0 && (
-            <button
-              type="button"
-              onClick={clearSelection}
-              className="text-[10px] font-medium text-destructive hover:underline cursor-pointer"
-            >
-              Clear ({activeSelectedIds.length})
-            </button>
-          )}
-        </div>
-
-        {/* Member Options List */}
-        <div className="max-h-56 overflow-y-auto space-y-0.5 py-0.5">
-          {filteredMembers.length === 0 ? (
-            <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-              No users found
-            </div>
-          ) : (
-            filteredMembers.map((member) => {
-              const isSelected = activeSelectedIds.includes(member.id);
-              const displayName = member.displayName ?? member.name;
-
-              return (
-                <DropdownMenuItem
-                  key={member.id}
-                  onSelect={(e) => {
-                    if (multiple) {
-                      e.preventDefault(); // keep menu open for multi-selection
-                    }
-                    toggleUser(member.id);
-                  }}
-                  className={cn(
-                    'flex items-center justify-between px-2 py-1.5 rounded-lg text-xs cursor-pointer font-medium transition-colors',
-                    isSelected
-                      ? 'bg-accent/80 text-foreground'
-                      : 'text-foreground/90 hover:bg-accent/50',
-                  )}
+        >
+          {/* Search Input Box when trigger is not an inline input */}
+          {effectiveVariant !== 'input' && (
+            <div className="relative flex items-center px-2.5 py-1.5 border-b border-border/60 mb-1">
+              <Search className="size-3.5 text-muted-foreground shrink-0 mr-2" />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={searchPlaceholder}
+                className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none border-none p-0 focus:ring-0"
+                autoFocus
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  className="p-0.5 text-muted-foreground hover:text-foreground"
                 >
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    {/* Selection bullet indicator */}
-                    <span
-                      className={cn(
-                        'size-3.5 rounded flex items-center justify-center text-[10px] shrink-0 border transition-colors',
-                        isSelected
-                          ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-muted-foreground/40 bg-background/50',
-                      )}
-                    >
-                      {isSelected ? <Check className="size-2.5 stroke-[3]" /> : null}
-                    </span>
-
-                    {/* Standard UserAvatar */}
-                    <UserAvatar
-                      name={displayName}
-                      seed={member.id}
-                      src={member.avatarUrl}
-                      size="xs"
-                      className="size-5 shrink-0 font-bold"
-                    />
-
-                    <div className="min-w-0 flex-1 leading-none">
-                      <span className="block text-xs truncate font-medium text-foreground">
-                        {displayName}
-                      </span>
-                      {member.email ? (
-                        <span className="block text-[10px] truncate text-muted-foreground mt-0.5 font-mono">
-                          {member.email}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                </DropdownMenuItem>
-              );
-            })
+                  <X className="size-3" />
+                </button>
+              )}
+            </div>
           )}
-        </div>
 
-        {/* Invite new user footer */}
-        {onInvite && (
-          <>
-            <DropdownMenuSeparator className="my-1" />
-            <DropdownMenuItem
-              onSelect={() => onInvite()}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs cursor-pointer text-foreground/85 hover:bg-accent/60 font-medium"
-            >
-              <Send className="size-3.5 text-muted-foreground shrink-0" />
-              <span>Invite and add...</span>
-            </DropdownMenuItem>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+          {/* Member Options List matching reference image */}
+          <div className="max-h-64 overflow-y-auto space-y-0.5 py-0.5 scrollbar-subtle">
+            {filteredMembers.length === 0 ? (
+              <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                No users found
+              </div>
+            ) : (
+              filteredMembers.map((member) => {
+                const isSelected = activeSelectedIds.includes(member.id);
+                const displayName = member.displayName ?? member.name;
+                const subtitle =
+                  member.role ||
+                  member.title ||
+                  member.subtitle ||
+                  member.description ||
+                  member.email ||
+                  null;
+
+                return (
+                  <button
+                    key={member.id}
+                    type="button"
+                    onClick={() => toggleUser(member.id)}
+                    className={cn(
+                      'w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-left cursor-pointer transition-colors duration-150 outline-none',
+                      isSelected
+                        ? 'bg-accent/40 text-foreground hover:bg-accent/70'
+                        : 'text-foreground/90 hover:bg-accent/60',
+                    )}
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      {/* User Avatar */}
+                      <UserAvatar
+                        name={displayName}
+                        seed={member.id}
+                        src={member.avatarUrl}
+                        size="sm"
+                        className="size-8 shrink-0 font-bold rounded-full"
+                      />
+
+                      {/* Name + Subtitle (Role/Title/Email) Stack */}
+                      <div className="min-w-0 flex-1">
+                        <span className="block text-xs truncate font-semibold text-foreground leading-tight">
+                          {displayName}
+                        </span>
+                        {subtitle && (
+                          <span className="block text-[11px] truncate text-muted-foreground mt-0.5 leading-tight font-normal">
+                            {subtitle}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Clean Right-aligned checkmark when selected */}
+                    {isSelected && (
+                      <Check className="size-4 text-foreground shrink-0 stroke-[2.5] ml-2" />
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {/* Invite new user footer */}
+          {onInvite && (
+            <>
+              <div className="h-px bg-border my-1" />
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  onInvite();
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs cursor-pointer text-foreground/85 hover:bg-accent/60 font-medium transition-colors"
+              >
+                <Send className="size-3.5 text-muted-foreground shrink-0" />
+                <span>Invite and add...</span>
+              </button>
+            </>
+          )}
+        </PopoverPrimitive.Content>
+      </PopoverPrimitive.Portal>
+    </PopoverPrimitive.Root>
   );
 }
 

@@ -200,26 +200,26 @@ export function KanbanLeadPicker({
                       toggleMember(member.id);
                     }}
                     className={cn(
-                      'flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer font-medium transition-colors',
+                      'flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer transition-colors duration-150',
                       isSelected
-                        ? 'bg-accent text-foreground'
-                        : 'text-foreground/85 hover:bg-accent/60',
+                        ? 'bg-accent/40 text-foreground hover:bg-accent/70'
+                        : 'text-foreground/90 hover:bg-accent/60',
                     )}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
                       <UserAvatar
                         name={member.displayName ?? member.name}
                         seed={member.id}
                         src={member.avatarUrl}
-                        size="xs"
-                        className="size-5 text-[9px] font-bold shrink-0"
+                        size="sm"
+                        className="size-7 text-[10px] font-bold shrink-0 rounded-full"
                       />
-                      <div className="min-w-0 flex-1 leading-none">
-                        <span className="block truncate text-xs font-medium text-foreground">
+                      <div className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-semibold text-foreground leading-tight">
                           {member.displayName ?? member.name}
                         </span>
                         {member.email && (
-                          <span className="block truncate text-[10px] text-muted-foreground mt-0.5 font-mono">
+                          <span className="block truncate text-[11px] text-muted-foreground mt-0.5 leading-tight font-normal">
                             {member.email}
                           </span>
                         )}
@@ -227,7 +227,7 @@ export function KanbanLeadPicker({
                     </div>
 
                     {isSelected && (
-                      <Check className="size-3.5 text-foreground shrink-0 stroke-[2.5]" />
+                      <Check className="size-4 text-foreground shrink-0 stroke-[2.5] ml-2" />
                     )}
                   </DropdownMenuItem>
                 );

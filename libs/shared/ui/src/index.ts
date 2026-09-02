@@ -63,6 +63,12 @@ export {
 } from './lib/components/user-selector.js';
 
 export {
+  MultiSelect,
+  type MultiSelectOption,
+  type MultiSelectProps,
+} from './lib/components/multi-select.js';
+
+export {
   ProjectGlyph,
   type ProjectGlyphProps,
   type ProjectGlyphSize,

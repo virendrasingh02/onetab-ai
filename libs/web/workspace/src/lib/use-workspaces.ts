@@ -202,6 +202,29 @@ export function useUpdateWorkspace(workspaceId: string | undefined) {
   });
 }
 
+export function useUploadWorkspaceLogo(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file: File) =>
+      workspaceApi.uploadLogo(workspaceId as string, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all() });
+    },
+  });
+}
+
+export function useRemoveWorkspaceLogo(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => workspaceApi.removeLogo(workspaceId as string),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.workspaces.all() });
+    },
+  });
+}
+
 /**
  * Archives or restores the workspace.
  *

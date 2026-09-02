@@ -2,7 +2,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { http, userApi } from '@org/api-client';
 import { formErrorMessage, useAuthStore, useCurrentUser } from '@org/auth';
 import { useTheme } from '@org/design-system';
-import { WorkspaceIconPicker } from '@org/icons';
 import {
   Button,
   Dialog,
@@ -34,6 +33,7 @@ import {
   TimezoneSelect,
   UserAvatar,
   WorkspaceAvatar,
+  toast,
   useFocusStore,
   useSidebarCustomizerStore,
   FOCUS_SOUND_OPTIONS,
@@ -55,6 +55,8 @@ import {
   changePasswordSchema,
   updateProfileSchema,
   updateWorkspaceSchema,
+  workspaceLogoError,
+  WORKSPACE_LOGO_MIME_TYPES,
   type ChangePasswordInput,
   type UpdateProfileInput,
   type UpdateWorkspaceInput,
@@ -78,8 +80,11 @@ import {
   Inbox,
   Mail,
   Smartphone,
+  Copy,
+  Check,
+  ImagePlus,
 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { AppDownloadCard, DesktopSettingsCard, PlatformDiagnosticsLink, notify } from '@org/web-desktop';
@@ -89,6 +94,8 @@ import {
   useDeleteWorkspace,
   useSetWorkspaceArchived,
   useUpdateWorkspace,
+  useUploadWorkspaceLogo,
+  useRemoveWorkspaceLogo,
 } from '../use-workspaces.js';
 import { SettingsLayout } from '../settings-layout.js';
 import { WorkspaceMembersSettings } from '../components/workspace-members-settings.js';
@@ -128,11 +135,57 @@ export function WorkspaceSettingsPage({
 }: WorkspaceSettingsPageProps = {}) {
   const { workspace, workspaceId, isLoading } = useCurrentWorkspace();
   const updateWorkspace = useUpdateWorkspace(workspaceId);
+  const uploadLogo = useUploadWorkspaceLogo(workspaceId);
+  const removeLogo = useRemoveWorkspaceLogo(workspaceId);
   const deleteWorkspace = useDeleteWorkspace();
   const setArchived = useSetWorkspaceArchived(workspaceId);
   const { theme, setTheme } = useTheme();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Logo & slug states for General Settings
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const [isLogoRemoved, setIsLogoRemoved] = useState(false);
+  const [copiedSlug, setCopiedSlug] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!logoFile) {
+      setLogoPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(logoFile);
+    setLogoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [logoFile]);
+
+  const handleSelectLogo = (file: File | undefined) => {
+    if (!file) return;
+    const problem = workspaceLogoError(file);
+    setLogoError(problem);
+    if (!problem) {
+      setLogoFile(file);
+      setIsLogoRemoved(false);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoFile(null);
+    setLogoError(null);
+    setIsLogoRemoved(true);
+    if (logoInputRef.current) logoInputRef.current.value = '';
+  };
+
+  const handleCopySlugUrl = () => {
+    if (!workspace) return;
+    const fullUrl = `${window.location.origin}/w/${workspace.slug}`;
+    navigator.clipboard.writeText(fullUrl);
+    setCopiedSlug(true);
+    setTimeout(() => setCopiedSlug(false), 2000);
+    toast.success('Workspace URL copied to clipboard');
+  };
 
   const user = useCurrentUser();
   const setUser = useAuthStore((state) => state.setUser);
@@ -313,12 +366,33 @@ export function WorkspaceSettingsPage({
     }
   });
 
+  const currentAvatarUrl = isLogoRemoved
+    ? null
+    : logoPreview ?? (workspace?.avatarUrl || null);
+
+  const isLogoChanged =
+    logoFile !== null || (isLogoRemoved && Boolean(workspace?.avatarUrl));
+  const isWorkspaceDirty =
+    workspaceForm.formState.isDirty || isLogoChanged;
+
   const onWorkspaceSubmit = workspaceForm.handleSubmit(async (values) => {
     try {
-      await updateWorkspace.mutateAsync({
-        ...values,
-        avatarUrl: values.avatarUrl || null,
-      });
+      if (isLogoRemoved && workspace?.avatarUrl) {
+        await removeLogo.mutateAsync();
+        setIsLogoRemoved(false);
+      } else if (logoFile) {
+        await uploadLogo.mutateAsync(logoFile);
+        setLogoFile(null);
+      }
+
+      if (workspaceForm.formState.isDirty) {
+        await updateWorkspace.mutateAsync({
+          name: values.name,
+          description: values.description || null,
+        });
+      }
+
+      toast.success('Workspace settings updated successfully');
     } catch {
       // Rendered by <FormError>.
     }
@@ -2269,7 +2343,7 @@ export function WorkspaceSettingsPage({
             <div className="flex items-center gap-5 pb-6 border-b border-border/40">
               <WorkspaceAvatar
                 name={workspaceForm.watch('name') || workspace.name}
-                src={workspaceForm.watch('avatarUrl') || workspace.avatarUrl}
+                src={currentAvatarUrl}
                 icon={workspace.icon}
                 iconColor={workspace.iconColor}
                 seed={workspace.id}
@@ -2280,33 +2354,92 @@ export function WorkspaceSettingsPage({
                   {workspaceForm.watch('name') || workspace.name}
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Workspace Avatar & Logo — displays image when set or single letter initial &quot;{initials(workspaceForm.watch('name') || workspace.name)}&quot;.
-                </p>
-              </div>
-            </div>
-
-            {/*
-              The icon saves on selection rather than with the form below it —
-              it is a one-click choice, and the picker already shows the result.
-            */}
-            <div className="flex items-start gap-4 pb-6 border-b border-border/40">
-              <WorkspaceIconPicker workspace={workspace} align="start" />
-              <div className="space-y-1 pt-1">
-                <h3 className="text-sm font-semibold text-foreground">Workspace Icon</h3>
-                <p className="text-xs text-muted-foreground max-w-md">
-                  Pick an icon or emoji and a colour. It shows in the workspace
-                  switcher and anywhere this workspace is listed — an uploaded
-                  logo, set below, takes precedence over it.
-                  {isAdmin
-                    ? ' Changes save as soon as you choose.'
-                    : ' Only admins can change it.'}
+                  Workspace Avatar &amp; Logo — displays image when set or single letter initial &quot;{initials(workspaceForm.watch('name') || workspace.name)}&quot;.
                 </p>
               </div>
             </div>
 
             <Form {...workspaceForm}>
-              <form onSubmit={onWorkspaceSubmit} className="space-y-4 max-w-xl" noValidate>
+              <form onSubmit={onWorkspaceSubmit} className="space-y-5 max-w-xl" noValidate>
                 <FormError error={formErrorMessage(updateWorkspace.error)} />
+
+                {/* Workspace Logo Upload matching Onboarding */}
+                <div>
+                  <label className="text-xs font-medium text-foreground mb-2 block">
+                    Workspace Logo{' '}
+                    <span className="font-normal text-muted-foreground">
+                      (Optional)
+                    </span>
+                  </label>
+                  <div className="gap-4 p-4 flex items-center rounded-xl border border-border bg-background">
+                    <button
+                      type="button"
+                      disabled={!isAdmin}
+                      onClick={() => logoInputRef.current?.click()}
+                      className="h-16 w-16 relative flex shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-surface-raised transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100"
+                      aria-label="Upload workspace logo"
+                    >
+                      {currentAvatarUrl ? (
+                        <img
+                          src={currentAvatarUrl}
+                          alt="Workspace logo preview"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <ImagePlus className="h-6 w-6 text-muted-foreground" />
+                      )}
+                    </button>
+
+                    <div className="min-w-0 flex-1">
+                      {isAdmin && (
+                        <div className="gap-2 flex flex-wrap items-center">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => logoInputRef.current?.click()}
+                            className="border-border-strong bg-surface-raised text-foreground hover:bg-selected h-8 text-xs"
+                          >
+                            <ImagePlus className="h-3.5 w-3.5 mr-1.5" />
+                            {currentAvatarUrl ? 'Replace' : 'Upload image'}
+                          </Button>
+                          {currentAvatarUrl && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={handleRemoveLogo}
+                              className="text-muted-foreground hover:text-destructive h-8 text-xs"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Remove
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                      <p className="text-xs mt-1.5 truncate text-muted-foreground">
+                        {logoFile
+                          ? logoFile.name
+                          : 'PNG, JPEG, WebP or GIF · 256×256 px · up to 2 MB'}
+                      </p>
+                      {logoError && (
+                        <p className="text-xs mt-1 text-destructive">
+                          {logoError}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept={WORKSPACE_LOGO_MIME_TYPES.join(',')}
+                    className="hidden"
+                    disabled={!isAdmin}
+                    onChange={(event) =>
+                      handleSelectLogo(event.target.files?.[0])
+                    }
+                  />
+                </div>
 
                 <FormField
                   control={workspaceForm.control}
@@ -2318,6 +2451,7 @@ export function WorkspaceSettingsPage({
                         <Input
                           {...field}
                           value={field.value ?? ''}
+                          placeholder="e.g. Acme Corp, Design System Team"
                           disabled={!isAdmin}
                           className="h-9 text-xs"
                         />
@@ -2338,6 +2472,7 @@ export function WorkspaceSettingsPage({
                           {...field}
                           value={field.value ?? ''}
                           rows={3}
+                          placeholder="e.g. All projects, teams, and collaboration for our organization"
                           disabled={!isAdmin}
                           className="text-xs"
                         />
@@ -2347,77 +2482,48 @@ export function WorkspaceSettingsPage({
                   )}
                 />
 
-                <FormField
-                  control={workspaceForm.control}
-                  name="avatarUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-medium">Workspace Avatar Image</FormLabel>
-                      <div className="flex items-center gap-3">
-                        <FormControl>
-                          <Input
-                            {...field}
-                            value={field.value ?? ''}
-                            disabled={!isAdmin}
-                            placeholder="Image URL (https://...) or upload an image"
-                            className="h-9 text-xs font-mono flex-1"
-                          />
-                        </FormControl>
-                        {isAdmin ? (
-                          <>
-                            <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium border border-border rounded-md hover:bg-accent transition-colors shrink-0">
-                              <Upload className="size-3.5 text-muted-foreground" />
-                              <span>Upload</span>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    const reader = new FileReader();
-                                    reader.onload = (evt) => {
-                                      if (evt.target?.result) {
-                                        workspaceForm.setValue('avatarUrl', evt.target.result as string, {
-                                          shouldDirty: true,
-                                        });
-                                      }
-                                    };
-                                    reader.readAsDataURL(file);
-                                  }
-                                }}
-                              />
-                            </label>
-                            {field.value ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-9 text-xs text-destructive hover:text-destructive px-2.5"
-                                onClick={() =>
-                                  workspaceForm.setValue('avatarUrl', '', { shouldDirty: true })
-                                }
-                              >
-                                <Trash2 className="size-3.5 mr-1" />
-                                Remove
-                              </Button>
-                            ) : null}
-                          </>
-                        ) : null}
-                      </div>
-                      <FormDescription className="text-[11px] text-muted-foreground mt-1">
-                        Upload a logo image file or paste an image URL. If removed, fallback displays single letter initial &quot;{initials(workspaceForm.watch('name') || workspace.name)}&quot;.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="text-xs text-muted-foreground flex items-center gap-2 pt-1">
-                  <span>Workspace URL:</span>
-                  <code className="bg-muted px-2 py-0.5 rounded font-mono text-[11px] text-foreground">
-                    /w/{workspace.slug}
-                  </code>
+                {/* Workspace URL Slug */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-foreground block">
+                    Workspace URL Slug
+                  </label>
+                  <div className="relative">
+                    <Input
+                      value={workspace.slug}
+                      readOnly
+                      disabled
+                      className="pl-3 pr-24 text-xs border-border bg-background/50 font-mono text-foreground select-all"
+                    />
+                    <span className="right-3 text-[11px] px-2 py-0.5 rounded absolute top-1/2 -translate-y-1/2 border border-border-strong bg-surface-raised font-mono text-muted-foreground">
+                      .onetab.ai
+                    </span>
+                  </div>
+                  <div className="text-xs gap-2 pt-1 flex items-center justify-between text-muted-foreground">
+                    <span className="gap-1.5 flex items-center">
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />
+                      Your workspace is hosted at:{' '}
+                      <code className="font-mono text-primary">
+                        onetab.ai/w/{workspace.slug}
+                      </code>
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleCopySlugUrl}
+                      className="h-6 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+                    >
+                      {copiedSlug ? (
+                        <>
+                          <Check className="h-3 w-3 text-success" /> Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3 w-3" /> Copy link
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
 
                 {isAdmin ? (
@@ -2425,9 +2531,13 @@ export function WorkspaceSettingsPage({
                     <Button
                       type="submit"
                       size="sm"
-                      loading={updateWorkspace.isPending}
-                      disabled={!workspaceForm.formState.isDirty}
-                      className="text-xs"
+                      loading={
+                        updateWorkspace.isPending ||
+                        uploadLogo.isPending ||
+                        removeLogo.isPending
+                      }
+                      disabled={!isWorkspaceDirty}
+                      className="text-xs font-medium"
                     >
                       Save changes
                     </Button>
