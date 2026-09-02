@@ -12,6 +12,7 @@ import {
   Calendar,
   CreditCard,
   Cpu,
+  Download,
   FileCode,
 
   FolderArchive,
@@ -96,6 +97,7 @@ export function SettingsLayout({
         { id: 'timezone-region', label: 'Time Zone & Region', icon: Globe },
         { id: 'focus-status', label: 'Status & Focus Mode', icon: Target },
         { id: 'notifications', label: 'Notifications & Alerts', icon: Bell },
+        { id: 'downloads', label: 'Apps & Downloads', icon: Download, badge: 'APP' },
         { id: 'security', label: 'Account Security', icon: ShieldCheck },
       ],
     },

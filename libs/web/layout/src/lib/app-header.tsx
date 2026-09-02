@@ -25,6 +25,7 @@ import {
   NO_DRAG,
   openDesktopApp,
   openExternal,
+  useAppDownload,
   useClaimsWindowChrome,
   useDesktop,
 } from '@org/web-desktop';
@@ -32,15 +33,16 @@ import {
   ChevronLeft,
   ChevronRight,
   CreditCard,
+  Download,
   HelpCircle,
   Laptop,
   PanelLeft,
   Search,
   Settings,
   Sliders,
+  Smartphone,
   Smile,
   Sparkles,
-
 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -89,6 +91,7 @@ export function AppHeader({
   const logout = useLogout();
   const navigate = useNavigate();
   const { toggleMaximize } = useDesktop();
+  const { environment, primaryOption, trackDownload } = useAppDownload();
 
   // This row draws the window's own drag strip and minimise/maximise/close
   // controls (see the section markup below) instead of leaving that to the
@@ -418,18 +421,59 @@ export function AppHeader({
               <DropdownMenuSeparator className="my-1 border-border/60" />
 
 
-              {/* Open Desktop App */}
+              {/* App Download / Open Desktop App (web only) */}
               {!isDesktop && (
-                <DropdownMenuItem
-                  onClick={() => void openDesktopApp({ route: 'open' })}
-                  className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60 justify-between text-primary"
-                >
-                  <span className="flex items-center gap-2">
-                    <Laptop className="size-3.5" />
-                    <span>Open Desktop App</span>
-                  </span>
-                  <span className="text-[10px] text-muted-foreground uppercase font-mono">App</span>
-                </DropdownMenuItem>
+                <>
+                  {environment.isMobile ? (
+                    primaryOption && (
+                      <DropdownMenuItem
+                        onClick={() => {
+                          trackDownload(primaryOption, 'account_menu');
+                          void openExternal(primaryOption.url);
+                        }}
+                        className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60 justify-between text-primary"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Smartphone className="size-3.5" />
+                          <span>Get Mobile App</span>
+                        </span>
+                        <span className="text-[10px] text-muted-foreground uppercase font-mono">
+                          {environment.os === 'ios' ? 'iOS' : 'Android'}
+                        </span>
+                      </DropdownMenuItem>
+                    )
+                  ) : (
+                    <>
+                      {primaryOption && (
+                        <DropdownMenuItem
+                          onClick={() => {
+                            trackDownload(primaryOption, 'account_menu');
+                            void openExternal(primaryOption.url);
+                          }}
+                          className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60 justify-between text-primary"
+                        >
+                          <span className="flex items-center gap-2">
+                            <Download className="size-3.5" />
+                            <span>Download Desktop App</span>
+                          </span>
+                          <span className="text-[10px] text-muted-foreground uppercase font-mono">
+                            {primaryOption.storeOrFormat.split(' ')[0]}
+                          </span>
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem
+                        onClick={() => void openDesktopApp({ route: 'open' })}
+                        className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-accent/60 justify-between text-muted-foreground hover:text-foreground"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Laptop className="size-3.5" />
+                          <span>Open Desktop App</span>
+                        </span>
+                        <span className="text-[10px] text-muted-foreground uppercase font-mono">App</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </>
               )}
 
               {/* Sign out */}

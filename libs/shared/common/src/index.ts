@@ -57,4 +57,23 @@ export {
   type ActiveEntityReference,
 } from './lib/store/ui-slice.js';
 
+export {
+  appDownloadSlice,
+  dismissDownloadPrompt,
+  snoozeDownloadPrompt,
+  resetDownloadPrompt,
+  trackDownloadClick,
+  setSelectedDesktopPlatform,
+  selectAppDownloadState,
+  selectIsDownloadPromptDismissed,
+  selectDownloadSnoozedUntil,
+  selectSelectedDesktopPlatform,
+  loadInitialDownloadState,
+  DOWNLOAD_DISMISSED_STORAGE_KEY,
+  DOWNLOAD_SNOOZE_STORAGE_KEY,
+  DOWNLOAD_SELECTED_OS_STORAGE_KEY,
+  type AppDownloadState,
+} from './lib/store/app-download-slice.js';
+
+
 

@@ -82,7 +82,7 @@ import {
 import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { DesktopSettingsCard, PlatformDiagnosticsLink, notify } from '@org/web-desktop';
+import { AppDownloadCard, DesktopSettingsCard, PlatformDiagnosticsLink, notify } from '@org/web-desktop';
 import { useNotificationPermissionBar } from '@org/notifications';
 import {
   useCurrentWorkspace,
@@ -1645,6 +1645,22 @@ export function WorkspaceSettingsPage({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ---------------- SECTION: APPS & DOWNLOADS ---------------- */}
+      {currentTab === 'downloads' && (
+        <div className="space-y-8">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Apps & Downloads
+            </h1>
+            <p className="text-xs text-muted-foreground mt-1">
+              Download native OneTab AI applications for desktop and mobile devices.
+            </p>
+          </div>
+
+          <AppDownloadCard workspaceId={workspaceId} />
         </div>
       )}
 

@@ -91,3 +91,22 @@ export {
 export { FeatureRoute, FeatureUnavailableNotice, type FeatureRouteProps } from './lib/feature-route.js';
 export { PlatformDiagnosticsPage } from './lib/platform-diagnostics-page.js';
 export { PlatformDiagnosticsLink } from './lib/platform-diagnostics-link.js';
+
+// --- device-aware app downloads -------------------------------------------
+export {
+  useAppDownload,
+  DOWNLOAD_DISMISSED_KEY,
+  DOWNLOAD_SNOOZE_KEY,
+  DOWNLOAD_SELECTED_OS_KEY,
+  type UseAppDownloadOptions,
+  type UseAppDownloadReturn,
+} from './lib/use-app-download.js';
+export {
+  AppDownloadBanner,
+  type AppDownloadBannerProps,
+} from './lib/app-download-banner.js';
+export {
+  AppDownloadCard,
+  type AppDownloadCardProps,
+} from './lib/app-download-card.js';
+

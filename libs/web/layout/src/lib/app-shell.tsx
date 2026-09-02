@@ -20,7 +20,7 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { CreateChannelDialog, useChannels } from '@org/web-channels';
-import { useDesktopCommand } from '@org/web-desktop';
+import { AppDownloadBanner, useDesktopCommand } from '@org/web-desktop';
 import { useMembers } from '@org/web-members';
 import {
   NotificationEnableBar,
@@ -424,6 +424,9 @@ export function AppShell() {
 
         {/* Notification Enable Bar at the bottom outside of all boxes */}
         <NotificationEnableBar workspaceId={workspaceId} />
+
+        {/* Device-aware Native App Download Prompt */}
+        <AppDownloadBanner workspaceId={workspaceId} />
 
         {/*
           Below `md` both panels become Radix sheets instead of hand-rolled

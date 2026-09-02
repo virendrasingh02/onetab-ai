@@ -34,3 +34,36 @@ export type {
   PlatformSnapshot,
   Runtime,
 } from './lib/types.js';
+
+export {
+  detectBrowser,
+  detectDeviceEnvironment,
+  detectDeviceType,
+  detectOperatingSystem,
+  isNativeApplication,
+  isStandalonePwa,
+  isTouchCapable,
+  type AppEnvironment,
+  type BrowserName,
+  type DetectionInput,
+  type DeviceEnvironment,
+  type DeviceType,
+  type OperatingSystem,
+} from './lib/device-environment.js';
+
+export {
+  buildAppDeepLink,
+  DEFAULT_APP_DOWNLOAD_CONFIG,
+  getAllDesktopDownloadOptions,
+  getAllMobileDownloadOptions,
+  getDownloadOptionForOS,
+  isDownloadAvailableForOS,
+  type AppDownloadConfig,
+  type DesktopInstallerConfig,
+  type DesktopPlatform,
+  type DownloadOption,
+  type DownloadPlatform,
+  type MobilePlatform,
+  type MobileStoreConfig,
+} from './lib/download-config.js';
+
