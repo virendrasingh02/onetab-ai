@@ -16,6 +16,8 @@ export interface AuthenticatedUser {
   name: string;
   /** Platform-wide role. Workspace permissions come from WorkspaceRoleGuard. */
   systemRole: SystemRole;
+  /** Active session ID from token claim. */
+  sid?: string;
 }
 
 export const IS_PUBLIC_KEY = 'isPublic';

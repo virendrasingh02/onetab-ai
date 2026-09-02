@@ -59,6 +59,11 @@ interface WorkspaceRow {
   avatarUrl: string | null;
   icon: string | null;
   iconColor: string | null;
+  supportEmail?: string | null;
+  accentColor?: string | null;
+  defaultLandingView?: string | null;
+  allowExternalSharing?: boolean;
+  aiProjectRecaps?: boolean;
   ownerId: string;
   status: string;
   archivedAt: Date | null;
@@ -75,6 +80,11 @@ export function toWorkspace(workspace: WorkspaceRow): Workspace {
     avatarUrl: workspace.avatarUrl,
     icon: workspace.icon,
     iconColor: workspace.iconColor,
+    supportEmail: workspace.supportEmail ?? null,
+    accentColor: workspace.accentColor ?? null,
+    defaultLandingView: workspace.defaultLandingView ?? 'home',
+    allowExternalSharing: workspace.allowExternalSharing ?? true,
+    aiProjectRecaps: workspace.aiProjectRecaps ?? true,
     ownerId: workspace.ownerId,
     status: workspace.status as WorkspaceStatus,
     archivedAt: workspace.archivedAt?.toISOString() ?? null,

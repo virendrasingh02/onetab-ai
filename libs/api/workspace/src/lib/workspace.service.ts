@@ -171,22 +171,47 @@ export class WorkspaceService {
     workspaceId: string,
     input: UpdateWorkspaceInput,
   ): Promise<Workspace> {
+    if (input.slug !== undefined) {
+      const existingSlug = await this.prisma.workspace.findUnique({
+        where: { slug: input.slug },
+      });
+      if (existingSlug && existingSlug.id !== workspaceId) {
+        throw new ConflictException('A workspace with this URL already exists.');
+      }
+    }
+
     const workspace = await this.prisma.workspace.update({
       where: { id: workspaceId },
       data: {
         ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.slug !== undefined ? { slug: input.slug } : {}),
         ...(input.description !== undefined
           ? { description: input.description }
           : {}),
         // Pointing the avatar at an external URL retires any uploaded logo:
         // leaving the key behind would strand bytes nothing renders.
         ...(input.avatarUrl !== undefined
-          ? { avatarUrl: input.avatarUrl, avatarKey: null }
+          ? { avatarUrl: input.avatarUrl || null, avatarKey: null }
           : {}),
         // Each icon field is written only when the caller sent it, so changing
         // the colour alone does not clear the icon and vice versa.
         ...(input.icon !== undefined ? { icon: input.icon } : {}),
         ...(input.iconColor !== undefined ? { iconColor: input.iconColor } : {}),
+        ...(input.supportEmail !== undefined
+          ? { supportEmail: input.supportEmail || null }
+          : {}),
+        ...(input.accentColor !== undefined
+          ? { accentColor: input.accentColor || null }
+          : {}),
+        ...(input.defaultLandingView !== undefined
+          ? { defaultLandingView: input.defaultLandingView }
+          : {}),
+        ...(input.allowExternalSharing !== undefined
+          ? { allowExternalSharing: input.allowExternalSharing }
+          : {}),
+        ...(input.aiProjectRecaps !== undefined
+          ? { aiProjectRecaps: input.aiProjectRecaps }
+          : {}),
       },
     });
     return toWorkspace(workspace);

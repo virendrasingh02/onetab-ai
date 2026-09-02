@@ -14,9 +14,7 @@ import {
   Cpu,
   Download,
   FileCode,
-
   FolderArchive,
-  Globe,
   Kanban,
   Key,
   MessageSquare,
@@ -24,9 +22,7 @@ import {
   Plug,
   Search,
   ShieldCheck,
-  Sliders,
   Sparkles,
-  Target,
   UploadCloud,
   User,
   UserPlus,
@@ -34,12 +30,12 @@ import {
   Workflow,
   X,
 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useCurrentWorkspace } from './use-workspaces.js';
 
 export interface NavGroup {
-  section: 'account' | 'workspace';
+  id: string;
   title: string;
   items: {
     id: string;
@@ -63,9 +59,6 @@ export function SettingsLayout({
   const { workspace, workspaceId } = useCurrentWorkspace();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSection] = useState<
-    'all' | 'workspace' | 'account'
-  >('all');
 
   const backUrl = workspaceSlug ? `/w/${workspaceSlug}` : '/';
 
@@ -80,103 +73,47 @@ export function SettingsLayout({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate, backUrl]);
 
-  const navGroups: NavGroup[] = [
-    {
-      section: 'account',
-      title: 'Account Settings',
-      items: [
-        { id: 'preferences', label: 'Preferences', icon: Sliders },
-        {
-          id: 'theme',
-          label: 'Theme & Customization',
-          icon: Palette,
-          badge: 'NEW',
-        },
-        { id: 'chat', label: 'Chat & Messaging', icon: MessageSquare },
-        { id: 'profile', label: 'Profile & Details', icon: User },
-        { id: 'timezone-region', label: 'Time Zone & Region', icon: Globe },
-        { id: 'focus-status', label: 'Status & Focus Mode', icon: Target },
-        { id: 'notifications', label: 'Notifications & Alerts', icon: Bell },
-        { id: 'downloads', label: 'Apps & Downloads', icon: Download, badge: 'APP' },
-        { id: 'security', label: 'Account Security', icon: ShieldCheck },
-      ],
-    },
-    {
-      section: 'workspace',
-      title: 'Workspace Settings',
-      items: [
-        { id: 'general', label: 'General Settings', icon: Building2 },
-        { id: 'members', label: 'Members & Directory', icon: Users },
-        { id: 'invitations', label: 'Workspace Invitations', icon: UserPlus },
-        {
-          id: 'analytics',
-          label: 'Company Analytics & Usage',
-          icon: BarChart3,
-        },
-        {
-          id: 'billing',
-          label: 'Plans & Billing',
-          icon: CreditCard,
-          badge: 'PRO',
-        },
-      ],
-    },
-    {
-      section: 'workspace',
-      title: 'AI & Automation',
-      items: [
-        {
-          id: 'ai-providers',
-          label: 'AI Providers & Keys',
-          icon: Key,
-          badge: 'NEW',
-        },
-        {
-          id: 'ai-persona',
-          label: 'AI Models & Persona',
-          icon: Sparkles,
-          badge: 'AI',
-        },
-        {
-          id: 'enterprise-custom-llm',
-          label: 'Custom LLM (Enterprise)',
-          icon: Cpu,
-          badge: 'ENT',
-        },
-        { id: 'agent-marketplace', label: 'Agent Marketplace', icon: Bot },
-        { id: 'automations', label: 'Workflow Automations', icon: Workflow },
-      ],
-    },
-
-    {
-      section: 'workspace',
-      title: 'Work Tools & Features',
-      items: [
-        { id: 'channels', label: 'Channels & DMs', icon: MessageSquare },
-        { id: 'kanban-tasks', label: 'Tasks & Kanban', icon: Kanban },
-        { id: 'documents', label: 'Notes & Documents', icon: FileCode },
-        { id: 'files', label: 'Files & Storage', icon: FolderArchive },
-        { id: 'schedule', label: 'Schedule & Meetings', icon: Calendar },
-        { id: 'pulse', label: 'Pulse Activity Feed', icon: Activity },
-      ],
-    },
-    {
-      section: 'workspace',
-      title: 'Integrations & Migration',
-      items: [
-        { id: 'integrations', label: 'Integration Hub', icon: Plug },
-        { id: 'import-export', label: 'Import & Export', icon: UploadCloud },
-      ],
-    },
-    {
-      section: 'workspace',
-      title: 'Security & Danger Zone',
-      items: [{ id: 'danger', label: 'Danger Zone', icon: AlertTriangle }],
-    },
-  ];
-
-  const visibleGroups = navGroups.filter(
-    (g) => selectedSection === 'all' || g.section === selectedSection,
+  const navGroups: NavGroup[] = useMemo(
+    () => [
+      {
+        id: 'account-settings',
+        title: 'Account Settings',
+        items: [
+          { id: 'profile', label: 'Profile & Details', icon: User },
+          { id: 'appearance', label: 'Appearance & Preferences', icon: Palette },
+          { id: 'chat', label: 'Chat & Messaging', icon: MessageSquare },
+          { id: 'notifications', label: 'Notifications & Alerts', icon: Bell },
+          { id: 'downloads', label: 'Apps & Downloads', icon: Download, badge: 'APP' },
+          { id: 'security', label: 'Account Security', icon: ShieldCheck },
+        ],
+      },
+      {
+        id: 'workspace-settings',
+        title: 'Workspace Settings',
+        items: [
+          { id: 'general', label: 'General Settings', icon: Building2 },
+          { id: 'members', label: 'Members & Directory', icon: Users },
+          { id: 'invitations', label: 'Workspace Invitations', icon: UserPlus },
+          { id: 'analytics', label: 'Company Analytics & Usage', icon: BarChart3 },
+          { id: 'billing', label: 'Plans & Billing', icon: CreditCard, badge: 'PRO' },
+          { id: 'ai-providers', label: 'AI Providers & Keys', icon: Key, badge: 'NEW' },
+          { id: 'ai-persona', label: 'AI Models & Persona', icon: Sparkles, badge: 'AI' },
+          { id: 'enterprise-custom-llm', label: 'Custom LLM (Enterprise)', icon: Cpu, badge: 'ENT' },
+          { id: 'agent-marketplace', label: 'Agent Marketplace', icon: Bot },
+          { id: 'automations', label: 'Workflow Automations', icon: Workflow },
+          { id: 'channels', label: 'Channels & DMs', icon: MessageSquare },
+          { id: 'kanban-tasks', label: 'Tasks & Kanban', icon: Kanban },
+          { id: 'documents', label: 'Notes & Documents', icon: FileCode },
+          { id: 'files', label: 'Files & Storage', icon: FolderArchive },
+          { id: 'schedule', label: 'Schedule & Meetings', icon: Calendar },
+          { id: 'pulse', label: 'Pulse Activity Feed', icon: Activity },
+          { id: 'integrations', label: 'Integration Hub', icon: Plug },
+          { id: 'import-export', label: 'Import & Export', icon: UploadCloud },
+          { id: 'danger', label: 'Danger Zone', icon: AlertTriangle },
+        ],
+      },
+    ],
+    [],
   );
 
   return (
@@ -231,23 +168,32 @@ export function SettingsLayout({
         <div className="min-h-0 flex flex-1 overflow-hidden">
           {/* Left Dedicated Settings Sidebar */}
           <aside className="w-64 sm:w-72 flex h-full shrink-0 flex-col border-r border-border bg-surface-muted/50 select-none">
-            {/* Search & Section Filter Pills */}
-            <div className="p-3 space-y-2.5">
+            {/* Search Input */}
+            <div className="p-3">
               <div className="relative">
                 <Input
                   type="text"
                   placeholder="Search settings..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  leadingIcon={<Search className="size-4" />}
-                  className="h-8 text-xs rounded-lg border-border bg-surface-inset placeholder:text-muted-foreground"
+                  leadingIcon={<Search className="size-3.5 text-muted-foreground" />}
+                  className="h-8 text-xs rounded-lg border-border bg-surface-inset placeholder:text-muted-foreground pr-7"
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
               </div>
             </div>
 
             {/* Native Scrollable Nav Items */}
-            <div className="min-h-0 py-3 px-3 flex-1 overflow-y-auto overflow-x-hidden p-2.5 space-y-4 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
-              {visibleGroups.map((group) => {
+            <div className="min-h-0 py-1 px-3 flex-1 overflow-y-auto overflow-x-hidden space-y-4 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
+              {navGroups.map((group) => {
                 const filteredItems = group.items.filter((item) =>
                   item.label.toLowerCase().includes(searchQuery.toLowerCase()),
                 );
@@ -255,54 +201,55 @@ export function SettingsLayout({
                 if (searchQuery && filteredItems.length === 0) return null;
 
                 return (
-                  <div key={group.title} className="space-y-1">
+                  <div key={group.id} className="space-y-1">
                     <div className="px-2.5 py-1 font-bold tracking-wider text-[10.5px] text-muted-foreground uppercase">
                       {group.title}
                     </div>
-                    {filteredItems.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = activeTab === item.id;
 
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => {
-                            if (item.href) {
-                              navigate(item.href);
-                            } else {
-                              onTabChange(item.id);
-                            }
-                          }}
-                          className={cn(
-                            'px-2.5 py-1.5 font-medium flex w-full items-center justify-between rounded-xl text-left text-[13px] transition-all cursor-pointer',
-                            isActive
-                              ? 'font-semibold shadow-2xs bg-accent text-foreground'
-                              : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                          )}
-                        >
-                          <div className="gap-2.5 min-w-0 flex items-center">
-                            <Icon
-                              className={cn(
-                                'size-4 shrink-0',
-                                isActive
-                                  ? 'text-primary'
-                                  : 'text-muted-foreground',
-                              )}
-                            />
-                            <span className="truncate">{item.label}</span>
-                          </div>
-                          {item.badge ? (
-                            <Badge
-                              variant="neutral"
-                              className="px-1.5 py-0 font-semibold text-[10px]"
-                            >
-                              {item.badge}
-                            </Badge>
-                          ) : null}
-                        </button>
-                      );
-                    })}
+                    <div className="space-y-0.5">
+                      {filteredItems.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = activeTab === item.id;
+
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              if (item.href) {
+                                navigate(item.href);
+                              } else {
+                                onTabChange(item.id);
+                              }
+                            }}
+                            className={cn(
+                              'px-2.5 py-1.5 font-medium flex w-full items-center justify-between rounded-xl text-left text-[13px] transition-all cursor-pointer',
+                              isActive
+                                ? 'font-semibold shadow-2xs bg-accent text-foreground'
+                                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                            )}
+                          >
+                            <div className="gap-2.5 min-w-0 flex items-center">
+                              <Icon
+                                className={cn(
+                                  'size-4 shrink-0',
+                                  isActive ? 'text-primary' : 'text-muted-foreground',
+                                )}
+                              />
+                              <span className="truncate">{item.label}</span>
+                            </div>
+                            {item.badge ? (
+                              <Badge
+                                variant="neutral"
+                                className="px-1.5 py-0 font-semibold text-[10px]"
+                              >
+                                {item.badge}
+                              </Badge>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })}

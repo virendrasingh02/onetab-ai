@@ -3,12 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { expiresAt, generateToken, hashToken, parseDuration } from '@org/api-common';
 import { PrismaService } from '@org/database';
-import type { AuthTokens } from '@org/types';
+import type { AuthTokens, UserSessionDto } from '@org/types';
 
 export interface AccessTokenPayload {
   /** Subject — the user id. */
   sub: string;
   email: string;
+  sid?: string;
 }
 
 export interface IssuedSession {
@@ -16,11 +17,85 @@ export interface IssuedSession {
   /** Opaque refresh token; goes into an httpOnly cookie, never a JSON body. */
   refreshToken: string;
   refreshExpiresAt: Date;
+  sessionId?: string;
 }
 
 interface SessionContext {
   userAgent?: string;
   ipAddress?: string;
+}
+
+export function parseUserAgent(uaString?: string | null): {
+  browser: string;
+  os: string;
+  deviceType: 'desktop' | 'mobile' | 'tablet';
+} {
+  if (!uaString) {
+    return { browser: 'Web Browser', os: 'Unknown OS', deviceType: 'desktop' };
+  }
+
+  const ua = uaString.toLowerCase();
+
+  // Device Type
+  let deviceType: 'desktop' | 'mobile' | 'tablet' = 'desktop';
+  if (/ipad|tablet|(android(?!.*mobile))/i.test(ua)) {
+    deviceType = 'tablet';
+  } else if (/mobile|iphone|ipod|android|blackberry|iemobile|opera mini/i.test(ua)) {
+    deviceType = 'mobile';
+  }
+
+  // OS
+  let os = 'Unknown OS';
+  if (/macintosh|mac os x/i.test(ua)) {
+    os = 'macOS';
+  } else if (/windows|win32|win64/i.test(ua)) {
+    os = 'Windows';
+  } else if (/iphone|ipad|ipod/i.test(ua)) {
+    os = 'iOS';
+  } else if (/android/i.test(ua)) {
+    os = 'Android';
+  } else if (/cros/i.test(ua)) {
+    os = 'ChromeOS';
+  } else if (/linux/i.test(ua)) {
+    os = 'Linux';
+  }
+
+  // Browser
+  let browser = 'Browser';
+  if (/edg\//i.test(ua)) {
+    browser = 'Microsoft Edge';
+  } else if (/opr\/|opera/i.test(ua)) {
+    browser = 'Opera';
+  } else if (/arc\//i.test(ua)) {
+    browser = 'Arc';
+  } else if (/brave/i.test(ua)) {
+    browser = 'Brave';
+  } else if (/chrome|crios/i.test(ua)) {
+    browser = 'Chrome';
+  } else if (/firefox|fxios/i.test(ua)) {
+    browser = 'Firefox';
+  } else if (/safari/i.test(ua) && !/chrome/i.test(ua)) {
+    browser = 'Safari';
+  } else if (/electron/i.test(ua)) {
+    browser = 'Desktop App';
+  }
+
+  return { browser, os, deviceType };
+}
+
+export function parseLocation(ip?: string | null): string {
+  if (!ip) return 'Unknown Location';
+  const cleanIp = ip.replace('::ffff:', '');
+  if (
+    cleanIp === '127.0.0.1' ||
+    cleanIp === '::1' ||
+    cleanIp.startsWith('192.168.') ||
+    cleanIp.startsWith('10.') ||
+    cleanIp === 'localhost'
+  ) {
+    return 'Local Network';
+  }
+  return 'Active Region';
 }
 
 /**
@@ -53,25 +128,11 @@ export class TokenService {
     user: { id: string; email: string },
     context: SessionContext = {},
   ): Promise<IssuedSession> {
-    const payload: AccessTokenPayload = { sub: user.id, email: user.email };
-
-    // Seconds rather than the duration string: `expiresIn` is typed against
-    // the `ms` package's template-literal union, which a plain `string` from
-    // config does not satisfy.
-    const expiresInSeconds = Math.floor(parseDuration(this.accessTtl) / 1000);
-
-    const accessToken = await this.jwt.signAsync(payload, {
-      secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
-      expiresIn: expiresInSeconds,
-    });
-
     const refreshToken = generateToken();
     const refreshExpiresAt = expiresAt(this.refreshTtl);
 
-    // Not best-effort: a refresh token with no row behind it is indistinguishable
-    // from a forged one, so the session would die at the first rotation. Fail the
-    // sign-in instead of handing back a cookie that cannot work.
-    await this.prisma.refreshToken.create({
+    // Create the DB refresh token row first so we have the stable session ID
+    const sessionRow = await this.prisma.refreshToken.create({
       data: {
         userId: user.id,
         tokenHash: hashToken(refreshToken),
@@ -79,6 +140,19 @@ export class TokenService {
         userAgent: context.userAgent?.slice(0, 255),
         ipAddress: context.ipAddress?.slice(0, 45),
       },
+    });
+
+    const payload: AccessTokenPayload = {
+      sub: user.id,
+      email: user.email,
+      sid: sessionRow.id,
+    };
+
+    const expiresInSeconds = Math.floor(parseDuration(this.accessTtl) / 1000);
+
+    const accessToken = await this.jwt.signAsync(payload, {
+      secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
+      expiresIn: expiresInSeconds,
     });
 
     return {
@@ -89,6 +163,7 @@ export class TokenService {
       },
       refreshToken,
       refreshExpiresAt,
+      sessionId: sessionRow.id,
     };
   }
 
@@ -139,6 +214,104 @@ export class TokenService {
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+  }
+
+  /**
+   * List all active non-revoked sessions for the given user, indicating the current session.
+   */
+  async listSessionsForUser(
+    userId: string,
+    currentRefreshToken?: string,
+    currentSessionId?: string,
+  ): Promise<UserSessionDto[]> {
+    const rows = await this.prisma.refreshToken.findMany({
+      where: {
+        userId,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const currentHash = currentRefreshToken ? hashToken(currentRefreshToken) : null;
+
+    let hasCurrent = false;
+    const sessions = rows.map((row) => {
+      const isCurr = Boolean(
+        (currentHash && row.tokenHash === currentHash) ||
+          (currentSessionId && row.id === currentSessionId),
+      );
+      if (isCurr) hasCurrent = true;
+
+      const ua = parseUserAgent(row.userAgent);
+      return {
+        id: row.id,
+        userAgent: row.userAgent,
+        browser: ua.browser,
+        os: ua.os,
+        deviceType: ua.deviceType,
+        ipAddress: row.ipAddress ? row.ipAddress.replace('::ffff:', '') : null,
+        location: parseLocation(row.ipAddress),
+        createdAt: row.createdAt.toISOString(),
+        lastActiveAt: row.createdAt.toISOString(),
+        isCurrent: isCurr,
+      };
+    });
+
+    // If no explicit token matched (e.g. Bearer auth without cookie), mark first as current
+    if (!hasCurrent && sessions.length > 0) {
+      sessions[0].isCurrent = true;
+    }
+
+    return sessions;
+  }
+
+  /**
+   * Revoke an individual session by its session ID.
+   */
+  async revokeSessionById(userId: string, sessionId: string): Promise<boolean> {
+    const res = await this.prisma.refreshToken.updateMany({
+      where: { id: sessionId, userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    return res.count > 0;
+  }
+
+  /**
+   * Revoke all other active sessions for this user, preserving the current session.
+   */
+  async revokeOtherSessionsForUser(
+    userId: string,
+    currentRefreshToken?: string,
+    currentSessionId?: string,
+  ): Promise<number> {
+    let keepSessionId = currentSessionId;
+    if (!keepSessionId && currentRefreshToken) {
+      const match = await this.prisma.refreshToken.findUnique({
+        where: { tokenHash: hashToken(currentRefreshToken) },
+      });
+      keepSessionId = match?.id;
+    }
+
+    if (!keepSessionId) {
+      // Find latest session
+      const latest = await this.prisma.refreshToken.findFirst({
+        where: { userId, revokedAt: null },
+        orderBy: { createdAt: 'desc' },
+      });
+      keepSessionId = latest?.id;
+    }
+
+    const res = await this.prisma.refreshToken.updateMany({
+      where: {
+        userId,
+        ...(keepSessionId ? { id: { not: keepSessionId } } : {}),
+        revokedAt: null,
+      },
+      data: { revokedAt: new Date() },
+    });
+
+    return res.count;
   }
 
   /** Housekeeping for expired/revoked rows; safe to run on a schedule. */

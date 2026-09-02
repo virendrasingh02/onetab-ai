@@ -1,4 +1,4 @@
-import { invitationApi, queryKeys, workspaceApi } from '@org/api-client';
+import { authApi, invitationApi, queryKeys, workspaceApi } from '@org/api-client';
 import { WorkspaceRole, type WorkspacePermission, type WorkspaceSummary } from '@org/types';
 import type {
   CreateWorkspaceInput,
@@ -296,6 +296,125 @@ export function useSlugSuggestion(name: string) {
     // Only ask once the name is substantial enough to derive a slug from.
     enabled: name.trim().length >= 2,
     staleTime: 5_000,
+  });
+}
+
+/* --- Security & Session Hooks ------------------------------------------- */
+
+export function useActiveSessions() {
+  return useQuery({
+    queryKey: ['auth', 'sessions'],
+    queryFn: () => authApi.getSessions(),
+    staleTime: 10_000,
+  });
+}
+
+export function useRevokeSession() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (sessionId: string) => authApi.revokeSession(sessionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['auth', 'security-overview'] });
+    },
+  });
+}
+
+export function useRevokeOtherSessions() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => authApi.revokeOtherSessions(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['auth', 'security-overview'] });
+    },
+  });
+}
+
+export function useSecurityOverview() {
+  return useQuery({
+    queryKey: ['auth', 'security-overview'],
+    queryFn: () => authApi.getSecurityOverview(),
+    staleTime: 30_000,
+  });
+}
+
+export function useSetupTotp() {
+  return useMutation({
+    mutationFn: () => authApi.setupTotp(),
+  });
+}
+
+export function useVerifyTotp() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: { code: string }) => authApi.verifyTotp(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['auth', 'security-overview'] });
+    },
+  });
+}
+
+export function useDisableTotp() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: { currentPassword?: string; code?: string } = {}) =>
+      authApi.disableTotp(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['auth', 'security-overview'] });
+    },
+  });
+}
+
+export function useRegenerateRecoveryCodes() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => authApi.regenerateRecoveryCodes(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['auth', 'security-overview'] });
+    },
+  });
+}
+
+export function useWebAuthnCredentials() {
+  return useQuery({
+    queryKey: ['auth', 'webauthn', 'credentials'],
+    queryFn: () => authApi.getWebAuthnCredentials(),
+    staleTime: 30_000,
+  });
+}
+
+export function useRegisterWebAuthn() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: {
+      credentialId: string;
+      publicKey: string;
+      deviceName?: string;
+      transports?: string[];
+    }) => authApi.registerWebAuthn(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['auth', 'webauthn', 'credentials'] });
+      queryClient.invalidateQueries({ queryKey: ['auth', 'security-overview'] });
+    },
+  });
+}
+
+export function useDeleteWebAuthn() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (credentialId: string) => authApi.deleteWebAuthn(credentialId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['auth', 'webauthn', 'credentials'] });
+      queryClient.invalidateQueries({ queryKey: ['auth', 'security-overview'] });
+    },
   });
 }
 

@@ -191,9 +191,67 @@ export interface Workspace extends IconSelection {
   avatarUrl: string | null;
   ownerId: string;
   status: WorkspaceStatus;
+  supportEmail?: string | null;
+  accentColor?: string | null;
+  defaultLandingView?: string | null;
+  allowExternalSharing?: boolean;
+  aiProjectRecaps?: boolean;
   archivedAt: IsoDateString | null;
   createdAt: IsoDateString;
   updatedAt: IsoDateString;
+}
+
+export interface UserSessionDto {
+  id: string;
+  userAgent: string | null;
+  browser: string;
+  os: string;
+  deviceType: 'desktop' | 'mobile' | 'tablet';
+  ipAddress: string | null;
+  location: string;
+  createdAt: IsoDateString;
+  lastActiveAt: IsoDateString;
+  isCurrent: boolean;
+}
+
+export interface SecurityOverviewDto {
+  password: {
+    hasPassword: boolean;
+    strength: 'strong' | 'moderate' | 'weak';
+    createdAt: IsoDateString | null;
+    lastChangedAt: IsoDateString | null;
+  };
+  twoFactor: {
+    isEnabled: boolean;
+    verifiedAt: IsoDateString | null;
+    hasBackupCodes: boolean;
+    isEnforced: boolean;
+  };
+  sso: {
+    isConnected: boolean;
+    providerType: string | null;
+    isOrganizationManaged: boolean;
+  };
+  passkeysCount: number;
+  activeSessionsCount: number;
+}
+
+export interface TotpSetupResponse {
+  secret: string;
+  qrCodeUri: string;
+}
+
+export interface TotpVerifyResponse {
+  backupCodes: string[];
+  message: string;
+}
+
+export interface WebAuthnCredentialDto {
+  id: string;
+  credentialId: string;
+  deviceName: string | null;
+  createdAt: IsoDateString;
+  lastUsedAt: IsoDateString | null;
 }
 
 /**

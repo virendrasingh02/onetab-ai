@@ -64,6 +64,11 @@ export type {
   Workspace,
   WorkspaceMember,
   WorkspaceSummary,
+  UserSessionDto,
+  SecurityOverviewDto,
+  TotpSetupResponse,
+  TotpVerifyResponse,
+  WebAuthnCredentialDto,
 } from './lib/entities.js';
 
 export { ApiErrorCode } from './lib/api.js';

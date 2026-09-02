@@ -65,6 +65,8 @@ model User {
   meetingParticipations   MeetingParticipant[]
   meetingNotes            MeetingNote[]
   meetingDecisions        MeetingDecision[]
+  twoFactorAuth           TwoFactorAuth?
+  webAuthnCredentials     WebAuthnCredential[]
 
   @@index([presence, lastSeenAt])
   @@map("users")
@@ -117,6 +119,11 @@ model Workspace {
   icon                     String?
   /// Hex tint for `icon`, and only meaningful when `icon` is a Lucide name.
   iconColor                String?
+  supportEmail             String?
+  accentColor              String?
+  defaultLandingView       String                    @default("home")
+  allowExternalSharing     Boolean                   @default(true)
+  aiProjectRecaps          Boolean                   @default(true)
   ownerId                  String
   /// ARCHIVED freezes the workspace: it stays listed and readable, but every
   /// write is refused. Deletion is separate and irreversible.
@@ -324,6 +331,37 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+model TwoFactorAuth {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  secret      String
+  isEnabled   Boolean   @default(false)
+  verifiedAt  DateTime?
+  backupCodes String    @default("[]")
+  phoneNumber String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("two_factor_auths")
+}
+
+model WebAuthnCredential {
+  id           String    @id @default(cuid())
+  userId       String
+  credentialId String    @unique
+  publicKey    String
+  counter      BigInt    @default(0)
+  deviceName   String?
+  transports   String    @default("[]")
+  lastUsedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("webauthn_credentials")
 }
 
 /// File upload foundation. Phase 2 records metadata and issues storage keys;

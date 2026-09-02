@@ -89,8 +89,14 @@ export const createWorkspaceSchema = z.object({
 
 export const updateWorkspaceSchema = z.object({
   name: workspaceNameSchema.optional(),
+  slug: workspaceSlugSchema.optional(),
   description: z.string().trim().max(280).nullable().optional(),
-  avatarUrl: z.string().url('Enter a valid URL').nullable().optional(),
+  avatarUrl: z.string().url('Enter a valid URL').nullable().optional().or(z.literal('')),
+  supportEmail: z.string().trim().email('Enter a valid email address').nullable().optional().or(z.literal('')),
+  accentColor: z.string().nullable().optional(),
+  defaultLandingView: z.enum(['home', 'projects', 'tasks', 'chat', 'docs', 'meetings', 'agents']).optional(),
+  allowExternalSharing: z.boolean().optional(),
+  aiProjectRecaps: z.boolean().optional(),
   ...iconPatchShape,
 });
 

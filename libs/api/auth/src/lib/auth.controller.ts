@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Query,
   Req,
@@ -217,6 +219,103 @@ export class AuthController {
   ): Promise<void> {
     await this.auth.changePassword(userId, body);
     this.clearRefreshCookie(response);
+  }
+
+  @Get('sessions')
+  async getSessions(
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() request: Request,
+  ) {
+    const refreshToken = request.cookies?.[REFRESH_COOKIE];
+    return this.auth.getSessions(user.id, refreshToken, user.sid);
+  }
+
+  @Delete('sessions/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async revokeSession(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') sessionId: string,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<void> {
+    await this.auth.revokeSession(user.id, sessionId);
+    if (user.sid === sessionId) {
+      this.clearRefreshCookie(response);
+    }
+  }
+
+  @Post('sessions/revoke-others')
+  @HttpCode(HttpStatus.OK)
+  async revokeOtherSessions(
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() request: Request,
+  ) {
+    const refreshToken = request.cookies?.[REFRESH_COOKIE];
+    return this.auth.revokeOtherSessions(user.id, refreshToken, user.sid);
+  }
+
+  @Get('security-overview')
+  async getSecurityOverview(@CurrentUser('id') userId: string) {
+    return this.auth.getSecurityOverview(userId);
+  }
+
+  @Post('2fa/totp/setup')
+  @HttpCode(HttpStatus.OK)
+  async setupTotp(@CurrentUser('id') userId: string) {
+    return this.auth.setupTotp(userId);
+  }
+
+  @Post('2fa/totp/verify')
+  @HttpCode(HttpStatus.OK)
+  async verifyTotp(
+    @CurrentUser('id') userId: string,
+    @Body() body: { code: string },
+  ) {
+    return this.auth.verifyTotp(userId, body.code);
+  }
+
+  @Post('2fa/totp/disable')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async disableTotp(
+    @CurrentUser('id') userId: string,
+    @Body() body: { currentPassword?: string; code?: string },
+  ): Promise<void> {
+    await this.auth.disableTotp(userId, body.currentPassword, body.code);
+  }
+
+  @Post('2fa/recovery-codes/regenerate')
+  @HttpCode(HttpStatus.OK)
+  async regenerateRecoveryCodes(@CurrentUser('id') userId: string) {
+    return this.auth.generateRecoveryCodes(userId);
+  }
+
+  @Get('webauthn/credentials')
+  async getWebAuthnCredentials(@CurrentUser('id') userId: string) {
+    return this.auth.getPasskeys(userId);
+  }
+
+  @Post('webauthn/register')
+  @HttpCode(HttpStatus.OK)
+  async registerWebAuthn(
+    @CurrentUser('id') userId: string,
+    @Body()
+    body: {
+      credentialId: string;
+      publicKey: string;
+      deviceName?: string;
+      transports?: string[];
+    },
+  ) {
+    return this.auth.registerPasskey(userId, body);
+  }
+
+  @Delete('webauthn/credentials/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteWebAuthn(
+    @CurrentUser('id') userId: string,
+    @Param('id') credentialId: string,
+  ): Promise<void> {
+    await this.auth.deletePasskey(userId, credentialId);
   }
 
   /**

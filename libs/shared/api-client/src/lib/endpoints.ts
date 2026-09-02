@@ -109,6 +109,11 @@ import type {
   WorkflowExecutionEntry,
   WorkspaceMember,
   WorkspaceSummary,
+  UserSessionDto,
+  SecurityOverviewDto,
+  TotpSetupResponse,
+  TotpVerifyResponse,
+  WebAuthnCredentialDto,
   Cycle,
   Epic,
   Initiative,
@@ -278,6 +283,41 @@ export const authApi = {
     request<{ status: 'pending' | 'approved' | 'rejected' | 'expired' | 'consumed' }>(
       http.post('/auth/device/status', input),
     ),
+
+  getSessions: () => request<UserSessionDto[]>(http.get('/auth/sessions')),
+
+  revokeSession: (sessionId: string) =>
+    request<void>(http.delete(`/auth/sessions/${sessionId}`)),
+
+  revokeOtherSessions: () =>
+    request<{ revokedCount: number }>(http.post('/auth/sessions/revoke-others')),
+
+  getSecurityOverview: () =>
+    request<SecurityOverviewDto>(http.get('/auth/security-overview')),
+
+  setupTotp: () => request<TotpSetupResponse>(http.post('/auth/2fa/totp/setup')),
+
+  verifyTotp: (input: { code: string }) =>
+    request<TotpVerifyResponse>(http.post('/auth/2fa/totp/verify', input)),
+
+  disableTotp: (input: { currentPassword?: string; code?: string } = {}) =>
+    request<void>(http.post('/auth/2fa/totp/disable', input)),
+
+  regenerateRecoveryCodes: () =>
+    request<{ codes: string[] }>(http.post('/auth/2fa/recovery-codes/regenerate')),
+
+  getWebAuthnCredentials: () =>
+    request<WebAuthnCredentialDto[]>(http.get('/auth/webauthn/credentials')),
+
+  registerWebAuthn: (input: {
+    credentialId: string;
+    publicKey: string;
+    deviceName?: string;
+    transports?: string[];
+  }) => request<WebAuthnCredentialDto>(http.post('/auth/webauthn/register', input)),
+
+  deleteWebAuthn: (credentialId: string) =>
+    request<void>(http.delete(`/auth/webauthn/credentials/${credentialId}`)),
 };
 
 /**

@@ -40,6 +40,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('The account no longer exists.');
     }
 
-    return { ...user, systemRole: user.systemRole as SystemRole };
+    return {
+      ...user,
+      systemRole: user.systemRole as SystemRole,
+      sid: payload.sid,
+    };
   }
 }

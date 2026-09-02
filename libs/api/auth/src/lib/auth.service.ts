@@ -1,13 +1,23 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { expiresAt, generateToken, hashToken } from '@org/api-common';
 import { PrismaService } from '@org/database';
-import { ApiErrorCode, type CurrentUser } from '@org/types';
+import {
+  ApiErrorCode,
+  type CurrentUser,
+  type SecurityOverviewDto,
+  type TotpSetupResponse,
+  type TotpVerifyResponse,
+  type UserSessionDto,
+  type WebAuthnCredentialDto,
+} from '@org/types';
 import type {
   ChangePasswordInput,
   ForgotPasswordInput,
@@ -17,6 +27,11 @@ import type {
 } from '@org/validation';
 import * as bcrypt from 'bcrypt';
 import { TokenService, type IssuedSession } from './token.service.js';
+import {
+  generateBase32Secret,
+  generateRecoveryCodes,
+  verifyTotpToken,
+} from './totp.util.js';
 
 const BCRYPT_ROUNDS = 12;
 const PASSWORD_RESET_TTL = '1h';
@@ -277,6 +292,255 @@ export class AuthService {
       data: { passwordHash: await bcrypt.hash(input.password, BCRYPT_ROUNDS) },
     });
     await this.tokens.revokeAllForUser(userId);
+  }
+
+  async getSessions(
+    userId: string,
+    currentRefreshToken?: string,
+    currentSessionId?: string,
+  ): Promise<UserSessionDto[]> {
+    return this.tokens.listSessionsForUser(userId, currentRefreshToken, currentSessionId);
+  }
+
+  async revokeSession(userId: string, sessionId: string): Promise<void> {
+    const revoked = await this.tokens.revokeSessionById(userId, sessionId);
+    if (!revoked) {
+      throw new NotFoundException('Session not found or already revoked.');
+    }
+  }
+
+  async revokeOtherSessions(
+    userId: string,
+    currentRefreshToken?: string,
+    currentSessionId?: string,
+  ): Promise<{ revokedCount: number }> {
+    const count = await this.tokens.revokeOtherSessionsForUser(
+      userId,
+      currentRefreshToken,
+      currentSessionId,
+    );
+    return { revokedCount: count };
+  }
+
+  async getSecurityOverview(userId: string): Promise<SecurityOverviewDto> {
+    const [user, twoFactor, passkeysCount, activeSessionsCount, ssoConfig] =
+      await Promise.all([
+        this.prisma.user.findUniqueOrThrow({
+          where: { id: userId },
+          select: { createdAt: true, updatedAt: true, passwordHash: true },
+        }),
+        this.prisma.twoFactorAuth.findUnique({
+          where: { userId },
+        }),
+        this.prisma.webAuthnCredential.count({
+          where: { userId },
+        }),
+        this.prisma.refreshToken.count({
+          where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
+        }),
+        this.prisma.sSOConfig.findFirst({
+          where: { isActive: true },
+        }),
+      ]);
+
+    const hasBackupCodes = Boolean(
+      twoFactor?.backupCodes &&
+        twoFactor.backupCodes !== '[]' &&
+        JSON.parse(twoFactor.backupCodes).length > 0,
+    );
+
+    return {
+      password: {
+        hasPassword: Boolean(user.passwordHash),
+        strength: 'strong',
+        createdAt: user.createdAt.toISOString(),
+        lastChangedAt: user.updatedAt.toISOString(),
+      },
+      twoFactor: {
+        isEnabled: Boolean(twoFactor?.isEnabled),
+        verifiedAt: twoFactor?.verifiedAt?.toISOString() ?? null,
+        hasBackupCodes,
+        isEnforced: false,
+      },
+      sso: {
+        isConnected: Boolean(ssoConfig),
+        providerType: ssoConfig?.providerType ?? null,
+        isOrganizationManaged: Boolean(ssoConfig),
+      },
+      passkeysCount,
+      activeSessionsCount,
+    };
+  }
+
+  async setupTotp(userId: string): Promise<TotpSetupResponse> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { email: true },
+    });
+
+    const secret = generateBase32Secret(20);
+    const appName = 'OneTab';
+    const qrCodeUri = `otpauth://totp/${encodeURIComponent(appName)}:${encodeURIComponent(user.email)}?secret=${secret}&issuer=${encodeURIComponent(appName)}`;
+
+    await this.prisma.twoFactorAuth.upsert({
+      where: { userId },
+      create: {
+        userId,
+        secret,
+        isEnabled: false,
+      },
+      update: {
+        secret,
+        isEnabled: false,
+        verifiedAt: null,
+      },
+    });
+
+    return { secret, qrCodeUri };
+  }
+
+  async verifyTotp(userId: string, code: string): Promise<TotpVerifyResponse> {
+    const twoFactor = await this.prisma.twoFactorAuth.findUnique({
+      where: { userId },
+    });
+
+    if (!twoFactor || !twoFactor.secret) {
+      throw new BadRequestException('Two-factor setup has not been initiated.');
+    }
+
+    const isValid = verifyTotpToken(twoFactor.secret, code);
+    if (!isValid) {
+      throw new BadRequestException('Invalid verification code. Please try again.');
+    }
+
+    const backupCodes = generateRecoveryCodes(8);
+    const hashedCodes = await Promise.all(
+      backupCodes.map((c) => bcrypt.hash(c, BCRYPT_ROUNDS)),
+    );
+
+    await this.prisma.twoFactorAuth.update({
+      where: { userId },
+      data: {
+        isEnabled: true,
+        verifiedAt: new Date(),
+        backupCodes: JSON.stringify(hashedCodes),
+      },
+    });
+
+    return {
+      backupCodes,
+      message: 'Two-factor authentication has been enabled successfully.',
+    };
+  }
+
+  async disableTotp(
+    userId: string,
+    currentPassword?: string,
+    code?: string,
+  ): Promise<void> {
+    const twoFactor = await this.prisma.twoFactorAuth.findUnique({
+      where: { userId },
+    });
+
+    if (!twoFactor || !twoFactor.isEnabled) {
+      return;
+    }
+
+    if (currentPassword) {
+      const user = await this.prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { passwordHash: true },
+      });
+      const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!valid) {
+        throw new UnauthorizedException('Current password is incorrect.');
+      }
+    } else if (code) {
+      const valid = verifyTotpToken(twoFactor.secret, code);
+      if (!valid) {
+        throw new BadRequestException('Invalid authentication code.');
+      }
+    }
+
+    await this.prisma.twoFactorAuth.update({
+      where: { userId },
+      data: {
+        isEnabled: false,
+        verifiedAt: null,
+        backupCodes: '[]',
+      },
+    });
+  }
+
+  async generateRecoveryCodes(userId: string): Promise<{ codes: string[] }> {
+    const twoFactor = await this.prisma.twoFactorAuth.findUnique({
+      where: { userId },
+    });
+
+    if (!twoFactor || !twoFactor.isEnabled) {
+      throw new BadRequestException('Two-factor authentication is not enabled.');
+    }
+
+    const plainCodes = generateRecoveryCodes(8);
+    const hashedCodes = await Promise.all(
+      plainCodes.map((c) => bcrypt.hash(c, BCRYPT_ROUNDS)),
+    );
+
+    await this.prisma.twoFactorAuth.update({
+      where: { userId },
+      data: {
+        backupCodes: JSON.stringify(hashedCodes),
+      },
+    });
+
+    return { codes: plainCodes };
+  }
+
+  async getPasskeys(userId: string): Promise<WebAuthnCredentialDto[]> {
+    const creds = await this.prisma.webAuthnCredential.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return creds.map((c) => ({
+      id: c.id,
+      credentialId: c.credentialId,
+      deviceName: c.deviceName,
+      createdAt: c.createdAt.toISOString(),
+      lastUsedAt: c.lastUsedAt?.toISOString() ?? null,
+    }));
+  }
+
+  async registerPasskey(
+    userId: string,
+    input: { credentialId: string; publicKey: string; deviceName?: string; transports?: string[] },
+  ): Promise<WebAuthnCredentialDto> {
+    const cred = await this.prisma.webAuthnCredential.create({
+      data: {
+        userId,
+        credentialId: input.credentialId,
+        publicKey: input.publicKey,
+        deviceName: input.deviceName || 'Security Key / Passkey',
+        transports: JSON.stringify(input.transports ?? []),
+      },
+    });
+
+    return {
+      id: cred.id,
+      credentialId: cred.credentialId,
+      deviceName: cred.deviceName,
+      createdAt: cred.createdAt.toISOString(),
+      lastUsedAt: null,
+    };
+  }
+
+  async deletePasskey(userId: string, credentialId: string): Promise<void> {
+    await this.prisma.webAuthnCredential.deleteMany({
+      where: {
+        userId,
+        OR: [{ id: credentialId }, { credentialId }],
+      },
+    });
   }
 }
 
