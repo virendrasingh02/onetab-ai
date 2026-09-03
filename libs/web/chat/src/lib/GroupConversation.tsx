@@ -73,6 +73,9 @@ export function GroupConversation({
   const [chatActionsSlot, setChatActionsSlot] = useState<HTMLDivElement | null>(
     null,
   );
+  // Owned here rather than in `GroupHeader` so the welcome block at the top of
+  // the timeline can open the same "Add people" dialog the header menu does.
+  const [addPeopleOpen, setAddPeopleOpen] = useState(false);
 
   const myUserId = client?.getSession()?.userId;
   const otherNames = useMemo(
@@ -99,6 +102,8 @@ export function GroupConversation({
           roomId={roomId}
           workspacePeople={allWorkspacePeople}
           chatActionsRef={setChatActionsSlot}
+          addPeopleOpen={addPeopleOpen}
+          onAddPeopleOpenChange={setAddPeopleOpen}
         />
         <EmptyState
           size="lg"
@@ -121,6 +126,8 @@ export function GroupConversation({
           roomId={roomId}
           workspacePeople={allWorkspacePeople}
           chatActionsRef={setChatActionsSlot}
+          addPeopleOpen={addPeopleOpen}
+          onAddPeopleOpenChange={setAddPeopleOpen}
         />
         <ErrorState
           title="This conversation is unavailable"
@@ -144,6 +151,8 @@ export function GroupConversation({
         isChannel={isChannel}
         workspacePeople={allWorkspacePeople}
         chatActionsRef={setChatActionsSlot}
+        addPeopleOpen={addPeopleOpen}
+        onAddPeopleOpenChange={setAddPeopleOpen}
       />
       <ChatPanel
         roomId={roomId}
@@ -157,6 +166,15 @@ export function GroupConversation({
         headerActionsSlot={chatActionsSlot}
         showMembers
         showEncryptedBadge={false}
+        welcome={
+          isChannel
+            ? undefined
+            : {
+                kind: 'group',
+                description: room?.topic,
+                onAddPeople: () => setAddPeopleOpen(true),
+              }
+        }
       />
     </div>
   );
@@ -187,6 +205,8 @@ function GroupHeader({
   isChannel = false,
   workspacePeople,
   chatActionsRef,
+  addPeopleOpen,
+  onAddPeopleOpenChange,
 }: {
   title: string;
   members: { userId: string; displayName: string; avatarUrl?: string }[];
@@ -195,6 +215,9 @@ function GroupHeader({
   isChannel?: boolean;
   workspacePeople: WorkspaceMember[];
   chatActionsRef: (element: HTMLDivElement | null) => void;
+  /** The "Add people" dialog is owned by {@link GroupConversation}. */
+  addPeopleOpen: boolean;
+  onAddPeopleOpenChange: (open: boolean) => void;
 }) {
   const { client } = useMatrix();
   const { workspaceId, slug } = useCurrentWorkspace();
@@ -202,7 +225,6 @@ function GroupHeader({
   const prompts = usePromptDialog();
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
-  const [addOpen, setAddOpen] = useState(false);
 
   const isFavorite = preferences.isFavorite(roomId);
   const isMuted = preferences.isMuted(roomId);
@@ -307,7 +329,7 @@ function GroupHeader({
                 {!isChannel ? (
                   <>
                     <DropdownMenuItem
-                      onClick={() => setAddOpen(true)}
+                      onClick={() => onAddPeopleOpenChange(true)}
                       className="gap-2.5"
                     >
                       <UserPlus className="size-4" />
@@ -389,8 +411,8 @@ function GroupHeader({
       </div>
 
       <AddPeopleDialog
-        open={addOpen}
-        onOpenChange={setAddOpen}
+        open={addPeopleOpen}
+        onOpenChange={onAddPeopleOpenChange}
         roomId={roomId}
         currentMemberIds={members.map((member) => member.userId)}
         workspacePeople={workspacePeople}

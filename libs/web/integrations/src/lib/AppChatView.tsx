@@ -827,6 +827,18 @@ function AppConversationPanel({
       workspaceId={workspaceId}
       showMembers={false}
       showEncryptedBadge={false}
+      welcome={{
+        kind: 'direct',
+        peer: {
+          name: app.name,
+          userId: `app-${integrationId}`,
+          kind: 'app',
+          role: app.category,
+          avatarNode: (
+            <AppAvatar name={app.name} provider={app.provider} size="lg" />
+          ),
+        },
+      }}
     />
   );
 }

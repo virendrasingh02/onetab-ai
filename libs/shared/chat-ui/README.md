@@ -21,8 +21,9 @@ supplies the data.
   and `:` emoji menus.
 - `<MarkdownMessage>` — renders a message body's markdown. The read side of the
   composer; keep the two in step.
-- `<ChannelWelcome>` — the block that introduces a channel at the top of its
-  timeline, with the setup actions the host wires up.
+- `<ChannelWelcome>` — the block that introduces a conversation at the top of
+  its timeline: a channel, a group, a one-to-one DM (person, AI agent or app),
+  or the note-to-self space, each with the setup actions the host wires up.
 - `<ThreadPanel>` — a thread root and its replies.
 - `<AttachmentCard>`, `<AttachmentRenderer>`, `<ImagePreview>`,
   `<VideoPreview>`, `<VoiceMessage>` — media by kind.

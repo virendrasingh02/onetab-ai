@@ -35,6 +35,8 @@ export {
 export {
   ChannelWelcome,
   type ChannelWelcomeProps,
+  type ChannelWelcomePeer,
+  type ConversationWelcomeKind,
 } from './lib/channel-welcome.js';
 
 export {

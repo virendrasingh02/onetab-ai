@@ -4,6 +4,8 @@ import {
   ChatHeader,
   ChatLayout,
   ChannelWelcome,
+  type ChannelWelcomePeer,
+  type ConversationWelcomeKind,
   Composer,
   ConversationSearch,
   HuddleBar,
@@ -45,17 +47,25 @@ import { deriveThreads, groupReplies } from './derive-threads.js';
  * Everything the welcome block at the top of the timeline needs that the
  * conversation itself does not already know.
  *
- * Passing it is what turns the block on: a direct message has no beginning
- * worth introducing, so it simply leaves this out.
+ * Passing it is what turns the block on. Every conversation gets one — a
+ * channel, a group, a one-to-one DM, the note-to-self space — so `kind` says
+ * which, and the rest is filled in per kind: `peer` for a DM, `createdAt` /
+ * `createdByName` for a channel.
  */
 export interface ChatSurfaceWelcome {
+  /** Defaults to `'channel'`. */
+  kind?: ConversationWelcomeKind;
   createdAt?: Date | string | number;
   createdByName?: string;
   description?: string | null;
   isPrivate?: boolean;
+  /** The other party, for a `direct` / `self` conversation. */
+  peer?: ChannelWelcomePeer;
   onAddPeople?: () => void;
   onEditDescription?: () => void;
   onOpenCopilot?: () => void;
+  /** Opens the peer's profile in the right rail — `direct` conversations only. */
+  onViewProfile?: () => void;
 }
 
 /**
@@ -865,17 +875,36 @@ export function ChatSurface({
             introSlot={
               welcome ? (
                 <ChannelWelcome
+                  kind={welcome.kind}
                   channelName={title}
                   isPrivate={welcome.isPrivate ?? isEncrypted}
                   createdAt={welcome.createdAt}
                   createdByName={welcome.createdByName}
-                  description={welcome.description ?? subtitle}
+                  description={
+                    welcome.description ??
+                    (!welcome.kind || welcome.kind === 'channel'
+                      ? subtitle
+                      : undefined)
+                  }
                   members={members}
+                  memberCount={members.length}
+                  peer={welcome.peer}
                   onAddPeople={welcome.onAddPeople}
                   onEditDescription={welcome.onEditDescription}
                   onOpenCopilot={welcome.onOpenCopilot}
-                  onAddBookmark={onAddBookmark}
-                  onStartHuddle={() => setHuddleJoined(true)}
+                  onViewProfile={welcome.onViewProfile}
+                  onAddBookmark={
+                    !welcome.kind || welcome.kind === 'channel'
+                      ? onAddBookmark
+                      : undefined
+                  }
+                  onStartHuddle={
+                    welcome.kind === 'self' ||
+                    welcome.peer?.kind === 'agent' ||
+                    welcome.peer?.kind === 'app'
+                      ? undefined
+                      : () => setHuddleJoined(true)
+                  }
                 />
               ) : null
             }

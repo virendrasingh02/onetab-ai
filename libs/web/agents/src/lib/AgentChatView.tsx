@@ -497,6 +497,22 @@ function AgentConversationPanel({ agent }: { agent: AgentModelItem }) {
       workspaceId={workspaceId}
       showMembers={false}
       showEncryptedBadge={false}
+      welcome={{
+        kind: 'direct',
+        peer: {
+          name: agent.name,
+          userId: `agent-${agent.id}`,
+          kind: 'agent',
+          role: agent.model ? `${agent.model} · AI agent` : 'AI agent',
+          avatarNode: (
+            <AgentAvatar
+              name={agent.name}
+              avatarUrl={agent.avatarUrl}
+              size="lg"
+            />
+          ),
+        },
+      }}
     />
   );
 }
