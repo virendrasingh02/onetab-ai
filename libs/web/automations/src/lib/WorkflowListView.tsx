@@ -235,25 +235,10 @@ export function WorkflowListView() {
             value={tab}
             onValueChange={(next) => setTab(next as WorkflowTab)}
           >
-            <TabsList className="h-9 p-0 gap-4 border-b-0 bg-transparent">
-              <TabsTrigger
-                value="all"
-                className="h-8 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-              >
-                All
-              </TabsTrigger>
-              <TabsTrigger
-                value="prebuilt"
-                className="h-8 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-              >
-                Templates
-              </TabsTrigger>
-              <TabsTrigger
-                value="mine"
-                className="h-8 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-              >
-                Managed by you
-              </TabsTrigger>
+            <TabsList variant="underline" size="sm" className="border-b-0">
+              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="prebuilt">Templates</TabsTrigger>
+              <TabsTrigger value="mine">Managed by you</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>

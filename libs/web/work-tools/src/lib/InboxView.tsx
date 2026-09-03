@@ -672,66 +672,36 @@ export function InboxView() {
         {/* Tab Navigation directly below header */}
         <div className="px-3 sm:px-6 border-t border-border/40 bg-surface-muted/30">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="h-9 p-0 gap-4 border-b-0 bg-transparent">
+            <TabsList variant="underline" size="sm" className="border-b-0">
               <TabsTrigger
                 value="notifications"
-                className="h-8 gap-1.5 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                icon={<Bell className="size-3.5" />}
+                count={newCount > 0 ? newCount : undefined}
               >
-                <Bell className="size-3.5" />
-                <span>Notifications</span>
-                {newCount > 0 ? (
-                  <Badge
-                    variant="count"
-                    className="px-1 py-0 h-3.5 text-[10px]"
-                  >
-                    {newCount}
-                  </Badge>
-                ) : null}
+                Notifications
               </TabsTrigger>
               <TabsTrigger
                 value="mentions"
-                className="h-8 gap-1.5 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                icon={<AtSign className="size-3.5" />}
+                count={mentions.length > 0 ? mentions.length : undefined}
               >
-                <AtSign className="size-3.5" />
-                <span>Mentions</span>
-                {mentions.length > 0 ? (
-                  <Badge
-                    variant="count"
-                    className="px-1 py-0 h-3.5 text-[10px]"
-                  >
-                    {mentions.length}
-                  </Badge>
-                ) : null}
+                Mentions
               </TabsTrigger>
               <TabsTrigger
                 value="unreads"
-                className="h-8 gap-1.5 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                icon={<MessageSquare className="size-3.5" />}
+                count={
+                  unreadChannels.length > 0 ? unreadChannels.length : undefined
+                }
               >
-                <MessageSquare className="size-3.5" />
-                <span>Unread channels</span>
-                {unreadChannels.length > 0 ? (
-                  <Badge
-                    variant="count"
-                    className="px-1 py-0 h-3.5 text-[10px]"
-                  >
-                    {unreadChannels.length}
-                  </Badge>
-                ) : null}
+                Unread channels
               </TabsTrigger>
               <TabsTrigger
                 value="tasks"
-                className="h-8 gap-1.5 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                icon={<CheckSquare className="size-3.5" />}
+                count={myTasks.length > 0 ? myTasks.length : undefined}
               >
-                <CheckSquare className="size-3.5" />
-                <span>Assigned to you</span>
-                {myTasks.length > 0 ? (
-                  <Badge
-                    variant="neutral"
-                    className="px-1 py-0 h-3.5 text-[10px]"
-                  >
-                    {myTasks.length}
-                  </Badge>
-                ) : null}
+                Assigned to you
               </TabsTrigger>
             </TabsList>
           </Tabs>

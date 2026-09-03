@@ -10,10 +10,12 @@ import {
   Page,
   Panel,
   SkeletonList,
+  Tabs,
+  TabsList,
+  TabsTrigger,
   usePromptDialog,
 } from '@org/ui';
 import { useCurrentUser } from '@org/auth';
-import { cn } from '@org/utils';
 import {
   CheckCircle,
   FileText,
@@ -352,46 +354,13 @@ export function DocumentEditor() {
         </div>
 
         {/* Underline tab strip */}
-        <div className="gap-6 text-sm font-medium flex items-center">
-          <button
-            type="button"
-            onClick={() => setTab('all')}
-            className={cn(
-              'pb-3 relative transition-colors',
-              tab === 'all'
-                ? 'font-semibold border-b-2 border-primary text-foreground'
-                : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
-            )}
-          >
-            All
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setTab('templates')}
-            className={cn(
-              'pb-3 relative transition-colors',
-              tab === 'templates'
-                ? 'font-semibold border-b-2 border-primary text-foreground'
-                : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
-            )}
-          >
-            Templates
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setTab('mine')}
-            className={cn(
-              'pb-3 relative transition-colors',
-              tab === 'mine'
-                ? 'font-semibold border-b-2 border-primary text-foreground'
-                : 'border-b-2 border-transparent text-muted-foreground hover:text-foreground',
-            )}
-          >
-            Managed by you
-          </button>
-        </div>
+        <Tabs value={tab} onValueChange={(next) => setTab(next as DocTab)}>
+          <TabsList variant="underline" size="sm" className="border-b-0">
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="templates">Templates</TabsTrigger>
+            <TabsTrigger value="mine">Managed by you</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {tab === 'templates' ? (

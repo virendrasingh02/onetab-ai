@@ -8,6 +8,9 @@ import {
   Panel,
   SearchInput,
   SkeletonList,
+  Tabs,
+  TabsList,
+  TabsTrigger,
   UserAvatar,
 } from '@org/ui';
 import { cn, formatRelative } from '@org/utils';
@@ -179,23 +182,18 @@ export function ActivityTimelineView() {
 
         {/* Tab Navigation */}
         <div className="px-3 sm:px-6 border-t border-border/40 bg-surface-muted/30">
-          <div className="gap-4 h-9 flex items-center">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                aria-pressed={activeTab === tab.id}
-                className={cn(
-                  'h-8 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 transition-colors',
-                  activeTab === tab.id
-                    ? 'font-semibold border-primary text-foreground'
-                    : 'border-transparent text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <Tabs
+            value={activeTab}
+            onValueChange={(next) => setActiveTab(next as ActivityTab)}
+          >
+            <TabsList variant="underline" size="sm" className="border-b-0">
+              {TABS.map((tab) => (
+                <TabsTrigger key={tab.id} value={tab.id}>
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
         </div>
       </div>
 

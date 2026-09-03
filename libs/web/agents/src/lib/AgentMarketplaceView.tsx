@@ -505,24 +505,18 @@ export function AgentMarketplaceView() {
             value={tab}
             onValueChange={(next) => handleTabChange(next as AgentTab)}
           >
-            <TabsList className="h-9 p-0 gap-4 border-b-0 bg-transparent">
+            <TabsList variant="underline" size="sm" className="border-b-0">
               <TabsTrigger
                 value="all"
-                className="h-8 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                count={installed.length + AGENT_TEMPLATES.length}
               >
-                All Agents ({installed.length + AGENT_TEMPLATES.length})
+                All Agents
               </TabsTrigger>
-              <TabsTrigger
-                value="mine"
-                className="h-8 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-              >
-                Managed by you ({installed.length})
+              <TabsTrigger value="mine" count={installed.length}>
+                Managed by you
               </TabsTrigger>
-              <TabsTrigger
-                value="templates"
-                className="h-8 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-              >
-                Templates ({AGENT_TEMPLATES.length})
+              <TabsTrigger value="templates" count={AGENT_TEMPLATES.length}>
+                Templates
               </TabsTrigger>
             </TabsList>
           </Tabs>

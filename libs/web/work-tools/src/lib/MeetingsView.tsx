@@ -552,58 +552,34 @@ export function MeetingsView() {
 
         <div className="px-3 sm:px-6 border-t border-border/40 bg-surface-muted/30">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="h-9 p-0 gap-4 border-b-0 bg-transparent">
+            <TabsList variant="underline" size="sm" className="border-b-0">
               <TabsTrigger
                 value="upcoming"
-                className="h-8 gap-1.5 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                icon={<CalendarClock className="size-3.5" />}
+                count={upcoming.length > 0 ? upcoming.length : undefined}
               >
-                <CalendarClock className="size-3.5" />
-                <span>Upcoming</span>
-                <Badge
-                  variant="neutral"
-                  className="px-1 py-0 h-3.5 text-[10px]"
-                >
-                  {upcoming.length}
-                </Badge>
+                Upcoming
               </TabsTrigger>
               <TabsTrigger
                 value="live"
-                className="h-8 gap-1.5 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                icon={<Radio className="size-3.5 text-accent-teal" />}
+                count={liveMeetings.length > 0 ? liveMeetings.length : undefined}
               >
-                <Radio className="size-3.5 text-accent-teal" />
-                <span>Happening now</span>
-                <Badge
-                  variant="neutral"
-                  className="px-1 py-0 h-3.5 text-[10px]"
-                >
-                  {liveMeetings.length}
-                </Badge>
+                Happening now
               </TabsTrigger>
               <TabsTrigger
                 value="past"
-                className="h-8 gap-1.5 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                icon={<Check className="size-3.5 text-accent-blue" />}
+                count={past.length > 0 ? past.length : undefined}
               >
-                <Check className="size-3.5 text-accent-blue" />
-                <span>Past</span>
-                <Badge
-                  variant="neutral"
-                  className="px-1 py-0 h-3.5 text-[10px]"
-                >
-                  {past.length}
-                </Badge>
+                Past
               </TabsTrigger>
               <TabsTrigger
                 value="apps-hub"
-                className="h-8 gap-1.5 px-2 text-xs font-medium cursor-pointer rounded-none border-b-2 border-transparent bg-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                icon={<Share2 className="size-3.5" />}
+                count={activeApps.length > 0 ? activeApps.length : undefined}
               >
-                <Share2 className="size-3.5" />
-                <span>Meeting apps</span>
-                <Badge
-                  variant="neutral"
-                  className="px-1 py-0 h-3.5 text-[10px]"
-                >
-                  {activeApps.length}
-                </Badge>
+                Meeting apps
               </TabsTrigger>
             </TabsList>
           </Tabs>
