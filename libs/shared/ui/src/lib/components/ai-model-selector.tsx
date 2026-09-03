@@ -160,7 +160,7 @@ export function AIModelSelector({
         <div
           className={cn(
             'absolute left-0 top-full z-50 mt-1 w-80 rounded-popup border border-border bg-popover p-1.5 text-popover-foreground shadow-overlay',
-            'animate-in fade-in-80 zoom-in-95 duration-100 max-h-96 overflow-y-auto scrollbar-subtle',
+            'max-h-96 overflow-y-auto scrollbar-subtle',
           )}
         >
           <div className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-subtle border-b border-border flex items-center justify-between">

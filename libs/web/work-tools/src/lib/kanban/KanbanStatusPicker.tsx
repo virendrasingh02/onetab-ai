@@ -59,7 +59,7 @@ export function KanbanStatusPicker({
 
       <DropdownMenuContent
         align={align}
-        className="w-56 p-1.5 rounded-xl border border-border bg-popover text-popover-foreground shadow-xl animate-in fade-in zoom-in-95"
+        className="w-56 p-1.5 rounded-xl border border-border bg-popover text-popover-foreground shadow-xl"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-2.5 py-1.5 mb-1 text-xs text-muted-foreground">

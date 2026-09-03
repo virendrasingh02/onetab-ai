@@ -134,7 +134,7 @@ export function KanbanLeadPicker({
 
       <DropdownMenuContent
         align={align}
-        className="w-56 p-1.5 rounded-xl border border-border bg-popover text-popover-foreground shadow-xl animate-in fade-in zoom-in-95"
+        className="w-56 p-1.5 rounded-xl border border-border bg-popover text-popover-foreground shadow-xl"
       >
         {/* Search Input Box */}
         <div className="relative flex items-center px-2 py-1 border-b border-border/60 mb-1">

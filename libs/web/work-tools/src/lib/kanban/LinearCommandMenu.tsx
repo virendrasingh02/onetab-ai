@@ -78,7 +78,7 @@ export function LinearCommandMenu({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="p-0 max-w-2xl overflow-hidden rounded-2xl border border-border bg-popover/95 backdrop-blur-xl shadow-2xl animate-in fade-in zoom-in-95">
+      <DialogContent className="p-0 max-w-2xl overflow-hidden rounded-2xl border border-border bg-popover/95 backdrop-blur-xl shadow-2xl">
         <DialogTitle className="sr-only">Command Palette</DialogTitle>
 
         {/* Top Search Input */}

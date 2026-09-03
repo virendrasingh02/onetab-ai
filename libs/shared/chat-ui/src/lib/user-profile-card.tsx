@@ -155,7 +155,7 @@ export function UserProfileCard({
         onOpenAutoFocus={(e) => e.preventDefault()}
         onMouseEnter={cancelHoverTimer}
         onMouseLeave={() => scheduleHover(false, HOVER_CLOSE_DELAY_MS)}
-        className="w-80 p-0 shadow-2xl animate-in fade-in zoom-in-95 overflow-hidden rounded-2xl border border-border bg-popover text-foreground duration-150"
+        className="w-80 p-0 shadow-2xl overflow-hidden rounded-2xl border border-border bg-popover text-foreground"
       >
         {/* Header Banner Gradient */}
         <div

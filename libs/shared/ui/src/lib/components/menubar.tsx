@@ -78,9 +78,6 @@ export function MenubarSubContent({
       collisionPadding={collisionPadding}
       className={cn(
         'z-50 min-w-[8rem] max-h-(--radix-menubar-content-available-height) overflow-y-auto overflow-x-hidden overscroll-contain scrollbar-subtle rounded-popup border border-border bg-popover p-1 text-popover-foreground shadow-elevated',
-        'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
-        'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
-        'duration-(--duration-fast) ease-standard',
         className,
       )}
       {...props}
@@ -106,9 +103,6 @@ export function MenubarContent({
         collisionPadding={collisionPadding}
         className={cn(
           'z-50 min-w-[12rem] max-h-(--radix-menubar-content-available-height) overflow-y-auto overflow-x-hidden overscroll-contain scrollbar-subtle rounded-popup border border-border bg-popover p-1 text-popover-foreground shadow-elevated',
-          'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
-          'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
-          'duration-(--duration-fast) ease-standard',
           className,
         )}
         {...props}

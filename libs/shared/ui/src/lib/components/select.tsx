@@ -64,9 +64,6 @@ export function SelectContent({
         className={cn(
           'relative z-50 max-h-(--radix-select-content-available-height) bg-popover text-popover-foreground',
           'min-w-36 p-1 overflow-hidden rounded-popup border border-border shadow-overlay',
-          'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
-          'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
-          'duration-(--duration-fast) ease-standard',
           position === 'popper' &&
             'data-[side=bottom]:translate-y-1.5 data-[side=top]:-translate-y-1.5',
           className,

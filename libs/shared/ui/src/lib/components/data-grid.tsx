@@ -304,7 +304,7 @@ export function DataGrid<T extends Record<string, any>>({
 
       {/* Floating Bulk Actions Bar when rows are selected */}
       {selectedIds.size > 0 && (
-        <div className="flex items-center justify-between gap-3 rounded-md bg-selected px-3 py-2 border border-primary/20 animate-in fade-in-50 duration-150">
+        <div className="flex items-center justify-between gap-3 rounded-md bg-selected px-3 py-2 border border-primary/20">
           <div className="flex items-center gap-2 text-xs font-medium text-primary-text">
             <span className="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[11px] font-bold">
               {selectedIds.size}

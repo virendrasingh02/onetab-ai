@@ -160,7 +160,7 @@ export function ChatBubble({
     return (
       <div
         className={cn(
-          'py-1 italic text-muted-foreground text-xs',
+          'py-1 text-xs text-muted-foreground italic',
           density === 'compact' ? 'px-3 pl-11' : 'px-4 pl-14',
         )}
       >
@@ -233,7 +233,7 @@ export function ChatBubble({
     ) : isDoc ? (
       <Badge
         variant="neutral"
-        className="py-0 h-4 font-bold tracking-wider bg-info/15 text-info-text border-info/30 gap-0.5 text-[9px] uppercase"
+        className="py-0 h-4 font-bold tracking-wider gap-0.5 border-info/30 bg-info/15 text-[9px] text-info-text uppercase"
       >
         <FileText className="size-2.5 mr-0.5 inline-block" />
         <span>DOC</span>
@@ -241,7 +241,7 @@ export function ChatBubble({
     ) : isTask ? (
       <Badge
         variant="neutral"
-        className="py-0 h-4 font-bold tracking-wider bg-success/15 text-success border-success/30 gap-0.5 text-[9px] uppercase"
+        className="py-0 h-4 font-bold tracking-wider gap-0.5 border-success/30 bg-success/15 text-[9px] text-success uppercase"
       >
         <CheckSquare className="size-2.5 mr-0.5 inline-block" />
         <span>TASK</span>
@@ -249,7 +249,7 @@ export function ChatBubble({
     ) : isKanban ? (
       <Badge
         variant="neutral"
-        className="py-0 h-4 font-bold tracking-wider bg-warning/15 text-warning-text border-warning/30 gap-0.5 text-[9px] uppercase"
+        className="py-0 h-4 font-bold tracking-wider gap-0.5 border-warning/30 bg-warning/15 text-[9px] text-warning-text uppercase"
       >
         <FolderKanban className="size-2.5 mr-0.5 inline-block" />
         <span>KANBAN</span>
@@ -257,7 +257,7 @@ export function ChatBubble({
     ) : isApp ? (
       <Badge
         variant="neutral"
-        className="py-0 h-4 font-bold tracking-wider bg-accent-violet-soft text-accent-violet border-accent-violet/20 gap-0.5 text-[9px] uppercase"
+        className="py-0 h-4 font-bold tracking-wider gap-0.5 border-accent-violet/20 bg-accent-violet-soft text-[9px] text-accent-violet uppercase"
       >
         <Blocks className="size-2.5 mr-0.5 inline-block" />
         <span>APP</span>
@@ -289,7 +289,7 @@ export function ChatBubble({
             <time
               dateTime={new Date(message.timestamp).toISOString()}
               className={cn(
-                'hidden cursor-pointer text-muted-foreground tabular-nums group-hover/message:block hover:underline',
+                'hidden cursor-pointer whitespace-nowrap text-muted-foreground tabular-nums group-hover/message:block hover:underline',
                 isCompact ? 'mt-0.5 text-[9px]' : 'mt-1 text-[10px]',
               )}
             >
@@ -317,9 +317,9 @@ export function ChatBubble({
                 isCompact ? 'size-8' : 'size-10',
                 'cursor-pointer rounded-full shadow-xs transition-transform hover:scale-105 hover:opacity-90',
                 isAgent && 'ring-2 ring-primary/40',
-                isApp && 'ring-accent-violet/40 ring-2',
-                isDoc && 'ring-info-text/40 ring-2',
-                (isTask || isKanban) && 'ring-success/40 ring-2',
+                isApp && 'ring-2 ring-accent-violet/40',
+                isDoc && 'ring-2 ring-info-text/40',
+                (isTask || isKanban) && 'ring-2 ring-success/40',
               )}
             />
           </UserProfileCard>
@@ -405,14 +405,14 @@ export function ChatBubble({
         )}
 
         {/* In-Chat Action Bar for App, Doc, Task, Kanban, AI Agent */}
-        {(isAgent || isApp || isDoc || isTask || isKanban) ? (
-          <div className="mt-2 gap-1.5 flex flex-wrap items-center pt-0.5">
+        {isAgent || isApp || isDoc || isTask || isKanban ? (
+          <div className="mt-2 gap-1.5 pt-0.5 flex flex-wrap items-center">
             {isTask || isKanban ? (
               <>
                 {onAssignToMe ? (
                   <button
                     onClick={onAssignToMe}
-                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex items-center rounded-md border border-border bg-surface text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
                     <UserCheck className="size-3 text-primary" />
                     <span>Assign to me</span>
@@ -421,7 +421,7 @@ export function ChatBubble({
                 {onCreateTask ? (
                   <button
                     onClick={onCreateTask}
-                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex items-center rounded-md border border-border bg-surface text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
                     <CheckSquare className="size-3 text-success" />
                     <span>Manage Task</span>
@@ -435,7 +435,7 @@ export function ChatBubble({
                 {onCreateDoc ? (
                   <button
                     onClick={onCreateDoc}
-                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex items-center rounded-md border border-info/30 bg-info/10 text-info-text hover:bg-info/20 transition-colors cursor-pointer"
+                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-info/30 bg-info/10 text-info-text transition-colors hover:bg-info/20"
                   >
                     <FileText className="size-3 text-info-text" />
                     <span>Open Document</span>
@@ -449,7 +449,7 @@ export function ChatBubble({
                 {onAskAI ? (
                   <button
                     onClick={onAskAI}
-                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex items-center rounded-md border border-primary/30 bg-primary/10 text-primary-text hover:bg-primary/20 transition-colors cursor-pointer"
+                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-primary/30 bg-primary/10 text-primary-text transition-colors hover:bg-primary/20"
                   >
                     <Bot className="size-3 text-primary" />
                     <span>Ask AI</span>
@@ -458,7 +458,7 @@ export function ChatBubble({
                 {onCreateTask ? (
                   <button
                     onClick={onCreateTask}
-                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex items-center rounded-md border border-border bg-surface text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
                     <CheckSquare className="size-3 text-success" />
                     <span>Create Task</span>
@@ -467,7 +467,7 @@ export function ChatBubble({
                 {onCreateDoc ? (
                   <button
                     onClick={onCreateDoc}
-                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex items-center rounded-md border border-border bg-surface text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
                     <FileText className="size-3 text-info-text" />
                     <span>Create Doc</span>
@@ -481,7 +481,7 @@ export function ChatBubble({
                 {onOpenThread ? (
                   <button
                     onClick={onOpenThread}
-                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex items-center rounded-md border border-accent-violet/30 bg-accent-violet/10 text-accent-violet hover:bg-accent-violet/20 transition-colors cursor-pointer"
+                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-accent-violet/30 bg-accent-violet/10 text-accent-violet transition-colors hover:bg-accent-violet/20"
                   >
                     <Reply className="size-3 text-accent-violet" />
                     <span>Reply in Thread</span>
@@ -490,7 +490,7 @@ export function ChatBubble({
                 {onCreateTask ? (
                   <button
                     onClick={onCreateTask}
-                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex items-center rounded-md border border-border bg-surface text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+                    className="gap-1 px-2 py-0.5 text-xs font-semibold flex cursor-pointer items-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
                     <CheckSquare className="size-3 text-success" />
                     <span>Create Task</span>
@@ -667,7 +667,7 @@ export function ChatBubble({
             side="bottom"
             sideOffset={4}
             collisionPadding={8}
-            className="w-56 border-border bg-popover text-popover-foreground z-50 shadow-overlay"
+            className="w-56 z-50 border-border bg-popover text-popover-foreground shadow-overlay"
           >
             <DropdownMenuItem
               onSelect={() => {
@@ -851,7 +851,7 @@ export function ReactionPicker({
         side="top"
         sideOffset={4}
         collisionPadding={8}
-        className="border-border bg-popover text-popover-foreground z-50 w-auto overflow-hidden p-0 shadow-overlay"
+        className="p-0 z-50 w-auto overflow-hidden border-border bg-popover text-popover-foreground shadow-overlay"
       >
         <div className="w-80 max-w-[calc(100vw-1rem)]">
           <EmojiPicker
@@ -872,12 +872,7 @@ export interface JumpToDatePickerProps {
   selectedDate?: Date;
   onSelectDate: (
     target:
-      | 'today'
-      | 'yesterday'
-      | 'last_week'
-      | 'last_month'
-      | 'beginning'
-      | string,
+      'today' | 'yesterday' | 'last_week' | 'last_month' | 'beginning' | string,
   ) => void;
   onClose?: () => void;
 }
@@ -903,8 +898,16 @@ export function JumpToDatePicker({
   const presets = [
     { label: 'Today', target: 'today', date: new Date() },
     { label: 'Yesterday', target: 'yesterday', date: subDays(new Date(), 1) },
-    { label: 'Last 7 days', target: 'last_7_days', date: subDays(new Date(), 7) },
-    { label: 'Last 30 days', target: 'last_30_days', date: subDays(new Date(), 30) },
+    {
+      label: 'Last 7 days',
+      target: 'last_7_days',
+      date: subDays(new Date(), 7),
+    },
+    {
+      label: 'Last 30 days',
+      target: 'last_30_days',
+      date: subDays(new Date(), 30),
+    },
     {
       label: 'Month to date',
       target: 'month_to_date',
@@ -928,9 +931,9 @@ export function JumpToDatePicker({
   ];
 
   return (
-    <div className="flex bg-popover border border-border/80 text-foreground rounded-2xl shadow-overlay overflow-hidden select-none">
+    <div className="flex overflow-hidden rounded-2xl border border-border/80 bg-popover text-foreground shadow-overlay select-none">
       {/* Left Presets Column */}
-      <div className="w-36 p-3 space-y-0.5 border-r border-border/60 flex flex-col justify-center bg-surface-inset/30">
+      <div className="w-36 p-3 space-y-0.5 flex flex-col justify-center border-r border-border/60 bg-surface-inset/30">
         {presets.map((preset) => (
           <button
             key={preset.label}
@@ -939,7 +942,7 @@ export function JumpToDatePicker({
               onSelectDate(preset.target);
               onClose?.();
             }}
-            className="w-full px-2.5 py-1.5 text-left text-xs font-semibold rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+            className="px-2.5 py-1.5 text-xs font-semibold w-full cursor-pointer rounded-lg text-left text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             {preset.label}
           </button>
@@ -953,7 +956,7 @@ export function JumpToDatePicker({
           <button
             type="button"
             onClick={handlePrevMonth}
-            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+            className="p-1 cursor-pointer rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             aria-label="Previous month"
           >
             <ChevronLeft className="size-4" />
@@ -964,7 +967,7 @@ export function JumpToDatePicker({
           <button
             type="button"
             onClick={handleNextMonth}
-            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+            className="p-1 cursor-pointer rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             aria-label="Next month"
           >
             <ChevronRight className="size-4" />
@@ -993,7 +996,7 @@ export function JumpToDatePicker({
             return (
               <div
                 key={day.toISOString()}
-                className="flex items-center justify-center p-0.5"
+                className="p-0.5 flex items-center justify-center"
               >
                 <button
                   type="button"
@@ -1003,7 +1006,7 @@ export function JumpToDatePicker({
                     onClose?.();
                   }}
                   className={cn(
-                    'size-7 text-xs flex items-center justify-center rounded-lg transition-all cursor-pointer font-medium',
+                    'size-7 text-xs font-medium flex cursor-pointer items-center justify-center rounded-lg transition-all',
                     !isCurrentMonth &&
                       'text-muted-foreground/30 hover:text-muted-foreground/60',
                     isCurrentMonth &&
@@ -1011,9 +1014,9 @@ export function JumpToDatePicker({
                       'text-foreground hover:bg-accent',
                     isCurrentDay &&
                       !isSelected &&
-                      'text-primary font-semibold ring-1 ring-primary/40',
+                      'font-semibold text-primary ring-1 ring-primary/40',
                     isSelected &&
-                      'bg-primary text-primary-foreground font-bold shadow-md hover:bg-primary-hover',
+                      'font-bold bg-primary text-primary-foreground shadow-md hover:bg-primary-hover',
                   )}
                 >
                   {format(day, 'd')}
@@ -1031,12 +1034,7 @@ export interface DateSeparatorProps {
   timestamp: number;
   onJumpToDate?: (
     target:
-      | 'today'
-      | 'yesterday'
-      | 'last_week'
-      | 'last_month'
-      | 'beginning'
-      | string,
+      'today' | 'yesterday' | 'last_week' | 'last_month' | 'beginning' | string,
   ) => void;
 }
 
@@ -1066,7 +1064,7 @@ export function DateSeparator({ timestamp, onJumpToDate }: DateSeparatorProps) {
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="gap-1.5 px-4 py-1.5 text-xs font-semibold flex items-center rounded-full border border-border bg-surface text-foreground transition-colors hover:bg-accent hover:text-foreground cursor-pointer shadow-xs"
+            className="gap-1.5 px-4 py-1.5 text-xs font-semibold flex cursor-pointer items-center rounded-full border border-border bg-surface text-foreground shadow-xs transition-colors hover:bg-accent hover:text-foreground"
           >
             <span>{label}</span>
             <ChevronDown className="size-3 text-muted-foreground" />
@@ -1075,7 +1073,7 @@ export function DateSeparator({ timestamp, onJumpToDate }: DateSeparatorProps) {
         <PopoverContent
           align="center"
           sideOffset={6}
-          className="p-0 border-0 bg-transparent shadow-none w-auto"
+          className="p-0 w-auto border-0 bg-transparent shadow-none"
         >
           <JumpToDatePicker
             selectedDate={date}

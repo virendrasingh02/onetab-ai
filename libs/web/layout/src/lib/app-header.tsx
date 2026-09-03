@@ -329,7 +329,7 @@ export function AppHeader({
             <DropdownMenuContent
               align="end"
               sideOffset={6}
-              className="w-68 sm:w-72 p-2 shadow-2xl space-y-1 animate-in fade-in zoom-in-95 rounded-2xl border border-border bg-popover text-foreground duration-100 select-none"
+              className="w-68 sm:w-72 p-2 shadow-2xl space-y-1 rounded-2xl border border-border bg-popover text-foreground select-none"
             >
               {/* Header Identity Row: Avatar, name, handle, active status */}
               <div

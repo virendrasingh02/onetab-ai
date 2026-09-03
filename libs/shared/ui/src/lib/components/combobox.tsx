@@ -456,12 +456,6 @@ export const Combobox = forwardRef<ComboboxRef, ComboboxProps>(
               className={cn(
                 'z-50 min-w-48 rounded-popup border border-border bg-popover p-1 shadow-overlay text-popover-foreground outline-none',
                 'max-h-(--radix-popover-content-available-height) max-w-[calc(100vw-1rem)]',
-                'data-[state=open]:animate-in data-[state=closed]:animate-out',
-                'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
-                'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
-                'duration-(--duration-fast) ease-standard',
-                'data-[side=bottom]:slide-in-from-top-1.5 data-[side=top]:slide-in-from-bottom-1.5',
-                'data-[side=left]:slide-in-from-right-1.5 data-[side=right]:slide-in-from-left-1.5',
                 popoverClassName,
               )}
             >

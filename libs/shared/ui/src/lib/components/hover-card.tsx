@@ -59,11 +59,6 @@ export const HoverCardContent = forwardRef<
         className={cn(
           'z-50 w-72 max-w-[calc(100vw-1rem)] max-h-(--radix-hover-card-content-available-height) overflow-y-auto overscroll-contain scrollbar-subtle',
           'rounded-popup border border-border bg-popover p-3 text-popover-foreground shadow-overlay outline-none',
-          'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
-          'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
-          'duration-(--duration-fast) ease-standard',
-          'data-[side=bottom]:slide-in-from-top-1.5 data-[side=top]:slide-in-from-bottom-1.5',
-          'data-[side=left]:slide-in-from-right-1.5 data-[side=right]:slide-in-from-left-1.5',
           className,
         )}
         {...props}

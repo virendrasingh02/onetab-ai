@@ -102,7 +102,7 @@ export function ViewDisplayMenu({
   return (
     <div
       ref={menuRef}
-      className="absolute right-6 top-14 z-50 w-80 rounded-2xl border border-border bg-popover/95 backdrop-blur-xl p-4 text-xs font-sans text-popover-foreground shadow-2xl transition-all duration-200 animate-in fade-in slide-in-from-top-2 space-y-4"
+      className="absolute right-6 top-14 z-50 w-80 rounded-2xl border border-border bg-popover/95 backdrop-blur-xl p-4 text-xs font-sans text-popover-foreground shadow-2xl transition-all duration-200 space-y-4"
     >
       {/* View Switcher Grid */}
       <div>

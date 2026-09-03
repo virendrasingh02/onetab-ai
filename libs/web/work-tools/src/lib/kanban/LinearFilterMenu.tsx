@@ -155,7 +155,7 @@ export function LinearFilterMenu({
     <div
       ref={menuRef}
       className={cn(
-        'absolute right-4 top-14 z-50 w-72 rounded-xl border border-border bg-popover/95 backdrop-blur-md shadow-2xl p-1.5 text-xs font-sans text-popover-foreground transition-all duration-200 animate-in fade-in slide-in-from-top-2',
+        'absolute right-4 top-14 z-50 w-72 rounded-xl border border-border bg-popover/95 backdrop-blur-md shadow-2xl p-1.5 text-xs font-sans text-popover-foreground transition-all duration-200',
       )}
     >
       {/* Search Header */}
@@ -225,7 +225,7 @@ export function LinearFilterMenu({
 
               {/* Submenu Dropdown Popover */}
               {isSubOpen && (
-                <div className="mt-1 ml-4 rounded-lg border border-border/80 bg-surface/95 p-1.5 shadow-lg space-y-0.5 text-xs animate-in fade-in">
+                <div className="mt-1 ml-4 rounded-lg border border-border/80 bg-surface/95 p-1.5 shadow-lg space-y-0.5 text-xs">
                   {cat.id === 'status' &&
                     TASK_STATUS_ORDER.map((status) => (
                       <button

@@ -68,7 +68,7 @@ export function KanbanLabelPicker({
 
       <DropdownMenuContent
         align={align}
-        className="w-56 p-1.5 rounded-xl border border-border bg-popover text-popover-foreground shadow-xl animate-in fade-in zoom-in-95"
+        className="w-56 p-1.5 rounded-xl border border-border bg-popover text-popover-foreground shadow-xl"
       >
         {/* Search input */}
         <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-border/60 bg-muted/30 mb-1">

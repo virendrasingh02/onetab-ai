@@ -24,11 +24,6 @@ export const menuSurfaceBase = [
   'z-50 min-w-44 bg-popover text-popover-foreground',
   'overflow-y-auto overflow-x-hidden overscroll-contain scrollbar-subtle',
   'rounded-popup border border-border p-1 shadow-overlay outline-none',
-  'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
-  'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',
-  'duration-(--duration-fast) ease-standard',
-  'data-[side=bottom]:slide-in-from-top-1.5 data-[side=top]:slide-in-from-bottom-1.5',
-  'data-[side=left]:slide-in-from-right-1.5 data-[side=right]:slide-in-from-left-1.5',
 ];
 
 /**

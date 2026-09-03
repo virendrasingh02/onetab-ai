@@ -280,10 +280,6 @@ export function UserSelector({
           onCloseAutoFocus={(e) => e.preventDefault()}
           className={cn(
             'z-50 w-72 sm:w-80 p-1.5 rounded-2xl border border-border bg-popover text-popover-foreground shadow-2xl space-y-0.5 select-none outline-none',
-            'data-[state=open]:animate-in data-[state=closed]:animate-out',
-            'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
-            'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
-            'duration-(--duration-fast) ease-standard',
             popoverClassName,
           )}
         >

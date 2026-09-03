@@ -70,7 +70,6 @@ export function TooltipContent({
         className={cn(
           'z-(--z-tooltip) origin-(--radix-tooltip-content-transform-origin)',
           'max-w-72 px-2 py-1 font-normal w-fit rounded-popup border border-border bg-popover text-[11px] text-popover-foreground shadow-elevated',
-          'animate-in fade-in-0 zoom-in-95 duration-100 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:duration-75',
           className,
         )}
         {...props}
