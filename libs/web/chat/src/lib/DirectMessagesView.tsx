@@ -215,6 +215,7 @@ function DirectConversation({
       <DirectMessageHeader
         member={member}
         isSelf={isSelf}
+        onAddBookmark={() => setAddBookmarkOpen(true)}
         chatActionsRef={setChatActionsSlot}
       />
 
@@ -682,6 +683,7 @@ function DirectRoom({
 function DirectMessageHeader({
   member,
   isSelf = false,
+  onAddBookmark,
   chatActionsRef,
 }: {
   member: WorkspaceMember;
@@ -691,6 +693,8 @@ function DirectMessageHeader({
    * it is always there.
    */
   isSelf?: boolean;
+  /** Opens the "Add bookmark" dialog — mirrors `ChannelHeader`'s menu entry. */
+  onAddBookmark?: () => void;
   chatActionsRef: (element: HTMLDivElement | null) => void;
 }) {
   const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
@@ -902,6 +906,19 @@ function DirectMessageHeader({
                   <UserRound className="size-4" />
                   <span>Open profile & details</span>
                 </DropdownMenuItem>
+
+                {onAddBookmark ? (
+                  <DropdownMenuItem
+                    onClick={onAddBookmark}
+                    className="justify-between"
+                  >
+                    <div className="gap-2.5 flex items-center">
+                      <Bookmark className="size-4" />
+                      <span>Add bookmark</span>
+                    </div>
+                    <DropdownMenuShortcut>B</DropdownMenuShortcut>
+                  </DropdownMenuItem>
+                ) : null}
 
                 <DropdownMenuSeparator />
 
