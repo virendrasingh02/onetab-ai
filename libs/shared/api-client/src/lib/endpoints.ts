@@ -53,6 +53,7 @@ import type {
   ReplyMessageInput,
   SendMessageInput,
   GeneratedReport,
+  GifPage,
   HealthStatus,
   Invitation,
   InvitationPublicPreview,
@@ -2166,6 +2167,24 @@ export const searchApi = {
     request<Record<SearchCategory, number>>(
       http.get(`/workspaces/${workspaceId}/search/counts`, { params: { q } }),
     ),
+};
+
+export const gifsApi = {
+  trending: (limit?: number, pos?: string) =>
+    request<GifPage>(
+      http.get('/gifs/trending', {
+        params: { ...(limit ? { limit } : {}), ...(pos ? { pos } : {}) },
+      }),
+    ),
+
+  search: (q: string, limit?: number, pos?: string) =>
+    request<GifPage>(
+      http.get('/gifs/search', {
+        params: { q, ...(limit ? { limit } : {}), ...(pos ? { pos } : {}) },
+      }),
+    ),
+
+  categories: () => request<string[]>(http.get('/gifs/categories')),
 };
 
 export const notificationApi = {

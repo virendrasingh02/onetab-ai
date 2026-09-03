@@ -2,6 +2,9 @@
 
 # compiled output
 dist
+
+# Emoji dataset copied in by scripts/sync-emojibase.mjs (see vite.config.mts)
+apps/web/public/emojibase
 # Declarations from `typecheck`, kept out of `dist` so the two do not clobber
 # each other where `dist` is a bundle rather than tsc output.
 dist-types

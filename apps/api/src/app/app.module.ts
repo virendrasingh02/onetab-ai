@@ -21,6 +21,7 @@ import { WorkToolsModule } from '@org/api-work-tools';
 import { AgentsModule } from '@org/api-agents';
 import { AutomationsModule } from '@org/api-automations';
 import { EnterpriseModule } from '@org/api-enterprise';
+import { GifsModule } from '@org/api-gifs';
 import { IntegrationsModule } from '@org/api-integrations';
 import { AnalyticsModule } from '@org/api-analytics';
 import { MarketplaceModule } from '@org/api-marketplace';
@@ -81,6 +82,7 @@ import { AppService } from './app.service';
     NotificationsModule,
     RealtimeModule,
     SearchModule,
+    GifsModule,
     StorageModule,
   ],
   controllers: [AppController],

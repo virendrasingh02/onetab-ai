@@ -370,6 +370,30 @@ export {
 } from './lib/components/icon-picker-popover.js';
 
 export {
+  EmojiPicker,
+  GifPicker,
+  EmojiGifPicker,
+  EmojiGifPickerPopover,
+  GifSourceProvider,
+  useGifSource,
+  usePickerRecents,
+  useEmojiShortcodeIndex,
+  searchEmojiShortcodes,
+  setEmojiPickerBaseUrl,
+  CURATED_GIFS,
+  type EmojiPickerProps,
+  type EmojiSelection,
+  type GifPickerProps,
+  type EmojiGifPickerProps,
+  type EmojiGifPickerPopoverProps,
+  type EmojiGifTab,
+  type GifSource,
+  type GifItem,
+  type GifPage,
+  type EmojiShortcodeEntry,
+} from './lib/components/emoji-gif-picker/index.js';
+
+export {
   focusAudio,
   FOCUS_SOUND_OPTIONS,
   type FocusSoundType,
@@ -425,7 +449,6 @@ export {
   StatusModal,
   SLACK_STATUS_PRESETS,
   CLEAR_AFTER_OPTIONS,
-  POPULAR_EMOJIS,
   type StatusModalProps,
   type StatusPreset,
   type ClearOption,

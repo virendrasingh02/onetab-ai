@@ -6,11 +6,13 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  EmojiPicker,
   Hint,
   Popover,
   PopoverContent,
   PopoverTrigger,
   UserAvatar,
+  usePickerRecents,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -863,34 +865,78 @@ export function ReactionPicker({
   onOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }) {
+  const [view, setView] = useState<'quick' | 'all'>('quick');
+  const recentEmojis = usePickerRecents((s) => s.emojis);
+
+  const close = () => {
+    onOpenChange?.(false);
+    setView('quick');
+  };
+
+  const pick = (emoji: string) => {
+    onSelect(emoji);
+    close();
+  };
+
+  // Recent picks lead the quick row, then the curated set fills the rest.
+  const quickReactions = [
+    ...recentEmojis,
+    ...PICKER_REACTIONS.filter((emoji) => !recentEmojis.includes(emoji)),
+  ].slice(0, 18);
+
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        onOpenChange?.(next);
+        if (!next) setView('quick');
+      }}
+    >
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent
         align="end"
         side="top"
         sideOffset={4}
         collisionPadding={8}
-        className="p-2 w-auto border-border bg-popover text-popover-foreground z-50 shadow-overlay"
+        className={cn(
+          'border-border bg-popover text-popover-foreground z-50 shadow-overlay',
+          view === 'all' ? 'w-auto overflow-hidden p-0' : 'p-2 w-auto',
+        )}
       >
-        <p className="mb-1 px-1 font-bold tracking-wider text-[10px] text-muted-foreground uppercase">
-          React
-        </p>
-        <div className="gap-0.5 grid grid-cols-6">
-          {PICKER_REACTIONS.map((emoji) => (
-            <button
-              key={emoji}
-              onClick={() => {
-                onSelect(emoji);
-                onOpenChange?.(false);
-              }}
-              aria-label={`React with ${emoji}`}
-              className="size-8 rounded text-lg flex items-center justify-center transition-transform hover:scale-125 hover:bg-accent cursor-pointer"
-            >
-              <span aria-hidden>{emoji}</span>
-            </button>
-          ))}
-        </div>
+        {view === 'all' ? (
+          <div className="w-80 max-w-[calc(100vw-1rem)]">
+            <EmojiPicker
+              columns={8}
+              showPreview={false}
+              onEmojiSelect={(emoji) => pick(emoji.emoji)}
+            />
+          </div>
+        ) : (
+          <>
+            <p className="mb-1 px-1 font-bold tracking-wider text-[10px] text-muted-foreground uppercase">
+              React
+            </p>
+            <div className="gap-0.5 grid grid-cols-6">
+              {quickReactions.map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={() => pick(emoji)}
+                  aria-label={`React with ${emoji}`}
+                  className="size-8 rounded text-lg flex items-center justify-center transition-transform hover:scale-125 hover:bg-accent cursor-pointer"
+                >
+                  <span aria-hidden>{emoji}</span>
+                </button>
+              ))}
+              <button
+                onClick={() => setView('all')}
+                aria-label="More emoji"
+                className="size-8 rounded text-muted-foreground flex items-center justify-center transition-colors hover:bg-accent hover:text-foreground cursor-pointer"
+              >
+                <Smile className="size-4" />
+              </button>
+            </div>
+          </>
+        )}
       </PopoverContent>
     </Popover>
   );

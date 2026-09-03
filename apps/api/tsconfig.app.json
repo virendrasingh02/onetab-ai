@@ -74,6 +74,9 @@
       "path": "../../libs/api/search/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/api/gifs/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/api/realtime/tsconfig.lib.json"
     },
     {

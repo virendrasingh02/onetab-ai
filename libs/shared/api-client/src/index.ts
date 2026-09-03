@@ -20,6 +20,7 @@ export {
   automationsApi,
   channelApi,
   enterpriseApi,
+  gifsApi,
   integrationsApi,
   invitationApi,
   marketplaceApi,

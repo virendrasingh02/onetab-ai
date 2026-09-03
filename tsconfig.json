@@ -209,6 +209,9 @@
     },
     {
       "path": "./libs/shared/platform"
+    },
+    {
+      "path": "./libs/api/gifs"
     }
   ],
   "compilerOptions": {}

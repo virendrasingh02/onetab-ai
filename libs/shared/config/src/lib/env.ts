@@ -96,6 +96,11 @@ export const apiEnvSchema = z.object({
   AI_DEFAULT_PROVIDER: z.string().default('nvidia'),
   AI_DEFAULT_MODEL: z.string().default('nvidia/nemotron-3-super-120b-a12b'),
 
+  // GIF picker proxy. Optional: without a key the /gifs endpoints serve a
+  // small bundled fallback set. Free key: https://developers.google.com/tenor
+  TENOR_API_KEY: z.string().optional(),
+  TENOR_CLIENT_KEY: z.string().default('onetab-ai'),
+
   // Multi-App API Integration Configuration
   ENCRYPTION_KEY: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),

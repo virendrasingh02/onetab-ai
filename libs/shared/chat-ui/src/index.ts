@@ -45,15 +45,6 @@ export {
 } from './lib/markdown-message.js';
 
 export {
-  DiscordEmojiGifPicker,
-  EMOJI_CATEGORIES,
-  POPULAR_GIFS,
-  type DiscordEmojiGifPickerProps,
-  type EmojiCategory,
-  type GifItem,
-} from './lib/discord-emoji-gif-picker.js';
-
-export {
   LexicalComposerInput,
   LexicalToolbar,
   type LexicalComposerInputProps,

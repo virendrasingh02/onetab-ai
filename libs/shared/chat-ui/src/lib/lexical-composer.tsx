@@ -108,7 +108,7 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { EMOJI_CATEGORIES } from './discord-emoji-gif-picker.js';
+import { searchEmojiShortcodes, useEmojiShortcodeIndex } from '@org/ui';
 import { CHAT_TRANSFORMERS } from './lexical-markdown.js';
 import {
   $createCommandNode,
@@ -862,16 +862,6 @@ function SlashCommandsPlugin({
   );
 }
 
-/** Flat, de-duplicated emoji index for the `:shortcode:` menu. */
-const EMOJI_INDEX = [
-  ...new Map(
-    EMOJI_CATEGORIES.flatMap((category) => category.emojis).map((emoji) => [
-      emoji.name,
-      emoji,
-    ]),
-  ).values(),
-];
-
 class EmojiMenuOption extends MenuOption {
   constructor(
     readonly char: string,
@@ -888,6 +878,9 @@ function EmojiPickerPlugin({
 }) {
   const [editor] = useLexicalComposerContext();
   const [query, setQuery] = useState<string | null>(null);
+  // Same Emojibase dataset the visual `<EmojiPicker>` renders, so a `:shortcode`
+  // and the picker never disagree. Loads lazily on first use.
+  const emojiIndex = useEmojiShortcodeIndex();
 
   // Two characters before suggesting: `:)` and clock times should not open a
   // menu on every keystroke.
@@ -897,16 +890,13 @@ function EmojiPickerPlugin({
   });
 
   const options = useMemo(() => {
-    const needle = (query ?? '').toLowerCase().trim();
+    const needle = (query ?? '').trim();
     if (!needle) return [];
-    return EMOJI_INDEX.filter(
+    return searchEmojiShortcodes(emojiIndex, needle, 10).map(
       (emoji) =>
-        emoji.name.includes(needle) ||
-        emoji.keywords.some((keyword) => keyword.includes(needle)),
-    )
-      .slice(0, 10)
-      .map((emoji) => new EmojiMenuOption(emoji.char, emoji.name));
-  }, [query]);
+        new EmojiMenuOption(emoji.char, emoji.shortcodes[0] ?? emoji.label),
+    );
+  }, [query, emojiIndex]);
 
   const onSelectOption = useCallback(
     (

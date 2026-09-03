@@ -1,4 +1,4 @@
-import { ApiError } from '@org/api-client';
+import { ApiError, gifsApi, queryKeys } from '@org/api-client';
 import { useCurrentUser } from '@org/auth';
 import { store, useNotificationDisplayPreferences } from '@org/common';
 import { ThemeProvider } from '@org/design-system';
@@ -6,15 +6,22 @@ import { MediaPreviewProvider } from '@org/media-preview';
 import {
   AvatarPresenceProvider,
   ErrorBoundary,
+  GifSourceProvider,
   Toaster,
   TooltipProvider,
   toast,
+  type GifSource,
 } from '@org/ui';
 import { RealtimeProvider, useUserPresenceMap } from '@org/realtime';
 import { MatrixProvider } from '@org/web-chat';
 import { DesktopChrome, DesktopProvider } from '@org/web-desktop';
-import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useCallback, useState, type ReactNode } from 'react';
+import {
+  MutationCache,
+  QueryClient,
+  QueryClientProvider,
+  useQueryClient,
+} from '@tanstack/react-query';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { Provider } from 'react-redux';
 import { useThemeSync } from './use-theme-sync';
 
@@ -63,6 +70,40 @@ function AvatarPresenceBridge({ children }: { children: ReactNode }) {
   return (
     <AvatarPresenceProvider resolve={resolve}>{children}</AvatarPresenceProvider>
   );
+}
+
+/**
+ * Feeds the GIF picker (in `@org/ui`, which does no data-fetching of its own) a
+ * source backed by the `/gifs` proxy. Results go through the shared QueryClient
+ * so reopening the picker is instant. No provider ⇒ the picker falls back to a
+ * small bundled GIF set.
+ */
+function GifSourceBridge({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
+  const source = useMemo<GifSource>(
+    () => ({
+      trending: (pos) =>
+        queryClient.fetchQuery({
+          queryKey: queryKeys.gifs.trending(pos),
+          queryFn: () => gifsApi.trending(24, pos),
+          staleTime: 5 * 60_000,
+        }),
+      search: (query, pos) =>
+        queryClient.fetchQuery({
+          queryKey: queryKeys.gifs.search(query, pos),
+          queryFn: () => gifsApi.search(query, 24, pos),
+          staleTime: 5 * 60_000,
+        }),
+      categories: () =>
+        queryClient.fetchQuery({
+          queryKey: queryKeys.gifs.categories(),
+          queryFn: () => gifsApi.categories(),
+          staleTime: 60 * 60_000,
+        }),
+    }),
+    [queryClient],
+  );
+  return <GifSourceProvider value={source}>{children}</GifSourceProvider>;
 }
 
 /**
@@ -131,7 +172,9 @@ export function Providers({ children }: { children: ReactNode }) {
                 <RealtimeAppBridge>
                   <TooltipProvider>
                     <MediaPreviewProvider>
-                      <DesktopChrome>{children}</DesktopChrome>
+                      <GifSourceBridge>
+                        <DesktopChrome>{children}</DesktopChrome>
+                      </GifSourceBridge>
                     </MediaPreviewProvider>
                     <AppToaster />
                   </TooltipProvider>

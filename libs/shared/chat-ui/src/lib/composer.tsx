@@ -6,6 +6,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  EmojiGifPickerPopover,
   Hint,
 } from '@org/ui';
 import { cn, formatBytes } from '@org/utils';
@@ -34,7 +35,6 @@ import {
 } from 'react';
 import { useDraftsStore } from './drafts-store.js';
 import { SendCardDialog } from './cards/send-card-dialog.js';
-import { DiscordEmojiGifPicker } from './discord-emoji-gif-picker.js';
 import {
   LexicalComposerInput,
   type LexicalEditorRef,
@@ -410,8 +410,8 @@ export function Composer({
     [members, agentMentions, appMentions],
   );
 
-  const handleSelectGif = (gifUrl: string, title?: string) => {
-    void onSend(`![${title || 'GIF'}](${gifUrl})`);
+  const handleSelectGif = (gif: { url: string; title: string }) => {
+    void onSend(`![${gif.title || 'GIF'}](${gif.url})`);
     setPickerState({ open: false, tab: 'emoji' });
   };
 
@@ -423,15 +423,6 @@ export function Composer({
       )}
     >
       {contextSlot}
-
-      {pickerState.open ? (
-        <DiscordEmojiGifPicker
-          defaultTab={pickerState.tab}
-          onSelectEmoji={(emoji) => lexicalRef.current?.insertText(emoji)}
-          onSelectGif={handleSelectGif}
-          onClose={() => setPickerState({ open: false, tab: 'emoji' })}
-        />
-      ) : null}
 
       <div
         className={cn(
@@ -558,25 +549,32 @@ export function Composer({
               </button>
             </Hint>
 
-            <Hint label="Insert emoji">
+            <EmojiGifPickerPopover
+              open={pickerState.open}
+              onOpenChange={(open) =>
+                setPickerState((current) => ({ ...current, open }))
+              }
+              tab={pickerState.tab}
+              onTabChange={(tab) =>
+                setPickerState((current) => ({ ...current, tab }))
+              }
+              side="top"
+              align="start"
+              onEmojiSelect={(emoji) => lexicalRef.current?.insertText(emoji.emoji)}
+              onGifSelect={handleSelectGif}
+            >
               <button
                 type="button"
-                onClick={() =>
-                  setPickerState((current) => ({
-                    open: !current.open || current.tab !== 'emoji',
-                    tab: 'emoji',
-                  }))
-                }
+                title="Emoji & GIFs"
+                aria-label="Insert emoji or GIF"
                 className={cn(
                   'size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-                  pickerState.open &&
-                    pickerState.tab === 'emoji' &&
-                    'bg-primary text-primary-foreground',
+                  pickerState.open && 'bg-primary text-primary-foreground',
                 )}
               >
                 <Smile className="size-4" />
               </button>
-            </Hint>
+            </EmojiGifPickerPopover>
 
             <Hint label="Open GIF picker">
               <button

@@ -24,6 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from './dialog.js';
+import { EmojiPicker } from './emoji-gif-picker/emoji-picker.js';
 import { useFocusStore } from './focus-mode-store.js';
 import type { StatusPublisher } from './focus-mode-widget.js';
 import { Input } from './input.js';
@@ -95,41 +96,6 @@ export const SLACK_STATUS_PRESETS: StatusPreset[] = [
     durationLabel: '1 hour',
     icon: Target,
   },
-];
-
-export const POPULAR_EMOJIS = [
-  '💬',
-  '📅',
-  '🚗',
-  '🤒',
-  '🌴',
-  '🍱',
-  '🏠',
-  '🎯',
-  '☕',
-  '🎧',
-  '⚡',
-  '🔕',
-  '🚀',
-  '💡',
-  '💻',
-  '🧘',
-  '🏃',
-  '🍔',
-  '🎉',
-  '👋',
-  '🔥',
-  '✨',
-  '🏖️',
-  '✈️',
-  '📞',
-  '🛑',
-  '👀',
-  '🧠',
-  '⭐',
-  '🥑',
-  '🍕',
-  '🍻',
 ];
 
 export interface ClearOption {
@@ -350,29 +316,16 @@ export function StatusModal({
                 </PopoverTrigger>
                 <PopoverContent
                   align="start"
-                  className="w-64 p-2 border-border bg-popover shadow-overlay"
+                  className="w-auto overflow-hidden p-0 border-border bg-popover shadow-overlay"
                 >
-                  <div className="font-semibold mb-1.5 px-1 text-[11px] text-muted-foreground">
-                    Choose an emoji
-                  </div>
-                  <div className="gap-1 grid grid-cols-8">
-                    {POPULAR_EMOJIS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        type="button"
-                        onClick={() => {
-                          setStatusEmoji(emoji);
-                          setIsEmojiPickerOpen(false);
-                        }}
-                        className={cn(
-                          'size-7 text-base rounded flex items-center justify-center transition-transform hover:scale-110 hover:bg-accent',
-                          statusEmoji === emoji &&
-                            'bg-primary/20 ring-1 ring-primary',
-                        )}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
+                  <div className="w-80 max-w-[calc(100vw-1rem)]">
+                    <EmojiPicker
+                      showPreview={false}
+                      onEmojiSelect={(emoji) => {
+                        setStatusEmoji(emoji.emoji);
+                        setIsEmojiPickerOpen(false);
+                      }}
+                    />
                   </div>
                 </PopoverContent>
               </Popover>

@@ -29,6 +29,9 @@ export default tseslint.config(
       '**/vite.config.*.timestamp*',
       '**/generated/**',
       'apps/api/webpack.config.js',
+      // Static assets served as-is; the emoji dataset is copied in by
+      // scripts/sync-emojibase.mjs (see apps/web/vite.config.mts).
+      'apps/*/public/**',
     ],
   },
 

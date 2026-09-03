@@ -16,9 +16,10 @@ supplies the data.
 - `<MessageList>` / `buildRows` — virtualised timeline with date separators.
 - `<ChatBubble>`, `<DateSeparator>` — a message with reactions and the
   edit/delete/react/reply actions.
-- `<Composer>`, `<LexicalComposerInput>`, `<EmojiPicker>` — the rich-text
-  message box: markdown shortcuts as you type, plus `@` mention, `/` command
-  and `:` emoji menus.
+- `<Composer>`, `<LexicalComposerInput>` — the rich-text message box: markdown
+  shortcuts as you type, plus `@` mention, `/` command and `:` emoji menus. The
+  emoji + GIF picker itself is `<EmojiGifPickerPopover>` from `@org/ui`; the `:`
+  menu shares its Emojibase index via `useEmojiShortcodeIndex`.
 - `<MarkdownMessage>` — renders a message body's markdown. The read side of the
   composer; keep the two in step.
 - `<ChannelWelcome>` — the block that introduces a conversation at the top of

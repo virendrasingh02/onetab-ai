@@ -90,6 +90,7 @@
     "@nestjs/throttler": "^6.5.0",
     "@org/api-admin": "*",
     "@org/api-ai": "*",
+    "@org/api-gifs": "*",
     "@org/api-notifications": "*",
     "@org/api-realtime": "*",
     "@org/api-search": "*",

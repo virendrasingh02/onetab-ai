@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import react from '@vitejs/plugin-react';
@@ -72,6 +73,33 @@ const ORG_WORKSPACE_PACKAGES = (() => {
     return [];
   }
 })();
+
+/**
+ * Copies `emojibase-data/en` into `public/emojibase/` before dev and build so
+ * the emoji picker (frimousse) fetches its dataset from our own origin rather
+ * than a third-party CDN — needed for the desktop shell and offline installs.
+ */
+function syncEmojibasePlugin() {
+  return {
+    name: 'vite-plugin-sync-emojibase',
+    config() {
+      try {
+        execFileSync(
+          process.execPath,
+          [
+            path.resolve(import.meta.dirname, '../../scripts/sync-emojibase.mjs'),
+            path.resolve(import.meta.dirname, 'public'),
+          ],
+          { stdio: 'inherit' },
+        );
+      } catch (error) {
+        // A missing dataset shouldn't break the build — the picker falls back
+        // to frimousse's CDN default.
+        console.warn('[vite] emojibase sync skipped:', (error as Error).message);
+      }
+    },
+  };
+}
 
 /**
  * Plugin to ensure @org/* workspace packages in node_modules are treated
@@ -168,6 +196,7 @@ export default defineConfig(() => ({
   plugins: [
     react(),
     tailwindcss(),
+    syncEmojibasePlugin(),
     workspaceLiveSourcePlugin(),
     /**
      * matrix-js-sdk's Rust crypto ships as WebAssembly. Without this the E2EE

@@ -181,6 +181,12 @@ export const queryKeys = {
     counts: (workspaceId: string, q: string) =>
       ['search', workspaceId, 'counts', q] as const,
   },
+  gifs: {
+    all: () => ['gifs'] as const,
+    trending: (pos?: string) => ['gifs', 'trending', pos ?? ''] as const,
+    search: (q: string, pos?: string) => ['gifs', 'search', q, pos ?? ''] as const,
+    categories: () => ['gifs', 'categories'] as const,
+  },
   notifications: {
     all: (workspaceId: string) => ['notifications', workspaceId] as const,
     preferences: (workspaceId: string) =>
