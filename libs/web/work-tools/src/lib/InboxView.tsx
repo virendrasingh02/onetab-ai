@@ -642,7 +642,7 @@ export function InboxView() {
     <div className="min-h-0 flex flex-1 flex-col">
       {/* Channel-style Header */}
       <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
-        <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
+        <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
           <div className="min-w-0 gap-2 flex items-center">
             <div className="min-w-0 gap-1.5 flex items-center">
               <Inbox

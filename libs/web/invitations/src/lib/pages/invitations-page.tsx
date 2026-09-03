@@ -153,7 +153,7 @@ export function InvitationsPage() {
     <div className="min-h-0 flex flex-1 flex-col">
       {/* Header */}
       <div className="border-b border-border bg-background">
-        <div className="gap-3 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between">
+        <div className="gap-3 px-4 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
           <div className="min-w-0 gap-2 flex items-center">
             <div className="flex size-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
               <Mail className="size-4" />

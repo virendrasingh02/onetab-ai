@@ -367,7 +367,7 @@ function AgentBuilderCanvas() {
     <div className="min-h-160 flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden bg-background select-none">
       {/* Channel-style Header */}
       <div className="shrink-0 border-b border-border bg-background">
-        <div className="gap-2.5 px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between">
+        <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
           <div className="min-w-0 gap-2 flex items-center">
             <Hint label="Back to AI Agents">
               <Button

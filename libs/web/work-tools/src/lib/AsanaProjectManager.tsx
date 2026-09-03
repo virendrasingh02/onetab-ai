@@ -724,7 +724,7 @@ export function AsanaProjectManager() {
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-background text-foreground">
       {/* Top Header */}
-      <header className="px-6 py-3 gap-4 relative flex flex-wrap items-center justify-between border-b border-border/50 bg-card/60">
+      <header className="px-6 py-1.5 min-h-12 gap-4 relative flex flex-wrap items-center justify-between border-b border-border/50 bg-card/60">
         <div className="gap-2.5 flex flex-wrap items-center">
           {activeProject ? (
             <ProjectIconPicker
