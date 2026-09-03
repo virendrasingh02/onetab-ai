@@ -107,6 +107,25 @@ export function formatShortTimestamp(timestamp: number): string {
   });
 }
 
+/**
+ * The label a day divider carries — "Today", "Yesterday", or a full weekday
+ * date. Shared by the inline `DateSeparator` and the floating day chip that
+ * `MessageList` sticks to the top of the timeline, so the two never disagree.
+ */
+export function formatDaySeparatorLabel(timestamp: number): string {
+  const date = new Date(timestamp);
+  const today = new Date();
+  const yesterday = new Date(today.getTime() - 86_400_000);
+
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString(undefined, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
+
 export function formatFullTimestamp(timestamp: number): string {
   const date = new Date(timestamp);
   return date.toLocaleDateString(undefined, {
@@ -1041,19 +1060,7 @@ export interface DateSeparatorProps {
 export function DateSeparator({ timestamp, onJumpToDate }: DateSeparatorProps) {
   const [open, setOpen] = useState(false);
   const date = new Date(timestamp);
-  const today = new Date();
-  const yesterday = new Date(today.getTime() - 86_400_000);
-
-  const label =
-    date.toDateString() === today.toDateString()
-      ? 'Today'
-      : date.toDateString() === yesterday.toDateString()
-        ? 'Yesterday'
-        : date.toLocaleDateString(undefined, {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-          });
+  const label = formatDaySeparatorLabel(timestamp);
 
   return (
     <div className="top-0 my-2 gap-3 px-4 py-1 sticky z-10 flex items-center">

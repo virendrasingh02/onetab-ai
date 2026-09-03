@@ -36,9 +36,7 @@ import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { HashtagPlugin } from '@lexical/react/LexicalHashtagPlugin';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
-import {
-  HorizontalRuleNode,
-} from '@lexical/react/LexicalHorizontalRuleNode';
+import { HorizontalRuleNode } from '@lexical/react/LexicalHorizontalRuleNode';
 import { HorizontalRulePlugin } from '@lexical/react/LexicalHorizontalRulePlugin';
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { ListPlugin } from '@lexical/react/LexicalListPlugin';
@@ -661,7 +659,7 @@ function MentionsPlugin({
                   <Bot className="size-3.5" />
                 </span>
               ) : isApp ? (
-                <span className="size-6 bg-accent-violet-soft text-accent-violet border-accent-violet/20 flex shrink-0 items-center justify-center rounded-full border">
+                <span className="size-6 flex shrink-0 items-center justify-center rounded-full border border-accent-violet/20 bg-accent-violet-soft text-accent-violet">
                   <Blocks className="size-3.5" />
                 </span>
               ) : (
@@ -687,7 +685,7 @@ function MentionsPlugin({
                   ) : isApp ? (
                     <Badge
                       variant="neutral"
-                      className="py-0 h-3.5 font-bold tracking-wider bg-accent-violet-soft text-accent-violet border-accent-violet/20 text-[9px] uppercase"
+                      className="py-0 h-3.5 font-bold tracking-wider border-accent-violet/20 bg-accent-violet-soft text-[9px] text-accent-violet uppercase"
                     >
                       APP
                     </Badge>
@@ -724,7 +722,7 @@ function MentionsPlugin({
             {agents.map(renderOption)}
 
             {apps.length > 0 ? (
-              <li className="mt-1 px-2 py-1 font-bold text-accent-violet text-[10px] uppercase">
+              <li className="mt-1 px-2 py-1 font-bold text-[10px] text-accent-violet uppercase">
                 Connected Apps — {apps.length}
               </li>
             ) : null}
@@ -1384,7 +1382,7 @@ export function LexicalComposerInput({
       <div className="relative flex flex-1 flex-col">
         {showToolbar ? <LexicalToolbar toolbarSlot={toolbarSlot} /> : null}
 
-        <div className="px-3 py-2 relative flex-1">
+        <div className="px-4 py-3 relative flex-1">
           <RichTextPlugin
             contentEditable={
               <ContentEditable
@@ -1395,7 +1393,7 @@ export function LexicalComposerInput({
                     {placeholder}
                   </div>
                 }
-                className="max-h-64 min-h-11 text-sm font-normal w-full resize-none overflow-y-auto text-foreground outline-none"
+                className="max-h-64 min-h-8 text-sm font-normal w-full resize-none overflow-y-auto text-foreground outline-none"
               />
             }
             ErrorBoundary={LexicalErrorBoundary}

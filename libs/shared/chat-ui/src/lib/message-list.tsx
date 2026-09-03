@@ -5,6 +5,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowDown, MessageSquare } from 'lucide-react';
 import {
   useCallback,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -12,11 +13,18 @@ import {
   type ReactNode,
 } from 'react';
 import { UnreadDivider } from './channel-extras.js';
-import { DateSeparator } from './chat-bubble.js';
-import { getScrollPosition, setScrollPosition } from './scroll-position-store.js';
+import { DateSeparator, formatDaySeparatorLabel } from './chat-bubble.js';
+import {
+  getScrollAnchor,
+  setScrollAnchor,
+  type ScrollAnchor,
+} from './scroll-position-store.js';
 
 /** Consecutive messages from one sender within this window are grouped. */
 const GROUPING_WINDOW_MS = 5 * 60_000;
+
+/** Height reserved for the floating day chip, and the inline separator's. */
+const DAY_CHIP_HEIGHT = 34;
 
 type Row =
   | { kind: 'separator'; key: string; timestamp: number }
@@ -114,17 +122,25 @@ export interface MessageListProps {
   className?: string;
 }
 
+type Anchor = { key: string; offset: number };
+
 /**
  * Virtualised timeline.
  *
  * Only visible rows are mounted, so a room with tens of thousands of messages
- * costs the same to render as one with fifty. Two behaviours matter more than
- * the virtualisation itself:
+ * costs the same to render as one with fifty. The behaviours layered on top of
+ * the virtualisation are what make it feel like a chat log rather than a list:
  *
- *  - the view pins to the bottom while the user is already at the bottom, and
- *    leaves them alone when they have scrolled up to read;
- *  - loading older history preserves the scroll offset, so the content the
- *    user is reading does not jump away from under them.
+ *  - the view stays pinned to the newest message while the reader is already
+ *    there, and leaves them alone the moment they scroll up to read;
+ *  - paging in older history holds the reader on the exact message they were
+ *    looking at, re-correcting for a few frames while the freshly inserted
+ *    rows measure their real heights;
+ *  - switching conversations restores the reader's last position in the one
+ *    being opened — anchored to a message, not a raw pixel offset, so it
+ *    survives the measure pass;
+ *  - the current day's divider floats at the top of the viewport and is
+ *    nudged up out of the way by the next day's as it scrolls in.
  */
 export function MessageList({
   conversationId,
@@ -143,23 +159,39 @@ export function MessageList({
   className,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const virtualContainerRef = useRef<HTMLDivElement>(null);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
+  const [floatingDay, setFloatingDay] = useState<{
+    ts: number;
+    shift: number;
+  } | null>(null);
 
   const rows = useMemo(
     () => buildRows(messages, unreadBeforeId),
     [messages, unreadBeforeId],
   );
+  /** Latest `rows` for the rAF loops, which run outside the render pass. */
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
 
-  /** Whether the user was pinned to the bottom before this render. */
-  const wasAtBottom = useRef(true);
-  const previousScrollHeight = useRef(0);
+  /** The reader is at (or within 80px of) the newest message. */
+  const stickToBottom = useRef(true);
+  /** Message count at the previous commit — tells growth from a prepend. */
   const previousCount = useRef(messages.length);
-  /**
-   * The conversation the scroll container is currently positioned for — lets
-   * a conversation *switch* be told apart from this same conversation simply
-   * getting more messages, in the effect below.
-   */
-  const previousConversationId = useRef(conversationId);
+  /** First *message* row key last commit — a stable prepend detector. */
+  const firstMessageKey = useRef(
+    rows.find((row) => row.kind === 'message')?.key,
+  );
+  /** Set synchronously when a backfill is asked for; cleared when it lands. */
+  const loadingOlder = useRef(false);
+  /** Row to hold steady while heights settle (prepend / conversation switch). */
+  const pendingAnchor = useRef<(Anchor & { frames: number }) | null>(null);
+  /** Conversation whose saved position we still owe a restore to. */
+  const restorePendingFor = useRef<string | null | undefined>(undefined);
+  /** True while we move the scrollbar ourselves — makes `onScroll` stand down. */
+  const adjusting = useRef(false);
+  const settleRaf = useRef<number | null>(null);
+  const scrollRaf = useRef<number | null>(null);
 
   const virtualizer = useVirtualizer({
     count: rows.length,
@@ -169,6 +201,8 @@ export function MessageList({
     getItemKey: (index) => rows[index]?.key ?? index,
   });
 
+  const totalSize = virtualizer.getTotalSize();
+
   const isAtBottom = useCallback(() => {
     const element = scrollRef.current;
     if (!element) return true;
@@ -176,120 +210,386 @@ export function MessageList({
     return element.scrollHeight - element.scrollTop - element.clientHeight < 80;
   }, []);
 
+  /**
+   * Distance from the top of the scrollable content to the top of the
+   * virtualiser's container — the "load earlier" slot and, once history is
+   * exhausted, the welcome block sit above it. Virtualiser offsets are measured
+   * from its container; `scrollTop` is measured from the content. This is what
+   * converts between the two.
+   */
+  const getListOffset = useCallback(() => {
+    const listElement = virtualContainerRef.current;
+    const element = scrollRef.current;
+    if (!listElement || !element) return 0;
+    return (
+      listElement.getBoundingClientRect().top -
+      element.getBoundingClientRect().top +
+      element.scrollTop
+    );
+  }, []);
+
+  /** The row at the top edge of the viewport, and how far into it we are. */
+  const captureAnchor = useCallback((): Anchor => {
+    const element = scrollRef.current;
+    if (!element) return { key: '', offset: 0 };
+    const listTop = Math.max(0, element.scrollTop - getListOffset());
+    const item = virtualizer.getVirtualItemForOffset(listTop);
+    if (!item) return { key: '', offset: 0 };
+    return { key: String(item.key), offset: item.start - listTop };
+  }, [virtualizer, getListOffset]);
+
+  const releaseAdjusting = useCallback(() => {
+    requestAnimationFrame(() => {
+      adjusting.current = false;
+    });
+  }, []);
+
+  /**
+   * Re-pin the viewport to `pendingAnchor` once per frame for a short burst.
+   * Every frame recomputes the anchor row's offset from the virtualizer, so
+   * as the rows around it measure their real heights the reader does not
+   * drift.
+   */
+  const runSettle = useCallback(() => {
+    const element = scrollRef.current;
+    const anchor = pendingAnchor.current;
+    if (!element || !anchor) {
+      settleRaf.current = null;
+      releaseAdjusting();
+      return;
+    }
+
+    const index = rowsRef.current.findIndex((row) => row.key === anchor.key);
+    if (index >= 0) {
+      const info = virtualizer.getOffsetForIndex(index, 'start');
+      if (info) {
+        adjusting.current = true;
+        element.scrollTop = Math.max(
+          0,
+          getListOffset() + info[0] - anchor.offset,
+        );
+      }
+    }
+
+    if (index >= 0 && anchor.frames > 1) {
+      pendingAnchor.current = { ...anchor, frames: anchor.frames - 1 };
+      settleRaf.current = requestAnimationFrame(runSettle);
+    } else {
+      pendingAnchor.current = null;
+      settleRaf.current = null;
+      releaseAdjusting();
+    }
+  }, [virtualizer, releaseAdjusting, getListOffset]);
+
+  const startSettle = useCallback(() => {
+    if (!pendingAnchor.current) return;
+    if (settleRaf.current != null) cancelAnimationFrame(settleRaf.current);
+    settleRaf.current = requestAnimationFrame(runSettle);
+  }, [runSettle]);
+
+  /** Glue the viewport to the newest message for a few frames as it renders. */
+  const pinBottom = useCallback(
+    (frames = 10) => {
+      if (settleRaf.current != null) cancelAnimationFrame(settleRaf.current);
+      pendingAnchor.current = null;
+      let left = frames;
+      const step = () => {
+        const element = scrollRef.current;
+        if (!element) {
+          settleRaf.current = null;
+          return;
+        }
+        adjusting.current = true;
+        element.scrollTop = element.scrollHeight;
+        if (--left > 0) {
+          settleRaf.current = requestAnimationFrame(step);
+        } else {
+          settleRaf.current = null;
+          releaseAdjusting();
+        }
+      };
+      settleRaf.current = requestAnimationFrame(step);
+    },
+    [releaseAdjusting],
+  );
+
   const scrollToBottom = useCallback(() => {
     const element = scrollRef.current;
     if (!element) return;
     element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' });
-    wasAtBottom.current = true;
+    stickToBottom.current = true;
     setNewMessagesCount(0);
   }, []);
 
-  const handleScroll = useCallback(() => {
+  /** Which day divider is currently under the top edge, and its push-off. */
+  const updateFloatingDay = useCallback(() => {
     const element = scrollRef.current;
     if (!element) return;
 
-    const atBottom = isAtBottom();
-    wasAtBottom.current = atBottom;
-    if (atBottom) {
-      setNewMessagesCount(0);
-    }
-    if (conversationId) setScrollPosition(conversationId, element.scrollTop);
+    const listTop = element.scrollTop - getListOffset();
+    const currentRows = rowsRef.current;
 
-    // Trigger backfill before the user actually hits the top.
-    if (element.scrollTop < 200 && hasMore && !isLoadingOlder) {
-      previousScrollHeight.current = element.scrollHeight;
-      onLoadOlder?.();
-    }
-  }, [hasMore, isLoadingOlder, isAtBottom, onLoadOlder, conversationId]);
-
-  /*
-   * Switching conversations: land back on the reader's last known position in
-   * the one being opened, or at the bottom for one with no memory yet — never
-   * wherever the *previous* conversation happened to leave the scrollbar.
-   */
-  useLayoutEffect(() => {
-    const switchedConversation =
-      previousConversationId.current !== conversationId;
-    previousConversationId.current = conversationId;
-    previousCount.current = messages.length;
-    previousScrollHeight.current = 0;
-
-    if (!switchedConversation) return;
-
-    setNewMessagesCount(0);
-
-    const element = scrollRef.current;
-    if (!element) return;
-
-    if (openPosition === 'newest') {
-      element.scrollTop = element.scrollHeight;
-      wasAtBottom.current = true;
-      return;
-    }
-
-    // 'last-read' mode:
-    if (unreadBeforeId) {
-      const unreadIndex = rows.findIndex(
-        (r) =>
-          r.kind === 'unread' ||
-          (r.kind === 'message' && r.message.id === unreadBeforeId),
-      );
-      if (unreadIndex >= 0) {
-        virtualizer.scrollToIndex(unreadIndex, { align: 'start' });
-        wasAtBottom.current = false;
-        return;
+    let activeTs: number | null = null;
+    let nextStart: number | null = null;
+    for (let index = 0; index < currentRows.length; index++) {
+      const row = currentRows[index];
+      if (row.kind !== 'separator') continue;
+      const info = virtualizer.getOffsetForIndex(index, 'start');
+      const start = info ? info[0] : index * 64;
+      if (start <= listTop + 1) {
+        activeTs = row.timestamp;
+      } else {
+        nextStart = start;
+        break;
       }
     }
 
-    const saved = conversationId ? getScrollPosition(conversationId) : undefined;
-    if (saved !== undefined) {
-      element.scrollTop = saved;
-      wasAtBottom.current =
-        element.scrollHeight - saved - element.clientHeight < 80;
-    } else {
-      element.scrollTop = element.scrollHeight;
-      wasAtBottom.current = true;
-    }
-  }, [conversationId, openPosition, unreadBeforeId, rows, virtualizer]);
-
-  // Runs before paint, so neither correction is ever visible as a flicker.
-  useLayoutEffect(() => {
-    const element = scrollRef.current;
-    if (!element) return;
-
-    const diff = messages.length - previousCount.current;
-    const grew = diff > 0;
-    previousCount.current = messages.length;
-
-    if (previousScrollHeight.current && grew) {
-      // Older messages were prepended: restore the reading position by the
-      // exact amount the content grew.
-      element.scrollTop = element.scrollHeight - previousScrollHeight.current;
-      previousScrollHeight.current = 0;
+    if (activeTs == null) {
+      setFloatingDay((current) => (current === null ? current : null));
       return;
     }
 
-    if (wasAtBottom.current && grew) {
-      requestAnimationFrame(() => {
-        if (element && wasAtBottom.current) {
-          element.scrollTop = element.scrollHeight;
-        }
-      });
-    } else if (!wasAtBottom.current && grew) {
-      // User is reading older messages and new messages arrived
-      setNewMessagesCount((prev) => prev + diff);
-    }
-  }, [messages.length]);
+    // As the next day's divider scrolls up towards the top, ride the floating
+    // chip up ahead of it so one hands off to the other rather than overlapping.
+    const shift =
+      nextStart != null
+        ? Math.min(0, nextStart - listTop - DAY_CHIP_HEIGHT)
+        : 0;
+    const ts = activeTs;
+    setFloatingDay((current) =>
+      current && current.ts === ts && current.shift === shift
+        ? current
+        : { ts, shift },
+    );
+  }, [virtualizer, getListOffset]);
 
-  // Keep pinned to bottom when cards, images, or embeds dynamically expand heights
-  const virtualContainerRef = useRef<HTMLDivElement>(null);
+  const processScroll = useCallback(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+
+    if (!adjusting.current) {
+      const atBottom = isAtBottom();
+      stickToBottom.current = atBottom;
+      if (atBottom) setNewMessagesCount(0);
+
+      if (
+        conversationId &&
+        restorePendingFor.current !== conversationId
+      ) {
+        const anchor = captureAnchor();
+        const next: ScrollAnchor = { ...anchor, atBottom };
+        setScrollAnchor(conversationId, next);
+      }
+
+      const firstVisibleIndex =
+        virtualizer.getVirtualItems()[0]?.index ?? Number.MAX_SAFE_INTEGER;
+      const nearTop = element.scrollTop < 400 || firstVisibleIndex <= 2;
+      if (nearTop && hasMore && !loadingOlder.current && !isLoadingOlder) {
+        loadingOlder.current = true;
+        const anchor = captureAnchor();
+        if (anchor.key) pendingAnchor.current = { ...anchor, frames: 16 };
+        onLoadOlder?.();
+      }
+    }
+
+    updateFloatingDay();
+  }, [
+    conversationId,
+    hasMore,
+    isLoadingOlder,
+    isAtBottom,
+    captureAnchor,
+    onLoadOlder,
+    updateFloatingDay,
+    virtualizer,
+  ]);
+
+  /** Coalesce the scroll handler to one run per frame. */
+  const onScroll = useCallback(() => {
+    if (scrollRaf.current != null) return;
+    scrollRaf.current = requestAnimationFrame(() => {
+      scrollRaf.current = null;
+      processScroll();
+    });
+  }, [processScroll]);
+
+  /*
+   * A conversation switch: mark that we owe this conversation a restore, and
+   * silence `onScroll` until the restore effect below has placed the view —
+   * the rows arrive a commit or two later, and every scroll event in between
+   * is the virtualizer settling, not the reader.
+   */
+  useLayoutEffect(() => {
+    restorePendingFor.current = conversationId;
+    setNewMessagesCount(0);
+    setFloatingDay(null);
+    pendingAnchor.current = null;
+    if (settleRaf.current != null) {
+      cancelAnimationFrame(settleRaf.current);
+      settleRaf.current = null;
+    }
+    previousCount.current = messages.length;
+    firstMessageKey.current = rowsRef.current.find(
+      (row) => row.kind === 'message',
+    )?.key;
+    adjusting.current = !!conversationId;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
+
+  /*
+   * Place the view for the conversation being opened, once its rows are
+   * actually in. Unread divider first (last-read mode), then the reader's
+   * saved anchor, then — for a conversation with no memory — the newest
+   * message.
+   */
+  useLayoutEffect(() => {
+    if (restorePendingFor.current !== conversationId) return;
+
+    const element = scrollRef.current;
+    if (!element) return;
+
+    if (!conversationId) {
+      restorePendingFor.current = null;
+      adjusting.current = false;
+      return;
+    }
+    if (rows.length === 0) return; // this conversation's messages aren't in yet
+
+    restorePendingFor.current = null;
+    previousCount.current = messages.length;
+    firstMessageKey.current = rows.find((row) => row.kind === 'message')?.key;
+
+    const unreadIndex =
+      openPosition !== 'newest' && unreadBeforeId
+        ? rows.findIndex((row) => row.kind === 'unread')
+        : -1;
+    if (unreadIndex >= 0) {
+      stickToBottom.current = false;
+      pendingAnchor.current = {
+        key: rows[unreadIndex].key,
+        offset: 0,
+        frames: 16,
+      };
+      startSettle();
+      updateFloatingDay();
+      return;
+    }
+
+    const saved =
+      openPosition === 'newest' ? undefined : getScrollAnchor(conversationId);
+    if (
+      saved &&
+      !saved.atBottom &&
+      rows.some((row) => row.key === saved.key)
+    ) {
+      stickToBottom.current = false;
+      pendingAnchor.current = {
+        key: saved.key,
+        offset: saved.offset,
+        frames: 16,
+      };
+      startSettle();
+      updateFloatingDay();
+      return;
+    }
+
+    stickToBottom.current = true;
+    pinBottom();
+    updateFloatingDay();
+  }, [
+    conversationId,
+    messages.length,
+    rows,
+    openPosition,
+    unreadBeforeId,
+    startSettle,
+    pinBottom,
+    updateFloatingDay,
+  ]);
+
+  // Runs before paint, so none of these corrections flicker.
+  useLayoutEffect(() => {
+    const diff = messages.length - previousCount.current;
+    previousCount.current = messages.length;
+
+    const prevFirstMessage = firstMessageKey.current;
+    firstMessageKey.current = rows.find((row) => row.kind === 'message')?.key;
+
+    if (diff === 0) return;
+    if (restorePendingFor.current === conversationId) return; // switch owns it
+
+    const prepended =
+      !!prevFirstMessage &&
+      prevFirstMessage !== firstMessageKey.current &&
+      rows.some(
+        (row) => row.kind === 'message' && row.key === prevFirstMessage,
+      );
+
+    if (prepended) {
+      if (!pendingAnchor.current) {
+        pendingAnchor.current = {
+          key: prevFirstMessage,
+          offset: 0,
+          frames: 16,
+        };
+      }
+      startSettle();
+      return;
+    }
+
+    if (diff > 0) {
+      if (stickToBottom.current) {
+        pinBottom();
+      } else {
+        setNewMessagesCount((previous) => previous + diff);
+      }
+    }
+  }, [messages.length, rows, conversationId, startSettle, pinBottom]);
+
+  // Clear the backfill guard when the load resolves; drop a stashed anchor if
+  // the page came back empty (nothing was prepended to hold onto).
+  useEffect(() => {
+    if (isLoadingOlder) return;
+    loadingOlder.current = false;
+    if (pendingAnchor.current && settleRaf.current == null) {
+      pendingAnchor.current = null;
+    }
+  }, [isLoadingOlder]);
+
+  // Keep the floating day chip honest after a prepend / switch / resize, not
+  // only on scroll.
+  useLayoutEffect(() => {
+    updateFloatingDay();
+  }, [rows, updateFloatingDay]);
+
+  // Follow measure-driven height growth while pinned to the bottom (a card,
+  // image or embed expanding, or the first page finishing its measure pass).
+  useLayoutEffect(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    if (
+      stickToBottom.current &&
+      !pendingAnchor.current &&
+      !adjusting.current &&
+      restorePendingFor.current !== conversationId
+    ) {
+      element.scrollTop = element.scrollHeight;
+    }
+  }, [totalSize, conversationId]);
+
   useLayoutEffect(() => {
     const target = virtualContainerRef.current;
     if (!target) return;
 
     const observer = new ResizeObserver(() => {
       const element = scrollRef.current;
-      if (element && wasAtBottom.current) {
+      if (
+        element &&
+        stickToBottom.current &&
+        !pendingAnchor.current &&
+        !adjusting.current &&
+        !restorePendingFor.current
+      ) {
         element.scrollTop = element.scrollHeight;
       }
     });
@@ -297,6 +597,14 @@ export function MessageList({
     observer.observe(target);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(
+    () => () => {
+      if (settleRaf.current != null) cancelAnimationFrame(settleRaf.current);
+      if (scrollRaf.current != null) cancelAnimationFrame(scrollRaf.current);
+    },
+    [],
+  );
 
   if (error) {
     return (
@@ -334,15 +642,22 @@ export function MessageList({
         )}
         viewportRef={scrollRef}
         viewportProps={{
-          onScroll: handleScroll,
+          onScroll,
           role: 'log',
           'aria-label': 'Messages',
           'aria-live': 'polite',
         }}
       >
-        {isLoadingOlder ? (
-          <div className="py-3 flex justify-center">
-            <Spinner label="Loading earlier messages" />
+        {/*
+          Reserved whenever there is more history, spinner or not, so the row
+          does not appear and shove the timeline down the instant a backfill
+          starts.
+        */}
+        {hasMore || isLoadingOlder ? (
+          <div className="h-11 shrink-0 flex items-center justify-center">
+            {isLoadingOlder ? (
+              <Spinner label="Loading earlier messages" />
+            ) : null}
           </div>
         ) : null}
 
@@ -365,7 +680,7 @@ export function MessageList({
 
         <div
           ref={virtualContainerRef}
-          style={{ height: virtualizer.getTotalSize(), position: 'relative' }}
+          style={{ height: totalSize, position: 'relative' }}
         >
           {virtualizer.getVirtualItems().map((virtualRow) => {
             const row = rows[virtualRow.index];
@@ -396,6 +711,23 @@ export function MessageList({
           })}
         </div>
       </ScrollArea>
+
+      {/*
+        The current day's divider, floating at the top of the viewport. The
+        inline `DateSeparator` rows still scroll past normally underneath — this
+        is the one that stays put, and `shift` lifts it out of the way as the
+        next day's inline divider arrives at the top.
+      */}
+      {floatingDay ? (
+        <div className="top-0 inset-x-0 absolute z-20 flex justify-center overflow-hidden pointer-events-none pb-2">
+          <div
+            className="mt-2 px-4 py-1 text-xs font-semibold rounded-full border border-border bg-surface text-foreground shadow-xs"
+            style={{ transform: `translateY(${floatingDay.shift}px)` }}
+          >
+            {formatDaySeparatorLabel(floatingDay.ts)}
+          </div>
+        </div>
+      ) : null}
 
       {/* Floating Slack-style Jump to Bottom Indicator */}
       {newMessagesCount > 0 ? (
