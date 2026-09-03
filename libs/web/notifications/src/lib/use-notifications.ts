@@ -302,6 +302,36 @@ function toIndicator(items: ActivityFeedItem[]): ActivityIndicator {
 }
 
 /**
+ * Folds a live unread/mention count (read straight off a Matrix room) into the
+ * feed-derived {@link ActivityIndicator} for the same row. Counts take the
+ * larger of the two sources and a mention on either side wins — so the sidebar
+ * dot shows the instant a message lands (live) while still reflecting anything
+ * the feed knows that the client has not synced yet.
+ */
+export function mergeActivityIndicators(
+  feed: ActivityIndicator | undefined,
+  live: { unreadCount: number; mentionCount: number } | undefined,
+): ActivityIndicator {
+  const base = feed ?? NO_ACTIVITY;
+  if (!live) return base;
+
+  const count = Math.max(base.count, Math.max(0, live.unreadCount));
+  const mentionCount = Math.max(
+    base.mentionCount,
+    Math.max(0, live.mentionCount),
+  );
+
+  const level: ActivityLevel =
+    mentionCount > 0 || base.level === 'mention'
+      ? 'mention'
+      : count > 0 || base.level === 'activity'
+        ? 'activity'
+        : 'none';
+
+  return level === 'none' ? NO_ACTIVITY : { level, count, mentionCount };
+}
+
+/**
  * An indicator per workspace, including ones the user is not currently in.
  *
  * Every workspace's feed is fetched under the same query key and options the

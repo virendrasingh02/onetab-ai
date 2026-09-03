@@ -431,6 +431,17 @@ export function ChatPanel({
     [client, roomId, room.messages],
   );
 
+  /*
+   * "Mark as read" from the timeline's sticky new-messages bar. Sending a read
+   * receipt for the newest event zeroes the room's unread count, which is what
+   * both the unread divider and the sidebar's live activity dot read from.
+   */
+  const handleMarkRead = useCallback(() => {
+    if (!client || !roomId) return;
+    const last = room.messages.at(-1);
+    if (last) void client.markRead(roomId, last.id);
+  }, [client, roomId, room.messages]);
+
   if (!enabled) {
     return (
       <EmptyState
@@ -486,6 +497,7 @@ export function ChatPanel({
         (client.getRoom(roomId)?.isEncrypted ?? false)
       }
       banner={<ConnectionBanner status={status} />}
+      connectionState={status.state}
       myUserId={client?.getSession()?.userId}
       conversationId={roomId}
       messages={isConnecting ? [] : room.messages}
@@ -504,6 +516,7 @@ export function ChatPanel({
       deepLinkMessageId={messageParam}
       unreadThreadRootIds={unreadThreadRootIds}
       onThreadRead={handleThreadRead}
+      onMarkRead={handleMarkRead}
       onSend={actions.send}
       onEdit={actions.edit}
       onDelete={actions.remove}

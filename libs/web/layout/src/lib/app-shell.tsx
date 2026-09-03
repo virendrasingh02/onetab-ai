@@ -24,11 +24,14 @@ import { AppDownloadBanner, useDesktopCommand } from '@org/web-desktop';
 import { useMembers } from '@org/web-members';
 import {
   NotificationEnableBar,
+  mergeActivityIndicators,
   useChannelActivity,
   useNotificationFeed,
   useNotificationUnread,
   useWorkspaceActivity,
+  type ActivityIndicator,
 } from '@org/notifications';
+import { useLiveRoomActivity } from '@org/web-chat';
 import { WorkspaceSearchPanel } from '@org/web-search';
 import { InviteMembersDialog } from '@org/web-invitations';
 import {
@@ -132,10 +135,33 @@ export function AppShell() {
    */
   const notificationFeed = useNotificationFeed(workspaceId);
   const unread = useNotificationUnread(workspaceId, notificationFeed.data);
-  const channelActivity = useChannelActivity(
+  const feedChannelActivity = useChannelActivity(
     workspaceId,
     notificationFeed.data,
   );
+
+  /*
+   * The notifications feed refetches on a poll (and on realtime notification
+   * events); the Matrix client knows a channel's unread count the moment a
+   * message arrives. Merge the live counts over the feed's, keyed by channel
+   * name, so a sidebar row lights up immediately instead of up to a minute
+   * later. The feed stays the backstop for anything the client has not synced.
+   */
+  const liveRoomActivity = useLiveRoomActivity();
+  const channelActivity = useMemo(() => {
+    const merged: Record<string, ActivityIndicator> = { ...feedChannelActivity };
+    for (const channel of channelsQuery.data ?? []) {
+      const live = liveRoomActivity.byChannelName.get(
+        channel.name.toLowerCase().trim(),
+      );
+      if (!live) continue;
+      merged[channel.id] = mergeActivityIndicators(
+        feedChannelActivity[channel.id],
+        live,
+      );
+    }
+    return merged;
+  }, [feedChannelActivity, liveRoomActivity, channelsQuery.data]);
 
   /*
    * Every workspace's feed, not just this one's — the switcher has to say

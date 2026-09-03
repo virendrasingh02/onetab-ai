@@ -18,6 +18,7 @@ import {
   TypingIndicator,
 } from '@org/chat-ui';
 import type {
+  ConnectionState,
   Message,
   PresenceState,
   RoomMember,
@@ -80,6 +81,12 @@ export interface ChatSurfaceProps {
   subtitle?: string;
   isEncrypted?: boolean;
   banner?: ReactNode;
+  /**
+   * Transient client connection state, forwarded to the timeline so it can
+   * float a "syncing / reconnecting" pill over the messages without shifting
+   * layout. Blocking states still come through `banner`.
+   */
+  connectionState?: ConnectionState;
   myUserId?: string;
 
   /**
@@ -163,6 +170,8 @@ export interface ChatSurfaceProps {
   unreadThreadRootIds?: readonly string[];
   /** Called while a thread panel is open, so the host can mark it read. */
   onThreadRead?: (threadRootId: string) => void;
+  /** Marks the whole conversation read — from the sticky "new messages" bar. */
+  onMarkRead?: () => void;
 
   /** Offered by the channel welcome block; there is no bookmarks bar. */
   onAddBookmark?: () => void;
@@ -215,6 +224,7 @@ export function ChatSurface({
   subtitle,
   isEncrypted = false,
   banner,
+  connectionState,
   myUserId,
   conversationId,
   messages,
@@ -240,6 +250,7 @@ export function ChatSurface({
   deepLinkMessageId,
   unreadThreadRootIds,
   onThreadRead,
+  onMarkRead,
   onAddBookmark,
   onSend,
   onEdit,
@@ -870,6 +881,8 @@ export function ChatSurface({
             unreadBeforeId={firstUnreadId}
             density={messageDensity}
             openPosition={openPosition}
+            connectionState={connectionState}
+            onMarkRead={onMarkRead}
             onLoadOlder={onLoadOlder}
             renderMessage={renderMessage}
             introSlot={

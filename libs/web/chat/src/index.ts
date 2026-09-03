@@ -12,6 +12,11 @@ export {
 export { useChannelRoom } from './lib/use-channel-room.js';
 export { useDirectRoom } from './lib/use-direct-room.js';
 export {
+  useLiveRoomActivity,
+  type LiveRoomActivity,
+  type RoomActivityEntry,
+} from './lib/use-live-room-activity.js';
+export {
   useCreateConversation,
   type CreatedConversation,
   type CreateConversationInput,

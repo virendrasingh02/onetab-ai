@@ -24,6 +24,7 @@ export {
 } from './lib/notification-enable-bar.js';
 
 export {
+  mergeActivityIndicators,
   useChannelActivity,
   useDirectMessageActivity,
   useMarkChannelSeen,

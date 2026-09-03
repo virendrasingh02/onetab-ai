@@ -103,11 +103,13 @@ export {
 
 export {
   ConnectionBanner,
+  ConnectionPill,
   EncryptionBadge,
   MemberList,
   TypingIndicator,
   getUserColor,
   type ConnectionBannerProps,
+  type ConnectionPillProps,
   type MemberListProps,
   type TypingIndicatorProps,
 } from './lib/indicators.js';

@@ -1,4 +1,9 @@
-import type { ConnectionStatus, PresenceState, RoomMember } from '@org/types';
+import type {
+  ConnectionState,
+  ConnectionStatus,
+  PresenceState,
+  RoomMember,
+} from '@org/types';
 import { Badge, ScrollArea, UserAvatar } from '@org/ui';
 import { cn } from '@org/utils';
 import { Loader2, ShieldCheck, WifiOff } from 'lucide-react';
@@ -80,35 +85,72 @@ export interface ConnectionBannerProps {
   status: ConnectionStatus;
 }
 
+/**
+ * The full-width, layout-occupying status strip — reserved now for the two
+ * states the reader has to act on: an expired session (reload to sign in) and a
+ * hard connection error. The transient states (`connecting` / `syncing` /
+ * `reconnecting`) no longer shove the conversation down a row every time the
+ * socket blips; {@link ConnectionPill} floats those over the timeline instead.
+ */
 export function ConnectionBanner({ status }: ConnectionBannerProps) {
-  if (status.state === 'connected' || status.state === 'disconnected') {
+  if (status.state !== 'expired' && status.state !== 'error') {
     return null;
   }
-
-  const isError = status.state === 'error' || status.state === 'expired';
 
   return (
     <div
       role="status"
       className={cn(
         'gap-2 px-4 py-1.5 text-xs flex items-center justify-center',
-        isError
-          ? 'bg-destructive/10 text-destructive'
-          : 'bg-warning/15 text-warning-text',
+        'bg-destructive/10 text-destructive',
       )}
     >
-      {isError ? (
-        <WifiOff className="size-3.5" aria-hidden />
-      ) : (
-        <Loader2 className="size-3.5 animate-spin" aria-hidden />
-      )}
+      <WifiOff className="size-3.5" aria-hidden />
       {status.state === 'expired'
         ? 'Your chat session expired. Reload to sign in again.'
-        : status.state === 'reconnecting'
-          ? 'Reconnecting…'
-          : status.state === 'syncing'
-            ? 'Syncing messages…'
-            : (status.error ?? 'Connecting…')}
+        : (status.error ?? 'Connection lost. Trying to reconnect…')}
+    </div>
+  );
+}
+
+export interface ConnectionPillProps {
+  /** Only the transient states render; anything else is `null`. */
+  state?: ConnectionState;
+}
+
+/**
+ * The Slack-style floating status pill. Drops in over the top of the message
+ * list while the client is `connecting` / `syncing` / `reconnecting` and takes
+ * no layout height, so the timeline never jumps. Blocking states go through
+ * {@link ConnectionBanner}.
+ */
+export function ConnectionPill({ state }: ConnectionPillProps) {
+  if (
+    state !== 'connecting' &&
+    state !== 'syncing' &&
+    state !== 'reconnecting'
+  ) {
+    return null;
+  }
+
+  const label =
+    state === 'syncing'
+      ? 'Syncing messages…'
+      : state === 'reconnecting'
+        ? 'Reconnecting…'
+        : 'Connecting…';
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="gap-1.5 px-3 py-1 text-xs font-medium flex items-center rounded-full border border-border bg-surface/95 text-foreground shadow-md backdrop-blur"
+    >
+      <Loader2
+        className="size-3.5 animate-spin text-muted-foreground"
+        aria-hidden
+      />
+      {label}
     </div>
   );
 }

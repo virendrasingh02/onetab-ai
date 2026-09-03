@@ -1,5 +1,13 @@
-import type { Message } from '@org/types';
-import { Button, EmptyState, ErrorState, ScrollArea, Spinner } from '@org/ui';
+import type { ConnectionState, Message } from '@org/types';
+import {
+  Button,
+  EmptyState,
+  ErrorState,
+  ScrollArea,
+  Spinner,
+  UserAvatarGroup,
+  type AvatarGroupUser,
+} from '@org/ui';
 import { cn } from '@org/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowDown, MessageSquare } from 'lucide-react';
@@ -14,6 +22,7 @@ import {
 } from 'react';
 import { UnreadDivider } from './channel-extras.js';
 import { DateSeparator, formatDaySeparatorLabel } from './chat-bubble.js';
+import { ConnectionPill } from './indicators.js';
 import {
   getScrollAnchor,
   setScrollAnchor,
@@ -25,6 +34,13 @@ const GROUPING_WINDOW_MS = 5 * 60_000;
 
 /** Height reserved for the floating day chip, and the inline separator's. */
 const DAY_CHIP_HEIGHT = 34;
+
+/**
+ * Height of the sticky "N new messages" bar. The floating day chip and the
+ * connection pill ride down by this much while the bar is showing so nothing
+ * stacks on top of it.
+ */
+const NEW_MESSAGES_BAR_HEIGHT = 32;
 
 type Row =
   | { kind: 'separator'; key: string; timestamp: number }
@@ -112,6 +128,17 @@ export interface MessageListProps {
    */
   openPosition?: 'last-read' | 'newest';
   /**
+   * Transient client connection state. When set to `connecting` / `syncing` /
+   * `reconnecting`, a floating pill drops in at the top of the list; anything
+   * else (or unset) shows nothing. Blocking states are the host's job.
+   */
+  connectionState?: ConnectionState;
+  /**
+   * Marks the conversation read from the sticky "new messages" bar. Without it
+   * the bar still offers "jump to latest", just not "mark as read".
+   */
+  onMarkRead?: () => void;
+  /**
    * Rendered at the very top of the timeline — the channel's welcome block.
    *
    * It only appears once every older message has been loaded, so it marks the
@@ -155,6 +182,8 @@ export function MessageList({
   unreadBeforeId,
   density = 'comfy',
   openPosition = 'last-read',
+  connectionState,
+  onMarkRead,
   introSlot,
   className,
 }: MessageListProps) {
@@ -173,6 +202,31 @@ export function MessageList({
   /** Latest `rows` for the rAF loops, which run outside the render pass. */
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
+
+  /**
+   * Distinct authors of the messages that arrived while the reader was scrolled
+   * up — the faces on the jump-to-latest pill. Newest-first, capped at three;
+   * `UserAvatarGroup` renders the "+N" itself.
+   */
+  const newSenders = useMemo<AvatarGroupUser[]>(() => {
+    if (newMessagesCount <= 0) return [];
+    const seen = new Map<string, AvatarGroupUser>();
+    for (
+      let i = messages.length - 1;
+      i >= 0 && i >= messages.length - newMessagesCount;
+      i--
+    ) {
+      const message = messages[i];
+      if (!message || seen.has(message.senderId)) continue;
+      seen.set(message.senderId, {
+        id: message.senderId,
+        name: message.senderName,
+        avatarUrl: message.senderAvatarUrl,
+      });
+      if (seen.size >= 3) break;
+    }
+    return [...seen.values()];
+  }, [messages, newMessagesCount]);
 
   /** The reader is at (or within 80px of) the newest message. */
   const stickToBottom = useRef(true);
@@ -713,13 +767,55 @@ export function MessageList({
       </ScrollArea>
 
       {/*
+        Sticky "N new messages" bar — pinned to the top of the list for the
+        messages that arrived while the reader was scrolled up. The body jumps
+        to the newest; "Mark as read" clears it without moving the viewport.
+      */}
+      {newMessagesCount > 0 ? (
+        <div
+          className="top-0 inset-x-0 absolute z-30 gap-2 pl-4 pr-2 text-xs font-medium flex items-center justify-between border-b border-primary/20 bg-primary/10 text-primary-text animate-in fade-in slide-in-from-top-1 duration-200"
+          style={{ height: NEW_MESSAGES_BAR_HEIGHT }}
+        >
+          <button
+            type="button"
+            onClick={scrollToBottom}
+            className="h-full flex-1 text-left"
+          >
+            {newMessagesCount === 1
+              ? '1 new message'
+              : `${newMessagesCount} new messages`}
+          </button>
+          {onMarkRead ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 shrink-0 px-2 text-xs text-primary-text hover:bg-primary/15"
+              onClick={() => {
+                onMarkRead();
+                setNewMessagesCount(0);
+              }}
+            >
+              Mark as read
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/*
         The current day's divider, floating at the top of the viewport. The
         inline `DateSeparator` rows still scroll past normally underneath — this
         is the one that stays put, and `shift` lifts it out of the way as the
         next day's inline divider arrives at the top.
       */}
       {floatingDay ? (
-        <div className="top-0 inset-x-0 absolute z-20 flex justify-center overflow-hidden pointer-events-none pb-2">
+        <div
+          className="top-0 inset-x-0 absolute z-20 flex justify-center overflow-hidden pointer-events-none pb-2"
+          style={
+            newMessagesCount > 0
+              ? { transform: `translateY(${NEW_MESSAGES_BAR_HEIGHT}px)` }
+              : undefined
+          }
+        >
           <div
             className="mt-2 px-4 py-1 text-xs font-semibold rounded-full border border-border bg-surface text-foreground shadow-xs"
             style={{ transform: `translateY(${floatingDay.shift}px)` }}
@@ -729,17 +825,39 @@ export function MessageList({
         </div>
       ) : null}
 
-      {/* Floating Slack-style Jump to Bottom Indicator */}
+      {/*
+        Transient connection status — a floating pill that never takes layout
+        height, so a sync blip does not push the timeline around. Blocking
+        states (expired / error) go through the host's full-width banner.
+      */}
+      {connectionState ? (
+        <div
+          className="top-0 inset-x-0 absolute z-30 flex justify-center pt-2 pointer-events-none"
+          style={
+            newMessagesCount > 0
+              ? { transform: `translateY(${NEW_MESSAGES_BAR_HEIGHT}px)` }
+              : undefined
+          }
+        >
+          <ConnectionPill state={connectionState} />
+        </div>
+      ) : null}
+
+      {/* Floating jump-to-latest pill, with the faces of who you missed. */}
       {newMessagesCount > 0 ? (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-200">
           <Button
             variant="primary"
             size="sm"
             onClick={scrollToBottom}
-            className="rounded-full shadow-md gap-1.5 px-3.5 py-1 h-8 text-xs font-semibold"
+            className="rounded-full shadow-lg gap-2 py-1 pl-2 pr-3.5 h-8 text-xs font-semibold"
             aria-label={`Jump to ${newMessagesCount} new messages`}
           >
-            <ArrowDown className="size-3.5" />
+            {newSenders.length > 0 ? (
+              <UserAvatarGroup users={newSenders} size="xs" />
+            ) : (
+              <ArrowDown className="size-3.5" />
+            )}
             <span>
               {newMessagesCount === 1
                 ? '1 new message'
