@@ -3,12 +3,18 @@ import { useCurrentUser } from '@org/auth';
 import { store, useNotificationDisplayPreferences } from '@org/common';
 import { ThemeProvider } from '@org/design-system';
 import { MediaPreviewProvider } from '@org/media-preview';
-import { ErrorBoundary, Toaster, TooltipProvider, toast } from '@org/ui';
-import { RealtimeProvider } from '@org/realtime';
+import {
+  AvatarPresenceProvider,
+  ErrorBoundary,
+  Toaster,
+  TooltipProvider,
+  toast,
+} from '@org/ui';
+import { RealtimeProvider, useUserPresenceMap } from '@org/realtime';
 import { MatrixProvider } from '@org/web-chat';
 import { DesktopChrome, DesktopProvider } from '@org/web-desktop';
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useState, type ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { Provider } from 'react-redux';
 import { useThemeSync } from './use-theme-sync';
 
@@ -35,7 +41,28 @@ function ThemeSync() {
 
 function RealtimeAppBridge({ children }: { children: ReactNode }) {
   const user = useCurrentUser();
-  return <RealtimeProvider userId={user?.id}>{children}</RealtimeProvider>;
+  return (
+    <RealtimeProvider userId={user?.id}>
+      <AvatarPresenceBridge>{children}</AvatarPresenceBridge>
+    </RealtimeProvider>
+  );
+}
+
+/**
+ * Feeds the live workspace presence map (from `@org/realtime`, which loads it
+ * from the API and keeps it current over the socket) to every `UserAvatar` on
+ * the page. A user with no live reading falls back to whatever `presence` prop
+ * the call site passed.
+ */
+function AvatarPresenceBridge({ children }: { children: ReactNode }) {
+  const presenceMap = useUserPresenceMap();
+  const resolve = useCallback(
+    (userId: string) => presenceMap[userId]?.status,
+    [presenceMap],
+  );
+  return (
+    <AvatarPresenceProvider resolve={resolve}>{children}</AvatarPresenceProvider>
+  );
 }
 
 /**

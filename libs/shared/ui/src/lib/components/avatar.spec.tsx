@@ -1,7 +1,7 @@
 import { avatarGradient, avatarTint, normalizeAvatarSeed } from '@org/design-system';
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { PresenceDot, UserAvatar } from './avatar.js';
+import { AvatarPresenceProvider, PresenceDot, UserAvatar } from './avatar.js';
 
 /**
  * The whole point of the avatar work: one person, one fallback colour, on every
@@ -107,6 +107,42 @@ describe('UserAvatar status indicator', () => {
     );
     expect(container.querySelector('[role="status"]')).toBeNull();
     expect(container.textContent).not.toContain('🌴');
+  });
+
+  it('a live presence resolver overrides the presence prop', () => {
+    const userId = 'ckz9q1abc000d3b6l7xk2m9pq';
+    const { container } = render(
+      <AvatarPresenceProvider resolve={(id) => (id === userId ? 'busy' : undefined)}>
+        {/* prop says online, live says busy — busy wins */}
+        <UserAvatar name="Ada" seed={userId} presence="online" />
+      </AvatarPresenceProvider>,
+    );
+    expect(
+      container.querySelector('[role="status"]')?.getAttribute('title'),
+    ).toBe('Do not disturb');
+  });
+
+  it('resolves live presence for a chat Matrix-id seed too', () => {
+    const userId = 'ckz9q1abc000d3b6l7xk2m9pq';
+    const { container } = render(
+      <AvatarPresenceProvider resolve={(id) => (id === userId ? 'online' : undefined)}>
+        <UserAvatar name="Ada" seed={`@onetab_${userId}:matrix.example.com`} />
+      </AvatarPresenceProvider>,
+    );
+    expect(
+      container.querySelector('[role="status"]')?.getAttribute('title'),
+    ).toBe('Online');
+  });
+
+  it('falls back to the prop when the resolver has no reading', () => {
+    const { container } = render(
+      <AvatarPresenceProvider resolve={() => undefined}>
+        <UserAvatar name="Ada" seed="user-1" presence="away" />
+      </AvatarPresenceProvider>,
+    );
+    expect(
+      container.querySelector('[role="status"]')?.getAttribute('title'),
+    ).toBe('Away');
   });
 
   it('the avatar dot and a standalone PresenceDot render identical colour', () => {

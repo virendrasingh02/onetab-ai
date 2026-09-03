@@ -1,8 +1,17 @@
-import { avatarGradient, avatarTint } from '@org/design-system';
+import {
+  avatarGradient,
+  avatarTint,
+  normalizeAvatarSeed,
+} from '@org/design-system';
 import { cn, initials } from '@org/utils';
 import * as AvatarPrimitive from '@radix-ui/react-avatar';
 import { cva, type VariantProps } from 'class-variance-authority';
-import type { ComponentProps } from 'react';
+import {
+  createContext,
+  useContext,
+  type ComponentProps,
+  type ReactNode,
+} from 'react';
 import { IconRenderer } from './icon-picker-popover.js';
 import { Hint } from './tooltip.js';
 
@@ -129,6 +138,52 @@ export function toPresenceStatus(
     : 'offline';
 }
 
+/**
+ * Resolves a user id to their *live* presence, or `undefined` when there is no
+ * live reading for them.
+ *
+ * This is the seam that lets every `UserAvatar` show real, DB-backed presence
+ * without each call site wiring a realtime hook. `@org/ui` cannot depend on the
+ * realtime layer, so the app provides the lookup: it reads the workspace
+ * presence snapshot / live events from `@org/realtime` and hands the resolver
+ * to `AvatarPresenceProvider` near the root. Unprovided, it is a no-op and
+ * avatars fall back to the `presence` prop.
+ */
+export type AvatarPresenceResolver = (
+  userId: string,
+) => PresenceInput | null | undefined;
+
+const AvatarPresenceContext = createContext<AvatarPresenceResolver>(
+  () => undefined,
+);
+
+export function AvatarPresenceProvider({
+  resolve,
+  children,
+}: {
+  resolve: AvatarPresenceResolver;
+  children: ReactNode;
+}) {
+  return (
+    <AvatarPresenceContext.Provider value={resolve}>
+      {children}
+    </AvatarPresenceContext.Provider>
+  );
+}
+
+/**
+ * The presence to draw for a user: the live reading when one exists, else the
+ * caller's `fallback` (typically a snapshot from a REST payload), else unknown.
+ */
+export function useResolvedPresence(
+  userId: string | undefined,
+  fallback?: PresenceInput | null,
+): PresenceInput | null | undefined {
+  const resolve = useContext(AvatarPresenceContext);
+  const live = userId ? resolve(userId) : undefined;
+  return live ?? fallback;
+}
+
 export interface UserAvatarProps extends Omit<AvatarProps, 'shape'> {
   name: string;
   src?: string | null;
@@ -245,6 +300,12 @@ export function UserAvatar({
   // the same colour. Fall back to the name only when there is genuinely no seed.
   const tintSeed = seed?.trim() ? seed : name;
 
+  // Live presence wins over the (usually snapshot) `presence` prop. The seed is
+  // normally the user id; `normalizeAvatarSeed` also turns a chat Matrix id into
+  // the same id the presence map is keyed by.
+  const presenceKey = seed?.trim() ? normalizeAvatarSeed(seed) : undefined;
+  const resolvedPresence = useResolvedPresence(presenceKey, presence);
+
   const geometry = INDICATOR_SIZES[size ?? 'md'];
   const showEmoji = indicator && Boolean(statusEmoji);
   const showDot = indicator && !statusEmoji;
@@ -273,7 +334,7 @@ export function UserAvatar({
       </Avatar>
       {showDot ? (
         <PresenceDot
-          presence={presence}
+          presence={resolvedPresence}
           size={size}
           name={name}
           className="-right-0.5 -bottom-0.5 absolute ring-2 ring-background cursor-default pointer-events-auto"
