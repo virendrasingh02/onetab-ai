@@ -734,10 +734,10 @@ export function ChannelPage() {
         <div className="px-3 sm:px-6 py-1 gap-1 flex items-center border-b border-border bg-background">
           <TabsList className="scrollbar-none overflow-x-auto">
             <TabsTrigger value="chat" className="gap-1.5">
-              <MessageSquare className="size-4" /> Messages
+              <MessageSquare className="size-4 inline" /> Messages
             </TabsTrigger>
             <TabsTrigger value="files-media" className="gap-1.5">
-              <FolderOpen className="size-4" /> Files &amp; Media
+              <FolderOpen className="size-4 inline" /> Files &amp; Media
               {mediaFiles.length + documentFiles.length > 0 ? (
                 <Badge
                   variant="neutral"
@@ -748,7 +748,7 @@ export function ChannelPage() {
               ) : null}
             </TabsTrigger>
             <TabsTrigger value="bookmarks" className="gap-1.5">
-              <Bookmark className="size-4" /> Bookmarks
+              <Bookmark className="size-4 inline" /> Bookmarks
               {bookmarks.length > 0 ? (
                 <Badge
                   variant="neutral"
@@ -759,7 +759,7 @@ export function ChannelPage() {
               ) : null}
             </TabsTrigger>
             <TabsTrigger value="pins" className="gap-1.5">
-              <Pin className="size-4" /> Pins
+              <Pin className="size-4 inline" /> Pins
               {(pins.data?.length ?? 0) > 0 ? (
                 <Badge
                   variant="neutral"
@@ -1062,8 +1062,8 @@ export function ChannelPage() {
                   <span>My Bookmarks</span>
                 </h3>
                 <p className="text-xs mt-0.5 text-muted-foreground">
-                  Links and resources you've saved from #{channel.name} —
-                  only visible to you, on this device.
+                  Links and resources you've saved from #{channel.name} — only
+                  visible to you, on this device.
                 </p>
               </div>
               <Button

@@ -209,13 +209,13 @@ function DirectConversation({
         <div className="px-3 sm:px-6 py-1 gap-1 flex items-center border-b border-border bg-background">
           <TabsList className="scrollbar-none overflow-x-auto">
             <TabsTrigger value="chat" className="gap-1.5">
-              <MessageSquare className="size-4" /> Messages
+              <MessageSquare className="size-4 inline" /> Messages
             </TabsTrigger>
             <TabsTrigger value="files-media" className="gap-1.5">
-              <FolderOpen className="size-4" /> Files &amp; Media
+              <FolderOpen className="size-4 inline" /> Files &amp; Media
             </TabsTrigger>
             <TabsTrigger value="pins" className="gap-1.5">
-              <Pin className="size-4" /> Pins
+              <Pin className="size-4 inline" /> Pins
             </TabsTrigger>
           </TabsList>
         </div>
@@ -981,7 +981,7 @@ function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
 
       {/* Content */}
       <div className="min-h-0 p-3 sm:p-6 flex-1 overflow-y-auto">
-        <div className="max-w-xl w-full mx-auto">
+        <div className="max-w-xl mx-auto w-full">
           {members.isLoading ? (
             <LoadingState label="Loading directory…" />
           ) : members.isError ? (
@@ -994,13 +994,13 @@ function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
               {selectedMembers.length > 0 ? (
                 <div className="p-3 space-y-2 border-b border-border bg-surface-muted/30">
                   <div className="gap-2 flex items-center justify-between">
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <span className="font-semibold tracking-wide text-[11px] text-muted-foreground uppercase">
                       Selected · {selectedMembers.length}
                     </span>
                     <button
                       type="button"
                       onClick={() => setSelected([])}
-                      className="text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                      className="font-medium text-[11px] text-muted-foreground transition-colors hover:text-foreground"
                     >
                       Clear all
                     </button>
@@ -1031,7 +1031,7 @@ function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
                 </div>
               ) : null}
 
-              <div className="h-[22rem] flex flex-col">
+              <div className="flex h-[22rem] flex-col">
                 <PeoplePicker
                   members={allPeers}
                   selectedIds={selected}
@@ -1060,7 +1060,7 @@ function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
                   </Field>
                 ) : null}
 
-                <p className="gap-1.5 flex items-start text-xs text-muted-foreground">
+                <p className="gap-1.5 text-xs flex items-start text-muted-foreground">
                   {isGroup ? (
                     <Users className="size-3.5 mt-px shrink-0" aria-hidden />
                   ) : (
