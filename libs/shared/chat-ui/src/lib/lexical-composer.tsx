@@ -41,7 +41,6 @@ import { HorizontalRulePlugin } from '@lexical/react/LexicalHorizontalRulePlugin
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { ListPlugin } from '@lexical/react/LexicalListPlugin';
 import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin';
-import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { TabIndentationPlugin } from '@lexical/react/LexicalTabIndentationPlugin';
 import {
@@ -181,6 +180,25 @@ const EDITOR_NODES = [
 
 const AUTO_LINK_MATCHERS = [autoLinkUrlMatcher, autoLinkEmailMatcher];
 
+/**
+ * Tag on `editor.update` calls the composer makes itself — restoring a draft,
+ * clearing after send. `ChangeSignalsPlugin` uses it to tell "the app replaced
+ * the contents" apart from "the user typed", so a draft restore doesn't fire
+ * the typing indicator or schedule a redundant save.
+ */
+const SILENT_UPDATE_TAG = 'composer-silent';
+
+/** Retract "typing" this long after the last edit. */
+const TYPING_IDLE_MS = 4000;
+/**
+ * Re-assert "typing" at most this often while editing continues, so a long
+ * uninterrupted burst keeps the remote indicator alive without pinging the
+ * homeserver on every keystroke.
+ */
+const TYPING_REFRESH_MS = 3500;
+/** Coalesce the markdown serialisation behind the draft this long. */
+const DRAFT_DEBOUNCE_MS = 500;
+
 /** Someone (or something) a `@` mention can point at. */
 export interface MentionCandidate {
   id: string;
@@ -196,7 +214,23 @@ export interface MentionCandidate {
 export interface LexicalComposerInputProps {
   placeholder?: string;
   onSend: (text: string) => void | Promise<void>;
+  /**
+   * Typing lifecycle for the remote "…is typing" indicator: `true` once when
+   * the user starts, `false` after ~4s of no edits, on send, and on unmount —
+   * not one call per keystroke.
+   */
   onTyping?: (isTyping: boolean) => void;
+  /**
+   * The editor flipped between empty and non-empty. Cheap (a text-content
+   * read, no markdown pass) — drive the Send button's enabled state off this.
+   */
+  onEmptyChange?: (isEmpty: boolean) => void;
+  /**
+   * Debounced serialised contents, for draft persistence. Fires ~0.5s after
+   * typing settles rather than on every keystroke, and immediately once the
+   * editor is emptied.
+   */
+  onDraftChange?: (markdown: string) => void;
   disabled?: boolean;
   autoFocus?: boolean;
   initialMarkdown?: string;
@@ -270,11 +304,14 @@ function EditorApiPlugin({
   }, [editor]);
 
   const reset = useCallback(() => {
-    editor.update(() => {
-      const root = $getRoot();
-      root.clear();
-      root.append($createParagraphNode());
-    });
+    editor.update(
+      () => {
+        const root = $getRoot();
+        root.clear();
+        root.append($createParagraphNode());
+      },
+      { tag: SILENT_UPDATE_TAG },
+    );
   }, [editor]);
 
   const send = useCallback(() => {
@@ -362,14 +399,17 @@ function EditorApiPlugin({
       },
 
       setMarkdown: (markdown) => {
-        editor.update(() => {
-          $convertFromMarkdownString(
-            markdown,
-            CHAT_TRANSFORMERS,
-            undefined,
-            true,
-          );
-        });
+        editor.update(
+          () => {
+            $convertFromMarkdownString(
+              markdown,
+              CHAT_TRANSFORMERS,
+              undefined,
+              true,
+            );
+          },
+          { tag: SILENT_UPDATE_TAG },
+        );
       },
 
       getMarkdown: readMarkdown,
@@ -390,6 +430,144 @@ function EditablePlugin({ disabled }: { disabled: boolean }) {
   useEffect(() => {
     editor.setEditable(!disabled);
   }, [editor, disabled]);
+
+  return null;
+}
+
+/**
+ * The three signals the host needs out of a live editor, each on its own clock
+ * so none of them rides the keystroke:
+ *
+ *  - `onEmptyChange` — fires only when the editor crosses the empty ⇄ non-empty
+ *    line, from a `getTextContent()` read (no markdown pass). This is what the
+ *    Send button should watch.
+ *  - `onTyping` — `true` once when editing starts, `false` once it has been
+ *    quiet for {@link TYPING_IDLE_MS}, so the remote indicator isn't spammed.
+ *  - `onDraftChange` — the serialised document, debounced by
+ *    {@link DRAFT_DEBOUNCE_MS}; the one expensive call, made at most a couple of
+ *    times a second, and immediately when the box is cleared.
+ *
+ * A programmatic replace (draft restore, post-send reset — tagged
+ * {@link SILENT_UPDATE_TAG}) refreshes the empty state but is not treated as the
+ * user typing.
+ */
+function ChangeSignalsPlugin({
+  onTyping,
+  onEmptyChange,
+  onDraftChange,
+}: {
+  onTyping?: (isTyping: boolean) => void;
+  onEmptyChange?: (isEmpty: boolean) => void;
+  onDraftChange?: (markdown: string) => void;
+}) {
+  const [editor] = useLexicalComposerContext();
+
+  // Latest callbacks, without re-subscribing the update listener every render.
+  const callbacks = useRef({ onTyping, onEmptyChange, onDraftChange });
+  callbacks.current = { onTyping, onEmptyChange, onDraftChange };
+
+  useEffect(() => {
+    let typing = false;
+    let lastTypingPing = 0;
+    let wasEmpty: boolean | null = null;
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
+    let draftTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const readIsEmpty = () =>
+      editor.getEditorState().read(() => {
+        const root = $getRoot();
+        return (
+          root.getTextContent().trim().length === 0 &&
+          root.getChildrenSize() <= 1
+        );
+      });
+
+    const stopTyping = () => {
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+        idleTimer = null;
+      }
+      if (typing) {
+        typing = false;
+        lastTypingPing = 0;
+        callbacks.current.onTyping?.(false);
+      }
+    };
+
+    const pingTyping = () => {
+      const now = Date.now();
+      if (!typing || now - lastTypingPing > TYPING_REFRESH_MS) {
+        typing = true;
+        lastTypingPing = now;
+        callbacks.current.onTyping?.(true);
+      }
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(stopTyping, TYPING_IDLE_MS);
+    };
+
+    const cancelDraft = () => {
+      if (draftTimer) {
+        clearTimeout(draftTimer);
+        draftTimer = null;
+      }
+    };
+
+    const flushDraft = () => {
+      cancelDraft();
+      const write = callbacks.current.onDraftChange;
+      if (!write) return;
+      let markdown = '';
+      editor.getEditorState().read(() => {
+        markdown = $convertToMarkdownString(CHAT_TRANSFORMERS, undefined, true);
+      });
+      write(markdown);
+    };
+
+    // Seed the empty state so the Send button is right before the first edit
+    // (e.g. a restored draft present at mount).
+    wasEmpty = readIsEmpty();
+    callbacks.current.onEmptyChange?.(wasEmpty);
+
+    const unregister = editor.registerUpdateListener(
+      ({ editorState, dirtyElements, dirtyLeaves, tags }) => {
+        if (dirtyElements.size === 0 && dirtyLeaves.size === 0) return;
+
+        const isEmpty = editorState.read(() => {
+          const root = $getRoot();
+          return (
+            root.getTextContent().trim().length === 0 &&
+            root.getChildrenSize() <= 1
+          );
+        });
+        if (isEmpty !== wasEmpty) {
+          wasEmpty = isEmpty;
+          callbacks.current.onEmptyChange?.(isEmpty);
+        }
+
+        // The app swapped the contents, not the user.
+        if (tags.has(SILENT_UPDATE_TAG) || tags.has('history-merge')) {
+          stopTyping();
+          cancelDraft();
+          return;
+        }
+
+        pingTyping();
+
+        if (isEmpty) {
+          flushDraft();
+        } else {
+          cancelDraft();
+          draftTimer = setTimeout(flushDraft, DRAFT_DEBOUNCE_MS);
+        }
+      },
+    );
+
+    return () => {
+      unregister();
+      flushDraft();
+      stopTyping();
+    };
+  }, [editor]);
 
   return null;
 }
@@ -1033,12 +1211,23 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
     const selection = $getSelection();
     if (!$isRangeSelection(selection)) return;
 
-    setFormats({
-      bold: selection.hasFormat('bold'),
-      italic: selection.hasFormat('italic'),
-      strikethrough: selection.hasFormat('strikethrough'),
-      code: selection.hasFormat('code'),
-      highlight: selection.hasFormat('highlight'),
+    // Runs on every update while the bar is open — keep the same object when
+    // nothing changed so the toolbar doesn't re-render on each keystroke.
+    setFormats((prev) => {
+      const next = {
+        bold: selection.hasFormat('bold'),
+        italic: selection.hasFormat('italic'),
+        strikethrough: selection.hasFormat('strikethrough'),
+        code: selection.hasFormat('code'),
+        highlight: selection.hasFormat('highlight'),
+      };
+      return prev.bold === next.bold &&
+        prev.italic === next.italic &&
+        prev.strikethrough === next.strikethrough &&
+        prev.code === next.code &&
+        prev.highlight === next.highlight
+        ? prev
+        : next;
     });
 
     const anchorNode = selection.anchor.getNode();
@@ -1338,6 +1527,8 @@ export function LexicalComposerInput({
   placeholder = 'Message channel…',
   onSend,
   onTyping,
+  onEmptyChange,
+  onDraftChange,
   disabled = false,
   autoFocus = false,
   initialMarkdown,
@@ -1350,16 +1541,24 @@ export function LexicalComposerInput({
   onMentionClose,
   toolbarSlot,
 }: LexicalComposerInputProps) {
+  /*
+   * `LexicalComposer` consumes `initialConfig` once, at mount. Keeping it a
+   * stable object (empty deps) rather than rebuilding it every time
+   * `initialMarkdown` changes avoids a pointless re-memo on every conversation
+   * switch — the draft for a conversation opened later is applied through the
+   * imperative `setMarkdown`, not this seed.
+   */
+  const seedMarkdown = useRef(initialMarkdown);
   const initialConfig = useMemo(
     () => ({
       namespace: 'OneTabChatComposer',
       theme: EDITOR_THEME,
       onError: (error: Error) => console.error('Lexical error:', error),
       nodes: EDITOR_NODES,
-      editorState: initialMarkdown
+      editorState: seedMarkdown.current
         ? () => {
             $convertFromMarkdownString(
-              initialMarkdown,
+              seedMarkdown.current as string,
               CHAT_TRANSFORMERS,
               undefined,
               true,
@@ -1367,7 +1566,7 @@ export function LexicalComposerInput({
           }
         : undefined,
     }),
-    [initialMarkdown],
+    [],
   );
 
   const handleMentionOpenChange = useCallback(
@@ -1382,18 +1581,18 @@ export function LexicalComposerInput({
       <div className="relative flex flex-1 flex-col">
         {showToolbar ? <LexicalToolbar toolbarSlot={toolbarSlot} /> : null}
 
-        <div className="px-4 py-3 relative flex-1">
+        <div className="px-3.5 py-2.5 relative flex-1">
           <RichTextPlugin
             contentEditable={
               <ContentEditable
                 aria-label="Message composer input"
                 aria-placeholder={placeholder}
                 placeholder={
-                  <div className="top-2 left-3 text-sm pointer-events-none absolute text-subtle">
+                  <div className="left-3.5 top-2.5 text-sm pointer-events-none absolute select-none text-subtle">
                     {placeholder}
                   </div>
                 }
-                className="max-h-64 min-h-8 text-sm font-normal w-full resize-none overflow-y-auto text-foreground outline-none"
+                className="min-h-6 max-h-[46vh] w-full resize-none overflow-y-auto overscroll-contain scrollbar-thin text-sm font-normal text-foreground outline-none"
               />
             }
             ErrorBoundary={LexicalErrorBoundary}
@@ -1412,9 +1611,10 @@ export function LexicalComposerInput({
         <MarkdownShortcutPlugin transformers={CHAT_TRANSFORMERS} />
         {autoFocus ? <AutoFocusPlugin /> : null}
 
-        <OnChangePlugin
-          ignoreSelectionChange
-          onChange={() => onTyping?.(true)}
+        <ChangeSignalsPlugin
+          onTyping={onTyping}
+          onEmptyChange={onEmptyChange}
+          onDraftChange={onDraftChange}
         />
         <EditablePlugin disabled={disabled} />
         <FormattingShortcutsPlugin />

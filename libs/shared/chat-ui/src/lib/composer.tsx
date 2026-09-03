@@ -290,9 +290,8 @@ export function Composer({
   /* Collapsed by default, Slack-style — the formatting bar is for people who
      go looking for it, not a permanent fixture above every message. */
   const [toolbarOpen, setToolbarOpen] = useState(false);
-  /* Drives the send button's active state. Read from the editor rather than
-     trusted from `isTyping`, which the editor reports as `true` on every
-     change including the one that empties it. */
+  /* Drives the send button's active state. Fed by the editor's cheap
+     empty ⇄ non-empty signal (`onEmptyChange`), not a markdown pass per key. */
   const [hasContent, setHasContent] = useState(false);
   const [attachments, setAttachments] = useState<StagedAttachment[]>([]);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -309,18 +308,26 @@ export function Composer({
   const lexicalRef = useRef<LexicalEditorRef | null>(null);
   const fileInputId = useId();
 
-  // Sync draft when conversationId changes
+  /*
+   * Move the draft when the conversation changes: stash whatever is in the box
+   * under the conversation being left (the editor still holds its text at this
+   * point), then load the one being opened. Doing the stash here rather than
+   * leaning on the debounced `onDraftChange` is what stops a fast switch from
+   * dropping the last half-second of typing.
+   */
   const prevConversationId = useRef(conversationId);
   useEffect(() => {
-    if (prevConversationId.current !== conversationId) {
-      prevConversationId.current = conversationId;
-      const draft = conversationId ? getDraft(conversationId) : '';
-      if (lexicalRef.current) {
-        lexicalRef.current.setMarkdown(draft);
-        setHasContent(draft.trim().length > 0);
-      }
+    if (prevConversationId.current === conversationId) return;
+    const leaving = prevConversationId.current;
+    prevConversationId.current = conversationId;
+
+    if (leaving && lexicalRef.current) {
+      setDraft(leaving, lexicalRef.current.getMarkdown());
     }
-  }, [conversationId, getDraft]);
+    const draft = conversationId ? getDraft(conversationId) : '';
+    lexicalRef.current?.setMarkdown(draft);
+    setHasContent(draft.trim().length > 0);
+  }, [conversationId, getDraft, setDraft]);
 
   // Object URLs are only good for as long as the tab is open — revoke each
   // one when its chip goes away, and sweep whatever's left on unmount so a
@@ -370,20 +377,26 @@ export function Composer({
     setAttachments([]);
   }, [attachments, onAttach]);
 
-  const handleTyping = (isTyping: boolean) => {
-    onTyping?.(isTyping);
-    const content = lexicalRef.current?.getMarkdown() ?? '';
-    const notEmpty = content.trim().length > 0;
-    setHasContent(notEmpty);
-    if (conversationId) {
-      setDraft(conversationId, content);
-    }
-  };
+  /* Cheap empty ⇄ non-empty flip from the editor — just toggles the Send
+     button, no serialisation. */
+  const handleEmptyChange = useCallback((isEmpty: boolean) => {
+    setHasContent(!isEmpty);
+  }, []);
+
+  /* Debounced snapshot of the editor for draft persistence — fires a couple of
+     times a second at most, and once more the moment the box is emptied. */
+  const handleDraftChange = useCallback(
+    (markdown: string) => {
+      if (conversationId) setDraft(conversationId, markdown);
+    },
+    [conversationId, setDraft],
+  );
 
   /* The editor's own send only fires with text in hand — attachments ride
      along whenever there are any, text or none. */
   const handleComposerSend = useCallback(
     (body: string) => {
+      setHasContent(false);
       flushAttachments();
       if (conversationId) {
         clearDraft(conversationId);
@@ -469,7 +482,9 @@ export function Composer({
           placeholder={placeholder}
           initialMarkdown={initialDraft}
           onSend={handleComposerSend}
-          onTyping={handleTyping}
+          onTyping={onTyping}
+          onEmptyChange={handleEmptyChange}
+          onDraftChange={handleDraftChange}
           disabled={disabled}
           showToolbar={showFormatting && toolbarOpen}
           hasPendingAttachments={attachments.length > 0}
