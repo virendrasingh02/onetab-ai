@@ -9,7 +9,7 @@ import {
   Input,
 } from '@org/ui';
 import { Bookmark, Link2 } from 'lucide-react';
-import { useCallback, useState, type FormEvent } from 'react';
+import { useCallback, useState, type FormEvent, type ReactNode } from 'react';
 
 const EMOJI_PRESETS = ['📌', '🔗', '📄', '🎨', '📊', '🚀', '💡', '📁', '✨', '⚡'];
 
@@ -18,6 +18,11 @@ export interface AddBookmarkDialogProps {
   onOpenChange: (open: boolean) => void;
   onAdd: (bookmark: { label: string; href: string; emoji?: string }) => void;
   channelName?: string;
+  /**
+   * Overrides the default channel-scoped description. Supplied by direct
+   * messages, where "#channel" wording does not fit.
+   */
+  description?: ReactNode;
 }
 
 export function AddBookmarkDialog({
@@ -25,6 +30,7 @@ export function AddBookmarkDialog({
   onOpenChange,
   onAdd,
   channelName,
+  description,
 }: AddBookmarkDialogProps) {
   const [label, setLabel] = useState('');
   const [href, setHref] = useState('');
@@ -69,9 +75,10 @@ export function AddBookmarkDialog({
               <div>
                 <DialogTitle>Add bookmark</DialogTitle>
                 <DialogDescription>
-                  {channelName
-                    ? `Pin a useful link or resource to #${channelName}.`
-                    : 'Pin a useful link or resource to this channel.'}
+                  {description ??
+                    (channelName
+                      ? `Pin a useful link or resource to #${channelName}.`
+                      : 'Pin a useful link or resource to this channel.')}
                 </DialogDescription>
               </div>
             </div>

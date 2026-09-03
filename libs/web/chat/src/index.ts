@@ -53,6 +53,7 @@ export {
   useDirectMessagePreferencesStore,
   type DirectMessagePreferences,
 } from './lib/use-dm-preferences.js';
+export { useDirectMessageBookmarks } from './lib/use-dm-bookmarks.js';
 export { ThreadsView } from './lib/ThreadsView.js';
 export { SavedView } from './lib/SavedView.js';
 export {

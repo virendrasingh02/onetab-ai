@@ -1,4 +1,5 @@
 import { useCurrentUser } from '@org/auth';
+import { AddBookmarkDialog } from '@org/chat-ui';
 import { useUserPresenceMap } from '@org/realtime';
 import type { Attachment, WorkspaceMember } from '@org/types';
 import {
@@ -35,11 +36,13 @@ import {
   Bell,
   BellOff,
   Blocks,
+  Bookmark,
   Bot,
   Check,
   ChevronRight,
   Copy,
   Download,
+  ExternalLink,
   FileText,
   FolderOpen,
   Image as ImageIcon,
@@ -48,9 +51,11 @@ import {
   MessageSquareOff,
   MoreHorizontal,
   Pin,
+  Plus,
   RefreshCw,
   SquarePen,
   Star,
+  Trash2,
   UserRound,
   Users,
   X,
@@ -63,6 +68,7 @@ import { useMatrix } from './matrix-provider.js';
 import { PeoplePicker } from './people-picker.js';
 import { useRoom } from './use-chat.js';
 import { useCreateConversation } from './use-create-conversation.js';
+import { useDirectMessageBookmarks } from './use-dm-bookmarks.js';
 import { useDirectRoom } from './use-direct-room.js';
 import { useDirectMessagePreferences } from './use-dm-preferences.js';
 
@@ -153,6 +159,16 @@ function DirectConversation({
     null,
   );
 
+  // Private, per-browser bookmarks — the same affordance a channel has, keyed
+  // on the peer so they survive the room resolving and follow the person, not
+  // the Matrix room. Only 1:1 conversations get this; a group DM
+  // (`GroupConversation`) has no tab strip.
+  const { bookmarks, addBookmark, removeBookmark } = useDirectMessageBookmarks(
+    workspaceId,
+    peerId,
+  );
+  const [addBookmarkOpen, setAddBookmarkOpen] = useState(false);
+
   const allMembers = useMemo(
     () => [...(members.data ?? []), ...(extraPeers ?? [])],
     [members.data, extraPeers],
@@ -198,7 +214,19 @@ function DirectConversation({
     <div className="min-h-0 flex flex-1 flex-col">
       <DirectMessageHeader
         member={member}
+        isSelf={isSelf}
         chatActionsRef={setChatActionsSlot}
+      />
+
+      <AddBookmarkDialog
+        open={addBookmarkOpen}
+        onOpenChange={setAddBookmarkOpen}
+        onAdd={addBookmark}
+        description={
+          isSelf
+            ? 'Keep a link handy in your personal space. Only you can see it, on this device.'
+            : `Save a link from your conversation with ${name}. Only you can see it, on this device.`
+        }
       />
 
       <Tabs
@@ -213,6 +241,17 @@ function DirectConversation({
             </TabsTrigger>
             <TabsTrigger value="files-media" className="gap-1.5">
               <FolderOpen className="size-4 inline" /> Files &amp; Media
+            </TabsTrigger>
+            <TabsTrigger value="bookmarks" className="gap-1.5">
+              <Bookmark className="size-4 inline" /> Bookmarks
+              {bookmarks.length > 0 ? (
+                <Badge
+                  variant="neutral"
+                  className="ml-0.5 px-1 py-0 text-[10px]"
+                >
+                  {bookmarks.length}
+                </Badge>
+              ) : null}
             </TabsTrigger>
             <TabsTrigger value="pins" className="gap-1.5">
               <Pin className="size-4 inline" /> Pins
@@ -263,6 +302,105 @@ function DirectConversation({
           className="min-h-0 flex flex-1 flex-col"
         >
           <DirectFilesPanel roomId={roomId} enabled={enabled} />
+        </TabsContent>
+
+        {/* Bookmarks tab — `ChannelPage`'s counterpart, private to the reader
+            and scoped to this one person. */}
+        <TabsContent
+          value="bookmarks"
+          className="min-h-0 flex flex-1 flex-col"
+        >
+          <ScrollArea
+            className="min-h-0 flex-1"
+            contentClassName="px-4 sm:px-6 py-4 space-y-4"
+          >
+            <div className="pb-3 flex items-center justify-between border-b border-border/60">
+              <div>
+                <h3 className="text-sm font-semibold gap-2 flex items-center text-foreground">
+                  <Bookmark className="size-4 text-primary" />
+                  <span>{isSelf ? 'Saved links' : 'My Bookmarks'}</span>
+                </h3>
+                <p className="text-xs mt-0.5 text-muted-foreground">
+                  {isSelf
+                    ? "Links and resources you keep in your personal space — only visible to you, on this device."
+                    : `Links and resources you've saved from your conversation with ${name} — only visible to you, on this device.`}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => setAddBookmarkOpen(true)}
+                className="gap-1.5 text-xs h-7"
+              >
+                <Plus className="size-3.5" />
+                <span>Add bookmark</span>
+              </Button>
+            </div>
+
+            {bookmarks.length === 0 ? (
+              <EmptyState
+                icon={<Bookmark />}
+                title="No bookmarks yet"
+                description="Save links, spreadsheets, Figma designs, and docs from this conversation for quick access. Only you can see them, on this device."
+                action={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAddBookmarkOpen(true)}
+                  >
+                    Add first bookmark
+                  </Button>
+                }
+              />
+            ) : (
+              <div className="gap-3 sm:grid-cols-2 lg:grid-cols-3 grid">
+                {bookmarks.map((bm) => (
+                  <div
+                    key={bm.id}
+                    className="group p-3 relative flex items-start justify-between rounded-card border border-border bg-surface shadow-xs transition-all hover:border-border-strong hover:bg-surface-raised"
+                  >
+                    <a
+                      href={bm.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="min-w-0 gap-2.5 flex flex-1 items-start outline-none"
+                    >
+                      <div className="size-8 text-base flex shrink-0 items-center justify-center rounded-md border border-border bg-surface-raised">
+                        {bm.emoji || '🔗'}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate text-foreground transition-colors group-hover:text-primary">
+                          {bm.label}
+                        </p>
+                        <p className="text-xs mt-0.5 truncate text-muted-foreground">
+                          {bm.href}
+                        </p>
+                      </div>
+                    </a>
+
+                    <div className="gap-1 flex items-center opacity-0 transition-opacity group-hover:opacity-100">
+                      <a
+                        href={bm.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1 rounded text-muted-foreground hover:text-foreground"
+                        aria-label="Open link"
+                      >
+                        <ExternalLink className="size-3.5" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => removeBookmark(bm.id)}
+                        className="p-1 rounded text-muted-foreground hover:text-destructive"
+                        aria-label="Remove bookmark"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
         </TabsContent>
 
         <TabsContent value="pins" className="min-h-0 flex flex-1 flex-col">
@@ -543,9 +681,16 @@ function DirectRoom({
  */
 function DirectMessageHeader({
   member,
+  isSelf = false,
   chatActionsRef,
 }: {
   member: WorkspaceMember;
+  /**
+   * The note-to-self conversation. It is pinned to the top of the sidebar and
+   * has nowhere to be dismissed to, so it never offers "Close conversation" —
+   * it is always there.
+   */
+  isSelf?: boolean;
   chatActionsRef: (element: HTMLDivElement | null) => void;
 }) {
   const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
@@ -812,15 +957,19 @@ function DirectMessageHeader({
                   <span>Notification settings</span>
                 </DropdownMenuItem>
 
-                <DropdownMenuSeparator />
+                {!isSelf ? (
+                  <>
+                    <DropdownMenuSeparator />
 
-                <DropdownMenuItem
-                  onClick={() => navigate(`/w/${slug}/dms`)}
-                  className="gap-2.5"
-                >
-                  <X className="size-4" />
-                  <span>Close conversation</span>
-                </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => navigate(`/w/${slug}/dms`)}
+                      className="gap-2.5"
+                    >
+                      <X className="size-4" />
+                      <span>Close conversation</span>
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
