@@ -106,7 +106,7 @@ export function EntityPreviewDrawer({
                   <UserAvatar
                     name={entity.authorName}
                     src={entity.authorAvatarUrl}
-                    seed={entity.authorName}
+                    seed={entity.authorId || entity.authorName}
                     size="xs"
                     className="size-4"
                   />

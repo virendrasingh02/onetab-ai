@@ -5,12 +5,14 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  PRESENCE_LABELS,
+  PresenceDot,
   ScrollArea,
+  toPresenceStatus,
   UserAvatar,
   useRightPanelStore,
 } from '@org/ui';
 import {
-  cn,
   describeTimezone,
   formatZoneDifference,
   getRegionForTimezone,
@@ -178,25 +180,16 @@ export function UserProfileCard({
         {/* User Avatar Row */}
         <div className="px-4 pb-3 pt-0 relative">
           <div className="-mt-10 mb-2 flex items-end justify-between">
-            <div className="relative">
-              <UserAvatar
-                name={name}
-                src={avatarUrl}
-                seed={userId}
-                size="xl"
-                className="size-20 rounded-full shadow-lg ring-4 ring-popover"
-              />
-              <span
-                className={cn(
-                  'bottom-1 right-1 size-4 absolute rounded-full ring-2 ring-popover',
-                  status === 'online'
-                    ? 'bg-success'
-                    : status === 'unavailable'
-                      ? 'bg-warning'
-                      : 'bg-subtle',
-                )}
-              />
-            </div>
+            <UserAvatar
+              name={name}
+              src={avatarUrl}
+              seed={userId}
+              size="xl"
+              presence={status}
+              statusEmoji={statusEmoji}
+              statusText={statusText}
+              className="size-20 rounded-full shadow-lg ring-4 ring-popover"
+            />
 
             <Button
               size="sm"
@@ -401,25 +394,16 @@ export function UserProfileRightPanel({
       >
         {/* Avatar & Presence */}
         <div className="-mt-12 flex items-end justify-between">
-          <div className="relative">
-            <UserAvatar
-              name={name}
-              src={avatarUrl}
-              seed={userId}
-              size="xl"
-              className="size-20 shadow-2xl rounded-full ring-4 ring-surface"
-            />
-            <span
-              className={cn(
-                'bottom-0.5 right-0.5 size-4 absolute rounded-full ring-2 ring-surface',
-                status === 'online'
-                  ? 'bg-success'
-                  : status === 'unavailable'
-                    ? 'bg-warning'
-                    : 'bg-subtle',
-              )}
-            />
-          </div>
+          <UserAvatar
+            name={name}
+            src={avatarUrl}
+            seed={userId}
+            size="xl"
+            presence={status}
+            statusEmoji={statusEmoji}
+            statusText={statusText}
+            className="size-20 shadow-2xl rounded-full ring-4 ring-surface"
+          />
         </div>
 
         {/* Action Buttons: Message & Call/Huddle */}
@@ -474,18 +458,9 @@ export function UserProfileRightPanel({
             <span className="font-mono text-muted-foreground">{handle}</span>
             <span className="text-border">·</span>
             <div className="gap-1.5 flex items-center">
-              <span
-                className={cn(
-                  'size-2 shrink-0 rounded-full',
-                  status === 'online'
-                    ? 'bg-success'
-                    : status === 'unavailable'
-                      ? 'bg-warning'
-                      : 'bg-muted-foreground',
-                )}
-              />
-              <span className="font-medium text-muted-foreground capitalize">
-                {status === 'unavailable' ? 'Away' : status}
+              <PresenceDot presence={status} hint={false} />
+              <span className="font-medium text-muted-foreground">
+                {PRESENCE_LABELS[toPresenceStatus(status)]}
               </span>
             </div>
           </div>

@@ -415,11 +415,9 @@ export function WorkspaceMembersSettings({
                         name={member.user.displayName ?? member.user.name}
                         src={member.user.avatarUrl}
                         seed={member.user.id}
-                        presence={
-                          member.user.presence === 'ONLINE'
-                            ? 'online'
-                            : 'offline'
-                        }
+                        presence={member.user.presence}
+                        statusEmoji={member.user.statusEmoji}
+                        statusText={member.user.statusText}
                         className="size-9"
                       />
                       <div className="min-w-0 flex-1">

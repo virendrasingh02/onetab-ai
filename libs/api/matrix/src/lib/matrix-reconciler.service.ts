@@ -6,6 +6,9 @@ import { MatrixAdminService } from './matrix-admin.service.js';
 /** Channels reconciled per tick, so a large workspace does not stall the loop. */
 const BATCH = 40;
 
+/** Users whose Matrix profile is checked for backfill per tick. */
+const PROFILE_BATCH = 20;
+
 /**
  * Converges Matrix room membership back onto our own.
  *
@@ -27,6 +30,8 @@ export class MatrixReconcilerService {
   private readonly logger = new Logger(MatrixReconcilerService.name);
   /** Rotates through channels across ticks. */
   private offset = 0;
+  /** Rotates through users across profile-backfill ticks. */
+  private profileOffset = 0;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -118,6 +123,66 @@ export class MatrixReconcilerService {
       this.logger.log(
         `Matrix membership reconcile: +${invited} invited, -${kicked} kicked across ${channels.length} channel(s).`,
       );
+    }
+  }
+
+  /**
+   * Backfills Matrix profiles for accounts that set a photo before the profile
+   * sync existed.
+   *
+   * `UserService.updateProfile` and `MatrixAuthService.ensureIdentity` keep new
+   * changes in step going forward; this loop is the one-time catch-up. It skips
+   * anyone whose Matrix profile already carries an avatar, so it converges and
+   * then does nothing — and it never overwrites a photo the user changed after
+   * the first sync.
+   */
+  @Cron(CronExpression.EVERY_10_MINUTES, { name: 'matrix-profile-backfill' })
+  async backfillProfiles(): Promise<void> {
+    if (!this.admin.isEnabled) return;
+
+    const candidates = await this.prisma.user.findMany({
+      where: { matrixUserId: { not: null }, avatarUrl: { not: null } },
+      orderBy: { createdAt: 'asc' },
+      skip: this.profileOffset,
+      take: PROFILE_BATCH,
+      select: { id: true },
+    });
+
+    if (candidates.length < PROFILE_BATCH) {
+      this.profileOffset = 0;
+    } else {
+      this.profileOffset += PROFILE_BATCH;
+    }
+
+    let synced = 0;
+
+    for (const { id } of candidates) {
+      try {
+        if (await this.admin.getUserAvatarMxc(id)) continue;
+
+        const user = await this.prisma.user.findUnique({
+          where: { id },
+          select: { name: true, displayName: true, avatarUrl: true },
+        });
+        if (!user?.avatarUrl) continue;
+
+        await this.admin.pushUserProfile({
+          userId: id,
+          displayName: user.displayName ?? user.name,
+          avatarUrl: user.avatarUrl,
+        });
+        synced++;
+      } catch (err) {
+        this.logger.warn(
+          `Profile backfill failed for user ${id}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+
+    if (synced) {
+      this.logger.log(`Matrix profile backfill: synced ${synced} user(s).`);
     }
   }
 }

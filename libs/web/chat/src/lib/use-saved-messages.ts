@@ -20,6 +20,10 @@ export interface SavedMessage {
   /** Where it was saved from, for the "open channel" link. */
   channelName: string;
   channelSlug?: string;
+  /** Sender's Matrix id — the stable seed for the avatar fallback. Optional so
+   *  entries persisted before this field carry on working (they fall back to
+   *  the name and self-correct on the next save). */
+  senderId?: string;
   senderName: string;
   senderAvatarUrl?: string;
   body: string;

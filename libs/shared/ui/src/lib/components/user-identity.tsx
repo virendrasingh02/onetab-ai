@@ -1,5 +1,5 @@
 import { cn } from '@org/utils';
-import type { AvatarProps, PresenceStatus } from './avatar.js';
+import type { AvatarProps, PresenceInput } from './avatar.js';
 import { UserAvatar } from './avatar.js';
 
 export interface UserIdentityProps {
@@ -11,7 +11,7 @@ export interface UserIdentityProps {
   handle?: string | null;
   subtitle?: React.ReactNode;
   size?: AvatarProps['size'];
-  presence?: PresenceStatus;
+  presence?: PresenceInput | null;
   indicator?: boolean;
   statusEmoji?: string | null;
   statusText?: string | null;

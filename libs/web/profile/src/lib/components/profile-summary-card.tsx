@@ -62,7 +62,7 @@ export function ProfileSummaryCard({
               seed={user.id}
               size="lg"
               className="size-18 rounded-full shadow-lg ring-4 ring-surface"
-              presence={user.presence === 'ONLINE' ? 'online' : user.presence === 'AWAY' ? 'away' : 'offline'}
+              presence={user.presence}
               statusEmoji={user.statusEmoji}
               statusText={user.statusText}
             />

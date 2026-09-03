@@ -334,7 +334,15 @@ export function ProjectDashboardView({
                     className="flex items-center justify-between p-3 rounded-xl border border-border/40 bg-muted/20"
                   >
                     <div className="flex items-center gap-2.5">
-                      <UserAvatar name={member.name} src={member.avatarUrl} size="sm" />
+                      <UserAvatar
+                        name={member.name}
+                        src={member.avatarUrl}
+                        seed={member.id}
+                        presence={member.presence}
+                        statusEmoji={member.statusEmoji}
+                        statusText={member.statusText}
+                        size="sm"
+                      />
                       <div>
                         <p className="text-xs font-semibold text-foreground">{member.name}</p>
                         <p className="text-[11px] text-muted-foreground">Team Member</p>

@@ -73,7 +73,24 @@ export function AvatarFallback({
 
 export type PresenceStatus = 'online' | 'away' | 'busy' | 'offline';
 
-const PRESENCE_STYLES: Record<PresenceStatus, string> = {
+/**
+ * The API's spelling of the same set (`User.presence`). Accepted anywhere this
+ * library takes a `presence` so call sites can hand the value straight through
+ * instead of open-coding a `'ONLINE' ? 'online' : …` ladder — the ladders were
+ * dropping `BUSY` to offline on half the surfaces.
+ */
+export type ApiPresenceStatus = 'ONLINE' | 'AWAY' | 'BUSY' | 'OFFLINE';
+
+/**
+ * Every spelling of presence in the codebase, accepted anywhere this library
+ * takes `presence`:
+ *  - `@org/ui`'s own lowercase union,
+ *  - the API enum (`User.presence`),
+ *  - `'unavailable'` — the realtime/Matrix idle state, drawn as "away".
+ */
+export type PresenceInput = PresenceStatus | ApiPresenceStatus | 'unavailable';
+
+export const PRESENCE_STYLES: Record<PresenceStatus, string> = {
   online: 'bg-success',
   away: 'bg-warning',
   busy: 'bg-destructive',
@@ -103,6 +120,8 @@ export function toPresenceStatus(
   value: string | null | undefined,
 ): PresenceStatus {
   const normalized = value?.toLowerCase();
+  // The realtime/Matrix layer says "unavailable" for what the UI calls "away".
+  if (normalized === 'unavailable') return 'away';
   return normalized === 'online' ||
     normalized === 'away' ||
     normalized === 'busy'
@@ -115,22 +134,99 @@ export interface UserAvatarProps extends Omit<AvatarProps, 'shape'> {
   src?: string | null;
   /** Stable tint seed. Defaults to `name`; pass a user id where available. */
   seed?: string;
-  presence?: PresenceStatus;
+  /** Lowercase or the API's uppercase spelling — both are normalized here. */
+  presence?: PresenceInput | null;
   /**
    * Whether to draw the corner indicator. On by default — a person avatar
-   * carries a presence dot everywhere. When `presence` is unknown it shows a
-   * hollow placeholder; pass `false` for dense stacks where it would be noise.
+   * carries a status indicator everywhere. When `presence` is unknown it shows
+   * a hollow placeholder; pass `false` for dense stacks where it would be noise.
    */
   indicator?: boolean;
   statusEmoji?: string | null;
   statusText?: string | null;
 }
 
+/** Status-indicator geometry, scaled so it stays proportional at every size. */
+const INDICATOR_SIZES: Record<
+  NonNullable<AvatarProps['size']>,
+  { dot: string; emoji: string }
+> = {
+  xs: { dot: 'size-1.5', emoji: 'text-[9px] -right-1 -bottom-1' },
+  sm: { dot: 'size-2', emoji: 'text-[10px] -right-1 -bottom-1' },
+  md: { dot: 'size-2.5', emoji: 'text-[11px] -right-1 -bottom-1' },
+  lg: { dot: 'size-3', emoji: 'text-sm -right-1 -bottom-1' },
+  xl: { dot: 'size-4', emoji: 'text-xl -right-0.5 -bottom-0.5' },
+};
+
+export interface PresenceDotProps {
+  /** Any presence spelling. `null` / omitted → a faint "unknown" dot. */
+  presence?: PresenceInput | null;
+  /** Matches the avatar size scale; a standalone dot defaults to `sm`. */
+  size?: AvatarProps['size'];
+  /** Names the person in the a11y label, e.g. "Ada is Online". */
+  name?: string;
+  /** Wrap in a hover tooltip. Default `true`. */
+  hint?: boolean;
+  className?: string;
+}
+
+/**
+ * The one presence dot. `UserAvatar` places it in its corner; standalone status
+ * lines render it inline. Same colours, same labels, same size scale
+ * everywhere — there is deliberately no second implementation of this.
+ */
+export function PresenceDot({
+  presence,
+  size = 'sm',
+  name,
+  hint = true,
+  className,
+}: PresenceDotProps) {
+  const known = presence != null;
+  const state = known ? toPresenceStatus(presence) : 'offline';
+  const label = PRESENCE_LABELS[state];
+
+  const dot = (
+    <span
+      role="status"
+      title={label}
+      aria-label={
+        name
+          ? known
+            ? `${name} is ${label}`
+            : `${name} presence unknown`
+          : known
+            ? label
+            : 'Presence unknown'
+      }
+      className={cn(
+        'inline-block shrink-0 rounded-full',
+        INDICATOR_SIZES[size ?? 'sm'].dot,
+        PRESENCE_STYLES[state],
+        className,
+      )}
+    />
+  );
+
+  return hint ? (
+    <Hint label={label} side="top">
+      {dot}
+    </Hint>
+  ) : (
+    dot
+  );
+}
+
 /**
  * The one avatar for a person: a circle (always — people are never squircles),
  * a deterministic gradient fallback derived from `seed` so the same user looks
- * identical in every surface and in the desktop app, plus a presence dot and
- * optional status emoji.
+ * identical in every surface and in the desktop app, plus one status indicator.
+ *
+ * The indicator is deterministic and independent of which props a caller
+ * happens to pass: a status emoji, when set, replaces the presence dot (they
+ * share the corner — showing both is noise on a list avatar), otherwise the
+ * dot is drawn from the normalized `presence`. So the same person reads the
+ * same way on every surface.
  */
 export function UserAvatar({
   name,
@@ -144,9 +240,14 @@ export function UserAvatar({
   className,
   ...props
 }: UserAvatarProps) {
-  const tintSeed = seed ?? name;
-  const dot = presence ?? 'offline';
-  const showDot = indicator && (presence !== undefined || !statusEmoji);
+  // Prefer the caller's stable seed (a user id), but never let an empty string
+  // through — `'' ?? name` keeps `''`, which would paint every seedless avatar
+  // the same colour. Fall back to the name only when there is genuinely no seed.
+  const tintSeed = seed?.trim() ? seed : name;
+
+  const geometry = INDICATOR_SIZES[size ?? 'md'];
+  const showEmoji = indicator && Boolean(statusEmoji);
+  const showDot = indicator && !statusEmoji;
 
   return (
     <span className="relative inline-flex shrink-0">
@@ -171,21 +272,14 @@ export function UserAvatar({
         </AvatarFallback>
       </Avatar>
       {showDot ? (
-        <Hint label={PRESENCE_LABELS[dot]} side="top">
-          <span
-            role="status"
-            aria-label={
-              presence ? `${name} is ${PRESENCE_LABELS[dot]}` : `${name} presence unknown`
-            }
-            title={PRESENCE_LABELS[dot]}
-            className={cn(
-              '-right-0.5 -bottom-0.5 size-2.5 absolute rounded-full border-2 border-background cursor-default pointer-events-auto',
-              PRESENCE_STYLES[dot],
-            )}
-          />
-        </Hint>
+        <PresenceDot
+          presence={presence}
+          size={size}
+          name={name}
+          className="-right-0.5 -bottom-0.5 absolute ring-2 ring-background cursor-default pointer-events-auto"
+        />
       ) : null}
-      {statusEmoji && !presence ? (
+      {showEmoji ? (
         <span
           role="status"
           aria-label={
@@ -194,7 +288,10 @@ export function UserAvatar({
               : `${name} status ${statusEmoji}`
           }
           title={statusText ? `${statusEmoji} ${statusText}` : undefined}
-          className="-right-1 -bottom-1 drop-shadow-xs absolute text-[11px] leading-none select-none"
+          className={cn(
+            'drop-shadow-xs absolute leading-none select-none',
+            geometry.emoji,
+          )}
         >
           {statusEmoji}
         </span>
@@ -262,7 +359,9 @@ export function WorkspaceAvatar({
         <AvatarFallback
           style={
             // An icon supplies its own colour; the tinted tile is for initials.
-            icon ? undefined : { backgroundColor: avatarTint(seed ?? name) }
+            icon
+              ? undefined
+              : { backgroundColor: avatarTint(seed?.trim() ? seed : name) }
           }
           className={
             icon ? 'border border-border bg-surface-raised' : undefined

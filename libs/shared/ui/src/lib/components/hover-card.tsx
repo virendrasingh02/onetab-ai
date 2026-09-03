@@ -12,7 +12,7 @@ import {
   type ElementRef,
   type ReactNode,
 } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from './avatar.js';
+import { UserAvatar } from './avatar.js';
 import { Badge } from './badge.js';
 
 /* -------------------------------------------------------------------------- */
@@ -99,22 +99,18 @@ export function UserHoverCard({
   openDelay = 300,
   closeDelay = 150,
 }: UserHoverCardProps) {
-  const initials = user.name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-
   return (
     <HoverCard openDelay={openDelay} closeDelay={closeDelay}>
       <HoverCardTrigger asChild>{children}</HoverCardTrigger>
       <HoverCardContent className="w-80">
         <div className="flex items-start justify-between gap-3">
-          <Avatar className="size-11 border border-border">
-            {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-            <AvatarFallback className="text-xs font-semibold">{initials}</AvatarFallback>
-          </Avatar>
+          <UserAvatar
+            name={user.name}
+            src={user.avatarUrl}
+            size="lg"
+            presence={user.status}
+            className="size-11"
+          />
           {user.role && (
             <Badge variant="outline" className="text-[10px] font-normal capitalize">
               {user.role}
@@ -125,18 +121,6 @@ export function UserHoverCard({
         <div className="mt-2.5">
           <div className="flex items-center gap-1.5">
             <h4 className="text-sm font-semibold text-foreground truncate">{user.name}</h4>
-            {user.status && (
-              <span
-                className={cn(
-                  'size-2 rounded-full',
-                  user.status === 'online' && 'bg-emerald-500',
-                  user.status === 'busy' && 'bg-rose-500',
-                  user.status === 'away' && 'bg-amber-500',
-                  user.status === 'offline' && 'bg-muted-foreground/40',
-                )}
-                title={`Status: ${user.status}`}
-              />
-            )}
           </div>
           {user.email && (
             <p className="text-xs text-muted-foreground truncate">{user.email}</p>

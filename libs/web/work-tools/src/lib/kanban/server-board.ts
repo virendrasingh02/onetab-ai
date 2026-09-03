@@ -181,6 +181,10 @@ export function membersFrom(
     displayName: member.user.displayName,
     email: member.email,
     avatarUrl: member.user.avatarUrl ?? undefined,
+    presence: member.user.presence,
+    statusEmoji: member.user.statusEmoji,
+    statusText: member.user.statusText,
+    lastSeenAt: member.user.lastSeenAt,
   }));
 }
 

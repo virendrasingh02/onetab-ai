@@ -86,7 +86,7 @@ export function SavedView() {
                       <UserAvatar
                         name={entry.senderName}
                         src={entry.senderAvatarUrl}
-                        seed={entry.senderName}
+                        seed={entry.senderId ?? entry.senderName}
                       />
 
                       <div className="min-w-0 flex-1">

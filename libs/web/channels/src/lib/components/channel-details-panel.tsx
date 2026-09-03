@@ -1043,6 +1043,9 @@ function MembersTab({
                               src={member.user.avatarUrl ?? undefined}
                               seed={member.user.id}
                               size="md"
+                              presence={member.user.presence}
+                              statusEmoji={member.user.statusEmoji}
+                              statusText={member.user.statusText}
                               className="shrink-0"
                             />
                             <div className="min-w-0 flex-1">
@@ -1055,19 +1058,6 @@ function MembersTab({
                                     (you)
                                   </span>
                                 ) : null}
-                                <span className="shrink-0 flex items-center justify-center">
-                                  {isOnline ? (
-                                    <span
-                                      className="size-2 rounded-full bg-success"
-                                      aria-label="Online"
-                                    />
-                                  ) : (
-                                    <span
-                                      className="size-2 rounded-full border border-muted-foreground/50"
-                                      aria-label="Offline"
-                                    />
-                                  )}
-                                </span>
                                 <span className="text-xs text-muted-foreground truncate">
                                   {member.user.name}
                                 </span>
@@ -1172,9 +1162,6 @@ function MembersTab({
                   {notInChannelFiltered.map((wsMember) => {
                     const name =
                       wsMember.user.displayName ?? wsMember.user.name;
-                    const isOnline =
-                      wsMember.user.presence === 'ONLINE' ||
-                      wsMember.user.presence?.toLowerCase() === 'online';
                     const subtitle =
                       wsMember.user.jobTitle ??
                       wsMember.user.title ??
@@ -1190,25 +1177,15 @@ function MembersTab({
                               src={wsMember.user.avatarUrl ?? undefined}
                               seed={wsMember.user.id}
                               size="md"
+                              presence={wsMember.user.presence}
+                              statusEmoji={wsMember.user.statusEmoji}
+                              statusText={wsMember.user.statusText}
                               className="shrink-0"
                             />
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5 min-w-0">
                                 <span className="text-xs font-semibold text-foreground truncate">
                                   {name}
-                                </span>
-                                <span className="shrink-0 flex items-center justify-center">
-                                  {isOnline ? (
-                                    <span
-                                      className="size-2 rounded-full bg-success"
-                                      aria-label="Online"
-                                    />
-                                  ) : (
-                                    <span
-                                      className="size-2 rounded-full border border-muted-foreground/50"
-                                      aria-label="Offline"
-                                    />
-                                  )}
                                 </span>
                                 <span className="text-xs text-muted-foreground truncate">
                                   {wsMember.user.name}

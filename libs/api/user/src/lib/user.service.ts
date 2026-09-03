@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PUBLIC_USER_SELECT, toPublicUser } from '@org/api-common';
+import { MatrixAdminService } from '@org/api-matrix';
 import { PrismaService } from '@org/database';
 import type { CurrentUser, PublicUser, UserPreferences } from '@org/types';
 import type {
@@ -12,7 +13,10 @@ import type {
 
 @Injectable()
 export class UserService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly matrix: MatrixAdminService,
+  ) {}
 
   async findPublic(userId: string): Promise<PublicUser> {
     const user = await this.prisma.user.findUniqueOrThrow({
@@ -56,6 +60,16 @@ export class UserService {
     userId: string,
     input: UpdateProfileInput,
   ): Promise<CurrentUser> {
+    const before = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: {
+        name: true,
+        displayName: true,
+        avatarUrl: true,
+        matrixUserId: true,
+      },
+    });
+
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: {
@@ -77,6 +91,32 @@ export class UserService {
           : {}),
       },
     });
+
+    // Keep the user's Matrix profile in step, so their name and photo look the
+    // same in chat as everywhere else. Only when something the profile shows
+    // actually changed, and only for an already-bridged account — a brand-new
+    // one picks up its avatar when its identity is provisioned. Fire-and-forget:
+    // a profile save must not wait on (or fail with) the homeserver.
+    if (before.matrixUserId) {
+      const nameChanged =
+        input.name !== before.name ||
+        (input.displayName !== undefined &&
+          input.displayName !== before.displayName);
+      const avatarChanged =
+        input.avatarUrl !== undefined && input.avatarUrl !== before.avatarUrl;
+
+      if (nameChanged || avatarChanged) {
+        void this.matrix
+          .pushUserProfile({
+            userId,
+            displayName: nameChanged
+              ? (user.displayName ?? user.name)
+              : undefined,
+            avatarUrl: avatarChanged ? user.avatarUrl : undefined,
+          })
+          .catch(() => undefined);
+      }
+    }
 
     const isExpired =
       user.statusExpiresAt && user.statusExpiresAt < new Date();

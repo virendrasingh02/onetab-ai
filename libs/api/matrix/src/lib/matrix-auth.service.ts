@@ -29,7 +29,13 @@ export class MatrixAuthService {
 
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { id: true, name: true, displayName: true, matrixUserId: true },
+      select: {
+        id: true,
+        name: true,
+        displayName: true,
+        avatarUrl: true,
+        matrixUserId: true,
+      },
     });
 
     if (user.matrixUserId) return user.matrixUserId;
@@ -43,6 +49,15 @@ export class MatrixAuthService {
       where: { id: userId },
       data: { matrixUserId },
     });
+
+    // Provisioning sets a display name but never an avatar. Push the uploaded
+    // photo (if any) now, so the first message this account sends already
+    // carries it. Best-effort — chat works without it.
+    if (user.avatarUrl) {
+      void this.admin
+        .pushUserProfile({ userId: user.id, avatarUrl: user.avatarUrl })
+        .catch(() => undefined);
+    }
 
     return matrixUserId;
   }

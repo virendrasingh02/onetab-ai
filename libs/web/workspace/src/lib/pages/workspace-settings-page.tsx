@@ -834,6 +834,7 @@ export function WorkspaceSettingsPage({
                       src={profileForm.watch('avatarUrl') || user.avatarUrl}
                       seed={user.id}
                       size="xl"
+                      presence={user.presence}
                       statusEmoji={user.statusEmoji}
                       statusText={user.statusText}
                     />

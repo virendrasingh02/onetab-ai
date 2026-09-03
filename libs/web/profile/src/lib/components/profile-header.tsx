@@ -84,7 +84,7 @@ export function ProfileHeader({
               name={displayName}
               avatarUrl={user.avatarUrl}
               seed={user.id}
-              presence={user.presence === 'ONLINE' ? 'online' : user.presence === 'AWAY' ? 'away' : 'offline'}
+              presence={user.presence}
               statusEmoji={user.statusEmoji}
               statusText={user.statusText}
               editable={isCurrentUser}

@@ -26,6 +26,7 @@ import {
   DropdownMenuShortcut,
   Hint,
   PRESENCE_LABELS,
+  PresenceDot,
   SidebarActivityIndicator,
   toPresenceStatus,
   UserAvatar,
@@ -75,13 +76,6 @@ import {
   useCopyLink,
 } from './nav-primitives.js';
 import { useSidebarStore } from './navigation/sidebar-store.js';
-
-const PRESENCE_DOT: Record<PresenceStatus, string> = {
-  online: 'bg-success',
-  away: 'bg-warning',
-  busy: 'bg-destructive',
-  offline: 'bg-muted-foreground/60',
-};
 
 /**
  * One person's row.
@@ -140,25 +134,16 @@ function DirectMessageRow({
           })
         }
       >
-        <div className="relative shrink-0">
-          <UserAvatar
-            name={name}
-            src={member.user.avatarUrl}
-            seed={member.user.id}
-            indicator={false}
-            className="size-4"
-          />
-          <Hint label={PRESENCE_LABELS[presence]} side="top">
-            <span
-              title={PRESENCE_LABELS[presence]}
-              aria-label={`${name} is ${PRESENCE_LABELS[presence]}`}
-              className={cn(
-                'right-0 bottom-0 size-1.5 pointer-events-auto absolute cursor-default rounded-full ring-1 ring-background',
-                PRESENCE_DOT[presence],
-              )}
-            />
-          </Hint>
-        </div>
+        <UserAvatar
+          name={name}
+          src={member.user.avatarUrl}
+          seed={member.user.id}
+          size="xs"
+          presence={presence}
+          statusEmoji={member.user.statusEmoji}
+          statusText={member.user.statusText}
+          className="size-4"
+        />
 
         <span className="flex-1 truncate">{name}</span>
 
@@ -191,12 +176,7 @@ function DirectMessageRow({
           <DropdownMenuContent align="end" side="bottom" className="w-60">
             <div className="px-2 py-1.5 border-b border-border/60">
               <div className="gap-2 flex items-center">
-                <span
-                  className={cn(
-                    'size-2 shrink-0 rounded-full',
-                    PRESENCE_DOT[presence],
-                  )}
-                />
+                <PresenceDot presence={presence} hint={false} />
                 <span className="text-xs font-semibold truncate text-foreground">
                   {name}
                 </span>
@@ -337,8 +317,14 @@ function SelfDmRow({
   member: WorkspaceMember;
   workspaceSlug: string;
 }) {
+  const presenceMap = useUserPresenceMap();
   const name = member.user.displayName ?? member.user.name;
   const to = `/w/${workspaceSlug}/dms/${member.user.id}`;
+  // Your own row: you are looking at the screen, so default to online unless
+  // realtime presence says otherwise. The members-list snapshot is `OFFLINE`
+  // by default and would be wrong for the one person we know is here.
+  const presence: PresenceStatus =
+    presenceMap[member.user.id]?.status ?? 'online';
 
   return (
     <li className="group/row relative">
@@ -350,8 +336,9 @@ function SelfDmRow({
           name={name}
           src={member.user.avatarUrl}
           seed={member.user.id}
-          indicator={false}
-          className="size-4 shrink-0"
+          size="xs"
+          presence={presence}
+          className="size-4"
         />
         <span className="flex-1 truncate">{name}</span>
         <span className="font-medium text-[10px] text-muted-foreground/70">

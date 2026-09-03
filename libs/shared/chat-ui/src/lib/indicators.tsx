@@ -1,5 +1,5 @@
 import type { ConnectionStatus, PresenceState, RoomMember } from '@org/types';
-import { Badge, Hint, ScrollArea, UserAvatar } from '@org/ui';
+import { Badge, ScrollArea, UserAvatar } from '@org/ui';
 import { cn } from '@org/utils';
 import { Loader2, ShieldCheck, WifiOff } from 'lucide-react';
 import { UserProfileCard } from './user-profile-card.js';
@@ -33,52 +33,6 @@ export function getUserColor(userId: string): string {
   }
   const index = Math.abs(hash) % USER_COLORS.length;
   return USER_COLORS[index];
-}
-
-const PRESENCE_STYLES: Record<PresenceState, string> = {
-  online: 'bg-success',
-  away: 'bg-warning',
-  busy: 'bg-destructive',
-  unavailable: 'bg-warning',
-  offline: 'bg-muted-foreground',
-};
-
-const PRESENCE_LABELS: Record<PresenceState, string> = {
-  online: 'Online',
-  away: 'Away',
-  busy: 'Busy',
-  unavailable: 'Away',
-  offline: 'Offline',
-};
-
-export function PresenceBadge({
-  state,
-  className,
-  showLabel = false,
-}: {
-  state: PresenceState;
-  className?: string;
-  showLabel?: boolean;
-}) {
-  const dot = (
-    <span
-      className={cn('size-2 rounded-full cursor-default shrink-0', PRESENCE_STYLES[state])}
-      role="img"
-      aria-label={PRESENCE_LABELS[state]}
-      title={PRESENCE_LABELS[state]}
-    />
-  );
-
-  return (
-    <span className={cn('gap-1.5 inline-flex items-center', className)}>
-      {showLabel ? dot : <Hint label={PRESENCE_LABELS[state]}>{dot}</Hint>}
-      {showLabel ? (
-        <span className="text-xs text-muted-foreground">
-          {PRESENCE_LABELS[state]}
-        </span>
-      ) : null}
-    </span>
-  );
 }
 
 export interface TypingIndicatorProps {
@@ -200,15 +154,13 @@ export function MemberList({
                     seed={member.userId}
                     src={member.avatarUrl}
                     size="sm"
+                    presence={presenceOf ? presenceOf(member.userId) : undefined}
                   />
                   <span className="min-w-0 text-sm font-semibold text-foreground flex-1 truncate">
                     {member.displayName}
                   </span>
                   {member.powerLevel >= 100 ? (
                     <Badge variant="primary">Admin</Badge>
-                  ) : null}
-                  {presenceOf ? (
-                    <PresenceBadge state={presenceOf(member.userId)} />
                   ) : null}
                 </div>
               </UserProfileCard>

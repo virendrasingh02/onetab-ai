@@ -163,7 +163,7 @@ export function EntityItem({
                 <UserAvatar
                   name={entity.authorName}
                   src={entity.authorAvatarUrl}
-                  seed={entity.authorName}
+                  seed={entity.authorId || entity.authorName}
                   size="xs"
                   className="size-4 ring-1 ring-border"
                 />

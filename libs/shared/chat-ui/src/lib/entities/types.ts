@@ -16,6 +16,7 @@ export interface ChatAppEntity {
   assigneeId?: string;
   assigneeName?: string;
   assigneeAvatarUrl?: string;
+  authorId?: string;
   authorName?: string;
   authorAvatarUrl?: string;
   updatedAt?: number | string;

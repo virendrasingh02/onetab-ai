@@ -112,7 +112,6 @@ export {
   ConnectionBanner,
   EncryptionBadge,
   MemberList,
-  PresenceBadge,
   TypingIndicator,
   getUserColor,
   type ConnectionBannerProps,

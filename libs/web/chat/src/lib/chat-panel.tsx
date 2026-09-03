@@ -173,6 +173,7 @@ export function ChatPanel({
           id: eventId,
           roomId,
           channelName: title,
+          senderId: message.senderId,
           senderName: message.senderName,
           senderAvatarUrl: message.senderAvatarUrl,
           body: message.body,

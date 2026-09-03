@@ -53,6 +53,27 @@ const MAX_RATE_LIMIT_RETRIES = 3;
 /** Long enough for Synapse's login bucket to refill, short of a dead request. */
 const MAX_RATE_LIMIT_WAIT_MS = 8_000;
 
+/** A cropped avatar is a small square; anything much bigger is not one, and is
+ *  not worth pushing through the homeserver media repo. */
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Decodes a `data:` URL into bytes and a MIME type, or `null` for any other
+ * shape. Only `image/*` payloads are accepted — the one caller is avatar sync.
+ */
+function parseImageDataUrl(
+  value: string,
+): { mimeType: string; bytes: Uint8Array } | null {
+  const match = /^data:([^;,]+)(;base64)?,(.*)$/s.exec(value);
+  if (!match) return null;
+  const [, mimeType, isBase64, data] = match;
+  if (!mimeType.startsWith('image/')) return null;
+  const bytes = isBase64
+    ? Buffer.from(data, 'base64')
+    : Buffer.from(decodeURIComponent(data), 'utf8');
+  return { mimeType, bytes: new Uint8Array(bytes) };
+}
+
 /**
  * Provisions and administers Matrix identities for our users.
  *
@@ -456,6 +477,140 @@ export class MatrixAdminService {
     this.logger.log(`Provisioned Matrix identity ${registered.user_id}`);
 
     return { matrixUserId: registered.user_id };
+  }
+
+  /**
+   * Mirrors a bridged user's display name and avatar into their Matrix profile.
+   *
+   * Chat reads the sender's name and photo straight from Matrix, so without
+   * this a person who renamed themselves or uploaded a photo in their OneTab
+   * profile still shows a raw handle and an empty avatar in every conversation
+   * — while every other surface shows the real thing.
+   *
+   * Best-effort by contract: the callers (a profile save, a provisioning step,
+   * the reconciler) must never fail because the homeserver hiccuped, so each
+   * branch swallows its own error to a warning.
+   *
+   * `avatarUrl`:
+   *   - `undefined` — leave the Matrix avatar as it is.
+   *   - `null` / `''` — clear it.
+   *   - a `data:` URL — decode and upload the bytes to the media repo, then
+   *     point the profile at the resulting `mxc://`. That is what the profile
+   *     cropper produces and the only shape accepted: fetching an arbitrary
+   *     user-supplied `http(s)` URL from the server would be an SSRF hole, so
+   *     those are ignored here (the web UI still renders them in an `<img>`).
+   */
+  async pushUserProfile(input: {
+    userId: string;
+    displayName?: string | null;
+    avatarUrl?: string | null;
+  }): Promise<void> {
+    if (!this.config.enabled) return;
+
+    const matrixUserId = this.matrixUserIdFor(input.userId);
+
+    if (input.displayName) {
+      await this.setProfileField(matrixUserId, 'displayname', {
+        displayname: input.displayName,
+      }).catch((error) =>
+        this.logger.warn(
+          `Failed to sync Matrix display name for ${matrixUserId}: ${String(error)}`,
+        ),
+      );
+    }
+
+    if (input.avatarUrl !== undefined) {
+      try {
+        const mxc = input.avatarUrl
+          ? await this.uploadAvatarAs(matrixUserId, input.avatarUrl)
+          : '';
+        if (mxc !== null) {
+          await this.setProfileField(matrixUserId, 'avatar_url', {
+            avatar_url: mxc,
+          });
+        }
+      } catch (error) {
+        this.logger.warn(
+          `Failed to sync Matrix avatar for ${matrixUserId}: ${String(error)}`,
+        );
+      }
+    }
+  }
+
+  /**
+   * The `mxc://` avatar currently on a bridged user's Matrix profile, or `''`
+   * when it has none. Lets the reconciler tell "never synced" apart from
+   * "already has a photo" without a schema change.
+   */
+  async getUserAvatarMxc(userId: string): Promise<string> {
+    if (!this.config.enabled) return '';
+    const matrixUserId = this.matrixUserIdFor(userId);
+    try {
+      const profile = await this.request<{ avatar_url?: string }>(
+        `/_matrix/client/v3/profile/${encodeURIComponent(matrixUserId)}/avatar_url`,
+        { method: 'GET' },
+      );
+      return profile.avatar_url ?? '';
+    } catch {
+      return '';
+    }
+  }
+
+  /** `PUT`s one field of a bridged user's Matrix profile, as that user. */
+  private async setProfileField(
+    matrixUserId: string,
+    field: 'displayname' | 'avatar_url',
+    body: Record<string, string>,
+  ): Promise<void> {
+    const base = `/_matrix/client/v3/profile/${encodeURIComponent(matrixUserId)}/${field}`;
+    const accessToken = this.isAdminMode
+      ? await this.actAs(matrixUserId, { expiresInMs: 60_000 })
+      : this.config.asToken;
+    const path = this.isAdminMode
+      ? base
+      : `${base}?user_id=${encodeURIComponent(matrixUserId)}`;
+
+    await this.request(path, {
+      method: 'PUT',
+      accessToken,
+      body: JSON.stringify(body),
+    });
+  }
+
+  /**
+   * Uploads the bytes behind a `data:` URL to the media repo as `matrixUserId`
+   * and returns the `mxc://` URI. Returns `null` for any other URL shape or an
+   * oversized payload, which tells the caller to leave the avatar untouched.
+   */
+  private async uploadAvatarAs(
+    matrixUserId: string,
+    avatarUrl: string,
+  ): Promise<string | null> {
+    const parsed = parseImageDataUrl(avatarUrl);
+    if (!parsed) return null;
+    if (parsed.bytes.byteLength > MAX_AVATAR_BYTES) {
+      this.logger.warn(
+        `Matrix avatar for ${matrixUserId} is ${parsed.bytes.byteLength} bytes; skipping upload.`,
+      );
+      return null;
+    }
+
+    const accessToken = this.isAdminMode
+      ? await this.actAs(matrixUserId, { expiresInMs: 60_000 })
+      : this.config.asToken;
+    const base = '/_matrix/media/v3/upload?filename=avatar';
+    const path = this.isAdminMode
+      ? base
+      : `${base}&user_id=${encodeURIComponent(matrixUserId)}`;
+
+    const response = await this.request<{ content_uri?: string }>(path, {
+      method: 'POST',
+      accessToken,
+      headers: { 'Content-Type': parsed.mimeType },
+      body: parsed.bytes,
+    });
+
+    return response.content_uri ?? null;
   }
 
   /**

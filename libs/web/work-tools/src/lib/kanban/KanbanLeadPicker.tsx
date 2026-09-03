@@ -114,6 +114,9 @@ export function KanbanLeadPicker({
           name={assignedMembers[0].name}
           seed={assignedMembers[0].id}
           src={assignedMembers[0].avatarUrl}
+          presence={assignedMembers[0].presence}
+          statusEmoji={assignedMembers[0].statusEmoji}
+          statusText={assignedMembers[0].statusText}
           size="xs"
           className="size-5 text-[9px] font-bold ring-1 ring-surface"
         />
@@ -211,6 +214,9 @@ export function KanbanLeadPicker({
                         name={member.displayName ?? member.name}
                         seed={member.id}
                         src={member.avatarUrl}
+                        presence={member.presence}
+                        statusEmoji={member.statusEmoji}
+                        statusText={member.statusText}
                         size="sm"
                         className="size-7 text-[10px] font-bold shrink-0 rounded-full"
                       />

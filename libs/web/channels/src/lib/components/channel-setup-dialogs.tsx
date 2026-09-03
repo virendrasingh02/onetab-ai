@@ -342,9 +342,6 @@ export function AddPeopleDialog({
                   const isFocused = index === focusedIndex;
                   const name =
                     member.user.displayName ?? member.user.name;
-                  const isOnline =
-                    member.user.presence === 'ONLINE' ||
-                    member.user.presence?.toLowerCase() === 'online';
 
                   return (
                     <button
@@ -365,18 +362,14 @@ export function AddPeopleDialog({
                           src={member.user.avatarUrl}
                           seed={member.user.id}
                           size="sm"
+                          presence={member.user.presence}
+                          statusEmoji={member.user.statusEmoji}
+                          statusText={member.user.statusText}
                           className="shrink-0"
                         />
                         <div className="flex items-center gap-1.5 min-w-0 flex-1 truncate">
                           <span className="text-xs font-semibold text-foreground truncate">
                             {name}
-                          </span>
-                          <span className="shrink-0 flex items-center justify-center">
-                            {isOnline ? (
-                              <span className="size-1.5 rounded-full bg-success" />
-                            ) : (
-                              <span className="size-1.5 rounded-full border border-muted-foreground/60" />
-                            )}
                           </span>
                           <span className="text-xs text-muted-foreground truncate">
                             {member.user.name}

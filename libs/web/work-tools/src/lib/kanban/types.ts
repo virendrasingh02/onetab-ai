@@ -1,4 +1,4 @@
-import type { TaskStatus } from '@org/types';
+import type { PresenceStatus, TaskStatus } from '@org/types';
 
 /**
  * The board's view of the tasks API.
@@ -24,6 +24,16 @@ export interface BoardMember {
   displayName?: string | null;
   email?: string | null;
   avatarUrl?: string;
+  /**
+   * Live-ish identity, carried straight from `WorkspaceMember.user` so a board
+   * avatar shows the same presence dot and status as the same person does in
+   * the members list. The API keeps `User.presence` current (login, the
+   * realtime heartbeat, logout); this just stops the board from dropping it.
+   */
+  presence?: PresenceStatus;
+  statusEmoji?: string | null;
+  statusText?: string | null;
+  lastSeenAt?: string | null;
 }
 
 export interface KanbanCard {

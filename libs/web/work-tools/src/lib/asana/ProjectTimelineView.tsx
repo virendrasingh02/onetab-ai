@@ -160,7 +160,15 @@ export function ProjectTimelineView({
                         {listTitle}
                       </span>
                       {assignedMember && (
-                        <UserAvatar name={assignedMember.name} src={assignedMember.avatarUrl} size="xs" />
+                        <UserAvatar
+                          name={assignedMember.name}
+                          src={assignedMember.avatarUrl}
+                          seed={assignedMember.id}
+                          presence={assignedMember.presence}
+                          statusEmoji={assignedMember.statusEmoji}
+                          statusText={assignedMember.statusText}
+                          size="xs"
+                        />
                       )}
                     </div>
                   </div>

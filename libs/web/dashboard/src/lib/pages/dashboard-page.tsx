@@ -517,11 +517,9 @@ export function DashboardPage() {
                             src={member.user.avatarUrl}
                             seed={member.user.id}
                             size="sm"
-                            presence={
-                              member.user.presence === 'ONLINE'
-                                ? 'online'
-                                : 'offline'
-                            }
+                            presence={member.user.presence}
+                            statusEmoji={member.user.statusEmoji}
+                            statusText={member.user.statusText}
                           />
                           <div className="min-w-0">
                             <p className="font-medium leading-tight truncate text-foreground">

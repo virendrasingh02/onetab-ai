@@ -162,6 +162,8 @@ export function MembersPage() {
                         src={member.user.avatarUrl}
                         seed={member.user.id}
                         presence={memberStatus}
+                        statusEmoji={member.user.statusEmoji}
+                        statusText={member.user.statusText}
                       />
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium truncate hover:underline">

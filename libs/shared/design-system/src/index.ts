@@ -18,6 +18,7 @@ export {
   breakpoints,
   avatarTint,
   avatarGradient,
+  normalizeAvatarSeed,
   ACCENTS,
   accentTokens,
   accentFor,

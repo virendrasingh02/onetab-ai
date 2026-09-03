@@ -571,6 +571,7 @@ export function useChannelAppEntities(
         description: typeof doc.content === 'string' ? doc.content.slice(0, 160) : undefined,
         channelId,
         channelName: channelName ?? 'general',
+        authorId: doc.author?.id,
         authorName: doc.author?.displayName ?? doc.author?.name,
         authorAvatarUrl: doc.author?.avatarUrl ?? undefined,
         updatedAt: doc.updatedAt,

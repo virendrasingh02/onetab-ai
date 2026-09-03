@@ -247,6 +247,10 @@ export function ProjectListView({
                                         <UserAvatar
                                           name={assignedMember.name}
                                           src={assignedMember.avatarUrl}
+                                          seed={assignedMember.id}
+                                          presence={assignedMember.presence}
+                                          statusEmoji={assignedMember.statusEmoji}
+                                          statusText={assignedMember.statusText}
                                           size="xs"
                                         />
                                       )}
@@ -274,7 +278,15 @@ export function ProjectListView({
                                     }
                                     className="flex items-center gap-2"
                                   >
-                                    <UserAvatar name={member.name} src={member.avatarUrl} size="xs" />
+                                    <UserAvatar
+                                      name={member.name}
+                                      src={member.avatarUrl}
+                                      seed={member.id}
+                                      presence={member.presence}
+                                      statusEmoji={member.statusEmoji}
+                                      statusText={member.statusText}
+                                      size="xs"
+                                    />
                                     <span>{member.name}</span>
                                   </DropdownMenuItem>
                                 ))}

@@ -22,9 +22,6 @@
       "path": "../../shared/types/tsconfig.lib.json"
     },
     {
-      "path": "../database/tsconfig.lib.json"
-    },
-    {
       "path": "../../shared/validation/tsconfig.lib.json"
     },
     {
@@ -32,6 +29,12 @@
     },
     {
       "path": "../auth/tsconfig.lib.json"
+    },
+    {
+      "path": "../database/tsconfig.lib.json"
+    },
+    {
+      "path": "../matrix/tsconfig.lib.json"
     }
   ]
 }

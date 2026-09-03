@@ -212,8 +212,27 @@ function hashSeed(seed: string): number {
   return Math.abs(hash);
 }
 
+/**
+ * Collapses the spellings of one identity onto a single hash input, so a person
+ * gets the same fallback colour on every surface.
+ *
+ * Chat seeds an avatar with the Matrix user id the bridge minted for the
+ * account (`@onetab_<id>:server`), while every other surface seeds it with the
+ * bare database id. Left alone those hash differently and the same person shows
+ * two different gradients. Unwrapping the bridge's `onetab_` prefix and the
+ * `:server` suffix maps the chat spelling back to `<id>`; any other string
+ * (including a raw id, an agent/app seed, or a fallback name) passes through
+ * untouched, so no existing avatar changes colour.
+ */
+export function normalizeAvatarSeed(seed: string): string {
+  // `@onetab_<id>:server` — or `:server:port` — collapses to `<id>`. The
+  // localpart never contains a colon, so the first `:` ends the id.
+  const match = /^@?onetab_([^:]+):.+$/.exec(seed.trim());
+  return match ? match[1] : seed;
+}
+
 export function avatarTint(seed: string): string {
-  return AVATAR_TINTS[hashSeed(seed) % AVATAR_TINTS.length];
+  return AVATAR_TINTS[hashSeed(normalizeAvatarSeed(seed)) % AVATAR_TINTS.length];
 }
 
 /**
@@ -227,7 +246,7 @@ export function avatarTint(seed: string): string {
  * value for `background-image`.
  */
 export function avatarGradient(seed: string): string {
-  const h = hashSeed(seed);
+  const h = hashSeed(normalizeAvatarSeed(seed));
   const len = AVATAR_TINTS.length;
   const from = AVATAR_TINTS[h % len];
   // Second stop is a *different* palette entry (offset 3–6 of 10 never lands
