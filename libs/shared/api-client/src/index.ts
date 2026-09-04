@@ -35,6 +35,8 @@ export {
   workspaceApi,
   billingApi,
   type AuthResponse,
+  type UpdateUploadParams,
+  type UploadContextParams,
 } from './lib/endpoints.js';
 
 

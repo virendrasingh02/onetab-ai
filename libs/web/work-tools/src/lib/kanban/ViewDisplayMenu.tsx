@@ -2,6 +2,7 @@ import { cn } from '@org/utils';
 import {
   FolderGit2,
   FolderKanban,
+  FolderOpen,
   GanttChartSquare,
   HeartPulse,
   Inbox,
@@ -28,6 +29,7 @@ export type ProjectViewMode =
   | 'initiatives'
   | 'intake'
   | 'updates'
+  | 'files'
   | 'settings'
   | 'projects';
 
@@ -47,6 +49,7 @@ export const VIEW_MODES: Array<{
   { id: 'initiatives', label: 'Initiatives', icon: Target },
   { id: 'intake', label: 'Intake', icon: Inbox },
   { id: 'updates', label: 'Updates', icon: HeartPulse },
+  { id: 'files', label: 'Files', icon: FolderOpen },
   { id: 'settings', label: 'Settings', icon: Settings },
   { id: 'projects', label: 'Projects', icon: FolderKanban },
 ];

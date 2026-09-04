@@ -38,6 +38,7 @@ import {
   Filter,
   FolderGit2,
   FolderKanban,
+  FolderOpen,
   GanttChartSquare,
   Hash,
   HeartPulse,
@@ -119,6 +120,7 @@ import { InitiativesView } from './views/InitiativesView.js';
 import { IntakeTriageView } from './views/IntakeTriageView.js';
 import { ProjectUpdatesView } from './views/ProjectUpdatesView.js';
 import { ProjectSettingsView } from './views/ProjectSettingsView.js';
+import { ProjectFilesView } from './asana/ProjectFilesView.js';
 
 export type AsanaViewMode = ProjectViewMode;
 
@@ -940,6 +942,7 @@ export function AsanaProjectManager() {
           { id: 'initiatives', label: 'Initiatives', icon: Target },
           { id: 'intake', label: 'Intake', icon: Inbox },
           { id: 'updates', label: 'Updates', icon: HeartPulse },
+          { id: 'files', label: 'Files', icon: FolderOpen },
           { id: 'settings', label: 'Settings', icon: Settings },
         ].map((v) => {
           const Icon = v.icon;
@@ -1124,6 +1127,14 @@ export function AsanaProjectManager() {
                 onPublishUpdate={(input) => {
                   projectUpdateMutations.create.mutate(input);
                 }}
+              />
+            )}
+
+            {viewMode === 'files' && activeProject && (
+              <ProjectFilesView
+                workspaceId={workspaceId}
+                projectId={activeProject.id}
+                projectName={activeProject.name}
               />
             )}
 

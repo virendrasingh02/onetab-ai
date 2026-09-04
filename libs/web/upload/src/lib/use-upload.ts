@@ -1,12 +1,22 @@
-import { queryKeys, uploadApi } from '@org/api-client';
-import type { Upload } from '@org/types';
+import { queryKeys, uploadApi, type UpdateUploadParams } from '@org/api-client';
+import type {
+  Upload,
+  UploadContextType,
+  UploadDestinations,
+  UploadStorageUsage,
+} from '@org/types';
 import {
   ALLOWED_UPLOAD_MIME_TYPES,
   MAX_UPLOAD_BYTES,
   uploadRequestSchema,
 } from '@org/validation';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export interface UploadCandidate {
   id: string;
@@ -18,6 +28,28 @@ export interface UploadCandidate {
   status: 'pending' | 'uploading' | 'done' | 'error';
   /** Set once the transfer succeeds. */
   uploaded?: Upload;
+}
+
+/**
+ * Where an upload is filed. Omitted / `WORKSPACE` means an unfiled workspace
+ * upload; every other kind carries the id of the channel / project / agent /
+ * app, or (for `DIRECT`) the peer user id or group-DM room id.
+ */
+export interface UploadTarget {
+  type: UploadContextType;
+  id?: string | null;
+}
+
+/** Stable string form of a target, for query keys. `undefined` -> every upload. */
+export function uploadTargetKey(target?: UploadTarget): string {
+  if (!target) return 'all';
+  if (target.type === 'WORKSPACE') return 'WORKSPACE:';
+  return `${target.type}:${target.id ?? ''}`;
+}
+
+function targetParams(target?: UploadTarget) {
+  if (!target) return undefined;
+  return { contextType: target.type, contextId: target.id ?? undefined };
 }
 
 function validate(file: File): string | undefined {
@@ -37,8 +69,8 @@ function candidateId(file: File): string {
 
 export interface UseFileUploadOptions {
   workspaceId: string | undefined;
-  /** Attaches the upload to a channel rather than the workspace at large. */
-  channelId?: string;
+  /** Attaches the upload to a channel / DM / project / agent / app. */
+  target?: UploadTarget;
   onUploaded?: (upload: Upload) => void;
 }
 
@@ -51,7 +83,7 @@ export interface UseFileUploadOptions {
  */
 export function useFileUpload({
   workspaceId,
-  channelId,
+  target,
   onUploaded,
 }: UseFileUploadOptions) {
   const [files, setFiles] = useState<UploadCandidate[]>([]);
@@ -144,7 +176,7 @@ export function useFileUpload({
 
       try {
         const uploaded = await uploadApi.upload(workspaceId, entry.file, {
-          channelId,
+          ...targetParams(target),
           signal: controller.signal,
           onProgress: (percent) => patch(entry.id, { progress: percent }),
         });
@@ -162,7 +194,7 @@ export function useFileUpload({
         controllers.current.delete(entry.id);
       }
     },
-    [workspaceId, channelId, patch, onUploaded],
+    [workspaceId, target, patch, onUploaded],
   );
 
   const uploadAll = useMutation({
@@ -202,29 +234,100 @@ export function useFileUpload({
   };
 }
 
+/**
+ * A flat list of files for a workspace, scoped to `target` (or all of them).
+ *
+ * For a bounded surface — a project tab, a conversation panel — where one page
+ * is plenty. The Files hub uses {@link useInfiniteUploads} instead.
+ */
 export function useUploads(
   workspaceId: string | undefined,
-  channelId?: string,
+  target?: UploadTarget,
 ) {
   return useQuery({
-    queryKey: queryKeys.uploads.list(workspaceId ?? '', channelId),
-    queryFn: () => uploadApi.list(workspaceId as string, channelId),
+    queryKey: queryKeys.uploads.list(workspaceId ?? '', uploadTargetKey(target)),
+    queryFn: () =>
+      uploadApi.list(workspaceId as string, targetParams(target), { limit: 200 }),
     enabled: !!workspaceId,
     staleTime: 30_000,
+    select: (page) => page.items,
+  });
+}
+
+/** Keyset-paginated files for the Files hub — one page per scroll. */
+export function useInfiniteUploads(
+  workspaceId: string | undefined,
+  target?: UploadTarget,
+  pageSize = 50,
+) {
+  const query = useInfiniteQuery({
+    queryKey: queryKeys.uploads.infinite(
+      workspaceId ?? '',
+      uploadTargetKey(target),
+    ),
+    queryFn: ({ pageParam }) =>
+      uploadApi.list(workspaceId as string, targetParams(target), {
+        cursor: pageParam as string | undefined,
+        limit: pageSize,
+      }),
+    enabled: !!workspaceId,
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+    staleTime: 30_000,
+  });
+
+  const items = useMemo(
+    () => (query.data?.pages ?? []).flatMap((p) => p.items),
+    [query.data],
+  );
+
+  return { ...query, items };
+}
+
+/** Channels / projects / agents / apps / people offered by the upload dialog. */
+export function useUploadDestinations(workspaceId: string | undefined) {
+  return useQuery<UploadDestinations>({
+    queryKey: queryKeys.uploads.destinations(workspaceId ?? ''),
+    queryFn: () => uploadApi.listDestinations(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** Workspace storage consumption + the plan cap, for the hub meter. */
+export function useUploadStorageUsage(workspaceId: string | undefined) {
+  return useQuery<UploadStorageUsage>({
+    queryKey: queryKeys.uploads.usage(workspaceId ?? ''),
+    queryFn: () => uploadApi.storageUsage(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 60_000,
   });
 }
 
 export function useUploadMutations(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
 
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.uploads.all(workspaceId ?? ''),
+    });
+
   const remove = useMutation({
     mutationFn: (uploadId: string) =>
       uploadApi.remove(workspaceId as string, uploadId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.uploads.all(workspaceId ?? ''),
-      });
-    },
+    onSuccess: invalidate,
+  });
+
+  /** Rename and/or move — the details panel's editable fields. */
+  const update = useMutation({
+    mutationFn: ({
+      uploadId,
+      patch,
+    }: {
+      uploadId: string;
+      patch: UpdateUploadParams;
+    }) => uploadApi.update(workspaceId as string, uploadId, patch),
+    onSuccess: invalidate,
   });
 
   /**
@@ -248,5 +351,5 @@ export function useUploadMutations(workspaceId: string | undefined) {
     },
   });
 
-  return { remove, download };
+  return { remove, update, download };
 }

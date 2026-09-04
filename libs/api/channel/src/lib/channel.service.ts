@@ -11,6 +11,7 @@ import {
   toChannel,
   toChannelMember,
   toChannelPin,
+  toUpload,
 } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import {
@@ -23,6 +24,7 @@ import {
   type ChannelMember,
   type ChannelPin,
   type ChannelSummary,
+  type Upload,
 } from '@org/types';
 import type {
   AddChannelMembersInput,
@@ -439,10 +441,10 @@ export class ChannelService {
   }
 
   /** Files shared in a channel — the channel "Files"/"Media" tabs. */
-  async listUploads(workspaceId: string, channelId: string) {
+  async listUploads(workspaceId: string, channelId: string): Promise<Upload[]> {
     await this.assertChannel(workspaceId, channelId);
 
-    return this.prisma.upload.findMany({
+    const rows = await this.prisma.upload.findMany({
       // Both, not just the channel: an upload row carries its own workspace,
       // so scoping on it too keeps a mis-filed row from crossing the boundary.
       where: { channelId, workspaceId },
@@ -450,6 +452,7 @@ export class ChannelService {
       take: 100,
       include: { uploader: { select: PUBLIC_USER_SELECT } },
     });
+    return rows.map((row) => toUpload(row));
   }
 
   /**

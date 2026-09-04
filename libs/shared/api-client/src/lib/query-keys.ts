@@ -166,8 +166,13 @@ export const queryKeys = {
   },
   uploads: {
     all: (workspaceId: string) => ['uploads', workspaceId] as const,
-    list: (workspaceId: string, channelId?: string) =>
-      ['uploads', workspaceId, 'list', channelId ?? 'all'] as const,
+    list: (workspaceId: string, context?: string) =>
+      ['uploads', workspaceId, 'list', context ?? 'all'] as const,
+    infinite: (workspaceId: string, context?: string) =>
+      ['uploads', workspaceId, 'infinite', context ?? 'all'] as const,
+    destinations: (workspaceId: string) =>
+      ['uploads', workspaceId, 'destinations'] as const,
+    usage: (workspaceId: string) => ['uploads', workspaceId, 'usage'] as const,
   },
   promptTemplates: {
     all: (workspaceId: string) => ['prompt-templates', workspaceId] as const,

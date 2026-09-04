@@ -53,6 +53,35 @@ export const uploadRequestSchema = z.object({
   channelId: z.string().nullable().optional(),
 });
 
+/** The surfaces a file can be "filed" under — mirrors the DB enum. */
+export const UPLOAD_CONTEXT_TYPES = [
+  'WORKSPACE',
+  'CHANNEL',
+  'DIRECT',
+  'PROJECT',
+  'AGENT',
+  'APP',
+  'DOCUMENT',
+  'ISSUE',
+] as const;
+
+/** Rename (`filename`) and/or move (`contextType`/`contextId`) an upload. */
+export const updateUploadSchema = z
+  .object({
+    filename: z.string().trim().min(1).max(255).optional(),
+    contextType: z.enum(UPLOAD_CONTEXT_TYPES).optional(),
+    contextId: z.string().trim().min(1).max(255).nullable().optional(),
+  })
+  .refine(
+    (v) =>
+      v.filename !== undefined ||
+      v.contextType !== undefined ||
+      v.contextId !== undefined,
+    { message: 'Nothing to update.' },
+  );
+
+export type UpdateUploadInput = z.infer<typeof updateUploadSchema>;
+
 export const chatPreferencesSchema = z.object({
   messageDensity: z.enum(['comfy', 'compact']).default('comfy'),
   openPosition: z.enum(['last-read', 'newest']).default('last-read'),

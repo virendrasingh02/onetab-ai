@@ -1,7 +1,9 @@
 import { useCurrentUser } from '@org/auth';
-import { useMediaPreview } from '@org/media-preview';
-import type { Upload } from '@org/types';
+import { getMediaType, useMediaPreview, type MediaItem } from '@org/media-preview';
+import type { Upload, UploadContextType } from '@org/types';
+import { getUsagePercentage } from '@org/types';
 import {
+  AppSelect,
   Badge,
   Button,
   Dialog,
@@ -15,99 +17,45 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   EmptyState,
-  Hint,
+  Field,
+  Progress,
   SearchInput,
   SegmentedControl,
   SkeletonList,
-  UserAvatar,
   usePromptDialog,
   type SegmentedOption,
 } from '@org/ui';
-import { cn, formatBytes, formatRelative } from '@org/utils';
+import { formatBytes } from '@org/utils';
 import {
+  AssetDetailsDialog,
   FileDropzone,
+  KIND_LABEL,
+  UploadList,
+  kindOf,
+  parseDestinationValue,
+  uploadSourceHref,
+  useDestinationOptions,
+  useInfiniteUploads,
   useUploadMediaAdapter,
   useUploadMutations,
-  useUploads,
+  useUploadStorageUsage,
+  type FileKind,
+  type UploadListItem,
+  type UploadTarget,
 } from '@org/web-upload';
+import { useWorkspaceRoomFiles } from '@org/web-chat';
 import {
   Check,
   ChevronDown,
-  Download,
-  Eye,
-  FileArchive,
-  FileJson,
-  FileText,
   FolderOpen,
   HardDrive,
-  Image as ImageIcon,
-  MoreVertical,
   Plus,
   SlidersHorizontal,
-  Table2,
-  Trash2,
   TriangleAlert,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCurrentWorkspace } from './use-work-tools.js';
-
-/**
- * Broad buckets over the allowed MIME types.
- *
- * The filter reads in the user's terms ("Images", "Spreadsheets") rather than
- * `image/svg+xml`, and grouping keeps the menu from growing a row every time
- * the allow-list gains a type.
- */
-type FileKind = 'image' | 'document' | 'spreadsheet' | 'archive' | 'data';
-
-const KIND_LABEL: Record<FileKind, string> = {
-  image: 'Images',
-  document: 'Documents',
-  spreadsheet: 'Spreadsheets',
-  archive: 'Archives',
-  data: 'Data',
-};
-
-function kindOf(mimeType: string): FileKind {
-  if (mimeType.startsWith('image/')) return 'image';
-  if (mimeType === 'text/csv') return 'spreadsheet';
-  if (mimeType === 'application/zip') return 'archive';
-  if (mimeType === 'application/json') return 'data';
-  return 'document';
-}
-
-const KIND_STYLE: Record<FileKind, string> = {
-  image: 'bg-accent-cyan-soft border-accent-cyan/30 text-accent-cyan',
-  document: 'bg-accent-rose-soft border-accent-rose/30 text-accent-rose',
-  spreadsheet: 'bg-accent-green-soft border-accent-green/30 text-accent-green',
-  archive: 'bg-accent-amber-soft border-accent-amber/30 text-accent-amber',
-  data: 'bg-accent-blue-soft border-accent-blue/30 text-accent-blue',
-};
-
-function FileTypeBadge({ mimeType }: { mimeType: string }) {
-  const kind = kindOf(mimeType);
-  const Icon =
-    kind === 'image'
-      ? ImageIcon
-      : kind === 'spreadsheet'
-        ? Table2
-        : kind === 'archive'
-          ? FileArchive
-          : kind === 'data'
-            ? FileJson
-            : FileText;
-
-  return (
-    <div
-      className={cn(
-        'size-9 relative flex shrink-0 items-center justify-center rounded-lg border select-none',
-        KIND_STYLE[kind],
-      )}
-    >
-      <Icon className="size-4" aria-hidden />
-    </div>
-  );
-}
 
 type OwnerTab = 'all' | 'created' | 'shared';
 
@@ -116,68 +64,201 @@ const OWNER_TABS: readonly SegmentedOption<OwnerTab>[] = [
   { value: 'created', label: 'Uploaded by you' },
   { value: 'shared', label: 'From teammates' },
 ];
+
 type SortKey = 'recent' | 'name' | 'size';
+
+type SourceFilter = UploadContextType | 'all';
+
+const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
+  { value: 'all', label: 'All sources' },
+  { value: 'CHANNEL', label: 'Channels' },
+  { value: 'DIRECT', label: 'Direct messages' },
+  { value: 'PROJECT', label: 'Projects' },
+  { value: 'AGENT', label: 'Agents' },
+  { value: 'APP', label: 'Apps' },
+  { value: 'DOCUMENT', label: 'Documents' },
+  { value: 'ISSUE', label: 'Issues' },
+  { value: 'WORKSPACE', label: 'Workspace' },
+];
+
+const DEST_WORKSPACE = 'WORKSPACE';
+
+/** One merged row: a workspace `Upload` or a Matrix chat attachment. */
+interface HubRow {
+  item: UploadListItem;
+  createdAtMs: number;
+  kind: FileKind;
+  sourceType: UploadContextType;
+  isMine: boolean;
+  media: MediaItem;
+  /** The full row for the details panel; null for Matrix chat items. */
+  upload: Upload | null;
+  /** Direct URL for chat items; `null` for `Upload` rows (auth'd download only). */
+  directUrl: string | null;
+}
 
 export function FileManagerView() {
   const user = useCurrentUser();
-  const { workspaceId } = useCurrentWorkspace();
-  const uploads = useUploads(workspaceId);
+  const navigate = useNavigate();
+  const { workspaceId, slug } = useCurrentWorkspace();
+
+  const uploads = useInfiniteUploads(workspaceId);
+  const roomFiles = useWorkspaceRoomFiles();
+  const usage = useUploadStorageUsage(workspaceId);
+  const { groups: destinationGroups, isLoading: destsLoading } =
+    useDestinationOptions(workspaceId);
   const { remove, download } = useUploadMutations(workspaceId);
   const { toMediaItem } = useUploadMediaAdapter(workspaceId);
   const { openPreview } = useMediaPreview();
+  const prompts = usePromptDialog();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<OwnerTab>('all');
   const [selectedKind, setSelectedKind] = useState<FileKind | 'all'>('all');
+  const [selectedSource, setSelectedSource] = useState<SourceFilter>('all');
   const [sortBy, setSortBy] = useState<SortKey>('recent');
   const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const prompts = usePromptDialog();
+  const [destination, setDestination] = useState<string>(DEST_WORKSPACE);
+  const [detailsId, setDetailsId] = useState<string | null>(null);
 
-  /*
-   * Deleting a file is immediate and irreversible for everyone in the
-   * workspace — the row's menu used to fire the mutation straight from the
-   * click, so a mis-click destroyed a teammate's upload with no way back.
-   */
-  const confirmDelete = async (filename: string, id: string) => {
-    const confirmed = await prompts.confirmAction({
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = uploads;
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+        void fetchNextPage();
+      }
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const confirmDelete = async (id: string, filename: string) => {
+    const ok = await prompts.confirmAction({
       title: `Delete “${filename}”?`,
       description:
         'The file is removed for everyone in this workspace. This cannot be undone.',
       confirmLabel: 'Delete file',
       destructive: true,
     });
-    if (confirmed) remove.mutate(id);
+    if (ok) remove.mutate(id);
   };
 
-  const visibleFiles = useMemo(() => {
+  const allRows = useMemo<HubRow[]>(() => {
+    const fromUploads: HubRow[] = uploads.items.map((u) => ({
+      item: {
+        id: u.id,
+        filename: u.filename,
+        mimeType: u.mimeType,
+        size: u.size,
+        createdAt: u.createdAt,
+        updatedAt: u.updatedAt,
+        uploader: u.uploader,
+        source: {
+          type: u.contextType,
+          label: u.context?.label ?? null,
+          href: uploadSourceHref(slug, u.context),
+        },
+        manageable: true,
+      },
+      createdAtMs: Date.parse(u.createdAt),
+      kind: kindOf(u.mimeType),
+      sourceType: u.contextType,
+      isMine: u.uploader.id === user?.id,
+      media: toMediaItem(u),
+      upload: u,
+      directUrl: null,
+    }));
+
+    const fromRooms: HubRow[] = roomFiles.files.map((f) => {
+      const sourceType: UploadContextType =
+        f.roomKind === 'channel' ? 'CHANNEL' : 'DIRECT';
+      return {
+        item: {
+          id: f.id,
+          filename: f.name,
+          mimeType: f.mimeType,
+          size: f.size,
+          createdAt: new Date(f.timestamp).toISOString(),
+          uploader: {
+            id: f.senderId,
+            name: f.senderName,
+            avatarUrl: f.senderAvatarUrl ?? null,
+          },
+          source: {
+            type: sourceType,
+            label: f.roomName,
+            href:
+              sourceType === 'DIRECT' && slug
+                ? `/w/${slug}/dms?room=${encodeURIComponent(f.roomId)}`
+                : null,
+          },
+          manageable: false,
+        },
+        createdAtMs: f.timestamp,
+        kind: kindOf(f.mimeType),
+        sourceType,
+        isMine: f.isMine,
+        media: {
+          id: f.id,
+          name: f.name,
+          mimeType: f.mimeType,
+          size: f.size,
+          category: getMediaType(f.mimeType, f.name),
+          url: f.url,
+          thumbnailUrl: f.thumbnailUrl,
+        },
+        upload: null,
+        directUrl: f.url,
+      };
+    });
+
+    return [...fromUploads, ...fromRooms];
+  }, [uploads.items, roomFiles.files, user?.id, toMediaItem, slug]);
+
+  const visibleRows = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
-    const filtered = (uploads.data ?? []).filter((file) => {
-      if (query && !file.filename.toLowerCase().includes(query)) return false;
-
-      const isOwner = file.uploader.id === user?.id;
-      if (activeTab === 'created' && !isOwner) return false;
-      if (activeTab === 'shared' && isOwner) return false;
-
-      if (selectedKind !== 'all' && kindOf(file.mimeType) !== selectedKind) {
+    const filtered = allRows.filter((row) => {
+      if (query && !row.item.filename.toLowerCase().includes(query)) {
+        return false;
+      }
+      if (activeTab === 'created' && !row.isMine) return false;
+      if (activeTab === 'shared' && row.isMine) return false;
+      if (selectedKind !== 'all' && row.kind !== selectedKind) return false;
+      if (selectedSource !== 'all' && row.sourceType !== selectedSource) {
         return false;
       }
       return true;
     });
 
-    // `toSorted` is not available in every target browser this ships to.
     return [...filtered].sort((a, b) => {
-      if (sortBy === 'name') return a.filename.localeCompare(b.filename);
-      if (sortBy === 'size') return b.size - a.size;
-      return Date.parse(b.createdAt) - Date.parse(a.createdAt);
+      if (sortBy === 'name') {
+        return a.item.filename.localeCompare(b.item.filename);
+      }
+      if (sortBy === 'size') return b.item.size - a.item.size;
+      return b.createdAtMs - a.createdAtMs;
     });
-  }, [uploads.data, searchQuery, activeTab, selectedKind, sortBy, user?.id]);
+  }, [allRows, searchQuery, activeTab, selectedKind, selectedSource, sortBy]);
 
   const resetFilters = () => {
     setSearchQuery('');
     setActiveTab('all');
     setSelectedKind('all');
+    setSelectedSource('all');
   };
+
+  const isLoading =
+    uploads.isLoading || (roomFiles.enabled && roomFiles.isLoading);
+
+  const detailsUpload =
+    (detailsId && uploads.items.find((u) => u.id === detailsId)) || null;
+
+  const usagePct = usage.data
+    ? getUsagePercentage(usage.data.usedBytes, usage.data.limitBytes)
+    : 0;
 
   return (
     <div className="min-h-0 flex flex-1 flex-col">
@@ -193,19 +274,26 @@ export function FileManagerView() {
               <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
                 All Files
               </h2>
-              <Badge
-                variant="neutral"
-                className="px-1.5 py-0 h-4.5 text-[11px]"
-              >
-                {uploads.data?.length ?? 0} files
+              <Badge variant="neutral" className="px-1.5 py-0 h-4.5 text-[11px]">
+                {allRows.length} files
               </Badge>
             </div>
 
-            {/* <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
-
-            <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
-              Everything uploaded to this workspace by you and teammates
-            </p> */}
+            {usage.data && usage.data.limitBytes > 0 ? (
+              <div
+                className="hidden sm:flex items-center gap-2 text-[11px] text-muted-foreground"
+                title={`${formatBytes(usage.data.usedBytes)} of ${formatBytes(
+                  usage.data.limitBytes,
+                )} used`}
+              >
+                <span className="h-4 w-px bg-border" />
+                <Progress value={usagePct} className="h-1.5 w-24" />
+                <span className={usage.data.nearLimit ? 'text-warning' : undefined}>
+                  {formatBytes(usage.data.usedBytes)} /{' '}
+                  {formatBytes(usage.data.limitBytes)}
+                </span>
+              </div>
+            ) : null}
           </div>
 
           <div className="gap-2 flex items-center">
@@ -240,6 +328,38 @@ export function FileManagerView() {
             />
 
             <div className="gap-2 sm:self-auto flex items-center self-end">
+              {/* Source Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="gap-1.5 px-3 py-1.5 text-xs font-medium flex items-center rounded-md border border-border bg-surface text-foreground transition-colors hover:bg-accent"
+                    aria-label="Filter by source"
+                  >
+                    <FolderOpen className="size-3.5 text-accent-violet" />
+                    <span>
+                      {SOURCE_FILTERS.find((s) => s.value === selectedSource)
+                        ?.label ?? 'All sources'}
+                    </span>
+                    <ChevronDown className="size-3 text-subtle" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44 text-xs">
+                  <DropdownMenuLabel>Filter by source</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {SOURCE_FILTERS.map((s) => (
+                    <DropdownMenuItem
+                      key={s.value}
+                      onSelect={() => setSelectedSource(s.value)}
+                    >
+                      <span>{s.label}</span>
+                      {selectedSource === s.value ? (
+                        <Check className="size-3.5 ml-auto text-primary" />
+                      ) : null}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               {/* File Types Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -311,84 +431,122 @@ export function FileManagerView() {
             </div>
           </div>
 
-          {/* 4. Main Files List Container */}
-          <div className="shadow-2xs divide-y divide-border/60 overflow-hidden rounded-card border border-border bg-surface/60">
-            {uploads.isLoading ? (
-              <div className="p-4">
-                <SkeletonList rows={6} withAvatar />
-              </div>
-            ) : uploads.isError ? (
-              <div className="p-8 text-center">
-                <EmptyState
-                  size="sm"
-                  icon={<TriangleAlert />}
-                  title="Could not load files"
-                  description="Something went wrong fetching this workspace's files."
-                  action={
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void uploads.refetch()}
-                    >
-                      Try again
-                    </Button>
-                  }
-                />
-              </div>
-            ) : visibleFiles.length === 0 ? (
-              <div className="p-8 text-center">
-                <EmptyState
-                  size="sm"
-                  icon={<HardDrive />}
-                  title={
-                    uploads.data?.length
-                      ? 'No files match your search'
-                      : 'No files yet'
-                  }
-                  description={
-                    uploads.data?.length
-                      ? 'Try adjusting your filter pills or search query.'
-                      : 'Upload a file to share it with the workspace.'
-                  }
-                  action={
-                    uploads.data?.length ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={resetFilters}
-                      >
-                        Reset filters
-                      </Button>
-                    ) : (
-                      <Button size="sm" onClick={() => setIsUploadOpen(true)}>
-                        Upload a file
-                      </Button>
-                    )
-                  }
-                />
-              </div>
-            ) : (
-              visibleFiles.map((file) => (
-                <FileRow
-                  key={file.id}
-                  file={file}
-                  isOwner={file.uploader.id === user?.id}
-                  isDownloading={
-                    download.isPending && download.variables?.id === file.id
-                  }
-                  isDeleting={remove.isPending && remove.variables === file.id}
-                  onDownload={() => download.mutate(file)}
-                  onDelete={() => confirmDelete(file.filename, file.id)}
-                  onPreview={() =>
+          {isLoading ? (
+            <div className="shadow-2xs overflow-hidden rounded-card border border-border bg-surface/60 p-4">
+              <SkeletonList rows={6} withAvatar />
+            </div>
+          ) : uploads.isError ? (
+            <div className="rounded-card border border-border bg-surface/60 p-8 text-center">
+              <EmptyState
+                size="sm"
+                icon={<TriangleAlert />}
+                title="Could not load files"
+                description="Something went wrong fetching this workspace's files."
+                action={
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void uploads.refetch()}
+                  >
+                    Try again
+                  </Button>
+                }
+              />
+            </div>
+          ) : (
+            <>
+              <UploadList
+                items={visibleRows.map((r) => r.item)}
+                currentUserId={user?.id}
+                showSource
+                downloadingId={
+                  download.isPending ? (download.variables?.id ?? null) : null
+                }
+                deletingId={remove.isPending ? (remove.variables ?? null) : null}
+                onPreview={(_item, index) =>
+                  openPreview(
+                    visibleRows.map((r) => r.media),
+                    index,
+                  )
+                }
+                onOpenDetails={(item, index) => {
+                  const row = visibleRows.find((r) => r.item.id === item.id);
+                  if (row?.upload) setDetailsId(row.upload.id);
+                  else
                     openPreview(
-                      visibleFiles.map(toMediaItem),
-                      visibleFiles.indexOf(file),
-                    )
+                      visibleRows.map((r) => r.media),
+                      index,
+                    );
+                }}
+                onDownload={(item) => {
+                  const row = visibleRows.find((r) => r.item.id === item.id);
+                  if (!row) return;
+                  if (row.item.manageable) {
+                    download.mutate({ id: item.id, filename: item.filename });
+                  } else if (row.directUrl) {
+                    window.open(row.directUrl, '_blank', 'noopener,noreferrer');
                   }
-                />
-              ))
-            )}
-          </div>
+                }}
+                onDelete={(item) => void confirmDelete(item.id, item.filename)}
+                onNavigateSource={(href) => navigate(href)}
+                empty={
+                  <div className="rounded-card border border-border bg-surface/60 p-8 text-center">
+                    <EmptyState
+                      size="sm"
+                      icon={<HardDrive />}
+                      title={
+                        allRows.length
+                          ? 'No files match your filters'
+                          : 'No files yet'
+                      }
+                      description={
+                        allRows.length
+                          ? 'Try adjusting the source, type, or owner filters.'
+                          : 'Upload a file, or share one in a channel, DM, project, agent or app.'
+                      }
+                      action={
+                        allRows.length ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={resetFilters}
+                          >
+                            Reset filters
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => setIsUploadOpen(true)}
+                          >
+                            Upload a file
+                          </Button>
+                        )
+                      }
+                    />
+                  </div>
+                }
+              />
+
+              {/* Infinite-scroll sentinel — pages the Upload rows, not the
+                  bounded Matrix set. */}
+              <div ref={sentinelRef} className="h-8" aria-hidden />
+              {uploads.isFetchingNextPage ? (
+                <p className="text-center text-[11px] text-muted-foreground">
+                  Loading more…
+                </p>
+              ) : uploads.hasNextPage ? (
+                <div className="text-center">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void uploads.fetchNextPage()}
+                  >
+                    Load more
+                  </Button>
+                </div>
+              ) : null}
+            </>
+          )}
 
           {/* Upload Dialog */}
           <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
@@ -398,133 +556,44 @@ export function FileManagerView() {
                   Upload files
                 </DialogTitle>
               </DialogHeader>
+
+              <Field
+                label="Destination"
+                htmlFor="upload-destination"
+                hint="Where this file is filed. Everyone with access to that place can see it."
+              >
+                <AppSelect
+                  value={destination}
+                  onValueChange={setDestination}
+                  options={destinationGroups}
+                  searchable
+                  loading={destsLoading}
+                  searchPlaceholder="Search channels, projects, people…"
+                  placeholder="Choose a destination"
+                />
+              </Field>
+
               <FileDropzone
                 workspaceId={workspaceId}
+                target={parseDestinationValue(destination) as UploadTarget}
                 label="Add files to this workspace"
+                onUploaded={() => void uploads.refetch()}
               />
             </DialogContent>
           </Dialog>
 
+          <AssetDetailsDialog
+            upload={detailsUpload}
+            open={!!detailsUpload}
+            onOpenChange={(o) => !o && setDetailsId(null)}
+            workspaceId={workspaceId}
+            workspaceSlug={slug}
+            canManage
+            onNavigateSource={(href) => navigate(href)}
+          />
+
           {prompts.dialog}
         </div>
-      </div>
-    </div>
-  );
-}
-
-function FileRow({
-  file,
-  isOwner,
-  isDownloading,
-  isDeleting,
-  onDownload,
-  onDelete,
-  onPreview,
-}: {
-  file: Upload;
-  isOwner: boolean;
-  isDownloading: boolean;
-  isDeleting: boolean;
-  onDownload: () => void;
-  onDelete: () => void;
-  onPreview: () => void;
-}) {
-  const uploaderName = file.uploader.displayName ?? file.uploader.name;
-
-  return (
-    <div
-      className={cn(
-        'group gap-3 p-3 sm:px-4 flex items-center justify-between transition-colors hover:bg-accent/40',
-        isDeleting && 'opacity-50',
-      )}
-    >
-      <button
-        type="button"
-        onClick={onPreview}
-        aria-label={`Preview ${file.filename}`}
-        className="gap-3 min-w-0 flex flex-1 items-center text-left focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none rounded-md"
-      >
-        <FileTypeBadge mimeType={file.mimeType} />
-
-        <div className="min-w-0 flex-1">
-          <h3 className="text-xs sm:text-sm font-medium truncate text-foreground">
-            {file.filename}
-          </h3>
-          <div className="gap-1.5 mt-0.5 flex items-center truncate text-[11px] text-muted-foreground">
-            <span className="truncate">
-              {isOwner ? `${uploaderName} (you)` : uploaderName}
-            </span>
-            <span>·</span>
-            <span className="truncate">{formatRelative(file.createdAt)}</span>
-            <span>·</span>
-            <span>{formatBytes(file.size)}</span>
-          </div>
-        </div>
-      </button>
-
-      <div className="gap-2 sm:gap-3 flex shrink-0 items-center">
-        <UserAvatar
-          name={uploaderName}
-          src={file.uploader.avatarUrl}
-          seed={file.uploader.id}
-          size="xs"
-          className="sm:block hidden ring-2 ring-background"
-        />
-
-        <Hint label="Preview">
-          <button
-            onClick={onPreview}
-            aria-label={`Preview ${file.filename}`}
-            className="size-7 hidden sm:flex items-center justify-center rounded-md text-subtle transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <Eye className="size-3.5" />
-          </button>
-        </Hint>
-
-        <Hint label="Download file">
-          <button
-            onClick={onDownload}
-            disabled={isDownloading}
-            aria-label={`Download ${file.filename}`}
-            className="size-7 flex items-center justify-center rounded-md text-subtle transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
-          >
-            <Download className="size-3.5" />
-          </button>
-        </Hint>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className="size-7 flex items-center justify-center rounded-md text-subtle transition-colors hover:bg-accent hover:text-foreground"
-              aria-label={`More options for ${file.filename}`}
-            >
-              <MoreVertical className="size-3.5" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44 text-xs">
-            <DropdownMenuItem onSelect={onPreview}>
-              <Eye className="size-3.5 mr-2" />
-              <span>Preview</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={onDownload}>
-              <Download className="size-3.5 mr-2" />
-              <span>Download</span>
-            </DropdownMenuItem>
-            {/*
-              `DELETE /uploads/:id` is guarded by workspace membership only, so
-              every member can remove any file. Offered to everyone here to
-              match what the API actually permits.
-            */}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={onDelete}
-              className="text-destructive focus:text-destructive"
-            >
-              <Trash2 className="size-3.5 mr-2" />
-              <span>Delete</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
     </div>
   );

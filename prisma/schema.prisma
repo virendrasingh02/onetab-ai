@@ -364,6 +364,23 @@ model WebAuthnCredential {
   @@map("webauthn_credentials")
 }
 
+/// Where an upload is "filed". `channelId` predates this and stays populated
+/// for CHANNEL uploads; `contextType`/`contextId` generalise the idea to every
+/// surface. For DIRECT, `contextId` is the peer user id (1:1) or the Matrix
+/// room id (group DM); for AGENT/APP it is the bare `AIAgent.id` /
+/// `ExternalIntegration.id` (no `agent-`/`app-` prefix); for DOCUMENT/ISSUE it
+/// is the `WorkDocument.id` / `Task.id`.
+enum UploadContextType {
+  WORKSPACE
+  CHANNEL
+  DIRECT
+  PROJECT
+  AGENT
+  APP
+  DOCUMENT
+  ISSUE
+}
+
 /// File upload foundation. Phase 2 records metadata and issues storage keys;
 /// the storage driver (S3/R2) plugs in behind StorageService.
 model Upload {
@@ -379,7 +396,15 @@ model Upload {
   storageKey   String                   @unique
   checksum     String?
   createdAt    DateTime                 @default(now())
+  /// Bumped on rename / move. Also the "updated" column in the Files hub.
+  updatedAt    DateTime                 @updatedAt
+  /// The surface this file belongs to. Defaults to WORKSPACE (unfiled).
+  contextType  UploadContextType        @default(WORKSPACE)
+  /// Id of the context row/room — see `UploadContextType`. Null for WORKSPACE.
+  contextId    String?
+  projectId    String?
   channel      Channel?                 @relation(fields: [channelId], references: [id])
+  project      Project?                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
   uploader     User                     @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
   workspace    Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   /// Full-text index over filename. Generated column — see the migration.
@@ -387,6 +412,8 @@ model Upload {
 
   @@index([workspaceId, createdAt])
   @@index([channelId, createdAt])
+  @@index([workspaceId, contextType, contextId, createdAt])
+  @@index([projectId, createdAt])
   @@index([uploaderId])
   @@index([searchVector], type: Gin)
   @@map("uploads")
@@ -607,6 +634,7 @@ model Project {
   tasks                Task[]
   invitations          Invitation[]
   meetings             Meeting[]
+  uploads              Upload[]
   /// Full-text index over name/description. Generated column — see the migration.
   searchVector         Unsupported("tsvector")?
 

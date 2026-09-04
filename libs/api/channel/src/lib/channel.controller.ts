@@ -16,7 +16,6 @@ import {
   CurrentUser,
   RequireWorkspacePermissions,
   WorkspaceId,
-  toUpload,
   zodBody,
 } from '@org/api-common';
 import { WorkspacePermission } from '@org/types';
@@ -211,11 +210,10 @@ export class ChannelController {
   }
 
   @Get(':channelId/files')
-  async listFiles(
+  listFiles(
     @WorkspaceId() workspaceId: string,
     @Param('channelId') channelId: string,
   ) {
-    const uploads = await this.channels.listUploads(workspaceId, channelId);
-    return uploads.map(toUpload);
+    return this.channels.listUploads(workspaceId, channelId);
   }
 }

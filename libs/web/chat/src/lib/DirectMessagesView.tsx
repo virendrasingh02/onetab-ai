@@ -1,7 +1,7 @@
 import { useCurrentUser } from '@org/auth';
 import { AddBookmarkDialog } from '@org/chat-ui';
 import { useUserPresenceMap } from '@org/realtime';
-import type { Attachment, WorkspaceMember } from '@org/types';
+import type { WorkspaceMember } from '@org/types';
 import {
   Badge,
   Button,
@@ -19,7 +19,6 @@ import {
   LoadingState,
   Panel,
   ScrollArea,
-  SkeletonList,
   Tabs,
   TabsContent,
   TabsList,
@@ -29,7 +28,7 @@ import {
   UserAvatar,
   useRightPanelStore,
 } from '@org/ui';
-import { cn, formatBytes } from '@org/utils';
+import { cn } from '@org/utils';
 import { useMembers } from '@org/web-members';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
@@ -41,11 +40,8 @@ import {
   Check,
   ChevronRight,
   Copy,
-  Download,
   ExternalLink,
-  FileText,
   FolderOpen,
-  Image as ImageIcon,
   Mail,
   MessageSquare,
   MessageSquareOff,
@@ -63,10 +59,10 @@ import {
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChatPanel } from './chat-panel.js';
+import { ConversationFilesPanel } from './conversation-files-panel.js';
 import { GroupConversation } from './GroupConversation.js';
 import { useMatrix } from './matrix-provider.js';
 import { PeoplePicker } from './people-picker.js';
-import { useRoom } from './use-chat.js';
 import { useCreateConversation } from './use-create-conversation.js';
 import { useDirectMessageBookmarks } from './use-dm-bookmarks.js';
 import { useDirectRoom } from './use-direct-room.js';
@@ -302,7 +298,13 @@ function DirectConversation({
           value="files-media"
           className="min-h-0 flex flex-1 flex-col"
         >
-          <DirectFilesPanel roomId={roomId} enabled={enabled} />
+          <ConversationFilesPanel
+            context={{ type: 'DIRECT', id: peerId }}
+            roomId={roomId}
+            workspaceId={workspaceId}
+            enabled={enabled}
+            currentUserId={currentUser?.id}
+          />
         </TabsContent>
 
         {/* Bookmarks tab — `ChannelPage`'s counterpart, private to the reader
@@ -415,186 +417,6 @@ function DirectConversation({
         </TabsContent>
       </Tabs>
     </div>
-  );
-}
-
-/**
- * The DM's Files & Media tab — `ChannelPage`'s counterpart, same toolbar, same
- * media grid and document list, same empty state.
- *
- * A direct message has no files endpoint of its own, so the list is derived
- * from the room's own timeline: every message that carried an attachment. The
- * `useRoom` subscription here only runs while this tab is the active one —
- * Radix unmounts the inactive `TabsContent`, and the Messages tab's own
- * subscription stops in step — so the conversation is never subscribed twice.
- */
-function DirectFilesPanel({
-  roomId,
-  enabled,
-}: {
-  roomId: string | null;
-  enabled: boolean;
-}) {
-  const room = useRoom(roomId ?? undefined);
-  const [filter, setFilter] = useState<'all' | 'files' | 'media'>('all');
-
-  const attachments = useMemo(
-    () =>
-      room.messages
-        .filter((message) => message.attachment && !message.isRedacted)
-        .map((message) => {
-          const file = message.attachment as Attachment;
-          return {
-            id: message.id,
-            senderName: message.senderName,
-            name: file.name,
-            mimeType: file.mimeType,
-            size: file.size,
-            url: file.url,
-            thumbnailUrl: file.thumbnailUrl,
-          };
-        })
-        .reverse(),
-    [room.messages],
-  );
-
-  const mediaFiles = useMemo(
-    () => attachments.filter((file) => file.mimeType.startsWith('image/')),
-    [attachments],
-  );
-  const documentFiles = useMemo(
-    () => attachments.filter((file) => !file.mimeType.startsWith('image/')),
-    [attachments],
-  );
-
-  if (!enabled) {
-    return (
-      <EmptyState
-        size="lg"
-        icon={<MessageSquareOff />}
-        title="Chat is not configured"
-        description="Files shared in this conversation will appear here once messaging is turned on."
-      />
-    );
-  }
-
-  const isResolving = !roomId || room.isLoading;
-
-  return (
-    <ScrollArea
-      className="min-h-0 flex-1"
-      contentClassName="px-4 sm:px-6 py-4 space-y-6"
-    >
-      <div className="gap-3 pb-3 flex flex-wrap items-center justify-between border-b border-border/60">
-        <div className="gap-1.5 flex flex-wrap items-center">
-          <Button
-            size="sm"
-            variant={filter === 'all' ? 'primary' : 'outline'}
-            onClick={() => setFilter('all')}
-            className="h-7 text-xs px-2.5"
-          >
-            All ({attachments.length})
-          </Button>
-          <Button
-            size="sm"
-            variant={filter === 'files' ? 'primary' : 'outline'}
-            onClick={() => setFilter('files')}
-            className="h-7 text-xs px-2.5 gap-1.5"
-          >
-            <FileText className="size-3.5" />
-            <span>Documents ({documentFiles.length})</span>
-          </Button>
-          <Button
-            size="sm"
-            variant={filter === 'media' ? 'primary' : 'outline'}
-            onClick={() => setFilter('media')}
-            className="h-7 text-xs px-2.5 gap-1.5"
-          >
-            <ImageIcon className="size-3.5" />
-            <span>Media ({mediaFiles.length})</span>
-          </Button>
-        </div>
-      </div>
-
-      {isResolving && attachments.length === 0 ? (
-        <SkeletonList rows={4} />
-      ) : attachments.length === 0 ? (
-        <EmptyState
-          icon={<FolderOpen />}
-          title="No files or media yet"
-          description="Documents and images you share in this conversation will show up here."
-        />
-      ) : null}
-
-      {(filter === 'all' || filter === 'media') && mediaFiles.length > 0 ? (
-        <div className="space-y-3">
-          <h4 className="text-xs font-bold tracking-wider gap-1.5 flex items-center text-muted-foreground uppercase">
-            <ImageIcon className="size-3.5 text-accent-amber" />
-            <span>Media &amp; Images ({mediaFiles.length})</span>
-          </h4>
-
-          <div className="gap-3 sm:grid-cols-4 grid grid-cols-2">
-            {mediaFiles.map((file) => (
-              <figure
-                key={file.id}
-                className="group relative aspect-square overflow-hidden rounded-lg border border-border bg-muted"
-              >
-                <img
-                  src={file.thumbnailUrl ?? file.url}
-                  alt={file.name}
-                  className="size-full object-cover transition-transform group-hover:scale-105"
-                  loading="lazy"
-                />
-                <div className="inset-0 bg-black/50 p-2 text-white absolute flex items-end opacity-0 transition-opacity group-hover:opacity-100">
-                  <span className="font-medium truncate text-[11px]">
-                    {file.name}
-                  </span>
-                </div>
-              </figure>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {(filter === 'all' || filter === 'files') && documentFiles.length > 0 ? (
-        <div className="space-y-3">
-          <h4 className="text-xs font-bold tracking-wider gap-1.5 flex items-center text-muted-foreground uppercase">
-            <FileText className="size-3.5 text-accent-violet" />
-            <span>Documents &amp; Files ({documentFiles.length})</span>
-          </h4>
-
-          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
-            {documentFiles.map((file) => (
-              <li
-                key={file.id}
-                className="gap-3 px-4 py-3 flex items-center transition-colors hover:bg-surface-raised"
-              >
-                <FileText className="size-5 shrink-0 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate text-foreground">
-                    {file.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {file.size ? `${formatBytes(file.size)} · ` : ''}Shared by{' '}
-                    {file.senderName}
-                  </p>
-                </div>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  onClick={() =>
-                    window.open(file.url, '_blank', 'noopener,noreferrer')
-                  }
-                  title="Open file"
-                >
-                  <Download className="size-4" />
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-    </ScrollArea>
   );
 }
 

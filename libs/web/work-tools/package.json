@@ -24,6 +24,7 @@
     "@org/ui": "*",
     "@org/utils": "*",
     "@org/validation": "*",
+    "@org/web-chat": "*",
     "@org/web-integrations": "*",
     "@org/web-upload": "*",
     "@tanstack/react-query": "^5.101.4",

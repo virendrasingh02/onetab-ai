@@ -98,6 +98,10 @@ import type {
   TaskComment,
   Team,
   Upload,
+  UploadContextType,
+  UploadDestinations,
+  UploadPage,
+  UploadStorageUsage,
   UserAnalytics,
   UserPreferences,
   UpdateModelSettingsInput,
@@ -1920,12 +1924,66 @@ export const integrationsApi = {
     ),
 };
 
+/** Where a file is filed. `channelId` is the legacy shorthand for a CHANNEL context. */
+export interface UploadContextParams {
+  channelId?: string;
+  contextType?: UploadContextType;
+  contextId?: string;
+}
+
+/** A rename / move patch for one file. */
+export interface UpdateUploadParams {
+  filename?: string;
+  contextType?: UploadContextType;
+  contextId?: string | null;
+}
+
+function uploadContextQuery(
+  ctx: UploadContextParams | string | undefined,
+): Record<string, string> | undefined {
+  if (!ctx) return undefined;
+  if (typeof ctx === 'string') return { channelId: ctx };
+  const params: Record<string, string> = {};
+  if (ctx.channelId) params['channelId'] = ctx.channelId;
+  if (ctx.contextType) params['contextType'] = ctx.contextType;
+  if (ctx.contextId) params['contextId'] = ctx.contextId;
+  return Object.keys(params).length ? params : undefined;
+}
+
 export const uploadApi = {
-  list: (workspaceId: string, channelId?: string) =>
-    request<Upload[]>(
+  /**
+   * One keyset page of the Files hub, newest first. `context` accepts a bare
+   * channelId (legacy) or a `{ contextType, contextId }` pair.
+   */
+  list: (
+    workspaceId: string,
+    context?: UploadContextParams | string,
+    page: { cursor?: string; limit?: number } = {},
+  ) =>
+    request<UploadPage>(
       http.get(`/workspaces/${workspaceId}/uploads`, {
-        params: channelId ? { channelId } : undefined,
+        params: {
+          ...uploadContextQuery(context),
+          ...(page.cursor ? { cursor: page.cursor } : {}),
+          ...(page.limit ? { limit: String(page.limit) } : {}),
+        },
       }),
+    ),
+
+  listDestinations: (workspaceId: string) =>
+    request<UploadDestinations>(
+      http.get(`/workspaces/${workspaceId}/uploads/destinations`),
+    ),
+
+  storageUsage: (workspaceId: string) =>
+    request<UploadStorageUsage>(
+      http.get(`/workspaces/${workspaceId}/uploads/usage`),
+    ),
+
+  /** Rename (`filename`) and/or move (`contextType`/`contextId`) a file. */
+  update: (workspaceId: string, uploadId: string, patch: UpdateUploadParams) =>
+    request<Upload>(
+      http.patch(`/workspaces/${workspaceId}/uploads/${uploadId}`, patch),
     ),
 
   /**
@@ -1938,8 +1996,7 @@ export const uploadApi = {
   upload: (
     workspaceId: string,
     file: File,
-    options: {
-      channelId?: string;
+    options: UploadContextParams & {
       /** Receives 0–100 as the body goes out. */
       onProgress?: (percent: number) => void;
       signal?: AbortSignal;
@@ -1949,7 +2006,11 @@ export const uploadApi = {
     form.append('file', file);
     return request<Upload>(
       http.post(`/workspaces/${workspaceId}/uploads`, form, {
-        params: options.channelId ? { channelId: options.channelId } : undefined,
+        params: uploadContextQuery({
+          channelId: options.channelId,
+          contextType: options.contextType,
+          contextId: options.contextId,
+        }),
         headers: { 'Content-Type': undefined as unknown as string },
         timeout: 0,
         signal: options.signal,

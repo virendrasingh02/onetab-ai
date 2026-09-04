@@ -17,7 +17,13 @@ import {
   useRightPanelStore,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { ChatPanel, useDirectRoom, useMatrix } from '@org/web-chat';
+import { useCurrentUser } from '@org/auth';
+import {
+  ChatPanel,
+  ConversationTabsShell,
+  useDirectRoom,
+  useMatrix,
+} from '@org/web-chat';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Activity,
@@ -467,6 +473,7 @@ function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
 function AgentConversationPanel({ agent }: { agent: AgentModelItem }) {
   const { workspaceId } = useCurrentWorkspace();
   const { enabled } = useMatrix();
+  const currentUser = useCurrentUser();
   const { roomId, error } = useDirectRoom(`agent-${agent.id}`);
 
   if (!enabled) {
@@ -490,30 +497,38 @@ function AgentConversationPanel({ agent }: { agent: AgentModelItem }) {
   }
 
   return (
-    <ChatPanel
+    <ConversationTabsShell
+      filesContext={{ type: 'AGENT', id: agent.id }}
       roomId={roomId}
-      title={agent.name}
-      subtitle={agent.model ? `${agent.model} · AI Agent` : 'AI Agent'}
       workspaceId={workspaceId}
-      showMembers={false}
-      showEncryptedBadge={false}
-      welcome={{
-        kind: 'direct',
-        peer: {
-          name: agent.name,
-          userId: `agent-${agent.id}`,
-          kind: 'agent',
-          role: agent.model ? `${agent.model} · AI agent` : 'AI agent',
-          avatarNode: (
-            <AgentAvatar
-              name={agent.name}
-              avatarUrl={agent.avatarUrl}
-              size="lg"
-            />
-          ),
-        },
-      }}
-    />
+      enabled={enabled}
+      currentUserId={currentUser?.id}
+    >
+      <ChatPanel
+        roomId={roomId}
+        title={agent.name}
+        subtitle={agent.model ? `${agent.model} · AI Agent` : 'AI Agent'}
+        workspaceId={workspaceId}
+        showMembers={false}
+        showEncryptedBadge={false}
+        welcome={{
+          kind: 'direct',
+          peer: {
+            name: agent.name,
+            userId: `agent-${agent.id}`,
+            kind: 'agent',
+            role: agent.model ? `${agent.model} · AI agent` : 'AI agent',
+            avatarNode: (
+              <AgentAvatar
+                name={agent.name}
+                avatarUrl={agent.avatarUrl}
+                size="lg"
+              />
+            ),
+          },
+        }}
+      />
+    </ConversationTabsShell>
   );
 }
 

@@ -16,6 +16,7 @@ import {
   usePromptDialog,
 } from '@org/ui';
 import { useCurrentUser } from '@org/auth';
+import { FiledFilesSection } from '@org/web-upload';
 import {
   CheckCircle,
   FileText,
@@ -523,6 +524,18 @@ export function DocumentEditor() {
                     key={currentDoc.id}
                     blocks={blocks}
                     onUpdateBlocks={handleBlocksChange}
+                  />
+                </div>
+
+                <div className="mt-4 rounded-xl border border-border bg-surface p-4 md:p-6 shadow-xs">
+                  <FiledFilesSection
+                    workspaceId={workspaceId}
+                    workspaceSlug={workspaceSlug}
+                    currentUserId={currentUser?.id}
+                    target={{ type: 'DOCUMENT', id: currentDoc.id }}
+                    uploadLabel="Attach files to this document"
+                    emptyDescription="Attach a file to keep it with this document."
+                    onNavigateSource={(href) => navigate(href)}
                   />
                 </div>
               </>

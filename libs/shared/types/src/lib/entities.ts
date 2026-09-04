@@ -406,14 +406,87 @@ export interface InviteBatchResult {
   tokens?: Record<string, string>;
 }
 
+/**
+ * Where a file is "filed". `WORKSPACE` is unfiled; `CHANNEL` also keeps the
+ * legacy `Upload.channelId` populated. For `DIRECT`, `contextId` is the peer
+ * user id (1:1) or the Matrix room id (group DM); for `AGENT`/`APP` it is the
+ * bare agent / integration id.
+ */
+export type UploadContextType =
+  | 'WORKSPACE'
+  | 'CHANNEL'
+  | 'DIRECT'
+  | 'PROJECT'
+  | 'AGENT'
+  | 'APP'
+  | 'DOCUMENT'
+  | 'ISSUE';
+
+/** Resolved, display-ready view of an upload's context. */
+export interface UploadContext {
+  type: UploadContextType;
+  id: string | null;
+  /** Channel/project/agent/app/doc name, the peer's display name, or the
+   *  issue title. Null when it cannot be resolved server-side (e.g. a group-DM
+   *  room, or a deleted source). */
+  label: string | null;
+  /** Channel or project slug where one exists, else null. */
+  slug: string | null;
+  /** The enclosing project id for an `ISSUE` context — lets the client deep-link
+   *  to the card. Null for every other type. */
+  parentId: string | null;
+}
+
 export interface Upload {
   id: string;
   workspaceId: string;
   channelId: string | null;
+  contextType: UploadContextType;
+  contextId: string | null;
+  projectId: string | null;
+  /** Populated by list/create responses; null for a bare workspace upload. */
+  context: UploadContext | null;
   filename: string;
   mimeType: string;
   size: number;
   storageKey: string;
   createdAt: IsoDateString;
+  /** Bumped on rename / move. */
+  updatedAt: IsoDateString;
   uploader: PublicUser;
+}
+
+/** One page of the Files hub. */
+export interface UploadPage {
+  items: Upload[];
+  /** Opaque cursor for the next page, or `null` at the end. */
+  nextCursor: string | null;
+}
+
+/** Workspace file-storage consumption, for the Files hub meter + plan limits. */
+export interface UploadStorageUsage {
+  usedBytes: number;
+  /** Plan cap in bytes; `-1` means unlimited. */
+  limitBytes: number;
+  fileCount: number;
+  planTier: string;
+  /** True once usage is within 10% of a finite cap. */
+  nearLimit: boolean;
+}
+
+/** One pickable destination in the "Upload files" dialog. */
+export interface UploadDestinationOption {
+  id: string;
+  name: string;
+  slug?: string | null;
+  avatarUrl?: string | null;
+}
+
+/** Everything the destination picker offers, grouped by kind. */
+export interface UploadDestinations {
+  channels: UploadDestinationOption[];
+  projects: UploadDestinationOption[];
+  agents: UploadDestinationOption[];
+  apps: UploadDestinationOption[];
+  people: UploadDestinationOption[];
 }

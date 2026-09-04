@@ -18,7 +18,13 @@ import {
   useRightPanelStore,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { ChatPanel, useDirectRoom, useMatrix } from '@org/web-chat';
+import { useCurrentUser } from '@org/auth';
+import {
+  ChatPanel,
+  ConversationTabsShell,
+  useDirectRoom,
+  useMatrix,
+} from '@org/web-chat';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Bell,
@@ -797,6 +803,7 @@ function AppConversationPanel({
 }) {
   const { workspaceId } = useCurrentWorkspace();
   const { enabled } = useMatrix();
+  const currentUser = useCurrentUser();
   const { roomId, error } = useDirectRoom(`app-${integrationId}`);
 
   if (!enabled) {
@@ -820,26 +827,34 @@ function AppConversationPanel({
   }
 
   return (
-    <ChatPanel
+    <ConversationTabsShell
+      filesContext={{ type: 'APP', id: integrationId }}
       roomId={roomId}
-      title={app.name}
-      subtitle={app.category}
       workspaceId={workspaceId}
-      showMembers={false}
-      showEncryptedBadge={false}
-      welcome={{
-        kind: 'direct',
-        peer: {
-          name: app.name,
-          userId: `app-${integrationId}`,
-          kind: 'app',
-          role: app.category,
-          avatarNode: (
-            <AppAvatar name={app.name} provider={app.provider} size="lg" />
-          ),
-        },
-      }}
-    />
+      enabled={enabled}
+      currentUserId={currentUser?.id}
+    >
+      <ChatPanel
+        roomId={roomId}
+        title={app.name}
+        subtitle={app.category}
+        workspaceId={workspaceId}
+        showMembers={false}
+        showEncryptedBadge={false}
+        welcome={{
+          kind: 'direct',
+          peer: {
+            name: app.name,
+            userId: `app-${integrationId}`,
+            kind: 'app',
+            role: app.category,
+            avatarNode: (
+              <AppAvatar name={app.name} provider={app.provider} size="lg" />
+            ),
+          },
+        }}
+      />
+    </ConversationTabsShell>
   );
 }
 

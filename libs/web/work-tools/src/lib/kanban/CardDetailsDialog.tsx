@@ -1,5 +1,7 @@
 import { aiApi } from '@org/api-client';
+import { useCurrentUser } from '@org/auth';
 import { type TaskStatus } from '@org/types';
+import { FiledFilesSection } from '@org/web-upload';
 import {
   Button,
   DatePicker,
@@ -57,7 +59,12 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useAddTaskComment, useTaskComments } from '../use-work-tools.js';
+import { useNavigate } from 'react-router-dom';
+import {
+  useAddTaskComment,
+  useCurrentWorkspace,
+  useTaskComments,
+} from '../use-work-tools.js';
 import { parseDay } from './card-meta.js';
 import {
   useKanbanCardViewStore,
@@ -271,6 +278,11 @@ function CardDetailsBody({
   onClose,
   mode,
 }: CardDetailsBodyProps) {
+  const currentUser = useCurrentUser();
+  const navigate = useNavigate();
+  const { slug: workspaceSlug } = useCurrentWorkspace();
+  const currentUserId = currentUser?.id;
+
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState(card.description);
   const [commentDraft, setCommentDraft] = useState('');
@@ -979,6 +991,20 @@ function CardDetailsBody({
                 </div>
               </div>
             )}
+          </section>
+
+          {/* Attachments — real Upload rows filed against this issue; they also
+              surface in the workspace Files hub. */}
+          <section className="border-t border-border/50 pt-4">
+            <FiledFilesSection
+              workspaceId={workspaceId}
+              workspaceSlug={workspaceSlug}
+              currentUserId={currentUserId}
+              target={{ type: 'ISSUE', id: card.id }}
+              uploadLabel="Attach files to this issue"
+              emptyDescription="Attach a file to keep it with this issue."
+              onNavigateSource={(href) => navigate(href)}
+            />
           </section>
         </div>
 

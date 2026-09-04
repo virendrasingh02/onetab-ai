@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
@@ -6,6 +7,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   Query,
   Res,
@@ -19,8 +21,10 @@ import {
   CurrentUser,
   RequireWorkspacePermissions,
   WorkspaceId,
+  zodBody,
 } from '@org/api-common';
 import { WorkspacePermission } from '@org/types';
+import { updateUploadSchema, type UpdateUploadInput } from '@org/validation';
 import type { Response } from 'express';
 import {
   MAX_UPLOAD_BYTES,
@@ -39,12 +43,35 @@ import {
 export class UploadController {
   constructor(private readonly uploads: UploadService) {}
 
+  /** One keyset page of the Files hub, newest first. */
   @Get()
   list(
     @WorkspaceId() workspaceId: string,
     @Query('channelId') channelId?: string,
+    @Query('contextType') contextType?: string,
+    @Query('contextId') contextId?: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.uploads.list(workspaceId, channelId);
+    return this.uploads.list(workspaceId, {
+      channelId,
+      contextType,
+      contextId,
+      cursor,
+      limit: limit ? Number(limit) : undefined,
+    });
+  }
+
+  /** Channels / projects / agents / apps / people a file can be filed under. */
+  @Get('destinations')
+  listDestinations(@WorkspaceId() workspaceId: string) {
+    return this.uploads.listDestinations(workspaceId);
+  }
+
+  /** Storage consumption + the current plan's cap, for the hub meter. */
+  @Get('usage')
+  usage(@WorkspaceId() workspaceId: string) {
+    return this.uploads.storageUsage(workspaceId);
   }
 
   @Post()
@@ -59,8 +86,25 @@ export class UploadController {
     @CurrentUser('id') userId: string,
     @UploadedFile() file: IncomingFile,
     @Query('channelId') channelId?: string,
+    @Query('contextType') contextType?: string,
+    @Query('contextId') contextId?: string,
   ) {
-    return this.uploads.create(workspaceId, userId, file, channelId);
+    return this.uploads.create(workspaceId, userId, file, {
+      channelId,
+      contextType,
+      contextId,
+    });
+  }
+
+  /** Rename and/or move a file. */
+  @Patch(':uploadId')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  update(
+    @WorkspaceId() workspaceId: string,
+    @Param('uploadId') uploadId: string,
+    @Body(zodBody(updateUploadSchema)) body: UpdateUploadInput,
+  ) {
+    return this.uploads.update(workspaceId, uploadId, body);
   }
 
   /**

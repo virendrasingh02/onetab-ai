@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@org/api-client": "*",
+    "@org/auth": "*",
     "@org/chat-ui": "*",
     "@org/design-system": "*",
     "@org/hooks": "*",

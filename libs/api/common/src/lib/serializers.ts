@@ -5,6 +5,8 @@ import type {
   Invitation,
   PublicUser,
   Upload,
+  UploadContext,
+  UploadContextType,
   Workspace,
   WorkspaceStatus,
 } from '@org/types';
@@ -241,24 +243,46 @@ interface UploadRow {
   id: string;
   workspaceId: string;
   channelId: string | null;
+  contextType?: UploadContextType | null;
+  contextId?: string | null;
+  projectId?: string | null;
   filename: string;
   mimeType: string;
   size: number;
   storageKey: string;
   createdAt: Date;
+  updatedAt?: Date | null;
   uploader: UserRow;
 }
 
-export function toUpload(row: UploadRow): Upload {
+/**
+ * `context` is resolved by the caller (it needs channel/project/agent/app/peer
+ * lookups the serializer has no database access for) and threaded through here.
+ * When omitted, a bare `{ type, id }` with no label is emitted so the client
+ * still knows the kind.
+ */
+export function toUpload(row: UploadRow, context?: UploadContext | null): Upload {
+  const type: UploadContextType = row.contextType ?? 'WORKSPACE';
+  const contextId = row.contextId ?? (type === 'CHANNEL' ? row.channelId : null);
+
   return {
     id: row.id,
     workspaceId: row.workspaceId,
     channelId: row.channelId,
+    contextType: type,
+    contextId,
+    projectId: row.projectId ?? null,
+    context:
+      context ??
+      (type === 'WORKSPACE'
+        ? null
+        : { type, id: contextId, label: null, slug: null, parentId: null }),
     filename: row.filename,
     mimeType: row.mimeType,
     size: row.size,
     storageKey: row.storageKey,
     createdAt: row.createdAt.toISOString(),
+    updatedAt: (row.updatedAt ?? row.createdAt).toISOString(),
     uploader: toPublicUser(row.uploader),
   };
 }

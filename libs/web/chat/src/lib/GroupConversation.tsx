@@ -39,6 +39,7 @@ import {
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChatPanel } from './chat-panel.js';
+import { ConversationTabsShell } from './conversation-files-panel.js';
 import { useMatrix } from './matrix-provider.js';
 import { useRoomSummary } from './use-chat.js';
 import { useDirectMessagePreferences } from './use-dm-preferences.js';
@@ -154,28 +155,36 @@ export function GroupConversation({
         addPeopleOpen={addPeopleOpen}
         onAddPeopleOpenChange={setAddPeopleOpen}
       />
-      <ChatPanel
+      <ConversationTabsShell
+        filesContext={{ type: 'DIRECT', id: roomId }}
         roomId={roomId}
-        title={title}
-        subtitle={
-          isChannel
-            ? 'Shared channel'
-            : `${members.length} ${members.length === 1 ? 'member' : 'members'}`
-        }
         workspaceId={workspaceId}
-        headerActionsSlot={chatActionsSlot}
-        showMembers
-        showEncryptedBadge={false}
-        welcome={
-          isChannel
-            ? undefined
-            : {
-                kind: 'group',
-                description: room?.topic,
-                onAddPeople: () => setAddPeopleOpen(true),
-              }
-        }
-      />
+        enabled={enabled}
+        currentUserId={myUserId ?? undefined}
+      >
+        <ChatPanel
+          roomId={roomId}
+          title={title}
+          subtitle={
+            isChannel
+              ? 'Shared channel'
+              : `${members.length} ${members.length === 1 ? 'member' : 'members'}`
+          }
+          workspaceId={workspaceId}
+          headerActionsSlot={chatActionsSlot}
+          showMembers
+          showEncryptedBadge={false}
+          welcome={
+            isChannel
+              ? undefined
+              : {
+                  kind: 'group',
+                  description: room?.topic,
+                  onAddPeople: () => setAddPeopleOpen(true),
+                }
+          }
+        />
+      </ConversationTabsShell>
     </div>
   );
 }

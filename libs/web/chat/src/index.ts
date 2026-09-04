@@ -27,6 +27,16 @@ export {
   type GroupConversationProps,
 } from './lib/GroupConversation.js';
 export { useAllThreads, type CrossRoomThread } from './lib/use-all-threads.js';
+export {
+  useWorkspaceRoomFiles,
+  type RoomFile,
+} from './lib/use-workspace-room-files.js';
+export {
+  ConversationFilesPanel,
+  ConversationTabsShell,
+  type ConversationFilesPanelProps,
+  type ConversationTabsShellProps,
+} from './lib/conversation-files-panel.js';
 export { ChatPanel, type ChatPanelProps } from './lib/chat-panel.js';
 export {
   ChatSurface,

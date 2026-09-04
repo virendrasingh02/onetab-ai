@@ -38,6 +38,9 @@
       "path": "../../shared/chat-ui/tsconfig.lib.json"
     },
     {
+      "path": "../auth/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/api-client/tsconfig.lib.json"
     }
   ]

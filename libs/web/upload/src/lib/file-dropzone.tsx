@@ -3,12 +3,12 @@ import { Button, Progress } from '@org/ui';
 import { cn, formatBytes } from '@org/utils';
 import { Check, FileText, Upload, X } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
-import { useFileUpload } from './use-upload.js';
+import { useFileUpload, type UploadTarget } from './use-upload.js';
 
 export interface FileDropzoneProps {
   workspaceId: string | undefined;
-  /** Attaches the uploads to a channel rather than the workspace at large. */
-  channelId?: string;
+  /** Files the uploads under a channel / DM / project / agent / app. */
+  target?: UploadTarget;
   className?: string;
   label?: string;
   onUploaded?: (upload: UploadEntity) => void;
@@ -22,7 +22,7 @@ export interface FileDropzoneProps {
  */
 export function FileDropzone({
   workspaceId,
-  channelId,
+  target,
   className,
   label = 'Attach files',
   onUploaded,
@@ -37,7 +37,7 @@ export function FileDropzone({
     isUploading,
     acceptAttribute,
     maxBytes,
-  } = useFileUpload({ workspaceId, channelId, onUploaded });
+  } = useFileUpload({ workspaceId, target, onUploaded });
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
