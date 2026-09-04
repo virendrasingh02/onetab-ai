@@ -27,6 +27,7 @@ export const AppEvent = {
   ChannelCreated: 'channel.created',
   ChannelUpdated: 'channel.updated',
   ChannelDeleted: 'channel.deleted',
+  FileShared: 'file.shared',
   MeetingScheduled: 'meeting.scheduled',
   MeetingUpdated: 'meeting.updated',
   MeetingCancelled: 'meeting.cancelled',
@@ -142,6 +143,18 @@ export interface ChannelCreatedEvent extends BaseEvent {
   visibility: string;
 }
 
+export interface FileSharedEvent extends BaseEvent {
+  uploadId: string;
+  filename: string;
+  /** Upload context type, e.g. `CHANNEL`, `PROJECT`, `DOCUMENT`. */
+  contextType: string;
+  contextId: string | null;
+  /** Channel the file was filed in, when applicable — feeds the channel feed. */
+  channelId: string | null;
+  /** True when this is a replacement version rather than a first upload. */
+  isNewVersion: boolean;
+}
+
 interface MeetingEventBase extends BaseEvent {
   meetingId: string;
   title: string;
@@ -177,6 +190,7 @@ export interface AppEventPayloads {
   [AppEvent.DocumentUpdated]: DocumentUpdatedEvent;
   [AppEvent.DocumentDeleted]: DocumentDeletedEvent;
   [AppEvent.ChannelCreated]: ChannelCreatedEvent;
+  [AppEvent.FileShared]: FileSharedEvent;
   [AppEvent.WorkspaceInvited]: WorkspaceInvitedEvent;
   [AppEvent.MemberJoined]: MemberJoinedEvent;
   [AppEvent.MentionCreated]: MentionCreatedEvent;

@@ -403,18 +403,30 @@ model Upload {
   /// Id of the context row/room — see `UploadContextType`. Null for WORKSPACE.
   contextId    String?
   projectId    String?
+  /// 1 for an original; bumped each time the content is replaced. Older
+  /// versions keep their row (and bytes) and point back via `supersedesId`.
+  version      Int                      @default(1)
+  /// The row this version replaced. Null for an original upload.
+  supersedesId String?
+  /// False once a newer version has replaced this row. Lists show only current
+  /// rows; history walks the `supersedes` chain.
+  isCurrent    Boolean                  @default(true)
   channel      Channel?                 @relation(fields: [channelId], references: [id])
   project      Project?                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
   uploader     User                     @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
   workspace    Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  supersedes   Upload?                  @relation("UploadVersions", fields: [supersedesId], references: [id], onDelete: SetNull)
+  supersededBy Upload[]                 @relation("UploadVersions")
   /// Full-text index over filename. Generated column — see the migration.
   searchVector Unsupported("tsvector")?
 
   @@index([workspaceId, createdAt])
   @@index([channelId, createdAt])
   @@index([workspaceId, contextType, contextId, createdAt])
+  @@index([workspaceId, isCurrent, createdAt])
   @@index([projectId, createdAt])
   @@index([uploaderId])
+  @@index([supersedesId])
   @@index([searchVector], type: Gin)
   @@map("uploads")
 }

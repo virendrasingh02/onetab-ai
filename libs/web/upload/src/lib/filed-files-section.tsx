@@ -1,3 +1,4 @@
+import { resolveMediaUrl } from '@org/api-client';
 import { useMediaPreview } from '@org/media-preview';
 import {
   Button,
@@ -67,6 +68,10 @@ export function FiledFilesSection({
         size: file.size,
         createdAt: file.createdAt,
         updatedAt: file.updatedAt,
+        version: file.version,
+        thumbnailUrl: file.thumbnailUrl
+          ? resolveMediaUrl(file.thumbnailUrl)
+          : null,
         uploader: file.uploader,
         manageable: canManage,
       })),

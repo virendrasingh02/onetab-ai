@@ -1,3 +1,4 @@
+import { resolveMediaUrl } from '@org/api-client';
 import { useMediaPreview } from '@org/media-preview';
 import type { Upload } from '@org/types';
 import {
@@ -17,11 +18,13 @@ import {
   Download,
   ExternalLink,
   Eye,
+  History,
   Pencil,
   Trash2,
+  Upload as UploadIcon,
   X,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   destinationValue,
   parseDestinationValue,
@@ -30,7 +33,7 @@ import {
 import { uploadSourceHref } from './source-href.js';
 import { kindOf } from './upload-list.js';
 import { useUploadMediaAdapter } from './use-upload-preview.js';
-import { useUploadMutations } from './use-upload.js';
+import { useUploadMutations, useUploadVersions } from './use-upload.js';
 
 export interface AssetDetailsDialogProps {
   upload: Upload | null;
@@ -61,7 +64,8 @@ export function AssetDetailsDialog({
   onNavigateSource,
   onDeleted,
 }: AssetDetailsDialogProps) {
-  const { remove, update, download } = useUploadMutations(workspaceId);
+  const { remove, update, replaceVersion, download } =
+    useUploadMutations(workspaceId);
   const { toMediaItem } = useUploadMediaAdapter(workspaceId);
   const { openPreview } = useMediaPreview();
   const prompts = usePromptDialog();
@@ -69,9 +73,17 @@ export function AssetDetailsDialog({
 
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
+  const replaceInputRef = useRef<HTMLInputElement | null>(null);
+
+  const versions = useUploadVersions(
+    workspaceId,
+    showHistory && upload ? upload.id : undefined,
+  );
 
   useEffect(() => {
     setRenaming(false);
+    setShowHistory(false);
     setName(upload?.filename ?? '');
   }, [upload?.id, upload?.filename]);
 
@@ -83,6 +95,8 @@ export function AssetDetailsDialog({
   const createdChanged =
     Math.abs(Date.parse(upload.updatedAt) - Date.parse(upload.createdAt)) >
     60_000;
+  const thumb =
+    upload.thumbnailUrl ? resolveMediaUrl(upload.thumbnailUrl) : undefined;
 
   const saveName = () => {
     const next = name.trim();
@@ -134,6 +148,21 @@ export function AssetDetailsDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {thumb ? (
+            <button
+              type="button"
+              aria-label={`Preview ${upload.filename}`}
+              onClick={() => openPreview([toMediaItem(upload)], 0)}
+              className="block w-full overflow-hidden rounded-lg border border-border bg-surface-inset"
+            >
+              <img
+                src={thumb}
+                alt=""
+                className="max-h-48 w-full object-contain"
+              />
+            </button>
+          ) : null}
+
           {/* Name */}
           <div className="gap-2 flex items-start justify-between">
             {renaming ? (
@@ -197,6 +226,21 @@ export function AssetDetailsDialog({
             <dt className="text-muted-foreground">Size</dt>
             <dd className="text-foreground">{formatBytes(upload.size)}</dd>
 
+            <dt className="text-muted-foreground">Version</dt>
+            <dd className="gap-2 flex items-center text-foreground">
+              <span>v{upload.version}</span>
+              {upload.hasVersions ? (
+                <button
+                  type="button"
+                  onClick={() => setShowHistory((v) => !v)}
+                  className="gap-1 inline-flex items-center text-primary hover:underline"
+                >
+                  <History className="size-3" />
+                  <span>{showHistory ? 'Hide history' : 'History'}</span>
+                </button>
+              ) : null}
+            </dd>
+
             <dt className="text-muted-foreground">Owner</dt>
             <dd className="gap-1.5 flex items-center text-foreground">
               <UserAvatar
@@ -257,6 +301,36 @@ export function AssetDetailsDialog({
             </dd>
           </dl>
 
+          {/* Version history */}
+          {showHistory ? (
+            <div className="rounded-md border border-border bg-surface-inset/40 p-2 space-y-1 max-h-40 overflow-y-auto">
+              {versions.isLoading ? (
+                <p className="text-[11px] text-muted-foreground px-1">Loading…</p>
+              ) : (
+                (versions.data ?? []).map((v) => (
+                  <div
+                    key={v.id}
+                    className="gap-2 px-1 py-0.5 flex items-center justify-between text-[11px]"
+                  >
+                    <span className="text-foreground">
+                      v{v.version}
+                      {v.id === upload.id ? (
+                        <span className="text-muted-foreground"> · current</span>
+                      ) : null}
+                    </span>
+                    <span
+                      className="text-muted-foreground"
+                      title={formatDateTime(v.createdAt)}
+                    >
+                      {formatRelative(v.createdAt)} ·{' '}
+                      {formatBytes(v.size)}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          ) : null}
+
           {/* Move */}
           {canManage ? (
             <div className="space-y-1">
@@ -300,17 +374,41 @@ export function AssetDetailsDialog({
               <Download className="size-3.5" /> Download
             </Button>
             {canManage ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                className={cn(
-                  'h-7 gap-1.5 text-xs text-destructive hover:text-destructive',
-                )}
-                disabled={remove.isPending}
-                onClick={confirmDelete}
-              >
-                <Trash2 className="size-3.5" /> Delete
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 gap-1.5 text-xs"
+                  disabled={replaceVersion.isPending}
+                  onClick={() => replaceInputRef.current?.click()}
+                >
+                  <UploadIcon className="size-3.5" />
+                  {replaceVersion.isPending ? 'Uploading…' : 'New version'}
+                </Button>
+                <input
+                  ref={replaceInputRef}
+                  type="file"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (file) {
+                      replaceVersion.mutate({ uploadId: upload.id, file });
+                    }
+                  }}
+                />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={cn(
+                    'h-7 gap-1.5 text-xs text-destructive hover:text-destructive',
+                  )}
+                  disabled={remove.isPending}
+                  onClick={confirmDelete}
+                >
+                  <Trash2 className="size-3.5" /> Delete
+                </Button>
+              </>
             ) : null}
           </div>
         </div>

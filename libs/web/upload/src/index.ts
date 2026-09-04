@@ -4,6 +4,7 @@ export {
   useUploadDestinations,
   useUploadMutations,
   useUploadStorageUsage,
+  useUploadVersions,
   useUploads,
   uploadTargetKey,
   type UploadCandidate,

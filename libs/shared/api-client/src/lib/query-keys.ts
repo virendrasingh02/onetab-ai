@@ -173,6 +173,8 @@ export const queryKeys = {
     destinations: (workspaceId: string) =>
       ['uploads', workspaceId, 'destinations'] as const,
     usage: (workspaceId: string) => ['uploads', workspaceId, 'usage'] as const,
+    versions: (workspaceId: string, uploadId: string) =>
+      ['uploads', workspaceId, 'versions', uploadId] as const,
   },
   promptTemplates: {
     all: (workspaceId: string) => ['prompt-templates', workspaceId] as const,

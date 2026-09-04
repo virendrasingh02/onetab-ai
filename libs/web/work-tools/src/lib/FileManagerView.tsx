@@ -1,3 +1,4 @@
+import { resolveMediaUrl } from '@org/api-client';
 import { useCurrentUser } from '@org/auth';
 import { getMediaType, useMediaPreview, type MediaItem } from '@org/media-preview';
 import type { Upload, UploadContextType } from '@org/types';
@@ -122,6 +123,7 @@ export function FileManagerView() {
   const [detailsId, setDetailsId] = useState<string | null>(null);
 
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = uploads;
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const el = sentinelRef.current;
@@ -155,6 +157,8 @@ export function FileManagerView() {
         size: u.size,
         createdAt: u.createdAt,
         updatedAt: u.updatedAt,
+        version: u.version,
+        thumbnailUrl: u.thumbnailUrl ? resolveMediaUrl(u.thumbnailUrl) : null,
         uploader: u.uploader,
         source: {
           type: u.contextType,
@@ -182,6 +186,7 @@ export function FileManagerView() {
           mimeType: f.mimeType,
           size: f.size,
           createdAt: new Date(f.timestamp).toISOString(),
+          thumbnailUrl: f.thumbnailUrl ?? null,
           uploader: {
             id: f.senderId,
             name: f.senderName,
@@ -316,7 +321,10 @@ export function FileManagerView() {
         </div>
       </div>
 
-      <div className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto">
+      <div
+        ref={scrollRef}
+        className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto"
+      >
         <div className="max-w-5xl space-y-4 mx-auto">
           <div className="sm:flex-row sm:items-center gap-3 pt-1 flex flex-col justify-between">
             <SegmentedControl
@@ -489,6 +497,7 @@ export function FileManagerView() {
                 }}
                 onDelete={(item) => void confirmDelete(item.id, item.filename)}
                 onNavigateSource={(href) => navigate(href)}
+                scrollParentRef={scrollRef}
                 empty={
                   <div className="rounded-card border border-border bg-surface/60 p-8 text-center">
                     <EmptyState

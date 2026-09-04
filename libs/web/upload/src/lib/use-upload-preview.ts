@@ -1,4 +1,4 @@
-import { uploadApi } from '@org/api-client';
+import { resolveMediaUrl, uploadApi } from '@org/api-client';
 import { getMediaType, type MediaItem } from '@org/media-preview';
 import type { Upload } from '@org/types';
 import { toPresenceStatus } from '@org/ui';
@@ -6,14 +6,15 @@ import { useCallback } from 'react';
 
 /**
  * What the preview adapter needs from an `Upload`. `id`/`filename`/`mimeType`/
- * `size` are always there; `uploader`/`createdAt` only come with the full row
- * (the file manager has it, workspace search's lean result does not).
+ * `size` are always there; `uploader`/`createdAt`/`contentUrl` only come with
+ * the full row (the file manager has it, workspace search's lean result does
+ * not).
  */
 type UploadPreviewInput = Pick<
   Upload,
   'id' | 'filename' | 'mimeType' | 'size'
 > &
-  Partial<Pick<Upload, 'uploader' | 'createdAt'>>;
+  Partial<Pick<Upload, 'uploader' | 'createdAt' | 'contentUrl' | 'downloadUrl'>>;
 
 /**
  * Adapts an `Upload` entity (file manager, file search) into a `MediaItem`
@@ -44,11 +45,22 @@ export function useUploadMediaAdapter(workspaceId: string | undefined) {
         senderStatusEmoji: uploader?.statusEmoji ?? undefined,
         senderStatusText: uploader?.statusText ?? undefined,
         timestamp: upload.createdAt,
-        resolveUrl: async () => {
-          if (!workspaceId) throw new Error('No workspace selected.');
-          const blob = await uploadApi.download(workspaceId, upload.id);
-          return URL.createObjectURL(blob);
-        },
+        // Prefer the signed URL when the full row carries it — no auth fetch,
+        // and `<img>` works directly. Fall back to the authenticated blob
+        // download for lean rows (workspace search) that don't include it.
+        url: upload.contentUrl
+          ? resolveMediaUrl(upload.contentUrl)
+          : undefined,
+        downloadUrl: upload.downloadUrl
+          ? resolveMediaUrl(upload.downloadUrl)
+          : undefined,
+        resolveUrl: upload.contentUrl
+          ? undefined
+          : async () => {
+              if (!workspaceId) throw new Error('No workspace selected.');
+              const blob = await uploadApi.download(workspaceId, upload.id);
+              return URL.createObjectURL(blob);
+            },
       };
     },
     [workspaceId],

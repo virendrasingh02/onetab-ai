@@ -1986,6 +1986,45 @@ export const uploadApi = {
       http.patch(`/workspaces/${workspaceId}/uploads/${uploadId}`, patch),
     ),
 
+  /** The version chain for a file, newest first. */
+  listVersions: (workspaceId: string, uploadId: string) =>
+    request<Upload[]>(
+      http.get(`/workspaces/${workspaceId}/uploads/${uploadId}/versions`),
+    ),
+
+  /** Replace a file's content with a new version. */
+  replaceVersion: (
+    workspaceId: string,
+    uploadId: string,
+    file: File,
+    options: {
+      onProgress?: (percent: number) => void;
+      signal?: AbortSignal;
+    } = {},
+  ) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request<Upload>(
+      http.post(
+        `/workspaces/${workspaceId}/uploads/${uploadId}/versions`,
+        form,
+        {
+          headers: { 'Content-Type': undefined as unknown as string },
+          timeout: 0,
+          signal: options.signal,
+          onUploadProgress: options.onProgress
+            ? (event) => {
+                if (!event.total) return;
+                options.onProgress?.(
+                  Math.round((event.loaded / event.total) * 100),
+                );
+              }
+            : undefined,
+        },
+      ),
+    );
+  },
+
   /**
    * Multipart, so the Content-Type header is left to the browser — it has to
    * append the boundary, and setting it by hand produces an unparseable body.

@@ -10,6 +10,7 @@ import {
   UserAvatar,
 } from '@org/ui';
 import { cn, formatBytes, formatDateTime, formatRelative } from '@org/utils';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   Bot,
   Blocks,
@@ -28,7 +29,7 @@ import {
   Table2,
   Trash2,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode, type RefObject } from 'react';
 
 /**
  * Broad buckets over the allowed MIME types — the type filter reads in the
@@ -61,8 +62,26 @@ const KIND_STYLE: Record<FileKind, string> = {
   data: 'bg-accent-blue-soft border-accent-blue/30 text-accent-blue',
 };
 
-function FileTypeBadge({ mimeType }: { mimeType: string }) {
+function FileTypeBadge({
+  mimeType,
+  thumbnailUrl,
+}: {
+  mimeType: string;
+  thumbnailUrl?: string | null;
+}) {
   const kind = kindOf(mimeType);
+
+  if (thumbnailUrl && kind === 'image') {
+    return (
+      <img
+        src={thumbnailUrl}
+        alt=""
+        loading="lazy"
+        className="size-9 shrink-0 rounded-lg border border-border object-cover"
+      />
+    );
+  }
+
   const Icon =
     kind === 'image'
       ? ImageIcon
@@ -185,6 +204,10 @@ export interface UploadListItem {
   createdAt: string;
   /** Bumped on rename / move — shown as "edited …" when it differs. */
   updatedAt?: string;
+  /** > 1 when the file has older versions behind it. */
+  version?: number;
+  /** Thumbnail URL for images — replaces the type badge. */
+  thumbnailUrl?: string | null;
   uploader: {
     id: string;
     name: string;
@@ -213,6 +236,11 @@ export interface UploadListProps {
   onOpenDetails?: (item: UploadListItem, index: number) => void;
   /** Navigate to a source's origin (`source.href`). Enables the source badge. */
   onNavigateSource?: (href: string) => void;
+  /**
+   * The scroll container to virtualize against. Set for large lists (the Files
+   * hub); leave unset to render every row (bounded per-surface lists).
+   */
+  scrollParentRef?: RefObject<HTMLElement | null>;
   className?: string;
   /** Rendered in place of the rows when `items` is empty. */
   empty?: ReactNode;
@@ -222,21 +250,13 @@ export interface UploadListProps {
  * The workspace file row, shared by the "All Files" hub, the project Files tab
  * and every conversation's Files & Media panel.
  */
-export function UploadList({
-  items,
-  currentUserId,
-  showSource = false,
-  downloadingId,
-  deletingId,
-  onPreview,
-  onDownload,
-  onDelete,
-  onOpenDetails,
-  onNavigateSource,
-  className,
-  empty,
-}: UploadListProps) {
+export function UploadList(props: UploadListProps) {
+  const { items, className, empty, scrollParentRef } = props;
   if (items.length === 0 && empty !== undefined) return <>{empty}</>;
+
+  if (scrollParentRef) {
+    return <VirtualUploadList {...props} scrollParentRef={scrollParentRef} />;
+  }
 
   return (
     <div
@@ -246,22 +266,96 @@ export function UploadList({
       )}
     >
       {items.map((item, index) => (
-        <UploadRow
-          key={item.id}
-          item={item}
-          index={index}
-          isOwner={item.uploader.id === currentUserId}
-          showSource={showSource}
-          isDownloading={downloadingId === item.id}
-          isDeleting={deletingId === item.id}
-          onPreview={onPreview}
-          onDownload={onDownload}
-          onDelete={onDelete}
-          onOpenDetails={onOpenDetails}
-          onNavigateSource={onNavigateSource}
-        />
+        <Row key={item.id} {...props} item={item} index={index} />
       ))}
     </div>
+  );
+}
+
+/** Windowed rendering for the Files hub — rows are absolutely positioned inside
+ *  a spacer sized to the full list, measured against the page scroll box. */
+function VirtualUploadList(
+  props: UploadListProps & { scrollParentRef: RefObject<HTMLElement | null> },
+) {
+  const { items, className, scrollParentRef } = props;
+  const listRef = useRef<HTMLDivElement | null>(null);
+
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => scrollParentRef.current,
+    estimateSize: () => 64,
+    overscan: 10,
+    getItemKey: (index) => items[index]?.id ?? index,
+    scrollMargin: listRef.current?.offsetTop ?? 0,
+  });
+
+  return (
+    <div
+      ref={listRef}
+      className={cn(
+        'shadow-2xs overflow-hidden rounded-card border border-border bg-surface/60',
+        className,
+      )}
+    >
+      <div
+        style={{ height: virtualizer.getTotalSize(), position: 'relative' }}
+      >
+        {virtualizer.getVirtualItems().map((v) => {
+          const item = items[v.index];
+          if (!item) return null;
+          return (
+            <div
+              key={v.key}
+              ref={virtualizer.measureElement}
+              data-index={v.index}
+              className="border-b border-border/60 last:border-b-0"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${
+                  v.start - virtualizer.options.scrollMargin
+                }px)`,
+              }}
+            >
+              <Row {...props} item={item} index={v.index} />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Shared adapter — pulls the per-row props out of `UploadListProps`. */
+function Row({
+  item,
+  index,
+  currentUserId,
+  showSource = false,
+  downloadingId,
+  deletingId,
+  onPreview,
+  onDownload,
+  onDelete,
+  onOpenDetails,
+  onNavigateSource,
+}: UploadListProps & { item: UploadListItem; index: number }) {
+  return (
+    <UploadRow
+      item={item}
+      index={index}
+      isOwner={item.uploader.id === currentUserId}
+      showSource={showSource}
+      isDownloading={downloadingId === item.id}
+      isDeleting={deletingId === item.id}
+      onPreview={onPreview}
+      onDownload={onDownload}
+      onDelete={onDelete}
+      onOpenDetails={onOpenDetails}
+      onNavigateSource={onNavigateSource}
+    />
   );
 }
 
@@ -310,13 +404,21 @@ function UploadRow({
         aria-label={`${onOpenDetails ? 'Details for' : 'Preview'} ${item.filename}`}
         className="gap-3 min-w-0 flex flex-1 items-center text-left focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none rounded-md"
       >
-        <FileTypeBadge mimeType={item.mimeType} />
+        <FileTypeBadge
+          mimeType={item.mimeType}
+          thumbnailUrl={item.thumbnailUrl}
+        />
 
         <div className="min-w-0 flex-1">
           <div className="gap-1.5 flex items-center">
             <h3 className="text-xs sm:text-sm font-medium truncate text-foreground">
               {item.filename}
             </h3>
+            {item.version && item.version > 1 ? (
+              <span className="text-[10px] font-medium text-muted-foreground shrink-0">
+                v{item.version}
+              </span>
+            ) : null}
             {showSource && item.source ? (
               <SourceBadge
                 source={item.source}

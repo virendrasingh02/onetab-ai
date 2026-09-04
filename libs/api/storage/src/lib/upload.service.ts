@@ -4,7 +4,13 @@ import {
   NotFoundException,
   PayloadTooLargeException,
 } from '@nestjs/common';
-import { PUBLIC_USER_SELECT, toUpload } from '@org/api-common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  AppEvent,
+  PUBLIC_USER_SELECT,
+  toUpload,
+  type UploadUrls,
+} from '@org/api-common';
 import { PrismaService } from '@org/database';
 import type {
   Upload,
@@ -25,15 +31,9 @@ export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 200;
 
-/**
- * What a workspace file is allowed to be.
- *
- * The browser-supplied `mimetype` is not trustworthy on its own, but combined
- * with `Content-Disposition: attachment` + `nosniff` on the download route it
- * is enough to keep executables and inline-script types (`.html`, `.svg`,
- * `.xhtml`) out of storage (audit S12). Deep magic-byte sniffing and an async
- * malware scan are still to come — tracked as Tier 2.
- */
+/** Signed content URLs last this long — long enough for a page's lifetime. */
+const SIGNED_URL_TTL_SECONDS = 3600;
+
 const ALLOWED_MIME_EXACT = new Set<string>([
   'application/pdf',
   'application/json',
@@ -50,7 +50,6 @@ const ALLOWED_MIME_EXACT = new Set<string>([
 ]);
 const ALLOWED_MIME_PREFIXES = ['image/', 'video/', 'audio/', 'text/'];
 
-/** Extensions refused regardless of the declared MIME type. */
 const BLOCKED_EXTENSIONS = new Set<string>([
   '.html', '.htm', '.xhtml', '.svg', '.xml', '.js', '.mjs', '.exe', '.dll',
   '.bat', '.cmd', '.com', '.msi', '.sh', '.bash', '.ps1', '.scr', '.vbs',
@@ -63,7 +62,6 @@ function isAllowedUpload(filename: string, mimeType: string): boolean {
   if (ext && BLOCKED_EXTENSIONS.has(ext)) return false;
 
   const type = (mimeType || 'application/octet-stream').toLowerCase();
-  // `image/svg+xml` is script-capable — keep it out even though it is `image/`.
   if (type === 'image/svg+xml') return false;
   if (ALLOWED_MIME_EXACT.has(type)) return true;
   return ALLOWED_MIME_PREFIXES.some((prefix) => type.startsWith(prefix));
@@ -92,7 +90,6 @@ const CONTEXT_TYPES: readonly UploadContextType[] = [
   'ISSUE',
 ];
 
-/** What the client may pass alongside a file — a channel (legacy) or a context. */
 export interface UploadContextInput {
   contextType?: string;
   contextId?: string;
@@ -105,7 +102,6 @@ export interface UploadListQuery extends UploadContextInput {
   limit?: number;
 }
 
-/** A Matrix room id — the shape a group-DM `contextId` takes. */
 function looksLikeRoomId(value: string): boolean {
   return value.startsWith('!') || value.startsWith('#');
 }
@@ -129,12 +125,25 @@ export class UploadService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly events: EventEmitter2,
   ) {}
 
-  /**
-   * Normalises the legacy `channelId` param and an arbitrary `contextType`
-   * string into a `{ type, id }` pair, rejecting anything unrecognised.
-   */
+  /** Short-lived signed URLs so a plain `<img>`/`<a>` can reach the bytes. */
+  private urlsFor(row: { id: string; mimeType: string }): UploadUrls {
+    const content = `/files/${this.storage.signContentToken(row.id, {
+      ttlSeconds: SIGNED_URL_TTL_SECONDS,
+    })}`;
+    const download = `/files/${this.storage.signContentToken(row.id, {
+      ttlSeconds: SIGNED_URL_TTL_SECONDS,
+      download: true,
+    })}`;
+    return {
+      contentUrl: content,
+      downloadUrl: download,
+      thumbnailUrl: row.mimeType.startsWith('image/') ? content : null,
+    };
+  }
+
   private normaliseContext(input: UploadContextInput): {
     type: UploadContextType;
     id: string | null;
@@ -156,7 +165,6 @@ export class UploadService {
     return { type, id: type === 'WORKSPACE' ? null : id };
   }
 
-  /** Confirms the context row belongs to this workspace before a file is filed under it. */
   private async assertContextInWorkspace(
     workspaceId: string,
     type: UploadContextType,
@@ -219,8 +227,6 @@ export class UploadService {
         'Issue',
       );
     }
-    // DIRECT: a 1:1 peer must be a member of this workspace; a group DM is
-    // addressed by its Matrix room id, which has no row here to check.
     if (looksLikeRoomId(id)) return;
     const member = await this.prisma.workspaceMember.findFirst({
       where: { workspaceId, userId: id },
@@ -229,7 +235,7 @@ export class UploadService {
     if (!member) throw new NotFoundException('Conversation partner not found.');
   }
 
-  /** One page of the Files hub, newest first, keyset-paginated. */
+  /** One page of the Files hub — current versions only, newest first, keyset-paginated. */
   async list(workspaceId: string, query: UploadListQuery = {}): Promise<UploadPage> {
     const limit = Math.min(
       Math.max(1, query.limit ?? DEFAULT_PAGE_SIZE),
@@ -239,12 +245,12 @@ export class UploadService {
     const hasContextFilter =
       !!query.channelId || !!query.contextType || !!query.contextId;
     const context = hasContextFilter ? this.normaliseContext(query) : null;
-
     const keyset = query.cursor ? decodeCursor(query.cursor) : null;
 
     const rows = await this.prisma.upload.findMany({
       where: {
         workspaceId,
+        isCurrent: true,
         ...(query.channelId ? { channelId: query.channelId } : {}),
         ...(context && context.type !== 'WORKSPACE'
           ? { contextType: context.type }
@@ -256,10 +262,7 @@ export class UploadService {
           ? {
               OR: [
                 { createdAt: { lt: new Date(keyset.ms) } },
-                {
-                  createdAt: new Date(keyset.ms),
-                  id: { lt: keyset.id },
-                },
+                { createdAt: new Date(keyset.ms), id: { lt: keyset.id } },
               ],
             }
           : {}),
@@ -279,17 +282,13 @@ export class UploadService {
         toUpload(
           row,
           contexts.get(`${row.contextType}:${row.contextId ?? ''}`) ?? null,
+          this.urlsFor(row),
         ),
       ),
-      nextCursor:
-        hasMore && last ? encodeCursor(last.createdAt, last.id) : null,
+      nextCursor: hasMore && last ? encodeCursor(last.createdAt, last.id) : null,
     };
   }
 
-  /**
-   * Batch-resolves the display label for every distinct context in a page of
-   * uploads — one query per kind rather than one per row.
-   */
   private async resolveContexts(
     workspaceId: string,
     rows: { contextType: UploadContextType; contextId: string | null }[],
@@ -310,7 +309,6 @@ export class UploadService {
       slug: string | null = null,
       parentId: string | null = null,
     ) => out.set(`${type}:${id}`, { type, id, label, slug, parentId });
-
     const idsFor = (type: UploadContextType) => [...(idsByType.get(type) ?? [])];
 
     const channelIds = idsFor('CHANNEL');
@@ -379,9 +377,6 @@ export class UploadService {
       for (const u of hits) put('DIRECT', u.id, u.displayName ?? u.name);
     }
 
-    // Group-DM rooms and any unresolved / deleted source fall through with a
-    // null label — the client fills those from its Matrix session or shows a
-    // "source unavailable" fallback.
     for (const [type, set] of idsByType) {
       for (const id of set) if (!out.has(`${type}:${id}`)) put(type, id, null);
     }
@@ -389,35 +384,14 @@ export class UploadService {
     return out;
   }
 
-  /**
-   * Writes the bytes, then records the row.
-   *
-   * In that order on purpose: a row pointing at bytes that were never written
-   * is a broken download, whereas bytes with no row are only wasted disk that
-   * nothing links to.
-   */
   async create(
     workspaceId: string,
     uploaderId: string,
     file: IncomingFile,
     contextInput: UploadContextInput = {},
   ): Promise<Upload> {
-    if (!file?.buffer?.byteLength) {
-      throw new BadRequestException('The uploaded file is empty.');
-    }
-    if (file.size > MAX_UPLOAD_BYTES) {
-      throw new BadRequestException(
-        `Files must be ${MAX_UPLOAD_BYTES / (1024 * 1024)} MB or smaller.`,
-      );
-    }
-    if (!isAllowedUpload(file.originalname, file.mimetype)) {
-      throw new BadRequestException(
-        'That file type is not allowed. Executables and inline-script files (.html, .svg, .js) are rejected.',
-      );
-    }
+    this.assertUploadable(file);
 
-    // Plan storage cap — checked before the write so we never store bytes the
-    // workspace is not entitled to keep.
     const usage = await this.storageUsage(workspaceId);
     if (isLimitReached(usage.usedBytes + file.size, usage.limitBytes)) {
       throw new PayloadTooLargeException(
@@ -448,8 +422,106 @@ export class UploadService {
       include: { uploader: { select: PUBLIC_USER_SELECT } },
     });
 
+    this.emitShared(workspaceId, uploaderId, row, false);
+
     const contexts = await this.resolveContexts(workspaceId, [row]);
-    return toUpload(row, contexts.get(`${type}:${id ?? ''}`) ?? null);
+    return toUpload(
+      row,
+      contexts.get(`${type}:${id ?? ''}`) ?? null,
+      this.urlsFor(row),
+    );
+  }
+
+  /**
+   * Replaces a file's content with a new version. The old row (and its bytes)
+   * are kept and linked via `supersedesId`; the new row inherits the context,
+   * filename and uploader-facing identity.
+   */
+  async replaceVersion(
+    workspaceId: string,
+    uploadId: string,
+    uploaderId: string,
+    file: IncomingFile,
+  ): Promise<Upload> {
+    this.assertUploadable(file);
+
+    const current = await this.prisma.upload.findFirst({
+      where: { id: uploadId, workspaceId, isCurrent: true },
+    });
+    if (!current) throw new NotFoundException('File not found.');
+
+    const usage = await this.storageUsage(workspaceId);
+    if (isLimitReached(usage.usedBytes + file.size, usage.limitBytes)) {
+      throw new PayloadTooLargeException(
+        `This workspace has reached its ${usage.planTier} storage limit.`,
+      );
+    }
+
+    const key = this.storage.buildKey(workspaceId, file.originalname);
+    const stored = await this.storage.put(key, file.buffer);
+
+    const row = await this.prisma.$transaction(async (tx) => {
+      await tx.upload.update({
+        where: { id: current.id },
+        data: { isCurrent: false },
+      });
+      return tx.upload.create({
+        data: {
+          workspaceId,
+          uploaderId,
+          contextType: current.contextType,
+          contextId: current.contextId,
+          channelId: current.channelId,
+          projectId: current.projectId,
+          filename: current.filename,
+          mimeType: file.mimetype || current.mimeType,
+          size: stored.size,
+          storageKey: stored.key,
+          checksum: stored.checksum,
+          version: current.version + 1,
+          supersedesId: current.id,
+        },
+        include: { uploader: { select: PUBLIC_USER_SELECT } },
+      });
+    });
+
+    this.emitShared(workspaceId, uploaderId, row, true);
+
+    const contexts = await this.resolveContexts(workspaceId, [row]);
+    return toUpload(
+      row,
+      contexts.get(`${row.contextType}:${row.contextId ?? ''}`) ?? null,
+      this.urlsFor(row),
+    );
+  }
+
+  /** The version chain for a file, newest first. */
+  async listVersions(workspaceId: string, uploadId: string): Promise<Upload[]> {
+    const head = await this.prisma.upload.findFirst({
+      where: { id: uploadId, workspaceId },
+      select: { id: true, supersedesId: true },
+    });
+    if (!head) throw new NotFoundException('File not found.');
+
+    const chain: NonNullable<Awaited<ReturnType<typeof this.loadRow>>>[] = [];
+    let cursor: string | null = head.id;
+    // Bounded walk — a file will not have thousands of versions, and the guard
+    // stops a corrupt cycle from spinning forever.
+    for (let i = 0; cursor && i < 200; i += 1) {
+      const row = await this.loadRow(cursor);
+      if (!row) break;
+      chain.push(row);
+      cursor = row.supersedesId;
+    }
+
+    return chain.map((row) => toUpload(row, null, this.urlsFor(row)));
+  }
+
+  private loadRow(id: string) {
+    return this.prisma.upload.findUnique({
+      where: { id },
+      include: { uploader: { select: PUBLIC_USER_SELECT } },
+    });
   }
 
   /** Rename (`filename`) and/or move (`contextType`/`contextId`) a file. */
@@ -472,9 +544,7 @@ export class UploadService {
       data['filename'] = name;
     }
 
-    const movingType = patch.contextType !== undefined;
-    const movingId = patch.contextId !== undefined;
-    if (movingType || movingId) {
+    if (patch.contextType !== undefined || patch.contextId !== undefined) {
       const { type, id } = this.normaliseContext({
         contextType: patch.contextType ?? existing.contextType,
         contextId:
@@ -499,10 +569,10 @@ export class UploadService {
     return toUpload(
       row,
       contexts.get(`${row.contextType}:${row.contextId ?? ''}`) ?? null,
+      this.urlsFor(row),
     );
   }
 
-  /** Everything the "Upload files" destination picker offers. */
   async listDestinations(workspaceId: string): Promise<UploadDestinations> {
     const [channels, projects, agents, apps, members] = await Promise.all([
       this.prisma.channel.findMany({
@@ -579,11 +649,11 @@ export class UploadService {
 
   /** The row plus its bytes, for the download route. */
   async read(
-    workspaceId: string,
+    workspaceId: string | null,
     uploadId: string,
   ): Promise<{ filename: string; mimeType: string; content: Buffer }> {
     const row = await this.prisma.upload.findFirst({
-      where: { id: uploadId, workspaceId },
+      where: workspaceId ? { id: uploadId, workspaceId } : { id: uploadId },
     });
     if (!row) throw new NotFoundException('File not found.');
 
@@ -598,14 +668,80 @@ export class UploadService {
     };
   }
 
-  async remove(workspaceId: string, uploadId: string): Promise<void> {
-    const row = await this.prisma.upload.findFirst({
-      where: { id: uploadId, workspaceId },
-      select: { id: true, storageKey: true },
-    });
-    if (!row) throw new NotFoundException('File not found.');
+  /** Resolves a signed content token to the file, for the public route. */
+  async readByToken(
+    token: string,
+  ): Promise<{ filename: string; mimeType: string; content: Buffer; download: boolean }> {
+    const verified = this.storage.verifyContentToken(token);
+    if (!verified) throw new NotFoundException('This link is invalid or has expired.');
+    const file = await this.read(null, verified.uploadId);
+    return { ...file, download: verified.download };
+  }
 
-    await this.prisma.upload.delete({ where: { id: row.id } });
-    await this.storage.delete(row.storageKey);
+  /** Deletes a file and every older version behind it — rows and bytes. */
+  async remove(workspaceId: string, uploadId: string): Promise<void> {
+    const head = await this.prisma.upload.findFirst({
+      where: { id: uploadId, workspaceId },
+      select: { id: true, storageKey: true, supersedesId: true },
+    });
+    if (!head) throw new NotFoundException('File not found.');
+
+    const keys: string[] = [head.storageKey];
+    const ids: string[] = [head.id];
+    let cursor = head.supersedesId;
+    for (let i = 0; cursor && i < 200; i += 1) {
+      const prev: { id: string; storageKey: string; supersedesId: string | null } | null =
+        await this.prisma.upload.findUnique({
+          where: { id: cursor },
+          select: { id: true, storageKey: true, supersedesId: true },
+        });
+      if (!prev) break;
+      keys.push(prev.storageKey);
+      ids.push(prev.id);
+      cursor = prev.supersedesId;
+    }
+
+    await this.prisma.upload.deleteMany({ where: { id: { in: ids } } });
+    await Promise.all(keys.map((key) => this.storage.delete(key)));
+  }
+
+  private assertUploadable(file: IncomingFile): void {
+    if (!file?.buffer?.byteLength) {
+      throw new BadRequestException('The uploaded file is empty.');
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      throw new BadRequestException(
+        `Files must be ${MAX_UPLOAD_BYTES / (1024 * 1024)} MB or smaller.`,
+      );
+    }
+    if (!isAllowedUpload(file.originalname, file.mimetype)) {
+      throw new BadRequestException(
+        'That file type is not allowed. Executables and inline-script files (.html, .svg, .js) are rejected.',
+      );
+    }
+  }
+
+  private emitShared(
+    workspaceId: string,
+    actorId: string,
+    row: {
+      id: string;
+      filename: string;
+      contextType: UploadContextType;
+      contextId: string | null;
+      channelId: string | null;
+    },
+    isNewVersion: boolean,
+  ): void {
+    this.events.emit(AppEvent.FileShared, {
+      workspaceId,
+      actorId,
+      uploadId: row.id,
+      filename: row.filename,
+      contextType: row.contextType,
+      contextId: row.contextId,
+      channelId: row.channelId,
+      isNewVersion,
+    });
   }
 }

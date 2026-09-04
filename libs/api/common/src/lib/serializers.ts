@@ -246,6 +246,8 @@ interface UploadRow {
   contextType?: UploadContextType | null;
   contextId?: string | null;
   projectId?: string | null;
+  version?: number | null;
+  supersedesId?: string | null;
   filename: string;
   mimeType: string;
   size: number;
@@ -255,15 +257,27 @@ interface UploadRow {
   uploader: UserRow;
 }
 
+/** Signed URLs the service mints; the serializer has no storage access. */
+export interface UploadUrls {
+  contentUrl?: string | null;
+  downloadUrl?: string | null;
+  thumbnailUrl?: string | null;
+}
+
 /**
  * `context` is resolved by the caller (it needs channel/project/agent/app/peer
  * lookups the serializer has no database access for) and threaded through here.
  * When omitted, a bare `{ type, id }` with no label is emitted so the client
- * still knows the kind.
+ * still knows the kind. `urls` are minted by `UploadService`.
  */
-export function toUpload(row: UploadRow, context?: UploadContext | null): Upload {
+export function toUpload(
+  row: UploadRow,
+  context?: UploadContext | null,
+  urls?: UploadUrls,
+): Upload {
   const type: UploadContextType = row.contextType ?? 'WORKSPACE';
   const contextId = row.contextId ?? (type === 'CHANNEL' ? row.channelId : null);
+  const version = row.version ?? 1;
 
   return {
     id: row.id,
@@ -283,6 +297,11 @@ export function toUpload(row: UploadRow, context?: UploadContext | null): Upload
     storageKey: row.storageKey,
     createdAt: row.createdAt.toISOString(),
     updatedAt: (row.updatedAt ?? row.createdAt).toISOString(),
+    version,
+    hasVersions: version > 1 || !!row.supersedesId,
+    contentUrl: urls?.contentUrl ?? null,
+    downloadUrl: urls?.downloadUrl ?? null,
+    thumbnailUrl: urls?.thumbnailUrl ?? null,
     uploader: toPublicUser(row.uploader),
   };
 }

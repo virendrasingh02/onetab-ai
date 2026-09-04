@@ -304,6 +304,20 @@ export function useUploadStorageUsage(workspaceId: string | undefined) {
   });
 }
 
+/** The version chain for one file, newest first. */
+export function useUploadVersions(
+  workspaceId: string | undefined,
+  uploadId: string | undefined,
+) {
+  return useQuery({
+    queryKey: queryKeys.uploads.versions(workspaceId ?? '', uploadId ?? ''),
+    queryFn: () =>
+      uploadApi.listVersions(workspaceId as string, uploadId as string),
+    enabled: !!workspaceId && !!uploadId,
+    staleTime: 30_000,
+  });
+}
+
 export function useUploadMutations(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
 
@@ -330,6 +344,13 @@ export function useUploadMutations(workspaceId: string | undefined) {
     onSuccess: invalidate,
   });
 
+  /** Replace a file's content with a new version. */
+  const replaceVersion = useMutation({
+    mutationFn: ({ uploadId, file }: { uploadId: string; file: File }) =>
+      uploadApi.replaceVersion(workspaceId as string, uploadId, file),
+    onSuccess: invalidate,
+  });
+
   /**
    * Downloads through axios rather than a bare `href`.
    *
@@ -351,5 +372,5 @@ export function useUploadMutations(workspaceId: string | undefined) {
     },
   });
 
-  return { remove, update, download };
+  return { remove, update, replaceVersion, download };
 }

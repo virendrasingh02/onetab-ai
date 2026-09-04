@@ -13,6 +13,7 @@ export {
   type DocumentUpdatedEvent,
   type DocumentDeletedEvent,
   type ChannelCreatedEvent,
+  type FileSharedEvent,
   type WorkspaceInvitedEvent,
   type MemberJoinedEvent,
   type MentionCreatedEvent,
@@ -79,4 +80,5 @@ export {
   toPublicUser,
   toUpload,
   toWorkspace,
+  type UploadUrls,
 } from './lib/serializers.js';

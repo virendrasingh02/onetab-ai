@@ -2,10 +2,6 @@ import { attachmentToMediaItem, useMediaPreview } from '@org/media-preview';
 import type { Attachment } from '@org/types';
 import {
   Button,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
   EmptyState,
   ScrollArea,
   SkeletonList,
@@ -13,18 +9,10 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-  usePromptDialog,
 } from '@org/ui';
 import { formatBytes } from '@org/utils';
-import {
-  FileDropzone,
-  UploadList,
-  useUploadMediaAdapter,
-  useUploadMutations,
-  useUploads,
-  type UploadListItem,
-  type UploadTarget,
-} from '@org/web-upload';
+import { FiledFilesSection, type UploadTarget } from '@org/web-upload';
+import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Download,
   FileText,
@@ -32,9 +20,9 @@ import {
   Image as ImageIcon,
   MessageSquare,
   MessageSquareOff,
-  Plus,
 } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useRoom } from './use-chat.js';
 
 export interface ConversationFilesPanelProps {
@@ -54,9 +42,8 @@ export interface ConversationFilesPanelProps {
  * chats and app chats.
  *
  * Two sources, one panel:
- *  - **Filed files** — real `Upload` rows tagged with this conversation. These
- *    are uploaded from the button here (not posted as a message) and can be
- *    deleted from here.
+ *  - **Filed files** — real `Upload` rows tagged with this conversation
+ *    (`<FiledFilesSection>`): upload, details, rename, move, versions, delete.
  *  - **Shared in chat** — Matrix attachments scraped from the room timeline.
  *    Preview and download only; they live in the chat, not our object store.
  */
@@ -67,29 +54,12 @@ export function ConversationFilesPanel({
   enabled,
   currentUserId,
 }: ConversationFilesPanelProps) {
-  const uploads = useUploads(workspaceId, context);
-  const { remove, download } = useUploadMutations(workspaceId);
-  const { toMediaItem } = useUploadMediaAdapter(workspaceId);
+  const navigate = useNavigate();
+  const { slug } = useCurrentWorkspace();
   const { openPreview } = useMediaPreview();
-  const prompts = usePromptDialog();
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
 
   const room = useRoom(roomId ?? undefined);
   const [filter, setFilter] = useState<'all' | 'files' | 'media'>('all');
-
-  const filedItems: UploadListItem[] = useMemo(
-    () =>
-      (uploads.data ?? []).map((file) => ({
-        id: file.id,
-        filename: file.filename,
-        mimeType: file.mimeType,
-        size: file.size,
-        createdAt: file.createdAt,
-        uploader: file.uploader,
-        manageable: true,
-      })),
-    [uploads.data],
-  );
 
   const chatAttachments = useMemo(
     () =>
@@ -121,95 +91,23 @@ export function ConversationFilesPanel({
     [chatAttachments],
   );
 
-  const confirmDelete = async (item: UploadListItem) => {
-    const confirmed = await prompts.confirmAction({
-      title: `Delete “${item.filename}”?`,
-      description:
-        'The file is removed for everyone in this conversation. This cannot be undone.',
-      confirmLabel: 'Delete file',
-      destructive: true,
-    });
-    if (confirmed) remove.mutate(item.id);
-  };
-
   const isResolving = !roomId || room.isLoading;
-  const nothingAtAll =
-    !uploads.isLoading &&
-    filedItems.length === 0 &&
-    chatAttachments.length === 0;
 
   return (
     <ScrollArea
       className="min-h-0 flex-1"
       contentClassName="px-4 sm:px-6 py-4 space-y-6"
     >
-      <div className="gap-3 pb-3 flex flex-wrap items-center justify-between border-b border-border/60">
-        <div className="gap-1.5 flex flex-wrap items-center">
-          <Button
-            size="sm"
-            variant={filter === 'all' ? 'primary' : 'outline'}
-            onClick={() => setFilter('all')}
-            className="h-7 text-xs px-2.5"
-          >
-            All ({filedItems.length + chatAttachments.length})
-          </Button>
-          <Button
-            size="sm"
-            variant={filter === 'files' ? 'primary' : 'outline'}
-            onClick={() => setFilter('files')}
-            className="h-7 text-xs px-2.5 gap-1.5"
-          >
-            <FileText className="size-3.5" />
-            <span>Documents ({documentFiles.length})</span>
-          </Button>
-          <Button
-            size="sm"
-            variant={filter === 'media' ? 'primary' : 'outline'}
-            onClick={() => setFilter('media')}
-            className="h-7 text-xs px-2.5 gap-1.5"
-          >
-            <ImageIcon className="size-3.5" />
-            <span>Media ({mediaFiles.length})</span>
-          </Button>
-        </div>
-
-        <Button
-          size="sm"
-          onClick={() => setIsUploadOpen(true)}
-          disabled={!workspaceId}
-          className="h-7 text-xs gap-1.5"
-          leadingIcon={<Plus className="size-3.5" />}
-        >
-          Upload
-        </Button>
-      </div>
-
       {/* Filed files — real Upload rows for this conversation. */}
-      {uploads.isLoading ? (
-        <SkeletonList rows={3} withAvatar />
-      ) : filedItems.length > 0 ? (
-        <div className="space-y-2">
-          <h4 className="text-xs font-bold tracking-wider gap-1.5 flex items-center text-muted-foreground uppercase">
-            <FolderOpen className="size-3.5 text-primary" />
-            <span>Files ({filedItems.length})</span>
-          </h4>
-          <UploadList
-            items={filedItems}
-            currentUserId={currentUserId}
-            downloadingId={
-              download.isPending ? (download.variables?.id ?? null) : null
-            }
-            deletingId={remove.isPending ? (remove.variables ?? null) : null}
-            onPreview={(_item, index) =>
-              openPreview((uploads.data ?? []).map(toMediaItem), index)
-            }
-            onDownload={(item) =>
-              download.mutate({ id: item.id, filename: item.filename })
-            }
-            onDelete={confirmDelete}
-          />
-        </div>
-      ) : null}
+      <FiledFilesSection
+        workspaceId={workspaceId}
+        workspaceSlug={slug}
+        currentUserId={currentUserId}
+        target={context}
+        uploadLabel="Add files to this conversation"
+        emptyDescription="Upload a file to keep it with this conversation, or share one in the chat."
+        onNavigateSource={(href) => navigate(href)}
+      />
 
       {/* Shared in chat — Matrix timeline attachments. */}
       {!enabled ? (
@@ -219,111 +117,110 @@ export function ConversationFilesPanel({
           title="Chat is not configured"
           description="Files shared in this conversation will appear here once messaging is turned on."
         />
-      ) : isResolving && chatAttachments.length === 0 ? (
-        <SkeletonList rows={3} />
-      ) : nothingAtAll ? (
-        <EmptyState
-          icon={<FolderOpen />}
-          title="No files yet"
-          description="Upload a file to keep it with this conversation, or share one in the chat."
-        />
-      ) : null}
-
-      {(filter === 'all' || filter === 'media') && mediaFiles.length > 0 ? (
-        <div className="space-y-3">
-          <h4 className="text-xs font-bold tracking-wider gap-1.5 flex items-center text-muted-foreground uppercase">
-            <ImageIcon className="size-3.5 text-accent-amber" />
-            <span>Shared in chat · Media ({mediaFiles.length})</span>
-          </h4>
-
-          <div className="gap-3 sm:grid-cols-4 grid grid-cols-2">
-            {mediaFiles.map((file, index) => (
-              <button
-                key={file.id}
-                type="button"
-                onClick={() =>
-                  openPreview(
-                    mediaFiles.map((f) =>
-                      attachmentToMediaItem(f.attachment, 'image', f.id),
-                    ),
-                    index,
-                  )
-                }
-                className="group relative aspect-square overflow-hidden rounded-lg border border-border bg-muted"
-              >
-                <img
-                  src={file.thumbnailUrl ?? file.url}
-                  alt={file.name}
-                  className="size-full object-cover transition-transform group-hover:scale-105"
-                  loading="lazy"
-                />
-                <div className="inset-0 bg-black/50 p-2 text-white absolute flex items-end opacity-0 transition-opacity group-hover:opacity-100">
-                  <span className="font-medium truncate text-[11px]">
-                    {file.name}
-                  </span>
-                </div>
-              </button>
-            ))}
+      ) : chatAttachments.length > 0 || !isResolving ? (
+        <div className="space-y-4 border-t border-border/60 pt-4">
+          <div className="gap-1.5 flex flex-wrap items-center">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Shared in chat
+            </span>
+            <Button
+              size="sm"
+              variant={filter === 'all' ? 'primary' : 'outline'}
+              onClick={() => setFilter('all')}
+              className="h-6 text-xs px-2"
+            >
+              All ({chatAttachments.length})
+            </Button>
+            <Button
+              size="sm"
+              variant={filter === 'files' ? 'primary' : 'outline'}
+              onClick={() => setFilter('files')}
+              className="h-6 text-xs px-2 gap-1"
+            >
+              <FileText className="size-3" />
+              {documentFiles.length}
+            </Button>
+            <Button
+              size="sm"
+              variant={filter === 'media' ? 'primary' : 'outline'}
+              onClick={() => setFilter('media')}
+              className="h-6 text-xs px-2 gap-1"
+            >
+              <ImageIcon className="size-3" />
+              {mediaFiles.length}
+            </Button>
           </div>
-        </div>
-      ) : null}
 
-      {(filter === 'all' || filter === 'files') && documentFiles.length > 0 ? (
-        <div className="space-y-3">
-          <h4 className="text-xs font-bold tracking-wider gap-1.5 flex items-center text-muted-foreground uppercase">
-            <FileText className="size-3.5 text-accent-violet" />
-            <span>Shared in chat · Documents ({documentFiles.length})</span>
-          </h4>
-
-          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
-            {documentFiles.map((file) => (
-              <li
-                key={file.id}
-                className="gap-3 px-4 py-3 flex items-center transition-colors hover:bg-surface-raised"
-              >
-                <FileText className="size-5 shrink-0 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate text-foreground">
-                    {file.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {file.size ? `${formatBytes(file.size)} · ` : ''}Shared by{' '}
-                    {file.senderName}
-                  </p>
-                </div>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
+          {(filter === 'all' || filter === 'media') && mediaFiles.length > 0 ? (
+            <div className="gap-3 sm:grid-cols-4 grid grid-cols-2">
+              {mediaFiles.map((file, index) => (
+                <button
+                  key={file.id}
+                  type="button"
+                  aria-label={`Preview ${file.name}`}
                   onClick={() =>
-                    window.open(file.url, '_blank', 'noopener,noreferrer')
+                    openPreview(
+                      mediaFiles.map((f) =>
+                        attachmentToMediaItem(f.attachment, 'image', f.id),
+                      ),
+                      index,
+                    )
                   }
-                  title="Open file"
+                  className="group relative aspect-square overflow-hidden rounded-lg border border-border bg-muted"
                 >
-                  <Download className="size-4" />
-                </Button>
-              </li>
-            ))}
-          </ul>
+                  <img
+                    src={file.thumbnailUrl ?? file.url}
+                    alt={file.name}
+                    className="size-full object-cover transition-transform group-hover:scale-105"
+                    loading="lazy"
+                  />
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {(filter === 'all' || filter === 'files') &&
+          documentFiles.length > 0 ? (
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+              {documentFiles.map((file) => (
+                <li
+                  key={file.id}
+                  className="gap-3 px-4 py-3 flex items-center transition-colors hover:bg-surface-raised"
+                >
+                  <FileText className="size-5 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate text-foreground">
+                      {file.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {file.size ? `${formatBytes(file.size)} · ` : ''}Shared by{' '}
+                      {file.senderName}
+                    </p>
+                  </div>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    onClick={() =>
+                      window.open(file.url, '_blank', 'noopener,noreferrer')
+                    }
+                    title="Open file"
+                  >
+                    <Download className="size-4" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          {chatAttachments.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Nothing shared in the chat yet.
+            </p>
+          ) : null}
         </div>
-      ) : null}
-
-      <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
-        <DialogContent className="sm:max-w-md text-xs">
-          <DialogHeader>
-            <DialogTitle className="text-sm font-semibold">
-              Upload files
-            </DialogTitle>
-          </DialogHeader>
-          <FileDropzone
-            workspaceId={workspaceId}
-            target={context}
-            label="Add files to this conversation"
-            onUploaded={() => uploads.refetch()}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {prompts.dialog}
+      ) : (
+        <SkeletonList rows={3} />
+      )}
     </ScrollArea>
   );
 }

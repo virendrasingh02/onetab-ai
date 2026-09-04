@@ -19,6 +19,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import {
   CurrentUser,
+  Public,
   RequireWorkspacePermissions,
   WorkspaceId,
   zodBody,
@@ -77,8 +78,6 @@ export class UploadController {
   @Post()
   @RequireWorkspacePermissions(WorkspacePermission.CREATE)
   @UseInterceptors(
-    // Buffered in memory: the size cap is small, and multer's disk mode would
-    // put a caller-influenced filename on disk before we can vet it.
     FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }),
   )
   create(
@@ -107,8 +106,32 @@ export class UploadController {
     return this.uploads.update(workspaceId, uploadId, body);
   }
 
+  /** The version chain for a file, newest first. */
+  @Get(':uploadId/versions')
+  listVersions(
+    @WorkspaceId() workspaceId: string,
+    @Param('uploadId') uploadId: string,
+  ) {
+    return this.uploads.listVersions(workspaceId, uploadId);
+  }
+
+  /** Replace a file's content with a new version. */
+  @Post(':uploadId/versions')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }),
+  )
+  replaceVersion(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @Param('uploadId') uploadId: string,
+    @UploadedFile() file: IncomingFile,
+  ) {
+    return this.uploads.replaceVersion(workspaceId, uploadId, userId, file);
+  }
+
   /**
-   * Streams the bytes back.
+   * Streams the bytes back (authenticated path).
    *
    * `Content-Disposition: attachment` and `nosniff` together stop an uploaded
    * HTML or SVG file from executing as script on the app's own origin.
@@ -121,7 +144,6 @@ export class UploadController {
     @Res() response: Response,
   ): Promise<void> {
     const file = await this.uploads.read(workspaceId, uploadId);
-
     response.setHeader('Content-Type', file.mimeType);
     response.setHeader(
       'Content-Disposition',
@@ -138,5 +160,36 @@ export class UploadController {
     @Param('uploadId') uploadId: string,
   ): Promise<void> {
     return this.uploads.remove(workspaceId, uploadId);
+  }
+}
+
+/**
+ * Signed-URL delivery — a short-lived HMAC token in the path stands in for the
+ * bearer token, so a plain `<img>` / `<a download>` can reach the bytes. The
+ * token carries the upload id and an expiry and is verified in
+ * `UploadService.readByToken`; there is no workspace check because the
+ * signature *is* the authorization and it is useless once it expires.
+ */
+@Controller({ path: 'files', version: '1' })
+export class PublicFileController {
+  constructor(private readonly uploads: UploadService) {}
+
+  @Public()
+  @Get(':token')
+  @Header('X-Content-Type-Options', 'nosniff')
+  @Header('Cache-Control', 'private, max-age=3600')
+  async serve(
+    @Param('token') token: string,
+    @Res() response: Response,
+  ): Promise<void> {
+    const file = await this.uploads.readByToken(token);
+    response.setHeader('Content-Type', file.mimeType);
+    response.setHeader(
+      'Content-Disposition',
+      `${file.download ? 'attachment' : 'inline'}; filename="${encodeURIComponent(
+        file.filename,
+      )}"`,
+    );
+    response.send(file.content);
   }
 }

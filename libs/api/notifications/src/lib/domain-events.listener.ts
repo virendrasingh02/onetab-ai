@@ -4,6 +4,7 @@ import {
   AppEvent,
   type ChannelCreatedEvent,
   type DocumentCreatedEvent,
+  type FileSharedEvent,
   type MeetingCancelledEvent,
   type MeetingEndedEvent,
   type MeetingScheduledEvent,
@@ -386,6 +387,21 @@ export class DomainEventsListener {
       resourceType: 'channel',
       resourceId: e.channelId,
       summary: `created #${e.slug}`,
+    });
+  }
+
+  @OnEvent(AppEvent.FileShared)
+  async onFileShared(e: FileSharedEvent): Promise<void> {
+    await this.activity.write({
+      workspaceId: e.workspaceId,
+      kind: ActivityKind.FILE_SHARED,
+      actorId: e.actorId,
+      channelId: e.channelId,
+      resourceType: 'upload',
+      resourceId: e.uploadId,
+      summary: e.isNewVersion
+        ? `uploaded a new version of ${e.filename}`
+        : `shared ${e.filename}`,
     });
   }
 

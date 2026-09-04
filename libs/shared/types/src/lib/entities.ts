@@ -451,8 +451,21 @@ export interface Upload {
   size: number;
   storageKey: string;
   createdAt: IsoDateString;
-  /** Bumped on rename / move. */
+  /** Bumped on rename / move / new version. */
   updatedAt: IsoDateString;
+  /** 1 for an original; higher after the content has been replaced. */
+  version: number;
+  /** True when an older version exists behind this one. */
+  hasVersions: boolean;
+  /**
+   * Short-lived signed URL to the bytes, inline (image-friendly). Present on
+   * list/get responses. Expires ~1h after it was issued.
+   */
+  contentUrl: string | null;
+  /** Short-lived signed URL that forces a download. */
+  downloadUrl: string | null;
+  /** For images, the same as `contentUrl`; null otherwise. */
+  thumbnailUrl: string | null;
   uploader: PublicUser;
 }
 
