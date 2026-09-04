@@ -28,6 +28,7 @@ import { SavedView, ThreadsView } from '@org/web-chat';
 import { PlatformDiagnosticsPage } from '@org/web-desktop';
 import { lazy, Suspense } from 'react';
 import { Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { DocumentTitle } from './document-title';
 
 /**
  * Authenticated areas are lazily loaded so the initial bundle carries only the
@@ -234,6 +235,11 @@ export function App() {
      * The genuine cold-start message lives in `ProtectedRoute`.
      */
     <Suspense fallback={<LoadingState fullPage />}>
+      {/*
+       * Single source of truth for the tab/window title — one derivation for
+       * every route, so no page sets its own. Renders nothing.
+       */}
+      <DocumentTitle />
       <Routes>
         {/* --- public & callback routes -------------------------------- */}
         <Route path="/auth/callback" element={<DesktopAuthCallbackPage />} />
