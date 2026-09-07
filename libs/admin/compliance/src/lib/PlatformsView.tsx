@@ -13,7 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  EmptyState,
   ErrorState,
   Input,
   Label,
@@ -28,7 +27,6 @@ import {
 } from '@org/ui';
 import {
   Apple,
-  CheckCircle2,
   Globe,
   Layers,
   Monitor,

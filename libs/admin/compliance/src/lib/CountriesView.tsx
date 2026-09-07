@@ -7,7 +7,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  EmptyState,
   ErrorState,
   Input,
   Label,
@@ -27,8 +26,6 @@ import {
   TableRow,
 } from '@org/ui';
 import {
-  AlertTriangle,
-  CheckCircle2,
   Globe,
   MapPin,
   RefreshCw,
@@ -36,7 +33,6 @@ import {
   Shield,
   ShieldAlert,
   ShieldCheck,
-  XCircle,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
@@ -223,7 +219,13 @@ export function CountriesView() {
                           </div>
                         </div>
                         <Badge
-                          variant={c.status === 'ACTIVE' ? 'default' : 'secondary'}
+                          variant={
+                            c.status === 'PASSED'
+                              ? 'success'
+                              : c.status === 'FAILED'
+                                ? 'destructive'
+                                : 'secondary'
+                          }
                           className="text-[10px] uppercase"
                         >
                           {c.status}
@@ -366,9 +368,9 @@ export function CountriesView() {
                                     Inherited (Global/Region)
                                   </Badge>
                                 )}
-                                {req.guidelineRef && (
+                                {req.externalUrl && (
                                   <span className="text-[10px] text-muted-foreground">
-                                    Ref: {req.guidelineRef}
+                                    Ref: {req.externalUrl}
                                   </span>
                                 )}
                               </div>
@@ -384,7 +386,7 @@ export function CountriesView() {
                                   req.severity === 'CRITICAL'
                                     ? 'destructive'
                                     : req.severity === 'HIGH'
-                                      ? 'default'
+                                      ? 'warning'
                                       : 'outline'
                                 }
                                 className="text-[10px]"

@@ -23,5 +23,5 @@ export interface TranslationDictionary {
 }
 
 export type TranslationSchema = TranslationDictionary;
-export type NestedKeyOf<T> = string;
+export type NestedKeyOf<_T> = string;
 

@@ -18,7 +18,6 @@ import {
   DialogTitle,
   DialogTrigger,
   EmptyState,
-  ErrorState,
   Input,
   Label,
   LoadingState,
@@ -38,6 +37,7 @@ import {
   TableRow,
   Textarea,
 } from '@org/ui';
+import type { ComponentType } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -46,14 +46,12 @@ import {
   Paperclip,
   Plus,
   RefreshCw,
-  Scale,
   Shield,
-  ShieldAlert,
-  ShieldCheck,
   XCircle,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  useComplianceChecklist,
   useComplianceMutations,
   useCompliancePlatforms,
   useComplianceReview,
@@ -61,22 +59,29 @@ import {
   useComplianceVersions,
 } from './use-compliance.js';
 
+type BadgeVariant =
+  | 'secondary'
+  | 'destructive'
+  | 'outline'
+  | 'success'
+  | 'warning';
+
 const STATUS_VARIANTS: Record<
   ComplianceChecklistStatus,
   {
     label: string;
-    variant: 'default' | 'secondary' | 'destructive' | 'outline';
-    icon: any;
+    variant: BadgeVariant;
+    icon: ComponentType<{ className?: string }>;
     color: string;
   }
 > = {
-  PASS: {
+  PASSED: {
     label: 'Pass',
-    variant: 'default',
+    variant: 'success',
     icon: CheckCircle2,
     color: 'text-emerald-600',
   },
-  FAIL: {
+  FAILED: {
     label: 'Fail',
     variant: 'destructive',
     icon: XCircle,
@@ -84,11 +89,11 @@ const STATUS_VARIANTS: Record<
   },
   WARNING: {
     label: 'Warning',
-    variant: 'secondary',
+    variant: 'warning',
     icon: AlertTriangle,
     color: 'text-amber-600',
   },
-  SKIP: {
+  SKIPPED: {
     label: 'Skip',
     variant: 'outline',
     icon: HelpCircle,
@@ -117,7 +122,6 @@ export function ChecklistView() {
   const [isNewReviewOpen, setIsNewReviewOpen] = useState(false);
   const [newPlatformId, setNewPlatformId] = useState('');
   const [newVersionId, setNewVersionId] = useState('');
-  const [newTargetCountry, setNewTargetCountry] = useState('ALL');
 
   const versionsQuery = useComplianceVersions(newPlatformId || undefined);
   const versions = versionsQuery.data ?? [];
@@ -131,6 +135,7 @@ export function ChecklistView() {
 
   const activeReviewQuery = useComplianceReview(selectedReviewId || undefined);
   const activeReview = activeReviewQuery.data;
+  const checklistQuery = useComplianceChecklist(selectedReviewId || undefined);
 
   // Evidence modal state
   const [evidenceItem, setEvidenceItem] =
@@ -144,12 +149,11 @@ export function ChecklistView() {
 
   const handleCreateReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPlatformId) return;
+    if (!newPlatformId || !newVersionId) return;
 
     const res = await mutations.createReview.mutateAsync({
       platformId: newPlatformId,
-      versionId: newVersionId || undefined,
-      targetCountry: newTargetCountry === 'ALL' ? undefined : newTargetCountry,
+      appVersionId: newVersionId,
     });
 
     setIsNewReviewOpen(false);
@@ -171,6 +175,7 @@ export function ChecklistView() {
         notes: currentNotes,
       });
       activeReviewQuery.refetch();
+      checklistQuery.refetch();
     } finally {
       setUpdatingItemId(null);
     }
@@ -183,9 +188,9 @@ export function ChecklistView() {
     await mutations.addEvidence.mutateAsync({
       checklistItemId: evidenceItem.id,
       title: evidenceTitle.trim(),
-      fileUrl: evidenceUrl.trim(),
-      fileType: 'URL',
-      notes: evidenceNotes.trim() || undefined,
+      url: evidenceUrl.trim(),
+      type: 'URL',
+      description: evidenceNotes.trim() || undefined,
     });
 
     setEvidenceItem(null);
@@ -196,10 +201,10 @@ export function ChecklistView() {
   };
 
   const items = useMemo(() => {
-    if (!activeReview?.checklistItems) return [];
-    if (filterStatus === 'ALL') return activeReview.checklistItems;
-    return activeReview.checklistItems.filter((i) => i.status === filterStatus);
-  }, [activeReview, filterStatus]);
+    const all = checklistQuery.data ?? [];
+    if (filterStatus === 'ALL') return all;
+    return all.filter((i) => i.status === filterStatus);
+  }, [checklistQuery.data, filterStatus]);
 
   if (reviewsQuery.isLoading) {
     return (
@@ -268,7 +273,7 @@ export function ChecklistView() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Application Version</Label>
+                    <Label className="text-xs">Application Version *</Label>
                     <Select
                       value={newVersionId}
                       onValueChange={setNewVersionId}
@@ -278,7 +283,7 @@ export function ChecklistView() {
                         <SelectValue
                           placeholder={
                             versions.length === 0
-                              ? 'No versions registered (Latest)'
+                              ? 'Register a version first'
                               : 'Select target version'
                           }
                         />
@@ -286,24 +291,11 @@ export function ChecklistView() {
                       <SelectContent>
                         {versions.map((v) => (
                           <SelectItem key={v.id} value={v.id}>
-                            v{v.versionString} ({v.releaseStage})
+                            v{v.version} ({v.status.replace(/_/g, ' ')})
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Distribution Target Region/Country</Label>
-                    <Input
-                      placeholder="e.g. IN, US, EU, or leave blank for Global"
-                      value={newTargetCountry}
-                      onChange={(e) =>
-                        setNewTargetCountry(e.target.value.toUpperCase())
-                      }
-                      maxLength={2}
-                      className="font-mono text-xs"
-                    />
                   </div>
                 </div>
 
@@ -352,9 +344,10 @@ export function ChecklistView() {
                   </CardTitle>
                   <Badge
                     variant={
-                      activeReview?.status === 'APPROVED'
-                        ? 'default'
-                        : activeReview?.status === 'REJECTED'
+                      activeReview?.status === 'APPROVED' ||
+                      activeReview?.status === 'RELEASED'
+                        ? 'success'
+                        : activeReview?.status === 'BLOCKED'
                           ? 'destructive'
                           : 'secondary'
                     }
@@ -374,7 +367,9 @@ export function ChecklistView() {
                   <SelectContent>
                     {reviews.map((r) => (
                       <SelectItem key={r.id} value={r.id}>
-                        {r.platform?.name ?? 'Platform'} — v{r.versionString ?? 'latest'} ({new Date(r.createdAt).toLocaleDateString()})
+                        {r.platformName ?? 'Platform'} — v
+                        {r.appVersion?.version ?? 'latest'} (
+                        {new Date(r.createdAt).toLocaleDateString()})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -383,14 +378,16 @@ export function ChecklistView() {
                 {activeReview && (
                   <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-1">
                     <span>
-                      <strong>Platform:</strong> {activeReview.platform?.name}
+                      <strong>Platform:</strong> {activeReview.platformName}
                     </span>
                     <span>
-                      <strong>Version:</strong> {activeReview.versionString}
+                      <strong>Version:</strong> {activeReview.appVersion?.version}
                     </span>
                     <span>
                       <strong>Target Market:</strong>{' '}
-                      {activeReview.targetCountry || 'Global'}
+                      {activeReview.countryName ||
+                        activeReview.countryCode ||
+                        'Global'}
                     </span>
                     <span>
                       <strong>Created:</strong>{' '}
@@ -411,20 +408,22 @@ export function ChecklistView() {
               <CardContent className="space-y-2">
                 <div className="flex items-baseline justify-between">
                   <span className="text-3xl font-bold font-mono">
-                    {activeReview?.score ?? 0}%
+                    {activeReview?.overallScore ?? 0}%
                   </span>
                   <Badge
                     variant={
-                      (activeReview?.score ?? 0) >= 80 ? 'default' : 'destructive'
+                      (activeReview?.overallScore ?? 0) >= 80
+                        ? 'success'
+                        : 'destructive'
                     }
                     className="text-xs"
                   >
-                    {(activeReview?.score ?? 0) >= 80
+                    {(activeReview?.overallScore ?? 0) >= 80
                       ? 'Compliant'
                       : 'Unready'}
                   </Badge>
                 </div>
-                <Progress value={activeReview?.score ?? 0} className="h-2" />
+                <Progress value={activeReview?.overallScore ?? 0} className="h-2" />
                 <p className="text-[11px] text-muted-foreground">
                   Minimum 80% with 0 blocking failures required for store distribution.
                 </p>
@@ -455,10 +454,10 @@ export function ChecklistView() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="ALL">All Statuses</SelectItem>
-                      <SelectItem value="PASS">Passed</SelectItem>
-                      <SelectItem value="FAIL">Failed</SelectItem>
+                      <SelectItem value="PASSED">Passed</SelectItem>
+                      <SelectItem value="FAILED">Failed</SelectItem>
                       <SelectItem value="WARNING">Warning</SelectItem>
-                      <SelectItem value="SKIP">Skipped</SelectItem>
+                      <SelectItem value="SKIPPED">Skipped</SelectItem>
                       <SelectItem value="NOT_APPLICABLE">N/A</SelectItem>
                     </SelectContent>
                   </Select>
@@ -514,9 +513,9 @@ export function ChecklistView() {
                               <div className="text-[11px] text-muted-foreground mt-0.5">
                                 {req?.description}
                               </div>
-                              {req?.guidelineRef && (
+                              {req?.externalUrl && (
                                 <div className="text-[10px] text-blue-600 dark:text-blue-400 mt-1">
-                                  Ref: {req.guidelineRef}
+                                  Ref: {req.externalUrl}
                                 </div>
                               )}
                               {item.notes && (
@@ -544,7 +543,7 @@ export function ChecklistView() {
                                   handleStatusChange(
                                     item.id,
                                     val as ComplianceChecklistStatus,
-                                    item.notes,
+                                    item.notes ?? undefined,
                                   )
                                 }
                                 disabled={updatingItemId === item.id}
@@ -558,10 +557,10 @@ export function ChecklistView() {
                                   </div>
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="PASS">Pass</SelectItem>
-                                  <SelectItem value="FAIL">Fail</SelectItem>
+                                  <SelectItem value="PASSED">Pass</SelectItem>
+                                  <SelectItem value="FAILED">Fail</SelectItem>
                                   <SelectItem value="WARNING">Warning</SelectItem>
-                                  <SelectItem value="SKIP">Skip</SelectItem>
+                                  <SelectItem value="SKIPPED">Skip</SelectItem>
                                   <SelectItem value="NOT_APPLICABLE">N/A</SelectItem>
                                 </SelectContent>
                               </Select>
@@ -573,7 +572,7 @@ export function ChecklistView() {
                                     {item.evidence.map((ev) => (
                                       <a
                                         key={ev.id}
-                                        href={ev.fileUrl}
+                                        href={ev.url}
                                         target="_blank"
                                         rel="noreferrer"
                                         className="inline-flex items-center gap-1 text-[10px] bg-muted px-1.5 py-0.5 rounded border hover:underline"

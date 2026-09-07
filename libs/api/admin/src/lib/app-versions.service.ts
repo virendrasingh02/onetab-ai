@@ -11,7 +11,6 @@ import {
   AppOperatingSystem,
   AppPlatform,
   AppRelease,
-  AppReleaseAuditLog,
   AppReleaseChannel,
   AppReleaseStatus,
   Prisma,
@@ -96,7 +95,7 @@ export class AppVersionsService {
 
   private async invalidateCaches(): Promise<void> {
     try {
-      await this.cache.deletePattern?.('app_version:*');
+      await this.cache.deletePattern('app_version:*');
     } catch {
       // Non-critical if cache invalidation falls back
     }
@@ -1043,53 +1042,63 @@ export class AppVersionsService {
 
     const clientVer = (input.currentVersion || '0.0.0').trim();
 
-    // Query active release
-    const activeRelease = await this.prisma.appRelease.findFirst({
-      where: {
-        platform,
-        operatingSystem: os,
-        releaseChannel: channel,
-        status: AppReleaseStatus.RELEASED,
-        isCurrent: true,
-      },
-      orderBy: { releaseDate: 'desc' },
-    });
+    // Resolve the current release for this platform/os/channel. This lookup is
+    // identical for every client on the same track, so it is cached briefly;
+    // the per-client rollout decision below still runs on every request.
+    // `invalidateCaches()` wipes `app_version:*` on every release mutation.
+    const cacheKey = this.getUpdateCheckCacheKey(platform, os, channel);
+    let resolvedRelease = await this.cache.get<AppRelease | null>(cacheKey);
 
-    if (!activeRelease) {
-      // Fallback to latest released if isCurrent wasn't set
-      const latestReleased = await this.prisma.appRelease.findFirst({
-        where: {
-          platform,
-          operatingSystem: os,
-          releaseChannel: channel,
-          status: AppReleaseStatus.RELEASED,
-        },
-        orderBy: { releaseDate: 'desc' },
-      });
+    if (resolvedRelease === null || resolvedRelease === undefined) {
+      resolvedRelease =
+        (await this.prisma.appRelease.findFirst({
+          where: {
+            platform,
+            operatingSystem: os,
+            releaseChannel: channel,
+            status: AppReleaseStatus.RELEASED,
+            isCurrent: true,
+          },
+          orderBy: { releaseDate: 'desc' },
+        })) ??
+        // Fallback to latest released if isCurrent wasn't set
+        (await this.prisma.appRelease.findFirst({
+          where: {
+            platform,
+            operatingSystem: os,
+            releaseChannel: channel,
+            status: AppReleaseStatus.RELEASED,
+          },
+          orderBy: { releaseDate: 'desc' },
+        }));
 
-      if (!latestReleased) {
-        return {
-          updateAvailable: false,
-          status: 'up-to-date',
-          currentVersion: clientVer,
-          latestVersion: clientVer,
-          minimumSupportedVersion: '1.0.0',
-          mandatory: false,
-          forceUpdate: false,
-          downloadUrl: null,
-          releaseNotes: null,
-          changelog: null,
-          releaseDate: null,
-          releaseChannel: channel,
-          rolloutPercentage: 100,
-          rolloutEligible: true,
-        };
-      }
-
-      return this.evaluateUpdateDecision(latestReleased, clientVer, input.clientId);
+      await this.cache.set(cacheKey, resolvedRelease, 60_000);
     }
 
-    return this.evaluateUpdateDecision(activeRelease, clientVer, input.clientId);
+    if (!resolvedRelease) {
+      return {
+        updateAvailable: false,
+        status: 'up-to-date',
+        currentVersion: clientVer,
+        latestVersion: clientVer,
+        minimumSupportedVersion: '1.0.0',
+        mandatory: false,
+        forceUpdate: false,
+        downloadUrl: null,
+        releaseNotes: null,
+        changelog: null,
+        releaseDate: null,
+        releaseChannel: channel,
+        rolloutPercentage: 100,
+        rolloutEligible: true,
+      };
+    }
+
+    return this.evaluateUpdateDecision(
+      resolvedRelease,
+      clientVer,
+      input.clientId,
+    );
   }
 
   private evaluateUpdateDecision(
@@ -1132,15 +1141,11 @@ export class AppVersionsService {
       } else if (rolloutEligible) {
         status = 'update-available';
         updateAvailable = true;
-      } else {
-        // In gradual rollout, user is not in the current wave
-        status = 'up-to-date';
-        updateAvailable = false;
       }
-    } else {
-      status = 'up-to-date';
-      updateAvailable = false;
+      // else: in gradual rollout, user is not in the current wave —
+      // falls through with the default 'up-to-date' / not-available.
     }
+    // else: client is on the latest version — defaults already apply.
 
     return {
       updateAvailable,
@@ -1153,7 +1158,7 @@ export class AppVersionsService {
       downloadUrl: release.downloadUrl,
       releaseNotes: release.releaseNotes,
       changelog: release.changelog,
-      releaseDate: release.releaseDate.toISOString(),
+      releaseDate: new Date(release.releaseDate).toISOString(),
       releaseChannel: release.releaseChannel,
       rolloutPercentage: release.rolloutPercentage,
       rolloutEligible,

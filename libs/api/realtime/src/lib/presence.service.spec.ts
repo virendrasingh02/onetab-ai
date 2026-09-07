@@ -5,6 +5,7 @@ describe('PresenceService (backend)', () => {
   let presenceService: PresenceService;
   let mockPrisma: any;
   let mockEvents: any;
+  let mockCache: any;
 
   beforeEach(() => {
     mockPrisma = {
@@ -27,7 +28,17 @@ describe('PresenceService (backend)', () => {
       emit: vi.fn(),
     };
 
-    presenceService = new PresenceService(mockPrisma as any, mockEvents as any);
+    mockCache = {
+      get: vi.fn().mockResolvedValue(null),
+      set: vi.fn().mockResolvedValue(undefined),
+      del: vi.fn().mockResolvedValue(true),
+    };
+
+    presenceService = new PresenceService(
+      mockPrisma as any,
+      mockCache as any,
+      mockEvents as any,
+    );
   });
 
   it('records connection, sets presence to ONLINE and emits event', async () => {

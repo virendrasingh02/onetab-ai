@@ -4,7 +4,6 @@ import type {
   AppReleaseChannel,
   AppReleaseStatus,
   AppReleaseView,
-  CreateAppReleaseInput,
 } from '@org/types';
 import {
   Badge,
@@ -15,7 +14,6 @@ import {
   CardHeader,
   CardTitle,
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -50,15 +48,10 @@ import {
 import {
   AlertOctagon,
   AlertTriangle,
-  ArrowDownLeft,
-  ArrowUpRight,
   CheckCircle2,
   Clock,
-  Download,
   ExternalLink,
   Eye,
-  FileText,
-  Filter,
   Globe,
   History,
   Layers,
@@ -69,13 +62,12 @@ import {
   Rocket,
   RotateCcw,
   Search,
-  Shield,
   ShieldAlert,
   Sliders,
   Terminal,
   XCircle,
 } from 'lucide-react';
-import { useId, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   useAppVersionsAuditLogs,
   useAppVersionsList,
@@ -170,7 +162,9 @@ export function VersionsManagementView() {
   const [createChannel, setCreateChannel] = useState<AppReleaseChannel>('STABLE');
   const [createStatus, setCreateStatus] = useState<AppReleaseStatus>('DRAFT');
   const [createMinVersion, setCreateMinVersion] = useState('1.0.0');
-  const [createReleaseDate, setCreateReleaseDate] = useState(new Date().toISOString().slice(0, 16));
+  const [createReleaseDate, setCreateReleaseDate] = useState(() =>
+    new Date().toISOString().slice(0, 16),
+  );
   const [createRollout, setCreateRollout] = useState(100);
   const [createDownloadUrl, setCreateDownloadUrl] = useState('');
   const [createNotes, setCreateNotes] = useState('');
@@ -1016,6 +1010,18 @@ export function VersionsManagementView() {
                       max={100}
                       value={createRollout}
                       onChange={(e) => setCreateRollout(Number(e.target.value))}
+                      className="text-xs tabular-nums"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">
+                      Release Date {createStatus === 'SCHEDULED' ? '(scheduled)' : ''}
+                    </Label>
+                    <Input
+                      type="datetime-local"
+                      value={createReleaseDate}
+                      onChange={(e) => setCreateReleaseDate(e.target.value)}
                       className="text-xs tabular-nums"
                     />
                   </div>

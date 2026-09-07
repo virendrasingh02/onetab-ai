@@ -5,6 +5,7 @@ import { RealtimeGatewayService } from './realtime-gateway.service.js';
 describe('RealtimeGatewayService', () => {
   let gateway: RealtimeGatewayService;
   let mockPrisma: any;
+  let mockCache: any;
 
   beforeEach(() => {
     mockPrisma = {
@@ -15,7 +16,18 @@ describe('RealtimeGatewayService', () => {
         ]),
       },
     };
-    gateway = new RealtimeGatewayService(mockPrisma as any);
+    mockCache = {
+      get: vi.fn().mockResolvedValue(null),
+      set: vi.fn().mockResolvedValue(undefined),
+      del: vi.fn().mockResolvedValue(true),
+      publish: vi.fn().mockResolvedValue(0),
+      subscribe: vi.fn().mockResolvedValue(undefined),
+      unsubscribe: vi.fn().mockResolvedValue(undefined),
+    };
+    gateway = new RealtimeGatewayService(
+      mockPrisma as any,
+      mockCache as any,
+    );
   });
 
   it('registers and unregisters clients', () => {

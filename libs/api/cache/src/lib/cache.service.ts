@@ -224,6 +224,56 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
     this.inMemoryQueues.clear();
   }
 
+  /**
+   * Delete every key matching a glob-style pattern (e.g. `app_version:*`).
+   * The pattern is matched against the un-prefixed key space; the internal
+   * key prefix is applied automatically. Safe to call when Redis is down —
+   * it still sweeps the in-memory fallback store.
+   */
+  async deletePattern(pattern: string): Promise<number> {
+    const fullPattern = this.formatKey(pattern);
+    let deleted = 0;
+
+    if (this.isConnected && this.redisClient) {
+      try {
+        let cursor = '0';
+        do {
+          const [next, keys] = await this.redisClient.scan(
+            cursor,
+            'MATCH',
+            fullPattern,
+            'COUNT',
+            100,
+          );
+          cursor = next;
+          if (keys.length > 0) {
+            deleted += await this.redisClient.del(...keys);
+            for (const key of keys) this.inMemoryStore.delete(key);
+          }
+        } while (cursor !== '0');
+      } catch (err) {
+        this.logger.warn(`Redis deletePattern failed for "${fullPattern}".`, err);
+      }
+    }
+
+    // In-memory fallback sweep (also covers the case where Redis is unavailable).
+    const regex = new RegExp(
+      '^' +
+        fullPattern
+          .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+          .replace(/\*/g, '.*') +
+        '$',
+    );
+    for (const key of this.inMemoryStore.keys()) {
+      if (regex.test(key)) {
+        this.inMemoryStore.delete(key);
+        deleted++;
+      }
+    }
+
+    return deleted;
+  }
+
   // --- Session Management ---
 
   async setSession(sessionId: string, sessionData: unknown, ttlMs = 86_400_000): Promise<void> {

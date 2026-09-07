@@ -39,23 +39,16 @@ import {
   Textarea,
 } from '@org/ui';
 import {
-  AlertTriangle,
   BookOpen,
-  CheckCircle2,
-  ExternalLink,
-  Filter,
-  Layers,
   Pencil,
   Plus,
   RefreshCw,
   Search,
-  Shield,
   ShieldAlert,
   Trash2,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
-  useComplianceCountries,
   useComplianceMutations,
   useCompliancePlatforms,
   useComplianceRequirements,
@@ -63,14 +56,21 @@ import {
 
 const CATEGORIES: ComplianceCategory[] = [
   'PRIVACY',
-  'PERMISSIONS',
-  'IN_APP_PURCHASES',
-  'CONTENT_SAFETY',
+  'DATA_COLLECTION',
+  'USER_CONSENT',
+  'ACCOUNT_DELETION',
+  'AUTHENTICATION',
+  'PAYMENTS',
+  'CONTENT_MODERATION',
   'SECURITY',
-  'STORE_LISTING',
-  'DATA_DELETION',
-  'LEGAL',
-  'PLATFORM_SPECIFIC',
+  'PERMISSIONS',
+  'NOTIFICATIONS',
+  'TRACKING_ADVERTISING',
+  'AGE_RATING',
+  'METADATA_ASSETS',
+  'LEGAL_TERMS',
+  'REGIONAL_LEGAL',
+  'EXPORT_COMPLIANCE',
 ];
 
 const SEVERITIES: ComplianceSeverity[] = [
@@ -78,7 +78,7 @@ const SEVERITIES: ComplianceSeverity[] = [
   'HIGH',
   'MEDIUM',
   'LOW',
-  'INFO',
+  'INFORMATIONAL',
 ];
 
 export function RequirementsView() {
@@ -88,7 +88,6 @@ export function RequirementsView() {
   const [platformFilter, setPlatformFilter] = useState<string>('ALL');
 
   const platformsQuery = useCompliancePlatforms();
-  const countriesQuery = useComplianceCountries();
   const requirementsQuery = useComplianceRequirements({
     category: categoryFilter === 'ALL' ? undefined : categoryFilter,
     severity: severityFilter === 'ALL' ? undefined : severityFilter,
@@ -106,7 +105,6 @@ export function RequirementsView() {
   const [newCategory, setNewCategory] = useState<ComplianceCategory>('PRIVACY');
   const [newSeverity, setNewSeverity] = useState<ComplianceSeverity>('HIGH');
   const [newGuidelineRef, setNewGuidelineRef] = useState('');
-  const [newSource, setNewSource] = useState('');
   const [newHelpText, setNewHelpText] = useState('');
   const [newIsBlocking, setNewIsBlocking] = useState(true);
   const [newPlatformCode, setNewPlatformCode] = useState('');
@@ -124,10 +122,6 @@ export function RequirementsView() {
   const [editHelpText, setEditHelpText] = useState('');
   const [editIsBlocking, setEditIsBlocking] = useState(false);
 
-  // Detail Modal State
-  const [activeReqDetail, setActiveReqDetail] =
-    useState<ComplianceRequirementView | null>(null);
-
   const requirements = requirementsQuery.data ?? [];
   const platforms = platformsQuery.data ?? [];
 
@@ -137,8 +131,8 @@ export function RequirementsView() {
     setEditDescription(req.description);
     setEditCategory(req.category as ComplianceCategory);
     setEditSeverity(req.severity as ComplianceSeverity);
-    setEditGuidelineRef(req.guidelineRef || '');
-    setEditHelpText(req.helpText || '');
+    setEditGuidelineRef(req.externalUrl || '');
+    setEditHelpText(req.remediationGuide || '');
     setEditIsBlocking(req.isBlocking);
   };
 
@@ -160,9 +154,8 @@ export function RequirementsView() {
       description: newDescription.trim(),
       category: newCategory,
       severity: newSeverity,
-      guidelineRef: newGuidelineRef.trim() || undefined,
-      source: newSource.trim() || undefined,
-      helpText: newHelpText.trim() || undefined,
+      externalUrl: newGuidelineRef.trim() || undefined,
+      remediationGuide: newHelpText.trim() || undefined,
       isBlocking: newIsBlocking,
       scopes: scopes.length > 0 ? scopes : undefined,
     });
@@ -172,7 +165,6 @@ export function RequirementsView() {
     setNewTitle('');
     setNewDescription('');
     setNewGuidelineRef('');
-    setNewSource('');
     setNewHelpText('');
   };
 
@@ -187,8 +179,8 @@ export function RequirementsView() {
         description: editDescription.trim(),
         category: editCategory,
         severity: editSeverity,
-        guidelineRef: editGuidelineRef.trim() || undefined,
-        helpText: editHelpText.trim() || undefined,
+        externalUrl: editGuidelineRef.trim() || undefined,
+        remediationGuide: editHelpText.trim() || undefined,
         isBlocking: editIsBlocking,
       },
     });
@@ -570,12 +562,12 @@ export function RequirementsView() {
                       <TableCell>
                         <div className="font-medium text-xs text-foreground flex items-center gap-2">
                           <span>{req.title}</span>
-                          {req.guidelineRef && (
+                          {req.externalUrl && (
                             <Badge
                               variant="outline"
                               className="text-[10px] font-normal"
                             >
-                              {req.guidelineRef}
+                              {req.externalUrl}
                             </Badge>
                           )}
                         </div>
@@ -594,7 +586,7 @@ export function RequirementsView() {
                             req.severity === 'CRITICAL'
                               ? 'destructive'
                               : req.severity === 'HIGH'
-                                ? 'default'
+                                ? 'warning'
                                 : 'outline'
                           }
                           className="text-[10px]"

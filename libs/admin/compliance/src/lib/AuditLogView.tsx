@@ -4,7 +4,6 @@ import {
   Button,
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
   Dialog,
@@ -13,8 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
   EmptyState,
-  ErrorState,
-  Input,
   Label,
   LoadingState,
   Page,
@@ -32,13 +29,10 @@ import {
   TableRow,
 } from '@org/ui';
 import {
-  Clock,
   Eye,
-  FileSpreadsheet,
   History,
   Lock,
   RefreshCw,
-  ShieldCheck,
   User,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -214,7 +208,7 @@ export function AuditLogView() {
                             log.action.includes('OVERRIDE')
                               ? 'destructive'
                               : log.action.includes('UPDATE')
-                                ? 'default'
+                                ? 'warning'
                                 : 'secondary'
                           }
                           className="text-[10px] font-mono uppercase"
@@ -320,7 +314,18 @@ export function AuditLogView() {
                 <div>
                   <Label className="text-xs mb-1 block">Audit Changes & Metadata</Label>
                   <pre className="p-3 bg-muted rounded-md font-mono text-[11px] overflow-x-auto max-h-60">
-                    {JSON.stringify(inspectLog.details ?? {}, null, 2)}
+                    {JSON.stringify(
+                      {
+                        previousValue: inspectLog.previousValue,
+                        newValue: inspectLog.newValue,
+                        reason: inspectLog.reason,
+                        platform: inspectLog.platform,
+                        country: inspectLog.country,
+                        version: inspectLog.version,
+                      },
+                      null,
+                      2,
+                    )}
                   </pre>
                 </div>
               </div>

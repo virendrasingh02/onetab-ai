@@ -5,16 +5,13 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  EmptyState,
   ErrorState,
   LoadingState,
   Page,
   PageHeader,
-  Panel,
   StatCard,
 } from '@org/ui';
 import {
-  AlertTriangle,
   ArrowRight,
   CheckCircle2,
   Clock,
@@ -26,8 +23,6 @@ import {
   Shield,
   ShieldAlert,
   ShieldCheck,
-  Smartphone,
-  XCircle,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useComplianceOverview } from './use-compliance.js';
@@ -62,7 +57,7 @@ export function ComplianceDashboardView() {
         title="Compliance & Distribution Center"
         description="Proactive app-store compliance, country/region rules, distribution readiness, and release gates."
         icon={<ShieldCheck className="text-success" />}
-        accent="emerald"
+        accent="green"
         actions={
           <div className="flex items-center gap-2">
             <Badge
@@ -96,25 +91,29 @@ export function ComplianceDashboardView() {
           label="Overall Compliance Score"
           value={`${data.overallScore}%`}
           hint={`${data.overallStatus === 'PASSED' ? 'Production Ready' : 'Review Required'}`}
-          icon={<ShieldCheck className="w-5 h-5 text-success" />}
+          icon={ShieldCheck}
+          accent="green"
         />
         <StatCard
           label="Web Platform Readiness"
           value={`${data.webReadiness}%`}
           hint="Production Web & PWA"
-          icon={<Globe className="w-5 h-5 text-accent-cyan" />}
+          icon={Globe}
+          accent="cyan"
         />
         <StatCard
           label="Desktop Platform Readiness"
           value={`${data.desktopReadiness}%`}
           hint="Windows, macOS & Linux"
-          icon={<Monitor className="w-5 h-5 text-accent-violet" />}
+          icon={Monitor}
+          accent="violet"
         />
         <StatCard
           label="Open Compliance Issues"
           value={data.openIssuesCount.total.toString()}
           hint={`${data.openIssuesCount.critical} Critical · ${data.openIssuesCount.high} High`}
-          icon={<ShieldAlert className="w-5 h-5 text-destructive" />}
+          icon={ShieldAlert}
+          accent="rose"
         />
       </div>
 

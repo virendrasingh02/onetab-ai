@@ -4,7 +4,6 @@ import type {
   ComplianceEvaluationContext,
   ComplianceEvaluationResult,
   CompliancePlatformView,
-  ComplianceReleaseStage,
 } from '@org/types';
 import {
   Badge,
@@ -22,13 +21,11 @@ import {
   DialogTitle,
   DialogTrigger,
   EmptyState,
-  ErrorState,
   Input,
   Label,
   LoadingState,
   Page,
   PageHeader,
-  Progress,
   Select,
   SelectContent,
   SelectItem,
@@ -46,18 +43,13 @@ import { useMutation } from '@tanstack/react-query';
 import {
   AlertOctagon,
   AlertTriangle,
-  ArrowRight,
-  CheckCircle2,
   GitBranch,
-  Layers,
-  Lock,
   Play,
   Plus,
   RefreshCw,
   Rocket,
   ShieldAlert,
   ShieldCheck,
-  Unlock,
   XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -66,14 +58,6 @@ import {
   useCompliancePlatforms,
   useComplianceVersions,
 } from './use-compliance.js';
-
-const RELEASE_STAGES: ComplianceReleaseStage[] = [
-  'ALPHA',
-  'BETA',
-  'RC',
-  'GA',
-  'STORE_SUBMISSION',
-];
 
 export function VersionsView() {
   const platformsQuery = useCompliancePlatforms();
@@ -88,18 +72,16 @@ export function VersionsView() {
   // Register Version modal state
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newVersionString, setNewVersionString] = useState('');
-  const [newBuildNumber, setNewBuildNumber] = useState('');
   const [newPlatformId, setNewPlatformId] = useState('');
-  const [newReleaseStage, setNewReleaseStage] =
-    useState<ComplianceReleaseStage>('GA');
-  const [newMinOsVersion, setNewMinOsVersion] = useState('');
+  const [newReleaseDate, setNewReleaseDate] = useState('');
+  const [newIsCurrent, setNewIsCurrent] = useState(false);
   const [newReleaseNotes, setNewReleaseNotes] = useState('');
 
   // Release Gate Simulator state
   const [simPlatformCode, setSimPlatformCode] = useState<string>('macos');
   const [simVersion, setSimVersion] = useState<string>('1.0.0');
   const [simCountry, setSimCountry] = useState<string>('IN');
-  const [simChannel, setSimChannel] = useState<string>('MAC_APP_STORE');
+  const [simChannel, setSimChannel] = useState<string>('mac-app-store');
   const [evaluationResult, setEvaluationResult] =
     useState<ComplianceEvaluationResult | null>(null);
 
@@ -108,12 +90,18 @@ export function VersionsView() {
     onSuccess: (data) => setEvaluationResult(data),
   });
 
+  const readyForRelease = evaluationResult
+    ? !evaluationResult.score.isReleaseBlocked
+    : false;
+  const blockingReasons = evaluationResult?.score.blockingReasons ?? [];
+  const advisoryWarnings = evaluationResult?.rejectionRisks ?? [];
+
   const handleRunEvaluation = () => {
     evalMutation.mutate({
-      platformCode: simPlatformCode,
-      appVersion: simVersion,
-      countryCode: simCountry || undefined,
-      distributionChannelCode: simChannel || undefined,
+      platform: simPlatformCode,
+      version: simVersion,
+      country: simCountry || undefined,
+      distribution: simChannel || undefined,
     });
   };
 
@@ -123,17 +111,16 @@ export function VersionsView() {
 
     await mutations.createVersion.mutateAsync({
       platformId: newPlatformId,
-      versionString: newVersionString.trim(),
-      buildNumber: newBuildNumber.trim() || undefined,
-      releaseStage: newReleaseStage,
-      minOsVersion: newMinOsVersion.trim() || undefined,
-      releaseNotes: newReleaseNotes.trim() || undefined,
+      version: newVersionString.trim(),
+      releaseDate: newReleaseDate || undefined,
+      changelog: newReleaseNotes.trim() || undefined,
+      isCurrent: newIsCurrent || undefined,
     });
 
     setIsAddOpen(false);
     setNewVersionString('');
-    setNewBuildNumber('');
-    setNewMinOsVersion('');
+    setNewReleaseDate('');
+    setNewIsCurrent(false);
     setNewReleaseNotes('');
   };
 
@@ -214,48 +201,24 @@ export function VersionsView() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Build Number</Label>
+                      <Label className="text-xs">Planned Release Date</Label>
                       <Input
-                        placeholder="e.g. 452"
-                        value={newBuildNumber}
-                        onChange={(e) => setNewBuildNumber(e.target.value)}
-                        className="font-mono text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Release Stage *</Label>
-                      <Select
-                        value={newReleaseStage}
-                        onValueChange={(val) =>
-                          setNewReleaseStage(val as ComplianceReleaseStage)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {RELEASE_STAGES.map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {s.replace(/_/g, ' ')}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Min OS Version</Label>
-                      <Input
-                        placeholder="e.g. macOS 12.0+ / Win 10"
-                        value={newMinOsVersion}
-                        onChange={(e) => setNewMinOsVersion(e.target.value)}
+                        type="date"
+                        value={newReleaseDate}
+                        onChange={(e) => setNewReleaseDate(e.target.value)}
                         className="text-xs"
                       />
                     </div>
                   </div>
+
+                  <label className="flex items-center gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={newIsCurrent}
+                      onChange={(e) => setNewIsCurrent(e.target.checked)}
+                    />
+                    Mark as the current shipping version for this platform
+                  </label>
 
                   <div className="space-y-1.5">
                     <Label className="text-xs">Release Notes & Target Changes</Label>
@@ -346,11 +309,11 @@ export function VersionsView() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs">Channel Code</Label>
+              <Label className="text-xs">Distribution Channel</Label>
               <Input
                 value={simChannel}
-                onChange={(e) => setSimChannel(e.target.value.toUpperCase())}
-                placeholder="MAC_APP_STORE"
+                onChange={(e) => setSimChannel(e.target.value.toLowerCase())}
+                placeholder="mac-app-store, microsoft-store, direct, web"
                 className="h-9 font-mono text-xs"
               />
             </div>
@@ -370,7 +333,7 @@ export function VersionsView() {
             <div className="mt-4 p-4 rounded-lg border bg-muted/30 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
                 <div className="flex items-center gap-3">
-                  {evaluationResult.readyForRelease ? (
+                  {readyForRelease ? (
                     <ShieldCheck className="h-7 w-7 text-emerald-600 shrink-0" />
                   ) : (
                     <ShieldAlert className="h-7 w-7 text-destructive shrink-0" />
@@ -379,14 +342,10 @@ export function VersionsView() {
                     <div className="text-sm font-semibold flex items-center gap-2">
                       <span>Release Gate Verdict:</span>
                       <Badge
-                        variant={
-                          evaluationResult.readyForRelease
-                            ? 'default'
-                            : 'destructive'
-                        }
+                        variant={readyForRelease ? 'success' : 'destructive'}
                         className="text-xs"
                       >
-                        {evaluationResult.readyForRelease
+                        {readyForRelease
                           ? 'PASSED (Ready for Store Submission)'
                           : 'BLOCKED (Release Gate Denied)'}
                       </Badge>
@@ -404,7 +363,7 @@ export function VersionsView() {
                       Readiness Score
                     </div>
                     <div className="text-xl font-bold font-mono">
-                      {evaluationResult.readinessScore}%
+                      {evaluationResult.score.overallScore}%
                     </div>
                   </div>
                 </div>
@@ -415,15 +374,15 @@ export function VersionsView() {
                 <div>
                   <h4 className="text-xs font-semibold text-destructive flex items-center gap-1.5 mb-2">
                     <AlertOctagon className="h-4 w-4" />
-                    Critical Blockers ({evaluationResult.blockingReasons.length})
+                    Critical Blockers ({blockingReasons.length})
                   </h4>
-                  {evaluationResult.blockingReasons.length === 0 ? (
+                  {blockingReasons.length === 0 ? (
                     <p className="text-xs text-muted-foreground italic">
                       No release-blocking failures detected.
                     </p>
                   ) : (
                     <ul className="space-y-1">
-                      {evaluationResult.blockingReasons.map((reason, idx) => (
+                      {blockingReasons.map((reason: string, idx: number) => (
                         <li
                           key={idx}
                           className="text-xs text-destructive flex items-start gap-1.5 bg-destructive/10 p-2 rounded"
@@ -439,21 +398,24 @@ export function VersionsView() {
                 <div>
                   <h4 className="text-xs font-semibold text-amber-600 flex items-center gap-1.5 mb-2">
                     <AlertTriangle className="h-4 w-4" />
-                    Advisory Warnings ({evaluationResult.warnings.length})
+                    Rejection Risks ({advisoryWarnings.length})
                   </h4>
-                  {evaluationResult.warnings.length === 0 ? (
+                  {advisoryWarnings.length === 0 ? (
                     <p className="text-xs text-muted-foreground italic">
-                      No non-blocking warnings.
+                      No non-blocking rejection risks.
                     </p>
                   ) : (
                     <ul className="space-y-1">
-                      {evaluationResult.warnings.map((warn, idx) => (
+                      {advisoryWarnings.map((risk, idx: number) => (
                         <li
                           key={idx}
                           className="text-xs text-amber-700 dark:text-amber-300 flex items-start gap-1.5 bg-amber-500/10 p-2 rounded"
                         >
                           <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                          <span>{warn}</span>
+                          <span>
+                            <span className="font-medium">{risk.title}</span>
+                            {risk.reason ? ` — ${risk.reason}` : ''}
+                          </span>
                         </li>
                       ))}
                     </ul>
@@ -506,9 +468,9 @@ export function VersionsView() {
                 <TableRow>
                   <TableHead className="w-[120px]">Version</TableHead>
                   <TableHead className="w-[120px]">Platform</TableHead>
-                  <TableHead className="w-[140px]">Release Stage</TableHead>
-                  <TableHead className="w-[120px]">Min OS</TableHead>
-                  <TableHead>Release Notes</TableHead>
+                  <TableHead className="w-[150px]">Review Status</TableHead>
+                  <TableHead className="w-[90px]">Current</TableHead>
+                  <TableHead>Changelog</TableHead>
                   <TableHead className="w-[120px]">Created</TableHead>
                 </TableRow>
               </TableHeader>
@@ -529,34 +491,37 @@ export function VersionsView() {
                   versions.map((ver) => (
                     <TableRow key={ver.id}>
                       <TableCell className="font-mono text-xs font-semibold">
-                        v{ver.versionString}
-                        {ver.buildNumber && (
-                          <span className="text-[10px] text-muted-foreground ml-1">
-                            ({ver.buildNumber})
-                          </span>
-                        )}
+                        v{ver.version}
                       </TableCell>
                       <TableCell className="text-xs">
-                        {ver.platform?.name ?? 'Unknown'}
+                        {ver.platformName ?? 'Unknown'}
                       </TableCell>
                       <TableCell>
                         <Badge
                           variant={
-                            ver.releaseStage === 'GA' ||
-                            ver.releaseStage === 'STORE_SUBMISSION'
-                              ? 'default'
-                              : 'secondary'
+                            ver.status === 'APPROVED' ||
+                            ver.status === 'RELEASED'
+                              ? 'success'
+                              : ver.status === 'BLOCKED'
+                                ? 'destructive'
+                                : 'secondary'
                           }
                           className="text-[10px]"
                         >
-                          {ver.releaseStage.replace(/_/g, ' ')}
+                          {ver.status.replace(/_/g, ' ')}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {ver.minOsVersion || 'Default'}
+                        {ver.isCurrent ? (
+                          <Badge variant="primary" className="text-[10px]">
+                            Current
+                          </Badge>
+                        ) : (
+                          '—'
+                        )}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground line-clamp-1">
-                        {ver.releaseNotes || 'No release notes'}
+                        {ver.changelog || 'No changelog'}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {new Date(ver.createdAt).toLocaleDateString()}

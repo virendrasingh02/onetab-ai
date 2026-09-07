@@ -9,13 +9,13 @@ describe('LanguageSelect', () => {
   });
 
   it('renders current language correctly in standard mode', () => {
-    render(<LanguageSelect value="en" onChange={() => {}} />);
+    render(<LanguageSelect value="en" onChange={vi.fn()} />);
     expect(screen.getByRole('combobox')).toBeInTheDocument();
     expect(screen.getByText('English')).toBeInTheDocument();
   });
 
   it('renders native name in compact mode', () => {
-    render(<LanguageSelect value="hi" compact onChange={() => {}} />);
+    render(<LanguageSelect value="hi" compact onChange={vi.fn()} />);
     expect(screen.getByRole('combobox')).toBeInTheDocument();
     expect(screen.getByText('हिन्दी')).toBeInTheDocument();
   });
@@ -34,7 +34,7 @@ describe('LanguageSelect', () => {
   });
 
   it('supports Arabic with RTL marker', async () => {
-    render(<LanguageSelect value="en" onChange={() => {}} />);
+    render(<LanguageSelect value="en" onChange={vi.fn()} />);
 
     await userEvent.click(screen.getByRole('combobox'));
 

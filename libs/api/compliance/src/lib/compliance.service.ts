@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -17,8 +16,6 @@ import type {
   ComplianceEvaluationContext,
   ComplianceEvaluationResult,
   ComplianceEvidenceView,
-  ComplianceIssueSource,
-  ComplianceIssueStatus,
   ComplianceIssueView,
   ComplianceLegalLinkView,
   ComplianceOverview,
@@ -27,11 +24,9 @@ import type {
   ComplianceReadinessScore,
   ComplianceRegionView,
   ComplianceReleaseOverrideView,
-  ComplianceRequirementScopeView,
   ComplianceRequirementView,
   ComplianceReviewStatus,
   ComplianceReviewView,
-  ComplianceSeverity,
 } from '@org/types';
 import { ComplianceRuleEngineService } from './compliance-rule-engine.service.js';
 
@@ -101,7 +96,7 @@ export class ComplianceService implements OnModuleInit {
     });
 
     const reviews = await this.prisma.complianceReview.findMany({
-      include: { platform: true, appVersion: true },
+      include: { platform: true, appVersion: true, distribution: true },
       orderBy: { updatedAt: 'desc' },
       take: 10,
     });
@@ -1505,7 +1500,7 @@ export class ComplianceService implements OnModuleInit {
 
     await this.logAudit({
       actorId: adminId,
-      actorEmail,
+      actorEmail: adminEmail,
       action: 'RELEASE_GATE_OVERRIDDEN',
       targetType: 'REVIEW',
       targetId: reviewId,
@@ -1667,7 +1662,7 @@ export class ComplianceService implements OnModuleInit {
     this.logger.log('Seeding compliance regions, platforms, and official guidelines...');
 
     // 1. Regions
-    const globalReg = await this.prisma.complianceRegion.create({
+    await this.prisma.complianceRegion.create({
       data: { code: 'GLOBAL', name: 'Global', description: 'Universal platform baseline' },
     });
     const apacReg = await this.prisma.complianceRegion.create({
@@ -1687,13 +1682,13 @@ export class ComplianceService implements OnModuleInit {
     const usCountry = await this.prisma.complianceCountry.create({
       data: { code: 'US', name: 'United States', regionId: naReg.id },
     });
-    const deCountry = await this.prisma.complianceCountry.create({
+    await this.prisma.complianceCountry.create({
       data: { code: 'DE', name: 'Germany (EU)', regionId: emeaReg.id },
     });
-    const gbCountry = await this.prisma.complianceCountry.create({
+    await this.prisma.complianceCountry.create({
       data: { code: 'GB', name: 'United Kingdom', regionId: emeaReg.id },
     });
-    const jpCountry = await this.prisma.complianceCountry.create({
+    await this.prisma.complianceCountry.create({
       data: { code: 'JP', name: 'Japan', regionId: apacReg.id },
     });
 
@@ -1725,7 +1720,7 @@ export class ComplianceService implements OnModuleInit {
         minSupportedVersion: 'v2.0.0',
       },
     });
-    const linuxPlat = await this.prisma.compliancePlatform.create({
+    await this.prisma.compliancePlatform.create({
       data: {
         code: 'linux',
         name: 'Linux Desktop',
@@ -1745,7 +1740,7 @@ export class ComplianceService implements OnModuleInit {
     const msStore = await this.prisma.complianceDistribution.create({
       data: { code: 'microsoft-store', name: 'Microsoft Store', platformId: winPlat.id },
     });
-    const macDirect = await this.prisma.complianceDistribution.create({
+    await this.prisma.complianceDistribution.create({
       data: { code: 'direct-mac', name: 'macOS Direct (DMG/ZIP Notarized)', platformId: macPlat.id },
     });
     const macStore = await this.prisma.complianceDistribution.create({
@@ -1753,7 +1748,7 @@ export class ComplianceService implements OnModuleInit {
     });
 
     // 5. Initial App Versions
-    const webVersion = await this.prisma.complianceAppVersion.create({
+    await this.prisma.complianceAppVersion.create({
       data: {
         platformId: webPlat.id,
         version: '2026.09.1',
@@ -1928,7 +1923,7 @@ export class ComplianceService implements OnModuleInit {
         title: 'Mac App Store: Disable electron-updater / In-App Binary Updates',
         description:
           'Mac App Store builds must not include an internal auto-updater mechanism (e.g. electron-updater). All app updates must be delivered exclusively through the App Store.',
-        category: 'PLATFORM',
+        category: 'SECURITY',
         severity: 'CRITICAL',
         isBlocking: true,
         defaultStatus: 'PASSED',

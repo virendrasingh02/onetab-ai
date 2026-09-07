@@ -18,7 +18,6 @@ import {
   DialogTitle,
   DialogTrigger,
   EmptyState,
-  ErrorState,
   Input,
   Label,
   LoadingState,
@@ -37,17 +36,12 @@ import {
   TableRow,
 } from '@org/ui';
 import {
-  CheckCircle2,
   ExternalLink,
-  Globe,
   Link as LinkIcon,
   Pencil,
   Plus,
   RefreshCw,
-  Scale,
-  Shield,
   ShieldAlert,
-  ShieldCheck,
 } from 'lucide-react';
 import { useState } from 'react';
 import {
@@ -78,30 +72,34 @@ export function LegalLinksView() {
   const [newType, setNewType] = useState('PRIVACY_POLICY');
   const [newUrl, setNewUrl] = useState('');
   const [newCountryCode, setNewCountryCode] = useState('');
-  const [newPlatformId, setNewPlatformId] = useState('');
+  const [newPlatformCode, setNewPlatformCode] = useState('');
 
   const handleSaveLegalLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newType || !newUrl) return;
 
+    const label =
+      LEGAL_TYPES.find((t) => t.value === newType)?.label ?? newType;
+
     await mutations.updateLegalLink.mutateAsync({
-      type: newType,
+      key: newType,
+      title: label,
       url: newUrl.trim(),
       countryCode: newCountryCode.trim().toUpperCase() || undefined,
-      platformId: newPlatformId || undefined,
+      platformCode: newPlatformCode || undefined,
     });
 
     setIsAddOpen(false);
     setNewUrl('');
     setNewCountryCode('');
-    setNewPlatformId('');
+    setNewPlatformCode('');
   };
 
   const handleEditLink = (link: ComplianceLegalLinkView) => {
-    setNewType(link.type);
+    setNewType(link.key);
     setNewUrl(link.url);
     setNewCountryCode(link.countryCode || '');
-    setNewPlatformId(link.platformId || '');
+    setNewPlatformCode(link.platformCode || '');
     setIsAddOpen(true);
   };
 
@@ -177,8 +175,8 @@ export function LegalLinksView() {
                     <div className="space-y-1.5">
                       <Label className="text-xs">Platform Override</Label>
                       <Select
-                        value={newPlatformId}
-                        onValueChange={setNewPlatformId}
+                        value={newPlatformCode}
+                        onValueChange={setNewPlatformCode}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Global (All)" />
@@ -186,7 +184,7 @@ export function LegalLinksView() {
                         <SelectContent>
                           <SelectItem value="">Global (All platforms)</SelectItem>
                           {platforms.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
+                            <SelectItem key={p.id} value={p.code}>
                               {p.name}
                             </SelectItem>
                           ))}
@@ -269,7 +267,7 @@ export function LegalLinksView() {
                   <TableHead>Target URL</TableHead>
                   <TableHead className="w-[120px]">Platform</TableHead>
                   <TableHead className="w-[100px]">Country</TableHead>
-                  <TableHead className="w-[120px]">Status</TableHead>
+                  <TableHead className="w-[120px]">Last Verified</TableHead>
                   <TableHead className="w-[120px] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -290,8 +288,9 @@ export function LegalLinksView() {
                   links.map((link) => (
                     <TableRow key={link.id}>
                       <TableCell className="font-medium text-xs">
-                        {LEGAL_TYPES.find((t) => t.value === link.type)?.label ??
-                          link.type}
+                        {LEGAL_TYPES.find((t) => t.value === link.key)?.label ??
+                          link.title ??
+                          link.key}
                       </TableCell>
                       <TableCell>
                         <a
@@ -305,7 +304,7 @@ export function LegalLinksView() {
                         </a>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {link.platform?.name ?? 'Global (All)'}
+                        {link.platformCode ?? 'Global (All)'}
                       </TableCell>
                       <TableCell>
                         {link.countryCode ? (
@@ -318,13 +317,10 @@ export function LegalLinksView() {
                           </span>
                         )}
                       </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={link.isActive ? 'default' : 'outline'}
-                          className="text-[10px]"
-                        >
-                          {link.isActive ? 'Active' : 'Inactive'}
-                        </Badge>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {link.lastVerifiedAt
+                          ? new Date(link.lastVerifiedAt).toLocaleDateString()
+                          : '—'}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button

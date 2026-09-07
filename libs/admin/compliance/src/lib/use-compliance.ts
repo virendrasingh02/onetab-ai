@@ -1,7 +1,6 @@
 import { complianceApi, queryKeys } from '@org/api-client';
 import type {
   ComplianceChecklistStatus,
-  ComplianceEvaluationContext,
   ComplianceReviewStatus,
 } from '@org/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';

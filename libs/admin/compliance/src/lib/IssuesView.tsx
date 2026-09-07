@@ -1,4 +1,5 @@
 import type {
+  ComplianceCategory,
   ComplianceIssueSource,
   ComplianceIssueStatus,
   ComplianceIssueView,
@@ -20,7 +21,6 @@ import {
   DialogTitle,
   DialogTrigger,
   EmptyState,
-  ErrorState,
   Input,
   Label,
   LoadingState,
@@ -42,17 +42,11 @@ import {
 import {
   AlertCircle,
   AlertOctagon,
-  AlertTriangle,
-  ArrowRight,
   CheckCircle2,
-  Clock,
-  ExternalLink,
-  Filter,
   Plus,
   RefreshCw,
   Search,
   ShieldAlert,
-  SlidersHorizontal,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
@@ -66,16 +60,43 @@ const ISSUE_STATUSES: ComplianceIssueStatus[] = [
   'INVESTIGATING',
   'FIX_REQUIRED',
   'IN_PROGRESS',
+  'READY_FOR_RESUBMISSION',
+  'SUBMITTED',
   'RESOLVED',
-  'CLOSED',
+  'ACCEPTED',
+  'WONT_FIX',
 ];
 
 const ISSUE_SOURCES: ComplianceIssueSource[] = [
-  'STORE_REJECTION',
+  'STORE_REVIEW',
+  'INTERNAL_AUDIT',
   'AUTOMATED_SCAN',
-  'AUDIT',
-  'USER_REPORT',
-  'INTERNAL_REVIEW',
+  'REGULATORY_NOTICE',
+];
+
+const DONE_STATUSES: ComplianceIssueStatus[] = [
+  'RESOLVED',
+  'ACCEPTED',
+  'WONT_FIX',
+];
+
+const ISSUE_CATEGORIES: ComplianceCategory[] = [
+  'PRIVACY',
+  'DATA_COLLECTION',
+  'USER_CONSENT',
+  'ACCOUNT_DELETION',
+  'AUTHENTICATION',
+  'PAYMENTS',
+  'CONTENT_MODERATION',
+  'SECURITY',
+  'PERMISSIONS',
+  'NOTIFICATIONS',
+  'TRACKING_ADVERTISING',
+  'AGE_RATING',
+  'METADATA_ASSETS',
+  'LEGAL_TERMS',
+  'REGIONAL_LEGAL',
+  'EXPORT_COMPLIANCE',
 ];
 
 export function IssuesView() {
@@ -100,12 +121,12 @@ export function IssuesView() {
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newSource, setNewSource] =
-    useState<ComplianceIssueSource>('STORE_REJECTION');
+    useState<ComplianceIssueSource>('STORE_REVIEW');
+  const [newCategory, setNewCategory] =
+    useState<ComplianceCategory>('METADATA_ASSETS');
   const [newSeverity, setNewSeverity] = useState<ComplianceSeverity>('HIGH');
-  const [newRejectionCode, setNewRejectionCode] = useState('');
+  const [newReviewerNotes, setNewReviewerNotes] = useState('');
   const [newPlatformId, setNewPlatformId] = useState('');
-  const [newAppVersion, setNewAppVersion] = useState('');
-  const [newCountryCode, setNewCountryCode] = useState('');
   const [newRemediation, setNewRemediation] = useState('');
 
   // Update / Resolve Issue Modal State
@@ -120,7 +141,7 @@ export function IssuesView() {
       total: issues.length,
       open: issues.filter((i) => i.status === 'OPEN' || i.status === 'FIX_REQUIRED').length,
       critical: issues.filter((i) => i.severity === 'CRITICAL').length,
-      resolved: issues.filter((i) => i.status === 'RESOLVED' || i.status === 'CLOSED').length,
+      resolved: issues.filter((i) => DONE_STATUSES.includes(i.status)).length,
     };
   }, [issues]);
 
@@ -131,19 +152,18 @@ export function IssuesView() {
     await mutations.createIssue.mutateAsync({
       title: newTitle.trim(),
       description: newDescription.trim(),
+      category: newCategory,
       source: newSource,
       severity: newSeverity,
-      rejectionCode: newRejectionCode.trim() || undefined,
+      reviewerNotes: newReviewerNotes.trim() || undefined,
       platformId: newPlatformId || undefined,
-      appVersion: newAppVersion.trim() || undefined,
-      countryCode: newCountryCode.trim().toUpperCase() || undefined,
       remediation: newRemediation.trim() || undefined,
     });
 
     setIsAddOpen(false);
     setNewTitle('');
     setNewDescription('');
-    setNewRejectionCode('');
+    setNewReviewerNotes('');
     setNewRemediation('');
   };
 
@@ -257,7 +277,30 @@ export function IssuesView() {
                           <SelectItem value="HIGH">HIGH (Notice Period)</SelectItem>
                           <SelectItem value="MEDIUM">MEDIUM (Warning)</SelectItem>
                           <SelectItem value="LOW">LOW</SelectItem>
-                          <SelectItem value="INFO">INFO</SelectItem>
+                          <SelectItem value="INFORMATIONAL">INFORMATIONAL</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Category *</Label>
+                      <Select
+                        value={newCategory}
+                        onValueChange={(val) =>
+                          setNewCategory(val as ComplianceCategory)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ISSUE_CATEGORIES.map((c) => (
+                            <SelectItem key={c} value={c}>
+                              {c.replace(/_/g, ' ')}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -265,12 +308,12 @@ export function IssuesView() {
 
                   <div className="space-y-1.5">
                     <Label className="text-xs">
-                      Official Guideline / Rejection Code
+                      Official Guideline / Reviewer Notes
                     </Label>
                     <Input
                       placeholder="e.g. Guideline 5.1.1 - Data Collection and Storage"
-                      value={newRejectionCode}
-                      onChange={(e) => setNewRejectionCode(e.target.value)}
+                      value={newReviewerNotes}
+                      onChange={(e) => setNewReviewerNotes(e.target.value)}
                     />
                   </div>
 
@@ -295,47 +338,24 @@ export function IssuesView() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Platform</Label>
-                      <Select
-                        value={newPlatformId}
-                        onValueChange={setNewPlatformId}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Global" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">None / Global</SelectItem>
-                          {platforms.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Version</Label>
-                      <Input
-                        placeholder="e.g. 1.2.0"
-                        value={newAppVersion}
-                        onChange={(e) => setNewAppVersion(e.target.value)}
-                        className="font-mono text-xs"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Country</Label>
-                      <Input
-                        placeholder="e.g. IN"
-                        value={newCountryCode}
-                        onChange={(e) => setNewCountryCode(e.target.value)}
-                        maxLength={2}
-                        className="font-mono text-xs"
-                      />
-                    </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Platform</Label>
+                    <Select
+                      value={newPlatformId}
+                      onValueChange={setNewPlatformId}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Global" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">None / Global</SelectItem>
+                        {platforms.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -505,11 +525,9 @@ export function IssuesView() {
                         <Badge variant="outline" className="text-[10px] font-mono uppercase">
                           {issue.source.replace(/_/g, ' ')}
                         </Badge>
-                        {issue.rejectionCode && (
-                          <div className="font-mono text-xs font-semibold text-foreground mt-1">
-                            {issue.rejectionCode}
-                          </div>
-                        )}
+                        <div className="text-[10px] text-muted-foreground mt-1">
+                          {issue.category.replace(/_/g, ' ')}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="font-medium text-xs text-foreground">
@@ -531,11 +549,11 @@ export function IssuesView() {
                       </TableCell>
                       <TableCell>
                         <div className="text-xs font-medium">
-                          {issue.platform?.name ?? 'Global'}
+                          {issue.platformCode ?? 'Global'}
                         </div>
-                        {issue.appVersion && (
+                        {issue.appVersionString && (
                           <div className="text-[10px] font-mono text-muted-foreground">
-                            v{issue.appVersion}
+                            v{issue.appVersionString}
                           </div>
                         )}
                         {issue.countryCode && (
@@ -550,7 +568,7 @@ export function IssuesView() {
                             issue.severity === 'CRITICAL'
                               ? 'destructive'
                               : issue.severity === 'HIGH'
-                                ? 'default'
+                                ? 'warning'
                                 : 'outline'
                           }
                           className="text-[10px]"
@@ -561,8 +579,8 @@ export function IssuesView() {
                       <TableCell>
                         <Badge
                           variant={
-                            issue.status === 'RESOLVED' || issue.status === 'CLOSED'
-                              ? 'default'
+                            DONE_STATUSES.includes(issue.status)
+                              ? 'success'
                               : issue.status === 'OPEN' || issue.status === 'FIX_REQUIRED'
                                 ? 'destructive'
                                 : 'secondary'

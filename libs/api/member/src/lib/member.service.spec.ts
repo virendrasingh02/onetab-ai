@@ -22,6 +22,7 @@ describe('MemberService - Complete Invitation System', () => {
         update: vi.fn(),
         delete: vi.fn(),
         upsert: vi.fn(),
+        count: vi.fn().mockResolvedValue(0),
       },
       channelMember: {
         deleteMany: vi.fn(),
@@ -45,6 +46,9 @@ describe('MemberService - Complete Invitation System', () => {
       },
       user: {
         findUnique: vi.fn(),
+      },
+      workspaceSubscription: {
+        findUnique: vi.fn().mockResolvedValue(null),
       },
       $transaction: vi.fn(async (cb) => {
         if (typeof cb === 'function') {
