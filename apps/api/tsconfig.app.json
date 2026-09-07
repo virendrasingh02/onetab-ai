@@ -13,6 +13,7 @@
   "include": ["src/**/*.ts"],
   "exclude": [],
   "references": [
+    { "path": "../../libs/api/mail/tsconfig.lib.json" },
     {
       "path": "../../libs/api/cache/tsconfig.lib.json"
     },

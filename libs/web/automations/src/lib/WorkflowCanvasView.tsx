@@ -32,9 +32,9 @@ import {
   Workflow,
   Zap,
 } from 'lucide-react';
-import { useCallback, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useWorkflowMutations } from './use-automations.js';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useWorkflowMutations, useWorkflows } from './use-automations.js';
 
 // Custom Node Components
 function TriggerNode({ data, selected }: NodeProps) {
@@ -216,6 +216,34 @@ export function WorkflowCanvasView() {
   const { create, update } = useWorkflowMutations(workspaceId);
   const isSaving = create.isPending || update.isPending;
 
+  // Hydrate the canvas when opened for an existing workflow (`?id=…`). The list
+  // query is already warm from the automations screen, so this reuses it rather
+  // than adding a single-workflow endpoint. `hydratedRef` stops a later refetch
+  // from clobbering unsaved canvas edits.
+  const [searchParams] = useSearchParams();
+  const editingId = searchParams.get('id');
+  const workflowsQuery = useWorkflows(workspaceId);
+  const hydratedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!editingId || hydratedRef.current === editingId) return;
+    const wf = workflowsQuery.data?.find((w) => w.id === editingId);
+    if (!wf) return;
+    hydratedRef.current = editingId;
+    try {
+      const loadedNodes = JSON.parse(wf.nodesJson || '[]');
+      const loadedEdges = JSON.parse(wf.edgesJson || '[]');
+      if (Array.isArray(loadedNodes)) setNodes(loadedNodes as Node[]);
+      if (Array.isArray(loadedEdges)) setEdges(loadedEdges as Edge[]);
+    } catch {
+      toast.error('Could not open workflow', {
+        description: 'Its saved graph could not be parsed.',
+      });
+    }
+    setWorkflowId(wf.id);
+    setWorkflowName(wf.name);
+  }, [editingId, workflowsQuery.data, setNodes, setEdges]);
+
   const handleBack = () => {
     if (window.history.length > 1) {
       navigate(-1);
@@ -280,18 +308,22 @@ export function WorkflowCanvasView() {
       return;
     }
 
-    const input = {
+    const base = {
       name: workflowName.trim() || 'Untitled Workflow',
-      triggerType: 'WEBHOOK',
       nodesJson: JSON.stringify(nodes),
       edgesJson: JSON.stringify(edges),
     };
+    // Derive the trigger from the graph's trigger node so it is not silently
+    // reset to WEBHOOK every save; fall back to WEBHOOK for a graph with none.
+    const triggerNode = nodes.find((n) => n.type === 'TRIGGER');
+    const triggerType =
+      (triggerNode?.data as { triggerKind?: string })?.triggerKind ?? 'WEBHOOK';
 
     try {
       if (workflowId) {
-        await update.mutateAsync({ workflowId, input });
+        await update.mutateAsync({ workflowId, input: base });
       } else {
-        const created = await create.mutateAsync(input);
+        const created = await create.mutateAsync({ ...base, triggerType });
         setWorkflowId(created.id);
       }
       setIsSaved(true);

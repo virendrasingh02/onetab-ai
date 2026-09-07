@@ -3,8 +3,10 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   AppEvent,
@@ -15,6 +17,7 @@ import {
   toInvitation,
   toPublicUser,
 } from '@org/api-common';
+import { MailService, workspaceInviteEmail } from '@org/api-mail';
 import { PrismaService } from '@org/database';
 import {
   InvitationStatus,
@@ -57,9 +60,13 @@ const INVITATION_INCLUDE = {
 
 @Injectable()
 export class MemberService {
+  private readonly logger = new Logger(MemberService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly events: EventEmitter2,
+    private readonly mail: MailService,
+    private readonly config: ConfigService,
   ) {}
 
   async list(workspaceId: string): Promise<WorkspaceMember[]> {
@@ -372,11 +379,66 @@ export class MemberService {
       role: input.role,
     });
 
+    // Deliver the invitations by email (best-effort — the response already
+    // carries the outcome; a mail failure must not fail the request).
+    void this.sendInviteEmails(
+      workspaceId,
+      invitedById,
+      input.role,
+      invited,
+      tokens,
+    );
+
     return {
       invited,
       alreadyMembers,
       ...(includeTokens ? { tokens } : {}),
     };
+  }
+
+  /** Fan an invitation batch out to email. Never throws. */
+  private async sendInviteEmails(
+    workspaceId: string,
+    invitedById: string,
+    role: WorkspaceRole,
+    invited: Invitation[],
+    tokens: Record<string, string>,
+  ): Promise<void> {
+    try {
+      const [workspace, inviter] = await Promise.all([
+        this.prisma.workspace.findUnique({
+          where: { id: workspaceId },
+          select: { name: true },
+        }),
+        this.prisma.user.findUnique({
+          where: { id: invitedById },
+          select: { displayName: true, name: true },
+        }),
+      ]);
+      const appUrl = (
+        this.config.get<string>('APP_URL') ?? 'http://localhost:4200'
+      ).replace(/\/+$/, '');
+      const inviterName =
+        inviter?.displayName || inviter?.name || 'A teammate';
+      const workspaceName = workspace?.name ?? 'a workspace';
+
+      await Promise.all(
+        invited.map((inv) => {
+          if (!inv.email) return undefined;
+          const token = tokens[inv.email];
+          if (!token) return undefined;
+          const rendered = workspaceInviteEmail({
+            inviterName,
+            workspaceName,
+            role,
+            acceptUrl: `${appUrl}/invite/${encodeURIComponent(token)}`,
+          });
+          return this.mail.send({ to: inv.email, ...rendered });
+        }),
+      );
+    } catch (err) {
+      this.logger.error('Failed to send invitation emails', err as Error);
+    }
   }
 
   async resendInvitation(

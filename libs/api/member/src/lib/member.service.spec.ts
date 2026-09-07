@@ -45,7 +45,10 @@ describe('MemberService - Complete Invitation System', () => {
         findFirst: vi.fn(),
       },
       user: {
-        findUnique: vi.fn(),
+        findUnique: vi.fn().mockResolvedValue({ displayName: 'Ada', name: 'Ada' }),
+      },
+      workspace: {
+        findUnique: vi.fn().mockResolvedValue({ name: 'Acme' }),
       },
       workspaceSubscription: {
         findUnique: vi.fn().mockResolvedValue(null),
@@ -62,9 +65,14 @@ describe('MemberService - Complete Invitation System', () => {
       emit: vi.fn(),
     };
 
+    const mockMail = { send: vi.fn().mockResolvedValue({ delivered: true }) };
+    const mockConfig = { get: vi.fn().mockReturnValue(undefined) };
+
     service = new MemberService(
       mockPrisma as unknown as PrismaService,
       mockEvents,
+      mockMail as never,
+      mockConfig as never,
     );
   });
 

@@ -33,10 +33,10 @@ What remains is a short, specific list (below), not a structural hole.
 | A1 | **Build red** — 213 typecheck errors across `@org/admin-compliance`, `@org/api-compliance`, `@org/api-admin`, `@org/admin`, `@org/api`. A ~11.5k-LOC Compliance + App-Version admin feature (commits `8cd7258`, `8fd34b8`) whose 10 frontend views were written against an imagined API shape. | Blocker | **FIXED** |
 | A2 | **5 pre-existing lint errors** masked by Nx cache — `@org/api-admin` (`no-useless-assignment` ×2), `@org/ui` (`no-empty-function` ×3), `@org/i18n` (`no-unused-vars` ×1). | High | **FIXED** |
 | A3 | **Orphaned test suites** — `libs/api/{admin,compliance,agents,member,realtime}` had spec files that never executed (no `vitest.config.mts` / `test` target). 48 tests dark, incl. `app-versions.service.spec.ts` (15) and `compliance-rule-engine.spec.ts` (10). Two suites also had mock drift from the billing work. | High | **FIXED** |
-| A4 | **Email delivery does not exist.** No mailer, no SMTP, no `EmailService` anywhere in `libs/api`. Invitations, password resets and notification digests have no email channel. | High | **OPEN** |
-| A5 | **Sidebar registries are `localStorage`-only** (`libs/shared/hooks/workspace-registries.ts`) — installed agents, connected apps, saved workflows are cross-device product state trapped in one browser, though `AIAgent` and `AutomationWorkflow` tables with full CRUD exist. | Medium | **OPEN** |
+| A4 | **Email delivery does not exist.** No mailer, no SMTP, no `EmailService` anywhere in `libs/api`. Invitations, password resets and notification digests have no email channel. | High | **FIXED** (Phase 4) — new `@org/api-mail` lib (log + HTTP-provider transports), wired into password-reset and workspace invitations, env vars + `.env.example`, 6 tests |
+| A5 | **Sidebar registries are `localStorage`-only** (`libs/shared/hooks/workspace-registries.ts`) — installed agents, connected apps, saved workflows are cross-device product state trapped in one browser, though `AIAgent` and `AutomationWorkflow` tables with full CRUD exist. | Medium | **FIXED** (Phase 4) — the sidebar already used the real API hooks; `WorkflowListView` was the last holdout. Rewritten onto `useWorkflows`/`useWorkflowMutations`; `workspace-registries.ts` deleted. Also fixed the workflow canvas so "Edit" / "Use template" actually hydrate the graph from the real workflow (`?id=`). |
 | A6 | **Channel agents/apps UI is `localStorage`-only** (`libs/web/channels/use-channel-agents-apps.ts`) — the fabricated feed is now opt-in and labelled "DEMO — NOT A REAL RUN" (Tier-0 done), but adding an agent to a channel still never reaches the backend. `AgentMatrixBridgeService` exists server-side; there is no channel↔agent association API to connect them. | Medium | **OPEN** |
-| A7 | **Agent Builder graph is `localStorage`-only** (`libs/web/agents/agent-graph/use-agent-graph.ts:713`). | Medium | **OPEN** |
+| A7 | **Agent Builder graph is `localStorage`-only** (`libs/web/agents/agent-graph/use-agent-graph.ts:713`). | Medium | **OPEN** — needs an `AIAgent.graphJson` column (a Prisma migration; blocked on a live DB / docker being off-limits this pass). |
 | A8 | **Object storage is local disk** (`STORAGE_ROOT ?? '.storage'`). Signed tokens, orphan sweep and usage accounting are in place; a shared/S3 driver is not. Uploads are lost on redeploy and not shared across API replicas. | Medium | **OPEN** |
 | A9 | **Compliance + App-Version feature is fresh and lightly tested.** Now typechecks and the rule-engine + `AppVersionsService` unit specs pass (25 tests), but controllers, `ComplianceService` (2,132 LOC) and all 11 admin views have no automated coverage, and the feature has never run end-to-end. | Medium | **OPEN** |
 
@@ -181,14 +181,14 @@ server-enforced · `Tests` = automated coverage incl. a boundary test.
 
 | Feature | UI | API | DB | RT | Perms | Tests | Status |
 |---|---|---|---|---|---|---|---|
-| Auth (sign up/in/out, refresh, reset) | ✓ | ✓ | ✓ | · | ✓ | ✓ | **Working** (email step missing — A4) |
+| Auth (sign up/in/out, refresh, reset) | ✓ | ✓ | ✓ | · | ✓ | ✓ | **Working** (reset email now sent — A4 fixed) |
 | Workspaces (CRUD, archive, transfer) | ✓ | ✓ | ✓ | ~ | ✓ | ✓ | **Working** |
-| Members / Invitations | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | **Working** (no email delivery — A4) |
+| Members / Invitations | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | **Working** (invite emails now sent — A4 fixed) |
 | Channels (CRUD, visibility, pins, prefs) | ✓ | ✓ | ✓ | ✓ | ✓ | ~ | **Working** |
 | DMs (Matrix, `m.direct`) | ✓ | ✓ | ✓ | ✓ | ✓ | ~ | **Working** |
 | Messages / threads / reactions (Matrix) | ✓ | ✓ | ✓ | ✓ | ✓ | ~ | **Working** |
 | Mentions / unread / read state | ✓ | ✓ | ✓ | ✓ | ✓ | ~ | **Working** |
-| Notifications (per-user, deep links) | ✓ | ✓ | ✓ | ✓ | ✓ | ~ | **Working** (no email/push digest — A4) |
+| Notifications (per-user, deep links) | ✓ | ✓ | ✓ | ✓ | ✓ | ~ | **Working** (mailer now exists; digest cron not yet wired) |
 | Projects / Tasks / Comments / Kanban | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | **Working** |
 | Documents (tree, versions) | ✓ | ✓ | ✓ | ~ | ~ | ~ | **Working** (per-doc ACL still absent) |
 | Meetings (models, events → tasks) | ✓ | ✓ | ✓ | ✓ | ✓ | ~ | **Working** (no transcript pipeline) |
@@ -197,10 +197,10 @@ server-enforced · `Tests` = automated coverage incl. a boundary test.
 | AI (chat, summarize, translate, RAG) | ✓ | ✓ | ✓ | · | ~ | ✓ | **Working** (errors propagate; no per-user context narrowing) |
 | AI Agents (CRUD, tool loop, exec log) | ✓ | ✓ | ✓ | ~ | ~ | ✓ | **Working** (per-agent perms still coarse) |
 | Agent Builder (ReactFlow canvas) | ✓ | ✗ | ✗ | · | · | · | **UI-only** — graph in `localStorage` (A7) |
-| Workflows / Automation (engine, triggers) | ✓ | ✓ | ✓ | ~ | ✓ | ~ | **Working** (canvas Save now persists) |
+| Workflows / Automation (engine, triggers) | ✓ | ✓ | ✓ | ~ | ✓ | ~ | **Working** — list + canvas now fully on the real API (A5 fixed); "Edit" hydrates from `?id=` |
 | Integrations (OAuth, webhooks, encryption) | ✓ | ✓ | ✓ | ~ | ✓ | ✓ | **Working** |
 | Marketplace | ✓ | ✓ | ✓ | ✗ | ~ | ✗ | **Partial** — install side-effects not re-verified |
-| Sidebar registries (installed agents/apps/workflows) | ✗ | ✗ | ✗ | · | · | · | **UI-only** — `localStorage` (A5) |
+| Sidebar registries (installed agents/apps/workflows) | ✓ | ✓ | ✓ | ~ | ✓ | ~ | **Working** — reads real `AIAgent`/`AutomationWorkflow`/`Integration` lists (A5 fixed) |
 | Channel agents/apps panel | ~ | ~ | ✗ | ✗ | ✗ | ✗ | **UI-only** — `localStorage`; backend bridge exists but unconnected (A6) |
 | Compliance / App-Store readiness (admin) | ~ | ✓ | ✓ | · | ✓ | ~ | **Newly compiling** — rule-engine + service specs pass; untested end-to-end (A9) |
 | App-version management / update check | ✓ | ✓ | ✓ | · | ✓ | ✓ | **Working** — check-update now cached |
@@ -282,30 +282,37 @@ in `member`/`realtime`.
 
 Ordered by impact. Each is a bounded piece of work, not a structural hole.
 
-### A4 — No email delivery · **High**
-*Why it remains:* out of scope for a build-unblock pass; needs a mailer lib +
-provider config + template set + wiring into invitations / password reset /
-notification digests.
-*Impact:* invitations can only be accepted via a link surfaced in-app;
-password reset depends on the user already being in a session; no notification
-email/push digest.
-*Next step:* add `libs/api/mail` (a thin `MailService` over nodemailer or a
-provider SDK, with a dev "log to console" transport), subscribe it to
-`WorkspaceInvited` / a new `PasswordResetRequested` event, and add a digest cron
-consuming unread `Notification` rows.
+### A4 — Email delivery · **FIXED (Phase 4)**
+New `libs/api/mail` (`@org/api-mail`), a `@Global()` `MailModule`:
+* `MailService.send()` with two transports chosen by `MAIL_TRANSPORT` —
+  `log` (default; renders to the logger, no external service) and `http` (POSTs
+  the Resend/Postmark/SendGrid `{from,to,subject,html,text}` shape to
+  `MAIL_API_URL` with `Bearer ${MAIL_API_KEY}`). `send` never throws on a
+  transport failure.
+* Built-in templates `passwordResetEmail`, `workspaceInviteEmail` (subject +
+  HTML + text, HTML-escaped).
+* Wired into `AuthService.forgotPassword` (reset link, best-effort so a bounce
+  can't reveal whether the address exists) and `MemberService.invite` (one
+  invite email per new address, `${APP_URL}/invite/<token>`).
+* `MAIL_TRANSPORT` / `MAIL_FROM` / `MAIL_API_URL` / `MAIL_API_KEY` / `APP_URL`
+  added to `apiEnvSchema` + `.env.example`.
+* 6 tests (`mail.service.spec.ts`).
+*Still open, minor:* a notification-digest cron consuming unread `Notification`
+rows; push notifications.
 
-### A5 — Sidebar registries in `localStorage` · **Medium**
-*Why it remains:* the backend tables (`AIAgent`, `AutomationWorkflow`) and CRUD
-endpoints exist, but there is no "installed in this workspace's sidebar" concept
-distinct from "row exists", and no endpoint the sidebar hook calls.
-*Impact:* a user's installed agents / connected apps / saved workflows do not
-follow them across devices or browsers; Rule 6 ("database is the persistence
-source of truth") is violated for real product state.
-*Next step:* decide whether "installed" == "an `AIAgent`/`AutomationWorkflow`
-row exists for the workspace" (simplest — then `workspace-registries.ts` just
-becomes a `useQuery` over the existing list endpoints) or whether a
-`SidebarPin` / `installedAt` column is wanted. Then replace the three
-`localStorage` hooks with query hooks and delete the stopgap.
+### A5 — Sidebar registries · **FIXED (Phase 4)**
+The sidebar (`resource-sections.tsx`, `channel-nav.tsx`) already used the real
+`useAgents` / `useWorkflows` / `useIntegrations` query hooks — `WorkflowListView`
+was the single remaining consumer of the `localStorage` `workspace-registries.ts`
+(a name-colliding second `useWorkflows`). Rewritten onto
+`@org/web-automations`'s `useWorkflows` + `useWorkflowMutations`: templates now
+`POST` a real `AutomationWorkflow` with a starter React Flow graph, "Run now"
+calls the real `trigger` endpoint, loading/error/empty states added.
+`workspace-registries.ts` deleted and dropped from the `@org/hooks` barrel.
+Also fixed a related bug: `WorkflowCanvasView` now hydrates its graph from
+`?id=<workflowId>` (reusing the warm list query), so "Edit" and "Use template →
+open" actually load the workflow instead of a blank canvas; save no longer
+resets `triggerType` to `WEBHOOK` on every update.
 
 ### A6 — Channel agents/apps panel disconnected · **Medium**
 *Why it remains:* Tier-0 (stop showing fabricated content by default) is done;
@@ -319,12 +326,15 @@ endpoint under `/workspaces/:id/channels/:channelId/agents`, have
 the channel's existing message query.
 
 ### A7 — Agent Builder graph in `localStorage` · **Medium**
-*Why it remains:* needs a persistence target for the ReactFlow graph.
+*Why it remains:* `AIAgent` has no generic JSON blob to hold the ReactFlow
+graph, so this needs a Prisma migration (`AIAgent.graphJson String?`) — which
+needs a live DB / `prisma migrate` (Postgres via docker, off-limits this pass).
 *Impact:* a built agent workflow is lost on browser-data clear and invisible to
 teammates.
-*Next step:* `AIAgent` already stores config JSON — add `graphJson` (or reuse an
-existing config column) and swap `use-agent-graph.ts`'s `localStorage` read/write
-for the agent update mutation.
+*Next step:* add `AIAgent.graphJson`, accept it in the agent update DTO +
+service, add it to `@org/types` `AIAgent` + `agentsApi.update`, then swap
+`use-agent-graph.ts`'s `localStorage` read/write for the agent update mutation.
+The pattern is identical to the `WorkflowCanvasView` hydration done in A5.
 
 ### A8 — Local-disk object storage · **Medium**
 *Why it remains:* an S3/MinIO driver is a deploy-topology decision.
@@ -356,19 +366,19 @@ provider; Slack/Notion import depth.
 | Criterion | State |
 |---|---|
 | Existing features audited | ✓ this document |
-| Missing connections implemented | ~ compliance/app-version FE↔API done; A5–A8 open |
+| Missing connections implemented | ~ compliance/app-version FE↔API, A4 (email), A5 (registries) done; A6–A9 open |
 | Frontend/API/DB flows work end-to-end | ✓ for the "Working" rows above; A9 unverified |
 | Auth & permissions enforced server-side | ✓ |
 | Realtime reliable | ✓ transport + bridge solid; reconnect edge-cases not stress-tested |
 | Web/desktop synchronized | ✓ one backend, one contract |
 | Files & assets persist correctly | ✓ (local driver — A8) |
-| Notifications & unread accurate | ✓ per-user model with read state |
-| AI agents/apps connected | ~ execution real; channel/sidebar wiring open (A5/A6) |
+| Notifications & unread accurate | ✓ per-user model with read state; mailer exists, digest cron not wired |
+| AI agents/apps connected | ~ execution real; sidebar/workflow wiring done (A5); channel panel open (A6) |
 | Errors & edge cases handled | ~ AI errors propagate; UX retry/empty states good on core screens |
 | Design system preserved | ✓ compliance views brought onto real `Badge`/`StatCard`/`Page` primitives |
 | Performance addressed | ~ check-update cached; list pagination outstanding |
 | Security addressed | ✓ S1/S3/S5/S6/S7/S9/S14 closed; S8/S10–S13/S17 to re-verify |
-| Critical flows have automated tests | ~ 951 green; compliance/analytics/admin/marketplace controllers uncovered |
+| Critical flows have automated tests | ~ 964 green; compliance/analytics/admin/marketplace controllers uncovered |
 | Existing functionality not broken | ✓ full typecheck/lint/test/build green |
 | Migrations safe | ✓ forward-only, no checked-in resets |
-| No production-critical mock remains | ~ A5/A6/A7 are `localStorage` stopgaps; no fabricated data shown by default |
+| No production-critical mock remains | ~ A6/A7 are `localStorage` stopgaps; no fabricated data shown by default |

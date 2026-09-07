@@ -18,6 +18,7 @@
     "**/*.test.tsx"
   ],
   "references": [
+    { "path": "../mail/tsconfig.lib.json" },
     {
       "path": "../../shared/types/tsconfig.lib.json"
     },

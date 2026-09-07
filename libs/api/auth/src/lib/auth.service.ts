@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { expiresAt, generateToken, hashToken } from '@org/api-common';
+import { MailService, passwordResetEmail } from '@org/api-mail';
 import { PrismaService } from '@org/database';
 import {
   ApiErrorCode,
@@ -58,6 +59,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly tokens: TokenService,
     private readonly config: ConfigService,
+    private readonly mail: MailService,
   ) {}
 
   async register(
@@ -231,8 +233,17 @@ export class AuthService {
       },
     });
 
-    // TODO(phase-3): hand off to the mail transport instead of logging.
-    this.logger.log(`Password reset requested for ${input.email}`);
+    const appUrl = (
+      this.config.get<string>('APP_URL') ?? 'http://localhost:4200'
+    ).replace(/\/+$/, '');
+    const resetUrl = `${appUrl}/reset-password?token=${encodeURIComponent(token)}`;
+    const email = passwordResetEmail({ resetUrl, expiresInMinutes: 60 });
+    // Best-effort — a mail failure must not reveal whether the address exists.
+    void this.mail
+      .send({ to: input.email.trim(), ...email })
+      .catch((err) =>
+        this.logger.error('Failed to send password-reset email', err),
+      );
 
     return this.config.get('NODE_ENV') === 'production'
       ? {}

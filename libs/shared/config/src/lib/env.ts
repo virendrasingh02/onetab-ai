@@ -101,6 +101,17 @@ export const apiEnvSchema = z.object({
   TENOR_API_KEY: z.string().optional(),
   TENOR_CLIENT_KEY: z.string().default('onetab-ai'),
 
+  // Transactional email. `log` (default) renders every message to the logger —
+  // no external service, safe everywhere. `http` POSTs to `MAIL_API_URL` with a
+  // `{ from, to, subject, html, text }` JSON body (Resend / Postmark / SendGrid
+  // shape), authorised with `Bearer ${MAIL_API_KEY}`.
+  MAIL_TRANSPORT: z.enum(['log', 'http']).default('log'),
+  MAIL_FROM: z.string().default('OneTab AI <noreply@onetab.ai>'),
+  MAIL_API_URL: z.string().url().optional(),
+  MAIL_API_KEY: z.string().optional(),
+  /** Public base URL the app is served from — used to build links in emails. */
+  APP_URL: z.string().url().default('http://localhost:4200'),
+
   // Multi-App API Integration Configuration
   ENCRYPTION_KEY: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),

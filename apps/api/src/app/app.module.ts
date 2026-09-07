@@ -28,6 +28,7 @@ import { MarketplaceModule } from '@org/api-marketplace';
 import { AdminModule } from '@org/api-admin';
 import { ComplianceModule } from '@org/api-compliance';
 import { AIInfrastructureModule } from '@org/api-ai';
+import { MailModule } from '@org/api-mail';
 import { NotificationsModule } from '@org/api-notifications';
 import { RealtimeModule } from '@org/api-realtime';
 import { SearchModule } from '@org/api-search';
@@ -65,6 +66,9 @@ import { AppService } from './app.service';
     ScheduleModule.forRoot(),
     InfrastructureModule,
     PrismaModule,
+    // Global — transactional email (invites, password reset). Log transport by
+    // default; HTTP provider via MAIL_TRANSPORT=http.
+    MailModule,
     AuthModule,
     UserModule,
     WorkspaceModule,

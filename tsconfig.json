@@ -221,6 +221,9 @@
     },
     {
       "path": "./libs/shared/i18n"
+    },
+    {
+      "path": "./libs/api/mail"
     }
   ],
   "compilerOptions": {}

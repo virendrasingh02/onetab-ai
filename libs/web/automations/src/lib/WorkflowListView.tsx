@@ -1,8 +1,4 @@
-import {
-  toggleRegistryItem,
-  useWorkflows,
-  type WorkflowRegistryItem,
-} from '@org/hooks';
+import type { AutomationWorkflowDetail } from '@org/types';
 import {
   Badge,
   Button,
@@ -12,11 +8,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   EmptyState,
+  ErrorState,
+  LoadingState,
   PageSection,
   Tabs,
   TabsList,
   TabsTrigger,
+  toast,
 } from '@org/ui';
+import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Activity,
   Check,
@@ -31,31 +31,32 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useWorkflowMutations, useWorkflows } from './use-automations.js';
 
 /**
  * Kept as an alias so existing importers of `WorkflowItem` keep working. The
- * list itself now comes from the shared registry the sidebar reads, so the two
- * cannot drift.
+ * list now comes straight from the workspace's `AutomationWorkflow` rows, the
+ * same source the sidebar reads, so the two cannot drift.
  */
-export type WorkflowItem = WorkflowRegistryItem;
+export type WorkflowItem = AutomationWorkflowDetail;
 
-type TriggerType = WorkflowRegistryItem['triggerType'];
+type TriggerType = 'WEBHOOK' | 'CRON' | 'EVENT';
 
 interface WorkflowTemplate {
   id: string;
   name: string;
   description: string;
   triggerType: TriggerType;
-  /** Icon name from `ICON_REGISTRY` — the registry is persisted, so it stores a name. */
+  /** Icon name — informational only; the card resolves its own icon by trigger. */
   icon: string;
   /** The shape of the automation, in the order it runs. */
   steps: string[];
 }
 
 /**
- * The pre-built catalogue. Adding one writes a real workflow into the registry
- * — disabled and with no run history — so it shows up in the sidebar and can be
- * opened in the canvas like any other.
+ * The pre-built catalogue. "Use template" writes a real, disabled workflow into
+ * the workspace with a starter React Flow graph, so it shows up in the sidebar
+ * and opens in the canvas like any other.
  */
 const workflowTemplates: WorkflowTemplate[] = [
   {
@@ -105,52 +106,141 @@ const workflowTemplates: WorkflowTemplate[] = [
   },
 ];
 
-const TRIGGER_ICON: Record<TriggerType, typeof Webhook> = {
+const TRIGGER_ICON: Record<string, typeof Webhook> = {
   WEBHOOK: Webhook,
   CRON: Clock,
   EVENT: Zap,
 };
 
+const TRIGGER_LABEL: Record<string, string> = {
+  WEBHOOK: 'Webhook',
+  CRON: 'Cron',
+  EVENT: 'Event',
+};
+
+/**
+ * Turn a template into a React Flow graph the canvas can open: a trigger node
+ * followed by one action node per step, wired in a line.
+ */
+function templateToGraph(template: WorkflowTemplate): {
+  nodesJson: string;
+  edgesJson: string;
+} {
+  const nodes = [
+    {
+      id: 'node-trigger',
+      type: 'TRIGGER',
+      position: { x: 120, y: 80 },
+      data: { label: `${TRIGGER_LABEL[template.triggerType]} trigger`, subtitle: template.steps[0] ?? '' },
+    },
+    ...template.steps.slice(1).map((step, i) => ({
+      id: `node-step-${i}`,
+      type: 'ACTION',
+      position: { x: 120, y: 220 + i * 140 },
+      data: { label: step, subtitle: '' },
+    })),
+  ];
+  const edges = nodes.slice(0, -1).map((n, i) => ({
+    id: `edge-${i}`,
+    source: n.id,
+    target: nodes[i + 1].id,
+    animated: true,
+  }));
+  return { nodesJson: JSON.stringify(nodes), edgesJson: JSON.stringify(edges) };
+}
+
 type WorkflowTab = 'all' | 'prebuilt' | 'mine';
 
 export function WorkflowListView() {
-  const [workflows, saveWorkflows] = useWorkflows();
+  const { workspaceId } = useCurrentWorkspace();
+  const workflowsQuery = useWorkflows(workspaceId);
+  const { create, remove, trigger } = useWorkflowMutations(workspaceId);
+
+  const workflows = workflowsQuery.data ?? [];
+
   const [searchParams] = useSearchParams();
   const urlTab = searchParams.get('tab') as WorkflowTab | null;
   const [tab, setTab] = useState<WorkflowTab>(urlTab ?? 'all');
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (urlTab) {
-      setTab(urlTab);
-    }
+    if (urlTab) setTab(urlTab);
   }, [urlTab]);
 
-  /* Relative to the `automations` route, so the `/w/:workspaceSlug` prefix does
-     not have to be rebuilt here. */
-  const openBuilder = () => navigate('builder');
+  const openBuilder = (workflowId?: string) =>
+    navigate(workflowId ? `builder?id=${workflowId}` : 'builder');
+
+  const runNow = (workflow: AutomationWorkflowDetail) => {
+    trigger.mutate(
+      { workflowId: workflow.id },
+      {
+        onSuccess: () =>
+          toast.success(`Triggered "${workflow.name}"`, {
+            description: 'A run was queued — check the execution logs.',
+          }),
+        onError: () =>
+          toast.error(`Could not trigger "${workflow.name}"`),
+      },
+    );
+  };
 
   /**
-   * Adding and removing are the same action, as on the agents page: the
-   * template's id becomes the workflow's id, so a second click on a card that
-   * says "Added" takes it back out again.
+   * Adding and removing are the same action: the workflow that carries the
+   * template's name is the one a second click takes back out.
    */
   const toggleTemplate = (template: WorkflowTemplate) => {
-    saveWorkflows(
-      toggleRegistryItem(workflows, {
-        id: template.id,
+    if (!workspaceId) return;
+    const existing = workflows.find((w) => w.name === template.name);
+    if (existing) {
+      remove.mutate(existing.id, {
+        onSuccess: () => toast.info(`Removed "${template.name}"`),
+      });
+      return;
+    }
+    const graph = templateToGraph(template);
+    create.mutate(
+      {
         name: template.name,
-        icon: template.icon,
-        detail: TRIGGER_LABEL[template.triggerType],
+        description: template.description,
         triggerType: template.triggerType,
-        /* Off until someone opens it and wires up the credentials. */
-        isActive: false,
-        totalExecutions: 0,
-        lastRun: 'Never',
-      }),
+        nodesJson: graph.nodesJson,
+        edgesJson: graph.edgesJson,
+      },
+      {
+        onSuccess: (wf) => {
+          toast.success(`Added "${template.name}"`, {
+            description: 'Disabled until you open it and wire up the steps.',
+          });
+          setTab('all');
+          navigate(`builder?id=${wf.id}`);
+        },
+        onError: () => toast.error(`Could not add "${template.name}"`),
+      },
     );
-    setTab('all');
   };
+
+  if (workflowsQuery.isLoading) {
+    return (
+      <div className="min-h-0 flex flex-1 flex-col p-6">
+        <LoadingState label="Loading automations…" />
+      </div>
+    );
+  }
+
+  if (workflowsQuery.isError) {
+    return (
+      <div className="min-h-0 flex flex-1 flex-col p-6">
+        <ErrorState
+          title="Couldn’t load automations"
+          description="The workflow list failed to load."
+          onRetry={() => workflowsQuery.refetch()}
+        />
+      </div>
+    );
+  }
+
+  const templateIsAdded = (template: WorkflowTemplate) =>
+    workflows.some((w) => w.name === template.name);
 
   return (
     <div className="min-h-0 flex flex-1 flex-col">
@@ -173,17 +263,11 @@ export function WorkflowListView() {
                 {workflows.length} workflows
               </Badge>
             </div>
-
-            {/* <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
-
-            <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
-              Workflows that run on triggers, schedules, webhooks, and events
-            </p> */}
           </div>
 
           <div className="gap-2 flex items-center">
             <Button
-              onClick={openBuilder}
+              onClick={() => openBuilder()}
               size="sm"
               className="h-7 text-xs gap-1"
               leadingIcon={<Plus className="size-3.5" />}
@@ -204,7 +288,7 @@ export function WorkflowListView() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem
-                  onSelect={openBuilder}
+                  onSelect={() => openBuilder()}
                   className="gap-2 text-xs"
                 >
                   <Plus className="size-3.5 text-muted-foreground" />
@@ -255,7 +339,9 @@ export function WorkflowListView() {
                       <li key={workflow.id}>
                         <SavedWorkflowCard
                           workflow={workflow}
-                          onOpen={openBuilder}
+                          onOpen={() => openBuilder(workflow.id)}
+                          onRun={() => runNow(workflow)}
+                          running={trigger.isPending}
                         />
                       </li>
                     ))}
@@ -269,9 +355,8 @@ export function WorkflowListView() {
                     <li key={template.id}>
                       <TemplateCard
                         template={template}
-                        added={workflows.some(
-                          (entry) => entry.id === template.id,
-                        )}
+                        added={templateIsAdded(template)}
+                        busy={create.isPending || remove.isPending}
                         onToggle={() => toggleTemplate(template)}
                       />
                     </li>
@@ -286,7 +371,7 @@ export function WorkflowListView() {
                 title="No workflows yet"
                 description="Build one on the canvas, or add a pre-built automation and edit it from there."
                 action={
-                  <Button leadingIcon={<Plus />} onClick={openBuilder}>
+                  <Button leadingIcon={<Plus />} onClick={() => openBuilder()}>
                     Create workflow
                   </Button>
                 }
@@ -302,7 +387,9 @@ export function WorkflowListView() {
                   <li key={workflow.id}>
                     <SavedWorkflowCard
                       workflow={workflow}
-                      onOpen={openBuilder}
+                      onOpen={() => openBuilder(workflow.id)}
+                      onRun={() => runNow(workflow)}
+                      running={trigger.isPending}
                     />
                   </li>
                 ))}
@@ -314,7 +401,8 @@ export function WorkflowListView() {
                 <li key={template.id}>
                   <TemplateCard
                     template={template}
-                    added={workflows.some((entry) => entry.id === template.id)}
+                    added={templateIsAdded(template)}
+                    busy={create.isPending || remove.isPending}
                     onToggle={() => toggleTemplate(template)}
                   />
                 </li>
@@ -329,20 +417,18 @@ export function WorkflowListView() {
 
 /* --------------------------------------------------------------- parts ---- */
 
-const TRIGGER_LABEL: Record<TriggerType, string> = {
-  WEBHOOK: 'Webhook',
-  CRON: 'Cron',
-  EVENT: 'Event',
-};
-
 function SavedWorkflowCard({
   workflow,
   onOpen,
+  onRun,
+  running,
 }: {
-  workflow: WorkflowRegistryItem;
+  workflow: AutomationWorkflowDetail;
   onOpen: () => void;
+  onRun: () => void;
+  running: boolean;
 }) {
-  const TriggerIcon = TRIGGER_ICON[workflow.triggerType];
+  const TriggerIcon = TRIGGER_ICON[workflow.triggerType] ?? Zap;
 
   return (
     <Card className="p-5 h-full justify-between transition-colors duration-(--duration-fast) hover:border-border-strong">
@@ -365,12 +451,14 @@ function SavedWorkflowCard({
           <div className="gap-1 flex">
             <dt>Runs:</dt>
             <dd className="font-medium text-foreground tabular-nums">
-              {workflow.totalExecutions}
+              {workflow._count?.executions ?? 0}
             </dd>
           </div>
           <div className="gap-1 flex">
-            <dt>Last run:</dt>
-            <dd className="font-medium text-foreground">{workflow.lastRun}</dd>
+            <dt>Updated:</dt>
+            <dd className="font-medium text-foreground">
+              {new Date(workflow.updatedAt).toLocaleDateString()}
+            </dd>
           </div>
         </dl>
       </div>
@@ -380,6 +468,8 @@ function SavedWorkflowCard({
           variant="secondary"
           size="sm"
           className="flex-1"
+          onClick={onRun}
+          disabled={running}
           leadingIcon={<Play className="text-success" />}
         >
           Run now
@@ -402,10 +492,12 @@ function SavedWorkflowCard({
 function TemplateCard({
   template,
   added,
+  busy,
   onToggle,
 }: {
   template: WorkflowTemplate;
   added: boolean;
+  busy: boolean;
   onToggle: () => void;
 }) {
   const TriggerIcon = TRIGGER_ICON[template.triggerType];
@@ -451,6 +543,7 @@ function TemplateCard({
         size="sm"
         className="w-full"
         onClick={onToggle}
+        disabled={busy}
         leadingIcon={added ? <Check className="text-success" /> : <Plus />}
       >
         {added ? 'Added' : 'Use template'}
