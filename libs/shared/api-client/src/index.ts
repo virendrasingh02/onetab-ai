@@ -34,6 +34,7 @@ export {
   workToolsApi,
   workspaceApi,
   billingApi,
+  complianceApi,
   type AuthResponse,
   type UpdateUploadParams,
   type UploadContextParams,

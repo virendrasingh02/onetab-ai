@@ -74,16 +74,19 @@
       "path": "../../libs/api/search/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/api/gifs/tsconfig.lib.json"
-    },
-    {
       "path": "../../libs/api/realtime/tsconfig.lib.json"
     },
     {
       "path": "../../libs/api/notifications/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/api/gifs/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/api/ai/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/api/compliance/tsconfig.lib.json"
     },
     {
       "path": "../../libs/api/admin/tsconfig.lib.json"

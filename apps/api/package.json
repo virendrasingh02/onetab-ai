@@ -89,6 +89,7 @@
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/throttler": "^6.5.0",
     "@org/api-admin": "*",
+    "@org/api-compliance": "*",
     "@org/api-ai": "*",
     "@org/api-gifs": "*",
     "@org/api-notifications": "*",

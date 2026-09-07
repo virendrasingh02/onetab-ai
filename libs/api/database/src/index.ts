@@ -34,6 +34,14 @@ export {
   MeetingStatus,
   MeetingParticipantRole,
   MeetingRsvp,
+  CompliancePlatformType,
+  ComplianceSeverity,
+  ComplianceCategory,
+  ComplianceChecklistStatus,
+  ComplianceReviewStatus,
+  ComplianceIssueStatus,
+  ComplianceIssueSource,
+  CompliancePolicyStatus,
 } from './generated/client.js';
 
 export type {
@@ -91,4 +99,20 @@ export type {
   AnalyticsEvent,
   RecentActivity,
   Notification,
+  ComplianceRegion,
+  ComplianceCountry,
+  CompliancePlatform,
+  ComplianceDistribution,
+  ComplianceAppVersion,
+  CompliancePolicy,
+  ComplianceRequirement,
+  ComplianceRequirementScope,
+  ComplianceReview,
+  ComplianceChecklistItem,
+  ComplianceIssue,
+  ComplianceEvidence,
+  ComplianceReleaseOverride,
+  ComplianceAuditLog,
+  ComplianceLegalLink,
 } from './generated/client.js';
+

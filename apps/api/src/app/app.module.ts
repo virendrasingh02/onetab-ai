@@ -26,6 +26,7 @@ import { IntegrationsModule } from '@org/api-integrations';
 import { AnalyticsModule } from '@org/api-analytics';
 import { MarketplaceModule } from '@org/api-marketplace';
 import { AdminModule } from '@org/api-admin';
+import { ComplianceModule } from '@org/api-compliance';
 import { AIInfrastructureModule } from '@org/api-ai';
 import { NotificationsModule } from '@org/api-notifications';
 import { RealtimeModule } from '@org/api-realtime';
@@ -78,6 +79,7 @@ import { AppService } from './app.service';
     AnalyticsModule,
     MarketplaceModule,
     AdminModule,
+    ComplianceModule,
     AIInfrastructureModule,
     NotificationsModule,
     RealtimeModule,

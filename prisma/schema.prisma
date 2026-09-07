@@ -67,6 +67,12 @@ model User {
   meetingDecisions        MeetingDecision[]
   twoFactorAuth           TwoFactorAuth?
   webAuthnCredentials     WebAuthnCredential[]
+  complianceReviews       ComplianceReview[]       @relation("ComplianceReviewer")
+  assignedChecklistItems  ComplianceChecklistItem[] @relation("ChecklistAssignee")
+  verifiedChecklistItems  ComplianceChecklistItem[] @relation("ChecklistVerifier")
+  assignedComplianceIssues ComplianceIssue[]       @relation("IssueAssignee")
+  complianceEvidence      ComplianceEvidence[]
+  complianceOverrides     ComplianceReleaseOverride[]
 
   @@index([presence, lastSeenAt])
   @@map("users")
@@ -1890,3 +1896,404 @@ enum IntakeSource {
   SLACK
   AI_AGENT
 }
+
+// -----------------------------------------------------------------------------
+// Compliance & App Store Management
+// -----------------------------------------------------------------------------
+
+enum CompliancePlatformType {
+  WEB
+  DESKTOP
+  MOBILE
+}
+
+enum ComplianceSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFORMATIONAL
+}
+
+enum ComplianceCategory {
+  PRIVACY
+  DATA_COLLECTION
+  USER_CONSENT
+  ACCOUNT_DELETION
+  AUTHENTICATION
+  PAYMENTS
+  CONTENT_MODERATION
+  SECURITY
+  PERMISSIONS
+  NOTIFICATIONS
+  TRACKING_ADVERTISING
+  AGE_RATING
+  METADATA_ASSETS
+  LEGAL_TERMS
+  REGIONAL_LEGAL
+  EXPORT_COMPLIANCE
+}
+
+enum ComplianceChecklistStatus {
+  PASSED
+  FAILED
+  WARNING
+  SKIPPED
+  NOT_APPLICABLE
+}
+
+enum ComplianceReviewStatus {
+  IN_PROGRESS
+  READY_FOR_SUBMISSION
+  BLOCKED
+  APPROVED
+  RELEASED
+}
+
+enum ComplianceIssueStatus {
+  OPEN
+  INVESTIGATING
+  FIX_REQUIRED
+  IN_PROGRESS
+  READY_FOR_RESUBMISSION
+  SUBMITTED
+  RESOLVED
+  ACCEPTED
+  WONT_FIX
+}
+
+enum ComplianceIssueSource {
+  STORE_REVIEW
+  INTERNAL_AUDIT
+  AUTOMATED_SCAN
+  REGULATORY_NOTICE
+}
+
+enum CompliancePolicyStatus {
+  DRAFT
+  ACTIVE
+  UNDER_REVIEW
+  DEPRECATED
+}
+
+model ComplianceRegion {
+  id          String                     @id @default(cuid())
+  code        String                     @unique
+  name        String
+  description String?
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+  countries   ComplianceCountry[]
+  scopes      ComplianceRequirementScope[]
+
+  @@map("compliance_regions")
+}
+
+model ComplianceCountry {
+  id          String                     @id @default(cuid())
+  code        String                     @unique
+  name        String
+  regionId    String
+  region      ComplianceRegion           @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+  scopes      ComplianceRequirementScope[]
+  reviews     ComplianceReview[]
+  issues      ComplianceIssue[]
+  legalLinks  ComplianceLegalLink[]
+
+  @@index([regionId])
+  @@map("compliance_countries")
+}
+
+model CompliancePlatform {
+  id                  String                     @id @default(cuid())
+  code                String                     @unique
+  name                String
+  type                CompliancePlatformType     @default(DESKTOP)
+  currentVersion      String                     @default("1.0.0")
+  minSupportedVersion String                     @default("1.0.0")
+  isActive            Boolean                    @default(true)
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+  distributions       ComplianceDistribution[]
+  versions            ComplianceAppVersion[]
+  scopes              ComplianceRequirementScope[]
+  reviews             ComplianceReview[]
+  issues              ComplianceIssue[]
+  legalLinks          ComplianceLegalLink[]
+
+  @@map("compliance_platforms")
+}
+
+model ComplianceDistribution {
+  id          String                     @id @default(cuid())
+  code        String                     @unique
+  name        String
+  platformId  String
+  platform    CompliancePlatform         @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  isActive    Boolean                    @default(true)
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+  scopes      ComplianceRequirementScope[]
+  reviews     ComplianceReview[]
+
+  @@index([platformId])
+  @@map("compliance_distributions")
+}
+
+model ComplianceAppVersion {
+  id          String                 @id @default(cuid())
+  platformId  String
+  platform    CompliancePlatform     @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  version     String
+  releaseDate DateTime?
+  status      ComplianceReviewStatus @default(IN_PROGRESS)
+  isCurrent   Boolean                @default(false)
+  changelog   String?
+  metadata    String                 @default("{}")
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  reviews     ComplianceReview[]
+  issues      ComplianceIssue[]
+
+  @@unique([platformId, version])
+  @@index([platformId, status])
+  @@map("compliance_app_versions")
+}
+
+model CompliancePolicy {
+  id                  String                 @id @default(cuid())
+  code                String                 @unique
+  name                String
+  description         String?
+  version             String                 @default("1.0.0")
+  effectiveDate       DateTime               @default(now())
+  reviewDate          DateTime?
+  status              CompliancePolicyStatus @default(ACTIVE)
+  externalGuidelineRef String?
+  externalGuidelineUrl String?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  requirements        ComplianceRequirement[]
+
+  @@map("compliance_policies")
+}
+
+model ComplianceRequirement {
+  id               String                       @id @default(cuid())
+  policyId         String?
+  policy           CompliancePolicy?            @relation(fields: [policyId], references: [id], onDelete: SetNull)
+  code             String                       @unique
+  title            String
+  description      String
+  category         ComplianceCategory
+  severity         ComplianceSeverity           @default(MEDIUM)
+  isBlocking       Boolean                      @default(false)
+  defaultStatus    ComplianceChecklistStatus    @default(WARNING)
+  remediationGuide String?
+  externalUrl      String?
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
+  scopes           ComplianceRequirementScope[]
+  checklistItems   ComplianceChecklistItem[]
+  issues           ComplianceIssue[]
+  evidence         ComplianceEvidence[]
+
+  @@index([category, severity])
+  @@index([policyId])
+  @@map("compliance_requirements")
+}
+
+model ComplianceRequirementScope {
+  id               String                 @id @default(cuid())
+  requirementId    String
+  requirement      ComplianceRequirement  @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  countryId        String?
+  country          ComplianceCountry?     @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  regionId         String?
+  region           ComplianceRegion?      @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  platformId       String?
+  platform         CompliancePlatform?    @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  distributionId   String?
+  distribution     ComplianceDistribution? @relation(fields: [distributionId], references: [id], onDelete: Cascade)
+  minVersion       String?
+  maxVersion       String?
+  isExcluded       Boolean                @default(false)
+  overrideSeverity ComplianceSeverity?
+  overrideNotes    String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  @@index([requirementId])
+  @@index([countryId])
+  @@index([regionId])
+  @@index([platformId])
+  @@index([distributionId])
+  @@map("compliance_requirement_scopes")
+}
+
+model ComplianceReview {
+  id             String                      @id @default(cuid())
+  appVersionId   String
+  appVersion     ComplianceAppVersion        @relation(fields: [appVersionId], references: [id], onDelete: Cascade)
+  platformId     String
+  platform       CompliancePlatform          @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  distributionId String?
+  distribution   ComplianceDistribution?     @relation(fields: [distributionId], references: [id], onDelete: SetNull)
+  countryId      String?
+  country        ComplianceCountry?          @relation(fields: [countryId], references: [id], onDelete: SetNull)
+  status         ComplianceReviewStatus      @default(IN_PROGRESS)
+  overallScore   Float                       @default(0)
+  passedCount    Int                         @default(0)
+  failedCount    Int                         @default(0)
+  warningCount   Int                         @default(0)
+  blockedCount   Int                         @default(0)
+  totalCount     Int                         @default(0)
+  summary        String?
+  reviewerNotes  String?
+  submittedAt    DateTime?
+  reviewedAt     DateTime?
+  reviewerId     String?
+  reviewer       User?                       @relation("ComplianceReviewer", fields: [reviewerId], references: [id])
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+  checklistItems ComplianceChecklistItem[]
+  overrides      ComplianceReleaseOverride[]
+
+  @@index([appVersionId])
+  @@index([platformId, status])
+  @@map("compliance_reviews")
+}
+
+model ComplianceChecklistItem {
+  id            String                    @id @default(cuid())
+  reviewId      String
+  review        ComplianceReview          @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  requirementId String
+  requirement   ComplianceRequirement     @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  status        ComplianceChecklistStatus @default(WARNING)
+  notes         String?
+  assignedToId  String?
+  assignedTo    User?                     @relation("ChecklistAssignee", fields: [assignedToId], references: [id])
+  dueDate       DateTime?
+  verifiedAt    DateTime?
+  verifiedById  String?
+  verifiedBy    User?                     @relation("ChecklistVerifier", fields: [verifiedById], references: [id])
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+  evidence      ComplianceEvidence[]
+
+  @@unique([reviewId, requirementId])
+  @@index([reviewId, status])
+  @@map("compliance_checklist_items")
+}
+
+model ComplianceIssue {
+  id            String                @id @default(cuid())
+  title         String
+  description   String
+  category      ComplianceCategory
+  severity      ComplianceSeverity    @default(HIGH)
+  status        ComplianceIssueStatus @default(OPEN)
+  source        ComplianceIssueSource @default(INTERNAL_AUDIT)
+  reviewerNotes String?
+  remediation   String?
+  resolution    String?
+  appVersionId  String?
+  appVersion    ComplianceAppVersion? @relation(fields: [appVersionId], references: [id], onDelete: SetNull)
+  platformId    String?
+  platform      CompliancePlatform?   @relation(fields: [platformId], references: [id], onDelete: SetNull)
+  countryId     String?
+  country       ComplianceCountry?    @relation(fields: [countryId], references: [id], onDelete: SetNull)
+  requirementId String?
+  requirement   ComplianceRequirement? @relation(fields: [requirementId], references: [id], onDelete: SetNull)
+  reportedAt    DateTime              @default(now())
+  resolvedAt    DateTime?
+  assigneeId    String?
+  assignee      User?                 @relation("IssueAssignee", fields: [assigneeId], references: [id])
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  evidence      ComplianceEvidence[]
+
+  @@index([status, severity])
+  @@index([platformId, appVersionId])
+  @@map("compliance_issues")
+}
+
+model ComplianceEvidence {
+  id              String                   @id @default(cuid())
+  title           String
+  type            String                   @default("DOCUMENT")
+  url             String
+  description     String?
+  requirementId   String?
+  requirement     ComplianceRequirement?   @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  checklistItemId String?
+  checklistItem   ComplianceChecklistItem? @relation(fields: [checklistItemId], references: [id], onDelete: Cascade)
+  issueId         String?
+  issue           ComplianceIssue?         @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  uploadedById    String?
+  uploadedBy      User?                    @relation(fields: [uploadedById], references: [id])
+  createdAt       DateTime                 @default(now())
+
+  @@index([requirementId])
+  @@index([checklistItemId])
+  @@index([issueId])
+  @@map("compliance_evidence")
+}
+
+model ComplianceReleaseOverride {
+  id               String                 @id @default(cuid())
+  reviewId         String
+  review           ComplianceReview       @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  adminId          String
+  admin            User                   @relation(fields: [adminId], references: [id])
+  reason           String
+  previousStatus   ComplianceReviewStatus
+  newStatus        ComplianceReviewStatus
+  overriddenIssues String                 @default("[]")
+  createdAt        DateTime               @default(now())
+
+  @@index([reviewId])
+  @@map("compliance_release_overrides")
+}
+
+model ComplianceAuditLog {
+  id            String   @id @default(cuid())
+  actorId       String?
+  actorEmail    String
+  action        String
+  targetType    String
+  targetId      String?
+  previousValue String?
+  newValue      String?
+  platform      String?
+  country       String?
+  version       String?
+  reason        String?
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([targetType, targetId])
+  @@map("compliance_audit_logs")
+}
+
+model ComplianceLegalLink {
+  id              String              @id @default(cuid())
+  key             String
+  title           String
+  url             String
+  contentMarkdown String?
+  countryCode     String?
+  country         ComplianceCountry?  @relation(fields: [countryCode], references: [code], onDelete: SetNull)
+  platformCode    String?
+  platform        CompliancePlatform? @relation(fields: [platformCode], references: [code], onDelete: SetNull)
+  lastVerifiedAt  DateTime            @default(now())
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@unique([key, countryCode, platformCode])
+  @@map("compliance_legal_links")
+}
+

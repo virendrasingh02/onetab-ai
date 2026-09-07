@@ -89,3 +89,41 @@ export function permissionsForRole(
   if (!role) return [];
   return ROLE_PERMISSIONS[role] ?? [];
 }
+
+/**
+ * Platform administration compliance permissions.
+ */
+export const CompliancePermission = {
+  VIEW: 'compliance.view',
+  MANAGE: 'compliance.manage',
+  REQUIREMENTS_MANAGE: 'compliance.requirements.manage',
+  ISSUES_MANAGE: 'compliance.issues.manage',
+  REVIEW: 'compliance.review',
+  OVERRIDE: 'compliance.override',
+  AUDIT_VIEW: 'compliance.audit.view',
+} as const;
+export type CompliancePermission =
+  (typeof CompliancePermission)[keyof typeof CompliancePermission];
+
+export const COMPLIANCE_PERMISSIONS: readonly CompliancePermission[] =
+  Object.values(CompliancePermission);
+
+export const SYSTEM_ROLE_COMPLIANCE_PERMISSIONS: Readonly<
+  Record<string, readonly CompliancePermission[]>
+> = {
+  SUPERADMIN: COMPLIANCE_PERMISSIONS,
+  SUPPORT: [CompliancePermission.VIEW, CompliancePermission.AUDIT_VIEW],
+  USER: [],
+};
+
+export function systemRoleHasCompliancePermission(
+  systemRole: string | undefined,
+  permission: CompliancePermission,
+): boolean {
+  if (!systemRole) return false;
+  return (
+    SYSTEM_ROLE_COMPLIANCE_PERMISSIONS[systemRole]?.includes(permission) ??
+    false
+  );
+}
+

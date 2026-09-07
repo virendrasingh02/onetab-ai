@@ -212,6 +212,12 @@
     },
     {
       "path": "./libs/api/gifs"
+    },
+    {
+      "path": "./libs/api/compliance"
+    },
+    {
+      "path": "./libs/admin/compliance"
     }
   ],
   "compilerOptions": {}

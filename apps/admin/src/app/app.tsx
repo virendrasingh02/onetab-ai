@@ -75,6 +75,52 @@ const CommunityTemplatesView = lazy(() =>
   })),
 );
 
+const ComplianceDashboardView = lazy(() =>
+  import('@org/admin-compliance').then((m) => ({
+    default: m.ComplianceDashboardView,
+  })),
+);
+const CompliancePlatformsView = lazy(() =>
+  import('@org/admin-compliance').then((m) => ({
+    default: m.PlatformsView,
+  })),
+);
+const ComplianceCountriesView = lazy(() =>
+  import('@org/admin-compliance').then((m) => ({
+    default: m.CountriesView,
+  })),
+);
+const ComplianceRequirementsView = lazy(() =>
+  import('@org/admin-compliance').then((m) => ({
+    default: m.RequirementsView,
+  })),
+);
+const ComplianceChecklistView = lazy(() =>
+  import('@org/admin-compliance').then((m) => ({
+    default: m.ChecklistView,
+  })),
+);
+const ComplianceIssuesView = lazy(() =>
+  import('@org/admin-compliance').then((m) => ({
+    default: m.IssuesView,
+  })),
+);
+const ComplianceVersionsView = lazy(() =>
+  import('@org/admin-compliance').then((m) => ({
+    default: m.VersionsView,
+  })),
+);
+const ComplianceLegalLinksView = lazy(() =>
+  import('@org/admin-compliance').then((m) => ({
+    default: m.LegalLinksView,
+  })),
+);
+const ComplianceAuditLogView = lazy(() =>
+  import('@org/admin-compliance').then((m) => ({
+    default: m.AuditLogView,
+  })),
+);
+
 function NotFoundPage() {
   return (
     <div className="p-6 grid min-h-dvh place-items-center">
@@ -107,6 +153,40 @@ export function App() {
           <Route path="/enterprise" element={<EnterpriseDashboardView />} />
           <Route path="/enterprise/sso" element={<SSOConfigView />} />
           <Route path="/enterprise/audit-logs" element={<AuditLogView />} />
+
+          <Route path="/compliance" element={<ComplianceDashboardView />} />
+          <Route
+            path="/compliance/platforms"
+            element={<CompliancePlatformsView />}
+          />
+          <Route
+            path="/compliance/countries"
+            element={<ComplianceCountriesView />}
+          />
+          <Route
+            path="/compliance/requirements"
+            element={<ComplianceRequirementsView />}
+          />
+          <Route
+            path="/compliance/checklist"
+            element={<ComplianceChecklistView />}
+          />
+          <Route
+            path="/compliance/issues"
+            element={<ComplianceIssuesView />}
+          />
+          <Route
+            path="/compliance/versions"
+            element={<ComplianceVersionsView />}
+          />
+          <Route
+            path="/compliance/legal"
+            element={<ComplianceLegalLinksView />}
+          />
+          <Route
+            path="/compliance/audit-logs"
+            element={<ComplianceAuditLogView />}
+          />
 
           <Route path="/marketplace" element={<MarketplaceHomeView />} />
           <Route path="/marketplace/plugins" element={<PluginSDKView />} />

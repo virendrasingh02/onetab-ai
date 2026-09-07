@@ -58,6 +58,26 @@ import type {
   Invitation,
   InvitationPublicPreview,
   InviteBatchResult,
+  ComplianceOverview,
+  CompliancePlatformView,
+  ComplianceRegionView,
+  ComplianceCountryView,
+  ComplianceRequirementView,
+  ComplianceChecklistItemView,
+  ComplianceReviewView,
+  ComplianceIssueView,
+  ComplianceEvidenceView,
+  ComplianceReleaseOverrideView,
+  ComplianceAuditLogView,
+  ComplianceLegalLinkView,
+  CompliancePolicyView,
+  ComplianceAppVersionView,
+  ComplianceEvaluationContext,
+  ComplianceEvaluationResult,
+  ComplianceReadinessScore,
+  ComplianceChecklistStatus,
+  ComplianceReviewStatus,
+
   MarketplaceBrowseParams,
   MarketplaceCategoryCount,
   MarketplaceInstallation,
@@ -2493,4 +2513,260 @@ export const realtimeApi = {
       http.get(`/workspaces/${workspaceId}/presence`),
     ),
 };
+
+/** Admin Compliance & App Store Management endpoints. */
+export const complianceApi = {
+  overview: () =>
+    request<ComplianceOverview>(http.get('/admin/compliance/overview')),
+
+  platforms: () =>
+    request<CompliancePlatformView[]>(http.get('/admin/compliance/platforms')),
+
+  createPlatform: (data: {
+    code: string;
+    name: string;
+    type?: string;
+    currentVersion?: string;
+    minSupportedVersion?: string;
+  }) => request<CompliancePlatformView>(http.post('/admin/compliance/platforms', data)),
+
+  updatePlatform: (
+    id: string,
+    data: {
+      name?: string;
+      currentVersion?: string;
+      minSupportedVersion?: string;
+      isActive?: boolean;
+    },
+  ) => request<CompliancePlatformView>(http.patch(`/admin/compliance/platforms/${id}`, data)),
+
+  regions: () =>
+    request<ComplianceRegionView[]>(http.get('/admin/compliance/regions')),
+
+  countries: (regionId?: string) =>
+    request<ComplianceCountryView[]>(
+      http.get('/admin/compliance/countries', { params: { regionId } }),
+    ),
+
+  requirements: (params?: {
+    category?: string;
+    severity?: string;
+    platform?: string;
+    country?: string;
+    search?: string;
+  }) =>
+    request<ComplianceRequirementView[]>(
+      http.get('/admin/compliance/requirements', { params }),
+    ),
+
+  createRequirement: (data: {
+    code: string;
+    title: string;
+    description: string;
+    category: string;
+    severity: string;
+    isBlocking?: boolean;
+    remediationGuide?: string;
+    externalUrl?: string;
+    scopes?: Array<{
+      countryCode?: string;
+      regionCode?: string;
+      platformCode?: string;
+      distributionCode?: string;
+      minVersion?: string;
+      maxVersion?: string;
+      isExcluded?: boolean;
+    }>;
+  }) =>
+    request<ComplianceRequirementView>(
+      http.post('/admin/compliance/requirements', data),
+    ),
+
+  updateRequirement: (
+    id: string,
+    data: Partial<{
+      title: string;
+      description: string;
+      category: string;
+      severity: string;
+      isBlocking: boolean;
+      remediationGuide: string;
+      externalUrl: string;
+    }>,
+  ) =>
+    request<ComplianceRequirementView>(
+      http.patch(`/admin/compliance/requirements/${id}`, data),
+    ),
+
+  deleteRequirement: (id: string) =>
+    request<void>(http.delete(`/admin/compliance/requirements/${id}`)),
+
+  policies: () =>
+    request<CompliancePolicyView[]>(http.get('/admin/compliance/policies')),
+
+  createPolicy: (data: {
+    code: string;
+    name: string;
+    description?: string;
+    version?: string;
+    effectiveDate?: string;
+    externalGuidelineRef?: string;
+    externalGuidelineUrl?: string;
+  }) =>
+    request<CompliancePolicyView>(
+      http.post('/admin/compliance/policies', data),
+    ),
+
+  versions: (platformId?: string) =>
+    request<ComplianceAppVersionView[]>(
+      http.get('/admin/compliance/versions', { params: { platformId } }),
+    ),
+
+  createVersion: (data: {
+    platformId: string;
+    version: string;
+    releaseDate?: string;
+    changelog?: string;
+    isCurrent?: boolean;
+  }) =>
+    request<ComplianceAppVersionView>(
+      http.post('/admin/compliance/versions', data),
+    ),
+
+  evaluate: (context: ComplianceEvaluationContext) =>
+    request<ComplianceEvaluationResult>(
+      http.post('/admin/compliance/evaluate', context),
+    ),
+
+  reviews: (params?: { platformId?: string; status?: string }) =>
+    request<ComplianceReviewView[]>(
+      http.get('/admin/compliance/reviews', { params }),
+    ),
+
+  getReview: (reviewId: string) =>
+    request<ComplianceReviewView>(
+      http.get(`/admin/compliance/reviews/${reviewId}`),
+    ),
+
+  createReview: (data: {
+    appVersionId: string;
+    platformId: string;
+    distributionId?: string;
+    countryId?: string;
+    summary?: string;
+  }) =>
+    request<ComplianceReviewView>(
+      http.post('/admin/compliance/reviews', data),
+    ),
+
+  checklist: (reviewId: string) =>
+    request<ComplianceChecklistItemView[]>(
+      http.get(`/admin/compliance/reviews/${reviewId}/checklist`),
+    ),
+
+  updateChecklistItem: (
+    itemId: string,
+    data: {
+      status: ComplianceChecklistStatus;
+      notes?: string;
+    },
+  ) =>
+    request<ComplianceChecklistItemView>(
+      http.patch(`/admin/compliance/checklist/${itemId}`, data),
+    ),
+
+  issues: (params?: {
+    status?: string;
+    severity?: string;
+    platformId?: string;
+    countryId?: string;
+    q?: string;
+  }) =>
+    request<ComplianceIssueView[]>(
+      http.get('/admin/compliance/issues', { params }),
+    ),
+
+  createIssue: (data: {
+    title: string;
+    description: string;
+    category: string;
+    severity: string;
+    source?: string;
+    reviewerNotes?: string;
+    remediation?: string;
+    appVersionId?: string;
+    platformId?: string;
+    countryId?: string;
+    requirementId?: string;
+  }) =>
+    request<ComplianceIssueView>(http.post('/admin/compliance/issues', data)),
+
+  updateIssue: (
+    id: string,
+    data: {
+      status?: string;
+      remediation?: string;
+      resolution?: string;
+      reviewerNotes?: string;
+      severity?: string;
+    },
+  ) =>
+    request<ComplianceIssueView>(
+      http.patch(`/admin/compliance/issues/${id}`, data),
+    ),
+
+  addEvidence: (data: {
+    title: string;
+    type?: string;
+    url: string;
+    description?: string;
+    requirementId?: string;
+    checklistItemId?: string;
+    issueId?: string;
+  }) =>
+    request<ComplianceEvidenceView>(
+      http.post('/admin/compliance/evidence', data),
+    ),
+
+  releaseGate: (reviewId: string) =>
+    request<{
+      isBlocked: boolean;
+      reasons: string[];
+      readinessScore: ComplianceReadinessScore;
+    }>(http.get(`/admin/compliance/reviews/${reviewId}/release-gate`)),
+
+  overrideRelease: (
+    reviewId: string,
+    data: {
+      reason: string;
+      newStatus: ComplianceReviewStatus;
+    },
+  ) =>
+    request<ComplianceReleaseOverrideView>(
+      http.post(`/admin/compliance/reviews/${reviewId}/override`, data),
+    ),
+
+  legalLinks: () =>
+    request<ComplianceLegalLinkView[]>(
+      http.get('/admin/compliance/legal-links'),
+    ),
+
+  updateLegalLink: (data: {
+    key: string;
+    title: string;
+    url: string;
+    contentMarkdown?: string;
+    countryCode?: string;
+    platformCode?: string;
+  }) =>
+    request<ComplianceLegalLinkView>(
+      http.put('/admin/compliance/legal-links', data),
+    ),
+
+  auditLogs: (params: { page?: number; pageSize?: number } = {}) =>
+    request<AdminPage<ComplianceAuditLogView>>(
+      http.get('/admin/compliance/audit-logs', { params }),
+    ),
+};
+
 

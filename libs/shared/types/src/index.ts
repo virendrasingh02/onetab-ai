@@ -211,4 +211,11 @@ export * from './lib/marketplace.js';
 export * from './lib/integrations.js';
 export * from './lib/plans.js';
 export * from './lib/billing.js';
+export * from './lib/compliance.js';
+export {
+  CompliancePermission,
+  COMPLIANCE_PERMISSIONS,
+  SYSTEM_ROLE_COMPLIANCE_PERMISSIONS,
+  systemRoleHasCompliancePermission,
+} from './lib/permissions.js';
 

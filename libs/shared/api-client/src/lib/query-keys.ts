@@ -261,4 +261,29 @@ export const queryKeys = {
     all: () => ['realtime'] as const,
     presence: (workspaceId: string) => ['realtime', 'presence', workspaceId] as const,
   },
+  compliance: {
+    all: () => ['compliance'] as const,
+    overview: () => ['compliance', 'overview'] as const,
+    platforms: () => ['compliance', 'platforms'] as const,
+    regions: () => ['compliance', 'regions'] as const,
+    countries: (regionId?: string) =>
+      ['compliance', 'countries', regionId ?? 'all'] as const,
+    requirements: (filters?: Record<string, unknown>) =>
+      ['compliance', 'requirements', filters ?? {}] as const,
+    policies: () => ['compliance', 'policies'] as const,
+    versions: (platformId?: string) =>
+      ['compliance', 'versions', platformId ?? 'all'] as const,
+    reviews: (filters?: Record<string, unknown>) =>
+      ['compliance', 'reviews', filters ?? {}] as const,
+    review: (reviewId: string) =>
+      ['compliance', 'reviews', reviewId] as const,
+    checklist: (reviewId: string) =>
+      ['compliance', 'checklist', reviewId] as const,
+    issues: (filters?: Record<string, unknown>) =>
+      ['compliance', 'issues', filters ?? {}] as const,
+    legalLinks: () => ['compliance', 'legal-links'] as const,
+    auditLogs: (page = 1, filters?: Record<string, unknown>) =>
+      ['compliance', 'audit-logs', page, filters ?? {}] as const,
+  },
 } as const;
+
