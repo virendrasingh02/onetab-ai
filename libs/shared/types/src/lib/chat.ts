@@ -147,6 +147,14 @@ export interface Message {
   decryptionError?: string;
   /** Optional structured application event (AI Agent card, App card, Approval, Form, Workflow, etc.) */
   structuredEvent?: StructuredChatMessage;
+  /**
+   * True when this message triggers a highlight push rule for the logged-in
+   * user — a direct `@mention`, a `@room` / `@channel` broadcast, or a keyword.
+   * Derived from Matrix push rules, not from scanning the body, so it means
+   * "this names me" rather than "this contains an @". Undefined until the
+   * client has synced its push rules.
+   */
+  isMention?: boolean;
 }
 
 // --- structured chat events (AI Agents, Apps, Approvals, Forms, Workflows) ---
@@ -545,6 +553,21 @@ export interface PushRegistration {
 export interface NotificationCounts {
   total: number;
   highlight: number;
+}
+
+/**
+ * One unread `@mention` of the logged-in user, resolved to the message that
+ * carries it. Derived from Matrix push rules (highlight) intersected with the
+ * room's read receipt, so the set drains as the reader catches up rather than
+ * needing its own read-state store.
+ */
+export interface UnreadMention {
+  /** Event id of the mentioning message — pass to `scrollToMessage` / `?msg=`. */
+  eventId: EventId;
+  roomId: RoomId;
+  timestamp: Timestamp;
+  /** Set when the mention is inside a thread rather than the main timeline. */
+  threadRootId?: EventId;
 }
 
 // --- events ----------------------------------------------------------------

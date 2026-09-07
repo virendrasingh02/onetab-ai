@@ -68,6 +68,7 @@ export type {
   Timeline,
   Timestamp,
   TypingUpdate,
+  UnreadMention,
   VerificationRequestSummary,
 } from './lib/types.js';
 

@@ -107,16 +107,19 @@ export {
   EncryptionBadge,
   MemberList,
   TypingIndicator,
+  UnreadMentionsPill,
   getUserColor,
   type ConnectionBannerProps,
   type ConnectionPillProps,
   type MemberListProps,
   type TypingIndicatorProps,
+  type UnreadMentionsPillProps,
 } from './lib/indicators.js';
 
 export {
   MessageList,
   buildRows,
+  type MessageListHandle,
   type MessageListProps,
 } from './lib/message-list.js';
 

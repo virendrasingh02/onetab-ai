@@ -1,5 +1,10 @@
 import { cn } from '@org/utils';
-import type { ComponentProps, ReactNode, RefObject } from 'react';
+import type {
+  ComponentProps,
+  ReactNode,
+  RefCallback,
+  RefObject,
+} from 'react';
 import SimpleBar from 'simplebar-react';
 
 /**
@@ -32,7 +37,7 @@ export interface ScrollAreaProps extends Omit<
   /** Classes for the scrolled content. Put padding and spacing here. */
   contentClassName?: string;
   /** The element that actually scrolls — for reading or setting scroll offset. */
-  viewportRef?: RefObject<HTMLDivElement | null>;
+  viewportRef?: RefObject<HTMLDivElement | null> | RefCallback<HTMLDivElement | null>;
   /** Extra props for the scrolling element, e.g. `onScroll` or `tabIndex`. */
   viewportProps?: Omit<ComponentProps<'div'>, 'ref' | 'children'>;
 }
@@ -85,7 +90,8 @@ export function ScrollArea({
           )}
           ref={(node) => {
             scrollableNodeProps.ref.current = node ?? undefined;
-            if (viewportRef) viewportRef.current = node;
+            if (typeof viewportRef === 'function') viewportRef(node);
+            else if (viewportRef) viewportRef.current = node;
           }}
         >
           <div

@@ -64,6 +64,18 @@ function loadRoomState(
   }
 }
 
+export interface UseRoomOptions {
+  /**
+   * Whether to keep the room's read receipt advanced to its newest message
+   * while this hook is mounted. Defaults to `true` (the historic behaviour:
+   * opening a room catches it up). Pass the reader's "following the live
+   * bottom" state so a room opened scrolled-up — at its last-read line, or on a
+   * deep link — keeps its unread messages and `@mentions` unread until the
+   * reader actually reaches them.
+   */
+  trackRead?: boolean;
+}
+
 /**
  * Live view of one room.
  *
@@ -71,7 +83,8 @@ function loadRoomState(
  * Matrix timeline is a push stream, not a cache to invalidate, and modelling
  * it as a query would mean refetching a room every time an event arrives.
  */
-export function useRoom(roomId: RoomId | undefined) {
+export function useRoom(roomId: RoomId | undefined, options: UseRoomOptions = {}) {
+  const { trackRead = true } = options;
   const { client } = useMatrix();
   const [state, setState] = useState<ChatState>(() =>
     loadRoomState(client, roomId),
@@ -147,12 +160,12 @@ export function useRoom(roomId: RoomId | undefined) {
   const readReceiptsEnabled = useReadReceipts();
 
   useEffect(() => {
-    if (!client || !roomId || !readReceiptsEnabled) return;
+    if (!client || !roomId || !readReceiptsEnabled || !trackRead) return;
     const latest = state.messages[state.messages.length - 1];
     if (latest && latest.sendState !== 'sending') {
       void client.markRead(roomId, latest.id);
     }
-  }, [client, roomId, readReceiptsEnabled, state.messages]);
+  }, [client, roomId, readReceiptsEnabled, trackRead, state.messages]);
 
   const loadOlder = useCallback(async () => {
     if (!client || !roomId) return;

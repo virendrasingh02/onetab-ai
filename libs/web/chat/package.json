@@ -17,7 +17,20 @@
     "tags": [
       "type:feature",
       "scope:web"
-    ]
+    ],
+    "targets": {
+      "test": {
+        "executor": "nx:run-commands",
+        "cache": true,
+        "outputs": [
+          "{projectRoot}/test-output/vitest/coverage"
+        ],
+        "options": {
+          "command": "node scripts/run-vitest.mjs libs/web/chat",
+          "cwd": "{workspaceRoot}"
+        }
+      }
+    }
   },
   "dependencies": {
     "@org/auth": "*",

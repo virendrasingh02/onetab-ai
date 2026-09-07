@@ -17,6 +17,22 @@ export {
   type RoomActivityEntry,
 } from './lib/use-live-room-activity.js';
 export {
+  useUnreadMentions,
+  selectNextUnreadMention,
+  type UnreadMentionsState,
+  type UseUnreadMentionsOptions,
+} from './lib/use-unread-mentions.js';
+export {
+  useMentionNavigation,
+  type MentionNavigation,
+  type UseMentionNavigationParams,
+} from './lib/use-mention-navigation.js';
+export {
+  useMessageScrollTarget,
+  type ScrollToMessageOptions,
+  type UseMessageScrollTargetParams,
+} from './lib/use-message-scroll-target.js';
+export {
   useCreateConversation,
   type CreatedConversation,
   type CreateConversationInput,
@@ -42,6 +58,7 @@ export {
   ChatSurface,
   type ChatSurfaceProps,
   type ChatSurfaceWelcome,
+  type ConversationMentions,
 } from './lib/chat-surface.js';
 export { ChannelChat, type ChannelChatProps } from './lib/channel-chat.js';
 export {

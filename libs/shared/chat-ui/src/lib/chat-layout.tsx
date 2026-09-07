@@ -1,7 +1,7 @@
 import { Hint, LoadingState, ScrollArea } from '@org/ui';
 import { cn } from '@org/utils';
 import { Hash, Lock, PanelRight, Users, X } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { ReactNode, RefCallback, RefObject } from 'react';
 
 export interface ChatLayoutProps {
   header: ReactNode;
@@ -139,6 +139,15 @@ export interface ThreadPanelProps {
   composerSlot: ReactNode;
   isLoading?: boolean;
   replyCount: number;
+  /** Ref to the replies scroll viewport — for floating overlays that measure it. */
+  viewportRef?:
+    | RefObject<HTMLDivElement | null>
+    | RefCallback<HTMLDivElement | null>;
+  /**
+   * Floats over the replies area, above the composer — the "unread mentions"
+   * pill for the thread. Takes no layout height.
+   */
+  overlaySlot?: ReactNode;
 }
 
 export function ThreadPanel({
@@ -147,6 +156,8 @@ export function ThreadPanel({
   composerSlot,
   isLoading = false,
   replyCount,
+  viewportRef,
+  overlaySlot,
 }: ThreadPanelProps) {
   if (isLoading) return <LoadingState label="Loading thread…" />;
 
@@ -162,7 +173,15 @@ export function ThreadPanel({
         </span>
       </div>
 
-      <ScrollArea className="min-h-0 flex-1 bg-background">{repliesSlot}</ScrollArea>
+      <div className="min-h-0 relative flex flex-1 flex-col">
+        <ScrollArea
+          className="min-h-0 flex-1 bg-background"
+          viewportRef={viewportRef}
+        >
+          {repliesSlot}
+        </ScrollArea>
+        {overlaySlot}
+      </div>
 
       <div className="shrink-0 sticky bottom-0 z-20 w-full bg-surface border-t border-border">
         {composerSlot}

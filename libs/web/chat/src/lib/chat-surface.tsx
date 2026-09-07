@@ -11,11 +11,13 @@ import {
   HuddleBar,
   MemberList,
   MessageList,
+  type MessageListHandle,
   MessageRenderer,
   PinnedPanel,
   ThreadListPanel,
   ThreadPanel,
   TypingIndicator,
+  UnreadMentionsPill,
 } from '@org/chat-ui';
 import type {
   ConnectionState,
@@ -43,6 +45,8 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { deriveThreads, groupReplies } from './derive-threads.js';
+import { useMentionNavigation } from './use-mention-navigation.js';
+import { useMessageScrollTarget } from './use-message-scroll-target.js';
 
 /**
  * Everything the welcome block at the top of the timeline needs that the
@@ -75,6 +79,18 @@ export interface ChatSurfaceWelcome {
  */
 type SidePanel =
   'none' | 'members' | 'thread' | 'threads' | 'search' | 'pinned';
+
+/** A conversation's (or thread's) unread `@mention` state, as passed by the host. */
+export interface ConversationMentions {
+  /** Event ids the loaded timeline can scroll to, oldest first. */
+  ids: string[];
+  /** Authoritative total from the room's highlight count. */
+  count: number;
+  /** Unread mentions older than the loaded window. */
+  unloadedCount: number;
+}
+
+const NO_MENTIONS: ConversationMentions = { ids: [], count: 0, unloadedCount: 0 };
 
 export interface ChatSurfaceProps {
   title: string;
@@ -173,6 +189,21 @@ export interface ChatSurfaceProps {
   /** Marks the whole conversation read — from the sticky "new messages" bar. */
   onMarkRead?: () => void;
 
+  /** Unread `@mentions` in the main timeline — drives the floating pill. */
+  unreadMentions?: ConversationMentions;
+  /** Unread `@mentions` in the open thread — drives the thread panel's pill. */
+  threadUnreadMentions?: ConversationMentions;
+  /**
+   * Called with a mention's event id once the reader has been scrolled to it,
+   * so the host can advance the read marker (which removes it from the set).
+   */
+  onMentionReached?: (messageId: string) => void;
+  /**
+   * Fires when the reader starts / stops following the live bottom. The host
+   * gates read-receipt sending on it.
+   */
+  onFollowingChange?: (following: boolean) => void;
+
   /** Offered by the channel welcome block; there is no bookmarks bar. */
   onAddBookmark?: () => void;
   onSend: (body: string, threadRootId?: string) => void | Promise<void>;
@@ -251,6 +282,10 @@ export function ChatSurface({
   unreadThreadRootIds,
   onThreadRead,
   onMarkRead,
+  unreadMentions = NO_MENTIONS,
+  threadUnreadMentions = NO_MENTIONS,
+  onMentionReached,
+  onFollowingChange,
   onAddBookmark,
   onSend,
   onEdit,
@@ -426,17 +461,57 @@ export function ChatSurface({
     );
   }, [messages, searchQuery]);
 
-  const jumpTo = useCallback((messageId: string) => {
-    setHighlightId(messageId);
-    document
-      .querySelector(`[data-message-id="${CSS.escape(messageId)}"]`)
-      ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  }, []);
+  /*
+   * One reliable "go to this message" for every caller — the mentions pill,
+   * `?msg=` deep links, search and pinned. It pages older history in until the
+   * target is loaded, scrolls the virtualiser to its row, highlights it and
+   * fades the highlight out. See `useMessageScrollTarget`.
+   */
+  const listRef = useRef<MessageListHandle | null>(null);
+  const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
+  const [threadScrollEl, setThreadScrollEl] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setScrollEl(listRef.current?.getScrollElement() ?? null);
+  }, [conversationId, isLoading]);
+
+  const scrollToMessage = useMessageScrollTarget({
+    messagesById: byId,
+    hasMore,
+    isLoadingOlder,
+    loadOlder: () => onLoadOlder?.(),
+    listRef,
+    onHighlight: setHighlightId,
+  });
+
+  const jumpTo = useCallback(
+    (messageId: string) => {
+      void scrollToMessage(messageId, { highlightMs: 2200 });
+    },
+    [scrollToMessage],
+  );
+
+  const mainMentionNav = useMentionNavigation({
+    ids: unreadMentions.ids,
+    unloadedCount: unreadMentions.unloadedCount,
+    scrollElement: scrollEl,
+    scrollToMessage,
+    onMentionReached,
+  });
+
+  const threadMentionNav = useMentionNavigation({
+    ids: panel === 'thread' ? threadUnreadMentions.ids : NO_MENTIONS.ids,
+    unloadedCount:
+      panel === 'thread' ? threadUnreadMentions.unloadedCount : 0,
+    scrollElement: threadScrollEl,
+    scrollToMessage,
+    onMentionReached,
+  });
 
   /*
-   * Deep link to a message (`?msg=`). Waits for the message to actually be in
-   * the timeline — it may still be paging in — and only jumps once per id, so a
-   * later render does not yank the reader back after they have scrolled away.
+   * Deep link to a message (`?msg=`). Only jumps once per id, so a later render
+   * does not yank the reader back after they have scrolled away; `scrollToMessage`
+   * pages the message in itself if it is not loaded yet.
    */
   const jumpedToDeepLink = useRef<string | null>(null);
   useEffect(() => {
@@ -445,10 +520,9 @@ export function ChatSurface({
       return;
     }
     if (deepLinkMessageId === jumpedToDeepLink.current) return;
-    if (!byId.has(deepLinkMessageId)) return;
     jumpedToDeepLink.current = deepLinkMessageId;
     jumpTo(deepLinkMessageId);
-  }, [deepLinkMessageId, byId, jumpTo]);
+  }, [deepLinkMessageId, jumpTo]);
 
   const unreadThreadRoots = useMemo(
     () => new Set(unreadThreadRootIds ?? []),
@@ -834,6 +908,17 @@ export function ChatSurface({
               panel === 'thread' && threadRoot ? (
                 <ThreadPanel
                   replyCount={threadReplies.length}
+                  viewportRef={setThreadScrollEl}
+                  overlaySlot={
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
+                      <UnreadMentionsPill
+                        direction={threadMentionNav.direction}
+                        count={threadUnreadMentions.count}
+                        remaining={threadMentionNav.remaining}
+                        onJump={threadMentionNav.jumpToNext}
+                      />
+                    </div>
+                  }
                   rootSlot={renderMessage(threadRoot, false)}
                   repliesSlot={threadReplies.map((reply) => (
                     <div key={reply.id}>{renderMessage(reply, false)}</div>
@@ -872,6 +957,7 @@ export function ChatSurface({
           inside another gave the timeline two scrollbars. */}
         <div className="min-h-0 flex flex-1 flex-col">
           <MessageList
+            ref={listRef}
             conversationId={conversationId}
             messages={rootMessages}
             isLoading={isLoading}
@@ -884,6 +970,11 @@ export function ChatSurface({
             connectionState={connectionState}
             onMarkRead={onMarkRead}
             onLoadOlder={onLoadOlder}
+            onFollowingChange={onFollowingChange}
+            unreadMentionCount={unreadMentions.count}
+            mentionDirection={mainMentionNav.direction}
+            mentionsRemaining={mainMentionNav.remaining}
+            onJumpToMention={mainMentionNav.jumpToNext}
             renderMessage={renderMessage}
             introSlot={
               welcome ? (

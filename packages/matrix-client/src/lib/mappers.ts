@@ -19,6 +19,7 @@ import {
   type RoomMember,
   type StructuredChatMessage,
   type Thread,
+  type UnreadMention,
 } from './types.js';
 
 /**
@@ -265,6 +266,7 @@ export function toMessage(
   const kind = toMessageKind(content);
   const member = room?.getMember(senderId);
   const decryptionFailed = event.isDecryptionFailure();
+  const isMention = eventHighlightsUser(client, event);
 
   return {
     id,
@@ -297,7 +299,87 @@ export function toMessage(
       ? 'This message could not be decrypted. The sender may not have shared keys with this device.'
       : undefined,
     structuredEvent: extractStructuredEvent(event, content),
+    isMention,
   };
+}
+
+/**
+ * Whether an event fires a *highlight* push rule for the logged-in user — a
+ * direct mention, an `@room` broadcast, or a matched keyword. This is Matrix's
+ * own answer to "does this name me", the same signal `Room.highlightCount` is
+ * summed from, so the timeline never needs a second mention parser.
+ *
+ * Returns `false` rather than throwing while the client is still syncing its
+ * push rules (`getPushActionsForEvent` needs them loaded); the flag simply
+ * lights up once they arrive and the event re-maps.
+ */
+export function eventHighlightsUser(
+  client: SdkClient,
+  event: MatrixEvent,
+): boolean {
+  try {
+    return client.getPushActionsForEvent(event)?.tweaks?.highlight === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Message event types the app renders — the same filter the timeline uses. */
+function isRenderableMessageType(type: string): boolean {
+  return (
+    type === 'm.room.message' ||
+    type.startsWith('mie.') ||
+    type.startsWith('org.onetab.')
+  );
+}
+
+/**
+ * The unread `@mentions` resolvable from a room's loaded events — every
+ * highlight-firing message from someone else that sits after the reader's read
+ * receipt, main timeline and loaded threads alike, oldest first.
+ *
+ * Kept here beside `toMessage` (the other place SDK events become domain
+ * objects) so it can be unit-tested with the same hand-built fakes rather than
+ * needing a live client.
+ */
+export function collectUnreadMentions(
+  client: SdkClient,
+  room: SdkRoom,
+  myUserId: string,
+): UnreadMention[] {
+  const seen = new Set<string>();
+  const mentions: UnreadMention[] = [];
+
+  const consider = (event: MatrixEvent, threadRootId?: string) => {
+    const eventId = event.getId();
+    if (!eventId || seen.has(eventId)) return;
+    if (!isRenderableMessageType(event.getType())) return;
+    if (event.isRedacted()) return;
+    if (event.getSender() === myUserId) return;
+    if (room.hasUserReadEvent(myUserId, eventId)) return;
+    if (!eventHighlightsUser(client, event)) return;
+
+    seen.add(eventId);
+    mentions.push({
+      eventId,
+      roomId: room.roomId,
+      timestamp: event.getTs(),
+      threadRootId,
+    });
+  };
+
+  for (const event of room
+    .getUnfilteredTimelineSet()
+    .getLiveTimeline()
+    .getEvents()) {
+    consider(event);
+  }
+
+  for (const thread of room.getThreads()) {
+    for (const event of thread.events) consider(event, thread.id);
+  }
+
+  return mentions.sort((a, b) => a.timestamp - b.timestamp);
 }
 
 /**

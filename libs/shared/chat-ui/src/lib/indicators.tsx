@@ -4,9 +4,9 @@ import type {
   PresenceState,
   RoomMember,
 } from '@org/types';
-import { Badge, ScrollArea, UserAvatar } from '@org/ui';
+import { Badge, Button, ScrollArea, UserAvatar } from '@org/ui';
 import { cn } from '@org/utils';
-import { Loader2, ShieldCheck, WifiOff } from 'lucide-react';
+import { ArrowDown, ArrowUp, Loader2, ShieldCheck, WifiOff } from 'lucide-react';
 import { UserProfileCard } from './user-profile-card.js';
 
 /**
@@ -152,6 +152,72 @@ export function ConnectionPill({ state }: ConnectionPillProps) {
       />
       {label}
     </div>
+  );
+}
+
+export interface UnreadMentionsPillProps {
+  /**
+   * Where the nearest unread mention sits relative to the viewport. `up` /
+   * `down` decide the arrow and the copy; the caller passes `null` (and this
+   * renders nothing) once a mention is in view or every one has been read.
+   */
+  direction: 'up' | 'down' | null;
+  /** Total unread mentions in this conversation — drives the count in the label. */
+  count: number;
+  /** How many are still ahead of the reader, for the screen-reader label. */
+  remaining?: number;
+  onJump: () => void;
+  className?: string;
+}
+
+/**
+ * The floating "unread mentions" chip.
+ *
+ * Same footing as {@link ConnectionPill} and the jump-to-latest pill: it is
+ * positioned by the timeline that owns the scroll container, takes no layout
+ * height, and floats clear of the newest message. It points the reader at the
+ * next message that names them — `↓` when it is further down, `↑` once they
+ * have scrolled past it — and clicking walks through them one at a time.
+ */
+export function UnreadMentionsPill({
+  direction,
+  count,
+  remaining,
+  onJump,
+  className,
+}: UnreadMentionsPillProps) {
+  if (!direction || count <= 0) return null;
+
+  const Arrow = direction === 'down' ? ArrowDown : ArrowUp;
+  const label = count > 1 ? `${count} unread mentions` : 'Unread mention';
+  const ahead = remaining ?? count;
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={onJump}
+      aria-label={
+        ahead > 1
+          ? `Jump to next unread mention, ${ahead} remaining`
+          : 'Jump to unread mention'
+      }
+      className={cn(
+        'h-8 gap-1.5 rounded-full pl-2.5 pr-3 text-xs font-semibold',
+        'bg-surface/95 text-foreground shadow-md backdrop-blur',
+        'hover:bg-surface hover:text-primary-text hover:border-border-strong',
+        'animate-in fade-in slide-in-from-bottom-2 duration-200',
+        'motion-reduce:animate-none motion-reduce:transition-none',
+        className,
+      )}
+    >
+      <Arrow
+        className="size-3.5 text-primary-text transition-transform motion-reduce:transition-none"
+        aria-hidden
+      />
+      <span>{label}</span>
+    </Button>
   );
 }
 

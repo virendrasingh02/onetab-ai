@@ -1,6 +1,8 @@
 import type { MatrixClient as SdkClient, MatrixEvent } from 'matrix-js-sdk';
 import type { Room as SdkRoom } from 'matrix-js-sdk';
 import {
+  collectUnreadMentions,
+  eventHighlightsUser,
   resolveDirectMessageRoom,
   resolveGroupDirectMessageRoom,
   resolveMediaUrl,
@@ -293,6 +295,157 @@ describe('toMessage', () => {
     expect(msg?.structuredEvent).toBeDefined();
     expect(msg?.structuredEvent?.type).toBe('mie.app.response');
     expect((msg?.structuredEvent as any).appId).toBe('github');
+  });
+});
+
+describe('isMention (highlight push rule)', () => {
+  const room = fakeRoom();
+
+  it('is true when the event fires a highlight push rule for this user', () => {
+    const client = fakeClient({
+      getPushActionsForEvent: () => ({ tweaks: { highlight: true } }),
+    } as Partial<SdkClient>);
+
+    const message = toMessage(
+      client,
+      fakeEvent({ content: { msgtype: 'm.text', body: '@me look at this' } }),
+      room,
+    );
+    expect(message?.isMention).toBe(true);
+    expect(eventHighlightsUser(client, fakeEvent({ content: {} }))).toBe(true);
+  });
+
+  it('is false for an ordinary message', () => {
+    const client = fakeClient({
+      getPushActionsForEvent: () => ({ tweaks: { highlight: false } }),
+    } as Partial<SdkClient>);
+
+    const message = toMessage(
+      client,
+      fakeEvent({ content: { msgtype: 'm.text', body: 'nothing to see' } }),
+      room,
+    );
+    expect(message?.isMention).toBe(false);
+  });
+
+  it('is false — never throws — while push rules are still syncing', () => {
+    const client = fakeClient({
+      getPushActionsForEvent: () => {
+        throw new Error('push rules not ready');
+      },
+    } as Partial<SdkClient>);
+
+    const message = toMessage(
+      client,
+      fakeEvent({ content: { msgtype: 'm.text', body: '@me' } }),
+      room,
+    );
+    expect(message?.isMention).toBe(false);
+  });
+});
+
+describe('collectUnreadMentions', () => {
+  const ME = '@me:example.org';
+
+  interface MentionRoomInput {
+    timeline?: MatrixEvent[];
+    threads?: Array<{ id: string; events: MatrixEvent[] }>;
+    readEventIds?: string[];
+  }
+
+  function mentionsRoom(input: MentionRoomInput): SdkRoom {
+    const read = new Set(input.readEventIds ?? []);
+    return {
+      roomId: '!room:example.org',
+      hasUserReadEvent: (_userId: string, eventId: string) => read.has(eventId),
+      getUnfilteredTimelineSet: () => ({
+        getLiveTimeline: () => ({ getEvents: () => input.timeline ?? [] }),
+      }),
+      getThreads: () => input.threads ?? [],
+    } as unknown as SdkRoom;
+  }
+
+  /** A client whose push rules highlight exactly the listed event ids. */
+  function highlightingClient(highlightIds: string[]): SdkClient {
+    const ids = new Set(highlightIds);
+    return fakeClient({
+      getPushActionsForEvent: (event: MatrixEvent) => ({
+        tweaks: { highlight: ids.has(event.getId() as string) },
+      }),
+    } as Partial<SdkClient>);
+  }
+
+  it('keeps only unread, highlight-firing messages from other people, oldest first', () => {
+    const events = [
+      fakeEvent({ id: '$a', sender: '@alice:example.org', ts: 30, content: { body: '@me later' } }),
+      fakeEvent({ id: '$b', sender: '@bob:example.org', ts: 10, content: { body: '@me first' } }),
+      fakeEvent({ id: '$plain', sender: '@bob:example.org', ts: 20, content: { body: 'hi all' } }),
+      fakeEvent({ id: '$mine', sender: ME, ts: 25, content: { body: '@me self' } }),
+    ];
+    const room = mentionsRoom({ timeline: events });
+
+    const result = collectUnreadMentions(
+      highlightingClient(['$a', '$b', '$mine']),
+      room,
+      ME,
+    );
+
+    expect(result.map((m) => m.eventId)).toEqual(['$b', '$a']);
+    expect(result[0]).toMatchObject({ roomId: '!room:example.org', timestamp: 10 });
+  });
+
+  it('drops a mention the reader has already read a receipt for', () => {
+    const events = [
+      fakeEvent({ id: '$a', sender: '@alice:example.org', ts: 10, content: { body: '@me' } }),
+      fakeEvent({ id: '$b', sender: '@alice:example.org', ts: 20, content: { body: '@me' } }),
+    ];
+    const room = mentionsRoom({ timeline: events, readEventIds: ['$a'] });
+
+    const result = collectUnreadMentions(highlightingClient(['$a', '$b']), room, ME);
+    expect(result.map((m) => m.eventId)).toEqual(['$b']);
+  });
+
+  it('ignores redacted mentions', () => {
+    const room = mentionsRoom({
+      timeline: [
+        fakeEvent({ id: '$a', sender: '@alice:example.org', redacted: true, content: { body: '@me' } }),
+      ],
+    });
+    expect(collectUnreadMentions(highlightingClient(['$a']), room, ME)).toEqual([]);
+  });
+
+  it('includes thread replies, tagged with their root id', () => {
+    const room = mentionsRoom({
+      timeline: [],
+      threads: [
+        {
+          id: '$root',
+          events: [
+            fakeEvent({ id: '$reply', sender: '@alice:example.org', ts: 40, content: { body: '@me in thread' } }),
+          ],
+        },
+      ],
+    });
+
+    const result = collectUnreadMentions(highlightingClient(['$reply']), room, ME);
+    expect(result).toEqual([
+      { eventId: '$reply', roomId: '!room:example.org', timestamp: 40, threadRootId: '$root' },
+    ]);
+  });
+
+  it('does not double-count an event present in both timeline and a thread', () => {
+    const shared = fakeEvent({
+      id: '$dup',
+      sender: '@alice:example.org',
+      ts: 5,
+      content: { body: '@me' },
+    });
+    const room = mentionsRoom({
+      timeline: [shared],
+      threads: [{ id: '$root', events: [shared] }],
+    });
+
+    expect(collectUnreadMentions(highlightingClient(['$dup']), room, ME)).toHaveLength(1);
   });
 });
 

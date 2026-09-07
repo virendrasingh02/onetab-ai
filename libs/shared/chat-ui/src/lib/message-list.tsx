@@ -14,15 +14,17 @@ import { ArrowDown, MessageSquare } from 'lucide-react';
 import {
   useCallback,
   useEffect,
+  useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  type Ref,
   type ReactNode,
 } from 'react';
 import { UnreadDivider } from './channel-extras.js';
 import { DateSeparator, formatDaySeparatorLabel } from './chat-bubble.js';
-import { ConnectionPill } from './indicators.js';
+import { ConnectionPill, UnreadMentionsPill } from './indicators.js';
 import {
   getScrollAnchor,
   setScrollAnchor,
@@ -139,6 +141,36 @@ export interface MessageListProps {
    */
   onMarkRead?: () => void;
   /**
+   * Total unread `@mentions` in this conversation. Only used to label the
+   * floating mentions pill ("3 unread mentions"); its visibility is driven by
+   * {@link mentionDirection}.
+   */
+  unreadMentionCount?: number;
+  /**
+   * Where the nearest unread mention sits relative to the viewport — `down`
+   * shows `↓`, `up` shows `↑`, `null` (or unset) hides the pill because a
+   * mention is in view or all of them have been read. The host computes this;
+   * the list only positions the pill.
+   */
+  mentionDirection?: 'up' | 'down' | null;
+  /** Walks to the next unread mention. Wire it to a message-scroll utility. */
+  onJumpToMention?: () => void;
+  /** How many unread mentions are still ahead of the reader (SR label only). */
+  mentionsRemaining?: number;
+  /**
+   * Fires when the reader starts or stops following the live bottom of the
+   * conversation. The host gates read-receipt sending on it, so a room opened
+   * scrolled-up (last-read line, deep link) keeps its unread state until the
+   * reader reaches the newest message.
+   */
+  onFollowingChange?: (following: boolean) => void;
+  /**
+   * Imperative handle (React 19 `ref` prop) exposing {@link MessageListHandle}
+   * — `scrollToMessage(id)` for the mentions pill, `?msg=` deep links, search
+   * and pinned.
+   */
+  ref?: Ref<MessageListHandle>;
+  /**
    * Rendered at the very top of the timeline — the channel's welcome block.
    *
    * It only appears once every older message has been loaded, so it marks the
@@ -150,6 +182,21 @@ export interface MessageListProps {
 }
 
 type Anchor = { key: string; offset: number };
+
+/**
+ * Imperative handle for jumping the timeline to a specific message — used by
+ * the "unread mentions" pill, `?msg=` deep links, search and pinned.
+ */
+export interface MessageListHandle {
+  /**
+   * Scrolls the message with this id to the centre of the viewport, paging the
+   * virtualiser to its row first. Returns `false` when the id is not among the
+   * currently loaded rows, so the caller can load older history and retry.
+   */
+  scrollToMessage: (messageId: string) => boolean;
+  /** The element that actually scrolls — for measuring rows against its edges. */
+  getScrollElement: () => HTMLElement | null;
+}
 
 /**
  * Virtualised timeline.
@@ -186,6 +233,12 @@ export function MessageList({
   onMarkRead,
   introSlot,
   className,
+  unreadMentionCount = 0,
+  mentionDirection = null,
+  onJumpToMention,
+  mentionsRemaining,
+  onFollowingChange,
+  ref: handleRef,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const virtualContainerRef = useRef<HTMLDivElement>(null);
@@ -246,6 +299,17 @@ export function MessageList({
   const adjusting = useRef(false);
   const settleRaf = useRef<number | null>(null);
   const scrollRaf = useRef<number | null>(null);
+  /** Last `following` value handed to the host — only report the transitions. */
+  const reportedFollowing = useRef<boolean | null>(null);
+
+  const reportFollowing = useCallback(
+    (next: boolean) => {
+      if (reportedFollowing.current === next) return;
+      reportedFollowing.current = next;
+      onFollowingChange?.(next);
+    },
+    [onFollowingChange],
+  );
 
   const virtualizer = useVirtualizer({
     count: rows.length,
@@ -372,8 +436,60 @@ export function MessageList({
     if (!element) return;
     element.scrollTo({ top: element.scrollHeight, behavior: 'smooth' });
     stickToBottom.current = true;
+    reportFollowing(true);
     setNewMessagesCount(0);
-  }, []);
+  }, [reportFollowing]);
+
+  /**
+   * Centre a message row in the viewport, paging the virtualiser to it and then
+   * re-centring for a few frames while the rows around it settle to their real
+   * heights. Returns `false` when the id is not among the loaded rows, so the
+   * host can page older history in and call again.
+   */
+  const scrollToMessageRow = useCallback(
+    (messageId: string): boolean => {
+      if (!scrollRef.current) return false;
+      const index = rowsRef.current.findIndex(
+        (row) => row.kind === 'message' && row.key === messageId,
+      );
+      if (index < 0) return false;
+
+      stickToBottom.current = false;
+      reportFollowing(false);
+      pendingAnchor.current = null;
+      setNewMessagesCount(0);
+      if (settleRaf.current != null) cancelAnimationFrame(settleRaf.current);
+
+      let frames = 6;
+      const step = () => {
+        if (!scrollRef.current) {
+          settleRaf.current = null;
+          releaseAdjusting();
+          return;
+        }
+        adjusting.current = true;
+        virtualizer.scrollToIndex(index, { align: 'center' });
+        if (--frames > 0) {
+          settleRaf.current = requestAnimationFrame(step);
+        } else {
+          settleRaf.current = null;
+          releaseAdjusting();
+        }
+      };
+      settleRaf.current = requestAnimationFrame(step);
+      return true;
+    },
+    [virtualizer, releaseAdjusting, reportFollowing],
+  );
+
+  useImperativeHandle(
+    handleRef,
+    () => ({
+      scrollToMessage: scrollToMessageRow,
+      getScrollElement: () => scrollRef.current,
+    }),
+    [scrollToMessageRow],
+  );
 
   /** Which day divider is currently under the top edge, and its push-off. */
   const updateFloatingDay = useCallback(() => {
@@ -424,6 +540,7 @@ export function MessageList({
     if (!adjusting.current) {
       const atBottom = isAtBottom();
       stickToBottom.current = atBottom;
+      reportFollowing(atBottom);
       if (atBottom) setNewMessagesCount(0);
 
       if (
@@ -455,6 +572,7 @@ export function MessageList({
     captureAnchor,
     onLoadOlder,
     updateFloatingDay,
+    reportFollowing,
     virtualizer,
   ]);
 
@@ -519,6 +637,7 @@ export function MessageList({
         : -1;
     if (unreadIndex >= 0) {
       stickToBottom.current = false;
+      reportFollowing(false);
       pendingAnchor.current = {
         key: rows[unreadIndex].key,
         offset: 0,
@@ -537,6 +656,7 @@ export function MessageList({
       rows.some((row) => row.key === saved.key)
     ) {
       stickToBottom.current = false;
+      reportFollowing(false);
       pendingAnchor.current = {
         key: saved.key,
         offset: saved.offset,
@@ -548,6 +668,7 @@ export function MessageList({
     }
 
     stickToBottom.current = true;
+    reportFollowing(true);
     pinBottom();
     updateFloatingDay();
   }, [
@@ -559,6 +680,7 @@ export function MessageList({
     startSettle,
     pinBottom,
     updateFloatingDay,
+    reportFollowing,
   ]);
 
   // Runs before paint, so none of these corrections flicker.
@@ -866,6 +988,27 @@ export function MessageList({
           </Button>
         </div>
       ) : null}
+
+      {/*
+        Floating "unread mentions" chip. Sits just above the jump-to-latest pill
+        when both show, so neither covers the other, and rides right of centre so
+        the two never stack. `aria-live` announces it arriving / flipping
+        direction; `mentionDirection` from the host decides if it shows at all.
+      */}
+      <div
+        aria-live="polite"
+        className={cn(
+          'absolute left-1/2 -translate-x-1/2 z-30 pointer-events-auto',
+          newMessagesCount > 0 ? 'bottom-14' : 'bottom-3',
+        )}
+      >
+        <UnreadMentionsPill
+          direction={mentionDirection}
+          count={unreadMentionCount}
+          remaining={mentionsRemaining}
+          onJump={() => onJumpToMention?.()}
+        />
+      </div>
     </div>
   );
 }

@@ -72,9 +72,12 @@ export function deriveThreads(
 /**
  * Messages that address the reader by name, or the channel as a whole.
  *
- * Matching the body is a stand-in for Matrix push rules, which is where real
- * mentions come from; the shape of the result is what the tab renders either
- * way.
+ * The real answer comes from Matrix push rules, surfaced per message as
+ * `Message.isMention` — that is what covers a keyword or an id-localpart
+ * mention the body scan would miss, and what agrees with the room's highlight
+ * count and the floating "unread mentions" pill. Matching the body is kept only
+ * as the fallback for before the client has synced its push rules (`isMention`
+ * still `undefined`).
  */
 export function deriveMentions(
   messages: Message[],
@@ -85,10 +88,18 @@ export function deriveMentions(
     tokens.unshift(`@${options.myDisplayName.toLowerCase()}`);
   }
 
+  const labelFor = (body: string) =>
+    tokens.find((token) => body.includes(token)) ??
+    (options.myDisplayName ? `@${options.myDisplayName}` : '@you');
+
   return messages.flatMap((message) => {
     if (message.senderId === options.myUserId || message.isRedacted) return [];
 
     const body = message.body.toLowerCase();
+    if (message.isMention !== undefined) {
+      return message.isMention ? [{ message, trigger: labelFor(body) }] : [];
+    }
+
     const trigger = tokens.find((token) => body.includes(token));
     return trigger ? [{ message, trigger }] : [];
   });

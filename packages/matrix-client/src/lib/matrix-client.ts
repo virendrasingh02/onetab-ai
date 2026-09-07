@@ -3,6 +3,7 @@ import {
   Direction,
   MatrixEventEvent,
   NotificationCountType,
+  ReceiptType,
   RoomEvent,
   RoomMemberEvent,
   SyncState,
@@ -15,6 +16,7 @@ import {
 import { CryptoEvent } from 'matrix-js-sdk/lib/crypto-api/index.js';
 import { toMatrixError, withRetry } from './errors.js';
 import {
+  collectUnreadMentions,
   readDirectMap,
   resolveDirectMessageRoom,
   resolveGroupDirectMessageRoom,
@@ -43,6 +45,7 @@ import {
   type MatrixSession,
   type Message,
   type NotificationCounts,
+  type UnreadMention,
   type PresenceState,
   type PushRegistration,
   type ReadReceipt,
@@ -1040,11 +1043,42 @@ export class OneTabMatrixClient {
     await sdk.sendTyping(roomId, isTyping, isTyping ? 20_000 : 0);
   }
 
-  async markRead(roomId: RoomId, eventId: EventId): Promise<void> {
+  /**
+   * Sends a read receipt up to `eventId`, marking it and everything before it
+   * read. `private: true` uses an `m.read.private` receipt — the read marker
+   * still moves (so unread / highlight counts fall) but other members are not
+   * told, which is the right choice when the reader has read receipts switched
+   * off but a surface still needs their unread state to settle.
+   */
+  async markRead(
+    roomId: RoomId,
+    eventId: EventId,
+    options: { private?: boolean } = {},
+  ): Promise<void> {
     const sdk = this.require();
     const room = sdk.getRoom(roomId);
     const event = room?.getUnfilteredTimelineSet().findEventById(eventId);
-    if (event) await sdk.sendReadReceipt(event);
+    if (!event) return;
+    await sdk.sendReadReceipt(
+      event,
+      options.private ? ReceiptType.ReadPrivate : ReceiptType.Read,
+    );
+  }
+
+  /**
+   * The id of the last event this user has a read receipt for in a room, or
+   * `null`. The first loaded message *after* it is the room's "new messages"
+   * line. Returns `null` before the client has synced.
+   */
+  getReadUpToId(roomId: RoomId): EventId | null {
+    const sdk = this.sdk;
+    const myUserId = this.session?.userId;
+    if (!sdk || !myUserId) return null;
+    try {
+      return sdk.getRoom(roomId)?.getEventReadUpTo(myUserId, false) ?? null;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -1367,6 +1401,31 @@ export class OneTabMatrixClient {
       highlight:
         room?.getUnreadNotificationCount(NotificationCountType.Highlight) ?? 0,
     };
+  }
+
+  /**
+   * The unread `@mentions` currently resolvable in a room — every loaded event
+   * that fires a highlight push rule for this user and sits after their read
+   * receipt, oldest first. Thread replies are included, tagged with their root.
+   *
+   * This only scans what is loaded, which the virtualised timeline already
+   * bounds; `Room.highlightCount` remains the authoritative *count*, and the
+   * difference is mentions further back than the current page (the caller shows
+   * an "older" affordance and pages history in to reach them). Returns `[]`
+   * while the client is still syncing — reading rooms then throws.
+   */
+  getUnreadMentions(roomId: RoomId): UnreadMention[] {
+    const sdk = this.sdk;
+    const myUserId = this.session?.userId;
+    if (!sdk || !myUserId) return [];
+
+    try {
+      const room = sdk.getRoom(roomId);
+      return room ? collectUnreadMentions(sdk, room, myUserId) : [];
+    } catch {
+      // Client present but not synced yet — reading rooms throws through require().
+      return [];
+    }
   }
 }
 

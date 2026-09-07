@@ -10,13 +10,15 @@ import type {
   StructuredChatMessage,
   StructuredMessageAction,
 } from '@org/matrix-client';
+import { useReadReceipts } from '@org/common';
 import { Button, EmptyState, toast, useRightPanelStore } from '@org/ui';
 import { MessageSquareOff } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ChatSurface, type ChatSurfaceWelcome } from './chat-surface.js';
 import { useSavedIds, useToggleSaved } from './use-saved-messages.js';
 import { useMatrix } from './matrix-provider.js';
+import { useUnreadMentions } from './use-unread-mentions.js';
 import {
   usePresence,
   useRoom,
@@ -100,7 +102,29 @@ export function ChatPanel({
   onAskAI,
 }: ChatPanelProps) {
   const { client, status, enabled, error } = useMatrix();
-  const room = useRoom(roomId ?? undefined);
+  const readReceiptsEnabled = useReadReceipts();
+
+  /*
+   * `following` — whether the reader is at the live bottom of the timeline.
+   * `MessageList` reports it (it knows the scroll position); it gates the
+   * room's read receipt so a channel opened at its last-read line keeps its
+   * unread messages and `@mentions` unread until the reader actually reaches
+   * the newest message. Starts `false` — the list reports `true` as soon as it
+   * settles at the bottom, which is the only point a "mark read" is correct.
+   */
+  const [following, setFollowing] = useState(false);
+  /*
+   * Reset to "not following" the instant the conversation changes — before any
+   * child renders or effect runs — so a receipt is never sent for the new room
+   * on the strength of the previous room's scroll position. React's documented
+   * "adjust state when a prop changes" pattern.
+   */
+  const [followingRoomId, setFollowingRoomId] = useState(roomId);
+  if (roomId !== followingRoomId) {
+    setFollowingRoomId(roomId);
+    setFollowing(false);
+  }
+  const room = useRoom(roomId ?? undefined, { trackRead: following });
   const actions = useRoomActions(roomId ?? undefined);
   const threads = useRoomThreads(roomId ?? undefined);
 
@@ -114,6 +138,64 @@ export function ChatPanel({
   const [searchParams, setSearchParams] = useSearchParams();
   const threadParam = searchParams.get('thread');
   const messageParam = searchParams.get('msg');
+
+  /*
+   * Unread `@mentions`, derived from Matrix push rules ∧ the room's read
+   * receipt — for the channel timeline and, separately, the open thread. The
+   * count is authoritative from the room's highlight count; the ids are the
+   * subset the loaded timeline can scroll to.
+   */
+  const mentions = useUnreadMentions(roomId ?? undefined);
+  const threadMentions = useUnreadMentions(roomId ?? undefined, {
+    threadRootId: threadParam,
+  });
+
+  /*
+   * The reader has reached a mention (clicked the pill and it scrolled there).
+   * Advance the read marker to it — publicly if the reader broadcasts receipts,
+   * privately otherwise — so it and everything before it drop out of the set
+   * and the next click lands on the following mention.
+   */
+  const handleMentionReached = useCallback(
+    (eventId: string) => {
+      if (!client || !roomId) return;
+      void client.markRead(roomId, eventId, { private: !readReceiptsEnabled });
+    },
+    [client, roomId, readReceiptsEnabled],
+  );
+
+  /*
+   * The "new messages" line: frozen once per room on first load, so it marks
+   * where the reader left off rather than chasing the read marker as receipts
+   * are sent while they read.
+   */
+  const firstUnread = useRef<{ roomId: string | null; id: string | null }>({
+    roomId: null,
+    id: null,
+  });
+  if (firstUnread.current.roomId !== (roomId ?? null)) {
+    firstUnread.current = { roomId: roomId ?? null, id: null };
+  }
+  if (
+    firstUnread.current.id === null &&
+    client &&
+    roomId &&
+    !room.isLoading &&
+    room.messages.length > 0
+  ) {
+    const readUpTo = client.getReadUpToId(roomId);
+    const myUserId = client.getSession()?.userId;
+    const startIndex = readUpTo
+      ? room.messages.findIndex((message) => message.id === readUpTo)
+      : -1;
+    if (readUpTo && startIndex >= 0) {
+      const firstAfter = room.messages
+        .slice(startIndex + 1)
+        .find((message) => message.senderId !== myUserId);
+      firstUnread.current.id = firstAfter?.id ?? null;
+    }
+  }
+  const firstUnreadId = firstUnread.current.id;
 
   const handleThreadChange = useCallback(
     (threadRootId: string | null) => {
@@ -514,7 +596,20 @@ export function ChatPanel({
       deepLinkThreadId={threadParam}
       onDeepLinkThreadChange={handleThreadChange}
       deepLinkMessageId={messageParam}
+      firstUnreadId={firstUnreadId}
       unreadThreadRootIds={unreadThreadRootIds}
+      unreadMentions={{
+        ids: mentions.ids,
+        count: mentions.count,
+        unloadedCount: mentions.unloadedCount,
+      }}
+      threadUnreadMentions={{
+        ids: threadMentions.ids,
+        count: threadMentions.count,
+        unloadedCount: threadMentions.unloadedCount,
+      }}
+      onMentionReached={handleMentionReached}
+      onFollowingChange={setFollowing}
       onThreadRead={handleThreadRead}
       onMarkRead={handleMarkRead}
       onSend={actions.send}
