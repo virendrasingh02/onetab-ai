@@ -17,6 +17,7 @@ import {
   type Room,
   type RoomKind,
   type RoomMember,
+  type SendState,
   type StructuredChatMessage,
   type Thread,
   type UnreadMention,
@@ -268,6 +269,20 @@ export function toMessage(
   const decryptionFailed = event.isDecryptionFailure();
   const isMention = eventHighlightsUser(client, event);
 
+  const status = event.status;
+  const sendState: SendState | undefined =
+    status === 'sending' || status === 'queued'
+      ? 'sending'
+      : status === 'not_sent'
+        ? 'failed'
+        : status === 'sent'
+          ? 'sent'
+          : undefined;
+  const transactionId =
+    typeof event.getTxnId === 'function'
+      ? event.getTxnId() ?? undefined
+      : undefined;
+
   return {
     id,
     roomId,
@@ -294,6 +309,8 @@ export function toMessage(
     threadRootId:
       relation?.rel_type === 'm.thread' ? relation.event_id : undefined,
     replyToId: relation?.['m.in_reply_to']?.event_id,
+    sendState,
+    transactionId,
     isEncrypted: event.isEncrypted(),
     decryptionError: decryptionFailed
       ? 'This message could not be decrypted. The sender may not have shared keys with this device.'

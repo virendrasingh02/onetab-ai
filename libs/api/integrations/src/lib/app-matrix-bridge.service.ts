@@ -35,7 +35,21 @@ export class AppMatrixBridgeService implements OnModuleInit {
   }
 
   private async tryHandle(event: MatrixTimelineEvent): Promise<boolean> {
-    const integration = await this.prisma.externalIntegration.findFirst({
+    const relatesTo = event.content['m.relates_to'] as
+      | { rel_type?: string; event_id?: string }
+      | undefined;
+    if (relatesTo?.rel_type === 'm.replace') return false;
+
+    let threadRootId: string | undefined = undefined;
+    if (relatesTo?.rel_type === 'm.thread' && typeof relatesTo.event_id === 'string') {
+      threadRootId = relatesTo.event_id;
+    }
+
+    const body =
+      typeof event.content['body'] === 'string' ? event.content['body'] : '';
+    if (!body.trim()) return false;
+
+    let integration = await this.prisma.externalIntegration.findFirst({
       where: { matrixRoomId: event.room_id },
       select: {
         id: true,
@@ -45,35 +59,55 @@ export class AppMatrixBridgeService implements OnModuleInit {
         workspaceId: true,
       },
     });
+
+    if (!integration && body.trim().startsWith('/')) {
+      const channel = await this.prisma.channel.findFirst({
+        where: { matrixRoomId: event.room_id },
+        select: { id: true, workspaceId: true },
+      });
+
+      if (channel) {
+        const command = body.trim().slice(1).split(' ')[0].toLowerCase();
+        integration = await this.prisma.externalIntegration.findFirst({
+          where: {
+            workspaceId: channel.workspaceId,
+            status: 'CONNECTED',
+            provider: { equals: command, mode: 'insensitive' },
+          },
+          select: {
+            id: true,
+            matrixUserId: true,
+            provider: true,
+            displayName: true,
+            workspaceId: true,
+          },
+        });
+        if (integration && !threadRootId) {
+          threadRootId = event.event_id;
+        }
+      }
+    }
+
     if (!integration) return false;
     if (event.sender === integration.matrixUserId) return false;
-
-    const relatesTo = event.content['m.relates_to'] as
-      | { rel_type?: string }
-      | undefined;
-    if (relatesTo?.rel_type === 'm.replace') return false;
-
-    const body =
-      typeof event.content['body'] === 'string' ? event.content['body'] : '';
-    if (!body.trim()) return false;
 
     const sender = await this.prisma.user.findFirst({
       where: { matrixUserId: event.sender },
       select: { id: true },
     });
-    // A room this bridge should ever see has exactly one human in it, whose
-    // Matrix identity was provisioned by `MatrixAuthService.ensureIdentity` —
-    // no match means this sender isn't one of our users, so there's no
-    // `userId` to run permission checks as.
     if (!sender) return false;
 
-    void this.handleMessage(integration, event.room_id, sender.id, body).catch(
-      (error) => {
-        this.logger.error(
-          `App bridge failed for ${integration.id} in ${event.room_id}: ${String(error)}`,
-        );
-      },
-    );
+    void this.handleMessage(
+      integration,
+      event.room_id,
+      sender.id,
+      body,
+      threadRootId,
+    ).catch((error) => {
+      this.logger.error(
+        `App bridge failed for ${integration.id} in ${event.room_id}: ${String(error)}`,
+      );
+    });
 
     return true;
   }
@@ -89,14 +123,21 @@ export class AppMatrixBridgeService implements OnModuleInit {
     roomId: string,
     userId: string,
     body: string,
+    threadRootId?: string,
   ): Promise<void> {
-    if (!integration.matrixUserId) return; // can't happen: this room only exists once matrixUserId does
+    if (!integration.matrixUserId) return;
 
     const trimmed = body.trim();
     if (trimmed.startsWith('/')) {
-      await this.runSlashCommand(integration, roomId, userId, trimmed);
+      await this.runSlashCommand(
+        integration,
+        roomId,
+        userId,
+        trimmed,
+        threadRootId,
+      );
     } else {
-      await this.postHelp(integration, roomId, userId);
+      await this.postHelp(integration, roomId, userId, threadRootId);
     }
   }
 
@@ -109,6 +150,7 @@ export class AppMatrixBridgeService implements OnModuleInit {
     roomId: string,
     userId: string,
     command: string,
+    threadRootId?: string,
   ): Promise<void> {
     if (!integration.matrixUserId) return;
 
@@ -126,27 +168,25 @@ export class AppMatrixBridgeService implements OnModuleInit {
           rawInput = parsed as Record<string, unknown>;
         }
       } catch {
-        await this.messaging.sendStructured(roomId, integration.matrixUserId, {
-          type: 'mie.system',
-          severity: 'error',
-          title: 'Could not parse action input',
-          details: `Expected JSON after /${actionId}, e.g. /${actionId} {"key":"value"}.`,
-        });
+        await this.messaging.sendStructured(
+          roomId,
+          integration.matrixUserId,
+          {
+            type: 'mie.system',
+            severity: 'error',
+            title: 'Could not parse action input',
+            details: `Expected JSON after /${actionId}, e.g. /${actionId} {"key":"value"}.`,
+          },
+          { threadRootId },
+        );
         return;
       }
     }
 
-    // A bare slash-command has no dialog to confirm through, so an explicit
-    // `"confirm": true` inside the JSON body is how a human opts into a
-    // sensitive action from chat — `executeAction` refuses it otherwise and
-    // posts why, same as it would for any other caller.
     const confirm = rawInput['confirm'] === true;
     const { confirm: _drop, ...input } = rawInput;
 
     try {
-      // `executeAction` already posts the success/failure card into the room
-      // itself (`IntegrationsService.postActionResult`) — nothing further to
-      // post here on success.
       await this.integrationsService.executeAction(
         integration.id,
         actionId,
@@ -158,12 +198,17 @@ export class AppMatrixBridgeService implements OnModuleInit {
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      await this.messaging.sendStructured(roomId, integration.matrixUserId, {
-        type: 'mie.system',
-        severity: 'error',
-        title: `/${actionId} failed`,
-        details: message,
-      });
+      await this.messaging.sendStructured(
+        roomId,
+        integration.matrixUserId,
+        {
+          type: 'mie.system',
+          severity: 'error',
+          title: `/${actionId} failed`,
+          details: message,
+        },
+        { threadRootId },
+      );
     }
   }
 
@@ -176,6 +221,7 @@ export class AppMatrixBridgeService implements OnModuleInit {
     },
     roomId: string,
     userId: string,
+    threadRootId?: string,
   ): Promise<void> {
     if (!integration.matrixUserId) return;
 
@@ -185,19 +231,24 @@ export class AppMatrixBridgeService implements OnModuleInit {
     );
 
     const appName = integration.displayName ?? integration.provider;
-    await this.messaging.sendStructured(roomId, integration.matrixUserId, {
-      type: 'mie.system',
-      severity: 'info',
-      title:
-        actions.length > 0
-          ? `${appName} understands these commands`
-          : `${appName} has no chat actions yet`,
-      details:
-        actions.length > 0
-          ? actions
-              .map((action) => `/${action.id} — ${action.description}`)
-              .join('\n')
-          : 'This app only sends activity into channels for now.',
-    });
+    await this.messaging.sendStructured(
+      roomId,
+      integration.matrixUserId,
+      {
+        type: 'mie.system',
+        severity: 'info',
+        title:
+          actions.length > 0
+            ? `${appName} understands these commands`
+            : `${appName} has no chat actions yet`,
+        details:
+          actions.length > 0
+            ? actions
+                .map((action) => `/${action.id} — ${action.description}`)
+                .join('\n')
+            : 'This app only sends activity into channels for now.',
+      },
+      { threadRootId },
+    );
   }
 }

@@ -130,6 +130,32 @@ describe('toMessage', () => {
     });
   });
 
+  it('maps sendState and transactionId for local echoes', () => {
+    const sendingEvent = Object.assign(
+      fakeEvent({ content: { msgtype: 'm.text', body: 'sending...' } }),
+      {
+        status: 'sending',
+        getTxnId: () => 'm.123456',
+      },
+    );
+
+    const sendingMsg = toMessage(client, sendingEvent, room);
+    expect(sendingMsg?.sendState).toBe('sending');
+    expect(sendingMsg?.transactionId).toBe('m.123456');
+
+    const failedEvent = Object.assign(
+      fakeEvent({ content: { msgtype: 'm.text', body: 'failed...' } }),
+      {
+        status: 'not_sent',
+        getTxnId: () => 'm.789012',
+      },
+    );
+
+    const failedMsg = toMessage(client, failedEvent, room);
+    expect(failedMsg?.sendState).toBe('failed');
+    expect(failedMsg?.transactionId).toBe('m.789012');
+  });
+
   it('keeps formatted bodies only for the custom HTML format', () => {
     const html = toMessage(
       client,

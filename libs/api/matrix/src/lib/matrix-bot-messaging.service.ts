@@ -51,10 +51,24 @@ export class MatrixBotMessagingService {
     roomId: string,
     senderMatrixId: string,
     text: string,
+    options: { replyToId?: string; threadRootId?: string } = {},
   ): Promise<string> {
+    const relatesTo: Record<string, unknown> = {};
+    if (options.threadRootId) {
+      relatesTo['rel_type'] = 'm.thread';
+      relatesTo['event_id'] = options.threadRootId;
+      relatesTo['m.in_reply_to'] = {
+        event_id: options.replyToId ?? options.threadRootId,
+      };
+      relatesTo['is_falling_back'] = !options.replyToId;
+    } else if (options.replyToId) {
+      relatesTo['m.in_reply_to'] = { event_id: options.replyToId };
+    }
+
     return this.admin.sendEventAs(roomId, senderMatrixId, 'm.room.message', {
       msgtype: 'm.text',
       body: text,
+      ...(Object.keys(relatesTo).length > 0 ? { 'm.relates_to': relatesTo } : {}),
     });
   }
 
@@ -63,9 +77,21 @@ export class MatrixBotMessagingService {
     roomId: string,
     senderMatrixId: string,
     event: StructuredChatMessage,
-    options: { fallbackBody?: string; replyToId?: string } = {},
+    options: { fallbackBody?: string; replyToId?: string; threadRootId?: string } = {},
   ): Promise<string> {
     const fallbackBody = options.fallbackBody || fallbackBodyFor(event);
+
+    const relatesTo: Record<string, unknown> = {};
+    if (options.threadRootId) {
+      relatesTo['rel_type'] = 'm.thread';
+      relatesTo['event_id'] = options.threadRootId;
+      relatesTo['m.in_reply_to'] = {
+        event_id: options.replyToId ?? options.threadRootId,
+      };
+      relatesTo['is_falling_back'] = !options.replyToId;
+    } else if (options.replyToId) {
+      relatesTo['m.in_reply_to'] = { event_id: options.replyToId };
+    }
 
     return this.admin.sendEventAs(roomId, senderMatrixId, 'm.room.message', {
       msgtype: event.type,
@@ -73,9 +99,7 @@ export class MatrixBotMessagingService {
       mie_event: event,
       [event.type]: event,
       'org.onetab.structured_event': event,
-      ...(options.replyToId
-        ? { 'm.relates_to': { 'm.in_reply_to': { event_id: options.replyToId } } }
-        : {}),
+      ...(Object.keys(relatesTo).length > 0 ? { 'm.relates_to': relatesTo } : {}),
     });
   }
 
@@ -90,7 +114,7 @@ export class MatrixBotMessagingService {
     senderMatrixId: string,
     eventId: string,
     event: StructuredChatMessage,
-    options: { fallbackBody?: string } = {},
+    options: { fallbackBody?: string; threadRootId?: string } = {},
   ): Promise<void> {
     const fallbackBody = options.fallbackBody || fallbackBodyFor(event);
 
@@ -107,7 +131,13 @@ export class MatrixBotMessagingService {
         [event.type]: event,
         'org.onetab.structured_event': event,
       },
-      'm.relates_to': { rel_type: 'm.replace', event_id: eventId },
+      'm.relates_to': {
+        rel_type: 'm.replace',
+        event_id: eventId,
+        ...(options.threadRootId
+          ? { 'm.in_reply_to': { event_id: options.threadRootId } }
+          : {}),
+      },
     });
   }
 }

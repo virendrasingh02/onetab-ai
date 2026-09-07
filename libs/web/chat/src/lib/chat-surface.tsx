@@ -216,6 +216,7 @@ export interface ChatSurfaceProps {
   ) => void | Promise<void>;
   onTyping?: (isTyping: boolean) => void;
   onAttach?: (files: FileList, threadRootId?: string) => void | Promise<void>;
+  onRetry?: (messageId: string) => void | Promise<void>;
   onTogglePin?: (eventId: string) => void;
   onToggleSave?: (eventId: string) => void;
   onAssignToMe?: (message: Message) => void;
@@ -293,6 +294,7 @@ export function ChatSurface({
   onReact,
   onTyping,
   onAttach,
+  onRetry,
   onTogglePin,
   onToggleSave,
   onAssignToMe,
@@ -622,7 +624,15 @@ export function ChatSurface({
                   void onAction(message, action)
               : undefined
           }
-          onRetry={onRetryAgent ? () => void onRetryAgent(message) : undefined}
+          onRetry={
+            message.structuredEvent?.type === 'mie.ai.agent'
+              ? onRetryAgent
+                ? () => void onRetryAgent(message)
+                : undefined
+              : onRetry
+                ? () => void onRetry(message.id)
+                : undefined
+          }
           onCopyText={() => void navigator.clipboard?.writeText(message.body)}
           onCopyLink={() =>
             void navigator.clipboard?.writeText(
@@ -679,6 +689,7 @@ export function ChatSurface({
       onAskAI,
       onAction,
       onRetryAgent,
+      onRetry,
       openPreview,
       presenceOf,
       title,

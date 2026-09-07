@@ -24,7 +24,7 @@ import { DesktopUpdateDialog } from './desktop-update-dialog.js';
  * act on (`idle` / `checking` / `not-available` / `unsupported`).
  */
 export function DesktopUpdateIndicator() {
-  const { isDesktop, updateStatus, downloadUpdate, installUpdate, checkForUpdates } = useDesktop();
+  const { isDesktop, updateStatus, installUpdate, checkForUpdates } = useDesktop();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   if (!isDesktop) return null;

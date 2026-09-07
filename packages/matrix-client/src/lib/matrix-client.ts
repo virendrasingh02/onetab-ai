@@ -386,6 +386,21 @@ export class OneTabMatrixClient {
       // Backfill is delivered through pagination, not the live stream.
       if (toStartOfTimeline || !room) return;
       const type = event.getType();
+
+      // When a reaction arrives, find the target message and emit an update for it
+      if (type === 'm.reaction') {
+        const relation = event.getRelation();
+        const targetId = relation?.event_id;
+        if (targetId) {
+          const targetEvent = room.findEventById(targetId);
+          if (targetEvent) {
+            const message = toMessage(sdk, targetEvent, room);
+            if (message) this.emit({ type: 'message.updated', message });
+          }
+        }
+        return;
+      }
+
       if (
         type !== 'm.room.message' &&
         !type.startsWith('mie.') &&
@@ -396,6 +411,17 @@ export class OneTabMatrixClient {
 
       const message = toMessage(sdk, event, room);
       if (message) {
+        // If this event corresponds to a pending echo that we already sent, reconcile it instead of appending duplicate
+        const txnId = event.getTxnId();
+        if (txnId && this.pendingEchoes.has(txnId)) {
+          const pending = this.pendingEchoes.get(txnId);
+          const oldId = pending?.id;
+          this.pendingEchoes.delete(txnId);
+          this.emit({ type: 'message.updated', message, oldId });
+          emitCounts(room);
+          return;
+        }
+
         this.emit({ type: 'message.received', message });
         emitCounts(room);
       }
@@ -406,11 +432,18 @@ export class OneTabMatrixClient {
       if (!message) return;
 
       const txnId = event.getTxnId();
+      let oldId: string | undefined;
       if (txnId) {
         message.transactionId = txnId;
-        this.pendingEchoes.delete(txnId);
+        const pending = this.pendingEchoes.get(txnId);
+        if (pending) {
+          oldId = pending.id;
+          if (message.id !== pending.id && !message.sendState) {
+            this.pendingEchoes.delete(txnId);
+          }
+        }
       }
-      this.emit({ type: 'message.updated', message });
+      this.emit({ type: 'message.updated', message, oldId });
     });
 
     sdk.on(RoomEvent.Redaction, (event, room) => {
@@ -421,6 +454,17 @@ export class OneTabMatrixClient {
           roomId: room.roomId,
           eventId: redactedId,
         });
+
+        // If the redacted event was a reaction, re-emit an update for the target message
+        const redactedEvent = room.findEventById(redactedId);
+        const parentId = redactedEvent?.getRelation()?.event_id;
+        if (parentId) {
+          const parentEvent = room.findEventById(parentId);
+          if (parentEvent) {
+            const message = toMessage(sdk, parentEvent, room);
+            if (message) this.emit({ type: 'message.updated', message });
+          }
+        }
       }
     });
 
@@ -744,6 +788,20 @@ export class OneTabMatrixClient {
       .map((event) => toMessage(sdk, event, room))
       .filter((message): message is Message => message !== null);
 
+    // Append pending local echoes for this room that aren't already present
+    for (const pending of this.pendingEchoes.values()) {
+      if (
+        pending.roomId === roomId &&
+        !messages.some(
+          (m) =>
+            m.id === pending.id ||
+            (pending.transactionId && m.transactionId === pending.transactionId),
+        )
+      ) {
+        messages.push(pending);
+      }
+    }
+
     return {
       messages,
       paginationToken: timeline.getPaginationToken(Direction.Backward),
@@ -910,6 +968,36 @@ export class OneTabMatrixClient {
   ): Promise<string> {
     const sdk = this.require();
     const transactionId = `m.${Date.now()}.${Math.random().toString(36).slice(2)}`;
+    const myUserId = sdk.getUserId() ?? '';
+    const room = sdk.getRoom(roomId);
+    const member = myUserId ? room?.getMember(myUserId) : null;
+
+    const optimisticMessage: Message = {
+      id: transactionId,
+      roomId,
+      senderId: myUserId,
+      senderName: member?.name ?? myUserId,
+      senderAvatarUrl:
+        resolveMediaUrl(sdk, member?.getMxcAvatarUrl() ?? undefined, {
+          width: 64,
+          height: 64,
+        }) ?? undefined,
+      kind: 'text',
+      body,
+      formattedBody: options.html,
+      timestamp: Date.now(),
+      reactions: [],
+      isEdited: false,
+      isRedacted: false,
+      threadRootId: options.threadRootId,
+      replyToId: options.replyToId,
+      sendState: 'sending',
+      transactionId,
+      isEncrypted: room ? room.hasEncryptionStateEvent() : false,
+    };
+
+    this.pendingEchoes.set(transactionId, optimisticMessage);
+    this.emit({ type: 'message.received', message: optimisticMessage });
 
     const content: Record<string, unknown> = {
       msgtype: 'm.text',
@@ -926,16 +1014,138 @@ export class OneTabMatrixClient {
         : {}),
     };
 
-    await withRetry(() =>
+    withRetry(() =>
       sdk.sendMessage(
         roomId,
         options.threadRootId ?? null,
         content as never,
         transactionId,
       ),
-    );
+    )
+      .then((res) => {
+        const realEventId = res?.event_id;
+        const pending = this.pendingEchoes.get(transactionId);
+        if (pending && realEventId) {
+          const updated: Message = {
+            ...pending,
+            id: realEventId,
+            sendState: 'sent',
+          };
+          this.pendingEchoes.delete(transactionId);
+          this.emit({
+            type: 'message.updated',
+            message: updated,
+            oldId: transactionId,
+          });
+        }
+      })
+      .catch((_err) => {
+        const pending = this.pendingEchoes.get(transactionId);
+        if (pending) {
+          const failed: Message = {
+            ...pending,
+            sendState: 'failed',
+          };
+          this.pendingEchoes.set(transactionId, failed);
+          this.emit({
+            type: 'message.updated',
+            message: failed,
+          });
+        }
+      });
 
     return transactionId;
+  }
+
+  /**
+   * Retries sending a previously failed message.
+   */
+  async retryMessage(
+    roomId: RoomId,
+    transactionOrEventId: string,
+  ): Promise<string> {
+    const sdk = this.require();
+    const pending =
+      this.pendingEchoes.get(transactionOrEventId) ||
+      [...this.pendingEchoes.values()].find(
+        (m) => m.id === transactionOrEventId,
+      );
+    if (!pending) {
+      throw new MatrixError('NOT_FOUND', 'Message not found or already sent.');
+    }
+
+    const newTxnId = `m.${Date.now()}.${Math.random().toString(36).slice(2)}`;
+    const oldId = pending.id;
+    const oldTxnId = pending.transactionId ?? oldId;
+    this.pendingEchoes.delete(oldTxnId);
+
+    const retriedMessage: Message = {
+      ...pending,
+      id: newTxnId,
+      transactionId: newTxnId,
+      sendState: 'sending',
+      timestamp: Date.now(),
+    };
+    this.pendingEchoes.set(newTxnId, retriedMessage);
+    this.emit({
+      type: 'message.updated',
+      message: retriedMessage,
+      oldId,
+    });
+
+    const content: Record<string, unknown> = {
+      msgtype: 'm.text',
+      body: retriedMessage.body,
+      ...(retriedMessage.formattedBody
+        ? {
+            format: 'org.matrix.custom.html',
+            formatted_body: retriedMessage.formattedBody,
+          }
+        : {}),
+      ...(retriedMessage.replyToId
+        ? {
+            'm.relates_to': {
+              'm.in_reply_to': { event_id: retriedMessage.replyToId },
+            },
+          }
+        : {}),
+    };
+
+    withRetry(() =>
+      sdk.sendMessage(
+        roomId,
+        retriedMessage.threadRootId ?? null,
+        content as never,
+        newTxnId,
+      ),
+    )
+      .then((res) => {
+        const realEventId = res?.event_id;
+        const current = this.pendingEchoes.get(newTxnId);
+        if (current && realEventId) {
+          const updated: Message = {
+            ...current,
+            id: realEventId,
+            sendState: 'sent',
+          };
+          this.pendingEchoes.delete(newTxnId);
+          this.emit({
+            type: 'message.updated',
+            message: updated,
+            oldId: newTxnId,
+          });
+        }
+      })
+      .catch(() => {
+        const current = this.pendingEchoes.get(newTxnId);
+        if (current) {
+          const failed: Message = { ...current, sendState: 'failed' };
+          this.pendingEchoes.set(newTxnId, failed);
+          this.emit({ type: 'message.updated', message: failed });
+        }
+      });
+
+    return newTxnId;
   }
 
   async editMessage(

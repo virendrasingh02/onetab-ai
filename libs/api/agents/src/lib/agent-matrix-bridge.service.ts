@@ -1,5 +1,6 @@
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import {
+  MatrixAdminService,
   MatrixBotMessagingService,
   MatrixInboundRouterService,
   type MatrixTimelineEvent,
@@ -9,14 +10,13 @@ import type { AgentToolExecution, AIAgentMessageContent } from '@org/types';
 import { AgentsService } from './agents.service.js';
 
 /**
- * Makes an AI agent answer inside its own Matrix DM room.
+ * Makes an AI agent answer inside its own Matrix DM room, as well as in
+ * channels, group DMs, and threads whenever mentioned.
  *
- * This is what turns an agent from a page with a "run" button into a
- * conversation participant: `MatrixSyncService` hands every inbound room
- * message to `MatrixInboundRouterService`, and this handler claims the ones
- * that landed in a room it recognises as an agent's (`AIAgent.matrixRoomId`).
- * The reply is posted back into the same room, as the agent's own bot
- * identity, via `MatrixBotMessagingService` — never through a second UI.
+ * This turns an agent into a first-class conversation participant:
+ * `MatrixSyncService` hands every inbound room message to `MatrixInboundRouterService`,
+ * and this handler claims ones in the agent's DM room or mentioning the agent in a channel/thread.
+ * The reply is posted back into the same room and thread context as the agent's bot identity.
  */
 @Injectable()
 export class AgentMatrixBridgeService implements OnModuleInit {
@@ -26,6 +26,7 @@ export class AgentMatrixBridgeService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly router: MatrixInboundRouterService,
     private readonly messaging: MatrixBotMessagingService,
+    private readonly admin: MatrixAdminService,
     private readonly agentsService: AgentsService,
   ) {}
 
@@ -34,18 +35,20 @@ export class AgentMatrixBridgeService implements OnModuleInit {
   }
 
   /**
-   * Claims the event if it belongs to an agent's room and was not sent by
-   * the agent itself, then runs the turn in the background.
-   *
-   * The homeserver expects the appservice transaction endpoint to return
-   * quickly (`MatrixAppserviceController.transaction` awaits every handler
-   * synchronously, and Synapse retries indefinitely on anything but a fast
-   * 200) — so this only ever does the couple of cheap lookups needed to
-   * decide whether to claim the event, then fires the actual agent turn
-   * (a real LLM call, possibly several tool round-trips) without awaiting it.
+   * Claims the event if it belongs to an agent's room or mentions an agent in a channel/thread,
+   * then runs the turn in the background.
    */
   private async tryHandle(event: MatrixTimelineEvent): Promise<boolean> {
-    const agent = await this.prisma.aIAgent.findFirst({
+    const relatesTo = event.content['m.relates_to'] as
+      | { rel_type?: string; event_id?: string }
+      | undefined;
+    if (relatesTo?.rel_type === 'm.replace') return false;
+
+    const promptText =
+      typeof event.content['body'] === 'string' ? event.content['body'] : '';
+    if (!promptText.trim()) return false;
+
+    let targetAgent = await this.prisma.aIAgent.findFirst({
       where: { matrixRoomId: event.room_id },
       select: {
         id: true,
@@ -56,31 +59,70 @@ export class AgentMatrixBridgeService implements OnModuleInit {
         matrixUserId: true,
       },
     });
-    if (!agent) return false;
 
-    // The agent's own posts (its queued/running/completed structured
-    // messages) arrive back through this same transaction stream — without
-    // this check the bridge would answer itself forever.
-    if (event.sender === agent.matrixUserId) return false;
+    let cleanPrompt = promptText;
+    let threadRootId: string | undefined = undefined;
 
-    // An edit (`m.replace`) is a correction to an old message, not a new
-    // prompt — most commonly the bridge's own status edits echoing back
-    // before the sender check above would otherwise catch them via a
-    // differently-cased id, but also a human correcting a typo mid-thought.
-    const relatesTo = event.content['m.relates_to'] as
-      | { rel_type?: string }
-      | undefined;
-    if (relatesTo?.rel_type === 'm.replace') return false;
+    if (relatesTo?.rel_type === 'm.thread' && typeof relatesTo.event_id === 'string') {
+      threadRootId = relatesTo.event_id;
+    }
 
-    const promptText =
-      typeof event.content['body'] === 'string' ? event.content['body'] : '';
-    if (!promptText.trim()) return false;
+    if (!targetAgent) {
+      // Check if room is backed by a channel
+      const channel = await this.prisma.channel.findFirst({
+        where: { matrixRoomId: event.room_id },
+        select: { id: true, workspaceId: true },
+      });
 
-    void this.runTurn(agent, event.room_id, promptText).catch((error) => {
-      this.logger.error(
-        `Agent turn failed for ${agent.id} in ${event.room_id}: ${String(error)}`,
-      );
-    });
+      if (channel) {
+        const agents = await this.prisma.aIAgent.findMany({
+          where: { workspaceId: channel.workspaceId },
+          select: {
+            id: true,
+            workspaceId: true,
+            name: true,
+            model: true,
+            avatarUrl: true,
+            matrixUserId: true,
+          },
+        });
+
+        const mentions = event.content['m.mentions'] as
+          | { user_ids?: unknown }
+          | undefined;
+        const mentionedUserIds = Array.isArray(mentions?.user_ids)
+          ? mentions.user_ids.filter((id): id is string => typeof id === 'string')
+          : [];
+
+        for (const a of agents) {
+          const nameRegex = new RegExp(`@${a.name}\\b`, 'i');
+          const mentionedById =
+            !!a.matrixUserId && mentionedUserIds.includes(a.matrixUserId);
+          const mentionedByName = nameRegex.test(promptText);
+
+          if (mentionedById || mentionedByName) {
+            targetAgent = a;
+            cleanPrompt = promptText.replace(nameRegex, '').trim();
+            if (!threadRootId) {
+              threadRootId = event.event_id;
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    if (!targetAgent) return false;
+    if (event.sender === targetAgent.matrixUserId) return false;
+    if (!cleanPrompt.trim()) return false;
+
+    void this.runTurn(targetAgent, event.room_id, cleanPrompt, threadRootId).catch(
+      (error) => {
+        this.logger.error(
+          `Agent turn failed for ${targetAgent.id} in ${event.room_id}: ${String(error)}`,
+        );
+      },
+    );
 
     return true;
   }
@@ -96,11 +138,22 @@ export class AgentMatrixBridgeService implements OnModuleInit {
     },
     roomId: string,
     promptText: string,
+    threadRootId?: string,
   ): Promise<void> {
-    if (!agent.matrixUserId) return; // can't happen: this room only exists once matrixUserId does
+    if (!agent.matrixUserId) return;
+
+    // Ensure bot identity is joined to the room before responding
+    try {
+      await this.admin.joinRoomAs(agent.matrixUserId, roomId);
+    } catch {
+      // Ignore if already joined
+    }
 
     const startedAt = Date.now();
-    const base: Omit<AIAgentMessageContent, 'status' | 'tools' | 'responseText' | 'errorMessage' | 'completedAt'> = {
+    const base: Omit<
+      AIAgentMessageContent,
+      'status' | 'tools' | 'responseText' | 'errorMessage' | 'completedAt'
+    > = {
       type: 'mie.ai.agent',
       agentId: agent.id,
       agentName: agent.name,
@@ -115,12 +168,16 @@ export class AgentMatrixBridgeService implements OnModuleInit {
       roomId,
       agent.matrixUserId,
       { ...base, status: 'queued' },
+      { threadRootId },
     );
 
-    await this.messaging.updateStructured(roomId, agent.matrixUserId, eventId, {
-      ...base,
-      status: 'running',
-    });
+    await this.messaging.updateStructured(
+      roomId,
+      agent.matrixUserId,
+      eventId,
+      { ...base, status: 'running' },
+      { threadRootId },
+    );
 
     const postToolUpdate = async (tools: AgentToolExecution[]) => {
       await this.messaging.updateStructured(
@@ -128,6 +185,7 @@ export class AgentMatrixBridgeService implements OnModuleInit {
         agent.matrixUserId as string,
         eventId,
         { ...base, status: 'running', tools },
+        { threadRootId },
       );
     };
 
@@ -139,23 +197,35 @@ export class AgentMatrixBridgeService implements OnModuleInit {
         postToolUpdate,
       );
 
-      await this.messaging.updateStructured(roomId, agent.matrixUserId, eventId, {
-        ...base,
-        status: 'completed',
-        responseText: result.result,
-        tools: result.tools,
-        durationMs: Date.now() - startedAt,
-        completedAt: Date.now(),
-      });
+      await this.messaging.updateStructured(
+        roomId,
+        agent.matrixUserId,
+        eventId,
+        {
+          ...base,
+          status: 'completed',
+          responseText: result.result,
+          tools: result.tools,
+          durationMs: Date.now() - startedAt,
+          completedAt: Date.now(),
+        },
+        { threadRootId },
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      await this.messaging.updateStructured(roomId, agent.matrixUserId, eventId, {
-        ...base,
-        status: 'failed',
-        errorMessage: message,
-        durationMs: Date.now() - startedAt,
-        completedAt: Date.now(),
-      });
+      await this.messaging.updateStructured(
+        roomId,
+        agent.matrixUserId,
+        eventId,
+        {
+          ...base,
+          status: 'failed',
+          errorMessage: message,
+          durationMs: Date.now() - startedAt,
+          completedAt: Date.now(),
+        },
+        { threadRootId },
+      );
     }
   }
 }

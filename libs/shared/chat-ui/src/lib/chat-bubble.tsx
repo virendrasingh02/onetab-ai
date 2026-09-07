@@ -23,6 +23,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Copy,
   FileText,
   FolderKanban,
@@ -96,6 +97,7 @@ export interface ChatBubbleProps {
    */
   mentionNames?: string[];
   entityKind?: 'app' | 'doc' | 'task' | 'kanban' | 'agent' | 'thread';
+  onRetry?: () => void;
 }
 
 export function formatShortTimestamp(timestamp: number): string {
@@ -171,6 +173,7 @@ export function ChatBubble({
   density = 'comfy',
   mentionNames,
   entityKind,
+  onRetry,
 }: ChatBubbleProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isReactionOpen, setIsReactionOpen] = useState(false);
@@ -299,6 +302,8 @@ export function ChatBubble({
             ),
         isPinned && 'border-l-2 border-l-warning',
         (isHighlighted || isMentioned) && 'border-l-2 border-l-primary',
+        message.sendState === 'sending' && 'opacity-70',
+        message.sendState === 'failed' && 'bg-destructive/5',
       )}
     >
       {/* Avatar / Left Column with Profile Popover & Modal */}
@@ -418,6 +423,30 @@ export function ChatBubble({
                 text={message.body}
                 mentionNames={mentionNames}
               />
+            ) : null}
+            {message.isEdited ? (
+              <span className="ml-1 text-[11px] text-muted-foreground select-none">
+                (edited)
+              </span>
+            ) : null}
+            {message.sendState === 'sending' ? (
+              <span className="ml-1.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground select-none">
+                <Clock className="size-3 animate-spin" />
+                <span>sending…</span>
+              </span>
+            ) : message.sendState === 'failed' ? (
+              <span className="mt-1 flex items-center gap-1.5 text-xs text-destructive">
+                <AlertTriangle className="size-3.5" />
+                <span>Failed to send.</span>
+                {onRetry ? (
+                  <button
+                    onClick={onRetry}
+                    className="font-semibold underline hover:text-destructive/80 cursor-pointer"
+                  >
+                    Retry
+                  </button>
+                ) : null}
+              </span>
             ) : null}
             {attachmentSlot}
           </>

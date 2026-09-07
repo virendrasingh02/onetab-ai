@@ -152,9 +152,13 @@ export function AppShell() {
   const channelActivity = useMemo(() => {
     const merged: Record<string, ActivityIndicator> = { ...feedChannelActivity };
     for (const channel of channelsQuery.data ?? []) {
-      const live = liveRoomActivity.byChannelName.get(
-        channel.name.toLowerCase().trim(),
-      );
+      const live =
+        liveRoomActivity.byChannelName.get(
+          channel.name.toLowerCase().trim(),
+        ) ??
+        ('matrixRoomId' in channel && typeof (channel as Record<string, unknown>).matrixRoomId === 'string'
+          ? liveRoomActivity.byRoomId.get((channel as Record<string, unknown>).matrixRoomId as string)
+          : undefined);
       if (!live) continue;
       merged[channel.id] = mergeActivityIndicators(
         feedChannelActivity[channel.id],

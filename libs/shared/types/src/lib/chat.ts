@@ -581,7 +581,7 @@ export type MatrixClientEvent =
   | { type: 'room.upserted'; room: Room }
   | { type: 'room.removed'; roomId: RoomId }
   | { type: 'message.received'; message: Message }
-  | { type: 'message.updated'; message: Message }
+  | { type: 'message.updated'; message: Message; oldId?: EventId }
   | { type: 'message.redacted'; roomId: RoomId; eventId: EventId }
   | { type: 'typing'; update: TypingUpdate }
   | { type: 'presence'; presence: Presence }

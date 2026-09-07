@@ -618,6 +618,7 @@ export function ChatPanel({
       onReact={actions.toggleReaction}
       onTyping={actions.setTyping}
       onAttach={actions.attach}
+      onRetry={actions.retry}
       onTogglePin={togglePin}
       onToggleSave={toggleSave}
       onAssignToMe={handleAssignToMe}

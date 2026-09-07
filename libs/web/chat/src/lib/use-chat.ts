@@ -113,22 +113,64 @@ export function useRoom(roomId: RoomId | undefined, options: UseRoomOptions = {}
       switch (event.type) {
         case 'message.received':
           if (event.message.roomId !== roomId) return;
-          setState((current) =>
-            // The SDK can replay an event; never append a duplicate.
-            current.messages.some((m) => m.id === event.message.id)
-              ? current
-              : { ...current, messages: [...current.messages, event.message] },
-          );
+          setState((current) => {
+            const exists = current.messages.some(
+              (m) =>
+                m.id === event.message.id ||
+                (event.message.transactionId &&
+                  m.transactionId &&
+                  m.transactionId === event.message.transactionId),
+            );
+            if (exists) {
+              return {
+                ...current,
+                messages: current.messages.map((m) =>
+                  m.id === event.message.id ||
+                  (event.message.transactionId &&
+                    m.transactionId &&
+                    m.transactionId === event.message.transactionId)
+                    ? event.message
+                    : m,
+                ),
+              };
+            }
+            return {
+              ...current,
+              messages: [...current.messages, event.message],
+            };
+          });
           break;
 
         case 'message.updated':
           if (event.message.roomId !== roomId) return;
-          setState((current) => ({
-            ...current,
-            messages: current.messages.map((message) =>
-              message.id === event.message.id ? event.message : message,
-            ),
-          }));
+          setState((current) => {
+            const oldId = event.oldId;
+            const txnId = event.message.transactionId;
+            const exists = current.messages.some(
+              (m) =>
+                m.id === event.message.id ||
+                (oldId && m.id === oldId) ||
+                (txnId && m.transactionId === txnId),
+            );
+
+            if (!exists) {
+              return {
+                ...current,
+                messages: [...current.messages, event.message],
+              };
+            }
+
+            return {
+              ...current,
+              messages: current.messages.map((m) =>
+                m.id === event.message.id ||
+                (oldId && m.id === oldId) ||
+                (txnId && m.transactionId === txnId)
+                  ? event.message
+                  : m,
+              ),
+            };
+          });
           break;
 
         case 'message.redacted':
@@ -379,7 +421,10 @@ export function useGroupDirectMessages(): GroupDirectMessageSummary[] {
         event.type === 'room.upserted' ||
         event.type === 'room.removed' ||
         event.type === 'message.received' ||
-        event.type === 'notifications'
+        event.type === 'message.updated' ||
+        event.type === 'message.redacted' ||
+        event.type === 'notifications' ||
+        event.type === 'receipt'
       ) {
         collect();
       }
@@ -397,6 +442,14 @@ export function useRoomActions(roomId: RoomId | undefined) {
     async (body: string, threadRootId?: string) => {
       if (!client || !roomId) return;
       await client.sendMessage(roomId, body, { threadRootId });
+    },
+    [client, roomId],
+  );
+
+  const retry = useCallback(
+    async (messageId: string) => {
+      if (!client || !roomId) return;
+      await client.retryMessage(roomId, messageId);
     },
     [client, roomId],
   );
@@ -456,7 +509,16 @@ export function useRoomActions(roomId: RoomId | undefined) {
     [client, roomId],
   );
 
-  return { send, edit, remove, toggleReaction, setTyping, markRead, attach };
+  return {
+    send,
+    retry,
+    edit,
+    remove,
+    toggleReaction,
+    setTyping,
+    markRead,
+    attach,
+  };
 }
 
 export function usePresence(userIds: string[]) {

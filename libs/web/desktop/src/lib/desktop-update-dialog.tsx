@@ -1,9 +1,8 @@
-import { Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Progress } from '@org/ui';
+import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Progress } from '@org/ui';
 import {
   AlertTriangle,
   CheckCircle2,
   Download,
-  ExternalLink,
   RotateCcw,
   ShieldAlert,
   Sparkles,
