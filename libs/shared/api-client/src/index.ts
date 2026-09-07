@@ -35,6 +35,7 @@ export {
   workspaceApi,
   billingApi,
   complianceApi,
+  appVersionsApi,
   type AuthResponse,
   type UpdateUploadParams,
   type UploadContextParams,

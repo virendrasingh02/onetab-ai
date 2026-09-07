@@ -3,6 +3,20 @@ import type {
   NotificationView,
   Paginated,
   UserPresence,
+  AppPlatform,
+  AppOperatingSystem,
+  AppReleaseChannel,
+  AppReleaseStatus,
+  AppReleaseView,
+  AppReleaseAuditLogView,
+  AppVersionsOverview,
+  AppVersionCheckInput,
+  AppVersionCheckResult,
+  CreateAppReleaseInput,
+  UpdateAppReleaseInput,
+  ScheduleAppReleaseInput,
+  RolloutAppReleaseInput,
+  RollbackAppReleaseInput,
   AdminAuditLogEntry,
   AdminDepartment,
   AdminOrganization,
@@ -2778,6 +2792,94 @@ export const complianceApi = {
     request<AdminPage<ComplianceAuditLogView>>(
       http.get('/admin/compliance/audit-logs', { params }),
     ),
+};
+
+export const appVersionsApi = {
+  overview: () =>
+    request<AppVersionsOverview>(http.get('/admin/app-versions/overview')),
+
+  list: (params: {
+    platform?: AppPlatform;
+    operatingSystem?: AppOperatingSystem;
+    releaseChannel?: AppReleaseChannel;
+    status?: AppReleaseStatus;
+    q?: string;
+    page?: number;
+    pageSize?: number;
+  } = {}) =>
+    request<{
+      items: AppReleaseView[];
+      total: number;
+      page: number;
+      pageSize: number;
+      totalPages: number;
+    }>(http.get('/admin/app-versions', { params })),
+
+  get: (id: string) =>
+    request<AppReleaseView>(http.get(`/admin/app-versions/${id}`)),
+
+  create: (input: CreateAppReleaseInput) =>
+    request<AppReleaseView>(http.post('/admin/app-versions', input)),
+
+  update: (id: string, input: UpdateAppReleaseInput) =>
+    request<AppReleaseView>(http.patch(`/admin/app-versions/${id}`, input)),
+
+  release: (id: string, input: { reason?: string } = {}) =>
+    request<AppReleaseView>(
+      http.post(`/admin/app-versions/${id}/release`, input),
+    ),
+
+  schedule: (id: string, input: ScheduleAppReleaseInput) =>
+    request<AppReleaseView>(
+      http.post(`/admin/app-versions/${id}/schedule`, input),
+    ),
+
+  rollout: (id: string, input: RolloutAppReleaseInput) =>
+    request<AppReleaseView>(
+      http.post(`/admin/app-versions/${id}/rollout`, input),
+    ),
+
+  deprecate: (id: string, input: { reason?: string } = {}) =>
+    request<AppReleaseView>(
+      http.post(`/admin/app-versions/${id}/deprecate`, input),
+    ),
+
+  disable: (id: string, input: { reason?: string } = {}) =>
+    request<AppReleaseView>(
+      http.post(`/admin/app-versions/${id}/disable`, input),
+    ),
+
+  rollback: (id: string, input: RollbackAppReleaseInput) =>
+    request<AppReleaseView>(
+      http.post(`/admin/app-versions/${id}/rollback`, input),
+    ),
+
+  auditLogs: (params: {
+    platform?: AppPlatform;
+    releaseId?: string;
+    page?: number;
+    pageSize?: number;
+  } = {}) =>
+    request<{
+      items: AppReleaseAuditLogView[];
+      total: number;
+      page: number;
+      pageSize: number;
+    }>(http.get('/admin/app-versions/audit-logs', { params })),
+
+  checkUpdate: (params: AppVersionCheckInput) =>
+    request<AppVersionCheckResult>(
+      http.get('/app-versions/check-update', { params }),
+    ),
+
+  webMetadata: () =>
+    request<{
+      version: string;
+      build: string;
+      releaseDate: string;
+      minimumSupportedVersion: string;
+      environment: string;
+    }>(http.get('/app-versions/web-metadata')),
 };
 
 

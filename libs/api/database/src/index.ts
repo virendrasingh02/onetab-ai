@@ -42,6 +42,10 @@ export {
   ComplianceIssueStatus,
   ComplianceIssueSource,
   CompliancePolicyStatus,
+  AppPlatform,
+  AppOperatingSystem,
+  AppReleaseChannel,
+  AppReleaseStatus,
 } from './generated/client.js';
 
 export type {
@@ -114,5 +118,7 @@ export type {
   ComplianceReleaseOverride,
   ComplianceAuditLog,
   ComplianceLegalLink,
+  AppRelease,
+  AppReleaseAuditLog,
 } from './generated/client.js';
 

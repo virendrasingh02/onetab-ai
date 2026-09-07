@@ -1,6 +1,8 @@
 import { Button, Hint } from '@org/ui';
 import { AlertTriangle, Download, RotateCcw } from 'lucide-react';
+import { useState } from 'react';
 import { useDesktop } from './desktop-provider.js';
+import { DesktopUpdateDialog } from './desktop-update-dialog.js';
 
 /**
  * A compact "app update" control meant to dock next to the profile menu —
@@ -23,23 +25,32 @@ import { useDesktop } from './desktop-provider.js';
  */
 export function DesktopUpdateIndicator() {
   const { isDesktop, updateStatus, downloadUpdate, installUpdate, checkForUpdates } = useDesktop();
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   if (!isDesktop) return null;
 
   if (updateStatus.state === 'available') {
     return (
-      <Hint label={`Version ${updateStatus.version} is available`}>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => void downloadUpdate()}
-          aria-label={`Download version ${updateStatus.version}`}
-          className="gap-1 px-2 text-xs font-medium h-7 cursor-pointer"
-        >
-          <Download className="size-3.5" />
-          <span className="sm:inline hidden">Update</span>
-        </Button>
-      </Hint>
+      <>
+        <DesktopUpdateDialog
+          isOpenOverride={dialogOpen}
+          onCloseOverride={() => setDialogOpen(false)}
+        />
+        <Hint label={updateStatus.mandatory ? 'Mandatory update required' : `Version ${updateStatus.version} is available`}>
+          <Button
+            variant={updateStatus.mandatory ? 'destructive' : 'outline'}
+            size="sm"
+            onClick={() => setDialogOpen(true)}
+            aria-label={`Update to version ${updateStatus.version}`}
+            className="gap-1 px-2 text-xs font-medium h-7 cursor-pointer"
+          >
+            <Download className="size-3.5" />
+            <span className="sm:inline hidden">
+              {updateStatus.mandatory ? 'Update Required' : 'Update'}
+            </span>
+          </Button>
+        </Hint>
+      </>
     );
   }
 

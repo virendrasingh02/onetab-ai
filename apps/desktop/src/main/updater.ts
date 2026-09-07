@@ -72,13 +72,82 @@ function isStoreManaged(): boolean {
   return isMasBuild() || isWindowsStoreBuild();
 }
 
-export async function checkForUpdates(isDev: boolean): Promise<DesktopUpdateStatus> {
+export async function checkForUpdates(
+  isDev: boolean,
+  apiUrl?: string,
+): Promise<DesktopUpdateStatus> {
   if (isDev) {
     publish({ state: 'unsupported' });
     return lastStatus;
   }
 
-  if (!app.isPackaged || isStoreManaged()) {
+  const currentVersion =
+    typeof app?.getVersion === 'function' ? app.getVersion() : '0.0.1';
+  const os =
+    process.platform === 'win32'
+      ? 'windows'
+      : process.platform === 'darwin'
+      ? 'macos'
+      : 'linux';
+  const arch = process.arch;
+
+  // 1. Query centralized version management endpoint
+  try {
+    const baseUrl = apiUrl || process.env['API_URL'] || 'http://localhost:3000';
+    const query = new URLSearchParams({
+      platform: 'desktop',
+      os,
+      currentVersion,
+      architecture: arch,
+      releaseChannel: 'stable',
+    });
+
+    const res = await fetch(`${baseUrl}/api/v1/app-versions/check-update?${query.toString()}`, {
+      headers: { Accept: 'application/json' },
+    });
+
+    if (res.ok) {
+      const data = (await res.json()) as any;
+      if (data && typeof data === 'object') {
+        if (data.status === 'update-required' || data.mandatory || data.forceUpdate) {
+          publish({
+            state: 'available',
+            version: data.latestVersion || 'new version',
+            mandatory: true,
+            forceUpdate: Boolean(data.forceUpdate),
+            releaseNotes: data.releaseNotes || 'A required security and feature update is available.',
+            downloadUrl: data.downloadUrl,
+            changelog: data.changelog,
+            minSupportedVersion: data.minimumSupportedVersion,
+          });
+          return lastStatus;
+        }
+
+        if (data.updateAvailable) {
+          publish({
+            state: 'available',
+            version: data.latestVersion || 'new version',
+            mandatory: false,
+            releaseNotes: data.releaseNotes,
+            downloadUrl: data.downloadUrl,
+            changelog: data.changelog,
+            minSupportedVersion: data.minimumSupportedVersion,
+          });
+          return lastStatus;
+        }
+
+        if (data.status === 'up-to-date') {
+          publish({ state: 'not-available' });
+          return lastStatus;
+        }
+      }
+    }
+  } catch (err) {
+    logger.debug('Updater', 'Server version check endpoint unavailable, trying local updater', err);
+  }
+
+  // 2. Fallback to electron-updater if packaged
+  if (isDev || !app.isPackaged || isStoreManaged()) {
     publish({ state: 'unsupported' });
     return lastStatus;
   }

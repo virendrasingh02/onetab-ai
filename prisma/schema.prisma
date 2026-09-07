@@ -74,6 +74,8 @@ model User {
   assignedComplianceIssues ComplianceIssue[]       @relation("IssueAssignee")
   complianceEvidence      ComplianceEvidence[]
   complianceOverrides     ComplianceReleaseOverride[]
+  createdAppReleases      AppRelease[]             @relation("AppReleaseCreator")
+  updatedAppReleases      AppRelease[]             @relation("AppReleaseUpdater")
 
   @@index([presence, lastSeenAt])
   @@map("users")
@@ -2296,5 +2298,87 @@ model ComplianceLegalLink {
 
   @@unique([key, countryCode, platformCode])
   @@map("compliance_legal_links")
+}
+
+// -----------------------------------------------------------------------------
+// Web & Desktop Application Version Management
+// -----------------------------------------------------------------------------
+
+enum AppPlatform {
+  WEB
+  DESKTOP
+}
+
+enum AppOperatingSystem {
+  WINDOWS
+  MACOS
+  LINUX
+}
+
+enum AppReleaseChannel {
+  STABLE
+  BETA
+  ALPHA
+  NIGHTLY
+}
+
+enum AppReleaseStatus {
+  DRAFT
+  SCHEDULED
+  RELEASED
+  DEPRECATED
+  DISABLED
+}
+
+model AppRelease {
+  id                      String              @id @default(cuid())
+  platform                AppPlatform
+  operatingSystem         AppOperatingSystem?
+  version                 String
+  buildNumber             String
+  releaseChannel          AppReleaseChannel   @default(STABLE)
+  status                  AppReleaseStatus    @default(DRAFT)
+  minimumSupportedVersion String?             @default("1.0.0")
+  releaseDate             DateTime            @default(now())
+  rolloutPercentage       Int                 @default(100)
+  downloadUrl             String?
+  releaseNotes            String?
+  changelog               String?
+  mandatoryUpdate         Boolean             @default(false)
+  forceUpdate             Boolean             @default(false)
+  isCurrent               Boolean             @default(false)
+  createdById             String?
+  createdBy               User?               @relation("AppReleaseCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById             String?
+  updatedBy               User?               @relation("AppReleaseUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+  auditLogs               AppReleaseAuditLog[]
+
+  @@unique([platform, operatingSystem, releaseChannel, version])
+  @@index([platform, operatingSystem, status])
+  @@index([platform, isCurrent])
+  @@index([releaseDate])
+  @@map("app_releases")
+}
+
+model AppReleaseAuditLog {
+  id              String              @id @default(cuid())
+  releaseId       String?
+  release         AppRelease?         @relation(fields: [releaseId], references: [id], onDelete: SetNull)
+  actorId         String?
+  actorEmail      String
+  action          String
+  platform        AppPlatform
+  operatingSystem AppOperatingSystem?
+  version         String
+  previousState   String?
+  newState        String?
+  reason          String?
+  createdAt       DateTime            @default(now())
+
+  @@index([releaseId])
+  @@index([platform, createdAt])
+  @@map("app_release_audit_logs")
 }
 

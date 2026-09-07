@@ -13,6 +13,7 @@ import {
   Gauge,
   Globe,
   HeartPulse,
+  Layers,
   Monitor,
   Moon,
   Palette,
@@ -67,6 +68,17 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
         label: 'Error Tracking',
         icon: Bug,
         tone: 'text-destructive',
+      },
+    ],
+  },
+  {
+    title: 'Application Management',
+    items: [
+      {
+        to: '/versions',
+        label: 'Versions & Releases',
+        icon: Layers,
+        tone: 'text-accent-blue',
       },
     ],
   },

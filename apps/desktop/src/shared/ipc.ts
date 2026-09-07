@@ -171,7 +171,16 @@ export interface DesktopDownloadRequest {
 export type DesktopUpdateStatus =
   | { state: 'idle' }
   | { state: 'checking' }
-  | { state: 'available'; version: string; releaseNotes?: string }
+  | {
+      state: 'available';
+      version: string;
+      releaseNotes?: string;
+      mandatory?: boolean;
+      forceUpdate?: boolean;
+      downloadUrl?: string;
+      changelog?: string;
+      minSupportedVersion?: string;
+    }
   | { state: 'downloading'; percent: number }
   | { state: 'ready'; version: string }
   | { state: 'not-available' }

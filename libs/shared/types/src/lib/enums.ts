@@ -278,3 +278,36 @@ export function hasWorkspaceRole(
     WORKSPACE_ROLE_ORDER.indexOf(minimum)
   );
 }
+
+export const AppPlatform = {
+  WEB: 'WEB',
+  DESKTOP: 'DESKTOP',
+} as const;
+export type AppPlatform = (typeof AppPlatform)[keyof typeof AppPlatform];
+
+export const AppOperatingSystem = {
+  WINDOWS: 'WINDOWS',
+  MACOS: 'MACOS',
+  LINUX: 'LINUX',
+} as const;
+export type AppOperatingSystem =
+  (typeof AppOperatingSystem)[keyof typeof AppOperatingSystem];
+
+export const AppReleaseChannel = {
+  STABLE: 'STABLE',
+  BETA: 'BETA',
+  ALPHA: 'ALPHA',
+  NIGHTLY: 'NIGHTLY',
+} as const;
+export type AppReleaseChannel =
+  (typeof AppReleaseChannel)[keyof typeof AppReleaseChannel];
+
+export const AppReleaseStatus = {
+  DRAFT: 'DRAFT',
+  SCHEDULED: 'SCHEDULED',
+  RELEASED: 'RELEASED',
+  DEPRECATED: 'DEPRECATED',
+  DISABLED: 'DISABLED',
+} as const;
+export type AppReleaseStatus =
+  (typeof AppReleaseStatus)[keyof typeof AppReleaseStatus];

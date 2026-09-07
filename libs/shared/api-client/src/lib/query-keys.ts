@@ -285,5 +285,17 @@ export const queryKeys = {
     auditLogs: (page = 1, filters?: Record<string, unknown>) =>
       ['compliance', 'audit-logs', page, filters ?? {}] as const,
   },
+  appVersions: {
+    all: () => ['app-versions'] as const,
+    overview: () => ['app-versions', 'overview'] as const,
+    list: (filters?: Record<string, unknown>) =>
+      ['app-versions', 'list', filters ?? {}] as const,
+    detail: (id: string) => ['app-versions', 'detail', id] as const,
+    auditLogs: (filters?: Record<string, unknown>) =>
+      ['app-versions', 'audit-logs', filters ?? {}] as const,
+    checkUpdate: (params?: Record<string, unknown>) =>
+      ['app-versions', 'check-update', params ?? {}] as const,
+    webMetadata: () => ['app-versions', 'web-metadata'] as const,
+  },
 } as const;
 

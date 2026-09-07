@@ -121,6 +121,12 @@ const ComplianceAuditLogView = lazy(() =>
   })),
 );
 
+const VersionsManagementView = lazy(() =>
+  import('@org/admin-compliance').then((m) => ({
+    default: m.VersionsManagementView,
+  })),
+);
+
 function NotFoundPage() {
   return (
     <div className="p-6 grid min-h-dvh place-items-center">
@@ -149,6 +155,8 @@ export function App() {
           <Route path="/health" element={<HealthDashboardView />} />
           <Route path="/performance" element={<PerformanceMonitoringView />} />
           <Route path="/errors" element={<ErrorTrackingView />} />
+
+          <Route path="/versions" element={<VersionsManagementView />} />
 
           <Route path="/enterprise" element={<EnterpriseDashboardView />} />
           <Route path="/enterprise/sso" element={<SSOConfigView />} />

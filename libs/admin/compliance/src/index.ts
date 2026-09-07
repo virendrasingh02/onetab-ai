@@ -8,3 +8,5 @@ export * from './lib/IssuesView.js';
 export * from './lib/VersionsView.js';
 export * from './lib/LegalLinksView.js';
 export * from './lib/AuditLogView.js';
+export * from './lib/VersionsManagementView.js';
+export * from './lib/use-app-versions.js';

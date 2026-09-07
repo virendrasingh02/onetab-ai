@@ -385,7 +385,7 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
 
   ipcMain.handle(
     IPC.checkForUpdates,
-    guard(() => checkForUpdates(isDev)),
+    guard(() => checkForUpdates(isDev, webAppUrl)),
   );
   ipcMain.handle(
     IPC.downloadUpdate,

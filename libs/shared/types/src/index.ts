@@ -26,6 +26,10 @@ export {
   WorkspaceRole,
   WorkspaceStatus,
   hasWorkspaceRole,
+  AppPlatform,
+  AppOperatingSystem,
+  AppReleaseChannel,
+  AppReleaseStatus,
 } from './lib/enums.js';
 
 export {
@@ -218,4 +222,6 @@ export {
   SYSTEM_ROLE_COMPLIANCE_PERMISSIONS,
   systemRoleHasCompliancePermission,
 } from './lib/permissions.js';
+
+export * from './lib/app-versions.js';
 
