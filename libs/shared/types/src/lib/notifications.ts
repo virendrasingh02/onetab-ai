@@ -35,6 +35,7 @@ export interface UserPreferences {
   chat: ChatPreferences;
   notifications: NotificationDisplayPreferences;
   theme?: ThemeConfig;
+  language?: string;
 }
 
 export interface NotificationPreference {

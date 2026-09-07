@@ -553,6 +553,7 @@ export function toCurrentUser(user: {
   avatarUrl: string | null;
   bio: string | null;
   timezone: string;
+  preferredLanguage?: string | null;
   systemRole: string;
   presence: string;
   statusText?: string | null;
@@ -573,6 +574,7 @@ export function toCurrentUser(user: {
     avatarUrl: user.avatarUrl,
     bio: user.bio,
     timezone: user.timezone,
+    preferredLanguage: user.preferredLanguage ?? 'en',
     systemRole: user.systemRole as CurrentUser['systemRole'],
     presence: user.presence as CurrentUser['presence'],
     statusText: isExpired ? null : user.statusText ?? null,

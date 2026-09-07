@@ -46,6 +46,7 @@
     "@org/analytics-ui": "*",
     "@org/common": "*",
     "@org/design-system": "*",
+    "@org/i18n": "*",
     "@org/ui": "*",
     "@org/utils": "*",
     "@org/types": "*",

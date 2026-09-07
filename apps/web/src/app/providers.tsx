@@ -21,7 +21,8 @@ import {
   QueryClientProvider,
   useQueryClient,
 } from '@tanstack/react-query';
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useI18nStore } from '@org/i18n';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Provider } from 'react-redux';
 import { RealtimeStatusPill } from './realtime-status-pill';
 import { useThemeSync } from './use-theme-sync';
@@ -44,6 +45,23 @@ function AppToaster() {
 function ThemeSync() {
   const user = useCurrentUser();
   useThemeSync(!!user);
+  return null;
+}
+
+/**
+ * Synchronizes the signed-in user's preferredLanguage with the client-side
+ * i18n store, automatically setting document lang and dir (RTL/LTR).
+ */
+function LanguageSync() {
+  const user = useCurrentUser();
+  const syncFromUserPreference = useI18nStore((s) => s.syncFromUserPreference);
+
+  useEffect(() => {
+    if (user?.preferredLanguage) {
+      syncFromUserPreference(user.preferredLanguage);
+    }
+  }, [user?.preferredLanguage, syncFromUserPreference]);
+
   return null;
 }
 
@@ -164,6 +182,7 @@ export function Providers({ children }: { children: ReactNode }) {
         <QueryClientProvider client={queryClient}>
           <ThemeProvider defaultTheme="light">
             <ThemeSync />
+            <LanguageSync />
             {/*
               Inside ThemeProvider (it pushes the resolved theme to native
               chrome) and inside the router (deep links resolve to routes), but

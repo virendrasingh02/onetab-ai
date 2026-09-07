@@ -79,6 +79,9 @@ export class UserService {
           : {}),
         ...(input.bio !== undefined ? { bio: input.bio } : {}),
         ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
+        ...(input.preferredLanguage !== undefined
+          ? { preferredLanguage: input.preferredLanguage }
+          : {}),
         ...(input.avatarUrl !== undefined ? { avatarUrl: input.avatarUrl } : {}),
         ...(input.statusText !== undefined ? { statusText: input.statusText } : {}),
         ...(input.statusEmoji !== undefined ? { statusEmoji: input.statusEmoji } : {}),
@@ -135,6 +138,7 @@ export class UserService {
       github: input.github !== undefined ? input.github : ((user as any).github ?? null),
       bio: user.bio,
       timezone: user.timezone,
+      preferredLanguage: user.preferredLanguage ?? 'en',
       systemRole: user.systemRole as CurrentUser['systemRole'],
       presence: user.presence as CurrentUser['presence'],
       statusText: isExpired ? null : user.statusText ?? null,
@@ -187,6 +191,7 @@ export class UserService {
       avatarUrl: user.avatarUrl,
       bio: user.bio,
       timezone: user.timezone,
+      preferredLanguage: user.preferredLanguage ?? 'en',
       systemRole: user.systemRole as CurrentUser['systemRole'],
       presence: user.presence as CurrentUser['presence'],
       statusText: isExpired ? null : user.statusText ?? null,
@@ -310,9 +315,15 @@ export class UserService {
   }
 
   async getPreferences(userId: string): Promise<UserPreferences> {
-    const settings = await this.prisma.chatSettings.findUnique({
-      where: { userId },
-    });
+    const [settings, user] = await Promise.all([
+      this.prisma.chatSettings.findUnique({
+        where: { userId },
+      }),
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { preferredLanguage: true },
+      }),
+    ]);
 
     const density =
       settings?.density === 'compact' ? 'compact' : 'comfy';
@@ -332,6 +343,7 @@ export class UserService {
         position: 'bottom-right',
         size: 'comfy',
       },
+      language: user?.preferredLanguage ?? 'en',
     };
   }
 
@@ -350,24 +362,88 @@ export class UserService {
         ...current.notifications,
         ...(input.notifications ?? {}),
       },
+      language: input.language ?? current.language ?? 'en',
     };
 
     const densityForDb =
       updated.chat.messageDensity === 'compact' ? 'compact' : 'comfortable';
 
-    await this.prisma.chatSettings.upsert({
-      where: { userId },
-      create: {
-        userId,
-        density: densityForDb,
-        showReadReceipts: updated.chat.readReceipts,
-      },
-      update: {
-        density: densityForDb,
-        showReadReceipts: updated.chat.readReceipts,
-      },
-    });
+    const updates: Promise<unknown>[] = [
+      this.prisma.chatSettings.upsert({
+        where: { userId },
+        create: {
+          userId,
+          density: densityForDb,
+          showReadReceipts: updated.chat.readReceipts,
+        },
+        update: {
+          density: densityForDb,
+          showReadReceipts: updated.chat.readReceipts,
+        },
+      }),
+    ];
+
+    if (input.language) {
+      updates.push(
+        this.prisma.user.update({
+          where: { id: userId },
+          data: { preferredLanguage: input.language },
+        }),
+      );
+    }
+
+    await Promise.all(updates);
 
     return updated;
+  }
+
+  async getLanguage(userId: string): Promise<{ language: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { preferredLanguage: true },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return { language: user.preferredLanguage ?? 'en' };
+  }
+
+  async updateLanguage(
+    userId: string,
+    language: string,
+  ): Promise<{ language: string; user: CurrentUser }> {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { preferredLanguage: language },
+    });
+
+    const isExpired =
+      user.statusExpiresAt && user.statusExpiresAt < new Date();
+
+    const currentUser: CurrentUser = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+      bio: user.bio,
+      timezone: user.timezone,
+      preferredLanguage: user.preferredLanguage ?? 'en',
+      systemRole: user.systemRole as CurrentUser['systemRole'],
+      presence: user.presence as CurrentUser['presence'],
+      statusText: isExpired ? null : user.statusText ?? null,
+      statusEmoji: isExpired ? null : user.statusEmoji ?? null,
+      statusExpiresAt: isExpired
+        ? null
+        : (user.statusExpiresAt?.toISOString() ?? null),
+      emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null,
+      lastSeenAt: user.lastSeenAt?.toISOString() ?? null,
+      createdAt: user.createdAt.toISOString(),
+    };
+
+    return {
+      language: user.preferredLanguage ?? 'en',
+      user: currentUser,
+    };
   }
 }

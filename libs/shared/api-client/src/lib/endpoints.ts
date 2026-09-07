@@ -765,7 +765,18 @@ export const userApi = {
 
   saveThemeSettings: (data: Record<string, unknown>) =>
     request<Record<string, unknown>>(http.put('/users/me/theme', data)),
+
+  /** The authenticated user's preferred interface language code. */
+  getLanguage: () =>
+    request<{ language: string }>(http.get('/users/me/language')),
+
+  /** Updates the user's preferred interface language. */
+  updateLanguage: (input: string | { language: string }) =>
+    request<{ language: string; user: CurrentUser }>(
+      http.patch('/users/me/language', typeof input === 'string' ? { language: input } : input),
+    ),
 };
+
 
 /** Matrix session brokering. The browser never holds Matrix credentials. */
 export const matrixApi = {

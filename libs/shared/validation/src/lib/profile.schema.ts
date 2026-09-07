@@ -1,10 +1,36 @@
 import { z } from 'zod';
 
+export const SUPPORTED_LANGUAGE_CODES = [
+  'en',
+  'hi',
+  'es',
+  'fr',
+  'de',
+  'pt',
+  'ja',
+  'ko',
+  'zh',
+  'ar',
+] as const;
+
+export type SupportedLanguageCode = (typeof SUPPORTED_LANGUAGE_CODES)[number];
+
+export const languageCodeSchema = z.enum(SUPPORTED_LANGUAGE_CODES, {
+  message: 'Unsupported language code. Supported: en, hi, es, fr, de, pt, ja, ko, zh, ar',
+});
+
+export const updateLanguageSchema = z.object({
+  language: languageCodeSchema,
+});
+
+export type UpdateLanguageInput = z.infer<typeof updateLanguageSchema>;
+
 export const updateProfileSchema = z.object({
   name: z.string().trim().min(2, 'Name must be at least 2 characters').max(80),
   displayName: z.string().trim().max(48).nullable().optional(),
   bio: z.string().trim().max(280).nullable().optional(),
   timezone: z.string().min(1).max(64).optional(),
+  preferredLanguage: languageCodeSchema.optional(),
   avatarUrl: z.string().nullable().optional(),
   coverUrl: z.string().nullable().optional(),
   title: z.string().trim().max(80).nullable().optional(),
@@ -224,12 +250,14 @@ export const userPreferencesSchema = z.object({
     size: 'comfy',
   }),
   theme: themeConfigSchema.optional(),
+  language: languageCodeSchema.default('en'),
 });
 
 export const updateUserPreferencesSchema = z.object({
   chat: chatPreferencesSchema.partial().optional(),
   notifications: notificationDisplayPreferencesSchema.partial().optional(),
   theme: themeConfigSchema.partial().optional(),
+  language: languageCodeSchema.optional(),
 });
 
 /**

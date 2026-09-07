@@ -36,6 +36,7 @@ export interface PublicUser {
    * would be wrong twice a year — the zone id survives DST, an offset does not.
    */
   timezone: string;
+  preferredLanguage?: string;
 }
 
 export interface UserPresence {
@@ -164,6 +165,7 @@ export interface CurrentUser extends PublicUser {
   bio: string | null;
   systemRole: SystemRole;
   emailVerifiedAt: IsoDateString | null;
+  preferredLanguage: string;
   createdAt: IsoDateString;
 }
 

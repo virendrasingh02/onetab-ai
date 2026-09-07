@@ -13,11 +13,13 @@ import { CurrentUser, WorkspaceId, zodBody } from '@org/api-common';
 import {
   sidebarPreferencesSchema,
   themeSettingSchema,
+  updateLanguageSchema,
   updateProfileSchema,
   updateStatusSchema,
   updateUserPreferencesSchema,
   type SidebarPreferencesInput,
   type ThemeSettingInput,
+  type UpdateLanguageInput,
   type UpdateProfileInput,
   type UpdateStatusInput,
   type UpdateUserPreferencesInput,
@@ -27,6 +29,19 @@ import { UserService } from './user.service.js';
 @Controller({ path: 'users', version: '1' })
 export class UserController {
   constructor(private readonly users: UserService) {}
+
+  @Get('me/language')
+  getLanguage(@CurrentUser('id') userId: string) {
+    return this.users.getLanguage(userId);
+  }
+
+  @Patch('me/language')
+  updateLanguage(
+    @CurrentUser('id') userId: string,
+    @Body(zodBody(updateLanguageSchema)) body: UpdateLanguageInput,
+  ) {
+    return this.users.updateLanguage(userId, body.language);
+  }
 
   @Get('me/preferences')
   getPreferences(@CurrentUser('id') userId: string) {

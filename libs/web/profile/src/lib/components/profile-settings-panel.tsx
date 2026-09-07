@@ -13,11 +13,13 @@ import {
   FormLabel,
   FormMessage,
   Input,
+  LanguageSelect,
   LoadingState,
   Textarea,
   toast,
   UserAvatar,
 } from '@org/ui';
+import { useTranslation, type SupportedLanguageCode } from '@org/i18n';
 import { updateProfileSchema, type UpdateProfileInput } from '@org/validation';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { useMutation } from '@tanstack/react-query';
@@ -44,6 +46,7 @@ export function ProfileSettingsPanel() {
 
   const [cropperOpen, setCropperOpen] = useState(false);
   const [cropType, setCropType] = useState<'avatar' | 'cover'>('avatar');
+  const { t, locale, setLocale } = useTranslation();
 
   // Split name into first and last name
   const nameParts = (user?.name || '').trim().split(/\s+/);
@@ -60,6 +63,7 @@ export function ProfileSettingsPanel() {
       displayName: user?.displayName || '',
       bio: user?.bio || '',
       timezone: user?.timezone || 'UTC',
+      preferredLanguage: (user?.preferredLanguage as SupportedLanguageCode) || locale || 'en',
       avatarUrl: user?.avatarUrl || '',
       coverUrl: user?.coverUrl || '',
       jobTitle: user?.jobTitle || user?.title || '',
@@ -80,6 +84,7 @@ export function ProfileSettingsPanel() {
         displayName: user.displayName || '',
         bio: user.bio || '',
         timezone: user.timezone || 'UTC',
+        preferredLanguage: (user.preferredLanguage as SupportedLanguageCode) || locale || 'en',
         avatarUrl: user.avatarUrl || '',
         coverUrl: user.coverUrl || '',
         jobTitle: user.jobTitle || user.title || '',
@@ -88,17 +93,21 @@ export function ProfileSettingsPanel() {
         github: user.github || '',
       });
     }
-  }, [user, form]);
+  }, [user, form, locale]);
 
   const updateMutation = useMutation({
     mutationFn: (input: UpdateProfileInput) => userApi.updateProfile(input),
     onSuccess: (updated) => {
       setUser(updated);
+      if (updated.preferredLanguage) {
+        setLocale(updated.preferredLanguage as SupportedLanguageCode);
+      }
       form.reset({
         name: updated.name || '',
         displayName: updated.displayName || '',
         bio: updated.bio || '',
         timezone: updated.timezone || 'UTC',
+        preferredLanguage: (updated.preferredLanguage as SupportedLanguageCode) || locale || 'en',
         avatarUrl: updated.avatarUrl || '',
         coverUrl: updated.coverUrl || '',
         jobTitle: updated.jobTitle || updated.title || '',
@@ -106,11 +115,12 @@ export function ProfileSettingsPanel() {
         website: updated.website || '',
         github: updated.github || '',
       });
-      toast.success('Profile saved successfully');
+      toast.success(t('settings.language_changed_success', 'Profile saved successfully'));
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.message || 'Failed to update profile');
     },
+
   });
 
   const onSubmit = form.handleSubmit(async (values) => {
@@ -402,6 +412,33 @@ export function ProfileSettingsPanel() {
                     )}
                   />
                 </div>
+
+                {/* Preferred Language Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="preferredLanguage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-semibold flex items-center gap-1.5">
+                          <Globe className="size-3 text-muted-foreground" />
+                          <span>{t('settings.language', 'Preferred Language')}</span>
+                        </FormLabel>
+                        <FormControl>
+                          <LanguageSelect
+                            value={field.value ?? locale}
+                            onChange={(val) => {
+                              field.onChange(val);
+                              setLocale(val);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
 
                 {/* Bio */}
                 <FormField

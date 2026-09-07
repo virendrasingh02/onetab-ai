@@ -218,6 +218,9 @@
     },
     {
       "path": "./libs/admin/compliance"
+    },
+    {
+      "path": "./libs/shared/i18n"
     }
   ],
   "compilerOptions": {}

@@ -1,3 +1,5 @@
+import { useTranslation } from '@org/i18n';
+import { LanguageSelect } from '@org/ui';
 import { cn } from '@org/utils';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
@@ -27,10 +29,12 @@ export function AuthLayout({
   brandName = 'OneTab AI',
   brandLogoText = 'O',
 }: AuthLayoutProps) {
+  const { locale, setLocale } = useTranslation();
+
   return (
     <div className="dark min-h-screen flex flex-col justify-between items-center bg-background text-foreground px-4 py-8 sm:py-10 selection:bg-primary/25">
-      {/* Top Brand Emblem */}
-      <header className="pt-2 sm:pt-4 flex items-center justify-center">
+      {/* Top Header Bar with Brand Emblem & Language Switcher */}
+      <header className="pt-2 sm:pt-4 w-full max-w-4xl px-4 flex items-center justify-between">
         <Link
           to="/"
           className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -43,7 +47,16 @@ export function AuthLayout({
             {brandName}
           </span>
         </Link>
+
+        <div className="flex items-center">
+          <LanguageSelect
+            value={locale}
+            onChange={(code) => setLocale(code)}
+            compact
+          />
+        </div>
       </header>
+
 
       {/* Main Content Area */}
       <main className="w-full max-w-[380px] my-auto py-8 flex flex-col items-center">

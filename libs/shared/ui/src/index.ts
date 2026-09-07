@@ -752,4 +752,10 @@ export {
   type UsageMeterProps,
 } from './lib/components/usage-meter.js';
 
+export {
+  LanguageSelect,
+  type LanguageSelectProps,
+} from './lib/components/language-select.js';
+
+
 

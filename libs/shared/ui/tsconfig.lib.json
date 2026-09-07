@@ -32,10 +32,13 @@
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
+      "path": "../utils/tsconfig.lib.json"
+    },
+    {
       "path": "../types/tsconfig.lib.json"
     },
     {
-      "path": "../utils/tsconfig.lib.json"
+      "path": "../i18n/tsconfig.lib.json"
     },
     {
       "path": "../design-system/tsconfig.lib.json"

@@ -15,6 +15,7 @@ import {
   Download,
   FileCode,
   FolderArchive,
+  Globe,
   Kanban,
   Key,
   MessageSquare,
@@ -81,6 +82,7 @@ export function SettingsLayout({
         items: [
           { id: 'profile', label: 'Profile & Details', icon: User },
           { id: 'appearance', label: 'Appearance & Preferences', icon: Palette },
+          { id: 'language', label: 'Language & Region', icon: Globe },
           { id: 'chat', label: 'Chat & Messaging', icon: MessageSquare },
           { id: 'notifications', label: 'Notifications & Alerts', icon: Bell },
           { id: 'downloads', label: 'Apps & Downloads', icon: Download, badge: 'APP' },

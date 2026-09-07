@@ -24,6 +24,7 @@
     "@org/api-client": "*",
     "@org/auth": "*",
     "@org/design-system": "*",
+    "@org/i18n": "*",
     "@org/types": "*",
     "@org/ui": "*",
     "@org/utils": "*",

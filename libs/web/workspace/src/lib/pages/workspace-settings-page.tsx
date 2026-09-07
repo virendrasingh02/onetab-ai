@@ -21,6 +21,7 @@ import {
   FormLabel,
   FormMessage,
   Input,
+  LanguageSelect,
   LoadingState,
   LocalTime,
   RegionSelect,
@@ -68,6 +69,11 @@ import {
   type UpdateProfileInput,
   type UpdateWorkspaceInput,
 } from '@org/validation';
+import {
+  useTranslation,
+  type SupportedLanguageCode,
+} from '@org/i18n';
+
 import { useMutation } from '@tanstack/react-query';
 import {
   Bell,
@@ -228,9 +234,27 @@ export function WorkspaceSettingsPage({
 
   const user = useCurrentUser();
   const setUser = useAuthStore((state) => state.setUser);
+  const { t, locale, setLocale, formatters, isRtl, language } =
+    useTranslation();
+
+
+  const handleLanguageChange = async (newLocale: SupportedLanguageCode) => {
+    setLocale(newLocale);
+    try {
+      await userApi.updateLanguage({ language: newLocale });
+      if (user) {
+        setUser({ ...user, preferredLanguage: newLocale });
+      }
+      toast.success(t('settings.language_changed_success'));
+    } catch {
+      toast.error(t('settings.language_change_error'));
+    }
+  };
+
   /* The zone this device is in — offered as the default and used to point out
      when the saved profile disagrees with where the user actually is. */
   const systemTimezone = getSystemTimezone();
+
 
   /*
    * The active section is the `:section` path segment
@@ -583,7 +607,22 @@ export function WorkspaceSettingsPage({
             </h3>
             <SettingsCard divided>
               <SettingsRow
+                title={<>{t('settings.language_title', 'Interface Language')}</>}
+                description={
+                  <>{t('settings.language_description', 'Choose your preferred language for the web and desktop applications')}</>
+                }
+              >
+                <div className="w-56">
+                  <LanguageSelect
+                    value={locale}
+                    onChange={handleLanguageChange}
+                  />
+                </div>
+              </SettingsRow>
+
+              <SettingsRow
                 title={<>Default home view</>}
+
                 description={
                   <>Select which view to display when launching Onetab-AI</>
                 }
@@ -808,6 +847,142 @@ export function WorkspaceSettingsPage({
           <PlatformDiagnosticsLink />
         </div>
       )}
+
+      {/* ---------------- SECTION 1.5: LANGUAGE & REGION ---------------- */}
+      {currentTab === 'language' && (
+        <div className="space-y-8">
+          <SettingsSectionHeader
+            title={<>{t('settings.languageAndRegion', 'Language & Region')}</>}
+            description={
+              <>
+                {t(
+                  'settings.language_description',
+                  'Choose your preferred language for the web and desktop applications'
+                )}
+                . Formatting for dates, times, and numbers automatically adapts to your selected locale.
+              </>
+            }
+          />
+
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
+              {t('settings.language_title', 'Interface Language')}
+            </h3>
+            <SettingsCard divided>
+              <SettingsRow
+                title={<>{t('settings.language', 'Language')}</>}
+                description={
+                  <div className="space-y-1">
+                    <p>
+                      {t(
+                        'settings.language_description',
+                        'Choose your preferred language for the web and desktop applications'
+                      )}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Your selection is stored independently on your user profile and does not affect other workspace members.
+                    </p>
+                  </div>
+                }
+              >
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                  <div className="w-64">
+                    <LanguageSelect
+                      value={locale}
+                      onChange={handleLanguageChange}
+                    />
+                  </div>
+                  <Badge variant="outline" className="text-[10px] px-2 py-0.5">
+                    {isRtl ? 'RTL Mode' : 'LTR Mode'}
+                  </Badge>
+                </div>
+              </SettingsRow>
+            </SettingsCard>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
+              Live Localization & Format Previews
+            </h3>
+            <SettingsCard>
+              <div className="p-4 space-y-4">
+                <p className="text-xs text-muted-foreground">
+                  Below is a live preview of how numbers, currencies, dates, and relative timestamps format for{' '}
+                  <strong className="text-foreground">{language.name} ({language.nativeName})</strong>:
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="p-3 rounded-lg border border-border/70 bg-surface/50 space-y-1">
+                    <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+                      Full Date
+                    </span>
+                    <p className="text-xs font-mono font-medium text-foreground">
+                      {formatters.formatDate(new Date(), { dateStyle: 'full' })}
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-lg border border-border/70 bg-surface/50 space-y-1">
+                    <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+                      Standard Date & Time
+                    </span>
+                    <p className="text-xs font-mono font-medium text-foreground">
+                      {formatters.formatDateTime(new Date())}
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-lg border border-border/70 bg-surface/50 space-y-1">
+                    <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+                      Relative Time (1 hour ago)
+                    </span>
+                    <p className="text-xs font-mono font-medium text-foreground">
+                      {formatters.formatRelative(new Date(Date.now() - 3600000))}
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-lg border border-border/70 bg-surface/50 space-y-1">
+                    <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+                      Formatted Number
+                    </span>
+                    <p className="text-xs font-mono font-medium text-foreground">
+                      {formatters.formatNumber(1234567.89)}
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-lg border border-border/70 bg-surface/50 space-y-1">
+                    <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+                      Currency (USD)
+                    </span>
+                    <p className="text-xs font-mono font-medium text-foreground">
+                      {formatters.formatCurrency(129.99, 'USD')}
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-lg border border-border/70 bg-surface/50 space-y-1">
+                    <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+                      Percentage
+                    </span>
+                    <p className="text-xs font-mono font-medium text-foreground">
+                      {formatters.formatPercent(0.854)}
+                    </p>
+                  </div>
+                </div>
+
+                {isRtl && (
+                  <div className="p-3.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200 text-xs space-y-1">
+                    <div className="font-semibold flex items-center gap-1.5">
+                      <span>RTL Layout Active</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed opacity-90">
+                      Arabic language renders the entire platform in right-to-left layout mode. Margins, navigation flows, and reading alignments dynamically mirror for natural readability.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </SettingsCard>
+          </div>
+        </div>
+      )}
+
 
       {/* ---------------- SECTION 2: PROFILE, STATUS & REGION ---------------- */}
       {(currentTab === 'profile' ||

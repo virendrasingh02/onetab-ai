@@ -19,6 +19,7 @@ model User {
   avatarUrl               String?
   bio                     String?
   timezone                String                   @default("UTC")
+  preferredLanguage       String                   @default("en")
   systemRole              SystemRole               @default(USER)
   presence                PresenceStatus           @default(OFFLINE)
   statusText              String?
