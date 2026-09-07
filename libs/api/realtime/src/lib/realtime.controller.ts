@@ -3,6 +3,8 @@ import {
   Controller,
   Get,
   Headers,
+  HttpCode,
+  HttpStatus,
   NotFoundException,
   Param,
   Patch,
@@ -35,8 +37,12 @@ import {
   RealtimeGatewayService,
   type SseMessageEvent,
 } from './realtime-gateway.service.js';
+import { RealtimeTicketService } from './realtime-ticket.service.js';
 
 interface StreamQuery {
+  /** Single-use ticket from `POST /realtime/ticket` — the preferred path. */
+  ticket?: string;
+  /** Raw access token — legacy fallback for a client that has no ticket yet. */
   token?: string;
   workspaceId?: string;
 }
@@ -53,10 +59,25 @@ export class RealtimeController {
   constructor(
     private readonly gateway: RealtimeGatewayService,
     private readonly presence: PresenceService,
+    private readonly tickets: RealtimeTicketService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
   ) {}
+
+  /**
+   * Trades the caller's bearer token for a short-lived, single-use ticket to
+   * put in the `EventSource` URL, so the raw access token never appears in a
+   * URL, an access log, or a proxy trace.
+   */
+  @Post('realtime/ticket')
+  @HttpCode(HttpStatus.OK)
+  async issueTicket(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { workspaceId?: string | null } = {},
+  ): Promise<{ ticket: string; expiresIn: number }> {
+    return this.tickets.issue(user.id, body?.workspaceId ?? null);
+  }
 
   /**
    * Main Server-Sent Events stream for real-time updates and presence.
@@ -71,25 +92,38 @@ export class RealtimeController {
     @Headers('authorization') authHeader: string | undefined,
     @Req() _req: Request,
   ): Promise<Observable<MessageEvent>> {
-    let token = query.token;
-    if (!token && authHeader?.startsWith('Bearer ')) {
-      token = authHeader.slice(7).trim();
+    let userId: string;
+
+    if (query.ticket) {
+      const redeemed = this.tickets.consume(query.ticket);
+      if (!redeemed) {
+        throw new UnauthorizedException(
+          'Invalid or expired realtime stream ticket.',
+        );
+      }
+      userId = redeemed.userId;
+    } else {
+      let token = query.token;
+      if (!token && authHeader?.startsWith('Bearer ')) {
+        token = authHeader.slice(7).trim();
+      }
+
+      if (!token) {
+        throw new UnauthorizedException('Authentication token is required.');
+      }
+
+      try {
+        const payload = await this.jwt.verifyAsync<{ sub: string }>(token, {
+          secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
+        });
+        userId = payload.sub;
+      } catch {
+        throw new UnauthorizedException(
+          'Invalid or expired authentication token.',
+        );
+      }
     }
 
-    if (!token) {
-      throw new UnauthorizedException('Authentication token is required.');
-    }
-
-    let payload: { sub: string; email: string };
-    try {
-      payload = await this.jwt.verifyAsync(token, {
-        secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
-      });
-    } catch {
-      throw new UnauthorizedException('Invalid or expired authentication token.');
-    }
-
-    const userId = payload.sub;
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, email: true },

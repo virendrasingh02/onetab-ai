@@ -23,6 +23,7 @@ import {
 } from '@tanstack/react-query';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { Provider } from 'react-redux';
+import { RealtimeStatusPill } from './realtime-status-pill';
 import { useThemeSync } from './use-theme-sync';
 
 function AppToaster() {
@@ -51,6 +52,7 @@ function RealtimeAppBridge({ children }: { children: ReactNode }) {
   return (
     <RealtimeProvider userId={user?.id}>
       <AvatarPresenceBridge>{children}</AvatarPresenceBridge>
+      <RealtimeStatusPill />
     </RealtimeProvider>
   );
 }

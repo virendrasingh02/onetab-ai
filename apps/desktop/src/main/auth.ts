@@ -16,7 +16,13 @@ interface PendingPKCE {
 
 interface StoredEncryptedSession {
   user: DesktopAuthSession['user'];
-  accessToken: string | null;
+  /**
+   * @deprecated Pre-encryption plaintext field. Still *read* so an existing
+   * install is migrated on its next save, never written any more.
+   */
+  accessToken?: string | null;
+  encryptedAccessToken?: string; // base64 of safeStorage encrypted buffer
+  plainAccessToken?: string; // fallback if safeStorage is unavailable
   encryptedRefreshToken?: string; // base64 of safeStorage encrypted buffer
   plainRefreshToken?: string; // fallback if safeStorage is unavailable in environment
 }
@@ -96,16 +102,22 @@ export function saveSecureSession(session: DesktopAuthSession): void {
   const path = sessionFilePath();
 
   try {
-    let encryptedRecord: { encrypted?: string; plain?: string } = {};
-    if (session.refreshToken) {
-      encryptedRecord = encryptSecret(session.refreshToken);
-    }
+    const refreshRecord = session.refreshToken
+      ? encryptSecret(session.refreshToken)
+      : {};
+    // The access token is short-lived but was previously written to disk in
+    // clear text — encrypt it at rest too (DPAPI / Keychain / libsecret) so
+    // nothing sensitive sits plainly in `onetab-auth-session.json`.
+    const accessRecord = session.accessToken
+      ? encryptSecret(session.accessToken)
+      : {};
 
     const payload: StoredEncryptedSession = {
       user: session.user,
-      accessToken: session.accessToken,
-      encryptedRefreshToken: encryptedRecord.encrypted,
-      plainRefreshToken: encryptedRecord.plain,
+      encryptedAccessToken: accessRecord.encrypted,
+      plainAccessToken: accessRecord.plain,
+      encryptedRefreshToken: refreshRecord.encrypted,
+      plainRefreshToken: refreshRecord.plain,
     };
 
     writeFileSync(path, JSON.stringify(payload, null, 2), 'utf8');
@@ -130,9 +142,18 @@ export function loadSecureSession(): DesktopAuthSession | null {
       plain: parsed.plainRefreshToken,
     });
 
+    const accessToken =
+      decryptSecret({
+        encrypted: parsed.encryptedAccessToken,
+        plain: parsed.plainAccessToken,
+      }) ??
+      // Migrate a file written before the access token was encrypted.
+      parsed.accessToken ??
+      null;
+
     currentSession = {
       user: parsed.user,
-      accessToken: parsed.accessToken,
+      accessToken,
       refreshToken,
     };
 

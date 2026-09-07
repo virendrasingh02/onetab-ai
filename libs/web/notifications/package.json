@@ -17,6 +17,8 @@
     "@hookform/resolvers": "^5.7.1",
     "@org/api-client": "*",
     "@org/common": "*",
+    "@org/platform": "*",
+    "@org/realtime": "*",
     "@org/types": "*",
     "@org/ui": "*",
     "@org/utils": "*",

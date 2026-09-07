@@ -47,6 +47,11 @@ export {
 } from './lib/notification-service.js';
 
 export {
+  RealtimeNotificationsBridge,
+  type RealtimeNotificationsBridgeProps,
+} from './lib/realtime-notifications-bridge.js';
+
+export {
   setActiveCallState,
   isCallOrMeetingActive,
   subscribeActiveCallState,

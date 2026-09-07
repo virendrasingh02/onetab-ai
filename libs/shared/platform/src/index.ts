@@ -12,6 +12,11 @@ export { FEATURE_REGISTRY } from './lib/feature-registry.js';
 export { evaluate, evaluateAll, evaluateFeature } from './lib/feature-manager.js';
 export { resolvePolicy } from './lib/policies/index.js';
 export {
+  resolveDeepLinkRoute,
+  type DeepLinkContext,
+  type ResolvedDeepLink,
+} from './lib/deep-link-route.js';
+export {
   appleAppStorePolicy,
   appleDirectPolicy,
   linuxPolicy,

@@ -1,4 +1,5 @@
 import { useTheme } from '@org/design-system';
+import { resolveDeepLinkRoute } from '@org/platform';
 import {
   createContext,
   use,
@@ -23,6 +24,17 @@ import {
   type DesktopUpdateStatus,
   type DesktopWindowState,
 } from './desktop-api.js';
+
+/**
+ * The workspace slug from the current URL, for resolving a workspace-relative
+ * deep-link target. `DesktopProvider` sits inside the router but not inside a
+ * `<Route>`, so `useParams()` is empty here — the path is the only source.
+ */
+function currentWorkspaceSlug(): string | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const match = /^\/w\/([^/]+)/.exec(window.location.pathname);
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
 
 interface DesktopContextValue {
   isDesktop: boolean;
@@ -125,10 +137,26 @@ export function DesktopProvider({ children }: { children: ReactNode }) {
         }
       }),
       api.onDeepLink((link) => {
-        if (link.route) navigate(link.route);
+        const resolved = resolveDeepLinkRoute(link.raw || link.route, {
+          workspaceSlug: currentWorkspaceSlug(),
+        });
+        // The PKCE callback is consumed in the main process; the session-change
+        // event does the navigating. Never route the renderer to it.
+        if (resolved.isAuthCallback) return;
+        if (resolved.route) {
+          navigate(resolved.route);
+        } else if (link.route) {
+          // Unmappable target — land somewhere real instead of a dead route
+          // and let the workspace redirect place the user.
+          navigate('/');
+        }
       }),
       api.notifications.onActivated((payload) => {
-        if (payload.route) navigate(payload.route);
+        if (!payload.route) return;
+        const resolved = resolveDeepLinkRoute(payload.route, {
+          workspaceSlug: currentWorkspaceSlug(),
+        });
+        navigate(resolved.route ?? payload.route);
       }),
       api.onCommand((command) => {
         for (const handler of handlers.current.get(command) ?? []) handler();

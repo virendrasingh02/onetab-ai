@@ -92,7 +92,7 @@ IPv6-only listener and hand back a port something else is already using.
 
 | Area | Status in the desktop app | What was done |
 | --- | --- | --- |
-| **Refresh cookie in production** | ✅ **Configured** | `sameSite: 'none'` (with `secure: true` in production) attached for cross-site desktop shell requests |
+| **Session refresh in production** | ✅ **Handled** | The renderer never depends on the browser refresh cookie in the shell — `use-auth.ts` registers a `refreshTokenProvider` that routes `/auth/refresh` through the main process's own `fetch` (manual `Cookie:` header, disk-persisted rotated token). See "Session refresh in the shell" below. |
 | **CORS in production** | ✅ **Configured** | Desktop shell origins `http://localhost:4200–4209` included automatically |
 | `window.open` / target=`_blank` | Blocked by the navigation policy | Routed through `openExternal()` → system browser |
 | External links in message content | Would navigate the whole app window | `will-navigate` sends off-origin URLs to the system browser |
@@ -108,30 +108,31 @@ IPv6-only listener and hand back a port something else is already using.
 | Drag-and-drop upload, `<input type="file">` | ✅ Works unchanged | Electron opens the OS dialog natively |
 | Theme, layout, all feature screens | ✅ Work unchanged | Same bundle, same code paths |
 
-### The production cookie problem, in detail
+### Session refresh in the shell
 
 `libs/api/auth/src/lib/auth.controller.ts` sets the refresh cookie with
-`sameSite: isProduction ? 'strict' : 'lax'`.
+`sameSite: isProduction ? 'strict' : 'lax'`. In a **production** packaged build
+the renderer is on `localhost` and the API on a real domain, so a browser would
+never attach a `SameSite=strict` cookie to `POST /auth/refresh`.
 
-- **In development this is fine.** The desktop renderer is on `localhost:4200`
-  and the API on `localhost:3000` — same site, so the cookie is sent.
-- **In production it is not.** The renderer is still on `localhost`, but the API
-  is on a real domain. `SameSite=strict` means the cookie never leaves the
-  browser, `POST /auth/refresh` returns 401, and the session dies as soon as the
-  in-memory access token expires. (`useSessionBootstrap` keeps the user signed in
-  from `localStorage` until then, so the failure shows up as a surprise logout
-  rather than an immediate one.)
+The shell does not rely on that cookie. Two paths cover refresh:
 
-Pick one before shipping a production desktop build:
+1. **The renderer** — `libs/web/auth/src/lib/use-auth.ts` registers a
+   `setRefreshTokenProvider(...)` at module scope when `getDesktopApi()` is
+   present. The shared axios interceptor's 401 → refresh path then calls
+   `window.onetabDesktop.auth.refreshSession()` instead of hitting
+   `/auth/refresh` with a cookie.
+2. **The main process** — `apps/desktop/src/main/auth.ts` `refreshSecureSession()`
+   `POST`s `/auth/refresh` with the rotated refresh token it persisted to disk
+   (from `/auth/desktop/exchange`) set as an explicit `Cookie:` header, captures
+   the rotated value out of `Set-Cookie`, and re-persists it. `sameSite` is a
+   browser concept and does not apply to a header the main process sets itself.
 
-1. `sameSite: 'none', secure: true` for the refresh cookie. Simplest, and the
-   cookie is httpOnly either way — but it relaxes the policy for the web app too.
-2. Return the refresh token in the body for the desktop client only and store it
-   through `preferences.set()` in the shell, sending it as a header. Keeps the
-   web policy strict at the cost of a second code path.
-
-This is deliberately **not** changed here: it is an auth-policy decision, not a
-packaging detail.
+So the API's `sameSite: 'strict'` production policy is left as-is — relaxing it
+to `'none'` would weaken CSRF protection on the refresh endpoint for no benefit
+to the shell. Both the refresh token and the (short-lived) access token are
+encrypted at rest via `safeStorage` (DPAPI / Keychain / libsecret); the on-disk
+`onetab-auth-session.json` holds no plaintext token.
 
 ### Production CORS
 

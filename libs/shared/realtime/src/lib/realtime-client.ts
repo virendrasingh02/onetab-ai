@@ -1,4 +1,4 @@
-import { getAccessToken } from '@org/api-client';
+import { getAccessToken, http } from '@org/api-client';
 import { RealtimeEventBus } from './realtime-event-bus.js';
 import {
   RealtimeEventType,
@@ -43,6 +43,10 @@ export class RealtimeClient {
   private heartbeatTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempts = 0;
   private isDisposed = false;
+  /** Bumped on every (re)connect and disconnect so a slow ticket fetch that
+   * resolves after the client moved on is discarded instead of opening a
+   * stream nobody asked for any more. */
+  private connectGeneration = 0;
   private lastHeartbeatAt = 0;
   private stateListeners = new Set<ConnectionStateListener>();
   private broadcastChannel: BroadcastChannel | null = null;
@@ -128,8 +132,39 @@ export class RealtimeClient {
     this.setState(this.reconnectAttempts > 0 ? 'reconnecting' : 'connecting');
     this.cleanupConnection();
 
+    this.connectGeneration += 1;
+    void this.openStream(this.connectGeneration);
+  }
+
+  /**
+   * Redeems a single-use stream ticket (so the raw access token never rides in
+   * the URL) and opens the `EventSource`. Falls back to `?token=` if the ticket
+   * endpoint is unreachable — an older API, or a transient failure — so a
+   * connection is never lost purely over the hardening.
+   */
+  private async openStream(generation: number): Promise<void> {
+    const token = this.getToken();
+    if (!token) {
+      this.setState('disconnected');
+      return;
+    }
+
     const params = new URLSearchParams();
-    params.set('token', token);
+    try {
+      const { data } = await http.post<{ ticket?: string }>(
+        '/realtime/ticket',
+        { workspaceId: this.currentWorkspaceId },
+      );
+      if (data?.ticket) params.set('ticket', data.ticket);
+    } catch {
+      // Fall through to the token path.
+    }
+
+    // The client moved on (disconnected, disposed, or reconnected) while the
+    // ticket request was in flight — drop this attempt.
+    if (this.isDisposed || generation !== this.connectGeneration) return;
+
+    if (!params.has('ticket')) params.set('token', token);
     if (this.currentWorkspaceId) {
       params.set('workspaceId', this.currentWorkspaceId);
     }
@@ -260,6 +295,8 @@ export class RealtimeClient {
   }
 
   public disconnect(): void {
+    // Invalidate any ticket fetch still in flight from a prior connect().
+    this.connectGeneration += 1;
     this.cleanupConnection();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);

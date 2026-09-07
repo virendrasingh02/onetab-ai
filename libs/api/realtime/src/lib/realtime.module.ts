@@ -6,6 +6,7 @@ import { PrismaModule } from '@org/database';
 import { PresenceService } from './presence.service.js';
 import { RealtimeDomainBridgeListener } from './realtime-domain-bridge.listener.js';
 import { RealtimeGatewayService } from './realtime-gateway.service.js';
+import { RealtimeTicketService } from './realtime-ticket.service.js';
 import { RealtimeController } from './realtime.controller.js';
 
 @Module({
@@ -14,6 +15,7 @@ import { RealtimeController } from './realtime.controller.js';
   providers: [
     RealtimeGatewayService,
     PresenceService,
+    RealtimeTicketService,
     RealtimeDomainBridgeListener,
   ],
   exports: [RealtimeGatewayService, PresenceService],

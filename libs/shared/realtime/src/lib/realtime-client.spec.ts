@@ -1,13 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@org/api-client', () => ({
+  getAccessToken: () => null,
+  http: { post: vi.fn() },
+}));
+
+import { http } from '@org/api-client';
 import { RealtimeClient } from './realtime-client.js';
 import { RealtimeEventBus } from './realtime-event-bus.js';
 import { RealtimeEventType } from './types.js';
+
+/** Lets the async ticket fetch inside `connect()` settle before asserting. */
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('RealtimeClient', () => {
   let mockEventSourceInstances: any[] = [];
 
   beforeEach(() => {
     mockEventSourceInstances = [];
+    vi.mocked(http.post).mockResolvedValue({ data: { ticket: 'tkt-1' } } as any);
 
     // Mock EventSource
     (globalThis as any).EventSource = class MockEventSource {
@@ -36,7 +47,7 @@ describe('RealtimeClient', () => {
     vi.restoreAllMocks();
   });
 
-  it('connects when token is present and updates state', () => {
+  it('trades the token for a stream ticket and connects', async () => {
     const bus = new RealtimeEventBus();
     const client = new RealtimeClient({
       bus,
@@ -49,12 +60,15 @@ describe('RealtimeClient', () => {
     expect(client.getState()).toBe('disconnected');
 
     client.connect();
+    expect(client.getState()).toBe('connecting');
+    await flush();
 
     expect(mockEventSourceInstances.length).toBe(1);
     const es = mockEventSourceInstances[0];
-    expect(es.url).toContain('/realtime/stream?token=valid-jwt-token&workspaceId=ws-123');
+    expect(es.url).toContain('/realtime/stream?ticket=tkt-1&workspaceId=ws-123');
+    // The raw access token must never appear in the stream URL.
+    expect(es.url).not.toContain('valid-jwt-token');
 
-    // Simulate open
     es.onopen();
     expect(client.getState()).toBe('connected');
 
@@ -62,7 +76,26 @@ describe('RealtimeClient', () => {
     expect(client.getState()).toBe('disconnected');
   });
 
-  it('receives incoming events and routes to event bus', () => {
+  it('falls back to the token in the URL when the ticket endpoint fails', async () => {
+    vi.mocked(http.post).mockRejectedValueOnce(new Error('offline'));
+
+    const bus = new RealtimeEventBus();
+    const client = new RealtimeClient({
+      bus,
+      getToken: () => 'valid-jwt-token',
+      baseUrl: 'http://localhost:3000/api/v1',
+      autoConnect: false,
+    });
+
+    client.connect();
+    await flush();
+
+    const es = mockEventSourceInstances[0];
+    expect(es.url).toContain('token=valid-jwt-token');
+    client.dispose();
+  });
+
+  it('receives incoming events and routes to event bus', async () => {
     const bus = new RealtimeEventBus();
     const received: any[] = [];
     bus.on(RealtimeEventType.TaskUpdated, (e) => received.push(e));
@@ -74,6 +107,7 @@ describe('RealtimeClient', () => {
       autoConnect: true,
     });
 
+    await flush();
     const es = mockEventSourceInstances[0];
     es.onopen();
 

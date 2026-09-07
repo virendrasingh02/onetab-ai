@@ -24,6 +24,7 @@ import { AppDownloadBanner, useDesktopCommand } from '@org/web-desktop';
 import { useMembers } from '@org/web-members';
 import {
   NotificationEnableBar,
+  RealtimeNotificationsBridge,
   mergeActivityIndicators,
   useChannelActivity,
   useNotificationFeed,
@@ -336,6 +337,12 @@ export function AppShell() {
   return (
     <TooltipProvider>
       <SidebarActivityConfigProvider value={activityConfig}>
+      {/*
+        Delivers live `notification.created` events as a toast + native desktop
+        notification. Mounted here so it only runs while signed in and in a
+        workspace, and unmounts cleanly on the way out.
+      */}
+      <RealtimeNotificationsBridge currentUserId={user?.id} workspaceSlug={slug} />
       <div className="flex h-full flex-col overflow-hidden bg-background bg-app-gradient font-sans text-foreground">
         {/* Top Header Bar spanning full width */}
         <AppHeader
