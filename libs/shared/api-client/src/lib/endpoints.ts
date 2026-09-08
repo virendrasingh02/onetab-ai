@@ -838,6 +838,17 @@ export const userApi = {
     request<Record<string, unknown>>(http.put('/users/me/sidebar', data)),
 
   /**
+   * The persisted cross-device navigation memory — `{ lastWorkspaceId,
+   * lastWorkspaceSlug, workspacePaths }`. `{}` when the user has never
+   * navigated a workspace on a synced client.
+   */
+  navigationPreferences: () =>
+    request<Record<string, unknown>>(http.get('/users/me/navigation')),
+
+  saveNavigationPreferences: (data: Record<string, unknown>) =>
+    request<Record<string, unknown>>(http.put('/users/me/navigation', data)),
+
+  /**
    * The persisted appearance blob — `{ theme, density, accent, radius,
    * customTheme }`. `{}` when the user has never customized their theme.
    */

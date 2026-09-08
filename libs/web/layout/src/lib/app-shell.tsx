@@ -54,6 +54,7 @@ import {
 import { AddAccountDialog } from './add-account-dialog.js';
 import { AppHeader } from './app-header.js';
 import { ChannelNav } from './channel-nav.js';
+import { useNavigationSync } from './navigation/use-navigation-sync.js';
 import { useRememberWorkspacePath } from './navigation/use-remember-workspace-path.js';
 import { useSidebarSync } from './navigation/use-sidebar-sync.js';
 import {
@@ -73,6 +74,8 @@ export function AppShell() {
   // changes back — so a reordered sidebar survives logout and moves between
   // devices rather than living only in this browser's localStorage.
   useSidebarSync(!!user);
+  // Same, for the per-workspace "resume where I left off" navigation memory.
+  useNavigationSync(!!user);
   const navigate = useNavigate();
   const location = useLocation();
   const palette = useCommandPalette();

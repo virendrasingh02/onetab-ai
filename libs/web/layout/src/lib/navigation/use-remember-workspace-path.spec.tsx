@@ -2,6 +2,7 @@
 import {
   getPersistedLastWorkspacePath,
   persistLastWorkspacePath,
+  useNavigationMemoryStore,
 } from '@org/web-workspace';
 import { renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
@@ -16,7 +17,15 @@ function atPath(path: string) {
 }
 
 describe('useRememberWorkspacePath', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+    useNavigationMemoryStore.setState({
+      lastWorkspaceId: null,
+      lastWorkspaceSlug: null,
+      workspacePaths: {},
+      locallyTouched: new Set<string>(),
+    });
+  });
 
   it('records the route after /w/:slug, keyed by workspace id', () => {
     renderHook(() => useRememberWorkspacePath('ws-alpha', 'alpha'), {

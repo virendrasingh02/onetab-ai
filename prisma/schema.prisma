@@ -63,6 +63,7 @@ model User {
   notifications           Notification[]
   sidebarPreference       SidebarPreference?
   themeSetting            ThemeSetting?
+  navigationPreference    NavigationPreference?
   workspaceThemePreferences WorkspaceThemePreference[]
   organizedMeetings       Meeting[]                @relation("MeetingOrganizer")
   meetingParticipations   MeetingParticipant[]
@@ -112,6 +113,24 @@ model ThemeSetting {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("theme_settings")
+}
+
+/// A user's cross-device navigation memory. `data` holds
+/// `{ lastWorkspaceId, lastWorkspaceSlug, workspacePaths: { <workspaceId>: <subpath> } }`
+/// where `<subpath>` is the route after `/w/:slug` (`"threads"`, `"c/general"`,
+/// or `""` for Home). Server-persisted so a workspace switch, the "/" redirect,
+/// and a fresh device all resume where the user left each workspace instead of
+/// landing on Home; the client also keeps a localStorage copy for first paint.
+/// One row per user; `data` is validated on write against
+/// `navigationPreferenceSchema`.
+model NavigationPreference {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  data      Json     @default("{}")
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("navigation_preferences")
 }
 
 model Workspace {

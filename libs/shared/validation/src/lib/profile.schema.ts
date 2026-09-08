@@ -319,9 +319,33 @@ export const themeSettingSchema = z
     message: 'Theme settings payload is too large.',
   });
 
+/**
+ * The cross-device navigation memory the web client persists — the last route
+ * open in each workspace and the workspace last active.
+ *
+ * `workspacePaths` is keyed by workspace id; each value is the route *after*
+ * `/w/:slug` (`"threads"`, `"c/general"`, or `""` for Home). Every field is
+ * optional so the client can PUT a single workspace's path; the server
+ * deep-merges `workspacePaths` over the stored row rather than replacing it.
+ */
+export const navigationPreferenceSchema = z
+  .object({
+    lastWorkspaceId: z.string().max(64).nullable().optional(),
+    lastWorkspaceSlug: z.string().max(200).nullable().optional(),
+    workspacePaths: z
+      .record(z.string().max(64), z.string().max(512))
+      .optional(),
+  })
+  .refine((value) => JSON.stringify(value).length <= 32_000, {
+    message: 'Navigation preferences payload is too large.',
+  });
+
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type SidebarPreferencesInput = z.infer<typeof sidebarPreferencesSchema>;
 export type ThemeSettingInput = z.infer<typeof themeSettingSchema>;
+export type NavigationPreferenceInput = z.infer<
+  typeof navigationPreferenceSchema
+>;
 export type UpdateStatusInput = z.infer<typeof updateStatusSchema>;
 export type UploadRequestInput = z.infer<typeof uploadRequestSchema>;
 export type ChatPreferencesInput = z.infer<typeof chatPreferencesSchema>;

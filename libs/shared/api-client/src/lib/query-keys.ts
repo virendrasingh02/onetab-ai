@@ -12,6 +12,7 @@ export const queryKeys = {
   user: {
     preferences: () => ['user', 'preferences'] as const,
     sidebarPreferences: () => ['user', 'sidebar-preferences'] as const,
+    navigationPreferences: () => ['user', 'navigation-preferences'] as const,
   },
   workspaces: {
     all: () => ['workspaces'] as const,

@@ -4,6 +4,7 @@ import { MatrixAdminService } from '@org/api-matrix';
 import { PrismaService } from '@org/database';
 import type { CurrentUser, PublicUser, UserPreferences } from '@org/types';
 import type {
+  NavigationPreferenceInput,
   SidebarPreferencesInput,
   ThemeSettingInput,
   UpdateProfileInput,
@@ -275,6 +276,53 @@ export class UserService {
       where: { userId },
       create: { userId, data: data as object },
       update: { data: data as object },
+      select: { data: true },
+    });
+    return row.data as Record<string, unknown>;
+  }
+
+  // --- cross-device navigation memory --------------------------------
+
+  /**
+   * The user's persisted navigation memory — `{ lastWorkspaceId,
+   * lastWorkspaceSlug, workspacePaths }`. Returns `{}` when they have never
+   * navigated a workspace on a synced client; the client falls back to its
+   * localStorage copy / defaults.
+   */
+  async getNavigationPreferences(
+    userId: string,
+  ): Promise<Record<string, unknown>> {
+    const row = await this.prisma.navigationPreference.findUnique({
+      where: { userId },
+      select: { data: true },
+    });
+    return (row?.data as Record<string, unknown> | undefined) ?? {};
+  }
+
+  /**
+   * Deep-merges the incoming partial over the stored blob: top-level scalars
+   * (`lastWorkspaceId`, `lastWorkspaceSlug`) overwrite, but `workspacePaths` is
+   * merged key-by-key so a client PUTing only the workspace it just left does
+   * not drop the route it remembers for every other one.
+   */
+  async saveNavigationPreferences(
+    userId: string,
+    data: NavigationPreferenceInput,
+  ): Promise<Record<string, unknown>> {
+    const current = await this.getNavigationPreferences(userId);
+    const currentPaths =
+      (current['workspacePaths'] as Record<string, string> | undefined) ?? {};
+
+    const merged: Record<string, unknown> = {
+      ...current,
+      ...data,
+      workspacePaths: { ...currentPaths, ...(data.workspacePaths ?? {}) },
+    };
+
+    const row = await this.prisma.navigationPreference.upsert({
+      where: { userId },
+      create: { userId, data: merged as object },
+      update: { data: merged as object },
       select: { data: true },
     });
     return row.data as Record<string, unknown>;

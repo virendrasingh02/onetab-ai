@@ -30,6 +30,7 @@ export function useRememberWorkspacePath(
     persistLastWorkspacePath(
       workspaceId,
       pathname.slice(base.length).replace(/^\/+/, ''),
+      workspaceSlug,
     );
   }, [pathname, workspaceId, workspaceSlug]);
 }

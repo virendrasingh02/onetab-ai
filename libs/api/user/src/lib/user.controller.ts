@@ -11,12 +11,14 @@ import {
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import { CurrentUser, WorkspaceId, zodBody } from '@org/api-common';
 import {
+  navigationPreferenceSchema,
   sidebarPreferencesSchema,
   themeSettingSchema,
   updateLanguageSchema,
   updateProfileSchema,
   updateStatusSchema,
   updateUserPreferencesSchema,
+  type NavigationPreferenceInput,
   type SidebarPreferencesInput,
   type ThemeSettingInput,
   type UpdateLanguageInput,
@@ -68,6 +70,19 @@ export class UserController {
     @Body(zodBody(sidebarPreferencesSchema)) body: SidebarPreferencesInput,
   ) {
     return this.users.saveSidebarPreferences(userId, body);
+  }
+
+  @Get('me/navigation')
+  getNavigationPreferences(@CurrentUser('id') userId: string) {
+    return this.users.getNavigationPreferences(userId);
+  }
+
+  @Put('me/navigation')
+  saveNavigationPreferences(
+    @CurrentUser('id') userId: string,
+    @Body(zodBody(navigationPreferenceSchema)) body: NavigationPreferenceInput,
+  ) {
+    return this.users.saveNavigationPreferences(userId, body);
   }
 
   @Get('me/theme')

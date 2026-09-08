@@ -39,8 +39,15 @@ export {
   persistActiveWorkspaceSlug,
   getPersistedLastChannel,
   persistLastChannel,
+  type WorkspaceState,
+} from './lib/workspace.store.js';
+
+export {
+  useNavigationMemoryStore,
+  getNavigationMemorySnapshot,
   getPersistedLastWorkspacePath,
   persistLastWorkspacePath,
   workspaceEntryPath,
-  type WorkspaceState,
-} from './lib/workspace.store.js';
+  type NavigationMemory,
+  type NavigationMemoryState,
+} from './lib/navigation-memory.store.js';

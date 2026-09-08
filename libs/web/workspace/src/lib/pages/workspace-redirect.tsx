@@ -1,9 +1,9 @@
 import { EmptyState, Button, ErrorState, LoadingState } from '@org/ui';
 import { useWorkspaces } from '../use-workspaces.js';
+import { getNavigationMemorySnapshot, workspaceEntryPath } from '../navigation-memory.store.js';
 import {
   getPersistedActiveWorkspaceId,
   getPersistedActiveWorkspaceSlug,
-  workspaceEntryPath,
 } from '../workspace.store.js';
 import { Building2 } from 'lucide-react';
 import { Navigate, useNavigate } from 'react-router-dom';
@@ -39,12 +39,18 @@ export function WorkspaceRedirect() {
   }
 
   const allWorkspaces = workspaces.data ?? [];
+  // Local last-active pointer wins (this device, this session); the synced
+  // navigation memory is the fallback that carries "last workspace" to a fresh
+  // device; the first workspace is the last resort.
   const persistedId = getPersistedActiveWorkspaceId();
   const persistedSlug = getPersistedActiveWorkspaceSlug();
+  const nav = getNavigationMemorySnapshot();
 
   const target =
     allWorkspaces.find((w) => w.id === persistedId) ||
     allWorkspaces.find((w) => w.slug === persistedSlug) ||
+    allWorkspaces.find((w) => w.id === nav.lastWorkspaceId) ||
+    allWorkspaces.find((w) => w.slug === nav.lastWorkspaceSlug) ||
     allWorkspaces[0];
 
   // Resume the workspace at the last route the user had open there, not its root.
