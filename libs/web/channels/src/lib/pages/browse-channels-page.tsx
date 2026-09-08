@@ -5,7 +5,8 @@ import { Hash, Lock, Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CreateChannelDialog } from '../components/create-channel-dialog.js';
-import { useChannels, useJoinChannel } from '../use-channels.js';
+import { JoinChannelControl } from '../components/join-channel-control.js';
+import { useChannels } from '../use-channels.js';
 
 export function BrowseChannelsPage() {
   const { slug, workspaceId } = useCurrentWorkspace();
@@ -13,7 +14,6 @@ export function BrowseChannelsPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const channels = useChannels(workspaceId, showArchived);
-  const join = useJoinChannel(workspaceId);
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -124,15 +124,16 @@ export function BrowseChannelsPage() {
                     {channel.isArchived ? (
                       <Badge variant="warning">Archived</Badge>
                     ) : channel.membership ? (
-                      <Badge variant="neutral">Joined</Badge>
+                      <Badge variant="neutral">
+                        {channel.membership.membershipType === 'TEMPORARY'
+                          ? 'Temporary'
+                          : 'Joined'}
+                      </Badge>
                     ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => join.mutate(channel.id)}
-                      >
-                        Join
-                      </Button>
+                      <JoinChannelControl
+                        workspaceId={workspaceId}
+                        channelId={channel.id}
+                      />
                     )}
                   </li>
                 );

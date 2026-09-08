@@ -1,4 +1,5 @@
 export {
+  ChannelMembershipType,
   ChannelMode,
   ChannelRole,
   ChannelVisibility,
@@ -87,7 +88,14 @@ export {
   announcementPosterUserIds,
   canPostInChannel,
   canReplyInChannel,
+  clampTempMembershipHours,
+  extendedTemporaryExpiry,
   isAuthorizedAnnouncementPoster,
+  isTemporaryMembershipActive,
+  MAX_TEMP_MEMBERSHIP_HOURS,
+  MIN_TEMP_MEMBERSHIP_HOURS,
+  TEMP_MEMBERSHIP_PRESETS,
+  temporaryExpiryFrom,
 } from './lib/channel-policy.js';
 export type {
   ChannelPostingContext,

@@ -4,7 +4,12 @@ import {
   announcementPosterUserIds,
   canPostInChannel,
   canReplyInChannel,
+  clampTempMembershipHours,
+  extendedTemporaryExpiry,
   isAuthorizedAnnouncementPoster,
+  isTemporaryMembershipActive,
+  MAX_TEMP_MEMBERSHIP_HOURS,
+  temporaryExpiryFrom,
   type ChannelPostingContext,
   type ChannelViewer,
 } from './channel-policy.js';
@@ -119,5 +124,61 @@ describe('announcementPosterUserIds', () => {
         workspaceAdminIds: ['c', 'd', 'creator'],
       }).sort(),
     ).toEqual(['a', 'b', 'c', 'creator', 'd'].sort());
+  });
+});
+
+describe('temporary membership (§8)', () => {
+  const now = new Date('2026-09-08T12:00:00.000Z');
+
+  it('clampTempMembershipHours bounds and rounds', () => {
+    expect(clampTempMembershipHours(24)).toBe(24);
+    expect(clampTempMembershipHours(0)).toBeNull();
+    expect(clampTempMembershipHours(-5)).toBeNull();
+    expect(clampTempMembershipHours(Number.NaN)).toBeNull();
+    expect(clampTempMembershipHours(0.4)).toBe(1); // rounds up to the floor
+    expect(clampTempMembershipHours(999_999)).toBe(MAX_TEMP_MEMBERSHIP_HOURS);
+  });
+
+  it('temporaryExpiryFrom adds the window to now', () => {
+    expect(temporaryExpiryFrom(48, now).toISOString()).toBe(
+      '2026-09-10T12:00:00.000Z',
+    );
+  });
+
+  it('extendedTemporaryExpiry adds onto a live window, restarts a lapsed one', () => {
+    // live: current is in the future → extend from current
+    expect(
+      extendedTemporaryExpiry('2026-09-09T12:00:00.000Z', 24, now).toISOString(),
+    ).toBe('2026-09-10T12:00:00.000Z');
+    // lapsed: current is in the past → extend from now
+    expect(
+      extendedTemporaryExpiry('2026-09-01T00:00:00.000Z', 24, now).toISOString(),
+    ).toBe('2026-09-09T12:00:00.000Z');
+    // never had one
+    expect(extendedTemporaryExpiry(null, 24, now).toISOString()).toBe(
+      '2026-09-09T12:00:00.000Z',
+    );
+  });
+
+  it('isTemporaryMembershipActive', () => {
+    expect(
+      isTemporaryMembershipActive(
+        { membershipType: 'TEMPORARY', expiresAt: '2026-09-09T12:00:00.000Z' },
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      isTemporaryMembershipActive(
+        { membershipType: 'TEMPORARY', expiresAt: '2026-09-07T12:00:00.000Z' },
+        now,
+      ),
+    ).toBe(false);
+    expect(
+      isTemporaryMembershipActive(
+        { membershipType: 'PERMANENT', expiresAt: null },
+        now,
+      ),
+    ).toBe(false);
+    expect(isTemporaryMembershipActive(null, now)).toBe(false);
   });
 });

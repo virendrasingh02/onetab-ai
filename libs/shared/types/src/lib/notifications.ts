@@ -90,6 +90,7 @@ export type NotificationKind =
   | 'WORKSPACE_INVITE'
   | 'PROJECT_CREATED'
   | 'DOCUMENT_SHARED'
+  | 'CHANNEL_ACCESS_EXPIRED'
   | 'SYSTEM';
 
 export interface NotificationWorkspaceInfo {

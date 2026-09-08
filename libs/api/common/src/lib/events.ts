@@ -34,6 +34,13 @@ export const AppEvent = {
    */
   ChannelMembershipChanged: 'channel.membership.changed',
   /**
+   * A temporary channel membership lapsed and was swept (brief §8). Consumed
+   * by the notifications listener to tell the user their access ended; the
+   * sweep also emits `ChannelMembershipChanged` (leave) so the Matrix bridge
+   * removes them from the room.
+   */
+  ChannelAccessExpired: 'channel.access.expired',
+  /**
    * A user joined or left a workspace, or had their workspace role changed,
    * through our own API. Consumed by the Matrix bridge to mirror the change
    * (and the derived space power level) into the workspace's space room.
@@ -180,6 +187,14 @@ export interface ChannelMembershipChangedEvent extends BaseEvent {
   role: 'ADMIN' | 'MEMBER' | null;
 }
 
+export interface ChannelAccessExpiredEvent extends BaseEvent {
+  channelId: string;
+  channelName: string;
+  channelSlug: string;
+  /** The user whose temporary access ended. */
+  userId: string;
+}
+
 export interface WorkspaceMembershipChangedEvent extends BaseEvent {
   /** The user who joined, left, or was re-roled. */
   userId: string;
@@ -237,6 +252,7 @@ export interface AppEventPayloads {
   [AppEvent.ChannelCreated]: ChannelCreatedEvent;
   [AppEvent.ChannelUpdated]: ChannelUpdatedEvent;
   [AppEvent.ChannelMembershipChanged]: ChannelMembershipChangedEvent;
+  [AppEvent.ChannelAccessExpired]: ChannelAccessExpiredEvent;
   [AppEvent.WorkspaceMembershipChanged]: WorkspaceMembershipChangedEvent;
   [AppEvent.FileShared]: FileSharedEvent;
   [AppEvent.WorkspaceInvited]: WorkspaceInvitedEvent;

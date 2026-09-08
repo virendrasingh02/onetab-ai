@@ -144,6 +144,8 @@ interface ChannelMemberRow {
   isFavorite: boolean;
   isMuted: boolean;
   joinedAt: Date;
+  membershipType: string;
+  expiresAt: Date | null;
   user: UserRow;
 }
 
@@ -155,6 +157,8 @@ export function toChannelMember(row: ChannelMemberRow): ChannelMember {
     isFavorite: row.isFavorite,
     isMuted: row.isMuted,
     joinedAt: row.joinedAt.toISOString(),
+    membershipType: row.membershipType as ChannelMember['membershipType'],
+    expiresAt: row.expiresAt?.toISOString() ?? null,
     user: toPublicUser(row.user),
   };
 }

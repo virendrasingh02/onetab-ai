@@ -24,11 +24,15 @@ import {
   channelPreferencesSchema,
   createChannelSchema,
   createPinSchema,
+  extendMembershipSchema,
+  joinChannelSchema,
   updateChannelSchema,
   type AddChannelMembersInput,
   type ChannelPreferencesInput,
   type CreateChannelInput,
   type CreatePinInput,
+  type ExtendMembershipInput,
+  type JoinChannelInput,
   type UpdateChannelInput,
 } from '@org/validation';
 import { ChannelService } from './channel.service.js';
@@ -152,8 +156,30 @@ export class ChannelController {
     @WorkspaceId() workspaceId: string,
     @Param('channelId') channelId: string,
     @CurrentUser('id') userId: string,
+    @Body(zodBody(joinChannelSchema)) body: JoinChannelInput,
   ): Promise<void> {
-    return this.channels.join(workspaceId, channelId, userId);
+    return this.channels.join(workspaceId, channelId, userId, body);
+  }
+
+  /** Push a temporary membership's expiry out (brief §8). */
+  @Post(':channelId/membership/extend')
+  extendMembership(
+    @WorkspaceId() workspaceId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser('id') userId: string,
+    @Body(zodBody(extendMembershipSchema)) body: ExtendMembershipInput,
+  ) {
+    return this.channels.extendMembership(workspaceId, channelId, userId, body);
+  }
+
+  /** Turn the caller's own temporary membership into a permanent one. */
+  @Post(':channelId/membership/convert-to-permanent')
+  convertToPermanent(
+    @WorkspaceId() workspaceId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.channels.convertToPermanent(workspaceId, channelId, userId);
   }
 
   @Patch(':channelId/preferences')

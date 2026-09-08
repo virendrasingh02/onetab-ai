@@ -177,6 +177,8 @@ import type {
 import type {
   AddChannelMembersInput,
   ChannelPreferencesInput,
+  ExtendMembershipInput,
+  JoinChannelInput,
   ConvertIntakeRequestInput,
   CreateCalendarEventInput,
   CreateChannelInput,
@@ -591,9 +593,37 @@ export const channelApi = {
       ),
     ),
 
-  join: (workspaceId: string, channelId: string) =>
+  join: (
+    workspaceId: string,
+    channelId: string,
+    input: JoinChannelInput = {},
+  ) =>
     request<void>(
-      http.post(`/workspaces/${workspaceId}/channels/${channelId}/join`),
+      http.post(
+        `/workspaces/${workspaceId}/channels/${channelId}/join`,
+        input,
+      ),
+    ),
+
+  /** Push a temporary membership's expiry out (brief §8). */
+  extendMembership: (
+    workspaceId: string,
+    channelId: string,
+    input: ExtendMembershipInput,
+  ) =>
+    request<ChannelMember[]>(
+      http.post(
+        `/workspaces/${workspaceId}/channels/${channelId}/membership/extend`,
+        input,
+      ),
+    ),
+
+  /** Turn the caller's own temporary membership into a permanent one. */
+  convertMembershipToPermanent: (workspaceId: string, channelId: string) =>
+    request<ChannelMember[]>(
+      http.post(
+        `/workspaces/${workspaceId}/channels/${channelId}/membership/convert-to-permanent`,
+      ),
     ),
 
   setPreferences: (

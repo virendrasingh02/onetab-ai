@@ -300,6 +300,11 @@ function ChannelRow({
           }}
           className="mr-1"
         />
+        {channel.membership?.membershipType === 'TEMPORARY' && (
+          <Hint label="Temporary membership">
+            <Clock className="mr-1 size-3 shrink-0 text-muted-foreground/70" />
+          </Hint>
+        )}
         {isMuted && (
           <Hint label="Notifications muted">
             <BellOff className="mr-1 size-3 shrink-0 text-muted-foreground/70" />

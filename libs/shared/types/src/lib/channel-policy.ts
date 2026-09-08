@@ -94,3 +94,70 @@ export function canReplyInChannel(
   if (channel.mode === ChannelMode.STANDARD) return viewer.channelRole !== null;
   return channel.allowReplies && isAuthorizedAnnouncementPoster(channel, viewer);
 }
+
+/* -------------------------------------------------------------------------- */
+/* Temporary membership (brief §8)                                            */
+/* -------------------------------------------------------------------------- */
+
+/** One hour, in ms. */
+const HOUR_MS = 3_600_000;
+
+/** Shortest window the API will accept for a temporary join. */
+export const MIN_TEMP_MEMBERSHIP_HOURS = 1;
+/** Longest window — a temporary join is not a back-door permanent one. */
+export const MAX_TEMP_MEMBERSHIP_HOURS = 24 * 90; // 90 days
+
+/** The quick-pick durations offered in the join menu. */
+export const TEMP_MEMBERSHIP_PRESETS: readonly {
+  hours: number;
+  label: string;
+}[] = [
+  { hours: 24, label: '24 hours' },
+  { hours: 48, label: '48 hours' },
+  { hours: 24 * 7, label: '1 week' },
+];
+
+/** Clamps a requested duration into the accepted range, or null if not finite. */
+export function clampTempMembershipHours(hours: number): number | null {
+  if (!Number.isFinite(hours) || hours <= 0) return null;
+  return Math.min(
+    MAX_TEMP_MEMBERSHIP_HOURS,
+    Math.max(MIN_TEMP_MEMBERSHIP_HOURS, Math.round(hours)),
+  );
+}
+
+/** Expiry for a fresh temporary join: `now + hours`. */
+export function temporaryExpiryFrom(
+  hours: number,
+  now: Date = new Date(),
+): Date {
+  return new Date(now.getTime() + hours * HOUR_MS);
+}
+
+/**
+ * Expiry after an "extend by N hours" — measured from whichever is later, now
+ * or the current expiry, so extending an already-lapsed window starts fresh
+ * and extending a live one adds on the end.
+ */
+export function extendedTemporaryExpiry(
+  currentExpiresAt: Date | string | null,
+  hours: number,
+  now: Date = new Date(),
+): Date {
+  const current =
+    currentExpiresAt == null
+      ? 0
+      : new Date(currentExpiresAt).getTime() || 0;
+  const base = Math.max(now.getTime(), current);
+  return new Date(base + hours * HOUR_MS);
+}
+
+/** Whether a membership is a temporary one that has not yet lapsed. */
+export function isTemporaryMembershipActive(
+  membership: { membershipType: string; expiresAt: string | Date | null } | null,
+  now: Date = new Date(),
+): boolean {
+  if (!membership || membership.membershipType !== 'TEMPORARY') return false;
+  if (!membership.expiresAt) return true;
+  return new Date(membership.expiresAt).getTime() > now.getTime();
+}

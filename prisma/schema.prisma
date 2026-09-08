@@ -335,12 +335,20 @@ model ChannelMember {
   isMuted    Boolean     @default(false)
   lastReadAt DateTime?
   joinedAt   DateTime    @default(now())
+  /// PERMANENT — a normal member. TEMPORARY — self-joined a public channel for
+  /// a set window; a cron sweep removes the row (and the Matrix membership)
+  /// once `expiresAt` passes. Every pre-existing row is PERMANENT.
+  membershipType ChannelMembershipType @default(PERMANENT)
+  /// When a TEMPORARY membership lapses. Null for PERMANENT members.
+  expiresAt  DateTime?
   channel    Channel     @relation(fields: [channelId], references: [id], onDelete: Cascade)
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([channelId, userId])
   @@index([userId, isFavorite])
   @@index([channelId])
+  /// Drives the expiry sweep: `WHERE membershipType = 'TEMPORARY' AND expiresAt <= now()`.
+  @@index([membershipType, expiresAt])
   @@map("channel_members")
 }
 
@@ -1799,6 +1807,11 @@ enum ChannelMode {
   ANNOUNCEMENT
 }
 
+enum ChannelMembershipType {
+  PERMANENT
+  TEMPORARY
+}
+
 enum InvitationStatus {
   PENDING
   ACCEPTED
@@ -1841,6 +1854,7 @@ enum NotificationKind {
   MEETING_INVITE
   MEETING_CANCELLED
   MEETING_UPDATED
+  CHANNEL_ACCESS_EXPIRED
   SYSTEM
 }
 

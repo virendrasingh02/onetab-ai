@@ -72,7 +72,7 @@ the current codebase and proposes a phased build. No feature code has been writt
 |---|---|---|---|---|---|
 | **A** | Smart sidebar sections + channel sort modes | §1.1, §1.2 | M | No (JSON blob widening only) | ✅ **DONE 2026-09-08** — see below. |
 | **B** | Announcement / broadcast channels | §3 | M | Yes (`Channel` cols) | ✅ **DONE 2026-09-08** — see below. |
-| **C** | Temporary channel membership | §8 | M | Yes (`ChannelMember` cols) | Bounded. Join dialog + cron sweep + extend/leave/convert + realtime. |
+| **C** | Temporary channel membership | §8 | M | Yes (`ChannelMember` cols) | ✅ **DONE 2026-09-08** — see below. |
 | **D** | Scheduled status multi-queue | §9 | M | Yes (`ScheduledStatus`) | Bounded. Model + cron applier + conflict rule + profile UI. |
 | **E** | Canvas TOC | §10 | S | No | Client-only upgrade of the existing outline. |
 | **F** | Federated cross-workspace search | §4 | L | Maybe (visit/index tuning) | New aggregator controller + expanded categories + filters + virtualized UI. Depends on decision #3. |
@@ -133,6 +133,35 @@ way) — documented, not a hole.
 | Tests | `channel-policy.spec.ts` (STANDARD vs ANNOUNCEMENT, channel admin / creator / workspace admin / named poster / guest, `canReplyInChannel`, `announcementPosterUserIds` de-dupe). `nx affected -t typecheck lint test build` green (74 typecheck/lint, 35 test/build). |
 
 **Deferred within §3:** an `@org/api-channel` controller/e2e spec (no test target on that lib yet); an "announcement post → notification" `NotificationKind` (needs the inbound-message classifier — pairs better with Slice H).
+
+### Slice C — Temporary channel membership ✅ (2026-09-08, uncommitted)
+
+**Migration `20260908110000_temporary_channel_membership`** (hand-written again).
+Adds `ChannelMembershipType` enum + `ChannelMember.{membershipType, expiresAt}` +
+an `@@index([membershipType, expiresAt])` for the sweep, and
+`NotificationKind.CHANNEL_ACCESS_EXPIRED`. Every existing member is `PERMANENT`,
+`expiresAt` null (§20).
+
+Server-side expiry is the point — a `@Cron(EVERY_5_MINUTES)`
+`ChannelMembershipExpiryService` (`@org/api-channel`, batched 200) deletes lapsed
+`TEMPORARY` rows and per row emits `ChannelMembershipChanged` (leave — the Matrix
+bridge kicks them) + `ChannelAccessExpired` (→ notifications listener →
+`CHANNEL_ACCESS_EXPIRED` bell row → realtime). Our own auth re-checks
+`ChannelMember` per request, so deleting the row revokes access immediately.
+
+| Layer | Change |
+|---|---|
+| `@org/types` | `ChannelMembershipType` enum; `Channel.membership` + `ChannelMember` gain `membershipType`/`expiresAt`; `NotificationKind` +`CHANNEL_ACCESS_EXPIRED`. `channel-policy.ts` +`clampTempMembershipHours` / `temporaryExpiryFrom` / `extendedTemporaryExpiry` / `isTemporaryMembershipActive` / `TEMP_MEMBERSHIP_PRESETS` / bounds (`1h`–`90d`) + spec (10 cases). |
+| `@org/validation` | `joinChannelSchema` (`durationHours?`), `extendMembershipSchema`. |
+| `@org/api-common` | `toChannelMember` + `ChannelMemberRow` extended; `events.ts` — `ChannelAccessExpiredEvent` + `AppEvent.ChannelAccessExpired` + payload-map. |
+| `@org/api-channel` | `join()` takes `durationHours` (read-then-decide: never downgrade a PERMANENT member; a `TEMPORARY` member joining plain → promote, with a window → never shorten); new `extendMembership()` (from later of now/current) + `convertToPermanent()` (public channels only); routes `POST :id/join` (now with body), `:id/membership/extend`, `:id/membership/convert-to-permanent`; new `ChannelMembershipExpiryService` cron; `+ @nestjs/schedule` dep + `ChannelModule` provider. |
+| `@org/api-notifications` | `domain-events.listener` `@OnEvent(ChannelAccessExpired)` → `NotificationCenterService.create`. |
+| Realtime | `realtime-provider` — a `NotificationCreated` of kind `CHANNEL_ACCESS_EXPIRED` also invalidates `['channels', ws]` so the swept channel leaves the recipient's sidebar at once (they have no mutation of their own to trigger it). |
+| `@org/api-client` | `channelApi.join(…, input?)`, `extendMembership`, `convertMembershipToPermanent`. |
+| UI | New `<JoinChannelControl>` (split button: press = permanent, caret = 24h / 48h / 1 week / custom dialog) on the browse page + channel header. New `<TemporaryMembershipBanner>` under the header (Extend ▾ / Make permanent / Leave). `Clock` "Temporary" badge in the header, a `Clock` glyph on the sidebar channel row, a "Temp · expires …" tag in the details-panel roster. Hooks: `useJoinChannel({channelId, durationHours})`, `useMembershipMutations`, `useLeaveChannel`. |
+| Tests | `channel-policy.spec.ts` temp-membership block (clamp bounds/round, expiry math for live/lapsed/never windows, active check). `nx affected -t typecheck lint test build` green (74 each; `@org/types` 52 tests). |
+
+**Deferred within §8:** an admin "Temporary Access" management tab (revoke others' temp access) — the details-panel roster already shows who has it and managers can remove them via the existing member menu; `@org/api-channel` service/e2e specs (no test target).
 
 ---
 

@@ -24,7 +24,7 @@ import {
   usePromptDialog,
   useRightPanelStore,
 } from '@org/ui';
-import { cn, formatDate } from '@org/utils';
+import { cn, formatDate, formatRelative } from '@org/utils';
 import { useQuery } from '@tanstack/react-query';
 import {
   Bell,
@@ -32,6 +32,7 @@ import {
   Blocks,
   Bot,
   ChevronDown,
+  Clock,
   Copy,
   Download,
   ExternalLink,
@@ -1074,6 +1075,26 @@ function MembersTab({
                             className="flex items-center gap-1 shrink-0"
                             onClick={(e) => e.stopPropagation()}
                           >
+                            {member.membershipType === 'TEMPORARY' ? (
+                              <Hint
+                                label={
+                                  member.expiresAt
+                                    ? `Temporary — expires ${formatRelative(
+                                        member.expiresAt,
+                                      )}`
+                                    : 'Temporary member'
+                                }
+                              >
+                                <Badge
+                                  variant="neutral"
+                                  className="gap-1 text-[10px] py-0 h-4 px-1.5"
+                                >
+                                  <Clock className="size-2.5" />
+                                  Temp
+                                </Badge>
+                              </Hint>
+                            ) : null}
+
                             {member.role === 'ADMIN' ? (
                               <Badge
                                 variant="neutral"

@@ -23,7 +23,7 @@ import {
   UserAvatar,
   useRightPanelStore,
 } from '@org/ui';
-import { cn, formatBytes } from '@org/utils';
+import { cn, formatBytes, formatRelative } from '@org/utils';
 import { AddBookmarkDialog } from '@org/chat-ui';
 import { useMarkChannelSeen } from '@org/notifications';
 import { ChannelChat } from '@org/web-chat';
@@ -38,6 +38,7 @@ import {
   Bot,
   Check,
   ChevronRight,
+  Clock,
   Copy,
   Download,
   ExternalLink,
@@ -69,6 +70,8 @@ import { useParams } from 'react-router-dom';
 import { useCurrentUser } from '@org/auth';
 import { ChannelDetailsPanel } from '../components/channel-details-panel.js';
 import { AddAppDialog } from '../components/add-app-dialog.js';
+import { JoinChannelControl } from '../components/join-channel-control.js';
+import { TemporaryMembershipBanner } from '../components/temporary-membership-banner.js';
 import {
   AddAgentToChannelDialog,
   AddPeopleDialog,
@@ -214,6 +217,22 @@ function ChannelHeader({
                 <Badge variant="info" className="gap-1">
                   <Megaphone className="size-3" />
                   <span>Announcement</span>
+                </Badge>
+              </Hint>
+            ) : null}
+            {channel.membership?.membershipType === 'TEMPORARY' ? (
+              <Hint
+                label={
+                  channel.membership.expiresAt
+                    ? `Your access expires ${formatRelative(
+                        channel.membership.expiresAt,
+                      )}`
+                    : 'You joined this channel temporarily'
+                }
+              >
+                <Badge variant="neutral" className="gap-1">
+                  <Clock className="size-3" />
+                  <span>Temporary</span>
                 </Badge>
               </Hint>
             ) : null}
@@ -480,10 +499,15 @@ function ChannelHeader({
             </Hint>
           ) : null}
 
-          {!channel.membership ? (
+          {!channel.membership && channel.visibility === 'PUBLIC' ? (
+            <JoinChannelControl
+              workspaceId={workspaceId}
+              channelId={channel.id}
+            />
+          ) : !channel.membership ? (
             <Button
               size="sm"
-              onClick={() => join.mutate(channel.id)}
+              onClick={() => join.mutate({ channelId: channel.id })}
               loading={join.isPending}
             >
               Join channel
@@ -660,6 +684,15 @@ export function ChannelPage() {
         chatActionsRef={setChatActionsSlot}
         chatMenuRef={setChatMenuSlot}
       />
+
+      {channel.membership?.membershipType === 'TEMPORARY' && currentUser ? (
+        <TemporaryMembershipBanner
+          workspaceId={workspaceId}
+          channelId={channel.id}
+          currentUserId={currentUser.id}
+          expiresAt={channel.membership.expiresAt}
+        />
+      ) : null}
 
       {/* The details panel lives in the app's right rail, rendered from here so
           its dialogs and mutations stay with the page that owns the channel. */}

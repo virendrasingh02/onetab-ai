@@ -339,15 +339,88 @@ export function useJoinChannel(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (channelId: string) =>
-      channelApi.join(workspaceId as string, channelId),
-    onSuccess: () => {
-      toast.success('Joined channel');
+    mutationFn: ({
+      channelId,
+      durationHours,
+    }: {
+      channelId: string;
+      /** Omit for a permanent join; a positive number joins temporarily (§8). */
+      durationHours?: number | null;
+    }) =>
+      channelApi.join(workspaceId as string, channelId, {
+        durationHours: durationHours ?? null,
+      }),
+    onSuccess: (_data, { durationHours }) => {
+      toast.success(
+        durationHours ? 'Joined channel temporarily' : 'Joined channel',
+      );
       queryClient.invalidateQueries({
         queryKey: queryKeys.channels.all(workspaceId ?? ''),
       });
     },
   });
+}
+
+/** Leave a channel (self). Used by "Leave early" on a temporary membership. */
+export function useLeaveChannel(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      channelId,
+      userId,
+    }: {
+      channelId: string;
+      userId: string;
+    }) => channelApi.removeMember(workspaceId as string, channelId, userId),
+    onSuccess: () => {
+      toast.info('You left the channel');
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.channels.all(workspaceId ?? ''),
+      });
+    },
+  });
+}
+
+/**
+ * Extend / convert a temporary channel membership (brief §8). Leaving early is
+ * `useLeaveChannel`.
+ */
+export function useMembershipMutations(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.channels.all(workspaceId ?? ''),
+    });
+
+  const extend = useMutation({
+    mutationFn: ({
+      channelId,
+      durationHours,
+    }: {
+      channelId: string;
+      durationHours: number;
+    }) =>
+      channelApi.extendMembership(workspaceId as string, channelId, {
+        durationHours,
+      }),
+    onSuccess: () => {
+      toast.success('Temporary access extended');
+      invalidate();
+    },
+    onError: () => toast.error('Could not extend your access'),
+  });
+
+  const convertToPermanent = useMutation({
+    mutationFn: (channelId: string) =>
+      channelApi.convertMembershipToPermanent(workspaceId as string, channelId),
+    onSuccess: () => {
+      toast.success('You are now a permanent member');
+      invalidate();
+    },
+    onError: () => toast.error('Could not make your membership permanent'),
+  });
+
+  return { extend, convertToPermanent };
 }
 
 export function useChannelMemberMutations(workspaceId: string | undefined) {

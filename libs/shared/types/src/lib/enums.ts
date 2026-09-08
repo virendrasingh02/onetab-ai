@@ -62,6 +62,14 @@ export const ChannelMode = {
 } as const;
 export type ChannelMode = (typeof ChannelMode)[keyof typeof ChannelMode];
 
+export const ChannelMembershipType = {
+  PERMANENT: 'PERMANENT',
+  /** Self-joined a public channel for a set window; removed by a server sweep. */
+  TEMPORARY: 'TEMPORARY',
+} as const;
+export type ChannelMembershipType =
+  (typeof ChannelMembershipType)[keyof typeof ChannelMembershipType];
+
 export const InvitationStatus = {
   PENDING: 'PENDING',
   ACCEPTED: 'ACCEPTED',

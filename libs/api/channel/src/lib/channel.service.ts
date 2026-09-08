@@ -16,11 +16,15 @@ import {
 import { PrismaService } from '@org/database';
 import {
   ApiErrorCode,
+  ChannelMembershipType,
   ChannelRole,
   ChannelVisibility,
   WorkspaceRole,
   canPostInChannel,
+  clampTempMembershipHours,
+  extendedTemporaryExpiry,
   hasWorkspaceRole,
+  temporaryExpiryFrom,
   type Channel,
   type ChannelMember,
   type ChannelPin,
@@ -32,6 +36,8 @@ import type {
   ChannelPreferencesInput,
   CreateChannelInput,
   CreatePinInput,
+  ExtendMembershipInput,
+  JoinChannelInput,
   UpdateChannelInput,
 } from '@org/validation';
 
@@ -71,6 +77,8 @@ export class ChannelService {
               isFavorite: true,
               isMuted: true,
               lastReadAt: true,
+              membershipType: true,
+              expiresAt: true,
             },
           },
         },
@@ -100,6 +108,8 @@ export class ChannelService {
               isFavorite: true,
               isMuted: true,
               lastReadAt: true,
+              membershipType: true,
+              expiresAt: true,
             },
           },
         },
@@ -140,6 +150,8 @@ export class ChannelService {
         isFavorite: boolean;
         isMuted: boolean;
         lastReadAt: Date | null;
+        membershipType: string;
+        expiresAt: Date | null;
       }[];
     },
     userId: string,
@@ -158,6 +170,9 @@ export class ChannelService {
             isFavorite: membershipRow.isFavorite,
             isMuted: membershipRow.isMuted,
             lastReadAt: membershipRow.lastReadAt?.toISOString() ?? null,
+            membershipType:
+              membershipRow.membershipType as ChannelMembershipType,
+            expiresAt: membershipRow.expiresAt?.toISOString() ?? null,
           }
         : null,
       canPost: canPostInChannel(
@@ -446,6 +461,7 @@ export class ChannelService {
     workspaceId: string,
     channelId: string,
     userId: string,
+    input: JoinChannelInput = {},
   ): Promise<void> {
     await this.assertChannel(workspaceId, channelId);
 
@@ -461,11 +477,57 @@ export class ChannelService {
       throw new ConflictException('This channel is archived.');
     }
 
-    await this.prisma.channelMember.upsert({
+    // A positive `durationHours` makes this a temporary membership (brief §8);
+    // the sweep removes it once `expiresAt` passes.
+    const hours = input.durationHours
+      ? clampTempMembershipHours(input.durationHours)
+      : null;
+
+    const existing = await this.prisma.channelMember.findUnique({
       where: { channelId_userId: { channelId, userId } },
-      create: { channelId, userId, role: ChannelRole.MEMBER },
-      update: {},
+      select: { membershipType: true, expiresAt: true },
     });
+
+    if (!existing) {
+      await this.prisma.channelMember.create({
+        data: {
+          channelId,
+          userId,
+          role: ChannelRole.MEMBER,
+          ...(hours
+            ? {
+                membershipType: ChannelMembershipType.TEMPORARY,
+                expiresAt: temporaryExpiryFrom(hours),
+              }
+            : {}),
+        },
+      });
+    } else if (existing.membershipType === ChannelMembershipType.TEMPORARY) {
+      // A temp member who joins again: with a window, guarantee at least that
+      // much time from now (never shorten); with the plain button, promote to
+      // permanent.
+      if (hours) {
+        const requested = temporaryExpiryFrom(hours);
+        await this.prisma.channelMember.update({
+          where: { channelId_userId: { channelId, userId } },
+          data: {
+            expiresAt:
+              existing.expiresAt && existing.expiresAt > requested
+                ? existing.expiresAt
+                : requested,
+          },
+        });
+      } else {
+        await this.prisma.channelMember.update({
+          where: { channelId_userId: { channelId, userId } },
+          data: {
+            membershipType: ChannelMembershipType.PERMANENT,
+            expiresAt: null,
+          },
+        });
+      }
+    }
+    // An existing PERMANENT member: nothing to do — never downgrade access.
 
     this.events.emit(AppEvent.ChannelMembershipChanged, {
       workspaceId,
@@ -475,6 +537,90 @@ export class ChannelService {
       action: 'join',
       role: ChannelRole.MEMBER,
     });
+  }
+
+  /**
+   * Pushes a temporary membership's expiry out by `durationHours`, from
+   * whichever is later — now or the current expiry (brief §8).
+   */
+  async extendMembership(
+    workspaceId: string,
+    channelId: string,
+    userId: string,
+    input: ExtendMembershipInput,
+  ): Promise<ChannelMember[]> {
+    await this.assertChannel(workspaceId, channelId);
+
+    const membership = await this.prisma.channelMember.findUnique({
+      where: { channelId_userId: { channelId, userId } },
+      select: { membershipType: true, expiresAt: true },
+    });
+    if (!membership) {
+      throw new NotFoundException('You are not a member of this channel.');
+    }
+    if (membership.membershipType !== ChannelMembershipType.TEMPORARY) {
+      throw new ConflictException(
+        'This membership is permanent — there is nothing to extend.',
+      );
+    }
+
+    const hours = clampTempMembershipHours(input.durationHours);
+    if (!hours) {
+      throw new ConflictException('Enter a valid duration.');
+    }
+
+    await this.prisma.channelMember.update({
+      where: { channelId_userId: { channelId, userId } },
+      data: { expiresAt: extendedTemporaryExpiry(membership.expiresAt, hours) },
+    });
+
+    return this.listMembers(workspaceId, channelId);
+  }
+
+  /**
+   * Converts the caller's own temporary membership into a permanent one.
+   * Allowed for public channels only — a private channel's membership is
+   * granted, not self-claimed.
+   */
+  async convertToPermanent(
+    workspaceId: string,
+    channelId: string,
+    userId: string,
+  ): Promise<ChannelMember[]> {
+    await this.assertChannel(workspaceId, channelId);
+
+    const [channel, membership] = await Promise.all([
+      this.prisma.channel.findUniqueOrThrow({
+        where: { id: channelId },
+        select: { visibility: true },
+      }),
+      this.prisma.channelMember.findUnique({
+        where: { channelId_userId: { channelId, userId } },
+        select: { membershipType: true },
+      }),
+    ]);
+
+    if (!membership) {
+      throw new NotFoundException('You are not a member of this channel.');
+    }
+    if (membership.membershipType === ChannelMembershipType.PERMANENT) {
+      return this.listMembers(workspaceId, channelId);
+    }
+    if (channel.visibility === ChannelVisibility.PRIVATE) {
+      throw new ForbiddenException(
+        'A private channel membership cannot be self-converted.',
+      );
+    }
+
+    await this.prisma.channelMember.update({
+      where: { channelId_userId: { channelId, userId } },
+      data: {
+        membershipType: ChannelMembershipType.PERMANENT,
+        expiresAt: null,
+      },
+    });
+
+    return this.listMembers(workspaceId, channelId);
   }
 
   /** Per-user star / mute. Never affects other members. */

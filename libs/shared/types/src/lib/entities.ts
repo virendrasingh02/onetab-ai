@@ -1,4 +1,5 @@
 import type {
+  ChannelMembershipType,
   ChannelMode,
   ChannelRole,
   ChannelVisibility,
@@ -319,6 +320,10 @@ export interface ChannelSummary extends Channel {
     isFavorite: boolean;
     isMuted: boolean;
     lastReadAt: IsoDateString | null;
+    /** PERMANENT unless the viewer self-joined for a window (brief §8). */
+    membershipType: ChannelMembershipType;
+    /** When a TEMPORARY membership lapses; null for PERMANENT. */
+    expiresAt: IsoDateString | null;
   } | null;
   /**
    * Whether the viewer may post here right now — derived server-side from
@@ -335,6 +340,8 @@ export interface ChannelMember {
   isFavorite: boolean;
   isMuted: boolean;
   joinedAt: IsoDateString;
+  membershipType: ChannelMembershipType;
+  expiresAt: IsoDateString | null;
   user: PublicUser;
 }
 

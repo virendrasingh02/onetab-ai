@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import {
   AppEvent,
+  type ChannelAccessExpiredEvent,
   type ChannelCreatedEvent,
   type DocumentCreatedEvent,
   type FileSharedEvent,
@@ -388,6 +389,23 @@ export class DomainEventsListener {
       resourceId: e.channelId,
       summary: `created #${e.slug}`,
     });
+  }
+
+  @OnEvent(AppEvent.ChannelAccessExpired)
+  async onChannelAccessExpired(e: ChannelAccessExpiredEvent): Promise<void> {
+    await this.safeNotify(() =>
+      this.notifications.create({
+        workspaceId: e.workspaceId,
+        recipientId: e.userId,
+        actorId: null,
+        kind: NotificationKind.CHANNEL_ACCESS_EXPIRED,
+        title: `Your temporary access to #${e.channelSlug} has ended`,
+        body: `Rejoin #${e.channelSlug} if you still need it.`,
+        deepLink: `c/${e.channelSlug}`,
+        resourceType: 'channel',
+        resourceId: e.channelId,
+      }),
+    );
   }
 
   @OnEvent(AppEvent.FileShared)

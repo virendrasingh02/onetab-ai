@@ -11,12 +11,23 @@ export {
   useCreateChannel,
   useGroupedChannels,
   useJoinChannel,
+  useLeaveChannel,
   useMakeChannelPrivate,
+  useMembershipMutations,
   usePinMutations,
   useUpdateChannel,
   resolveDefaultChannel,
   type GroupedChannels,
 } from './lib/use-channels.js';
+
+export {
+  JoinChannelControl,
+  type JoinChannelControlProps,
+} from './lib/components/join-channel-control.js';
+export {
+  TemporaryMembershipBanner,
+  type TemporaryMembershipBannerProps,
+} from './lib/components/temporary-membership-banner.js';
 
 export { useChannelAgentsAndApps } from './lib/use-channel-agents-apps.js';
 

@@ -138,6 +138,13 @@ export function RealtimeProvider({
         queryClient.invalidateQueries({
           queryKey: queryKeys.notifications.feed(ws),
         });
+
+        // A swept temporary membership (brief §8) has no client mutation to
+        // refresh the recipient's channel list — nudge it so the channel
+        // drops from their sidebar right away rather than on the next poll.
+        if (payload.notification.kind === 'CHANNEL_ACCESS_EXPIRED') {
+          queryClient.invalidateQueries({ queryKey: ['channels', ws] });
+        }
       },
     );
 
