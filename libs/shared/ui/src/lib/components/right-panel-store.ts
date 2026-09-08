@@ -16,7 +16,7 @@ import { persist } from 'zustand/middleware';
  * `useResizableLayout` — this store deliberately knows nothing about pixels.
  */
 export type RightPanelView =
-  'assistant' | 'profile' | 'details' | 'card' | 'threads';
+  | 'assistant' | 'profile' | 'details' | 'card' | 'threads' | 'context';
 
 /**
  * Views the rail does not render itself.
@@ -64,11 +64,18 @@ export interface RightPanelProfile {
   statusText?: string | null;
 }
 
+export interface RightPanelContextTarget {
+  type: string;
+  id: string;
+  title?: string;
+}
+
 export interface RightPanelState {
   open: boolean;
   view: RightPanelView;
 
   profile: RightPanelProfile | null;
+  contextTarget: RightPanelContextTarget | null;
 
   /** Registered by whichever component currently owns each hosted view. */
   hosted: Record<RightPanelHostedView, HostedPanel | null>;
@@ -91,6 +98,7 @@ export interface RightPanelState {
   reset: () => void;
 
   openProfile: (profile: RightPanelProfile | null) => void;
+  openContext: (target: RightPanelContextTarget) => void;
 
   setSlot: (view: RightPanelHostedView, element: HTMLElement | null) => void;
   openHosted: (view: RightPanelHostedView, panel: HostedPanel) => void;
@@ -119,6 +127,7 @@ export const useRightPanelStore = create<RightPanelState>()(
       open: true,
       view: 'assistant',
       profile: null,
+      contextTarget: null,
       hosted: emptyHosted(),
       slots: emptySlots(),
 
@@ -146,11 +155,14 @@ export const useRightPanelStore = create<RightPanelState>()(
           open: false,
           view: 'assistant',
           profile: null,
+          contextTarget: null,
           hosted: emptyHosted(),
           slots: emptySlots(),
         }),
 
       openProfile: (profile) => set({ profile, view: 'profile', open: true }),
+      openContext: (target) =>
+        set({ contextTarget: target, view: 'context', open: true }),
 
       setSlot: (view, element) =>
         set((state) =>

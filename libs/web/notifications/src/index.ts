@@ -17,6 +17,12 @@ export {
 } from './lib/use-notification-center.js';
 
 export {
+  useAttention,
+  useAttentionMutations,
+  useCatchUp,
+} from './lib/use-intelligence.js';
+
+export {
   NotificationEnableBar,
   useNotificationPermissionBar,
   type NotificationEnableBarProps,

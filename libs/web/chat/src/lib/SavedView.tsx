@@ -1,138 +1,319 @@
-import { Badge, Button, Card, EmptyState, Hint, UserAvatar } from '@org/ui';
+import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Hint,
+  ObjectActionMenu,
+  Spinner,
+} from '@org/ui';
 import { formatRelative } from '@org/utils';
-import { Bookmark, BookmarkX, Hash, Trash2 } from 'lucide-react';
-import { useMemo } from 'react';
+import { useCurrentWorkspace } from '@org/web-workspace';
+import {
+  Bookmark,
+  BookmarkX,
+  CheckSquare,
+  FileText,
+  MessageSquare,
+  Paperclip,
+  Trash2,
+} from 'lucide-react';
+import { useBookmarks, useBookmarkMutations } from './use-bookmarks.js';
 import { useSavedMessagesStore } from './use-saved-messages.js';
 
-/**
- * Everything the reader has put aside, across every conversation.
- *
- * "Saved for later" used to be an icon in the channel header opening a panel
- * scoped to that one channel — which meant the list only existed while you were
- * standing in the room it belonged to, and there was no way to answer "what did
- * I save?" without walking every channel. It is a sidebar destination now, for
- * the same reason Inbox and Threads are.
- */
-export function SavedView() {
-  const saved = useSavedMessagesStore((s) => s.saved);
-  const remove = useSavedMessagesStore((s) => s.remove);
-  const clear = useSavedMessagesStore((s) => s.clear);
+type BookmarkFilter = 'all' | 'message' | 'task' | 'doc' | 'file';
 
-  const ordered = useMemo(
-    () => [...saved].sort((a, b) => b.savedAt - a.savedAt),
-    [saved],
-  );
+function getTypeIcon(type: string) {
+  switch (type.toLowerCase()) {
+    case 'task':
+      return CheckSquare;
+    case 'message':
+      return MessageSquare;
+    case 'doc':
+      return FileText;
+    case 'file':
+      return Paperclip;
+    default:
+      return Bookmark;
+  }
+}
+
+export function SavedView() {
+  const navigate = useNavigate();
+  const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
+
+  const [activeFilter, setActiveFilter] = useState<BookmarkFilter>('all');
+
+  // Server bookmarks
+  const {
+    data: bookmarks = [],
+    isLoading: isBookmarksLoading,
+  } = useBookmarks(workspaceId);
+  const { removeBookmark } = useBookmarkMutations(workspaceId);
+
+  // Local legacy saved messages
+  const legacySaved = useSavedMessagesStore((s) => s.saved);
+  const removeLegacy = useSavedMessagesStore((s) => s.remove);
+  const clearLegacy = useSavedMessagesStore((s) => s.clear);
+
+  // Combine bookmarks and legacy items
+  const allItems = useMemo(() => {
+    const serverItems = bookmarks.map((b) => ({
+      id: b.id,
+      isLegacy: false,
+      targetType: b.targetType,
+      targetId: b.targetId,
+      title: b.title,
+      snippet: b.snippet,
+      tags: b.tags,
+      timestamp: b.createdAt,
+      href:
+        b.targetType === 'task'
+          ? `/w/${workspaceSlug}/tasks/${b.targetId}`
+          : b.targetType === 'doc'
+            ? `/w/${workspaceSlug}/docs/${b.targetId}`
+            : b.targetType === 'message'
+              ? `/w/${workspaceSlug}/threads/${b.targetId}`
+              : undefined,
+    }));
+
+    // Add legacy messages that are not already in server bookmarks
+    const serverMessageIds = new Set(
+      bookmarks.filter((b) => b.targetType === 'message').map((b) => b.targetId),
+    );
+
+    const legacyItems = legacySaved
+      .filter((m) => !serverMessageIds.has(m.id))
+      .map((m) => ({
+        id: m.id,
+        isLegacy: true,
+        targetType: 'message',
+        targetId: m.id,
+        title: `Message from ${m.senderName} in #${m.channelName}`,
+        snippet: m.body,
+        tags: [m.channelName],
+        timestamp: new Date(m.savedAt).toISOString(),
+        href: m.channelSlug
+          ? `/w/${workspaceSlug}/channel/${m.channelSlug}`
+          : `/w/${workspaceSlug}/dms/${m.roomId}`,
+      }));
+
+    return [...serverItems, ...legacyItems].sort(
+      (a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
+  }, [bookmarks, legacySaved, workspaceSlug]);
+
+  const filteredItems = useMemo(() => {
+    if (activeFilter === 'all') return allItems;
+    return allItems.filter(
+      (item) => item.targetType.toLowerCase() === activeFilter.toLowerCase(),
+    );
+  }, [allItems, activeFilter]);
+
+  const handleRemove = async (item: (typeof allItems)[0]) => {
+    if (item.isLegacy) {
+      removeLegacy(item.id);
+    } else {
+      await removeBookmark(item.id);
+    }
+  };
+
+  const filterTabs: { key: BookmarkFilter; label: string; count?: number }[] = [
+    { key: 'all', label: 'All Items', count: allItems.length },
+    {
+      key: 'message',
+      label: 'Messages',
+      count: allItems.filter((i) => i.targetType === 'message').length,
+    },
+    {
+      key: 'task',
+      label: 'Tasks',
+      count: allItems.filter((i) => i.targetType === 'task').length,
+    },
+    {
+      key: 'doc',
+      label: 'Documents',
+      count: allItems.filter((i) => i.targetType === 'doc').length,
+    },
+    {
+      key: 'file',
+      label: 'Files',
+      count: allItems.filter((i) => i.targetType === 'file').length,
+    },
+  ];
 
   return (
-    <div className="min-h-0 flex flex-1 flex-col">
-      {/* Channel-style Header (Inbox & Threads style) */}
+    <div className="min-h-0 flex flex-1 flex-col bg-background text-foreground">
+      {/* Header */}
       <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
-        <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
+        <div className="gap-2.5 px-3 sm:px-6 py-2 min-h-12 flex flex-wrap items-center justify-between">
           <div className="min-w-0 gap-2 flex items-center">
-            <div className="min-w-0 gap-1.5 flex items-center">
-              <Bookmark
-                className="size-4 shrink-0 text-muted-foreground"
-                aria-hidden
-              />
-              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
-                Saved items
-              </h2>
-              {/* <Badge
-                variant={ordered.length > 0 ? 'primary' : 'neutral'}
-                className="text-[11px] px-1.5 py-0 h-4.5"
-              >
-                {ordered.length > 0 ? `${ordered.length} saved` : '0 saved'}
-              </Badge> */}
-            </div>
-
-            {/* <div className="h-4 w-px bg-border mx-1 hidden sm:block" />
-
-            <p className="hidden min-w-0 max-w-[48ch] truncate text-xs text-muted-foreground sm:block">
-              Messages and items you kept for later, newest first
-            </p> */}
+            <Bookmark className="size-4 shrink-0 text-primary" aria-hidden />
+            <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
+              Saved Bookmarks
+            </h2>
+            <Badge variant="outline" className="text-[11px] px-1.5 py-0 h-5">
+              {allItems.length}
+            </Badge>
           </div>
 
-          <div className="gap-2 flex items-center">
-            {ordered.length > 0 ? (
+          {legacySaved.length > 0 && (
+            <div className="gap-2 flex items-center">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={clear}
+                onClick={clearLegacy}
                 className="h-7 text-xs gap-1.5"
               >
-                <Trash2 className="size-3.5" />
-                <span>Clear all</span>
+                <Trash2 className="size-3.5 text-muted-foreground" />
+                <span>Clear Local Cache</span>
               </Button>
-            ) : null}
-          </div>
+            </div>
+          )}
+        </div>
+
+        {/* Filter Pills */}
+        <div className="flex items-center gap-1.5 px-3 sm:px-6 pb-2 overflow-x-auto">
+          {filterTabs.map((tab) => {
+            const isActive = activeFilter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveFilter(tab.key)}
+                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                  isActive
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+              >
+                <span>{tab.label}</span>
+                {tab.count !== undefined && tab.count > 0 && (
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] ${
+                      isActive
+                        ? 'bg-primary-foreground/20 text-primary-foreground'
+                        : 'bg-background text-muted-foreground'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Content Area */}
       <div className="min-h-0 p-3 sm:p-6 flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto">
-          {ordered.length === 0 ? (
+          {isBookmarksLoading && allItems.length === 0 ? (
+            <div className="flex h-48 items-center justify-center">
+              <Spinner className="size-6 text-primary" />
+            </div>
+          ) : filteredItems.length === 0 ? (
             <EmptyState
-              icon={<Bookmark />}
-              title="Nothing saved yet"
-              description="Hover a message and choose “Save for later” to keep it here."
+              icon={<Bookmark className="size-8 text-muted-foreground" />}
+              title={
+                activeFilter === 'all'
+                  ? 'Nothing saved yet'
+                  : `No saved ${activeFilter}s`
+              }
+              description="Save messages, tasks, documents, or files for later to quickly access them here across the entire workspace."
             />
           ) : (
             <ul className="space-y-2.5">
-              {ordered.map((entry) => (
-                <li key={entry.id}>
-                  <Card className="p-4 gap-4 group flex items-start justify-between bg-surface transition-colors hover:border-border-strong">
-                    <div className="gap-3 min-w-0 flex flex-1 items-start">
-                      <UserAvatar
-                        name={entry.senderName}
-                        src={entry.senderAvatarUrl}
-                        seed={entry.senderId ?? entry.senderName}
-                      />
-
-                      <div className="min-w-0 flex-1">
-                        <div className="gap-2 flex flex-wrap items-center">
-                          <span className="text-xs font-semibold text-foreground">
-                            {entry.senderName}
-                          </span>
-                          <Badge
-                            variant="outline"
-                            className="gap-1 py-0 h-5 text-[11px]"
-                          >
-                            <Hash className="size-3" aria-hidden />
-                            {entry.channelName}
-                          </Badge>
-                          <span className="font-mono text-[11px] text-muted-foreground">
-                            · saved{' '}
-                            {formatRelative(
-                              new Date(entry.savedAt).toISOString(),
-                            )}
-                          </span>
+              {filteredItems.map((item) => {
+                const ItemIcon = getTypeIcon(item.targetType);
+                return (
+                  <li key={`${item.targetType}-${item.id}`}>
+                    <Card className="p-4 gap-4 group flex items-start justify-between bg-card transition-colors hover:border-border-strong">
+                      <div className="gap-3 min-w-0 flex flex-1 items-start">
+                        <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                          <ItemIcon className="size-4" />
                         </div>
 
-                        <p className="mt-2 text-xs sm:text-sm leading-relaxed line-clamp-4 whitespace-pre-wrap text-foreground">
-                          {entry.body}
-                        </p>
-                        <p className="mt-1.5 font-mono text-[10px] text-subtle">
-                          Sent{' '}
-                          {formatRelative(new Date(entry.sentAt).toISOString())}
-                        </p>
-                      </div>
-                    </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="gap-2 flex flex-wrap items-center">
+                            <span
+                              onClick={() => {
+                                if (item.href) navigate(item.href);
+                              }}
+                              className={`text-xs sm:text-sm font-semibold text-foreground ${
+                                item.href
+                                  ? 'cursor-pointer hover:text-primary hover:underline'
+                                  : ''
+                              }`}
+                            >
+                              {item.title}
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className="uppercase text-[10px] px-1 py-0 h-4.5"
+                            >
+                              {item.targetType}
+                            </Badge>
+                            <span className="font-mono text-[11px] text-muted-foreground">
+                              · saved{' '}
+                              {formatRelative(
+                                new Date(item.timestamp).toISOString(),
+                              )}
+                            </span>
+                          </div>
 
-                    <Hint label="Remove from saved">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Remove message from ${entry.senderName} from saved`}
-                        onClick={() => remove(entry.id)}
-                        className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100"
-                      >
-                        <BookmarkX className="size-4" />
-                      </Button>
-                    </Hint>
-                  </Card>
-                </li>
-              ))}
+                          {item.snippet && (
+                            <p className="mt-2 text-xs sm:text-sm leading-relaxed line-clamp-3 whitespace-pre-wrap text-muted-foreground">
+                              {item.snippet}
+                            </p>
+                          )}
+
+                          {item.tags && item.tags.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {item.tags.map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                                >
+                                  #{tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <ObjectActionMenu
+                          target={{
+                            type: item.targetType,
+                            id: item.targetId,
+                            title: item.title,
+                            href: item.href,
+                          }}
+                          isBookmarked={true}
+                          onBookmarkToggle={() => handleRemove(item)}
+                        />
+
+                        <Hint label="Remove bookmark">
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={`Remove ${item.title} from saved`}
+                            onClick={() => handleRemove(item)}
+                            className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100"
+                          >
+                            <BookmarkX className="size-3.5" />
+                          </Button>
+                        </Hint>
+                      </div>
+                    </Card>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

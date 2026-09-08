@@ -83,13 +83,19 @@ import {
   type UpdateTaskInput,
   type UpdateTeamInput,
   type UpdateWhiteboardInput,
+  createCrossObjectLinkSchema,
+  type CreateCrossObjectLinkInput,
 } from '@org/validation';
+import { ContextLinksService } from './context-links.service.js';
 import { WorkToolsService } from './work-tools.service.js';
 
 @Controller({ path: 'workspaces/:workspaceId/work-tools', version: '1' })
 @UseGuards(WorkspaceRoleGuard)
 export class WorkToolsController {
-  constructor(private readonly workTools: WorkToolsService) {}
+  constructor(
+    private readonly workTools: WorkToolsService,
+    private readonly contextLinks: ContextLinksService,
+  ) {}
 
   // --- recycle bin --------------------------------------------------------
   //
@@ -765,5 +771,26 @@ export class WorkToolsController {
     @Param('whiteboardId') whiteboardId: string,
   ): Promise<void> {
     return this.workTools.deleteWhiteboard(workspaceId, whiteboardId);
+  }
+
+  // --- context & cross-object links -----------------------------------------
+
+  @Get('context')
+  @RequireWorkspacePermissions(WorkspacePermission.VIEW)
+  getContext(
+    @WorkspaceId() workspaceId: string,
+    @Query('targetType') targetType: string,
+    @Query('targetId') targetId: string,
+  ) {
+    return this.contextLinks.getContext(workspaceId, targetType, targetId);
+  }
+
+  @Post('context/links')
+  @RequireWorkspacePermissions(WorkspacePermission.CREATE)
+  createCrossObjectLink(
+    @WorkspaceId() workspaceId: string,
+    @Body(zodBody(createCrossObjectLinkSchema)) body: CreateCrossObjectLinkInput,
+  ) {
+    return this.contextLinks.createLink(workspaceId, body);
   }
 }

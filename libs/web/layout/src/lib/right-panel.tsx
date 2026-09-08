@@ -9,7 +9,9 @@ import {
 } from 'lucide-react';
 import { useCallback, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCurrentWorkspace } from '@org/web-workspace';
 import { AssistantPanel } from './assistant-panel.js';
+import { UniversalContextPanel } from './context-panel/universal-context-panel.js';
 
 export interface RightPanelProps {
   currentUser: CurrentUser;
@@ -44,9 +46,11 @@ export function RightPanel({
   onClose,
 }: RightPanelProps) {
   const navigate = useNavigate();
+  const { workspaceId } = useCurrentWorkspace();
 
   const view = useRightPanelStore((s) => s.view);
   const profile = useRightPanelStore((s) => s.profile);
+  const contextTarget = useRightPanelStore((s) => s.contextTarget);
   const hosted = useRightPanelStore((s) => s.hosted);
   const setSlot = useRightPanelStore((s) => s.setSlot);
 
@@ -143,6 +147,19 @@ export function RightPanel({
           }}
         />
       </PanelFrame>
+    );
+  }
+
+  if (view === 'context' && contextTarget && workspaceId) {
+    return (
+      <UniversalContextPanel
+        workspaceId={workspaceId}
+        workspaceSlug={workspaceSlug}
+        targetType={contextTarget.type}
+        targetId={contextTarget.id}
+        title={contextTarget.title}
+        onClose={onClose}
+      />
     );
   }
 

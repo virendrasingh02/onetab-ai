@@ -9,3 +9,5 @@ export * from './lib/profile.schema.js';
 export * from './lib/scheduled-status.schema.js';
 export * from './lib/work-tools.schema.js';
 export * from './lib/ai.schema.js';
+export * from './lib/unified-platform.schema.js';
+

@@ -44,6 +44,7 @@ export interface MessageRendererProps {
   onCreateTask?: () => void;
   onCreateDoc?: () => void;
   onAskAI?: () => void;
+  onViewContext?: () => void;
   onAction?: (action: StructuredMessageAction) => void | Promise<void>;
   onRetry?: () => void;
   entityKind?: 'app' | 'doc' | 'task' | 'kanban' | 'agent' | 'thread';

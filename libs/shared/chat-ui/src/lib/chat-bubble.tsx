@@ -87,6 +87,7 @@ export interface ChatBubbleProps {
   onCreateTask?: () => void;
   onCreateDoc?: () => void;
   onAskAI?: () => void;
+  onViewContext?: () => void;
   threadParticipants?: RoomMember[];
   lastReplyAt?: number;
   isHighlighted?: boolean;
@@ -167,6 +168,7 @@ export function ChatBubble({
   onCreateTask,
   onCreateDoc,
   onAskAI,
+  onViewContext,
   threadParticipants,
   lastReplyAt,
   isHighlighted = false,
@@ -817,6 +819,19 @@ export function ChatBubble({
               >
                 <Bot className="mr-2 size-4 text-primary" />
                 Ask AI about message
+              </DropdownMenuItem>
+            ) : null}
+
+            {onViewContext ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  setIsMenuOpen(false);
+                  onViewContext();
+                }}
+                className="cursor-pointer hover:bg-accent"
+              >
+                <Link2 className="mr-2 size-4 text-primary" />
+                View related context
               </DropdownMenuItem>
             ) : null}
 

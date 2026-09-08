@@ -1,4 +1,4 @@
-import { integrationsApi, workToolsApi } from '@org/api-client';
+import { contextLinksApi, integrationsApi, workToolsApi } from '@org/api-client';
 import {
   ConnectionBanner,
   executeStructuredAction,
@@ -317,12 +317,25 @@ export function ChatPanel({
       try {
         const snippet =
           message.body.slice(0, 60).replace(/\n/g, ' ') || 'New Task';
-        await workToolsApi.createTask(workspaceId, {
+        const createdTask = await workToolsApi.createTask(workspaceId, {
           title: snippet,
           description: `Created from message in #${title} by ${message.senderName}:\n\n${message.body}`,
           status: 'TODO',
           priority: 'MEDIUM',
         });
+        if (createdTask?.id) {
+          try {
+            await contextLinksApi.createLink(workspaceId, {
+              sourceType: 'message',
+              sourceId: message.id,
+              targetType: 'task',
+              targetId: createdTask.id,
+              linkType: 'RESOLVES',
+            });
+          } catch {
+            // Non-blocking
+          }
+        }
         toast.success('Task created from message', {
           description: `"${snippet}" added to Tasks.`,
         });
@@ -345,11 +358,24 @@ export function ChatPanel({
       }
       try {
         const docTitle = `Note from #${title} (${new Date().toLocaleDateString()})`;
-        await workToolsApi.createDocument(workspaceId, {
+        const createdDoc = await workToolsApi.createDocument(workspaceId, {
           title: docTitle,
           content: message.body,
           kind: 'NOTE',
         });
+        if (createdDoc?.id) {
+          try {
+            await contextLinksApi.createLink(workspaceId, {
+              sourceType: 'message',
+              sourceId: message.id,
+              targetType: 'doc',
+              targetId: createdDoc.id,
+              linkType: 'DOCUMENTED_BY',
+            });
+          } catch {
+            // Non-blocking
+          }
+        }
         toast.success('Document created from message', {
           description: `"${docTitle}" added to Documents.`,
         });
@@ -359,6 +385,14 @@ export function ChatPanel({
     },
     [onCreateDoc, workspaceId, title],
   );
+
+  const handleViewContext = useCallback((message: Message) => {
+    useRightPanelStore.getState().openContext({
+      type: 'message',
+      id: message.id,
+      title: `Message from ${message.senderName}`,
+    });
+  }, []);
 
   const handleAskAI = useCallback(
     (message: Message) => {
@@ -635,6 +669,7 @@ export function ChatPanel({
       onCreateTask={handleCreateTask}
       onCreateDoc={handleCreateDoc}
       onAskAI={handleAskAI}
+      onViewContext={handleViewContext}
       onAction={handleAction}
       onRetryAgent={handleRetryAgent}
       onSendCard={handleSendCard}

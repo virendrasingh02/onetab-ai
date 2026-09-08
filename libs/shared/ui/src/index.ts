@@ -439,6 +439,7 @@ export {
 export {
   useRightPanelStore,
   type HostedPanel,
+  type RightPanelContextTarget,
   type RightPanelHostedView,
   type RightPanelProfile,
   type RightPanelState,
@@ -756,6 +757,12 @@ export {
   LanguageSelect,
   type LanguageSelectProps,
 } from './lib/components/language-select.js';
+
+export {
+  ObjectActionMenu,
+  type ObjectActionMenuProps,
+  type ObjectActionMenuTarget,
+} from './lib/components/object-action-menu.js';
 
 
 

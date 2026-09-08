@@ -55,6 +55,7 @@ import {
 import { AddAccountDialog } from './add-account-dialog.js';
 import { AppHeader } from './app-header.js';
 import { ChannelNav } from './channel-nav.js';
+import { OfflineSyncBanner } from './offline/offline-sync-banner.js';
 import { useNavigationSync } from './navigation/use-navigation-sync.js';
 import { useRememberWorkspacePath } from './navigation/use-remember-workspace-path.js';
 import { useSidebarSync } from './navigation/use-sidebar-sync.js';
@@ -390,6 +391,7 @@ export function AppShell() {
       <RealtimeNotificationsBridge currentUserId={user?.id} workspaceSlug={slug} />
       <div className="flex h-full flex-col overflow-hidden bg-background bg-app-gradient font-sans text-foreground">
         {/* Top Header Bar spanning full width */}
+        <OfflineSyncBanner />
         <AppHeader
           user={user}
           workspaceSlug={slug}

@@ -1,5 +1,12 @@
 import type {
   ActivityFeedItem,
+  AttentionItem,
+  BookmarkDto,
+  CatchUpSummary,
+  ContextOverviewDto,
+  CreateBookmarkInput,
+  CreateCrossObjectLinkInput,
+  CrossObjectLinkDto,
   NotificationView,
   Paginated,
   UserPresence,
@@ -3187,5 +3194,71 @@ export const appVersionsApi = {
       environment: string;
     }>(http.get('/app-versions/web-metadata')),
 };
+
+export const intelligenceApi = {
+  attention: (workspaceId: string) =>
+    request<AttentionItem[]>(
+      http.get(`/workspaces/${workspaceId}/intelligence/attention`),
+    ),
+
+  snooze: (workspaceId: string, itemKey: string, snoozeDurationMinutes = 60) =>
+    request<void>(
+      http.post(`/workspaces/${workspaceId}/intelligence/attention/snooze`, {
+        itemKey,
+        snoozeDurationMinutes,
+      }),
+    ),
+
+  dismiss: (workspaceId: string, itemKey: string) =>
+    request<void>(
+      http.post(`/workspaces/${workspaceId}/intelligence/attention/dismiss`, {
+        itemKey,
+      }),
+    ),
+
+  catchUp: (workspaceId: string) =>
+    request<CatchUpSummary>(
+      http.get(`/workspaces/${workspaceId}/intelligence/catch-up`),
+    ),
+};
+
+export const contextLinksApi = {
+  getContext: (workspaceId: string, targetType: string, targetId: string) =>
+    request<ContextOverviewDto>(
+      http.get(`/workspaces/${workspaceId}/work-tools/context`, {
+        params: { targetType, targetId },
+      }),
+    ),
+
+  createLink: (workspaceId: string, input: CreateCrossObjectLinkInput) =>
+    request<CrossObjectLinkDto>(
+      http.post(`/workspaces/${workspaceId}/work-tools/context/links`, input),
+    ),
+};
+
+export const bookmarksApi = {
+  list: (workspaceId: string, targetType?: string) =>
+    request<BookmarkDto[]>(
+      http.get(`/workspaces/${workspaceId}/bookmarks`, {
+        params: targetType ? { targetType } : undefined,
+      }),
+    ),
+
+  create: (workspaceId: string, input: CreateBookmarkInput) =>
+    request<BookmarkDto>(
+      http.post(`/workspaces/${workspaceId}/bookmarks`, input),
+    ),
+
+  delete: (workspaceId: string, bookmarkId: string) =>
+    request<void>(http.delete(`/workspaces/${workspaceId}/bookmarks/${bookmarkId}`)),
+
+  deleteByTarget: (workspaceId: string, targetType: string, targetId: string) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/bookmarks/by-target/${targetType}/${targetId}`,
+      ),
+    ),
+};
+
 
 

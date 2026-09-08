@@ -12,6 +12,9 @@
   "exclude": ["out-tsc", "dist", "src/**/*.spec.ts"],
   "references": [
     {
+      "path": "../../shared/validation/tsconfig.lib.json"
+    },
+    {
       "path": "../auth/tsconfig.lib.json"
     },
     {

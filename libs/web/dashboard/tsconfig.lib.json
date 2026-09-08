@@ -29,6 +29,12 @@
       "path": "../workspace/tsconfig.lib.json"
     },
     {
+      "path": "../work-tools/tsconfig.lib.json"
+    },
+    {
+      "path": "../notifications/tsconfig.lib.json"
+    },
+    {
       "path": "../members/tsconfig.lib.json"
     },
     {

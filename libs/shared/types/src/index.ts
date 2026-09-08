@@ -317,4 +317,4 @@ export {
 } from './lib/permissions.js';
 
 export * from './lib/app-versions.js';
-
+export * from './lib/unified-platform.js';

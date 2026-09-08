@@ -89,6 +89,8 @@ model User {
   complianceOverrides     ComplianceReleaseOverride[]
   createdAppReleases      AppRelease[]             @relation("AppReleaseCreator")
   updatedAppReleases      AppRelease[]             @relation("AppReleaseUpdater")
+  bookmarks               Bookmark[]
+  attentionItemStates     AttentionItemState[]
 
   @@index([presence, lastSeenAt])
   @@map("users")
@@ -273,6 +275,9 @@ model Workspace {
   subscription             WorkspaceSubscription?
   enterpriseInquiries      EnterpriseSalesInquiry[]
   meetings                 Meeting[]
+  crossObjectLinks         CrossObjectLink[]
+  bookmarks                Bookmark[]
+  attentionItemStates     AttentionItemState[]
   owner                    User                      @relation("WorkspaceOwner", fields: [ownerId], references: [id])
 
   @@index([ownerId])
@@ -1226,6 +1231,62 @@ model WorkItemRelation {
   @@index([sourceId])
   @@index([targetId])
   @@map("work_item_relations")
+}
+
+model CrossObjectLink {
+  id          String    @id @default(cuid())
+  workspaceId String
+  sourceType  String
+  sourceId    String
+  targetType  String
+  targetId    String
+  linkType    String    @default("RELATED")
+  metadata    Json?     @default("{}")
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, sourceType, sourceId, targetType, targetId, linkType])
+  @@index([workspaceId, sourceType, sourceId])
+  @@index([workspaceId, targetType, targetId])
+  @@map("cross_object_links")
+}
+
+model Bookmark {
+  id          String    @id @default(cuid())
+  workspaceId String
+  userId      String
+  targetType  String
+  targetId    String
+  title       String
+  snippet     String?
+  tags        String[]  @default([])
+  metadata    Json?     @default("{}")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId, targetType, targetId])
+  @@index([workspaceId, userId, createdAt])
+  @@index([workspaceId, userId, targetType])
+  @@map("bookmarks")
+}
+
+model AttentionItemState {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  userId       String
+  itemKey      String
+  dismissedAt  DateTime?
+  snoozedUntil DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId, itemKey])
+  @@index([workspaceId, userId])
+  @@map("attention_item_states")
 }
 
 model WorkItemCustomField {

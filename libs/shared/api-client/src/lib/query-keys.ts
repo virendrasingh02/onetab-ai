@@ -310,5 +310,21 @@ export const queryKeys = {
       ['app-versions', 'check-update', params ?? {}] as const,
     webMetadata: () => ['app-versions', 'web-metadata'] as const,
   },
+  intelligence: {
+    attention: (workspaceId: string) =>
+      ['intelligence', workspaceId, 'attention'] as const,
+    catchUp: (workspaceId: string) =>
+      ['intelligence', workspaceId, 'catch-up'] as const,
+  },
+  context: {
+    overview: (workspaceId: string, targetType: string, targetId: string) =>
+      ['context', workspaceId, targetType, targetId] as const,
+  },
+  bookmarks: {
+    all: (workspaceId: string) => ['bookmarks', workspaceId] as const,
+    list: (workspaceId: string, targetType?: string) =>
+      ['bookmarks', workspaceId, { targetType }] as const,
+  },
 } as const;
+
 

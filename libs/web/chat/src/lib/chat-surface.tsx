@@ -230,6 +230,7 @@ export interface ChatSurfaceProps {
   onCreateTask?: (message: Message) => void;
   onCreateDoc?: (message: Message) => void;
   onAskAI?: (message: Message) => void;
+  onViewContext?: (message: Message) => void;
   onSchedule?: (body: string, when: string) => void;
   onAction?: (
     message: Message,
@@ -318,6 +319,7 @@ export function ChatSurface({
   onCreateTask,
   onCreateDoc,
   onAskAI,
+  onViewContext,
   onSchedule,
   onAction,
   onRetryAgent,
@@ -658,6 +660,9 @@ export function ChatSurface({
           onCreateTask={onCreateTask ? () => onCreateTask(message) : undefined}
           onCreateDoc={onCreateDoc ? () => onCreateDoc(message) : undefined}
           onAskAI={onAskAI ? () => onAskAI(message) : undefined}
+          onViewContext={
+            onViewContext ? () => onViewContext(message) : undefined
+          }
           onAction={
             onAction
               ? (action: StructuredMessageAction) =>

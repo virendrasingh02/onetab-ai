@@ -1,5 +1,5 @@
 import { useCurrentUser } from '@org/auth';
-import type { TrendDelta } from '@org/types';
+import type { AttentionItem, TrendDelta } from '@org/types';
 import {
   Badge,
   Button,
@@ -28,70 +28,40 @@ import {
 import { useChannels, useGroupedChannels } from '@org/web-channels';
 import { useIntegrations } from '@org/web-integrations';
 import { useMembers } from '@org/web-members';
+import {
+  useAttention,
+  useAttentionMutations,
+  useCatchUp,
+} from '@org/notifications';
+import { useDocuments, useTasks } from '@org/web-work-tools';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
+  AlertCircle,
   ArrowRight,
   BarChart3,
+  Bell,
   Bot,
   CheckCircle2,
   ChevronRight,
+  Clock,
+  Compass,
+  FileText,
+  Flame,
   Hash,
+  History,
+  Inbox,
   LayoutDashboard,
   Lock,
+  MessageSquare,
   Plus,
-  Shield,
-  Sparkles,
-  Star,
   UserPlus,
   Users,
+  Video,
   Workflow,
+  X,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-
-function QuickActionCard({
-  icon: Icon,
-  title,
-  description,
-  to,
-  badge,
-}: {
-  icon: typeof Sparkles;
-  title: string;
-  description: string;
-  to: string;
-  badge?: string;
-}) {
-  return (
-    <Link
-      to={to}
-      className="group p-4 relative flex flex-col justify-between rounded-card border border-border bg-surface transition-all duration-200 hover:border-primary/50 hover:bg-accent/40 hover:shadow-xs"
-    >
-      <div className="gap-2 flex items-start justify-between">
-        <div className="size-9 flex items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-          <Icon className="size-4" aria-hidden />
-        </div>
-        {badge ? (
-          <Badge variant="primary" className="text-[10px]">
-            {badge}
-          </Badge>
-        ) : null}
-      </div>
-      <div className="mt-3 space-y-0.5">
-        <div className="gap-1 font-medium text-xs flex items-center text-foreground group-hover:text-primary">
-          <span>{title}</span>
-          <ChevronRight
-            className="size-3 group-hover:translate-x-0.5 transition-transform"
-            aria-hidden
-          />
-        </div>
-        <p className="leading-relaxed line-clamp-2 text-[11px] text-muted-foreground">
-          {description}
-        </p>
-      </div>
-    </Link>
-  );
-}
 
 function MetricCard({
   title,
@@ -99,557 +69,786 @@ function MetricCard({
   subtitle,
   icon: Icon,
   trend,
-  isLoading,
+  className = '',
 }: {
   title: string;
   value: string | number;
-  subtitle: string;
-  icon: typeof Sparkles;
-  /** Period-over-period movement from the analytics API, when it has one. */
+  subtitle?: string;
+  icon: typeof Users;
   trend?: TrendDelta;
-  isLoading?: boolean;
+  className?: string;
 }) {
   return (
-    <Card className="relative overflow-hidden">
-      <CardContent className="p-4">
-        <div className="gap-2 flex items-center justify-between">
-          <span className="font-medium tracking-wider text-[11px] text-muted-foreground uppercase">
+    <Card className={className}>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xs font-medium text-muted-foreground">
             {title}
-          </span>
-          <Icon className="size-4 text-muted-foreground/70" aria-hidden />
+          </CardTitle>
+          <div className="size-8 flex items-center justify-center rounded-md bg-accent text-accent-foreground">
+            <Icon className="size-4" aria-hidden />
+          </div>
         </div>
-        <div className="mt-2 flex items-baseline justify-between">
-          <span className="text-2xl font-bold tracking-tight text-foreground tabular-nums">
-            {isLoading ? '—' : value}
-          </span>
-          {trend && !isLoading ? <TrendBadge trend={trend} /> : null}
+      </CardHeader>
+      <CardContent className="space-y-1">
+        <div className="font-semibold text-2xl tracking-tight text-foreground">
+          {value}
         </div>
-        <p className="mt-1 truncate text-[11px] text-muted-foreground">
-          {subtitle}
-        </p>
+        <div className="gap-2 flex items-center text-xs text-muted-foreground">
+          {trend ? <TrendBadge trend={trend} /> : null}
+          {subtitle ? <span>{subtitle}</span> : null}
+        </div>
       </CardContent>
     </Card>
   );
 }
 
-/** The dashboard summarises the last month; the analytics screens go deeper. */
-const RANGE_DAYS = 30;
+function AttentionCard({
+  item,
+  onComplete,
+  onSnooze,
+  onDismiss,
+  slug,
+}: {
+  item: AttentionItem;
+  onComplete: (id: string) => void;
+  onSnooze: (key: string) => void;
+  onDismiss: (key: string) => void;
+  slug: string;
+}) {
+  const badgeVariant =
+    item.category === 'URGENT'
+      ? 'destructive'
+      : item.category === 'IMPORTANT'
+      ? 'warning'
+      : 'neutral';
+
+  return (
+    <div className="p-3 rounded-card border border-border bg-surface transition-colors hover:border-primary/40 flex flex-col justify-between gap-2.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2.5 min-w-0">
+          <div className="mt-0.5 shrink-0">
+            {item.category === 'URGENT' ? (
+              <Flame className="size-4 text-destructive animate-pulse" />
+            ) : item.sourceType === 'task' ? (
+              <CheckCircle2 className="size-4 text-amber-500" />
+            ) : item.sourceType === 'mention' ? (
+              <MessageSquare className="size-4 text-primary" />
+            ) : (
+              <AlertCircle className="size-4 text-muted-foreground" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-semibold text-foreground truncate">
+                {item.title}
+              </span>
+              <Badge variant={badgeVariant} className="text-[10px] px-1.5 py-0 h-4">
+                {item.category}
+              </Badge>
+            </div>
+            {item.description ? (
+              <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
+                {item.description}
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        <button
+          onClick={() => onDismiss(item.itemKey)}
+          className="text-muted-foreground/60 hover:text-foreground shrink-0 transition-colors p-1"
+          title="Dismiss from attention"
+          aria-label="Dismiss"
+        >
+          <X className="size-3.5" />
+        </button>
+      </div>
+
+      <div className="flex items-center justify-between pt-1 border-t border-border/40 text-[11px]">
+        <div className="text-muted-foreground flex items-center gap-1.5 truncate">
+          <Clock className="size-3" />
+          <span>{formatRelative(new Date(item.timestamp).getTime())}</span>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          {item.sourceType === 'task' ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 text-[11px] px-2"
+              onClick={() => onComplete(item.sourceId)}
+            >
+              Done
+            </Button>
+          ) : null}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 text-[11px] px-2"
+            onClick={() => onSnooze(item.itemKey)}
+          >
+            Snooze
+          </Button>
+          <Button asChild variant="primary" size="sm" className="h-6 text-[11px] px-2.5">
+            <Link to={`/w/${slug}/${item.deepLink}`}>Open</Link>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function DashboardPage() {
+  const { workspace, slug: workspaceSlug, workspaceId } = useCurrentWorkspace();
   const user = useCurrentUser();
-  const { slug, workspace, workspaceId } = useCurrentWorkspace();
-  const channels = useChannels(workspaceId);
-  const members = useMembers(workspaceId);
-  const groups = useGroupedChannels(channels.data);
-  const overview = useDashboardAnalytics(RANGE_DAYS);
-  const aiUsage = useAIUsageAnalytics(RANGE_DAYS);
-  const storage = useStorageAnalytics(RANGE_DAYS);
-  const integrations = useIntegrations(workspaceId);
+  const slug = workspaceSlug ?? '';
+
+  const [activeTab, setActiveTab] = useState<'home' | 'analytics'>('home');
   const [showGuide, setShowGuide] = useState(true);
 
-  const firstName = (user?.displayName ?? user?.name ?? '').split(' ')[0];
-  /*
-   * The workspace summary is already in cache when this screen mounts, so it
-   * seeds the counters while the aggregation request is in flight.
-   */
-  const channelCount =
-    overview.data?.totals.channels ?? workspace?.channelCount ?? 0;
-  const memberCount =
-    overview.data?.totals.members ?? workspace?.memberCount ?? 0;
-  const onlineCount =
-    members.data?.filter((m) => m.user.presence === 'ONLINE').length ?? 0;
-  const connectedIntegrations =
-    integrations.data?.filter(
-      (integration) => integration.status === 'CONNECTED',
-    ).length ?? 0;
+  // Intelligence hooks
+  const attention = useAttention(workspaceId);
+  const attentionMutations = useAttentionMutations(workspaceId);
+  const catchUp = useCatchUp(workspaceId);
 
-  // Company onboarding progress metrics
+  // Work tools & channel queries
+  const channels = useChannels(workspaceId);
+  const groups = useGroupedChannels(channels.data);
+  const tasks = useTasks(workspaceId);
+  const documents = useDocuments(workspaceId);
+  const members = useMembers(workspaceId);
+  const integrations = useIntegrations(workspaceId);
+
+  // Analytics queries (preserved for Analytics tab)
+  const dashboardAnalytics = useDashboardAnalytics(30);
+  const aiUsage = useAIUsageAnalytics(30);
+  const storageAnalytics = useStorageAnalytics(30);
+
+  const channelCount = channels.data?.length ?? 0;
+  const memberCount = members.data?.length ?? 0;
+  const activeTasksList = tasks.data ?? [];
+  const inProgressTask = activeTasksList.find(
+    (t) => t.status === 'IN_PROGRESS' || t.status === 'TODO',
+  );
+  const recentDoc = documents.data?.[0];
+  const lastVisitedChannel = groups.favorites[0] || groups.joined[0];
+
+  const attentionItems: AttentionItem[] = attention.data ?? [];
+
   const onboardingSteps = [
     {
-      title: 'Company Channels',
-      desc: 'Set up core department channels (#general, #engineering, #marketing).',
-      done: channelCount > 1,
-      link: `/w/${slug}/channels/new`,
+      title: 'Join or create your first team channel',
+      desc: 'Set up public topic or department channels for transparent conversations.',
+      done: channelCount > 0,
+      link: `/w/${slug}/channels`,
     },
     {
-      title: 'Team Members',
-      desc: 'Invite colleagues & assign department roles (Admin, Member, Guest).',
+      title: 'Invite core coworkers and collaborators',
+      desc: 'Grow your company directory to unlock direct messaging and task tagging.',
       done: memberCount > 1,
-      link: `/w/${slug}/invitations`,
+      link: `/w/${slug}/members`,
     },
     {
-      title: 'Integrations',
-      desc: 'Connect Slack, Notion, GitHub or Google Workspace.',
-      done: connectedIntegrations > 0,
+      title: 'Configure third-party integrations',
+      desc: 'Sync status feeds from GitHub, Figma, Jira or Linear directly into channels.',
+      done: (integrations.data?.length ?? 0) > 0,
       link: `/w/${slug}/integrations`,
     },
     {
-      title: 'AI & Automations',
-      desc: 'Deploy custom AI agents & automated workflow triggers.',
-      done:
-        (aiUsage.data?.totalAgents ?? 0) > 0 ||
-        (aiUsage.data?.totalWorkflows ?? 0) > 0,
+      title: 'Explore AI Agents & Automations',
+      desc: 'Deploy prompt assistants or automate recurring cross-platform routines.',
+      done: false,
       link: `/w/${slug}/agents/builder`,
     },
   ];
 
-  const completedSteps = onboardingSteps.filter((s) => s.done).length;
-  const progressPercent = Math.round(
-    (completedSteps / onboardingSteps.length) * 100,
-  );
-
   return (
-    <div className="max-w-6xl space-y-6 pb-8 mx-auto">
-      {/* Top Banner: Company Workspace Hero */}
-      <div className="p-5 lg:p-6 rounded-card border border-border bg-gradient-to-r from-surface via-surface-raised to-accent/20 shadow-xs">
-        <div className="md:flex-row md:items-center gap-4 flex flex-col justify-between">
-          <div className="space-y-1.5 max-w-2xl">
-            <div className="gap-2 flex items-center">
-              <Badge
-                variant="primary"
-                className="gap-1 font-semibold text-[10px] uppercase"
-              >
-                <Shield className="size-3" aria-hidden />
-                Enterprise Workspace
+    <div className="space-y-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+      {/* Dynamic Header & Greeting */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-5">
+        <div>
+          <h1 className="font-bold text-2xl tracking-tight text-foreground flex items-center gap-2.5">
+            <span>
+              {catchUp.data?.greeting ?? `Welcome back, ${user?.displayName || user?.name || 'there'}!`}
+            </span>
+            <span className="size-2 rounded-full bg-emerald-500 inline-block" title="Connected" />
+          </h1>
+          <p className="mt-1 text-xs text-muted-foreground flex items-center gap-2">
+            <span>Workspace:</span>
+            <strong className="text-foreground font-medium">{workspace?.name ?? slug}</strong>
+            <span>•</span>
+            <span>{formatDate(new Date())}</span>
+          </p>
+        </div>
+
+        {/* Tab Switcher: Home Experience vs Analytics */}
+        <div className="flex items-center gap-2 bg-muted/60 p-1 rounded-lg border border-border shrink-0 self-start sm:self-auto">
+          <button
+            onClick={() => setActiveTab('home')}
+            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+              activeTab === 'home'
+                ? 'bg-surface text-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Compass className="size-3.5 text-primary" />
+            <span>Overview &amp; Action</span>
+            {attentionItems.length > 0 ? (
+              <Badge variant="primary" className="text-[10px] px-1 py-0 h-4">
+                {attentionItems.length}
               </Badge>
-              <span className="text-xs text-muted-foreground">·</span>
-              <span className="text-xs font-medium text-muted-foreground">
-                {workspace?.name ?? 'Company Hub'}
-              </span>
-            </div>
-            <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-foreground">
-              {firstName
-                ? `Welcome back to ${workspace?.name}, ${firstName}`
-                : `Welcome back to ${workspace?.name}`}
-            </h1>
-            <p className="text-xs lg:text-sm leading-relaxed text-muted-foreground">
-              Your central company hub for real-time collaboration, team
-              channels, AI copilots, and automated workflows.
-            </p>
-          </div>
-
-          <div className="gap-2 flex shrink-0 flex-wrap items-center">
-            <Button asChild size="sm" className="gap-1.5">
-              <Link to={`/w/${slug}/invitations`}>
-                <UserPlus className="size-3.5" />
-                <span>Invite Team</span>
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm" className="gap-1.5">
-              <Link to={`/w/${slug}/channels/new`}>
-                <Plus className="size-3.5" />
-                <span>New Channel</span>
-              </Link>
-            </Button>
-          </div>
-        </div>
-
-        {/* Company Operational Progress Bar */}
-        {showGuide ? (
-          <div className="mt-5 pt-4 border-t border-border/60">
-            <div className="text-xs mb-2 flex items-center justify-between">
-              <span className="font-medium gap-1.5 flex items-center text-foreground">
-                <CheckCircle2 className="size-3.5 text-primary" aria-hidden />
-                <span>Company Workspace Setup</span>
-              </span>
-              <span className="font-mono text-[11px] text-subtle">
-                {completedSteps}/{onboardingSteps.length} Steps (
-                {progressPercent}%)
-              </span>
-            </div>
-            <Progress value={progressPercent} className="h-1.5" />
-          </div>
-        ) : null}
-      </div>
-
-      {/* Key Company Metrics */}
-      <div className="md:grid-cols-4 gap-3 grid grid-cols-2">
-        <MetricCard
-          title="Departments & Channels"
-          value={formatCount(channelCount)}
-          subtitle={`${groups.joined.length + groups.favorites.length} joined channels`}
-          icon={Hash}
-        />
-        <MetricCard
-          title="Team Members"
-          value={formatCount(memberCount)}
-          subtitle={`${onlineCount} online right now`}
-          icon={Users}
-          trend={overview.data?.headline.members}
-          isLoading={overview.isLoading}
-        />
-        <MetricCard
-          title="AI Agents Deployed"
-          value={formatCount(aiUsage.data?.totalAgents ?? 0)}
-          subtitle={`${aiUsage.data?.activeAgents ?? 0} active · ${formatCount(
-            aiUsage.data?.agentExecutions ?? 0,
-          )} runs in ${RANGE_DAYS}d`}
-          icon={Bot}
-          isLoading={aiUsage.isLoading}
-        />
-        <MetricCard
-          title="Automated Workflows"
-          value={formatCount(aiUsage.data?.totalWorkflows ?? 0)}
-          subtitle={`${aiUsage.data?.activeWorkflows ?? 0} active · ${
-            connectedIntegrations
-          } integrations connected`}
-          icon={Workflow}
-          isLoading={aiUsage.isLoading}
-        />
-      </div>
-
-      {/* Company Quick Actions Matrix */}
-      <div>
-        <h2 className="text-xs font-semibold tracking-wider mb-3 text-muted-foreground uppercase">
-          Company Quick Workflows
-        </h2>
-        <div className="sm:grid-cols-2 lg:grid-cols-4 gap-3 grid grid-cols-1">
-          <QuickActionCard
-            icon={UserPlus}
-            title="Invite Team Members"
-            description="Add department members & assign workspace roles."
-            to={`/w/${slug}/invitations`}
-            badge="Directory"
-          />
-          <QuickActionCard
-            icon={Plus}
-            title="Create Department Channel"
-            description="Set up public or private team channels for projects."
-            to={`/w/${slug}/channels/new`}
-          />
-          <QuickActionCard
-            icon={Bot}
-            title="Deploy AI Agent"
-            description="Create custom AI assistants tailored to company tasks."
-            to={`/w/${slug}/agents/builder`}
-            badge="AI Studio"
-          />
-          <QuickActionCard
-            icon={Workflow}
-            title="Build Workflows"
-            description="Automate cross-tool workflows & status triggers."
-            to={`/w/${slug}/automations/builder`}
-          />
-        </div>
-      </div>
-
-      {/* Detailed Company Modules */}
-      <div className="lg:grid-cols-3 gap-6 grid grid-cols-1">
-        {/* Column 1 & 2: Channels & Company Onboarding Journey */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Company Onboarding Journey Guide */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold gap-2 flex items-center">
-                  <LayoutDashboard
-                    className="size-4 text-primary"
-                    aria-hidden
-                  />
-                  <span>Company Activation Checklist</span>
-                </CardTitle>
-                <button
-                  onClick={() => setShowGuide((prev) => !prev)}
-                  className="text-xs text-subtle transition-colors hover:text-foreground"
-                >
-                  {showGuide ? 'Hide' : 'Show'}
-                </button>
-              </div>
-              <CardDescription className="text-xs">
-                Follow these essential steps to get your organization fully
-                operational on OneTab AI.
-              </CardDescription>
-            </CardHeader>
-            {showGuide ? (
-              <CardContent className="space-y-2 pt-0">
-                {onboardingSteps.map((step) => (
-                  <div
-                    key={step.title}
-                    className="p-3 flex items-center justify-between rounded-card border border-border/80 bg-surface/50 transition-colors hover:bg-surface"
-                  >
-                    <div className="gap-3 min-w-0 flex items-start">
-                      <div className="mt-0.5 shrink-0">
-                        {step.done ? (
-                          <CheckCircle2
-                            className="size-4 text-accent-green"
-                            aria-hidden
-                          />
-                        ) : (
-                          <div className="size-4 rounded-full border-2 border-muted-foreground/40" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-foreground">
-                          {step.title}
-                        </p>
-                        <p className="truncate text-[11px] text-muted-foreground">
-                          {step.desc}
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      asChild
-                      variant="ghost"
-                      size="icon-sm"
-                      className="shrink-0"
-                    >
-                      <Link to={step.link} aria-label={`Open ${step.title}`}>
-                        <ArrowRight className="size-3.5" />
-                      </Link>
-                    </Button>
-                  </div>
-                ))}
-              </CardContent>
             ) : null}
-          </Card>
+          </button>
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+              activeTab === 'analytics'
+                ? 'bg-surface text-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <BarChart3 className="size-3.5" />
+            <span>Analytics &amp; Metrics</span>
+          </button>
+        </div>
+      </div>
 
-          {/* Department Channels Overview */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
+      {activeTab === 'home' ? (
+        /* UNIFIED INTELLIGENT HOME WORKSPACE */
+        <div className="space-y-8">
+          {/* SECTION 1: NEEDS YOUR ATTENTION */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Bell className="size-4 text-primary" />
+                <h2 className="text-sm font-semibold tracking-tight text-foreground">
+                  Needs Your Attention
+                </h2>
+                {attentionItems.length > 0 ? (
+                  <Badge variant="warning" className="text-[10px] px-1.5 py-0 h-4">
+                    {attentionItems.length} pending
+                  </Badge>
+                ) : null}
+              </div>
+              <span className="text-[11px] text-muted-foreground">
+                Priority ranked items requiring action
+              </span>
+            </div>
+
+            {attention.isLoading ? (
+              <SkeletonList rows={2} />
+            ) : attentionItems.length === 0 ? (
+              <Card className="bg-surface/50 border-dashed">
+                <CardContent className="py-6 flex flex-col items-center text-center">
+                  <div className="size-10 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-2">
+                    <CheckCircle2 className="size-5" />
+                  </div>
+                  <p className="text-xs font-semibold text-foreground">
+                    You're all caught up!
+                  </p>
+                  <p className="text-[11px] text-muted-foreground max-w-sm mt-0.5">
+                    No urgent tasks, unread mentions, or overdue items need your attention right now.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {attentionItems.map((item: AttentionItem) => (
+                  <AttentionCard
+                    key={item.itemKey}
+                    item={item}
+                    slug={slug}
+                    onComplete={(taskId) => attentionMutations.markComplete(taskId)}
+                    onSnooze={(key) => attentionMutations.snooze({ itemKey: key, durationMinutes: 60 })}
+                    onDismiss={(key) => attentionMutations.dismiss(key)}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* SECTION 2: CONTINUE WHERE YOU LEFT OFF */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <History className="size-4 text-primary" />
+                <h2 className="text-sm font-semibold tracking-tight text-foreground">
+                  Continue Where You Left Off
+                </h2>
+              </div>
+              <span className="text-[11px] text-muted-foreground">
+                Jump right back into your active context
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Last Conversation */}
+              <Link
+                to={lastVisitedChannel ? `/w/${slug}/c/${lastVisitedChannel.slug}` : `/w/${slug}/channels`}
+                className="group p-3.5 rounded-card border border-border bg-surface hover:border-primary/50 transition-all flex flex-col justify-between"
+              >
                 <div>
-                  <CardTitle className="text-sm font-semibold">
-                    Active Company Channels
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Channels &amp; department spaces you are currently joined
-                    in.
-                  </CardDescription>
+                  <div className="flex items-center justify-between text-muted-foreground mb-2">
+                    <span className="text-[10px] uppercase font-semibold tracking-wider">
+                      Conversation
+                    </span>
+                    <Hash className="size-3.5 group-hover:text-primary transition-colors" />
+                  </div>
+                  <p className="text-xs font-semibold text-foreground truncate group-hover:text-primary">
+                    {lastVisitedChannel ? `#${lastVisitedChannel.name}` : 'Browse Channels'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                    {lastVisitedChannel?.topic || 'Resume discussions in channel'}
+                  </p>
                 </div>
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  className="text-xs h-7"
-                >
-                  <Link to={`/w/${slug}/channels`}>
-                    Browse all ({channelCount})
-                  </Link>
+                <div className="mt-3 flex items-center justify-between text-[11px] text-primary font-medium">
+                  <span>Open channel</span>
+                  <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+                </div>
+              </Link>
+
+              {/* Active Task */}
+              <Link
+                to={inProgressTask ? `/w/${slug}/tasks?taskId=${inProgressTask.id}` : `/w/${slug}/tasks`}
+                className="group p-3.5 rounded-card border border-border bg-surface hover:border-primary/50 transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between text-muted-foreground mb-2">
+                    <span className="text-[10px] uppercase font-semibold tracking-wider">
+                      Active Task
+                    </span>
+                    <CheckCircle2 className="size-3.5 group-hover:text-amber-500 transition-colors" />
+                  </div>
+                  <p className="text-xs font-semibold text-foreground truncate group-hover:text-primary">
+                    {inProgressTask ? (inProgressTask.identifier ? `${inProgressTask.identifier} ${inProgressTask.title}` : inProgressTask.title) : 'Kanban Board'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                    {inProgressTask ? `Status: ${inProgressTask.status}` : 'View and create project tasks'}
+                  </p>
+                </div>
+                <div className="mt-3 flex items-center justify-between text-[11px] text-primary font-medium">
+                  <span>Resume work</span>
+                  <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+                </div>
+              </Link>
+
+              {/* Document Editor */}
+              <Link
+                to={recentDoc ? `/w/${slug}/docs/${recentDoc.id}` : `/w/${slug}/docs`}
+                className="group p-3.5 rounded-card border border-border bg-surface hover:border-primary/50 transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between text-muted-foreground mb-2">
+                    <span className="text-[10px] uppercase font-semibold tracking-wider">
+                      Document
+                    </span>
+                    <FileText className="size-3.5 group-hover:text-blue-500 transition-colors" />
+                  </div>
+                  <p className="text-xs font-semibold text-foreground truncate group-hover:text-primary">
+                    {recentDoc ? recentDoc.title || 'Untitled Document' : 'Workspace Docs'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                    {recentDoc ? `Updated ${formatRelative(new Date(recentDoc.updatedAt).getTime())}` : 'Notion-style notes and specs'}
+                  </p>
+                </div>
+                <div className="mt-3 flex items-center justify-between text-[11px] text-primary font-medium">
+                  <span>Continue writing</span>
+                  <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+                </div>
+              </Link>
+
+              {/* Direct Messages */}
+              <Link
+                to={`/w/${slug}/dms`}
+                className="group p-3.5 rounded-card border border-border bg-surface hover:border-primary/50 transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between text-muted-foreground mb-2">
+                    <span className="text-[10px] uppercase font-semibold tracking-wider">
+                      Direct Messages
+                    </span>
+                    <MessageSquare className="size-3.5 group-hover:text-emerald-500 transition-colors" />
+                  </div>
+                  <p className="text-xs font-semibold text-foreground truncate group-hover:text-primary">
+                    Direct Conversations
+                  </p>
+                  <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                    1:1 chats with team members
+                  </p>
+                </div>
+                <div className="mt-3 flex items-center justify-between text-[11px] text-primary font-medium">
+                  <span>Open DMs</span>
+                  <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+                </div>
+              </Link>
+            </div>
+          </section>
+
+          {/* SECTION 3 & 4: CATCH UP + NEXT */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Catch Up Timeline (Col span 2) */}
+            <div className="lg:col-span-2 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Inbox className="size-4 text-primary" />
+                  <h2 className="text-sm font-semibold tracking-tight text-foreground">
+                    Catch Up (While You Were Away)
+                  </h2>
+                </div>
+                <Button asChild variant="outline" size="sm" className="h-6 text-[11px]">
+                  <Link to={`/w/${slug}/inbox`}>View All Inbox</Link>
                 </Button>
               </div>
-            </CardHeader>
-            <CardContent>
-              {channels.isLoading ? (
-                <SkeletonList rows={4} />
-              ) : groups.favorites.length + groups.joined.length === 0 ? (
-                <EmptyState
-                  size="sm"
-                  icon={<Hash />}
-                  title="No channels yet"
-                  description="Join or create a channel to collaborate with your team."
-                  action={
-                    <Button asChild size="sm">
-                      <Link to={`/w/${slug}/channels/new`}>Create channel</Link>
-                    </Button>
-                  }
-                />
-              ) : (
-                <div className="sm:grid-cols-2 gap-2 grid grid-cols-1">
-                  {[...groups.favorites, ...groups.joined]
-                    .slice(0, 8)
-                    .map((channel) => {
-                      const Icon =
-                        channel.visibility === 'PRIVATE' ? Lock : Hash;
-                      return (
-                        <Link
-                          key={channel.id}
-                          to={`/w/${slug}/c/${channel.slug}`}
-                          className="group p-2.5 flex items-center justify-between rounded-card border border-border/80 bg-surface/40 transition-colors hover:border-primary/40 hover:bg-accent"
-                        >
-                          <div className="gap-2 min-w-0 flex items-center">
-                            <Icon className="size-4 shrink-0 text-muted-foreground group-hover:text-primary" />
-                            <span className="text-xs font-medium truncate text-foreground">
-                              {channel.name}
-                            </span>
-                          </div>
-                          <div className="gap-1.5 flex shrink-0 items-center">
-                            {channel.membership?.isFavorite ? (
-                              <Star className="size-3.5 fill-warning text-warning" />
-                            ) : null}
-                            <Badge
-                              variant="neutral"
-                              className="px-1.5 py-0 text-[10px]"
-                            >
-                              {channel.memberCount}
-                            </Badge>
-                          </div>
-                        </Link>
-                      );
-                    })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
 
-        {/* Column 3: Team Directory & Company AI Ecosystem */}
-        <div className="space-y-6">
-          {/* Teammates Directory */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold gap-1.5 flex items-center">
-                  <Users className="size-4 text-primary" aria-hidden />
-                  <span>Team Directory</span>
-                </CardTitle>
-                <Badge variant="neutral" className="text-[10px]">
-                  {memberCount} members
-                </Badge>
-              </div>
-              <CardDescription className="text-xs">
-                Active team members in {workspace?.name}.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {members.isLoading ? (
-                <SkeletonList rows={4} withAvatar />
-              ) : (
-                <>
-                  <ul className="space-y-2">
-                    {members.data?.slice(0, 5).map((member) => (
-                      <li
-                        key={member.id}
-                        className="gap-2 text-xs flex items-center justify-between"
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                    <div className="p-2.5 rounded-md bg-accent/40 border border-border text-center">
+                      <div className="text-lg font-bold text-foreground">
+                        {catchUp.data?.unreadMentionsCount ?? 0}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                        Mentions
+                      </div>
+                    </div>
+                    <div className="p-2.5 rounded-md bg-accent/40 border border-border text-center">
+                      <div className="text-lg font-bold text-foreground">
+                        {catchUp.data?.tasksCompletedCount ?? 0}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                        Tasks Done
+                      </div>
+                    </div>
+                    <div className="p-2.5 rounded-md bg-accent/40 border border-border text-center">
+                      <div className="text-lg font-bold text-foreground">
+                        {catchUp.data?.decisionsMadeCount ?? 0}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                        Decisions
+                      </div>
+                    </div>
+                    <div className="p-2.5 rounded-md bg-accent/40 border border-border text-center">
+                      <div className="text-lg font-bold text-foreground">
+                        {catchUp.data?.activeHuddlesCount ?? 0}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                        Huddles
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-2 pt-1">
+                  {catchUp.data?.keyUpdates && catchUp.data.keyUpdates.length > 0 ? (
+                    catchUp.data.keyUpdates.slice(0, 5).map((update) => (
+                      <Link
+                        key={update.id}
+                        to={`/w/${slug}/${update.href}`}
+                        className="p-2.5 flex items-center justify-between rounded-md border border-border/60 hover:bg-accent/40 transition-colors"
                       >
-                        <div className="gap-2.5 min-w-0 flex items-center">
-                          <UserAvatar
-                            name={member.user.displayName ?? member.user.name}
-                            src={member.user.avatarUrl}
-                            seed={member.user.id}
-                            size="sm"
-                            presence={member.user.presence}
-                            statusEmoji={member.user.statusEmoji}
-                            statusText={member.user.statusText}
-                          />
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {update.actor ? (
+                            <UserAvatar
+                              name={update.actor.name}
+                              src={update.actor.avatarUrl ?? undefined}
+                              className="size-6"
+                            />
+                          ) : (
+                            <div className="size-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
+                              ✓
+                            </div>
+                          )}
                           <div className="min-w-0">
-                            <p className="font-medium leading-tight truncate text-foreground">
-                              {member.user.displayName ?? member.user.name}
+                            <p className="text-xs font-medium text-foreground truncate">
+                              {update.title}
                             </p>
-                            <p className="truncate text-[10px] text-subtle">
-                              {member.user.presence === 'ONLINE'
-                                ? 'Online now'
-                                : member.user.lastSeenAt
-                                  ? `Last seen ${formatRelative(member.user.lastSeenAt)}`
-                                  : `Joined ${formatDate(member.joinedAt)}`}
+                            <p className="text-[11px] text-muted-foreground truncate">
+                              {update.summary}
                             </p>
                           </div>
                         </div>
-                        <Badge
-                          variant="neutral"
-                          className="shrink-0 text-[10px] capitalize"
-                        >
-                          {member.role.toLowerCase()}
-                        </Badge>
-                      </li>
-                    ))}
-                  </ul>
+                        <span className="text-[10px] text-muted-foreground shrink-0 ml-2">
+                          {formatRelative(new Date(update.timestamp).getTime())}
+                        </span>
+                      </Link>
+                    ))
+                  ) : (
+                    <p className="text-xs text-muted-foreground text-center py-4">
+                      No new activity recorded since your last visit.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
-                  <div className="pt-2 sm:flex-row gap-2 flex flex-col items-center justify-between border-t border-border">
-                    <Button
-                      asChild
-                      variant="outline"
-                      size="sm"
-                      className="text-xs h-7 w-full"
+            {/* Next Recommended Actions (Col span 1) */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Compass className="size-4 text-primary" />
+                <h2 className="text-sm font-semibold tracking-tight text-foreground">
+                  What Next?
+                </h2>
+              </div>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xs font-semibold text-muted-foreground">
+                    RECOMMENDED ACTIONS
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Link
+                    to={`/w/${slug}/tasks`}
+                    className="p-2.5 rounded-md border border-border hover:border-primary/40 hover:bg-accent/30 transition-all flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Plus className="size-4 text-primary" />
+                      <span className="text-xs font-medium text-foreground">
+                        Create Project Task
+                      </span>
+                    </div>
+                    <ChevronRight className="size-3.5 text-muted-foreground" />
+                  </Link>
+
+                  <Link
+                    to={`/w/${slug}/meetings`}
+                    className="p-2.5 rounded-md border border-border hover:border-primary/40 hover:bg-accent/30 transition-all flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Video className="size-4 text-primary" />
+                      <span className="text-xs font-medium text-foreground">
+                        Schedule Team Meeting
+                      </span>
+                    </div>
+                    <ChevronRight className="size-3.5 text-muted-foreground" />
+                  </Link>
+
+                  <Link
+                    to={`/w/${slug}/agents/builder`}
+                    className="p-2.5 rounded-md border border-border hover:border-primary/40 hover:bg-accent/30 transition-all flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Bot className="size-4 text-primary" />
+                      <span className="text-xs font-medium text-foreground">
+                        Configure AI Assistant
+                      </span>
+                    </div>
+                    <ChevronRight className="size-3.5 text-muted-foreground" />
+                  </Link>
+
+                  <Link
+                    to={`/w/${slug}/docs`}
+                    className="p-2.5 rounded-md border border-border hover:border-primary/40 hover:bg-accent/30 transition-all flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText className="size-4 text-primary" />
+                      <span className="text-xs font-medium text-foreground">
+                        New Spec or Note
+                      </span>
+                    </div>
+                    <ChevronRight className="size-3.5 text-muted-foreground" />
+                  </Link>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ANALYTICS & METRICS TAB (Preserved Foundation) */
+        <div className="space-y-6">
+          <div className="sm:grid-cols-2 lg:grid-cols-4 gap-4 grid grid-cols-1">
+            <MetricCard
+              title="Active Coworkers"
+              value={formatCount(dashboardAnalytics.data?.totals.members ?? memberCount)}
+              subtitle={`${memberCount} registered`}
+              icon={Users}
+              trend={dashboardAnalytics.data?.headline.members}
+            />
+            <MetricCard
+              title="Public & Private Channels"
+              value={formatCount(dashboardAnalytics.data?.totals.channels ?? channelCount)}
+              subtitle={`${groups.favorites.length} pinned as favourite`}
+              icon={Hash}
+            />
+            <MetricCard
+              title="Cloud Storage Used"
+              value={formatBytes(storageAnalytics.data?.totalBytes ?? 0)}
+              subtitle="Files, attachments & canvas assets"
+              icon={BarChart3}
+            />
+            <MetricCard
+              title="AI Studio Assistant Tokens"
+              value={formatCount(aiUsage.data?.estimatedTokens ?? 0)}
+              subtitle="LLM inference consumed"
+              icon={Bot}
+            />
+          </div>
+
+          <div className="lg:grid-cols-3 gap-6 grid grid-cols-1">
+            <div className="lg:col-span-2 space-y-6">
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-semibold gap-2 flex items-center">
+                      <LayoutDashboard className="size-4 text-primary" aria-hidden />
+                      <span>Company Activation Checklist</span>
+                    </CardTitle>
+                    <button
+                      onClick={() => setShowGuide((prev) => !prev)}
+                      className="text-xs text-subtle transition-colors hover:text-foreground"
                     >
-                      <Link to={`/w/${slug}/members`}>
-                        <Users className="size-3.5 mr-1" />
-                        View Directory
-                      </Link>
-                    </Button>
-                    <Button
-                      asChild
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs h-7 w-full"
-                    >
-                      <Link to={`/w/${slug}/invitations`}>
-                        <UserPlus className="size-3.5 mr-1" />
-                        Invite
-                      </Link>
+                      {showGuide ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                </CardHeader>
+                {showGuide ? (
+                  <CardContent className="space-y-2 pt-0">
+                    {onboardingSteps.map((step) => (
+                      <div
+                        key={step.title}
+                        className="p-3 flex items-center justify-between rounded-card border border-border/80 bg-surface/50 transition-colors hover:bg-surface"
+                      >
+                        <div className="gap-3 min-w-0 flex items-start">
+                          <div className="mt-0.5 shrink-0">
+                            {step.done ? (
+                              <CheckCircle2 className="size-4 text-emerald-500" aria-hidden />
+                            ) : (
+                              <div className="size-4 rounded-full border-2 border-muted-foreground/40" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-foreground">{step.title}</p>
+                            <p className="truncate text-[11px] text-muted-foreground">{step.desc}</p>
+                          </div>
+                        </div>
+                        <Button asChild variant="ghost" size="icon-sm" className="shrink-0">
+                          <Link to={step.link} aria-label={`Open ${step.title}`}>
+                            <ArrowRight className="size-3.5" />
+                          </Link>
+                        </Button>
+                      </div>
+                    ))}
+                  </CardContent>
+                ) : null}
+              </Card>
+
+              {/* Active Channels List */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-sm font-semibold">
+                        Active Company Channels
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        Channels you are currently joined in.
+                      </CardDescription>
+                    </div>
+                    <Button asChild variant="outline" size="sm" className="text-xs h-7">
+                      <Link to={`/w/${slug}/channels`}>Browse all ({channelCount})</Link>
                     </Button>
                   </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                </CardHeader>
+                <CardContent>
+                  {channels.isLoading ? (
+                    <SkeletonList rows={4} />
+                  ) : groups.favorites.length + groups.joined.length === 0 ? (
+                    <EmptyState
+                      size="sm"
+                      icon={<Hash />}
+                      title="No channels yet"
+                      description="Join or create a channel to collaborate with your team."
+                      action={
+                        <Button asChild size="sm">
+                          <Link to={`/w/${slug}/channels/new`}>Create channel</Link>
+                        </Button>
+                      }
+                    />
+                  ) : (
+                    <div className="sm:grid-cols-2 gap-2 grid grid-cols-1">
+                      {[...groups.favorites, ...groups.joined].slice(0, 8).map((channel) => (
+                        <Link
+                          key={channel.id}
+                          to={`/w/${slug}/c/${channel.slug}`}
+                          className="p-2.5 group flex items-center justify-between rounded-card border border-border/70 bg-surface/40 hover:bg-surface hover:border-border transition-colors"
+                        >
+                          <div className="gap-2 min-w-0 flex items-center">
+                            <div className="text-muted-foreground group-hover:text-primary transition-colors">
+                              {channel.visibility === 'PRIVATE' ? (
+                                <Lock className="size-3.5" />
+                              ) : (
+                                <Hash className="size-3.5" />
+                              )}
+                            </div>
+                            <span className="text-xs font-medium text-foreground truncate">
+                              {channel.name}
+                            </span>
+                          </div>
+                          <ChevronRight className="size-3 text-muted-foreground/60 group-hover:translate-x-0.5 transition-transform" />
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
-          {/* Company AI Ecosystem Status */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold gap-1.5 flex items-center">
-                <Sparkles className="size-4 text-primary" aria-hidden />
-                <span>Company AI &amp; Analytics</span>
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Real-time usage and automated copilot health.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="p-3 space-y-2 rounded-card border border-border bg-surface-raised">
-                <div className="text-xs font-medium flex items-center justify-between">
-                  <span className="text-foreground">Storage Used</span>
-                  <span className="font-mono text-[11px] text-primary">
-                    {storage.isLoading
-                      ? '—'
-                      : `${Math.round(storage.data?.usedPct ?? 0)}% of quota`}
-                  </span>
-                </div>
-                <Progress
-                  value={storage.data?.usedPct ?? 0}
-                  className="h-1.5"
-                />
-                <p className="text-[10px] text-subtle">
-                  {storage.data
-                    ? `${formatBytes(storage.data.totalBytes)} across ${formatCount(
-                        storage.data.totalFiles,
-                      )} files · ${formatBytes(storage.data.quotaBytes)} included`
-                    : 'Measuring workspace storage…'}
-                </p>
-              </div>
+            <div className="space-y-6">
+              {/* Quick Actions Panel */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold">Platform Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Button asChild variant="outline" size="sm" className="w-full justify-start text-xs h-8">
+                    <Link to={`/w/${slug}/members`}>
+                      <UserPlus className="size-3.5 mr-2" />
+                      Invite Coworkers
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" size="sm" className="w-full justify-start text-xs h-8">
+                    <Link to={`/w/${slug}/meetings`}>
+                      <Video className="size-3.5 mr-2" />
+                      Launch Huddle
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" size="sm" className="w-full justify-start text-xs h-8">
+                    <Link to={`/w/${slug}/agents/builder`}>
+                      <Bot className="size-3.5 mr-2" />
+                      Deploy AI Assistant
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" size="sm" className="w-full justify-start text-xs h-8">
+                    <Link to={`/w/${slug}/automations/builder`}>
+                      <Workflow className="size-3.5 mr-2" />
+                      Build Workflows
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
 
-              <div className="p-3 space-y-2 rounded-card border border-border bg-surface-raised">
-                <div className="text-xs font-medium flex items-center justify-between">
-                  <span className="text-foreground">AI Sessions</span>
-                  {overview.data ? (
-                    <TrendBadge trend={overview.data.headline.aiSessions} />
-                  ) : null}
-                </div>
-                <p className="text-[10px] text-subtle">
-                  {`${formatCount(
-                    aiUsage.data?.totalSessions ?? 0,
-                  )} sessions and ${formatCount(
-                    aiUsage.data?.estimatedTokens ?? 0,
-                  )} estimated tokens in the last ${RANGE_DAYS} days.`}
-                </p>
-              </div>
-
-              <div className="space-y-1.5 pt-1">
-                <Link
-                  to={`/w/${slug}/settings/analytics`}
-                  className="p-2 text-xs font-medium flex items-center justify-between rounded-md text-foreground transition-colors hover:bg-accent"
-                >
-                  <span className="gap-2 flex items-center">
-                    <BarChart3 className="size-3.5 text-muted-foreground" />
-                    Company Analytics &amp; Reports
-                  </span>
-                  <ChevronRight className="size-3.5 text-subtle" />
-                </Link>
-
-                <Link
-                  to={`/w/${slug}/settings/appearance`}
-                  className="p-2 text-xs font-medium flex items-center justify-between rounded-md text-foreground transition-colors hover:bg-accent"
-                >
-                  <span className="gap-2 flex items-center">
-                    <Shield className="size-3.5 text-muted-foreground" />
-                    Workspace Settings &amp; Security
-                  </span>
-                  <ChevronRight className="size-3.5 text-subtle" />
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
+              {/* Storage Meter */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold">Storage Meter</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Used Capacity</span>
+                    <span className="font-semibold text-foreground">
+                      {formatBytes(storageAnalytics.data?.totalBytes ?? 0)}
+                    </span>
+                  </div>
+                  <Progress value={Math.min(100, Math.round(((storageAnalytics.data?.totalBytes ?? 0) / (10 * 1024 * 1024 * 1024)) * 100))} />
+                  <p className="text-[11px] text-muted-foreground">
+                    10 GB included in organization plan.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

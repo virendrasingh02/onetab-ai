@@ -89,3 +89,8 @@ export {
   useToggleSaved,
   type SavedMessage,
 } from './lib/use-saved-messages.js';
+export {
+  useBookmarks,
+  useBookmarkMutations,
+} from './lib/use-bookmarks.js';
+
