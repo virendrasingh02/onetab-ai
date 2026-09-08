@@ -194,6 +194,10 @@ const DirectMessagesPage = lazy(() =>
   import('@org/web-layout').then((m) => ({ default: m.DirectMessagesPage })),
 );
 
+const GlobalSearchView = lazy(() =>
+  import('@org/web-search').then((m) => ({ default: m.GlobalSearchView })),
+);
+
 /**
  * Redirects a pre-nesting settings URL (`/w/:slug/billing`, `/w/:slug/profile`,
  * …) to its home under the nested surface (`/w/:slug/settings/<section>`), so
@@ -256,6 +260,9 @@ export function App() {
         {/* --- authenticated --------------------------------------------- */}
         <Route element={<ProtectedRoute />}>
           <Route path="/workspaces/new" element={<CreateWorkspacePage />} />
+          {/* Cross-workspace search — spans every workspace, so it sits
+              outside the /w/:slug shell (brief §4). */}
+          <Route path="/search" element={<GlobalSearchView />} />
 
           {/*
             Never routable in a production build — not just unlinked. See

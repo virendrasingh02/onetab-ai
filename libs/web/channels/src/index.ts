@@ -16,6 +16,11 @@ export {
   useMembershipMutations,
   usePinMutations,
   useUpdateChannel,
+  useChannelAnonymousSettings,
+  useAnonymousMessagingMutations,
+  useAnonymousModeration,
+  useChannelEmailSettings,
+  useChannelEmailMutations,
   resolveDefaultChannel,
   type GroupedChannels,
 } from './lib/use-channels.js';
@@ -28,6 +33,10 @@ export {
   TemporaryMembershipBanner,
   type TemporaryMembershipBannerProps,
 } from './lib/components/temporary-membership-banner.js';
+export {
+  AnonymousModerationDialog,
+  type AnonymousModerationDialogProps,
+} from './lib/components/anonymous-moderation-dialog.js';
 
 export { useChannelAgentsAndApps } from './lib/use-channel-agents-apps.js';
 

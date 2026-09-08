@@ -22,6 +22,7 @@ import {
   Send,
   Slash,
   Smile,
+  VenetianMask,
   Video,
   X,
 } from 'lucide-react';
@@ -248,6 +249,16 @@ export interface ComposerProps {
    * just keeps someone from typing a message that would bounce.
    */
   readOnlyMessage?: ReactNode;
+  /**
+   * When `allowed`, an "post anonymously" toggle appears in the action row; a
+   * message sent with it on routes through `onSendAnonymously` (the server
+   * posts it as a shared "Anonymous Participant" identity) instead of `onSend`
+   * (brief §2).
+   */
+  anonymousPosting?: {
+    allowed: boolean;
+    onSendAnonymously: (text: string) => void | Promise<void>;
+  };
   contextSlot?: ReactNode;
   enterToSend?: boolean;
   /** Off in the thread panel, where the reply box stays out of the way. */
@@ -283,6 +294,7 @@ export function Composer({
   placeholder = 'Message channel…',
   disabled = false,
   readOnlyMessage,
+  anonymousPosting,
   contextSlot,
   showFormatting = true,
   slashCommands = DEFAULT_SLASH_COMMANDS,
@@ -403,6 +415,14 @@ export function Composer({
 
   /* The editor's own send only fires with text in hand — attachments ride
      along whenever there are any, text or none. */
+  /* Anonymous-posting toggle (brief §2). Reset whenever the toggle is no longer
+     offered so a stale "on" can't leak a message to the wrong path. */
+  const [anon, setAnon] = useState(false);
+  const anonAllowed = anonymousPosting?.allowed ?? false;
+  useEffect(() => {
+    if (!anonAllowed && anon) setAnon(false);
+  }, [anonAllowed, anon]);
+
   const handleComposerSend = useCallback(
     (body: string) => {
       setHasContent(false);
@@ -410,9 +430,13 @@ export function Composer({
       if (conversationId) {
         clearDraft(conversationId);
       }
-      if (body) return onSend(body);
+      if (!body) return;
+      if (anon && anonymousPosting?.allowed) {
+        return anonymousPosting.onSendAnonymously(body);
+      }
+      return onSend(body);
     },
-    [flushAttachments, onSend, conversationId, clearDraft],
+    [flushAttachments, onSend, conversationId, clearDraft, anon, anonymousPosting],
   );
 
   const canSend = hasContent || attachments.length > 0;
@@ -462,6 +486,13 @@ export function Composer({
       )}
     >
       {contextSlot}
+
+      {anon && anonAllowed ? (
+        <div className="gap-1.5 mb-1.5 px-2.5 py-1 text-[11px] flex items-center rounded-md bg-primary/10 text-primary-text">
+          <VenetianMask className="size-3" />
+          This message will be posted as “Anonymous Participant”.
+        </div>
+      ) : null}
 
       <div
         className={cn(
@@ -667,6 +698,30 @@ export function Composer({
           </div>
 
           <div className="gap-1 flex items-center">
+            {anonAllowed ? (
+              <Hint
+                label={
+                  anon
+                    ? 'Posting anonymously — click to post as yourself'
+                    : 'Post anonymously'
+                }
+              >
+                <button
+                  type="button"
+                  aria-pressed={anon}
+                  aria-label="Toggle anonymous posting"
+                  onClick={() => setAnon((v) => !v)}
+                  className={cn(
+                    'size-7 flex items-center justify-center rounded-md transition-colors',
+                    anon
+                      ? 'bg-primary/15 text-primary'
+                      : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                  )}
+                >
+                  <VenetianMask className="size-3.5" />
+                </button>
+              </Hint>
+            ) : null}
             {onSchedule ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

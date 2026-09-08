@@ -15,3 +15,10 @@ export {
   useSearchCounts,
   useWorkspaceSearch,
 } from './lib/use-search.js';
+
+export { GlobalSearchView } from './lib/global-search-view.js';
+export {
+  EMPTY_FEDERATED_FILTERS,
+  useFederatedSearch,
+  type FederatedSearchFilters,
+} from './lib/use-federated-search.js';

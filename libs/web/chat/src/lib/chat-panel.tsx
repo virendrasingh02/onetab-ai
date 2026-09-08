@@ -80,6 +80,11 @@ export interface ChatPanelProps {
   onAskAI?: (message: Message) => void;
   /** Replaces the composer with a read-only notice — see `ChatSurface`. */
   composerReadOnlyMessage?: ReactNode;
+  /** Anonymous-posting toggle for the composer (brief §2). */
+  anonymousPosting?: {
+    allowed: boolean;
+    onSendAnonymously: (text: string) => void | Promise<void>;
+  };
 }
 
 /**
@@ -103,6 +108,7 @@ export function ChatPanel({
   onCreateDoc,
   onAskAI,
   composerReadOnlyMessage,
+  anonymousPosting,
 }: ChatPanelProps) {
   const { client, status, enabled, error } = useMatrix();
   const readReceiptsEnabled = useReadReceipts();
@@ -632,6 +638,7 @@ export function ChatPanel({
       onRetryAgent={handleRetryAgent}
       onSendCard={handleSendCard}
       composerReadOnlyMessage={composerReadOnlyMessage}
+      anonymousPosting={anonymousPosting}
     />
   );
 }

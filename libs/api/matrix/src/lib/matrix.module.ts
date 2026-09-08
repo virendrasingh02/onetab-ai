@@ -1,6 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from '@org/api-auth';
+import { AnonymousController } from './anonymous.controller.js';
+import { AnonymousMessagingService } from './anonymous-messaging.service.js';
+import {
+  ChannelEmailController,
+  InboundEmailController,
+} from './email.controller.js';
+import { InboundEmailService } from './inbound-email.service.js';
 import { MatrixAdminService } from './matrix-admin.service.js';
 import { MatrixAuthService } from './matrix-auth.service.js';
 import { MatrixBotMessagingService } from './matrix-bot-messaging.service.js';
@@ -24,11 +31,19 @@ import { NotificationBridgeService } from './notification-bridge.service.js';
  */
 @Module({
   imports: [ConfigModule, AuthModule],
-  controllers: [MatrixController, MatrixAppserviceController],
+  controllers: [
+    MatrixController,
+    MatrixAppserviceController,
+    AnonymousController,
+    ChannelEmailController,
+    InboundEmailController,
+  ],
   providers: [
     MatrixAdminService,
     MatrixAuthService,
     MatrixBotMessagingService,
+    AnonymousMessagingService,
+    InboundEmailService,
     MatrixInboundRouterService,
     MatrixMembershipListener,
     MatrixReconcilerService,

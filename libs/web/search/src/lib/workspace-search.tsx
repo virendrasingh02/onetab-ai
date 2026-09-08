@@ -4,11 +4,13 @@ import { cn } from '@org/utils';
 import { Hint } from '@org/ui';
 import { useUploadMediaAdapter } from '@org/web-upload';
 import {
+  Bot,
   CheckSquare,
   Eye,
   FileText,
   FolderKanban,
   Hash,
+  LayoutDashboard,
   Paperclip,
   Search,
   Users,
@@ -24,6 +26,8 @@ const CATEGORY_ORDER: SearchCategory[] = [
   'tasks',
   'projects',
   'files',
+  'agents',
+  'canvases',
 ];
 
 const CATEGORY_LABEL: Record<SearchCategory, string> = {
@@ -33,6 +37,8 @@ const CATEGORY_LABEL: Record<SearchCategory, string> = {
   tasks: 'Tasks',
   projects: 'Projects',
   files: 'Files',
+  agents: 'AI agents',
+  canvases: 'Canvases',
 };
 
 const CATEGORY_ICON: Record<SearchCategory, ComponentType<{ className?: string }>> = {
@@ -42,6 +48,8 @@ const CATEGORY_ICON: Record<SearchCategory, ComponentType<{ className?: string }
   tasks: CheckSquare,
   projects: FolderKanban,
   files: Paperclip,
+  agents: Bot,
+  canvases: LayoutDashboard,
 };
 
 export interface WorkspaceSearchResultsProps {

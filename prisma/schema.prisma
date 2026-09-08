@@ -70,6 +70,10 @@ model User {
   themeSetting            ThemeSetting?
   navigationPreference    NavigationPreference?
   scheduledStatuses       ScheduledStatus[]
+  anonymousMessages       AnonymousMessage[]        @relation("AnonymousAuthor")
+  anonymousModerationEvents AnonymousModerationEvent[] @relation("AnonymousModerator")
+  startedHuddles          Huddle[]                 @relation("HuddleStarter")
+  huddleParticipations    HuddleParticipant[]      @relation("HuddleParticipant")
   workspaceThemePreferences WorkspaceThemePreference[]
   organizedMeetings       Meeting[]                @relation("MeetingOrganizer")
   meetingParticipations   MeetingParticipant[]
@@ -235,6 +239,11 @@ model Workspace {
   automationWorkflows      AutomationWorkflow[]
   calendarEvents           CalendarEvent[]
   channels                 Channel[]
+  anonymousSettings        ChannelAnonymousSetting[]
+  anonymousMessages        AnonymousMessage[]
+  anonymousModerationEvents AnonymousModerationEvent[]
+  channelEmailAddresses    ChannelEmailAddress[]
+  huddles                  Huddle[]
   externalIntegrations     ExternalIntegration[]
   importJobs               ImportJob[]
   invitations              Invitation[]
@@ -368,6 +377,11 @@ model Channel {
   channelAgents    ChannelAgent[]
   pins             ChannelPin[]
   invitations      Invitation[]
+  anonymousSetting ChannelAnonymousSetting?
+  anonymousMessages AnonymousMessage[]
+  emailAddress     ChannelEmailAddress?
+  emailMessages    EmailMessage[]
+  huddles          Huddle[]
   createdBy        User                     @relation("ChannelCreator", fields: [createdById], references: [id])
   workspace        Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   recentActivities RecentActivity[]
@@ -384,6 +398,186 @@ model Channel {
   @@index([createdById])
   @@index([searchVector], type: Gin)
   @@map("channels")
+}
+
+enum AnonymousModerationKind {
+  /// A member flagged an anonymous message.
+  REPORT
+  /// A moderator looked up who sent an anonymous message (the sensitive one).
+  REVEAL_AUTHOR
+  /// A moderator redacted an anonymous message.
+  REMOVE_MESSAGE
+}
+
+/// Per-channel anonymous-messaging configuration (brief §2). Off by default;
+/// only a workspace admin (`MANAGE_SETTINGS`) can enable it.
+model ChannelAnonymousSetting {
+  id           String          @id @default(cuid())
+  channelId    String          @unique
+  workspaceId  String
+  isEnabled    Boolean         @default(false)
+  /// Workspace roles allowed to post anonymously. Empty ⇒ every channel member.
+  allowedRoles WorkspaceRole[] @default([])
+  /// Whether anonymous *replies* (threaded) are allowed while enabled.
+  allowReplies Boolean         @default(true)
+  /// The shared Matrix identity anonymous messages are posted as. Provisioned
+  /// lazily on the first anonymous post; `@anon-<channelId>` localpart.
+  matrixUserId String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  channel      Channel         @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  workspace    Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("channel_anonymous_settings")
+}
+
+/// The de-anonymisation record — one row per anonymous message, mapping the
+/// Matrix event back to its real author. `authorId` is NEVER serialised outside
+/// the permission-gated moderation path, and every read of it writes an
+/// `AnonymousModerationEvent(REVEAL_AUTHOR)`.
+model AnonymousMessage {
+  id            String     @id @default(cuid())
+  channelId     String
+  workspaceId   String
+  /// The Matrix event id of the posted message — the join key into the room.
+  matrixEventId String     @unique
+  /// The real sender. Restricted.
+  authorId      String
+  /// True when the caller reply-threaded onto another message.
+  isReply       Boolean    @default(false)
+  removedAt     DateTime?
+  removedById   String?
+  createdAt     DateTime   @default(now())
+  channel       Channel    @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  workspace     Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  author        User       @relation("AnonymousAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  events        AnonymousModerationEvent[]
+
+  @@index([channelId, createdAt])
+  @@index([workspaceId, removedAt])
+  @@map("anonymous_messages")
+}
+
+/// Append-only log for anonymous-message moderation (brief §2): member reports,
+/// and moderator reveals / removals. Nothing here is ever updated or deleted.
+/// A channel's inbound-email address + settings (brief §5). Email sent to
+/// `<localpart>@<INBOUND_EMAIL_DOMAIN>` is posted into the channel's Matrix
+/// room as the `@email-<channelId>` identity.
+model ChannelEmailAddress {
+  id               String   @id @default(cuid())
+  channelId        String   @unique
+  workspaceId      String
+  /// Mailbox localpart — unique across the deployment.
+  localpart        String   @unique
+  isEnabled        Boolean  @default(true)
+  /// Group emails that share a subject under one Matrix thread.
+  threadPerSubject Boolean  @default(true)
+  /// The Matrix identity inbound emails post as. Provisioned lazily.
+  matrixUserId     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  channel          Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  messages         EmailMessage[]
+
+  @@index([workspaceId])
+  @@map("channel_email_addresses")
+}
+
+/// One inbound email that was turned into a channel message. `messageId` is the
+/// RFC Message-ID — the dedup + loop-guard key; `inReplyTo` / `references`
+/// preserve the email thread so replies land in the same Matrix thread.
+model EmailMessage {
+  id                    String   @id @default(cuid())
+  channelEmailAddressId String
+  channelId             String
+  workspaceId           String
+  messageId             String   @unique
+  inReplyTo             String?
+  references            String?
+  fromAddress           String
+  fromName              String?
+  toAddress             String
+  subject               String?
+  /// The Matrix event this email was posted as.
+  matrixEventId         String?
+  /// The Matrix thread root it was filed under, when threaded.
+  matrixThreadRootId    String?
+  attachmentCount       Int      @default(0)
+  createdAt             DateTime @default(now())
+  channelEmailAddress   ChannelEmailAddress @relation(fields: [channelEmailAddressId], references: [id], onDelete: Cascade)
+  channel               Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@index([channelId, createdAt])
+  @@index([subject])
+  @@map("email_messages")
+}
+
+enum HuddleStatus {
+  ACTIVE
+  ENDED
+}
+
+/// A live voice/video huddle in a conversation (brief §6 / §7). One per Matrix
+/// room at a time. The media surface is Element Call (MatrixRTC) embedded in
+/// the huddle's room when `ELEMENT_CALL_URL` is configured; otherwise the
+/// huddle is presence-only. `matrixRoomId` is the channel's room (or the DM
+/// room) — that same room *is* the huddle's conversation thread (§7).
+model Huddle {
+  id           String       @id @default(cuid())
+  workspaceId  String
+  /// The channel this huddle belongs to, when it is a channel huddle.
+  channelId    String?
+  /// The Matrix room the media session + thread live in.
+  matrixRoomId String
+  startedById  String
+  status       HuddleStatus @default(ACTIVE)
+  startedAt    DateTime     @default(now())
+  endedAt      DateTime?
+  participants HuddleParticipant[]
+  channel      Channel?     @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  startedBy    User         @relation("HuddleStarter", fields: [startedById], references: [id], onDelete: Cascade)
+
+  @@index([matrixRoomId, status])
+  @@index([workspaceId, status])
+  @@map("huddles")
+}
+
+/// Someone in (or previously in) a huddle. `joinedAt` drives the "you joined at
+/// HH:MM" marker for late joiners (§7).
+model HuddleParticipant {
+  id       String    @id @default(cuid())
+  huddleId String
+  userId   String
+  joinedAt DateTime  @default(now())
+  leftAt   DateTime?
+  huddle   Huddle    @relation(fields: [huddleId], references: [id], onDelete: Cascade)
+  user     User      @relation("HuddleParticipant", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([huddleId, userId])
+  @@index([userId, leftAt])
+  @@map("huddle_participants")
+}
+
+model AnonymousModerationEvent {
+  id                 String                  @id @default(cuid())
+  workspaceId        String
+  anonymousMessageId String
+  /// Who performed it — the reporting member, or the acting moderator.
+  actorId            String
+  kind               AnonymousModerationKind
+  /// Report reason, or a moderator note.
+  reason             String?
+  createdAt          DateTime                @default(now())
+  workspace          Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  anonymousMessage   AnonymousMessage        @relation(fields: [anonymousMessageId], references: [id], onDelete: Cascade)
+  actor              User                    @relation("AnonymousModerator", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([anonymousMessageId])
+  @@map("anonymous_moderation_events")
 }
 
 model ChannelMember {

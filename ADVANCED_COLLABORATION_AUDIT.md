@@ -75,8 +75,8 @@ the current codebase and proposes a phased build. No feature code has been writt
 | **C** | Temporary channel membership | §8 | M | Yes (`ChannelMember` cols) | ✅ **DONE 2026-09-08** — see below. |
 | **D** | Scheduled status multi-queue | §9 | M | Yes (`ScheduledStatus`) | ✅ **DONE 2026-09-08** — see below. |
 | **E** | Canvas TOC | §10 | S | No | Client-only upgrade of the existing outline. |
-| **F** | Federated cross-workspace search | §4 | L | Maybe (visit/index tuning) | New aggregator controller + expanded categories + filters + virtualized UI. Depends on decision #3. |
-| **G** | Anonymous messaging | §2 | L | Yes (2 models) | Security-sensitive: identity proxy + restricted author table + moderation + audit. |
+| **F** | Federated cross-workspace search | §4 | L | No | ✅ **DONE 2026-09-08** — see below. |
+| **G** | Anonymous messaging | §2 | L | Yes (3 models) | ✅ **DONE 2026-09-08** — see below. |
 | **H** | Universal email integration | §5 | L | Yes (2 models) | Depends on decision #2. Inbound webhook + threading + loop guard + attachments. |
 | **I** | Huddle transport + reconnect + thread history | §6, §7 | XL | Yes | Depends on decision #1. Realistically a separate initiative. |
 
@@ -185,7 +185,38 @@ applier's second pass finally clears lapsed manual statuses too.
 | UI | `@org/ui` `StatusModal` gained `onManageSchedules` → a "Scheduled statuses" row. New `@org/web-profile` `<ScheduledStatusDialog>` (list + inline add/edit form: emoji, text, name, recurrence segmented control, time-of-day / datetime pickers, weekly day chips, optional date bounds, priority, "set me to DND/Away") + `use-scheduled-statuses` hooks; wired in `app-shell.tsx`. |
 | Tests | `scheduled-status.spec.ts`. `nx affected -t typecheck lint test build` green (74 each; `@org/types` 64 tests). |
 
+### Slice F — Federated cross-workspace search ✅ (2026-09-08, uncommitted)
+
+**No migration.** New `/search` endpoint (outside `/workspaces/:id`, `JwtAuthGuard` only) fans the existing per-workspace `SearchService` across every workspace the caller is an **ACTIVE** member of — membership is the security boundary, so it can't become a cross-tenant read.
+
+| Layer | Change |
+|---|---|
+| `@org/types` | `SearchCategory` +`agents` +`canvases`; `SearchResultItem` +`score` +`timestamp`; new `FederatedSearchResultItem` / `FederatedSearchResponse` / `SearchWorkspaceRef`. New pure `federated-search.ts` — `mergeFederatedResults` (rank score↓ then recency then title; de-dup `people` by user id; page + `hasMore`; date/file-type/project post-filters) + `resolveSearchWorkspaces` + spec (6 cases incl. workspace-scoping). |
+| `@org/api-search` | `search.service.ts` — +`agents` (AIAgent ILIKE) +`canvases` (Whiteboard ILIKE) categories; every result now carries `timestamp`; tasks metadata gains `projectId`. New `FederatedSearchService` (fan-out ≤25 workspaces, 12/category, merge) + `FederatedSearchController` at `GET /search?q&workspaceIds&categories&dateFrom&dateTo&fileType&projectId&page`. `+@org/types` +`@org/api-common` deps (ran `nx sync`). |
+| `@org/api-client` | `searchApi.federated(...)` + `queryKeys.search.federated`. |
+| UI | New `@org/web-search` `GlobalSearchView` — dedicated `/search` page (outside the workspace shell): debounced input, filter rail (workspace / type / date range / file type / **exact phrase** toggle that quotes the query), **`@tanstack/react-virtual`-virtualized** result list, infinite loading via the last-row sentinel, each row shows workspace context + relative time and links to `/w/{slug}/{href}`. Command palette gained a "Search all workspaces for ‘…’" footer link → `/search?q=`. Route added in `app.tsx`. |
+| Tests | `federated-search.spec.ts` (`@org/types` 69 tests). `nx affected -t typecheck lint test build` green (65 projects). |
+
+**Deferred within §4** (decision #3): message / DM / thread bodies — they live in Matrix and can be E2E-encrypted, so there is no server-side text index to federate; the `channel / user / has-attachment / has-link / mentions / unread` filters are message-search filters and N/A without that index. `agents`/`canvases` are name-only ILIKE. Cursor pagination (offset-page is used) and per-category result counts across workspaces.
+
 **Deferred within §9:** a bell notification per scheduled flip (routine, deliberately noise — the realtime roster refresh + the user's own device on next `/users/me` covers it); the user's *own* device live-updating its auth-store status without a refetch; DST-exact `statusExpiresAt` display (the per-minute applier is the real expiry).
+
+### Slice G — Anonymous messaging ✅ (2026-09-08, uncommitted)
+
+**Migration `20260908160000_anonymous_messaging`** (hand-written). `ChannelAnonymousSetting` (per-channel config: `isEnabled`, `allowedRoles WorkspaceRole[]`, `allowReplies`, lazily-provisioned `matrixUserId`), `AnonymousMessage` (the de-anonymisation record: `matrixEventId ↔ authorId`, `removedAt`), `AnonymousModerationEvent` (append-only: `REPORT` / `REVEAL_AUTHOR` / `REMOVE_MESSAGE`) + `AnonymousModerationKind` enum. New `WorkspacePermission.MODERATE_ANONYMOUS` (granted OWNER + ADMIN).
+
+**The security model:** human messages go browser→Synapse with the sender baked in, so an anonymous post goes through the server, which posts it into the room as a shared `@anon-<channelId>` "Anonymous Participant" identity (reusing `MatrixBotMessagingService`) and records the real author in `AnonymousMessage`. `authorId` is **never** serialised outside `revealAuthor` / `listAudit`, both `MODERATE_ANONYMOUS`-gated, and every reveal/removal writes an append-only `AnonymousModerationEvent`. Remove = `MatrixAdminService.redactEventAs` (new) via the anon identity.
+
+| Layer | Change |
+|---|---|
+| `@org/types` | `MODERATE_ANONYMOUS` permission + grant; new `anonymous.ts` DTOs (`ChannelAnonymousSettingsView` with `canPostAnonymously`/`canModerate`, `AnonymousModerationRow` — **no author**, `AnonymousRevealResult`, `AnonymousModerationEventView`). |
+| `@org/validation` | `anonymous.schema.ts` — settings / post / report / remove. |
+| `@org/api-matrix` | `MatrixAdminService.redactEventAs`; new `AnonymousMessagingService` + `AnonymousController` at `/workspaces/:id/channels/:channelId/anonymous` — `GET/PUT settings`, `POST messages` (checks enabled + membership + role allowlist + `allowReplies`; provisions/joins the anon identity lazily; records `AnonymousMessage`), `POST messages/:eventId/report` (any member), `GET moderation` + `POST messages/:id/reveal` + `POST messages/:id/remove` + `GET audit` (`MODERATE_ANONYMOUS`). `+@org/api-auth` +`@org/validation` deps. |
+| `@org/api-client` | `anonymousApi` (8 methods). |
+| UI | `@org/ui` `Composer` gained an `anonymousPosting` toggle (a `VenetianMask` button + "posting as Anonymous Participant" banner; toggled send routes to `onSendAnonymously`), threaded `ChannelChat → ChatPanel → ChatSurface`. `ChannelPostingDialog` gained an auto-saving "Anonymous messages" section (enable + `allowReplies` + role chips). New `<AnonymousModerationDialog>` (Messages + Activity tabs; per-row Reveal author — confirm + logged — / Remove) opened from the channel ⋯ menu when `canModerate`. |
+| Tests | `@org/types` permission grants unchanged-count check passes; `nx affected -t typecheck lint test build` green (74 projects). |
+
+**Deferred within §2:** a member-facing "report" affordance on the message row itself (the `POST .../report` endpoint exists; wiring it needs a pass on the `@org/chat-ui` message context menu). "Selected groups" is roles only — the platform has no group concept. Anonymous messages currently render with the anon identity's default avatar/gradient; a dedicated "incognito" glyph is a follow-up.
 
 ---
 

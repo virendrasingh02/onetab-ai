@@ -148,7 +148,9 @@ export type SearchCategory =
   | 'files'
   | 'tasks'
   | 'projects'
-  | 'people';
+  | 'people'
+  | 'agents'
+  | 'canvases';
 
 export interface SearchResultItem {
   id: string;
@@ -157,5 +159,29 @@ export interface SearchResultItem {
   snippet?: string;
   /** Workspace-relative route the result opens. */
   href?: string;
+  /** Full-text rank when the category is FTS-backed; absent for ILIKE ones. */
+  score?: number;
+  /** ISO — most recent of created/updated, for the date-range filter. */
+  timestamp?: string;
   metadata?: Record<string, unknown>;
+}
+
+/** A workspace, minimal, attached to a federated result for context. */
+export interface SearchWorkspaceRef {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+/** One row of a cross-workspace search (brief §4) — a result plus its home. */
+export interface FederatedSearchResultItem extends SearchResultItem {
+  workspace: SearchWorkspaceRef;
+}
+
+export interface FederatedSearchResponse {
+  items: FederatedSearchResultItem[];
+  /** More pages exist for the current filter set. */
+  hasMore: boolean;
+  /** Every workspace the caller can search — drives the workspace filter. */
+  workspaces: SearchWorkspaceRef[];
 }

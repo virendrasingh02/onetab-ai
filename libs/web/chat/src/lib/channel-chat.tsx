@@ -44,6 +44,11 @@ export interface ChannelChatProps {
    * here — e.g. an announcement-only channel (brief §3).
    */
   composerReadOnlyMessage?: ReactNode;
+  /** Anonymous-posting toggle for the composer (brief §2). */
+  anonymousPosting?: {
+    allowed: boolean;
+    onSendAnonymously: (text: string) => void | Promise<void>;
+  };
 }
 
 /**
@@ -69,6 +74,7 @@ export function ChannelChat({
   welcome,
   huddleRequest,
   composerReadOnlyMessage,
+  anonymousPosting,
 }: ChannelChatProps) {
   const { enabled } = useMatrix();
   const { roomId, error } = useChannelRoom(channelId);
@@ -82,6 +88,7 @@ export function ChannelChat({
         subtitle={subtitle}
         workspaceId={workspaceId}
         composerReadOnlyMessage={composerReadOnlyMessage}
+        anonymousPosting={anonymousPosting}
       />
     );
   }
@@ -117,6 +124,7 @@ export function ChannelChat({
       welcome={welcome}
       huddleRequest={huddleRequest}
       composerReadOnlyMessage={composerReadOnlyMessage}
+      anonymousPosting={anonymousPosting}
     />
   );
 }

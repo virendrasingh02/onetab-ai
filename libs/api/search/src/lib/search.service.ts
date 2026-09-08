@@ -2,7 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { Prisma, PrismaService } from '@org/database';
 
 export type SearchCategory =
-  'channels' | 'docs' | 'files' | 'tasks' | 'projects' | 'people';
+  | 'channels'
+  | 'docs'
+  | 'files'
+  | 'tasks'
+  | 'projects'
+  | 'people'
+  | 'agents'
+  | 'canvases';
 
 export interface SearchResultItem {
   id: string;
@@ -11,8 +18,10 @@ export interface SearchResultItem {
   snippet?: string;
   /** Workspace-relative route the result opens. */
   href?: string;
-  /** Full-text rank, higher is a better match. Absent for `people` (ILIKE). */
+  /** Full-text rank, higher is a better match. Absent for ILIKE categories. */
   score?: number;
+  /** ISO — most recent of created/updated, for the date-range filter (§4). */
+  timestamp?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -32,6 +41,8 @@ const CATEGORIES: SearchCategory[] = [
   'tasks',
   'projects',
   'people',
+  'agents',
+  'canvases',
 ];
 
 /** Keeps one loud category from crowding out the rest in an "all" search. */
@@ -121,10 +132,12 @@ export class SearchService {
             slug: string;
             topic: string | null;
             description: string | null;
+            updatedAt: Date;
             score: number;
           }>
         >(Prisma.sql`
           SELECT c."id", c."name", c."slug", c."topic", c."description",
+                 c."updatedAt",
                  ts_rank(c."searchVector", ${tsq}) AS score
           FROM "channels" c
           WHERE c."workspaceId" = ${workspaceId}
@@ -147,6 +160,7 @@ export class SearchService {
           snippet: row.topic ?? row.description ?? undefined,
           href: `c/${row.slug}`,
           score: Number(row.score),
+          timestamp: row.updatedAt.toISOString(),
         }));
       }
 
@@ -157,10 +171,12 @@ export class SearchService {
             title: string;
             content: string;
             kind: string;
+            updatedAt: Date;
             score: number;
           }>
         >(Prisma.sql`
           SELECT d."id", d."title", d."content", d."kind"::text AS kind,
+                 d."updatedAt",
                  ts_rank(d."searchVector", ${tsq}) AS score
           FROM "work_documents" d
           WHERE d."workspaceId" = ${workspaceId}
@@ -176,6 +192,7 @@ export class SearchService {
           snippet: snippet(row.content, query),
           href: `docs/${row.id}`,
           score: Number(row.score),
+          timestamp: row.updatedAt.toISOString(),
           metadata: { kind: row.kind },
         }));
       }
@@ -187,10 +204,11 @@ export class SearchService {
             filename: string;
             mimeType: string;
             size: number;
+            createdAt: Date;
             score: number;
           }>
         >(Prisma.sql`
-          SELECT u."id", u."filename", u."mimeType", u."size",
+          SELECT u."id", u."filename", u."mimeType", u."size", u."createdAt",
                  ts_rank(u."searchVector", ${tsq}) AS score
           FROM "uploads" u
           WHERE u."workspaceId" = ${workspaceId}
@@ -205,6 +223,7 @@ export class SearchService {
           snippet: row.mimeType,
           href: `files`,
           score: Number(row.score),
+          timestamp: row.createdAt.toISOString(),
           metadata: { size: Number(row.size), mimeType: row.mimeType },
         }));
       }
@@ -218,12 +237,13 @@ export class SearchService {
             status: string;
             priority: string;
             projectId: string | null;
+            updatedAt: Date;
             score: number;
           }>
         >(Prisma.sql`
           SELECT t."id", t."title", t."description",
                  t."status"::text AS status, t."priority"::text AS priority,
-                 t."projectId",
+                 t."projectId", t."updatedAt",
                  ts_rank(t."searchVector", ${tsq}) AS score
           FROM "tasks" t
           WHERE t."workspaceId" = ${workspaceId}
@@ -241,7 +261,12 @@ export class SearchService {
             : undefined,
           href: row.projectId ? `tasks/${row.projectId}` : `tasks`,
           score: Number(row.score),
-          metadata: { status: row.status, priority: row.priority },
+          timestamp: row.updatedAt.toISOString(),
+          metadata: {
+            status: row.status,
+            priority: row.priority,
+            projectId: row.projectId,
+          },
         }));
       }
 
@@ -252,10 +277,12 @@ export class SearchService {
             name: string;
             description: string | null;
             status: string;
+            updatedAt: Date;
             score: number;
           }>
         >(Prisma.sql`
           SELECT p."id", p."name", p."description", p."status"::text AS status,
+                 p."updatedAt",
                  ts_rank(p."searchVector", ${tsq}) AS score
           FROM "projects" p
           WHERE p."workspaceId" = ${workspaceId}
@@ -269,6 +296,7 @@ export class SearchService {
           category,
           title: row.name,
           snippet: row.description ?? undefined,
+          timestamp: row.updatedAt.toISOString(),
           href: `tasks/${row.id}`,
           score: Number(row.score),
           metadata: { status: row.status },
@@ -309,6 +337,58 @@ export class SearchService {
           snippet: row.role,
           href: `members`,
           metadata: { avatarUrl: row.user.avatarUrl, role: row.role },
+        }));
+      }
+
+      case 'agents': {
+        // Small table, no tsvector — a scoped ILIKE over name/role/description.
+        const contains = { contains: query, mode: 'insensitive' as const };
+        const rows = await this.prisma.aIAgent.findMany({
+          where: {
+            workspaceId,
+            OR: [
+              { name: contains },
+              { role: contains },
+              { description: contains },
+            ],
+          },
+          select: {
+            id: true,
+            name: true,
+            role: true,
+            updatedAt: true,
+          },
+          orderBy: { updatedAt: 'desc' },
+          take,
+        });
+        return rows.map((row) => ({
+          id: row.id,
+          category,
+          title: row.name,
+          snippet: row.role,
+          href: `agents?agent=${row.id}`,
+          timestamp: row.updatedAt.toISOString(),
+        }));
+      }
+
+      case 'canvases': {
+        const contains = { contains: query, mode: 'insensitive' as const };
+        const rows = await this.prisma.whiteboard.findMany({
+          where: {
+            workspaceId,
+            deletedAt: null,
+            name: contains,
+          },
+          select: { id: true, name: true, updatedAt: true },
+          orderBy: { updatedAt: 'desc' },
+          take,
+        });
+        return rows.map((row) => ({
+          id: row.id,
+          category,
+          title: row.name,
+          href: `whiteboards?board=${row.id}`,
+          timestamp: row.updatedAt.toISOString(),
         }));
       }
     }

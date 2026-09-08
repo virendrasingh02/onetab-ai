@@ -1,4 +1,10 @@
-import { channelApi, queryKeys, workToolsApi } from '@org/api-client';
+import {
+  anonymousApi,
+  channelApi,
+  channelEmailApi,
+  queryKeys,
+  workToolsApi,
+} from '@org/api-client';
 import type { ChannelBookmark, ChannelSummary } from '@org/types';
 import type { ChatAppEntity } from '@org/chat-ui';
 import { toast } from '@org/ui';
@@ -9,6 +15,9 @@ import type {
   CreateDocumentInput,
   CreatePinInput,
   CreateTaskInput,
+  PostAnonymousMessageInput,
+  UpdateChannelAnonymousSettingsInput,
+  UpdateChannelEmailSettingsInput,
   UpdateChannelInput,
   UpdateTaskInput,
 } from '@org/validation';
@@ -725,3 +734,128 @@ export function useChannelEntityMutations(workspaceId: string | undefined) {
   };
 }
 
+
+/* --- Anonymous messaging (brief §2) --------------------------------------- */
+
+const anonKey = (workspaceId: string, channelId: string) =>
+  ['channels', workspaceId, channelId, 'anonymous'] as const;
+
+export function useChannelAnonymousSettings(
+  workspaceId: string | undefined,
+  channelId: string | undefined,
+) {
+  return useQuery({
+    queryKey: [...anonKey(workspaceId ?? '', channelId ?? ''), 'settings'],
+    queryFn: () =>
+      anonymousApi.settings(workspaceId as string, channelId as string),
+    enabled: !!workspaceId && !!channelId,
+    staleTime: 30_000,
+  });
+}
+
+export function useAnonymousMessagingMutations(
+  workspaceId: string | undefined,
+  channelId: string | undefined,
+) {
+  const queryClient = useQueryClient();
+  const ws = workspaceId ?? '';
+  const ch = channelId ?? '';
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: anonKey(ws, ch) });
+
+  const updateSettings = useMutation({
+    mutationFn: (input: UpdateChannelAnonymousSettingsInput) =>
+      anonymousApi.updateSettings(ws, ch, input),
+    onSuccess: () => {
+      toast.success('Anonymous posting updated');
+      invalidate();
+    },
+    onError: () => toast.error('Could not update anonymous posting'),
+  });
+
+  const post = useMutation({
+    mutationFn: (input: PostAnonymousMessageInput) =>
+      anonymousApi.post(ws, ch, input),
+  });
+
+  const report = useMutation({
+    mutationFn: ({ eventId, reason }: { eventId: string; reason: string }) =>
+      anonymousApi.report(ws, ch, eventId, { reason }),
+    onSuccess: () => toast.success('Reported to the channel moderators'),
+    onError: () => toast.error('Could not send the report'),
+  });
+
+  const reveal = useMutation({
+    mutationFn: (id: string) => anonymousApi.reveal(ws, ch, id),
+    onSuccess: () => invalidate(),
+  });
+
+  const remove = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      anonymousApi.remove(ws, ch, id, { reason }),
+    onSuccess: () => {
+      toast.info('Message removed');
+      invalidate();
+    },
+  });
+
+  return { updateSettings, post, report, reveal, remove };
+}
+
+export function useAnonymousModeration(
+  workspaceId: string | undefined,
+  channelId: string | undefined,
+  enabled = true,
+) {
+  const list = useQuery({
+    queryKey: [...anonKey(workspaceId ?? '', channelId ?? ''), 'moderation'],
+    queryFn: () =>
+      anonymousApi.moderation(workspaceId as string, channelId as string),
+    enabled: enabled && !!workspaceId && !!channelId,
+  });
+  const audit = useQuery({
+    queryKey: [...anonKey(workspaceId ?? '', channelId ?? ''), 'audit'],
+    queryFn: () =>
+      anonymousApi.audit(workspaceId as string, channelId as string),
+    enabled: enabled && !!workspaceId && !!channelId,
+  });
+  return { list, audit };
+}
+
+/* --- Inbound email (brief §5) ------------------------------------------- */
+
+export function useChannelEmailSettings(
+  workspaceId: string | undefined,
+  channelId: string | undefined,
+) {
+  return useQuery({
+    queryKey: ['channels', workspaceId ?? '', channelId ?? '', 'email'],
+    queryFn: () =>
+      channelEmailApi.settings(workspaceId as string, channelId as string),
+    enabled: !!workspaceId && !!channelId,
+    staleTime: 60_000,
+  });
+}
+
+export function useChannelEmailMutations(
+  workspaceId: string | undefined,
+  channelId: string | undefined,
+) {
+  const queryClient = useQueryClient();
+  const update = useMutation({
+    mutationFn: (input: UpdateChannelEmailSettingsInput) =>
+      channelEmailApi.updateSettings(
+        workspaceId as string,
+        channelId as string,
+        input,
+      ),
+    onSuccess: () => {
+      toast.success('Email settings updated');
+      queryClient.invalidateQueries({
+        queryKey: ['channels', workspaceId ?? '', channelId ?? '', 'email'],
+      });
+    },
+    onError: () => toast.error('Could not update email settings'),
+  });
+  return { update };
+}

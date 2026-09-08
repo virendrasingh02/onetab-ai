@@ -85,6 +85,21 @@ export type {
   WebAuthnCredentialDto,
 } from './lib/entities.js';
 
+export { EMAIL_EVENT_KEY } from './lib/email.js';
+export type {
+  ChannelEmailSettingsView,
+  EmailEventHint,
+} from './lib/email.js';
+
+export { ANON_DISPLAY_NAME } from './lib/anonymous.js';
+export type {
+  AnonymousModerationEventView,
+  AnonymousModerationKind,
+  AnonymousModerationRow,
+  AnonymousRevealResult,
+  ChannelAnonymousSettingsView,
+} from './lib/anonymous.js';
+
 export {
   announcementPosterUserIds,
   canPostInChannel,
@@ -102,6 +117,15 @@ export type {
   ChannelPostingContext,
   ChannelViewer,
 } from './lib/channel-policy.js';
+
+export {
+  mergeFederatedResults,
+  resolveSearchWorkspaces,
+} from './lib/federated-search.js';
+export type {
+  MergeFederatedOptions,
+  MergeFederatedResult,
+} from './lib/federated-search.js';
 
 export {
   MAX_SCHEDULED_STATUSES,
@@ -214,8 +238,11 @@ export type {
   NotificationView,
   OpenChatPosition,
   PushDevice,
+  FederatedSearchResponse,
+  FederatedSearchResultItem,
   SearchCategory,
   SearchResultItem,
+  SearchWorkspaceRef,
   UserPreferences,
 } from './lib/notifications.js';
 

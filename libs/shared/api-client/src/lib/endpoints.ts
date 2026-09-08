@@ -42,9 +42,14 @@ import type {
   AITranslationResponse,
   AIUsageStats,
   AIVisionResponse,
+  AnonymousModerationEventView,
+  AnonymousModerationRow,
+  AnonymousRevealResult,
+  ChannelEmailSettingsView,
   AppActionDefinition,
   AppActionResult,
   AuthTokens,
+  ChannelAnonymousSettingsView,
   AutomationWorkflow,
   AutomationWorkflowDetail,
   CalendarEvent,
@@ -125,6 +130,7 @@ import type {
   ScheduledStatusView,
   SaveProviderCredentialInput,
   SavedView,
+  FederatedSearchResponse,
   SearchCategory,
   SearchResultItem,
   SSOConfiguration,
@@ -178,6 +184,11 @@ import type {
 import type {
   AddChannelMembersInput,
   ChannelPreferencesInput,
+  PostAnonymousMessageInput,
+  RemoveAnonymousMessageInput,
+  ReportAnonymousMessageInput,
+  UpdateChannelAnonymousSettingsInput,
+  UpdateChannelEmailSettingsInput,
   ExtendMembershipInput,
   JoinChannelInput,
   ConvertIntakeRequestInput,
@@ -2445,6 +2456,136 @@ export const searchApi = {
   counts: (workspaceId: string, q: string) =>
     request<Record<SearchCategory, number>>(
       http.get(`/workspaces/${workspaceId}/search/counts`, { params: { q } }),
+    ),
+
+  /** Cross-workspace search (brief §4). */
+  federated: (params: {
+    q: string;
+    workspaceIds?: string[];
+    categories?: SearchCategory[];
+    dateFrom?: string | null;
+    dateTo?: string | null;
+    fileType?: string | null;
+    projectId?: string | null;
+    page?: number;
+  }) =>
+    request<FederatedSearchResponse>(
+      http.get('/search', {
+        params: {
+          q: params.q,
+          ...(params.workspaceIds?.length
+            ? { workspaceIds: params.workspaceIds.join(',') }
+            : {}),
+          ...(params.categories?.length
+            ? { categories: params.categories.join(',') }
+            : {}),
+          ...(params.dateFrom ? { dateFrom: params.dateFrom } : {}),
+          ...(params.dateTo ? { dateTo: params.dateTo } : {}),
+          ...(params.fileType ? { fileType: params.fileType } : {}),
+          ...(params.projectId ? { projectId: params.projectId } : {}),
+          ...(params.page ? { page: params.page } : {}),
+        },
+      }),
+    ),
+};
+
+/** Anonymous messaging (brief §2). */
+export const anonymousApi = {
+  settings: (workspaceId: string, channelId: string) =>
+    request<ChannelAnonymousSettingsView>(
+      http.get(
+        `/workspaces/${workspaceId}/channels/${channelId}/anonymous/settings`,
+      ),
+    ),
+
+  updateSettings: (
+    workspaceId: string,
+    channelId: string,
+    input: UpdateChannelAnonymousSettingsInput,
+  ) =>
+    request<ChannelAnonymousSettingsView>(
+      http.put(
+        `/workspaces/${workspaceId}/channels/${channelId}/anonymous/settings`,
+        input,
+      ),
+    ),
+
+  post: (
+    workspaceId: string,
+    channelId: string,
+    input: PostAnonymousMessageInput,
+  ) =>
+    request<{ eventId: string }>(
+      http.post(
+        `/workspaces/${workspaceId}/channels/${channelId}/anonymous/messages`,
+        input,
+      ),
+    ),
+
+  report: (
+    workspaceId: string,
+    channelId: string,
+    eventId: string,
+    input: ReportAnonymousMessageInput,
+  ) =>
+    request<void>(
+      http.post(
+        `/workspaces/${workspaceId}/channels/${channelId}/anonymous/messages/${eventId}/report`,
+        input,
+      ),
+    ),
+
+  moderation: (workspaceId: string, channelId: string) =>
+    request<AnonymousModerationRow[]>(
+      http.get(
+        `/workspaces/${workspaceId}/channels/${channelId}/anonymous/moderation`,
+      ),
+    ),
+
+  reveal: (workspaceId: string, channelId: string, id: string) =>
+    request<AnonymousRevealResult>(
+      http.post(
+        `/workspaces/${workspaceId}/channels/${channelId}/anonymous/messages/${id}/reveal`,
+      ),
+    ),
+
+  remove: (
+    workspaceId: string,
+    channelId: string,
+    id: string,
+    input: RemoveAnonymousMessageInput = {},
+  ) =>
+    request<void>(
+      http.post(
+        `/workspaces/${workspaceId}/channels/${channelId}/anonymous/messages/${id}/remove`,
+        input,
+      ),
+    ),
+
+  audit: (workspaceId: string, channelId: string) =>
+    request<AnonymousModerationEventView[]>(
+      http.get(
+        `/workspaces/${workspaceId}/channels/${channelId}/anonymous/audit`,
+      ),
+    ),
+};
+
+/** Per-channel inbound email (brief §5). */
+export const channelEmailApi = {
+  settings: (workspaceId: string, channelId: string) =>
+    request<ChannelEmailSettingsView>(
+      http.get(`/workspaces/${workspaceId}/channels/${channelId}/email`),
+    ),
+  updateSettings: (
+    workspaceId: string,
+    channelId: string,
+    input: UpdateChannelEmailSettingsInput,
+  ) =>
+    request<ChannelEmailSettingsView>(
+      http.put(
+        `/workspaces/${workspaceId}/channels/${channelId}/email`,
+        input,
+      ),
     ),
 };
 

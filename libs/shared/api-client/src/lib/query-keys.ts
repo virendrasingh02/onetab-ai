@@ -197,6 +197,9 @@ export const queryKeys = {
       ['search', workspaceId, q, category ?? 'all'] as const,
     counts: (workspaceId: string, q: string) =>
       ['search', workspaceId, 'counts', q] as const,
+    /** Cross-workspace search (brief §4) — `filters` is a stable JSON string. */
+    federated: (q: string, filters: string, page: number) =>
+      ['search', 'federated', q, filters, page] as const,
   },
   gifs: {
     all: () => ['gifs'] as const,

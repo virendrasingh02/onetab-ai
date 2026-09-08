@@ -239,6 +239,11 @@ export interface ChatSurfaceProps {
    * cannot post here (an announcement channel, brief §3).
    */
   composerReadOnlyMessage?: ReactNode;
+  /** Anonymous-posting toggle for the composer (brief §2). */
+  anonymousPosting?: {
+    allowed: boolean;
+    onSendAnonymously: (text: string) => void | Promise<void>;
+  };
 }
 
 /**
@@ -311,6 +316,7 @@ export function ChatSurface({
   onRetryAgent,
   onSendCard,
   composerReadOnlyMessage,
+  anonymousPosting,
 }: ChatSurfaceProps) {
   const messageDensity = useMessageDensity();
   const openPosition = useOpenChatPosition();
@@ -1041,6 +1047,7 @@ export function ChatSurface({
             onAttach={onAttach ? (files) => void onAttach(files) : undefined}
             placeholder={editing ? 'Edit your message…' : `Message ${title}`}
             readOnlyMessage={editing ? undefined : composerReadOnlyMessage}
+            anonymousPosting={editing ? undefined : anonymousPosting}
             onSchedule={onSchedule}
             onSendCard={onSendCard}
             contextSlot={

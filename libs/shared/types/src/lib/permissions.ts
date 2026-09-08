@@ -22,6 +22,8 @@ export const WorkspacePermission = {
   MANAGE_MEMBERS: 'manage_members',
   MANAGE_SETTINGS: 'manage_settings',
   MANAGE_BILLING: 'manage_billing',
+  /** Read who sent an anonymous message, and remove one (brief §2 / §13). */
+  MODERATE_ANONYMOUS: 'moderate_anonymous',
 } as const;
 export type WorkspacePermission =
   (typeof WorkspacePermission)[keyof typeof WorkspacePermission];
@@ -48,6 +50,7 @@ export const ROLE_PERMISSIONS: Readonly<
     WorkspacePermission.DELETE,
     WorkspacePermission.MANAGE_MEMBERS,
     WorkspacePermission.MANAGE_SETTINGS,
+    WorkspacePermission.MODERATE_ANONYMOUS,
   ],
   [WorkspaceRole.MEMBER]: [
     WorkspacePermission.VIEW,

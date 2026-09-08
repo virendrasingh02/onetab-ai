@@ -1118,4 +1118,33 @@ export class MatrixAdminService {
 
     return response.event_id;
   }
+
+  /**
+   * Redacts a timeline event as the given Matrix user — used to remove an
+   * anonymous message (brief §2). The actor must have redact power over the
+   * event; the anonymous identity that posted it always can.
+   */
+  async redactEventAs(
+    roomId: string,
+    senderMatrixId: string,
+    eventId: string,
+    reason?: string,
+  ): Promise<void> {
+    this.assertEnabled();
+    const accessToken = this.isAdminMode
+      ? await this.actAs(senderMatrixId, { expiresInMs: 60_000 })
+      : this.config.asToken;
+
+    const transactionId = `srv.${Date.now()}.${Math.random().toString(36).slice(2)}`;
+    const base = `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/redact/${encodeURIComponent(eventId)}/${transactionId}`;
+    const path = this.isAdminMode
+      ? base
+      : `${base}?user_id=${encodeURIComponent(senderMatrixId)}`;
+
+    await this.request(path, {
+      method: 'PUT',
+      accessToken,
+      body: JSON.stringify(reason ? { reason } : {}),
+    });
+  }
 }

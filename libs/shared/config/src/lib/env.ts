@@ -126,6 +126,13 @@ export const apiEnvSchema = z.object({
   /** Public base URL the app is served from — used to build links in emails. */
   APP_URL: z.string().url().default('http://localhost:4200'),
 
+  // Inbound email → channel (brief §5). A provider (Postmark / Mailgun style)
+  // parses incoming mail and POSTs it to `/api/v1/email/inbound?secret=…`.
+  // `INBOUND_EMAIL_DOMAIN` is the domain channel addresses are minted under;
+  // leaving `INBOUND_EMAIL_SECRET` unset disables the webhook (403).
+  INBOUND_EMAIL_DOMAIN: z.string().default('inbound.onetab.ai'),
+  INBOUND_EMAIL_SECRET: z.string().optional(),
+
   // Multi-App API Integration Configuration
   ENCRYPTION_KEY: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),

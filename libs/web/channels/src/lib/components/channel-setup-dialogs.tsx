@@ -18,6 +18,7 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useQuery } from '@tanstack/react-query';
+import type { WorkspaceRole } from '@org/types';
 import {
   Bot,
   Check,
@@ -30,12 +31,17 @@ import {
   Search,
   Send,
   Sparkles,
+  VenetianMask,
   Workflow,
   X,
   Zap,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
+  useAnonymousMessagingMutations,
+  useChannelAnonymousSettings,
+  useChannelEmailMutations,
+  useChannelEmailSettings,
   useChannelMemberMutations,
   useUpdateChannel,
 } from '../use-channels.js';
@@ -605,6 +611,192 @@ const POSTING_TOGGLES: readonly {
  * send there; the toggles below shape reactions (also enforced) and the reply /
  * upload affordances.
  */
+const ANON_ROLES: WorkspaceRole[] = ['OWNER', 'ADMIN', 'MEMBER', 'GUEST'];
+
+/**
+ * Anonymous-messaging config for a channel (brief §2). Auto-saves each control
+ * so it stays independent of the announcement-mode form around it.
+ */
+function AnonymousPostingSection({
+  workspaceId,
+  channelId,
+}: {
+  workspaceId: string | undefined;
+  channelId: string;
+}) {
+  const settings = useChannelAnonymousSettings(workspaceId, channelId);
+  const { updateSettings } = useAnonymousMessagingMutations(
+    workspaceId,
+    channelId,
+  );
+  const data = settings.data;
+  if (!data) return null;
+
+  const roleAllowed = (role: WorkspaceRole) =>
+    data.allowedRoles.length === 0 || data.allowedRoles.includes(role);
+
+  const toggleRole = (role: WorkspaceRole) => {
+    const set = new Set<WorkspaceRole>(
+      data.allowedRoles.length === 0 ? ANON_ROLES : data.allowedRoles,
+    );
+    if (set.has(role)) set.delete(role);
+    else set.add(role);
+    // All four selected ⇒ store empty ("everyone").
+    const next = set.size === ANON_ROLES.length ? [] : [...set];
+    updateSettings.mutate({ allowedRoles: next });
+  };
+
+  return (
+    <div className="space-y-2.5 rounded-xl border border-border p-3">
+      <div className="flex items-center justify-between">
+        <div className="gap-2 flex items-center">
+          <VenetianMask className="size-4 text-muted-foreground" />
+          <div>
+            <p className="text-xs font-semibold text-foreground">
+              Anonymous messages
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              Members can post as “Anonymous Participant”. Only moderators can
+              see who sent one.
+            </p>
+          </div>
+        </div>
+        <Switch
+          checked={data.isEnabled}
+          onCheckedChange={(v) => updateSettings.mutate({ isEnabled: v })}
+          aria-label="Enable anonymous messages"
+        />
+      </div>
+
+      {data.isEnabled && (
+        <>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-foreground">Allow anonymous replies</span>
+            <Switch
+              checked={data.allowReplies}
+              onCheckedChange={(v) =>
+                updateSettings.mutate({ allowReplies: v })
+              }
+              aria-label="Allow anonymous replies"
+            />
+          </div>
+          <div className="space-y-1">
+            <p className="text-[11px] text-muted-foreground">
+              Roles that may post anonymously
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {ANON_ROLES.map((role) => {
+                const on = roleAllowed(role);
+                return (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => toggleRole(role)}
+                    className={cn(
+                      'rounded-full border px-2 py-0.5 text-[11px] capitalize transition-colors',
+                      on
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {role.toLowerCase()}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Inbound email → channel (brief §5). Auto-saves each control. */
+function EmailIntegrationSection({
+  workspaceId,
+  channelId,
+}: {
+  workspaceId: string | undefined;
+  channelId: string;
+}) {
+  const settings = useChannelEmailSettings(workspaceId, channelId);
+  const { update } = useChannelEmailMutations(workspaceId, channelId);
+  const [copied, setCopied] = useState(false);
+  const data = settings.data;
+  if (!data) return null;
+
+  const copy = () => {
+    if (!data.address) return;
+    navigator.clipboard.writeText(data.address);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <div className="space-y-2.5 rounded-xl border border-border p-3">
+      <div className="flex items-center justify-between">
+        <div className="gap-2 flex items-center">
+          <Send className="size-4 text-muted-foreground" />
+          <div>
+            <p className="text-xs font-semibold text-foreground">Email</p>
+            <p className="text-[11px] text-muted-foreground">
+              Send email to this address to post it in the channel.
+            </p>
+          </div>
+        </div>
+        <Switch
+          checked={data.isEnabled}
+          onCheckedChange={(v) => update.mutate({ isEnabled: v })}
+          aria-label="Enable incoming email"
+        />
+      </div>
+
+      {data.address ? (
+        <div className="gap-2 flex items-center rounded-lg border border-border bg-surface-muted px-2.5 py-1.5">
+          <code className="min-w-0 flex-1 truncate text-[11px] text-foreground">
+            {data.address}
+          </code>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={copy}
+            className="h-6 gap-1 px-2 text-[11px]"
+          >
+            {copied ? (
+              <Check className="size-3 text-success-text" />
+            ) : (
+              <Plus className="size-3 rotate-45" />
+            )}
+            {copied ? 'Copied' : 'Copy'}
+          </Button>
+        </div>
+      ) : (
+        <p className="text-[11px] text-muted-foreground">
+          Incoming email is not configured for this deployment.
+        </p>
+      )}
+
+      {data.isEnabled && (
+        <>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-foreground">Thread by subject</span>
+            <Switch
+              checked={data.threadPerSubject}
+              onCheckedChange={(v) => update.mutate({ threadPerSubject: v })}
+              aria-label="Thread by subject"
+            />
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            {data.messageCount} email
+            {data.messageCount === 1 ? '' : 's'} routed here so far.
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function ChannelPostingDialog({
   open,
   onOpenChange,
@@ -849,6 +1041,15 @@ export function ChannelPostingDialog({
                 </div>
               </>
             )}
+
+            <AnonymousPostingSection
+              workspaceId={workspaceId}
+              channelId={channel.id}
+            />
+            <EmailIntegrationSection
+              workspaceId={workspaceId}
+              channelId={channel.id}
+            />
           </div>
 
           <DialogFooter>

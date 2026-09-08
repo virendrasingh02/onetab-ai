@@ -58,6 +58,7 @@ import {
   Plus,
   RefreshCw,
   Share2,
+  ShieldAlert,
   Star,
   Trash2,
   Upload,
@@ -72,6 +73,7 @@ import { ChannelDetailsPanel } from '../components/channel-details-panel.js';
 import { AddAppDialog } from '../components/add-app-dialog.js';
 import { JoinChannelControl } from '../components/join-channel-control.js';
 import { TemporaryMembershipBanner } from '../components/temporary-membership-banner.js';
+import { AnonymousModerationDialog } from '../components/anonymous-moderation-dialog.js';
 import {
   AddAgentToChannelDialog,
   AddPeopleDialog,
@@ -81,8 +83,10 @@ import {
   EditChannelDetailsDialog,
 } from '../components/channel-setup-dialogs.js';
 import {
+  useAnonymousMessagingMutations,
   useArchiveChannel,
   useChannel,
+  useChannelAnonymousSettings,
   useChannelBookmarks,
   useChannelFiles,
   useChannelMembers,
@@ -564,10 +568,13 @@ export function ChannelPage() {
   );
   const members = useChannelMembers(workspaceId, channel?.id);
   const channelAgentsApps = useChannelAgentsAndApps(workspaceId, channel?.id);
+  const anonSettings = useChannelAnonymousSettings(workspaceId, channel?.id);
+  const anonMutations = useAnonymousMessagingMutations(workspaceId, channel?.id);
   const [addBookmarkOpen, setAddBookmarkOpen] = useState(false);
   const [addPeopleOpen, setAddPeopleOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [postingOpen, setPostingOpen] = useState(false);
+  const [anonModerationOpen, setAnonModerationOpen] = useState(false);
   const [addAgentOpen, setAddAgentOpen] = useState(false);
   const [addAppOpen, setAddAppOpen] = useState(false);
   const [workflowsOpen, setWorkflowsOpen] = useState(false);
@@ -751,6 +758,13 @@ export function ChannelPage() {
         onOpenChange={setPostingOpen}
         workspaceId={workspaceId}
         channel={channel}
+      />
+
+      <AnonymousModerationDialog
+        open={anonModerationOpen}
+        onOpenChange={setAnonModerationOpen}
+        workspaceId={workspaceId}
+        channelId={channel.id}
       />
 
       <AddAgentToChannelDialog
@@ -945,6 +959,16 @@ export function ChannelPage() {
                   <span>Posting Permissions</span>
                 </DropdownMenuItem>
               ) : null}
+
+              {anonSettings.data?.canModerate ? (
+                <DropdownMenuItem
+                  onClick={() => setAnonModerationOpen(true)}
+                  className="gap-2.5 text-xs cursor-pointer"
+                >
+                  <ShieldAlert className="size-4 shrink-0 text-muted-foreground" />
+                  <span>Anonymous Moderation</span>
+                </DropdownMenuItem>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -971,6 +995,16 @@ export function ChannelPage() {
                 ? channel.mode === 'ANNOUNCEMENT'
                   ? 'Only admins and designated members can post in this announcement channel.'
                   : 'You don’t have permission to post in this channel.'
+                : undefined
+            }
+            anonymousPosting={
+              anonSettings.data?.canPostAnonymously
+                ? {
+                    allowed: true,
+                    onSendAnonymously: async (text) => {
+                      await anonMutations.post.mutateAsync({ text });
+                    },
+                  }
                 : undefined
             }
             welcome={{
