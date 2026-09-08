@@ -43,11 +43,13 @@ export {
 export {
   AddPeopleDialog,
   EditChannelDetailsDialog,
+  ChannelPostingDialog,
   AddAgentToChannelDialog,
   ChannelTemplatesDialog,
   ChannelWorkflowsDialog,
   type AddPeopleDialogProps,
   type EditChannelDetailsDialogProps,
+  type ChannelPostingDialogProps,
   type AddAgentToChannelDialogProps,
   type ChannelTemplatesDialogProps,
   type ChannelWorkflowsDialogProps,

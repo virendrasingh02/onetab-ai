@@ -283,6 +283,21 @@ model Channel {
   visibility       ChannelVisibility        @default(PUBLIC)
   isArchived       Boolean                  @default(false)
   archivedAt       DateTime?
+  /// STANDARD — every member may post. ANNOUNCEMENT — only channel admins,
+  /// workspace admins and `announcementPosterIds` may post; everyone else
+  /// reads. Enforced server-side via the Matrix room's `events_default` power
+  /// level, not just the client.
+  mode             ChannelMode              @default(STANDARD)
+  /// Announcement-mode granular toggles (ignored while mode = STANDARD).
+  /// `allowReactions` is enforced on the Matrix room; `allowReplies` /
+  /// `allowFileUploads` gate the client affordances (a thread reply / an
+  /// upload is still an `m.room.message` and already blocked for non-posters).
+  allowReactions   Boolean                  @default(true)
+  allowReplies     Boolean                  @default(false)
+  allowFileUploads Boolean                  @default(true)
+  /// Extra user ids allowed to post in an announcement channel, on top of
+  /// channel admins + workspace admins + the creator.
+  announcementPosterIds String[]            @default([])
   createdById      String
   createdAt        DateTime                 @default(now())
   updatedAt        DateTime                 @updatedAt
@@ -1777,6 +1792,11 @@ enum ChannelRole {
 enum ChannelVisibility {
   PUBLIC
   PRIVATE
+}
+
+enum ChannelMode {
+  STANDARD
+  ANNOUNCEMENT
 }
 
 enum InvitationStatus {

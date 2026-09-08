@@ -1,4 +1,5 @@
 export {
+  ChannelMode,
   ChannelRole,
   ChannelVisibility,
   CustomFieldType,
@@ -81,6 +82,17 @@ export type {
   TotpVerifyResponse,
   WebAuthnCredentialDto,
 } from './lib/entities.js';
+
+export {
+  announcementPosterUserIds,
+  canPostInChannel,
+  canReplyInChannel,
+  isAuthorizedAnnouncementPoster,
+} from './lib/channel-policy.js';
+export type {
+  ChannelPostingContext,
+  ChannelViewer,
+} from './lib/channel-policy.js';
 
 export {
   DESIGN_SYSTEM_DEFAULT_APPEARANCE,

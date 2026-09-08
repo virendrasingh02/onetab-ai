@@ -869,6 +869,60 @@ export class MatrixAdminService {
     });
   }
 
+  /**
+   * Applies (or clears) announcement-only posting on a room's power levels
+   * (brief §3).
+   *
+   * `enabled` raises `events_default` to 50 so only PL50+ may send *any* event
+   * — a message, a thread reply or an upload are all `m.room.message` and all
+   * blocked together — and lists every authorized poster at PL50, never
+   * lowering someone already higher. `allowReactions` keeps `m.reaction` open
+   * at PL0 while messages stay locked. Disabling drops `events_default` back to
+   * 0 and reopens reactions; it does not lower anyone's `users` entry, since
+   * those also track channel/workspace roles. One GET + one PUT, every other
+   * key preserved.
+   */
+  async applyAnnouncementPolicy(
+    roomId: string,
+    opts: {
+      enabled: boolean;
+      allowReactions: boolean;
+      authorizedMatrixUserIds: string[];
+    },
+  ): Promise<void> {
+    this.assertEnabled();
+    const accessToken = await this.roomActorToken(roomId);
+    const path = `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.power_levels/`;
+
+    const current = await this.request<{
+      events?: Record<string, number>;
+      users?: Record<string, number>;
+    }>(path, { method: 'GET', accessToken });
+
+    const events = { ...(current.events ?? {}) };
+    const users = { ...(current.users ?? {}) };
+
+    if (opts.enabled) {
+      for (const id of opts.authorizedMatrixUserIds) {
+        users[id] = Math.max(users[id] ?? 0, 50);
+      }
+      events['m.reaction'] = opts.allowReactions ? 0 : 50;
+    } else {
+      delete events['m.reaction'];
+    }
+
+    await this.request(path, {
+      method: 'PUT',
+      accessToken,
+      body: JSON.stringify({
+        ...current,
+        events_default: opts.enabled ? 50 : 0,
+        events,
+        users,
+      }),
+    });
+  }
+
   /** The `matrixUserId -> powerLevel` map currently on a room. */
   async getPowerLevels(roomId: string): Promise<Record<string, number>> {
     this.assertEnabled();

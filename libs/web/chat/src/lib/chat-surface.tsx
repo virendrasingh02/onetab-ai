@@ -234,6 +234,11 @@ export interface ChatSurfaceProps {
     version: number,
     data: Record<string, unknown>,
   ) => void | Promise<void>;
+  /**
+   * When set, the main composer is replaced by a read-only notice — the viewer
+   * cannot post here (an announcement channel, brief §3).
+   */
+  composerReadOnlyMessage?: ReactNode;
 }
 
 /**
@@ -305,6 +310,7 @@ export function ChatSurface({
   onAction,
   onRetryAgent,
   onSendCard,
+  composerReadOnlyMessage,
 }: ChatSurfaceProps) {
   const messageDensity = useMessageDensity();
   const openPosition = useOpenChatPosition();
@@ -1034,6 +1040,7 @@ export function ChatSurface({
             onTyping={onTyping}
             onAttach={onAttach ? (files) => void onAttach(files) : undefined}
             placeholder={editing ? 'Edit your message…' : `Message ${title}`}
+            readOnlyMessage={editing ? undefined : composerReadOnlyMessage}
             onSchedule={onSchedule}
             onSendCard={onSendCard}
             contextSlot={

@@ -1,3 +1,4 @@
+import { WorkspacePermission } from '@org/types';
 import type { ChannelMember, ChannelSummary } from '@org/types';
 import {
   Badge,
@@ -48,6 +49,7 @@ import {
   LayoutTemplate,
   Lock,
   Mail,
+  Megaphone,
   MessageSquare,
   MoreHorizontal,
   Pencil,
@@ -70,6 +72,7 @@ import { AddAppDialog } from '../components/add-app-dialog.js';
 import {
   AddAgentToChannelDialog,
   AddPeopleDialog,
+  ChannelPostingDialog,
   ChannelTemplatesDialog,
   ChannelWorkflowsDialog,
   EditChannelDetailsDialog,
@@ -199,6 +202,20 @@ function ChannelHeader({
             </button>
             {channel.isArchived ? (
               <Badge variant="warning">Archived</Badge>
+            ) : null}
+            {channel.mode === 'ANNOUNCEMENT' ? (
+              <Hint
+                label={
+                  channel.canPost
+                    ? 'Announcement channel — you can post here'
+                    : 'Announcement channel — only admins can post'
+                }
+              >
+                <Badge variant="info" className="gap-1">
+                  <Megaphone className="size-3" />
+                  <span>Announcement</span>
+                </Badge>
+              </Hint>
             ) : null}
             {isMuted ? (
               <Badge variant="neutral" className="gap-1 text-muted-foreground">
@@ -487,7 +504,11 @@ function ChannelHeader({
  */
 export function ChannelPage() {
   const { channelSlug } = useParams<{ channelSlug: string }>();
-  const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
+  const {
+    workspaceId,
+    slug: workspaceSlug,
+    permissions: workspacePermissions,
+  } = useCurrentWorkspace();
   const currentUser = useCurrentUser();
   const channelQuery = useChannel(workspaceId, channelSlug);
 
@@ -504,6 +525,13 @@ export function ChannelPage() {
     ? undefined
     : (channelQuery.data ?? lastChannel.current);
 
+  /* Mirrors the server's `assertCanManage`: a channel admin, or a workspace
+     admin/owner (who alone hold `manage_settings`). */
+  const canManageChannel =
+    channel?.membership?.role === 'ADMIN' ||
+    (workspacePermissions?.includes(WorkspacePermission.MANAGE_SETTINGS) ??
+      false);
+
   const pins = useChannelPins(workspaceId, channel?.id);
   const files = useChannelFiles(workspaceId, channel?.id);
   const { bookmarks, addBookmark, removeBookmark } = useChannelBookmarks(
@@ -515,6 +543,7 @@ export function ChannelPage() {
   const [addBookmarkOpen, setAddBookmarkOpen] = useState(false);
   const [addPeopleOpen, setAddPeopleOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [postingOpen, setPostingOpen] = useState(false);
   const [addAgentOpen, setAddAgentOpen] = useState(false);
   const [addAppOpen, setAddAppOpen] = useState(false);
   const [workflowsOpen, setWorkflowsOpen] = useState(false);
@@ -680,6 +709,13 @@ export function ChannelPage() {
       <EditChannelDetailsDialog
         open={detailsOpen}
         onOpenChange={setDetailsOpen}
+        workspaceId={workspaceId}
+        channel={channel}
+      />
+
+      <ChannelPostingDialog
+        open={postingOpen}
+        onOpenChange={setPostingOpen}
         workspaceId={workspaceId}
         channel={channel}
       />
@@ -866,6 +902,16 @@ export function ChannelPage() {
                 <Pencil className="size-4 shrink-0 text-muted-foreground" />
                 <span>Edit Channel Details</span>
               </DropdownMenuItem>
+
+              {canManageChannel ? (
+                <DropdownMenuItem
+                  onClick={() => setPostingOpen(true)}
+                  className="gap-2.5 text-xs cursor-pointer"
+                >
+                  <Megaphone className="size-4 shrink-0 text-muted-foreground" />
+                  <span>Posting Permissions</span>
+                </DropdownMenuItem>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -884,6 +930,16 @@ export function ChannelPage() {
             /* The roster lives in the right rail's details panel. */
             showMembers={false}
             huddleRequest={huddleRequest}
+            composerReadOnlyMessage={
+              /* Lock only on an explicit `false` — a channel cached before this
+                 shipped has `canPost === undefined` and should not flash the
+                 bar until the next refetch fills it in. */
+              channel.membership && channel.canPost === false
+                ? channel.mode === 'ANNOUNCEMENT'
+                  ? 'Only admins and designated members can post in this announcement channel.'
+                  : 'You don’t have permission to post in this channel.'
+                : undefined
+            }
             welcome={{
               createdAt: channel.createdAt,
               createdByName: creatorName,

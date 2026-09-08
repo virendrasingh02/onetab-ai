@@ -11,6 +11,7 @@ import {
   DialogTitle,
   Input,
   ScrollArea,
+  Switch,
   Textarea,
   toast,
   UserAvatar,
@@ -20,7 +21,9 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Bot,
   Check,
+  Hash,
   LayoutTemplate,
+  Megaphone,
   PenLine,
   Play,
   Plus,
@@ -554,6 +557,310 @@ export function EditChannelDetailsDialog({
             </Button>
             <Button type="submit" disabled={update.isPending}>
               Save details
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ------------------------------------------------- Posting & broadcast --- */
+
+export interface ChannelPostingDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  workspaceId: string | undefined;
+  channel: ChannelSummary;
+}
+
+const POSTING_TOGGLES: readonly {
+  key: 'allowReplies' | 'allowReactions' | 'allowFileUploads';
+  label: string;
+  description: string;
+}[] = [
+  {
+    key: 'allowReplies',
+    label: 'Replies',
+    description: 'Show a reply box on announcements for people who can post.',
+  },
+  {
+    key: 'allowReactions',
+    label: 'Reactions',
+    description: 'Let everyone react with emoji, even when they cannot post.',
+  },
+  {
+    key: 'allowFileUploads',
+    label: 'File uploads',
+    description: 'Allow attachments on announcements.',
+  },
+];
+
+/**
+ * Channel mode + granular posting permissions (brief §3).
+ *
+ * Standard — every member may post. Announcement — only channel admins,
+ * workspace admins and the people named here. The switch is enforced on the
+ * channel's Matrix room (`events_default`), so a standard member simply cannot
+ * send there; the toggles below shape reactions (also enforced) and the reply /
+ * upload affordances.
+ */
+export function ChannelPostingDialog({
+  open,
+  onOpenChange,
+  workspaceId,
+  channel,
+}: ChannelPostingDialogProps) {
+  const [mode, setMode] = useState<ChannelSummary['mode']>(channel.mode);
+  const [toggles, setToggles] = useState({
+    allowReplies: channel.allowReplies,
+    allowReactions: channel.allowReactions,
+    allowFileUploads: channel.allowFileUploads,
+  });
+  const [posterIds, setPosterIds] = useState<string[]>(
+    channel.announcementPosterIds ?? [],
+  );
+  const [search, setSearch] = useState('');
+  const update = useUpdateChannel(workspaceId);
+
+  useEffect(() => {
+    if (open) {
+      setMode(channel.mode);
+      setToggles({
+        allowReplies: channel.allowReplies,
+        allowReactions: channel.allowReactions,
+        allowFileUploads: channel.allowFileUploads,
+      });
+      setPosterIds(channel.announcementPosterIds ?? []);
+      setSearch('');
+    }
+  }, [
+    open,
+    channel.mode,
+    channel.allowReplies,
+    channel.allowReactions,
+    channel.allowFileUploads,
+    channel.announcementPosterIds,
+  ]);
+
+  const membersQuery = useQuery({
+    queryKey: queryKeys.members.list(workspaceId ?? ''),
+    queryFn: () => memberApi.list(workspaceId as string),
+    enabled: open && !!workspaceId && mode === 'ANNOUNCEMENT',
+  });
+
+  const posterSet = useMemo(() => new Set(posterIds), [posterIds]);
+  const memberRows = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return (membersQuery.data ?? []).filter((m) => {
+      if (m.role === 'OWNER' || m.role === 'ADMIN') return false; // already post
+      if (!needle) return true;
+      const name = m.user.displayName ?? m.user.name;
+      return name.toLowerCase().includes(needle);
+    });
+  }, [membersQuery.data, search]);
+
+  const togglePoster = (userId: string) =>
+    setPosterIds((prev) =>
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId],
+    );
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    update.mutate(
+      {
+        channelId: channel.id,
+        input: {
+          mode,
+          allowReplies: toggles.allowReplies,
+          allowReactions: toggles.allowReactions,
+          allowFileUploads: toggles.allowFileUploads,
+          announcementPosterIds:
+            mode === 'ANNOUNCEMENT' ? posterIds : [],
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success('Posting permissions updated');
+          onOpenChange(false);
+        },
+        onError: () => toast.error('Could not update posting permissions'),
+      },
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <form onSubmit={submit}>
+          <DialogHeader>
+            <div className="gap-2 flex items-center">
+              <div className="size-8 flex items-center justify-center rounded-lg border border-border bg-surface-raised text-primary">
+                <Megaphone className="size-4" />
+              </div>
+              <div>
+                <DialogTitle>Posting &amp; permissions</DialogTitle>
+                <DialogDescription>
+                  Control who can post in #{channel.name}.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 px-6 py-4">
+            {/* Mode */}
+            <div
+              role="radiogroup"
+              aria-label="Channel mode"
+              className="grid grid-cols-2 gap-2"
+            >
+              {(
+                [
+                  {
+                    value: 'STANDARD' as const,
+                    icon: Hash,
+                    title: 'Standard',
+                    blurb: 'Every member can post.',
+                  },
+                  {
+                    value: 'ANNOUNCEMENT' as const,
+                    icon: Megaphone,
+                    title: 'Announcement',
+                    blurb: 'Only admins & named people post.',
+                  },
+                ]
+              ).map((option) => {
+                const OptionIcon = option.icon;
+                const active = mode === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setMode(option.value)}
+                    className={cn(
+                      'flex flex-col gap-1 rounded-xl border p-3 text-left transition-colors',
+                      active
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary/40'
+                        : 'border-border hover:bg-accent/50',
+                    )}
+                  >
+                    <OptionIcon className="size-4 text-foreground" />
+                    <span className="text-xs font-semibold text-foreground">
+                      {option.title}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {option.blurb}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {mode === 'ANNOUNCEMENT' && (
+              <>
+                <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border">
+                  {POSTING_TOGGLES.map((row) => (
+                    <div
+                      key={row.key}
+                      className="gap-3 px-3 py-2.5 flex items-center justify-between"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-foreground">
+                          {row.label}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {row.description}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={toggles[row.key]}
+                        onCheckedChange={(checked) =>
+                          setToggles((prev) => ({ ...prev, [row.key]: checked }))
+                        }
+                        aria-label={row.label}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-foreground">
+                    People who can post
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Channel admins and workspace admins can always post.
+                  </p>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search members…"
+                      className="h-8 pl-8 text-xs"
+                    />
+                  </div>
+                  <ScrollArea className="max-h-40 rounded-lg border border-border">
+                    {membersQuery.isLoading ? (
+                      <p className="px-3 py-4 text-center text-[11px] text-muted-foreground">
+                        Loading members…
+                      </p>
+                    ) : memberRows.length === 0 ? (
+                      <p className="px-3 py-4 text-center text-[11px] text-muted-foreground">
+                        No matching members.
+                      </p>
+                    ) : (
+                      <ul className="p-1">
+                        {memberRows.map((m) => {
+                          const selected = posterSet.has(m.user.id);
+                          return (
+                            <li key={m.user.id}>
+                              <button
+                                type="button"
+                                onClick={() => togglePoster(m.user.id)}
+                                className={cn(
+                                  'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent',
+                                  selected && 'bg-primary/5',
+                                )}
+                              >
+                                <UserAvatar
+                                  name={m.user.displayName ?? m.user.name}
+                                  src={m.user.avatarUrl ?? undefined}
+                                  seed={m.user.id}
+                                  size="xs"
+                                  indicator={false}
+                                />
+                                <span className="flex-1 truncate">
+                                  {m.user.displayName ?? m.user.name}
+                                </span>
+                                {selected && (
+                                  <Check className="size-3.5 text-success-text" />
+                                )}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </ScrollArea>
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={update.isPending}>
+              Save
             </Button>
           </DialogFooter>
         </form>

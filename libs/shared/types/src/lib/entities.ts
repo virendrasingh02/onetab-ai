@@ -1,4 +1,5 @@
 import type {
+  ChannelMode,
   ChannelRole,
   ChannelVisibility,
   InvitationStatus,
@@ -296,6 +297,14 @@ export interface Channel {
   visibility: ChannelVisibility;
   isArchived: boolean;
   archivedAt: IsoDateString | null;
+  /** STANDARD — anyone may post. ANNOUNCEMENT — only authorized posters. */
+  mode: ChannelMode;
+  /** Announcement-mode toggles. Meaningful only when `mode === 'ANNOUNCEMENT'`. */
+  allowReactions: boolean;
+  allowReplies: boolean;
+  allowFileUploads: boolean;
+  /** Extra user ids allowed to post in an announcement channel. */
+  announcementPosterIds: string[];
   createdById: string;
   createdAt: IsoDateString;
   updatedAt: IsoDateString;
@@ -311,6 +320,12 @@ export interface ChannelSummary extends Channel {
     isMuted: boolean;
     lastReadAt: IsoDateString | null;
   } | null;
+  /**
+   * Whether the viewer may post here right now — derived server-side from
+   * `mode`, the viewer's channel + workspace roles and `announcementPosterIds`.
+   * A hint for the UI; the Matrix room's power levels are the real gate.
+   */
+  canPost: boolean;
 }
 
 export interface ChannelMember {

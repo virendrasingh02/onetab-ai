@@ -13,7 +13,7 @@ import type {
 import { useReadReceipts } from '@org/common';
 import { Button, EmptyState, toast, useRightPanelStore } from '@org/ui';
 import { MessageSquareOff } from 'lucide-react';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ChatSurface, type ChatSurfaceWelcome } from './chat-surface.js';
 import { useSavedIds, useToggleSaved } from './use-saved-messages.js';
@@ -78,6 +78,8 @@ export interface ChatPanelProps {
   onCreateTask?: (message: Message) => void;
   onCreateDoc?: (message: Message) => void;
   onAskAI?: (message: Message) => void;
+  /** Replaces the composer with a read-only notice — see `ChatSurface`. */
+  composerReadOnlyMessage?: ReactNode;
 }
 
 /**
@@ -100,6 +102,7 @@ export function ChatPanel({
   onCreateTask,
   onCreateDoc,
   onAskAI,
+  composerReadOnlyMessage,
 }: ChatPanelProps) {
   const { client, status, enabled, error } = useMatrix();
   const readReceiptsEnabled = useReadReceipts();
@@ -628,6 +631,7 @@ export function ChatPanel({
       onAction={handleAction}
       onRetryAgent={handleRetryAgent}
       onSendCard={handleSendCard}
+      composerReadOnlyMessage={composerReadOnlyMessage}
     />
   );
 }

@@ -19,6 +19,7 @@ import {
   ChannelRole,
   ChannelVisibility,
   WorkspaceRole,
+  canPostInChannel,
   hasWorkspaceRole,
   type Channel,
   type ChannelMember,
@@ -50,42 +51,36 @@ export class ChannelService {
     userId: string,
     options: { includeArchived?: boolean } = {},
   ): Promise<ChannelSummary[]> {
-    const channels = await this.prisma.channel.findMany({
-      where: {
-        workspaceId,
-        ...(options.includeArchived ? {} : { isArchived: false }),
-        OR: [
-          { visibility: ChannelVisibility.PUBLIC },
-          { members: { some: { userId } } },
-        ],
-      },
-      orderBy: [{ name: 'asc' }],
-      include: {
-        _count: { select: { members: true } },
-        members: {
-          where: { userId },
-          select: {
-            role: true,
-            isFavorite: true,
-            isMuted: true,
-            lastReadAt: true,
+    const [channels, workspaceRole] = await Promise.all([
+      this.prisma.channel.findMany({
+        where: {
+          workspaceId,
+          ...(options.includeArchived ? {} : { isArchived: false }),
+          OR: [
+            { visibility: ChannelVisibility.PUBLIC },
+            { members: { some: { userId } } },
+          ],
+        },
+        orderBy: [{ name: 'asc' }],
+        include: {
+          _count: { select: { members: true } },
+          members: {
+            where: { userId },
+            select: {
+              role: true,
+              isFavorite: true,
+              isMuted: true,
+              lastReadAt: true,
+            },
           },
         },
-      },
-    });
+      }),
+      this.callerWorkspaceRole(workspaceId, userId),
+    ]);
 
-    return channels.map((channel) => ({
-      ...toChannel(channel),
-      memberCount: channel._count.members,
-      membership: channel.members[0]
-        ? {
-            role: channel.members[0].role as ChannelRole,
-            isFavorite: channel.members[0].isFavorite,
-            isMuted: channel.members[0].isMuted,
-            lastReadAt: channel.members[0].lastReadAt?.toISOString() ?? null,
-          }
-        : null,
-    }));
+    return channels.map((channel) =>
+      this.toSummary(channel, userId, workspaceRole),
+    );
   }
 
   async findBySlug(
@@ -93,21 +88,24 @@ export class ChannelService {
     slug: string,
     userId: string,
   ): Promise<ChannelSummary> {
-    const channel = await this.prisma.channel.findUnique({
-      where: { workspaceId_slug: { workspaceId, slug } },
-      include: {
-        _count: { select: { members: true } },
-        members: {
-          where: { userId },
-          select: {
-            role: true,
-            isFavorite: true,
-            isMuted: true,
-            lastReadAt: true,
+    const [channel, workspaceRole] = await Promise.all([
+      this.prisma.channel.findUnique({
+        where: { workspaceId_slug: { workspaceId, slug } },
+        include: {
+          _count: { select: { members: true } },
+          members: {
+            where: { userId },
+            select: {
+              role: true,
+              isFavorite: true,
+              isMuted: true,
+              lastReadAt: true,
+            },
           },
         },
-      },
-    });
+      }),
+      this.callerWorkspaceRole(workspaceId, userId),
+    ]);
 
     if (!channel) throw new NotFoundException('Channel not found.');
 
@@ -119,17 +117,57 @@ export class ChannelService {
       throw new NotFoundException('Channel not found.');
     }
 
+    return this.toSummary(channel, userId, workspaceRole);
+  }
+
+  private async callerWorkspaceRole(
+    workspaceId: string,
+    userId: string,
+  ): Promise<WorkspaceRole | null> {
+    const row = await this.prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      select: { role: true },
+    });
+    return (row?.role as WorkspaceRole | undefined) ?? null;
+  }
+
+  /** Folds membership state and the derived `canPost` flag onto a channel row. */
+  private toSummary(
+    channel: Parameters<typeof toChannel>[0] & {
+      _count: { members: number };
+      members: {
+        role: string;
+        isFavorite: boolean;
+        isMuted: boolean;
+        lastReadAt: Date | null;
+      }[];
+    },
+    userId: string,
+    workspaceRole: WorkspaceRole | null,
+  ): ChannelSummary {
+    const base = toChannel(channel);
+    const membershipRow = channel.members[0];
+    const channelRole = (membershipRow?.role as ChannelRole | undefined) ?? null;
+
     return {
-      ...toChannel(channel),
+      ...base,
       memberCount: channel._count.members,
-      membership: channel.members[0]
+      membership: membershipRow
         ? {
-            role: channel.members[0].role as ChannelRole,
-            isFavorite: channel.members[0].isFavorite,
-            isMuted: channel.members[0].isMuted,
-            lastReadAt: channel.members[0].lastReadAt?.toISOString() ?? null,
+            role: membershipRow.role as ChannelRole,
+            isFavorite: membershipRow.isFavorite,
+            isMuted: membershipRow.isMuted,
+            lastReadAt: membershipRow.lastReadAt?.toISOString() ?? null,
           }
         : null,
+      canPost: canPostInChannel(
+        {
+          mode: base.mode,
+          createdById: base.createdById,
+          announcementPosterIds: base.announcementPosterIds,
+        },
+        { userId, channelRole, workspaceRole },
+      ),
     };
   }
 
@@ -201,6 +239,24 @@ export class ChannelService {
   ): Promise<Channel> {
     await this.assertCanManage(workspaceId, channelId, userId);
 
+    const postingChanged =
+      input.mode !== undefined ||
+      input.allowReactions !== undefined ||
+      input.allowReplies !== undefined ||
+      input.allowFileUploads !== undefined ||
+      input.announcementPosterIds !== undefined;
+
+    // Named posters must be members of this workspace, so a stale or foreign id
+    // can never be handed a posting power level in the room.
+    let posterIds: string[] | undefined;
+    if (input.announcementPosterIds !== undefined) {
+      const eligible = await this.prisma.workspaceMember.findMany({
+        where: { workspaceId, userId: { in: input.announcementPosterIds } },
+        select: { userId: true },
+      });
+      posterIds = eligible.map((row) => row.userId);
+    }
+
     const channel = await this.prisma.channel.update({
       where: { id: channelId },
       data: {
@@ -209,9 +265,43 @@ export class ChannelService {
         ...(input.description !== undefined
           ? { description: input.description }
           : {}),
+        ...(input.mode !== undefined ? { mode: input.mode } : {}),
+        ...(input.allowReactions !== undefined
+          ? { allowReactions: input.allowReactions }
+          : {}),
+        ...(input.allowReplies !== undefined
+          ? { allowReplies: input.allowReplies }
+          : {}),
+        ...(input.allowFileUploads !== undefined
+          ? { allowFileUploads: input.allowFileUploads }
+          : {}),
+        ...(posterIds !== undefined
+          ? { announcementPosterIds: posterIds }
+          : {}),
       },
     });
-    return toChannel(channel);
+
+    const result = toChannel(channel);
+
+    this.events.emit(AppEvent.ChannelUpdated, {
+      workspaceId,
+      actorId: userId,
+      channelId,
+      name: result.name,
+      slug: result.slug,
+      ...(postingChanged
+        ? {
+            posting: {
+              mode: result.mode,
+              allowReactions: result.allowReactions,
+              allowReplies: result.allowReplies,
+              allowFileUploads: result.allowFileUploads,
+            },
+          }
+        : {}),
+    });
+
+    return result;
   }
 
   async setArchived(

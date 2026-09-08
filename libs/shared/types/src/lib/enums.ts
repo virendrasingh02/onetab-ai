@@ -54,6 +54,14 @@ export const ChannelVisibility = {
 export type ChannelVisibility =
   (typeof ChannelVisibility)[keyof typeof ChannelVisibility];
 
+export const ChannelMode = {
+  /** Every member may post. */
+  STANDARD: 'STANDARD',
+  /** Only channel admins, workspace admins and named posters may post. */
+  ANNOUNCEMENT: 'ANNOUNCEMENT',
+} as const;
+export type ChannelMode = (typeof ChannelMode)[keyof typeof ChannelMode];
+
 export const InvitationStatus = {
   PENDING: 'PENDING',
   ACCEPTED: 'ACCEPTED',

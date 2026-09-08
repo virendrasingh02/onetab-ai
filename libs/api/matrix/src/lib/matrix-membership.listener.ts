@@ -3,6 +3,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import {
   AppEvent,
   type ChannelMembershipChangedEvent,
+  type ChannelUpdatedEvent,
   type WorkspaceMembershipChangedEvent,
 } from '@org/api-common';
 import { WorkspaceRole } from '@org/types';
@@ -49,6 +50,21 @@ export class MatrixMembershipListener {
     } catch (error) {
       this.logger.warn(
         `Channel membership mirror failed for ${event.userId}: ${String(error)}`,
+      );
+    }
+  }
+
+  @OnEvent(AppEvent.ChannelUpdated)
+  async onChannelUpdated(event: ChannelUpdatedEvent): Promise<void> {
+    // Only a posting-policy change needs a power-level reconcile.
+    if (!event.posting) return;
+    try {
+      await this.auth.applyChannelPostingPolicy(event.channelId);
+    } catch (error) {
+      this.logger.warn(
+        `Channel posting-policy mirror failed for ${event.channelId}: ${String(
+          error,
+        )}`,
       );
     }
   }

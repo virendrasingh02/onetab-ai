@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '@org/database';
 import { WorkspaceRole } from '@org/types';
 import { MatrixAdminService } from './matrix-admin.service.js';
+import { MatrixAuthService } from './matrix-auth.service.js';
 import {
   MatrixSpaceService,
   powerLevelForRole,
@@ -48,6 +49,7 @@ export class MatrixReconcilerService {
     private readonly prisma: PrismaService,
     private readonly admin: MatrixAdminService,
     private readonly space: MatrixSpaceService,
+    private readonly auth: MatrixAuthService,
   ) {}
 
   @Cron(CronExpression.EVERY_10_MINUTES, { name: 'matrix-membership-reconcile' })
@@ -64,6 +66,7 @@ export class MatrixReconcilerService {
         name: true,
         workspaceId: true,
         matrixRoomId: true,
+        mode: true,
         members: { select: { user: { select: { matrixUserId: true } } } },
       },
     });
@@ -121,6 +124,15 @@ export class MatrixReconcilerService {
             );
             kicked++;
           }
+        }
+
+        // Converge the announcement-mode posting policy onto the room's power
+        // levels — the backstop for a missed `channel.updated` event (§3).
+        // Only announcement channels need it: a STANDARD channel's
+        // `events_default` is 0 by default and nothing else raises it, so
+        // re-checking every room every tick would be pure Synapse traffic.
+        if (channel.mode === 'ANNOUNCEMENT') {
+          await this.auth.applyChannelPostingPolicy(channel.id);
         }
       } catch (err) {
         this.logger.warn(

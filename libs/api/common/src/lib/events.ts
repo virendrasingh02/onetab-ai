@@ -155,6 +155,22 @@ export interface ChannelCreatedEvent extends BaseEvent {
   visibility: string;
 }
 
+export interface ChannelUpdatedEvent extends BaseEvent {
+  channelId: string;
+  name?: string;
+  slug?: string;
+  /**
+   * Present when this update changed the channel's posting policy — the Matrix
+   * bridge reconciles the room's power levels off it (brief §3).
+   */
+  posting?: {
+    mode: 'STANDARD' | 'ANNOUNCEMENT';
+    allowReactions: boolean;
+    allowReplies: boolean;
+    allowFileUploads: boolean;
+  };
+}
+
 export interface ChannelMembershipChangedEvent extends BaseEvent {
   channelId: string;
   /** The user who joined or left. */
@@ -219,6 +235,7 @@ export interface AppEventPayloads {
   [AppEvent.DocumentUpdated]: DocumentUpdatedEvent;
   [AppEvent.DocumentDeleted]: DocumentDeletedEvent;
   [AppEvent.ChannelCreated]: ChannelCreatedEvent;
+  [AppEvent.ChannelUpdated]: ChannelUpdatedEvent;
   [AppEvent.ChannelMembershipChanged]: ChannelMembershipChangedEvent;
   [AppEvent.WorkspaceMembershipChanged]: WorkspaceMembershipChangedEvent;
   [AppEvent.FileShared]: FileSharedEvent;

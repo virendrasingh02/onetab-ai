@@ -105,6 +105,11 @@ interface ChannelRow {
   visibility: string;
   isArchived: boolean;
   archivedAt: Date | null;
+  mode: string;
+  allowReactions: boolean;
+  allowReplies: boolean;
+  allowFileUploads: boolean;
+  announcementPosterIds: string[];
   createdById: string;
   createdAt: Date;
   updatedAt: Date;
@@ -121,6 +126,11 @@ export function toChannel(channel: ChannelRow): Channel {
     visibility: channel.visibility as Channel['visibility'],
     isArchived: channel.isArchived,
     archivedAt: channel.archivedAt?.toISOString() ?? null,
+    mode: channel.mode as Channel['mode'],
+    allowReactions: channel.allowReactions,
+    allowReplies: channel.allowReplies,
+    allowFileUploads: channel.allowFileUploads,
+    announcementPosterIds: channel.announcementPosterIds ?? [],
     createdById: channel.createdById,
     createdAt: channel.createdAt.toISOString(),
     updatedAt: channel.updatedAt.toISOString(),

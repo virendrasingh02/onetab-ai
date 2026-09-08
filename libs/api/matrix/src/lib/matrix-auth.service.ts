@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '@org/database';
+import { announcementPosterUserIds } from '@org/types';
 import { MatrixAdminService } from './matrix-admin.service.js';
 
 /**
@@ -199,6 +200,10 @@ export class MatrixAuthService {
       where: { id: channelId },
       data: { matrixRoomId: roomId },
     });
+
+    // A room linked for an announcement-mode channel needs its power levels
+    // locked down immediately, not just on the next reconcile pass.
+    void this.applyChannelPostingPolicy(channelId).catch(() => undefined);
 
     this.logger.log(`Linked channel ${channel.name} to room ${roomId}`);
     return roomId;
@@ -407,6 +412,76 @@ export class MatrixAuthService {
     } catch (error) {
       this.logger.warn(
         `Failed to mirror channel power level for ${matrixUserId}: ${String(error)}`,
+      );
+    }
+  }
+
+  /**
+   * Reconciles a channel's announcement-mode posting policy into its Matrix
+   * room — the real server-side gate behind `ChannelSummary.canPost` (brief
+   * §3). In announcement mode the room's `events_default` becomes PL50 so only
+   * authorized posters can send anything; standard mode reopens it. Best-effort
+   * — `MatrixReconcilerService` re-runs it on a cron. No-op without a room.
+   */
+  async applyChannelPostingPolicy(channelId: string): Promise<void> {
+    if (!this.admin.isEnabled) return;
+
+    const channel = await this.prisma.channel.findUnique({
+      where: { id: channelId },
+      select: {
+        matrixRoomId: true,
+        workspaceId: true,
+        mode: true,
+        allowReactions: true,
+        createdById: true,
+        announcementPosterIds: true,
+        members: {
+          where: { role: 'ADMIN' },
+          select: { userId: true },
+        },
+      },
+    });
+    if (!channel?.matrixRoomId) return;
+
+    const enabled = channel.mode === 'ANNOUNCEMENT';
+
+    let authorizedMatrixUserIds: string[] = [];
+    if (enabled) {
+      const workspaceAdmins = await this.prisma.workspaceMember.findMany({
+        where: {
+          workspaceId: channel.workspaceId,
+          role: { in: ['OWNER', 'ADMIN'] },
+          status: 'ACTIVE',
+        },
+        select: { userId: true },
+      });
+
+      const posterUserIds = announcementPosterUserIds({
+        createdById: channel.createdById,
+        announcementPosterIds: channel.announcementPosterIds,
+        channelAdminIds: channel.members.map((m) => m.userId),
+        workspaceAdminIds: workspaceAdmins.map((m) => m.userId),
+      });
+
+      const resolved = await Promise.all(
+        posterUserIds.map((id) =>
+          this.ensureIdentity(id).catch(() => null),
+        ),
+      );
+      authorizedMatrixUserIds = resolved.filter(
+        (id): id is string => !!id,
+      );
+    }
+
+    try {
+      await this.admin.applyAnnouncementPolicy(channel.matrixRoomId, {
+        enabled,
+        allowReactions: channel.allowReactions,
+        authorizedMatrixUserIds,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to apply posting policy for channel ${channelId}: ${String(error)}`,
       );
     }
   }

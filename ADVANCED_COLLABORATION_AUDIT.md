@@ -71,7 +71,7 @@ the current codebase and proposes a phased build. No feature code has been writt
 | Order | Slice | Brief § | Size | New migration? | Notes |
 |---|---|---|---|---|---|
 | **A** | Smart sidebar sections + channel sort modes | §1.1, §1.2 | M | No (JSON blob widening only) | ✅ **DONE 2026-09-08** — see below. |
-| **B** | Announcement / broadcast channels | §3 | M | Yes (`Channel` cols) | Bounded. Server posting gate + Matrix power levels + header badge + a "Posting" settings tab. |
+| **B** | Announcement / broadcast channels | §3 | M | Yes (`Channel` cols) | ✅ **DONE 2026-09-08** — see below. |
 | **C** | Temporary channel membership | §8 | M | Yes (`ChannelMember` cols) | Bounded. Join dialog + cron sweep + extend/leave/convert + realtime. |
 | **D** | Scheduled status multi-queue | §9 | M | Yes (`ScheduledStatus`) | Bounded. Model + cron applier + conflict rule + profile UI. |
 | **E** | Canvas TOC | §10 | S | No | Client-only upgrade of the existing outline. |
@@ -101,6 +101,38 @@ with zero backend surface beyond widening one Zod schema.
 **Deliberately deferred within §1:** a pure "keyword relevance" *sort* (needs a
 search-query context the sidebar doesn't have — the keyword *rule* covers the
 use case), and a `Channel.projectId` link (project-match is by name today).
+
+### Slice B — Announcement / broadcast channels ✅ (2026-09-08, uncommitted)
+
+**Migration `20260908101946_channel_announcement_mode`** (hand-written — `migrate
+dev` wanted to fold in a large pre-existing compliance-subgraph drift and emitted
+an invalid `ALTER COLUMN "searchVector" DROP DEFAULT`; recovered via `migrate
+resolve --rolled-back` + `migrate deploy`). Adds `ChannelMode` enum +
+`Channel.{mode, allowReactions, allowReplies, allowFileUploads,
+announcementPosterIds}`, all with safe defaults so every existing channel stays a
+STANDARD channel with today's behaviour (§20).
+
+**The real enforcement is the Matrix room's power levels**, because human
+messages go browser→Synapse with no server hop. In announcement mode the room's
+`events_default` is raised to PL50 (only authorized posters can send *any*
+`m.room.message` — post, thread reply or upload), and `events["m.reaction"]` is
+pinned to 0 or 50 per `allowReactions`. Matrix cannot tell a thread reply or an
+upload apart from a root message, so `allowReplies` / `allowFileUploads` shape
+the **client** affordances only (the server already blocks non-posters either
+way) — documented, not a hole.
+
+| Layer | Change |
+|---|---|
+| `@org/types` | `ChannelMode` enum; `Channel` + `ChannelSummary` (`+ canPost`) extended; new pure `channel-policy.ts` — `canPostInChannel` / `isAuthorizedAnnouncementPoster` / `canReplyInChannel` / `announcementPosterUserIds` (shared by API + web, like `permissions.ts`) + `channel-policy.spec.ts` (18 cases). |
+| `@org/validation` | `updateChannelSchema` +`mode`/`allowReactions`/`allowReplies`/`allowFileUploads`/`announcementPosterIds`. |
+| `@org/api-common` | `toChannel` serializer + `ChannelRow` extended; `events.ts` — real `ChannelUpdatedEvent` (`posting` block) + payload-map entry (the enum member existed but was unused). |
+| `@org/api-channel` | `ChannelService.update()` accepts the new fields, validates `announcementPosterIds` are workspace members, emits `ChannelUpdated`; `list()`/`findBySlug()` derive `canPost` per caller via one extra workspace-role read + `toSummary()` helper. `assertCanManage` (channel admin ∨ workspace admin) unchanged. |
+| `@org/api-matrix` | `MatrixAdminService.applyAnnouncementPolicy(roomId, …)` (one GET + one PUT of `m.room.power_levels`, every other key preserved); `MatrixAuthService.applyChannelPostingPolicy(channelId)` (resolves authorized poster Matrix ids, best-effort); called from `linkChannelToRoom` (new rooms locked immediately), from a new `@OnEvent(AppEvent.ChannelUpdated)` in `MatrixMembershipListener`, and as the `MatrixReconcilerService` cron backstop (announcement channels only, to spare Synapse). |
+| Realtime | `ChannelUpdated` → existing `realtime-domain-bridge` `onChannelUpdated` → SSE `channel.updated` → client invalidates `['channels', ws]`, so the header badge + `canPost` + composer state refresh live. Zero new client wiring. |
+| UI | `channel-page.tsx` — `Megaphone` "Announcement" badge in the header, a "Posting Permissions" item in the ⋯ menu (gated on `canManageChannel` = channel admin ∨ `manage_settings`), and `composerReadOnlyMessage` passed to `ChannelChat`. New `ChannelPostingDialog` (`channel-setup-dialogs.tsx`) — Standard/Announcement mode picker, Replies/Reactions/Uploads switches, a member multi-select for extra posters. `Composer` gained `readOnlyMessage` (replaces the input with a lock notice); threaded through `ChannelChat` → `ChatPanel` → `ChatSurface`. |
+| Tests | `channel-policy.spec.ts` (STANDARD vs ANNOUNCEMENT, channel admin / creator / workspace admin / named poster / guest, `canReplyInChannel`, `announcementPosterUserIds` de-dupe). `nx affected -t typecheck lint test build` green (74 typecheck/lint, 35 test/build). |
+
+**Deferred within §3:** an `@org/api-channel` controller/e2e spec (no test target on that lib yet); an "announcement post → notification" `NotificationKind` (needs the inbound-message classifier — pairs better with Slice H).
 
 ---
 

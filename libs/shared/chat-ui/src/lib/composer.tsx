@@ -17,6 +17,7 @@ import {
   File as FileIcon,
   Film,
   LayoutGrid,
+  Lock,
   Plus,
   Send,
   Slash,
@@ -240,6 +241,13 @@ export interface ComposerProps {
   appMentions?: MentionCandidate[];
   placeholder?: string;
   disabled?: boolean;
+  /**
+   * When set, the input is replaced entirely by a read-only notice carrying
+   * this message — used for announcement channels where the viewer may not
+   * post (brief §3). The Matrix room's power levels are the real gate; this
+   * just keeps someone from typing a message that would bounce.
+   */
+  readOnlyMessage?: ReactNode;
   contextSlot?: ReactNode;
   enterToSend?: boolean;
   /** Off in the thread panel, where the reply box stays out of the way. */
@@ -274,6 +282,7 @@ export function Composer({
   appMentions,
   placeholder = 'Message channel…',
   disabled = false,
+  readOnlyMessage,
   contextSlot,
   showFormatting = true,
   slashCommands = DEFAULT_SLASH_COMMANDS,
@@ -427,6 +436,23 @@ export function Composer({
     void onSend(`![${gif.title || 'GIF'}](${gif.url})`);
     setPickerState({ open: false, tab: 'emoji' });
   };
+
+  if (readOnlyMessage) {
+    return (
+      <div
+        className={cn(
+          'bottom-0 p-3 sm:p-4 sticky z-20 shrink-0 bg-background',
+          className,
+        )}
+      >
+        {contextSlot}
+        <div className="gap-2.5 px-4 py-3 flex items-center rounded-xl border border-border bg-surface-muted text-xs text-muted-foreground">
+          <Lock className="size-4 shrink-0" aria-hidden />
+          <span>{readOnlyMessage}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

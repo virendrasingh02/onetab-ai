@@ -1,4 +1,5 @@
 import { ErrorState } from '@org/ui';
+import type { ReactNode } from 'react';
 import { ChatPanel } from './chat-panel.js';
 import type { ChatSurfaceWelcome } from './chat-surface.js';
 import { useMatrix } from './matrix-provider.js';
@@ -38,6 +39,11 @@ export interface ChannelChatProps {
    * lives.
    */
   huddleRequest?: number;
+  /**
+   * Replaces the composer with a read-only notice when the viewer may not post
+   * here — e.g. an announcement-only channel (brief §3).
+   */
+  composerReadOnlyMessage?: ReactNode;
 }
 
 /**
@@ -62,6 +68,7 @@ export function ChannelChat({
   showMembers,
   welcome,
   huddleRequest,
+  composerReadOnlyMessage,
 }: ChannelChatProps) {
   const { enabled } = useMatrix();
   const { roomId, error } = useChannelRoom(channelId);
@@ -74,6 +81,7 @@ export function ChannelChat({
         title={title}
         subtitle={subtitle}
         workspaceId={workspaceId}
+        composerReadOnlyMessage={composerReadOnlyMessage}
       />
     );
   }
@@ -108,6 +116,7 @@ export function ChannelChat({
       showMembers={showMembers}
       welcome={welcome}
       huddleRequest={huddleRequest}
+      composerReadOnlyMessage={composerReadOnlyMessage}
     />
   );
 }

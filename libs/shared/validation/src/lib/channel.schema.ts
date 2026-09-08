@@ -1,4 +1,4 @@
-import { ChannelRole, ChannelVisibility } from '@org/types';
+import { ChannelMode, ChannelRole, ChannelVisibility } from '@org/types';
 import { z } from 'zod';
 
 export const channelNameSchema = z
@@ -28,6 +28,13 @@ export const updateChannelSchema = z.object({
   name: channelNameSchema.optional(),
   topic: z.string().trim().max(120).nullable().optional(),
   description: z.string().trim().max(500).nullable().optional(),
+  /** Announcement / broadcast mode and its granular toggles (brief §3). */
+  mode: z.enum([ChannelMode.STANDARD, ChannelMode.ANNOUNCEMENT]).optional(),
+  allowReactions: z.boolean().optional(),
+  allowReplies: z.boolean().optional(),
+  allowFileUploads: z.boolean().optional(),
+  /** Extra user ids allowed to post while in announcement mode. */
+  announcementPosterIds: z.array(z.string()).max(200).optional(),
 });
 
 export const changeVisibilitySchema = z.object({
