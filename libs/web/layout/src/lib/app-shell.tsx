@@ -47,7 +47,6 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AddAccountDialog } from './add-account-dialog.js';
 import { AppHeader } from './app-header.js';
 import { ChannelNav } from './channel-nav.js';
-import { ManageAccountsDialog } from './manage-accounts-dialog.js';
 import { useSidebarSync } from './navigation/use-sidebar-sync.js';
 import {
   toSidebarActivityConfig,
@@ -102,12 +101,6 @@ export function AppShell() {
   const dismissRightPanel = useRightPanelStore((s) => s.dismiss);
   const resetRightPanel = useRightPanelStore((s) => s.reset);
 
-  const isManageAccountsOpen = useWorkspaceStore(
-    (s: WorkspaceState) => s.isManageAccountsOpen,
-  );
-  const setManageAccountsOpen = useWorkspaceStore(
-    (s: WorkspaceState) => s.setManageAccountsOpen,
-  );
   const isAddAccountOpen = useWorkspaceStore(
     (s: WorkspaceState) => s.isAddAccountOpen,
   );
@@ -527,15 +520,6 @@ export function AppShell() {
         <CreateChannelDialog
           open={createChannelOpen}
           onOpenChange={setCreateChannelOpen}
-        />
-
-        <ManageAccountsDialog
-          open={isManageAccountsOpen}
-          onOpenChange={setManageAccountsOpen}
-          workspaces={workspaces}
-          currentWorkspace={workspace}
-          userEmail={user.email}
-          onAddAccount={() => setAddAccountOpen(true)}
         />
 
         <AddAccountDialog

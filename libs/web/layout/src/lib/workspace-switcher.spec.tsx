@@ -149,17 +149,15 @@ describe('WorkspaceMenu / Switcher', () => {
     ).toBeInTheDocument();
   });
 
-  it('supports action triggers for Add Another Account and Manage Accounts', async () => {
+  it('supports the Add Another Account action and no longer offers Manage accounts', async () => {
     const user = userEvent.setup();
     const onAddAccount = vi.fn();
-    const onManageAccounts = vi.fn();
 
     renderInProviders(
       <WorkspaceMenu
         workspaces={mockWorkspaces}
         current={mockWorkspaces[0]}
         onAddAccount={onAddAccount}
-        onManageAccounts={onManageAccounts}
       />,
     );
 
@@ -168,6 +166,9 @@ describe('WorkspaceMenu / Switcher', () => {
     const addAccountItem = screen.getByText('Add account');
     await user.click(addAccountItem);
     expect(onAddAccount).toHaveBeenCalledOnce();
+
+    // The account-management surface was removed from the switcher entirely.
+    expect(screen.queryByText('Manage accounts')).toBeNull();
   });
 
   it('has no "Join with invitation" affordance, and "Add workspace" points at the create flow', async () => {

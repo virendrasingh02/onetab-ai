@@ -111,9 +111,12 @@ export function CreateWorkspacePage() {
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Pre-fill a sensible default so the wizard (and its live preview) start from a
+  // real name rather than a placeholder. The field stays fully editable — the
+  // slug tracks it until the user touches either one.
   const form = useForm<CreateWorkspaceInput>({
     resolver: zodResolver(createWorkspaceSchema),
-    defaultValues: { name: '', slug: '' },
+    defaultValues: { name: 'My Workspace', slug: '' },
     mode: 'onChange',
   });
 
@@ -480,6 +483,7 @@ export function CreateWorkspacePage() {
                                   placeholder="e.g. Acme Corp, Design System Team"
                                   className="border-border bg-background text-foreground focus:border-primary"
                                   autoFocus
+                                  onFocus={(event) => event.target.select()}
                                 />
                               </FormControl>
                               <FormMessage />

@@ -31,7 +31,6 @@ import {
   Plus,
   Settings,
   UserPlus,
-  Users,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -73,7 +72,6 @@ export interface WorkspaceMenuProps {
   /** Unread state per workspace id. Absent ids simply show no dot. */
   workspaceActivity?: Record<string, ActivityIndicator>;
   onToggleSidebar?: () => void;
-  onManageAccounts?: () => void;
   onAddAccount?: () => void;
   className?: string;
 }
@@ -104,16 +102,12 @@ export function WorkspaceMenu({
   userEmail,
   workspaceActivity,
   onToggleSidebar,
-  onManageAccounts,
   onAddAccount,
   className,
 }: WorkspaceMenuProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const setManageAccountsOpen = useWorkspaceStore(
-    (s: WorkspaceState) => s.setManageAccountsOpen,
-  );
   const setAddAccountOpen = useWorkspaceStore(
     (s: WorkspaceState) => s.setAddAccountOpen,
   );
@@ -233,15 +227,6 @@ export function WorkspaceMenu({
   }, [workspaces, accounts, activeAccountId, currentUser]);
 
   const anyResults = groups.some((group) => group.workspaces.length > 0);
-
-  const handleOpenManageAccounts = () => {
-    setMenuOpen(false);
-    if (onManageAccounts) {
-      onManageAccounts();
-    } else {
-      setManageAccountsOpen(true);
-    }
-  };
 
   const handleOpenAddAccount = () => {
     setMenuOpen(false);
@@ -529,17 +514,6 @@ export function WorkspaceMenu({
               <UserPlus className="size-3" />
             </span>
             <span className="font-medium text-foreground">Add account</span>
-          </DropdownMenuItem>
-
-          {/* Action: Manage accounts */}
-          <DropdownMenuItem
-            onClick={handleOpenManageAccounts}
-            className="gap-2.5 px-2 py-1.5 text-xs flex cursor-pointer items-center rounded-lg hover:bg-accent/60"
-          >
-            <span className="size-5 flex shrink-0 items-center justify-center rounded-md border border-border text-subtle">
-              <Users className="size-3" />
-            </span>
-            <span className="font-medium text-foreground">Manage accounts</span>
           </DropdownMenuItem>
 
           <DropdownMenuSeparator className="my-1 border-border/60" />

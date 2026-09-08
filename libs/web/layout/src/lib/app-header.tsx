@@ -19,7 +19,6 @@ import { cn } from '@org/utils';
 import {
   DesktopTitleBarInset,
   DesktopUpdateIndicator,
-  WebVersionIndicator,
   DesktopWindowControls,
   DRAG,
   isDesktop,
@@ -298,10 +297,9 @@ export function AppHeader({
             </Button>
           </Hint>
 
-          {/* Update nudge — desktop update or web live deployment */}
+          {/* Update nudge — desktop app update only */}
           <div style={NO_DRAG} className="flex items-center gap-1.5">
             <DesktopUpdateIndicator />
-            <WebVersionIndicator />
           </div>
 
           {/* Caller-supplied actions anchor here, right against the profile menu */}

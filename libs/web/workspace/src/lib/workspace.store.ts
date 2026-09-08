@@ -7,7 +7,6 @@ export interface WorkspaceState {
   activeWorkspace: WorkspaceSummary | null;
   activeMembershipEmail: string | null;
   isSwitching: boolean;
-  isManageAccountsOpen: boolean;
   isAddAccountOpen: boolean;
   isInviteMembersOpen: boolean;
   inviteTargetWorkspace: WorkspaceSummary | null;
@@ -15,7 +14,6 @@ export interface WorkspaceState {
   setActiveWorkspace: (workspace: WorkspaceSummary | null | undefined) => void;
   setActiveWorkspaceId: (id: string | null) => void;
   setIsSwitching: (isSwitching: boolean) => void;
-  setManageAccountsOpen: (open: boolean) => void;
   setAddAccountOpen: (open: boolean) => void;
   setInviteMembersOpen: (
     open: boolean,
@@ -106,7 +104,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   activeWorkspace: null,
   activeMembershipEmail: null,
   isSwitching: false,
-  isManageAccountsOpen: false,
   isAddAccountOpen: false,
   isInviteMembersOpen: false,
   inviteTargetWorkspace: null,
@@ -137,7 +134,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   },
 
   setIsSwitching: (isSwitching) => set({ isSwitching }),
-  setManageAccountsOpen: (isManageAccountsOpen) => set({ isManageAccountsOpen }),
   setAddAccountOpen: (isAddAccountOpen) => set({ isAddAccountOpen }),
   setInviteMembersOpen: (isInviteMembersOpen, workspace = null) =>
     set({
