@@ -82,6 +82,21 @@ export type {
   WebAuthnCredentialDto,
 } from './lib/entities.js';
 
+export {
+  DESIGN_SYSTEM_DEFAULT_APPEARANCE,
+  resolveWorkspaceAppearance,
+} from './lib/appearance.js';
+export type {
+  ResolvedAppearance,
+  ThemeAccent,
+  ThemeAppearance,
+  ThemeDensity,
+  ThemeMode,
+  ThemeRadius,
+  WorkspaceAppearanceLayers,
+  WorkspaceAppearanceResponse,
+} from './lib/appearance.js';
+
 export { ApiErrorCode } from './lib/api.js';
 export type {
   ApiErrorBody,

@@ -63,6 +63,7 @@ model User {
   notifications           Notification[]
   sidebarPreference       SidebarPreference?
   themeSetting            ThemeSetting?
+  workspaceThemePreferences WorkspaceThemePreference[]
   organizedMeetings       Meeting[]                @relation("MeetingOrganizer")
   meetingParticipations   MeetingParticipant[]
   meetingNotes            MeetingNote[]
@@ -172,6 +173,8 @@ model Workspace {
   workDocuments            WorkDocument[]
   members                  WorkspaceMember[]
   notifications            Notification[]
+  settings                 WorkspaceSettings?
+  themePreferences         WorkspaceThemePreference[]
   subscription             WorkspaceSubscription?
   enterpriseInquiries      EnterpriseSalesInquiry[]
   meetings                 Meeting[]
@@ -202,6 +205,46 @@ model WorkspaceMember {
   @@index([workspaceId, role])
   @@index([workspaceId, status])
   @@map("workspace_members")
+}
+
+/// Workspace-level configuration, one row per workspace. `theme` is the
+/// workspace's appearance/branding default — `{ theme, density, accent, radius,
+/// customTheme }`, validated on write against `themeSettingSchema`. It is the
+/// source of truth for how the workspace looks, and is isolated per workspace:
+/// changing it in one workspace never affects another. An empty `{}` means the
+/// workspace has no explicit default and members fall back to their own
+/// preference / the design-system default. Editable only with
+/// `MANAGE_SETTINGS`.
+model WorkspaceSettings {
+  id          String    @id @default(cuid())
+  workspaceId String    @unique
+  theme       Json      @default("{}")
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("workspace_settings")
+}
+
+/// A member's personal appearance override *for one workspace* —
+/// `{ theme, density, accent, radius, customTheme }`, merged over the
+/// workspace default. One row per (workspace, user). An empty `{}` means the
+/// member follows the workspace default. Any member may write their own row;
+/// it is scoped to the workspace, so a member's choice in one workspace never
+/// leaks into another. Server-persisted so it follows the user to another
+/// device; the client also keeps a workspace-namespaced localStorage copy for
+/// first paint.
+model WorkspaceThemePreference {
+  id          String    @id @default(cuid())
+  workspaceId String
+  userId      String
+  data        Json      @default("{}")
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+  @@map("workspace_theme_preferences")
 }
 
 model Channel {

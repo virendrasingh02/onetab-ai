@@ -32,6 +32,7 @@ export { SettingsLayout } from './lib/settings-layout.js';
 
 export {
   useWorkspaceStore,
+  ACTIVE_WORKSPACE_EVENT,
   getPersistedActiveWorkspaceId,
   persistActiveWorkspaceId,
   getPersistedActiveWorkspaceSlug,

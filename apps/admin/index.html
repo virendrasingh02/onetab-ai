@@ -38,7 +38,25 @@
     <script>
       (function () {
         try {
-          var k = localStorage.getItem('onetab.theme');
+          var ws = null;
+          try {
+            ws = localStorage.getItem('onetab_active_workspace_id');
+          } catch (e) {}
+          function g(base) {
+            var v = null;
+            if (ws) {
+              try {
+                v = localStorage.getItem(base + '::' + ws);
+              } catch (e) {}
+            }
+            if (v == null) {
+              try {
+                v = localStorage.getItem(base);
+              } catch (e) {}
+            }
+            return v;
+          }
+          var k = g('onetab.theme');
           var d =
             k === 'dark' ||
             (k === 'system' &&

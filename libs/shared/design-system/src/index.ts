@@ -7,6 +7,7 @@ export {
   ACCENT_STORAGE_KEY,
   RADIUS_STORAGE_KEY,
   CUSTOM_THEME_STORAGE_KEY,
+  ACTIVE_WORKSPACE_STORAGE_KEY,
   type Theme,
   type ResolvedTheme,
   type ThemeProviderProps,

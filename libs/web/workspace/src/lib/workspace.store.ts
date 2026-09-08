@@ -26,6 +26,14 @@ export interface WorkspaceState {
 const LAST_ACTIVE_WORKSPACE_KEY = 'onetab_active_workspace_id';
 const LAST_ACTIVE_SLUG_KEY = 'onetab_active_workspace_slug';
 
+/**
+ * Fired on the window whenever the active workspace id changes in this tab.
+ * The `storage` event only reaches *other* tabs, so consumers outside this
+ * store — the app-level theme scope, which cannot import this lazy-loaded
+ * library — listen for this instead. `detail` is the new id (or null).
+ */
+export const ACTIVE_WORKSPACE_EVENT = 'onetab:active-workspace';
+
 export function getPersistedActiveWorkspaceId(): string | null {
   try {
     return localStorage.getItem(LAST_ACTIVE_WORKSPACE_KEY);
@@ -43,6 +51,13 @@ export function persistActiveWorkspaceId(id: string | null): void {
     }
   } catch {
     // Ignore storage quota or permission errors
+  }
+  try {
+    window.dispatchEvent(
+      new CustomEvent(ACTIVE_WORKSPACE_EVENT, { detail: id ?? null }),
+    );
+  } catch {
+    // No window (SSR/tests without DOM) — nothing to notify.
   }
 }
 

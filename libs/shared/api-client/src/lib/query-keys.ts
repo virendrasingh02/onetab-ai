@@ -17,6 +17,13 @@ export const queryKeys = {
     all: () => ['workspaces'] as const,
     list: () => ['workspaces', 'list'] as const,
     detail: (slug: string) => ['workspaces', 'detail', slug] as const,
+    /**
+     * Workspace-scoped appearance (theme / accent / branding). Keyed by
+     * workspace **id**, not slug, so switching workspace drops the previous
+     * one's blob instead of blending it in.
+     */
+    appearance: (workspaceId: string) =>
+      ['workspaces', workspaceId, 'appearance'] as const,
   },
   billing: {
     all: (workspaceId: string) => ['billing', workspaceId] as const,

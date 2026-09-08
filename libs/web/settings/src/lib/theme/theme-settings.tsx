@@ -46,6 +46,13 @@ export function ThemeSettings() {
         <p className="text-xs text-muted-foreground mt-1">
           Select or customize your interface color scheme, presets, and control density.
         </p>
+        <p className="text-[11px] text-muted-foreground mt-1">
+          This is <span className="font-semibold">your</span> appearance for the{' '}
+          <span className="font-semibold">current workspace</span> — it does not
+          change other members&apos; view or your other workspaces. A workspace
+          admin sets the shared default under Workspace Settings ▸ Appearance &amp;
+          Branding.
+        </p>
       </div>
 
       {/* ---------------- SECTION 1: COLOR MODE SELECTOR ---------------- */}

@@ -94,6 +94,11 @@ export function SettingsLayout({
         title: 'Workspace Settings',
         items: [
           { id: 'general', label: 'General Settings', icon: Building2 },
+          {
+            id: 'workspace-appearance',
+            label: 'Appearance & Branding',
+            icon: Palette,
+          },
           { id: 'members', label: 'Members & Directory', icon: Users },
           { id: 'invitations', label: 'Workspace Invitations', icon: UserPlus },
           { id: 'analytics', label: 'Company Analytics & Usage', icon: BarChart3 },

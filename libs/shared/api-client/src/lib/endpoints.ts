@@ -149,6 +149,8 @@ import type {
   WorkflowExecutionEntry,
   WorkspaceMember,
   WorkspaceSummary,
+  ThemeAppearance,
+  WorkspaceAppearanceResponse,
   UserSessionDto,
   SecurityOverviewDto,
   TotpSetupResponse,
@@ -466,6 +468,35 @@ export const workspaceApi = {
   transferOwnership: (workspaceId: string, userId: string) =>
     request<void>(
       http.post(`/workspaces/${workspaceId}/transfer-ownership`, { userId }),
+    ),
+
+  /**
+   * Workspace-scoped appearance — every layer (workspace default, the caller's
+   * personal override, their legacy user-global preference) plus the resolved
+   * blob to paint. The theme system reads this per active workspace, which is
+   * what keeps one workspace's look from leaking into another.
+   */
+  appearance: (workspaceId: string) =>
+    request<WorkspaceAppearanceResponse>(
+      http.get(`/workspaces/${workspaceId}/settings/appearance`),
+    ),
+
+  /** Sets the workspace default / branding. Requires `MANAGE_SETTINGS`. */
+  saveWorkspaceAppearance: (workspaceId: string, input: ThemeAppearance) =>
+    request<ThemeAppearance>(
+      http.put(`/workspaces/${workspaceId}/settings/appearance/default`, input),
+    ),
+
+  /** Sets the caller's personal appearance override for this workspace. */
+  saveMyWorkspaceAppearance: (workspaceId: string, input: ThemeAppearance) =>
+    request<ThemeAppearance>(
+      http.put(`/workspaces/${workspaceId}/settings/appearance/me`, input),
+    ),
+
+  /** Clears the caller's override so they follow the workspace default again. */
+  resetMyWorkspaceAppearance: (workspaceId: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/settings/appearance/me`),
     ),
 };
 

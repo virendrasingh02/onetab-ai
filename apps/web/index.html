@@ -34,6 +34,12 @@
       Applies the stored theme before first paint. React mounts too late to
       prevent a flash when reloading into the dark theme.
 
+      Appearance is stored per workspace: the keys are suffixed with the id of
+      the workspace the user last had open (`onetab_active_workspace_id`), so a
+      reload lands on that workspace's theme and one workspace's look never
+      bleeds into another. The unscoped keys are the fallback (no workspace open
+      yet, or a workspace never themed on this device).
+
       Light is the default, so the OS preference is only consulted when the user
       has explicitly chosen `system`. An unset key means "never chose" — reading
       it as `system` put dark-desktop users into dark for one frame, then
@@ -46,25 +52,34 @@
       (function () {
         try {
           var el = document.documentElement;
-          var k = localStorage.getItem('onetab.theme');
+          var ws = null;
+          try {
+            ws = localStorage.getItem('onetab_active_workspace_id');
+          } catch (e) {}
+          function g(base) {
+            var v = null;
+            if (ws) {
+              try {
+                v = localStorage.getItem(base + '::' + ws);
+              } catch (e) {}
+            }
+            if (v == null) {
+              try {
+                v = localStorage.getItem(base);
+              } catch (e) {}
+            }
+            return v;
+          }
+          var k = g('onetab.theme');
           var d =
             k === 'dark' ||
             (k === 'system' &&
               matchMedia('(prefers-color-scheme: dark)').matches);
           el.classList.toggle('dark', d);
           el.style.colorScheme = d ? 'dark' : 'light';
-          el.setAttribute(
-            'data-density',
-            localStorage.getItem('onetab.density') || 'default',
-          );
-          el.setAttribute(
-            'data-accent',
-            localStorage.getItem('onetab.accent') || 'mint',
-          );
-          el.setAttribute(
-            'data-radius',
-            localStorage.getItem('onetab.radius') || 'md',
-          );
+          el.setAttribute('data-density', g('onetab.density') || 'default');
+          el.setAttribute('data-accent', g('onetab.accent') || 'mint');
+          el.setAttribute('data-radius', g('onetab.radius') || 'md');
         } catch (e) {}
       })();
     </script>

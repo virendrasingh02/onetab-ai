@@ -136,6 +136,7 @@ import {
 } from '../use-workspaces.js';
 import { SettingsLayout } from '../settings-layout.js';
 import { WorkspaceMembersSettings } from '../components/workspace-members-settings.js';
+import { WorkspaceAppearanceSettings } from '../components/workspace-appearance-settings.js';
 import { WorkspaceBillingSettings } from '../components/workspace-billing-settings.js';
 import { WorkspaceCompanyAnalytics } from '../components/workspace-company-analytics.js';
 import { UpgradePlanBanner } from '../components/upgrade-plan-banner.js';
@@ -3055,6 +3056,8 @@ export function WorkspaceSettingsPage({
         />
       )}
 
+      {currentTab === 'workspace-appearance' && <WorkspaceAppearanceSettings />}
+
       {currentTab === 'general' && (
         <div className="space-y-8">
           <UpgradePlanBanner
@@ -3272,75 +3275,25 @@ export function WorkspaceSettingsPage({
                     )}
                   />
 
-                  {/* Accent Color / Branding */}
-                  <FormField
-                    control={workspaceForm.control}
-                    name="accentColor"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs font-medium">
-                          Workspace Accent Color
-                        </FormLabel>
-                        <FormControl>
-                          <div className="gap-2.5 pt-1 flex flex-wrap items-center">
-                            {[
-                              {
-                                id: 'indigo',
-                                label: 'Indigo',
-                                bg: 'bg-indigo-600',
-                              },
-                              { id: 'blue', label: 'Blue', bg: 'bg-blue-600' },
-                              {
-                                id: 'emerald',
-                                label: 'Emerald',
-                                bg: 'bg-emerald-600',
-                              },
-                              {
-                                id: 'amber',
-                                label: 'Amber',
-                                bg: 'bg-amber-600',
-                              },
-                              { id: 'rose', label: 'Rose', bg: 'bg-rose-600' },
-                              {
-                                id: 'purple',
-                                label: 'Purple',
-                                bg: 'bg-purple-600',
-                              },
-                              { id: 'cyan', label: 'Cyan', bg: 'bg-cyan-600' },
-                            ].map((col) => {
-                              const isSelected =
-                                (field.value || 'indigo') === col.id;
-                              return (
-                                <button
-                                  key={col.id}
-                                  type="button"
-                                  disabled={!isAdmin}
-                                  onClick={() => field.onChange(col.id)}
-                                  className={cn(
-                                    'h-7 w-7 flex items-center justify-center rounded-full transition-all',
-                                    col.bg,
-                                    isSelected
-                                      ? 'scale-110 ring-2 ring-foreground/60 ring-offset-2'
-                                      : 'opacity-80 hover:scale-105 hover:opacity-100',
-                                  )}
-                                  aria-label={col.label}
-                                  title={col.label}
-                                >
-                                  {isSelected && (
-                                    <Check className="h-3.5 w-3.5 text-white" />
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </FormControl>
-                        <FormDescription className="text-[11px]">
-                          Primary brand tone used in sidebar accents, buttons,
-                          and highlights.
-                        </FormDescription>
-                      </FormItem>
-                    )}
-                  />
+                  {/* Accent Color / Branding — moved to its own panel so the
+                      workspace theme is one editor, not two that can disagree. */}
+                  <FormItem>
+                    <FormLabel className="text-xs font-medium">
+                      Theme, accent &amp; branding
+                    </FormLabel>
+                    <FormDescription className="text-[11px]">
+                      The workspace&apos;s default color mode, accent and brand
+                      theme now live in{' '}
+                      <button
+                        type="button"
+                        onClick={() => handleTabChange('workspace-appearance')}
+                        className="font-semibold text-primary underline-offset-2 hover:underline"
+                      >
+                        Appearance &amp; Branding
+                      </button>
+                      . They apply only to this workspace.
+                    </FormDescription>
+                  </FormItem>
 
                   <FormField
                     control={workspaceForm.control}

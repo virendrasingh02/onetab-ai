@@ -25,7 +25,8 @@ import { useI18nStore } from '@org/i18n';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Provider } from 'react-redux';
 import { RealtimeStatusPill } from './realtime-status-pill';
-import { useThemeSync } from './use-theme-sync';
+import { useActiveWorkspaceId } from './use-active-workspace-id';
+import { useWorkspaceAppearanceSync } from './workspace-appearance-sync';
 
 function AppToaster() {
   const { notifications } = useNotificationDisplayPreferences();
@@ -39,13 +40,29 @@ function AppToaster() {
 }
 
 /**
- * Mirrors the signed-in user's theme choices to `/users/me/theme`. Rendered
- * inside `<ThemeProvider>` so it can read and apply appearance state.
+ * Applies the active workspace's stored appearance and mirrors the user's
+ * changes back to *that workspace* (`/workspaces/:id/settings/appearance/me`).
+ * Rendered inside `<ThemeProvider>` so it can read and apply appearance state.
  */
 function ThemeSync() {
   const user = useCurrentUser();
-  useThemeSync(!!user);
+  useWorkspaceAppearanceSync(!!user);
   return null;
+}
+
+/**
+ * Scopes the `ThemeProvider` to the active workspace, so appearance is stored
+ * per workspace (namespaced localStorage keys) and switching workspace swaps
+ * the whole look. The id is seeded from localStorage by `useWorkspaceStore`,
+ * so it is available on the very first render.
+ */
+function WorkspaceThemeScope({ children }: { children: ReactNode }) {
+  const activeWorkspaceId = useActiveWorkspaceId();
+  return (
+    <ThemeProvider defaultTheme="light" scopeKey={activeWorkspaceId}>
+      {children}
+    </ThemeProvider>
+  );
 }
 
 /**
@@ -67,8 +84,11 @@ function LanguageSync() {
 
 function RealtimeAppBridge({ children }: { children: ReactNode }) {
   const user = useCurrentUser();
+  // Scope the socket and its cache invalidations to the active workspace, so a
+  // realtime event from another workspace never lands on this one's queries.
+  const activeWorkspaceId = useActiveWorkspaceId();
   return (
-    <RealtimeProvider userId={user?.id}>
+    <RealtimeProvider userId={user?.id} workspaceId={activeWorkspaceId}>
       <AvatarPresenceBridge>{children}</AvatarPresenceBridge>
       <RealtimeStatusPill />
     </RealtimeProvider>
@@ -180,7 +200,7 @@ export function Providers({ children }: { children: ReactNode }) {
     <ErrorBoundary>
       <Provider store={store}>
         <QueryClientProvider client={queryClient}>
-          <ThemeProvider defaultTheme="light">
+          <WorkspaceThemeScope>
             <ThemeSync />
             <LanguageSync />
             {/*
@@ -202,7 +222,7 @@ export function Providers({ children }: { children: ReactNode }) {
                 </RealtimeAppBridge>
               </MatrixProvider>
             </DesktopProvider>
-          </ThemeProvider>
+          </WorkspaceThemeScope>
         </QueryClientProvider>
       </Provider>
     </ErrorBoundary>
