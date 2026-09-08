@@ -340,6 +340,26 @@ export interface ChannelPin {
   pinnedAt: IsoDateString;
 }
 
+/** An AI agent added to a channel (drives who may answer in its Matrix room). */
+export interface ChannelAgentView {
+  id: string;
+  channelId: string;
+  agentId: string;
+  isEnabled: boolean;
+  addedById: string | null;
+  createdAt: IsoDateString;
+  agent: {
+    id: string;
+    name: string;
+    role: string;
+    description: string | null;
+    avatarUrl: string | null;
+    model: string;
+    provider: string;
+    isActive: boolean;
+  };
+}
+
 export interface Invitation {
   id: string;
   workspaceId: string;

@@ -1,9 +1,9 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
-import { existsSync } from 'node:fs';
-import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
-import { dirname, extname, join, relative, resolve, sep } from 'node:path';
+import { extname, join, resolve } from 'node:path';
+import { S3StorageDriver } from './s3-driver.js';
+import { LocalStorageDriver, type StorageDriver } from './storage-driver.js';
 
 export interface StoredObject {
   /** Opaque key recorded on the `Upload` row. Never caller-supplied. */
@@ -14,44 +14,52 @@ export interface StoredObject {
 }
 
 /**
- * Object storage on the local filesystem.
+ * Object storage.
  *
- * MinIO is the intended backend in a deployed environment, but nothing in the
- * app should care which one is in use — so the contract here is put/get/delete
- * over an opaque key, and swapping in an S3 client later is a change to this
- * file alone.
+ * Key generation, path/traversal rules and signed URLs live here and are
+ * transport-agnostic; the bytes go through a {@link StorageDriver} chosen by
+ * `STORAGE_DRIVER` — `local` (default, filesystem) or `s3` (any S3-compatible
+ * store: AWS S3, MinIO, R2, B2, Spaces, Wasabi).
  *
  * Keys are generated here rather than taken from callers: a filename that
- * arrived over HTTP must never decide where bytes land on disk.
+ * arrived over HTTP must never decide where bytes land.
  */
 @Injectable()
 export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
-  private readonly root: string;
+  private readonly driver: StorageDriver;
 
   constructor(private readonly config: ConfigService) {
-    this.root = resolve(
-      this.config.get<string>('STORAGE_ROOT') ?? '.storage',
+    this.driver = this.buildDriver();
+  }
+
+  private buildDriver(): StorageDriver {
+    if (this.config.get<string>('STORAGE_DRIVER') === 's3') {
+      const require = (name: string): string => {
+        const value = this.config.get<string>(name);
+        if (!value) {
+          throw new Error(`STORAGE_DRIVER=s3 requires ${name} to be set.`);
+        }
+        return value;
+      };
+      return new S3StorageDriver({
+        endpoint: require('S3_ENDPOINT'),
+        region: this.config.get<string>('S3_REGION') ?? 'us-east-1',
+        bucket: require('S3_BUCKET'),
+        accessKeyId: require('S3_ACCESS_KEY_ID'),
+        secretAccessKey: require('S3_SECRET_ACCESS_KEY'),
+        forcePathStyle:
+          this.config.get<string>('S3_FORCE_PATH_STYLE') !== 'false',
+      });
+    }
+    return new LocalStorageDriver(
+      resolve(this.config.get<string>('STORAGE_ROOT') ?? '.storage'),
     );
   }
 
   async onModuleInit(): Promise<void> {
-    await mkdir(this.root, { recursive: true });
-    this.logger.log(`StorageService initialized (root: ${this.root})`);
-  }
-
-  /**
-   * Resolves a key to an absolute path, refusing anything that escapes the root.
-   *
-   * Keys are server-generated, so traversal should be impossible — this is the
-   * backstop that keeps it impossible if that ever stops being true.
-   */
-  private pathFor(key: string): string {
-    const full = resolve(this.root, key);
-    if (full !== this.root && !full.startsWith(this.root + sep)) {
-      throw new Error('Resolved storage path escapes the storage root.');
-    }
-    return full;
+    await this.driver.init();
+    this.logger.log(`StorageService ready (driver: ${this.driver.name})`);
   }
 
   /** Sharded by prefix so no directory accumulates every object. */
@@ -65,10 +73,7 @@ export class StorageService implements OnModuleInit {
   }
 
   async put(key: string, content: Buffer): Promise<StoredObject> {
-    const path = this.pathFor(key);
-    await mkdir(dirname(path), { recursive: true });
-    await writeFile(path, content);
-
+    await this.driver.put(key, content);
     return {
       key,
       size: content.byteLength,
@@ -76,62 +81,34 @@ export class StorageService implements OnModuleInit {
     };
   }
 
-  async get(key: string): Promise<Buffer> {
-    return readFile(this.pathFor(key));
+  get(key: string): Promise<Buffer> {
+    return this.driver.get(key);
   }
 
-  async exists(key: string): Promise<boolean> {
-    return existsSync(this.pathFor(key));
+  exists(key: string): Promise<boolean> {
+    return this.driver.exists(key);
   }
 
-  async size(key: string): Promise<number> {
-    return (await stat(this.pathFor(key))).size;
+  size(key: string): Promise<number> {
+    return this.driver.size(key);
   }
 
   /** Epoch-ms of last modification, or null when the object is gone. */
-  async modifiedAt(key: string): Promise<number | null> {
-    try {
-      return (await stat(this.pathFor(key))).mtimeMs;
-    } catch {
-      return null;
-    }
+  modifiedAt(key: string): Promise<number | null> {
+    return this.driver.modifiedAt(key);
   }
 
   /**
-   * Deletes the object. A key with no file behind it is not an error — the row
+   * Deletes the object. A key with nothing behind it is not an error — the row
    * is going away either way, and refusing would strand it.
    */
-  async delete(key: string): Promise<boolean> {
-    try {
-      await rm(this.pathFor(key), { force: true });
-      return true;
-    } catch (error) {
-      this.logger.warn(`Could not delete ${key}: ${String(error)}`);
-      return false;
-    }
+  delete(key: string): Promise<boolean> {
+    return this.driver.delete(key);
   }
 
-  /**
-   * Every object key currently in the store. Used by the orphan sweep; on a
-   * real object store this becomes a paginated `ListObjectsV2`.
-   */
-  async listKeys(): Promise<string[]> {
-    const out: string[] = [];
-    const walk = async (dir: string): Promise<void> => {
-      let entries;
-      try {
-        entries = await readdir(dir, { withFileTypes: true });
-      } catch {
-        return;
-      }
-      for (const entry of entries) {
-        const full = join(dir, entry.name);
-        if (entry.isDirectory()) await walk(full);
-        else out.push(relative(this.root, full).replace(/\\/g, '/'));
-      }
-    };
-    await walk(this.root);
-    return out;
+  /** Every object key currently in the store. Used by the orphan sweep. */
+  listKeys(): Promise<string[]> {
+    return this.driver.listKeys();
   }
 
   // --- signed URLs ---------------------------------------------------------

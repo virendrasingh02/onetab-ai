@@ -1,10 +1,45 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from '@org/ui';
+import type { ChannelAgentView } from '@org/types';
 import {
   type ChannelAIAgent,
   type ChannelConnectedApp,
   type ChannelBotMessage,
 } from './types/channel-agents-apps.js';
+import {
+  useChannelAgentMutations,
+  useChannelAgents,
+} from './use-channel-agents.js';
+
+function handleFor(name: string): string {
+  return (
+    '@' +
+    (name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'agent')
+  );
+}
+
+/** Map a persisted channel↔agent link to the shape the panel components read. */
+function toChannelAIAgent(row: ChannelAgentView): ChannelAIAgent {
+  const handle = handleFor(row.agent.name);
+  return {
+    id: row.agentId,
+    name: row.agent.name,
+    handle,
+    role: row.agent.role,
+    description: row.agent.description ?? '',
+    model: row.agent.model,
+    avatarSeed: row.agentId,
+    tags: [],
+    status: row.isEnabled ? 'active' : 'paused',
+    enabled: row.isEnabled,
+    triggers: [handle, `/${handle.slice(1)}`],
+    capabilities: [],
+    addedAt: Date.parse(row.createdAt) || Date.now(),
+  };
+}
 
 function createInitialMessages(channelId: string): ChannelBotMessage[] {
   const now = Date.now();
@@ -257,31 +292,17 @@ export function useChannelAgentsAndApps(
 ) {
   const wsKey = workspaceId || 'default';
   const chKey = channelId || 'default';
-  const agentsStorageKey = `onetab_ch_agents_${wsKey}_${chKey}`;
   const appsStorageKey = `onetab_ch_apps_${wsKey}_${chKey}`;
   const messagesStorageKey = `onetab_ch_agent_msgs_${wsKey}_${chKey}`;
 
-  // 1. Agents state
-  const [agents, setAgents] = useState<ChannelAIAgent[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const stored = localStorage.getItem(agentsStorageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {
-      // ignore
-    }
-    /*
-     * Empty, not pre-seeded. Auto-populating 3 agents with `status: 'active'`
-     * made every new channel look like it already had live AI agents running
-     * before anyone added one. `PRESET_AI_AGENTS` is a catalog to pick from
-     * (see AddAgentDialog / `add-app-dialog.tsx`'s counterpart), not a
-     * default install list.
-     */
-    return [];
-  });
+  // 1. Agents — persisted server-side in `ChannelAgent`. `AgentMatrixBridge`
+  //    only lets an enabled link's agent answer in this channel's room.
+  const channelAgentsQuery = useChannelAgents(workspaceId, channelId);
+  const agentMutations = useChannelAgentMutations(workspaceId, channelId);
+  const agents = useMemo<ChannelAIAgent[]>(
+    () => (channelAgentsQuery.data ?? []).map(toChannelAIAgent),
+    [channelAgentsQuery.data],
+  );
 
   // 2. Apps state
   const [apps, setApps] = useState<ChannelConnectedApp[]>(() => {
@@ -326,16 +347,7 @@ export function useChannelAgentsAndApps(
     return [];
   });
 
-  // Sync to localStorage
-  useEffect(() => {
-    if (typeof window === 'undefined' || !channelId) return;
-    try {
-      localStorage.setItem(agentsStorageKey, JSON.stringify(agents));
-    } catch {
-      // ignore
-    }
-  }, [agents, agentsStorageKey, channelId]);
-
+  // Sync to localStorage (apps + messages only — agents are server-side now)
   useEffect(() => {
     if (typeof window === 'undefined' || !channelId) return;
     try {
@@ -354,79 +366,33 @@ export function useChannelAgentsAndApps(
     }
   }, [messages, messagesStorageKey, channelId]);
 
-  // Actions for Agents
+  // Actions for Agents — persisted through `channelAgentsApi`.
   const addAgent = useCallback(
-    (agent: Omit<ChannelAIAgent, 'addedAt'>) => {
-      setAgents((prev) => {
-        if (prev.some((a) => a.id === agent.id)) {
-          toast.info(`${agent.name} is already added to this channel.`);
-          return prev;
-        }
-        const newAgent: ChannelAIAgent = {
-          ...agent,
-          status: 'active',
-          enabled: true,
-          addedAt: Date.now(),
-        };
-        const updated = [newAgent, ...prev];
-        toast.success(`Added ${agent.name} (${agent.handle}) to channel`);
-
-        // Post an introductory message into the feed
-        const introMsg: ChannelBotMessage = {
-          id: `msg-agent-joined-${Date.now()}`,
-          channelId: chKey,
-          senderType: 'agent',
-          senderId: agent.id,
-          senderName: agent.name,
-          senderHandle: agent.handle,
-          senderAvatarSeed: agent.avatarSeed,
-          badgeLabel: 'AI AGENT',
-          badgeVariant: 'primary',
-          model: agent.model,
-          timestamp: Date.now(),
-          content: `👋 Hello! I have been added to this channel as **${agent.role}**. Mention me with \`${agent.handle}\` or use slash commands (${agent.triggers.join(', ')}) whenever you need assistance!`,
-          actions: [
-            {
-              id: 'act-intro-1',
-              label: `Test ${agent.handle}`,
-              variant: 'primary',
-            },
-          ],
-        };
-        setMessages((msgs) => [introMsg, ...msgs]);
-        return updated;
-      });
+    (agent: Pick<ChannelAIAgent, 'id'> & Partial<ChannelAIAgent>) => {
+      if (agents.some((a) => a.id === agent.id)) {
+        toast.info(`${agent.name ?? 'That agent'} is already in this channel.`);
+        return;
+      }
+      agentMutations.add.mutate(agent.id);
     },
-    [chKey],
+    [agents, agentMutations.add],
   );
 
-  const removeAgent = useCallback((agentId: string) => {
-    setAgents((prev) => {
-      const target = prev.find((a) => a.id === agentId);
-      const updated = prev.filter((a) => a.id !== agentId);
-      toast.info(
-        target ? `Removed ${target.name} from channel` : 'Agent removed',
-      );
-      return updated;
-    });
-  }, []);
+  const removeAgent = useCallback(
+    (agentId: string) => agentMutations.remove.mutate(agentId),
+    [agentMutations.remove],
+  );
 
-  const toggleAgent = useCallback((agentId: string) => {
-    setAgents((prev) =>
-      prev.map((a) => {
-        if (a.id !== agentId) return a;
-        const nextEnabled = !a.enabled;
-        toast.success(
-          `${a.name} is now ${nextEnabled ? 'Active' : 'Paused in this channel'}`,
-        );
-        return {
-          ...a,
-          enabled: nextEnabled,
-          status: nextEnabled ? 'active' : 'paused',
-        };
-      }),
-    );
-  }, []);
+  const toggleAgent = useCallback(
+    (agentId: string) => {
+      const current = agents.find((a) => a.id === agentId);
+      agentMutations.setEnabled.mutate({
+        agentId,
+        isEnabled: !(current?.enabled ?? true),
+      });
+    },
+    [agents, agentMutations.setEnabled],
+  );
 
   // Actions for Apps
   const addApp = useCallback(

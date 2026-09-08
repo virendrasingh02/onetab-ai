@@ -65,6 +65,7 @@ export class AgentsController {
       model?: string;
       tools?: string[];
       isMarketplace?: boolean;
+      graphJson?: string;
     },
   ) {
     return this.agentsService.createAgent(workspaceId, userId, body);
@@ -86,6 +87,7 @@ export class AgentsController {
       model?: string;
       tools?: string[];
       isActive?: boolean;
+      graphJson?: string;
     },
   ) {
     return this.agentsService.updateAgent(workspaceId, agentId, body);
@@ -117,5 +119,75 @@ export class AgentsController {
     @Param('agentId') agentId: string,
   ) {
     return this.agentsService.getExecutionLogs(workspaceId, agentId);
+  }
+}
+
+/**
+ * Which agents a channel has added. Workspace-guarded like the rest; the
+ * channel id is validated against the workspace in the service.
+ * `AgentMatrixBridgeService` reads these rows to decide whether an agent may
+ * answer in a channel's room.
+ */
+@Controller({
+  path: 'workspaces/:workspaceId/channels/:channelId/agents',
+  version: '1',
+})
+@UseGuards(WorkspaceRoleGuard)
+export class ChannelAgentsController {
+  constructor(private readonly agentsService: AgentsService) {}
+
+  @Get()
+  list(
+    @WorkspaceId() workspaceId: string,
+    @Param('channelId') channelId: string,
+  ) {
+    return this.agentsService.listChannelAgents(workspaceId, channelId);
+  }
+
+  @Post()
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  add(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @Param('channelId') channelId: string,
+    @Body() body: { agentId: string },
+  ) {
+    return this.agentsService.addChannelAgent(
+      workspaceId,
+      channelId,
+      body.agentId,
+      userId,
+    );
+  }
+
+  @Patch(':agentId')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  setEnabled(
+    @WorkspaceId() workspaceId: string,
+    @Param('channelId') channelId: string,
+    @Param('agentId') agentId: string,
+    @Body() body: { isEnabled: boolean },
+  ) {
+    return this.agentsService.setChannelAgentEnabled(
+      workspaceId,
+      channelId,
+      agentId,
+      body.isEnabled,
+    );
+  }
+
+  @Delete(':agentId')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(
+    @WorkspaceId() workspaceId: string,
+    @Param('channelId') channelId: string,
+    @Param('agentId') agentId: string,
+  ): Promise<void> {
+    return this.agentsService.removeChannelAgent(
+      workspaceId,
+      channelId,
+      agentId,
+    );
   }
 }

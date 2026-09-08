@@ -58,6 +58,8 @@ export class AgentsService {
       model?: string;
       tools?: string[];
       isMarketplace?: boolean;
+      /** JSON-encoded React Flow graph from the Agent Builder canvas. */
+      graphJson?: string;
     },
   ) {
     return this.prisma.aIAgent.create({
@@ -76,6 +78,7 @@ export class AgentsService {
           (process.env['AI_DEFAULT_MODEL'] ||
             'nvidia/nemotron-3-super-120b-a12b'),
         tools: JSON.stringify(data.tools ?? ['search_docs', 'create_task']),
+        ...(data.graphJson !== undefined ? { graphJson: data.graphJson } : {}),
         // Set when deploying a catalogue template, so the card can tell a
         // pre-built agent from one built by hand.
         isMarketplace: data.isMarketplace ?? false,
@@ -96,6 +99,8 @@ export class AgentsService {
       model?: string;
       tools?: string[];
       isActive?: boolean;
+      /** JSON-encoded React Flow graph from the Agent Builder canvas. */
+      graphJson?: string;
     },
   ) {
     await this.assertAgent(workspaceId, agentId);
@@ -117,6 +122,7 @@ export class AgentsService {
           ? { tools: JSON.stringify(data.tools) }
           : {}),
         ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
+        ...(data.graphJson !== undefined ? { graphJson: data.graphJson } : {}),
       },
     });
   }
@@ -325,5 +331,92 @@ export class AgentsService {
       select: { id: true },
     });
     if (!found) throw new NotFoundException('Agent not found.');
+  }
+
+  private async assertChannel(workspaceId: string, channelId: string) {
+    const found = await this.prisma.channel.findFirst({
+      where: { id: channelId, workspaceId },
+      select: { id: true },
+    });
+    if (!found) throw new NotFoundException('Channel not found.');
+  }
+
+  // -------------------------------------------------------------------------
+  // Channel ↔ agent links — the scoping the channel Agents panel edits.
+  // -------------------------------------------------------------------------
+
+  async listChannelAgents(workspaceId: string, channelId: string) {
+    await this.assertChannel(workspaceId, channelId);
+    const rows = await this.prisma.channelAgent.findMany({
+      where: { channelId },
+      include: {
+        agent: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+            description: true,
+            avatarUrl: true,
+            model: true,
+            provider: true,
+            isActive: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      channelId: row.channelId,
+      agentId: row.agentId,
+      isEnabled: row.isEnabled,
+      addedById: row.addedById,
+      createdAt: row.createdAt.toISOString(),
+      agent: row.agent,
+    }));
+  }
+
+  async addChannelAgent(
+    workspaceId: string,
+    channelId: string,
+    agentId: string,
+    addedById: string,
+  ) {
+    await this.assertChannel(workspaceId, channelId);
+    await this.assertAgent(workspaceId, agentId);
+    await this.prisma.channelAgent.upsert({
+      where: { channelId_agentId: { channelId, agentId } },
+      create: { channelId, agentId, addedById },
+      update: { isEnabled: true },
+    });
+    return this.listChannelAgents(workspaceId, channelId);
+  }
+
+  async setChannelAgentEnabled(
+    workspaceId: string,
+    channelId: string,
+    agentId: string,
+    isEnabled: boolean,
+  ) {
+    await this.assertChannel(workspaceId, channelId);
+    const link = await this.prisma.channelAgent.findUnique({
+      where: { channelId_agentId: { channelId, agentId } },
+      select: { id: true },
+    });
+    if (!link) throw new NotFoundException('Agent is not linked to this channel.');
+    await this.prisma.channelAgent.update({
+      where: { id: link.id },
+      data: { isEnabled },
+    });
+    return this.listChannelAgents(workspaceId, channelId);
+  }
+
+  async removeChannelAgent(
+    workspaceId: string,
+    channelId: string,
+    agentId: string,
+  ): Promise<void> {
+    await this.assertChannel(workspaceId, channelId);
+    await this.prisma.channelAgent.deleteMany({ where: { channelId, agentId } });
   }
 }

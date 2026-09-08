@@ -63,6 +63,20 @@ export const apiEnvSchema = z.object({
   MINIO_ENDPOINT: z.string().default('http://localhost:9000'),
   MINIO_ACCESS_KEY: z.string().default('minioadmin'),
   MINIO_SECRET_KEY: z.string().default('minioadmin'),
+
+  // Object storage. `local` (default) writes to STORAGE_ROOT on the API pod's
+  // disk — fine for dev, lost on redeploy and not shared across replicas.
+  // `s3` targets any S3-compatible store (AWS S3, MinIO, Cloudflare R2,
+  // Backblaze B2, DigitalOcean Spaces, Wasabi) — no SDK, SigV4 over fetch.
+  STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
+  STORAGE_ROOT: z.string().default('.storage'),
+  S3_ENDPOINT: z.string().url().optional(),
+  S3_REGION: z.string().default('us-east-1'),
+  S3_BUCKET: z.string().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
+  /** `true` (default) for MinIO/most S3-compatible; `false` for AWS virtual-hosted. */
+  S3_FORCE_PATH_STYLE: z.enum(['true', 'false']).default('true'),
   MEILI_HOST: z.string().default('http://localhost:7700'),
   MEILI_MASTER_KEY: z.string().default('masterKey123'),
   QDRANT_URL: z.string().default('http://localhost:6333'),

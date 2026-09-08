@@ -13,6 +13,8 @@ export interface AIAgent {
   model: string;
   /** JSON-encoded array of MCP tool names. */
   tools: string;
+  /** JSON-encoded React Flow graph from the Agent Builder canvas, or null. */
+  graphJson: string | null;
   isActive: boolean;
   isMarketplace: boolean;
   createdAt: IsoDateString;

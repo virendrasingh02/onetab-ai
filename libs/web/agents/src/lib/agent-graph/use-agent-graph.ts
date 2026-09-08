@@ -117,6 +117,20 @@ export interface UseAgentGraphOptions {
     model?: string;
     systemPrompt?: string;
   };
+  /**
+   * The graph this agent already has, parsed from `agent.graphJson`. When set,
+   * it wins over any browser-local draft — the database is the source of truth.
+   */
+  initialGraph?: AgentGraph | null;
+}
+
+function isAgentGraph(value: unknown): value is AgentGraph {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    Array.isArray((value as AgentGraph).nodes) &&
+    Array.isArray((value as AgentGraph).edges)
+  );
 }
 
 function seedGraph(initialConfig?: UseAgentGraphOptions['initialConfig']): AgentGraph {
@@ -192,22 +206,20 @@ function capEdge(source: string, target: string): Edge {
 function readGraph(
   storageKey: string,
   initialConfig?: UseAgentGraphOptions['initialConfig'],
+  initialGraph?: AgentGraph | null,
 ): AgentGraph {
+  // The persisted graph is authoritative when the agent has one.
+  if (isAgentGraph(initialGraph) && initialGraph.nodes.length > 0) {
+    return initialGraph;
+  }
   const seed = seedGraph(initialConfig);
   if (typeof window === 'undefined') return seed;
   try {
+    // Browser-local draft — only for an agent that has never been saved.
     const raw = window.localStorage.getItem(storageKey);
     if (!raw) return seed;
     const parsed: unknown = JSON.parse(raw);
-    if (
-      !parsed ||
-      typeof parsed !== 'object' ||
-      !Array.isArray((parsed as AgentGraph).nodes) ||
-      !Array.isArray((parsed as AgentGraph).edges)
-    ) {
-      return seed;
-    }
-    return parsed as AgentGraph;
+    return isAgentGraph(parsed) ? parsed : seed;
   } catch {
     return seed;
   }
@@ -496,7 +508,11 @@ export function useAgentGraph(options?: UseAgentGraphOptions) {
    */
   const initial = useRef<AgentGraph | null>(null);
   if (initial.current === null) {
-    initial.current = readGraph(storageKey, options?.initialConfig);
+    initial.current = readGraph(
+      storageKey,
+      options?.initialConfig,
+      options?.initialGraph,
+    );
   }
 
   const [nodes, setNodes, onNodesChange] = useNodesState<AgentFlowNode>(
@@ -707,6 +723,35 @@ export function useAgentGraph(options?: UseAgentGraphOptions) {
     setSelectedId(coreId);
   }, [options?.initialConfig, setNodes, setEdges]);
 
+  /** The exact JSON the caller should PATCH to `agent.graphJson`. */
+  const serialize = useCallback(
+    () => JSON.stringify({ nodes, edges }),
+    [nodes, edges],
+  );
+
+  /**
+   * Call after the graph has been persisted server-side (`agentsApi.update`
+   * with `graphJson`). Marks the draft clean and clears any stale browser-local
+   * copy so it cannot shadow the saved version on the next open.
+   */
+  const markSaved = useCallback(() => {
+    savedSignature.current = signature;
+    setSavedAt(new Date());
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.removeItem(storageKey);
+        window.dispatchEvent(new Event(STORAGE_EVENT));
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [signature, storageKey]);
+
+  /**
+   * Local-only draft save, for an agent that does not exist server-side yet
+   * (no `agentId`). Once the agent is created, `markSaved` takes over and this
+   * key is cleared.
+   */
   const save = useCallback(() => {
     if (typeof window === 'undefined') return;
     try {
@@ -742,6 +787,8 @@ export function useAgentGraph(options?: UseAgentGraphOptions) {
     tidy,
     reset,
     save,
+    serialize,
+    markSaved,
     dirty,
     savedAt,
   };

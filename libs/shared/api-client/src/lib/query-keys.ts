@@ -39,6 +39,8 @@ export const queryKeys = {
       ['channels', workspaceId, channelId, 'pins'] as const,
     files: (workspaceId: string, channelId: string) =>
       ['channels', workspaceId, channelId, 'files'] as const,
+    agents: (workspaceId: string, channelId: string) =>
+      ['channels', workspaceId, channelId, 'agents'] as const,
   },
   members: {
     all: (workspaceId: string) => ['members', workspaceId] as const,

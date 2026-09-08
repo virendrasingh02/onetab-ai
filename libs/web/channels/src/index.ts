@@ -21,6 +21,11 @@ export {
 export { useChannelAgentsAndApps } from './lib/use-channel-agents-apps.js';
 
 export {
+  useChannelAgents,
+  useChannelAgentMutations,
+} from './lib/use-channel-agents.js';
+
+export {
   type AIAgentCapability,
   type ChannelAIAgent,
   type ChannelConnectedApp,

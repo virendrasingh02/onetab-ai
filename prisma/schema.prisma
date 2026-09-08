@@ -36,6 +36,7 @@ model User {
   createdWorkflows        AutomationWorkflow[]
   organizedEvents         CalendarEvent[]
   channelMembers          ChannelMember[]
+  channelAgentsAdded      ChannelAgent[]           @relation("ChannelAgentAddedBy")
   createdChannels         Channel[]                @relation("ChannelCreator")
   chatSettings            ChatSettings?
   sentInvitations         Invitation[]             @relation("InvitationSender")
@@ -220,6 +221,7 @@ model Channel {
   /// Matrix room backing this channel. Null until chat is first opened.
   matrixRoomId     String?                  @unique
   members          ChannelMember[]
+  channelAgents    ChannelAgent[]
   pins             ChannelPin[]
   invitations      Invitation[]
   createdBy        User                     @relation("ChannelCreator", fields: [createdById], references: [id])
@@ -1210,6 +1212,9 @@ model AIAgent {
   provider      String              @default("ollama")
   model         String              @default("llama3")
   tools         String              @default("[\"search_docs\",\"create_task\",\"send_channel_message\"]")
+  /// JSON-encoded React Flow graph authored in the Agent Builder canvas. Null
+  /// for agents created outside the builder (marketplace deploys, API).
+  graphJson     String?
   isActive      Boolean             @default(true)
   isMarketplace Boolean             @default(false)
   /// This agent's provisioned Matrix bot identity (e.g. @onetab_agent-<id>:server), set lazily on first DM open.
@@ -1220,11 +1225,33 @@ model AIAgent {
   updatedAt     DateTime            @updatedAt
   logs          AgentExecutionLog[]
   schedules     AgentSchedule[]
+  channelLinks  ChannelAgent[]
   creator       User?               @relation(fields: [creatorId], references: [id])
   workspace     Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, isActive])
   @@map("ai_agents")
+}
+
+/// Which agents a channel has "added" — the scoping the channel Agents panel
+/// edits. `AgentMatrixBridgeService` only lets an enabled link's agent respond
+/// in that channel's room.
+model ChannelAgent {
+  id        String   @id @default(cuid())
+  channelId String
+  agentId   String
+  addedById String?
+  isEnabled Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  agent     AIAgent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  addedBy   User?    @relation("ChannelAgentAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
+
+  @@unique([channelId, agentId])
+  @@index([channelId])
+  @@index([agentId])
+  @@map("channel_agents")
 }
 
 model AgentSchedule {

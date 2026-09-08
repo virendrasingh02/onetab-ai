@@ -75,8 +75,13 @@ export class AgentMatrixBridgeService implements OnModuleInit {
       });
 
       if (channel) {
+        // Only agents explicitly added to this channel (and not disabled) may
+        // answer here — this is the scoping the channel Agents panel edits.
         const agents = await this.prisma.aIAgent.findMany({
-          where: { workspaceId: channel.workspaceId },
+          where: {
+            workspaceId: channel.workspaceId,
+            channelLinks: { some: { channelId: channel.id, isEnabled: true } },
+          },
           select: {
             id: true,
             workspaceId: true,

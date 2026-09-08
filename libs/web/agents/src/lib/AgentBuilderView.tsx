@@ -141,9 +141,27 @@ function AgentBuilderCanvas() {
     };
   }, [targetAgent, editAgentName, editAgentRole, editAgentModel]);
 
+  const initialGraph = useMemo(() => {
+    if (!targetAgent?.graphJson) return null;
+    try {
+      const parsed = JSON.parse(targetAgent.graphJson);
+      if (
+        parsed &&
+        Array.isArray(parsed.nodes) &&
+        Array.isArray(parsed.edges)
+      ) {
+        return parsed;
+      }
+    } catch {
+      /* fall through to the seeded graph */
+    }
+    return null;
+  }, [targetAgent?.graphJson]);
+
   const graph = useAgentGraph({
-    agentId: editAgentId,
+    agentId: editAgentId ?? targetAgent?.id ?? null,
     initialConfig,
+    initialGraph,
   });
 
   const { screenToFlowPosition, zoomIn, zoomOut, fitView } = useReactFlow();
@@ -175,6 +193,8 @@ function AgentBuilderCanvas() {
     tidy,
     reset,
     save,
+    serialize,
+    markSaved,
     dirty,
     savedAt,
   } = graph;
@@ -273,10 +293,10 @@ function AgentBuilderCanvas() {
       return;
     }
 
-    save();
-
     const core = nodes.find((node) => node.data.kind === 'agent');
     if (!core || !workspaceId) return;
+
+    const graphJson = serialize();
 
     const existing =
       targetAgent ||
@@ -288,15 +308,18 @@ function AgentBuilderCanvas() {
       update.mutate(
         {
           agentId: existing.id,
-          input: { name: summary.name, role: summary.role },
+          input: { name: summary.name, role: summary.role, graphJson },
         },
         {
           onSuccess: () => {
+            markSaved();
             toast.success('Agent saved', {
               description: `"${summary.name}" changes were saved.`,
             });
           },
           onError: () => {
+            // Keep a local copy so the edits are not lost on a failed save.
+            save();
             toast.error('Failed to save agent');
           },
         },
@@ -305,14 +328,16 @@ function AgentBuilderCanvas() {
     }
 
     create.mutate(
-      { name: summary.name, role: summary.role },
+      { name: summary.name, role: summary.role, graphJson },
       {
         onSuccess: () => {
+          markSaved();
           toast.success('Agent published', {
             description: `"${summary.name}" is now available in your workspace.`,
           });
         },
         onError: () => {
+          save();
           toast.error('Failed to publish agent');
         },
       },
@@ -323,8 +348,10 @@ function AgentBuilderCanvas() {
     create,
     editAgentId,
     errorCount,
+    markSaved,
     nodes,
     save,
+    serialize,
     summary.name,
     summary.role,
     targetAgent,

@@ -1,4 +1,4 @@
-import { invitationApi, memberApi, queryKeys } from '@org/api-client';
+import { agentsApi, invitationApi, memberApi, queryKeys } from '@org/api-client';
 import type { ChannelSummary, PublicUser } from '@org/types';
 import {
   Badge,
@@ -575,59 +575,6 @@ export interface AIAgentOption {
   tags: string[];
 }
 
-const AVAILABLE_AI_AGENTS: AIAgentOption[] = [
-  {
-    id: 'agent-copilot',
-    name: 'OneTab Copilot',
-    handle: '@copilot',
-    role: 'Assistant',
-    description: 'Context-aware channel assistant for Q&A, thread summarization, and task drafting.',
-    model: 'Gemini 2.5 Pro',
-    avatarSeed: 'copilot',
-    tags: ['General', 'Summaries', 'Q&A'],
-  },
-  {
-    id: 'agent-code-reviewer',
-    name: 'Code Reviewer',
-    handle: '@codereview',
-    role: 'Developer Tool',
-    description: 'Inspects code snippets, detects bugs, and suggests optimized refactors in real time.',
-    model: 'Claude 3.7 Sonnet',
-    avatarSeed: 'codereview',
-    tags: ['Engineering', 'Code', 'Debugging'],
-  },
-  {
-    id: 'agent-triage',
-    name: 'Incident & Bug Triage',
-    handle: '@triage',
-    role: 'Operations',
-    description: 'Monitors channel errors, assigns priority, and generates incident timeline post-mortems.',
-    model: 'GPT-4o',
-    avatarSeed: 'triage',
-    tags: ['Ops', 'Incident', 'Tracking'],
-  },
-  {
-    id: 'agent-standup',
-    name: 'Daily Standup Bot',
-    handle: '@standup',
-    role: 'Productivity',
-    description: 'Collects async standups, aggregates blockers, and posts daily morning summaries.',
-    model: 'Gemini 2.5 Flash',
-    avatarSeed: 'standup',
-    tags: ['Agile', 'Standup', 'Recap'],
-  },
-  {
-    id: 'agent-docs',
-    name: 'Docs & Researcher',
-    handle: '@docs',
-    role: 'Knowledge Base',
-    description: 'Synthesizes conversation conclusions and writes structured markdown documentation.',
-    model: 'Claude 3.7 Sonnet',
-    avatarSeed: 'docs',
-    tags: ['Docs', 'Research', 'Markdown'],
-  },
-];
-
 export interface AddAgentToChannelDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -643,7 +590,7 @@ export function AddAgentToChannelDialog({
 }: AddAgentToChannelDialogProps) {
   const [search, setSearch] = useState('');
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmitting = false;
 
   useEffect(() => {
     if (!open) {
@@ -652,29 +599,50 @@ export function AddAgentToChannelDialog({
     }
   }, [open]);
 
+  // Real workspace agents — the ones that actually exist and can be linked to
+  // a channel. The old hardcoded catalogue was a browser-only preview.
+  const agentsQuery = useQuery({
+    queryKey: queryKeys.agents.list(channel.workspaceId),
+    queryFn: () => agentsApi.list(channel.workspaceId),
+    enabled: open,
+  });
+
+  const options = useMemo<AIAgentOption[]>(
+    () =>
+      (agentsQuery.data ?? []).map((a) => ({
+        id: a.id,
+        name: a.name,
+        handle:
+          '@' +
+          (a.name
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '') || 'agent'),
+        role: a.role,
+        description: a.description ?? '',
+        model: a.model,
+        avatarSeed: a.id,
+        tags: [],
+      })),
+    [agentsQuery.data],
+  );
+
   const filteredAgents = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return AVAILABLE_AI_AGENTS;
-    return AVAILABLE_AI_AGENTS.filter(
+    if (!query) return options;
+    return options.filter(
       (a) =>
         a.name.toLowerCase().includes(query) ||
         a.handle.toLowerCase().includes(query) ||
-        a.description.toLowerCase().includes(query) ||
-        a.tags.some((t) => t.toLowerCase().includes(query)),
+        a.description.toLowerCase().includes(query),
     );
-  }, [search]);
+  }, [search, options]);
 
   const handleAddAgent = () => {
-    const agent = AVAILABLE_AI_AGENTS.find((a) => a.id === selectedAgentId);
+    const agent = options.find((a) => a.id === selectedAgentId);
     if (!agent) return;
-
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      toast.success(`Added ${agent.name} (${agent.handle}) to #${channel.name}`);
-      onAgentAdded?.(agent);
-      onOpenChange(false);
-    }, 400);
+    onAgentAdded?.(agent);
+    onOpenChange(false);
   };
 
   return (
@@ -693,9 +661,9 @@ export function AddAgentToChannelDialog({
                 </Badge>
               </DialogTitle>
               <DialogDescription className="text-xs">
-                Select an intelligent AI agent to participate and assist directly in this channel.
-                {' '}Local preview — only visible to you in this browser, not
-                the rest of the channel.
+                Add one of your workspace's AI agents to this channel. Once
+                added, it can be @mentioned here and will reply in the channel
+                for everyone.
               </DialogDescription>
             </div>
           </div>
@@ -714,6 +682,17 @@ export function AddAgentToChannelDialog({
 
           <ScrollArea className="h-64 rounded-xl border border-border bg-surface/50 p-2">
             <div className="space-y-2">
+              {agentsQuery.isLoading ? (
+                <p className="text-xs text-muted-foreground p-3">
+                  Loading agents…
+                </p>
+              ) : filteredAgents.length === 0 ? (
+                <p className="text-xs text-muted-foreground p-3">
+                  {options.length === 0
+                    ? 'This workspace has no AI agents yet. Create one from the Agents section first.'
+                    : 'No agents match your search.'}
+                </p>
+              ) : null}
               {filteredAgents.map((agent) => {
                 const isSelected = selectedAgentId === agent.id;
                 return (

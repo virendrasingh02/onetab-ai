@@ -5,7 +5,10 @@ import { PrismaModule } from '@org/database';
 import { AIInfrastructureModule } from '@org/api-ai';
 import { MatrixModule } from '@org/api-matrix';
 import { AgentMatrixBridgeService } from './agent-matrix-bridge.service.js';
-import { AgentsController } from './agents.controller.js';
+import {
+  AgentsController,
+  ChannelAgentsController,
+} from './agents.controller.js';
 import { AgentsService } from './agents.service.js';
 import { MCPToolRegistryService } from './mcp-tool-registry.service.js';
 
@@ -17,7 +20,7 @@ import { MCPToolRegistryService } from './mcp-tool-registry.service.js';
     AIInfrastructureModule,
     MatrixModule,
   ],
-  controllers: [AgentsController],
+  controllers: [AgentsController, ChannelAgentsController],
   providers: [AgentsService, MCPToolRegistryService, AgentMatrixBridgeService],
   exports: [AgentsService, MCPToolRegistryService],
 })

@@ -44,6 +44,7 @@ export {
 export type {
   Channel,
   ChannelBookmark,
+  ChannelAgentView,
   ChannelMember,
   ChannelPin,
   ChannelSummary,

@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '@org/database';
 import { MatrixAdminService } from './matrix-admin.service.js';
 
@@ -157,6 +162,8 @@ export class MatrixAuthService {
         topic: true,
         visibility: true,
         matrixRoomId: true,
+        isArchived: true,
+        workspace: { select: { archivedAt: true } },
       },
     });
 
@@ -164,6 +171,16 @@ export class MatrixAuthService {
     if (!channel) throw new NotFoundException('Channel not found.');
 
     if (channel.matrixRoomId) return channel.matrixRoomId;
+
+    // Provisioning a room is a mutation. `WorkspaceRoleGuard` freezes mutating
+    // HTTP methods on an ARCHIVED workspace, but this route sits outside its
+    // path (audit S8), so the freeze is re-applied here — only on the
+    // room-creation path, not when returning an existing link.
+    if (channel.isArchived || channel.workspace.archivedAt) {
+      throw new ForbiddenException(
+        'This workspace or channel is archived; new Matrix rooms cannot be provisioned.',
+      );
+    }
 
     const creatorMatrixId = await this.ensureIdentity(creatorUserId);
     if (!creatorMatrixId) return null;

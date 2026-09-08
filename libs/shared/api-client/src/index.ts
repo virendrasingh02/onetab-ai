@@ -18,6 +18,7 @@ export {
   analyticsApi,
   authApi,
   automationsApi,
+  channelAgentsApi,
   channelApi,
   enterpriseApi,
   gifsApi,

@@ -49,6 +49,7 @@ import type {
   AutomationWorkflowDetail,
   CalendarEvent,
   Channel,
+  ChannelAgentView,
   ChannelMember,
   ChannelPin,
   ChannelSummary,
@@ -625,6 +626,41 @@ export const channelApi = {
   files: (workspaceId: string, channelId: string) =>
     request<Upload[]>(
       http.get(`/workspaces/${workspaceId}/channels/${channelId}/files`),
+    ),
+};
+
+/** Agents added to a channel — the scoping the channel Agents panel edits. */
+export const channelAgentsApi = {
+  list: (workspaceId: string, channelId: string) =>
+    request<ChannelAgentView[]>(
+      http.get(`/workspaces/${workspaceId}/channels/${channelId}/agents`),
+    ),
+
+  add: (workspaceId: string, channelId: string, agentId: string) =>
+    request<ChannelAgentView[]>(
+      http.post(`/workspaces/${workspaceId}/channels/${channelId}/agents`, {
+        agentId,
+      }),
+    ),
+
+  setEnabled: (
+    workspaceId: string,
+    channelId: string,
+    agentId: string,
+    isEnabled: boolean,
+  ) =>
+    request<ChannelAgentView[]>(
+      http.patch(
+        `/workspaces/${workspaceId}/channels/${channelId}/agents/${agentId}`,
+        { isEnabled },
+      ),
+    ),
+
+  remove: (workspaceId: string, channelId: string, agentId: string) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/channels/${channelId}/agents/${agentId}`,
+      ),
     ),
 };
 
@@ -1710,6 +1746,8 @@ export const agentsApi = {
       model?: string;
       tools?: string[];
       isMarketplace?: boolean;
+      /** JSON-encoded React Flow graph from the Agent Builder canvas. */
+      graphJson?: string;
     },
   ) => request<AIAgent>(http.post(`/workspaces/${workspaceId}/agents`, input)),
 
@@ -1726,6 +1764,8 @@ export const agentsApi = {
       model?: string;
       tools?: string[];
       isActive?: boolean;
+      /** JSON-encoded React Flow graph from the Agent Builder canvas. */
+      graphJson?: string;
     },
   ) =>
     request<AIAgent>(
