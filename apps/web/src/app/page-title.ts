@@ -66,11 +66,40 @@ export function formatChannelName(
   return opts.isPrivate ? clean : `#${clean}`;
 }
 
-/** `<context> — OneTab AI`, or just `OneTab AI` when there is no context. */
-export function formatDocumentTitle(title: string | null | undefined): string {
-  const trimmed = title?.trim();
-  return trimmed && trimmed !== APP_NAME
-    ? `${trimmed} — ${APP_NAME}`
+/**
+ * The `document.title` for a location.
+ *
+ * Inside a workspace the tab reads `<context> — <workspace>` — the workspace
+ * name stands in for the product suffix, so a browser with several workspaces
+ * open in tabs is readable at a glance:
+ *
+ *  - `formatDocumentTitle('Home', 'Acme Inc')`      → `Home — Acme Inc`
+ *  - `formatDocumentTitle('#engineering', 'Acme Inc')` → `#engineering — Acme Inc`
+ *  - `formatDocumentTitle('Acme Inc', 'Acme Inc')`  → `Acme Inc` (context is the workspace)
+ *  - `formatDocumentTitle('', 'Acme Inc')`          → `Acme Inc`
+ *
+ * Outside any workspace (auth, invite, the workspace picker) there is no
+ * workspace name, so it falls back to `<context> — OneTab AI`, or the bare
+ * product name when the route has no context of its own:
+ *
+ *  - `formatDocumentTitle('Sign in')` → `Sign in — OneTab AI`
+ *  - `formatDocumentTitle('')`        → `OneTab AI`
+ */
+export function formatDocumentTitle(
+  title: string | null | undefined,
+  workspaceName?: string | null,
+): string {
+  const context = title?.trim();
+  const workspace = workspaceName?.trim();
+
+  if (workspace && workspace !== APP_NAME) {
+    return context && context !== APP_NAME && context !== workspace
+      ? `${context} — ${workspace}`
+      : workspace;
+  }
+
+  return context && context !== APP_NAME
+    ? `${context} — ${APP_NAME}`
     : APP_NAME;
 }
 

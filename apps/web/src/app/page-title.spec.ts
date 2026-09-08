@@ -32,6 +32,23 @@ describe('formatDocumentTitle', () => {
     expect(formatDocumentTitle(undefined)).toBe(APP_NAME);
     expect(formatDocumentTitle(APP_NAME)).toBe(APP_NAME);
   });
+
+  it('suffixes the context with the workspace name inside a workspace', () => {
+    expect(formatDocumentTitle('Home', 'Acme Inc')).toBe('Home — Acme Inc');
+    expect(formatDocumentTitle('#engineering', 'Acme Inc')).toBe(
+      '#engineering — Acme Inc',
+    );
+  });
+
+  it('shows the bare workspace name when the context is empty or the workspace itself', () => {
+    expect(formatDocumentTitle('', 'Acme Inc')).toBe('Acme Inc');
+    expect(formatDocumentTitle('Acme Inc', 'Acme Inc')).toBe('Acme Inc');
+  });
+
+  it('falls back to the product-suffixed context when there is no workspace', () => {
+    expect(formatDocumentTitle('Inbox', '  ')).toBe(`Inbox — ${APP_NAME}`);
+    expect(formatDocumentTitle('Inbox', null)).toBe(`Inbox — ${APP_NAME}`);
+  });
 });
 
 describe('resolvePageTitle — static routes', () => {

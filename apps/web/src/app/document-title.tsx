@@ -149,9 +149,11 @@ export function DocumentTitle(): null {
     [pathname, entities],
   );
 
+  const workspaceName = workspace?.name;
+
   useEffect(() => {
-    document.title = formatDocumentTitle(title);
-  }, [title]);
+    document.title = formatDocumentTitle(title, workspaceName);
+  }, [title, workspaceName]);
 
   return null;
 }
