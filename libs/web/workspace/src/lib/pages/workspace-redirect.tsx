@@ -3,6 +3,7 @@ import { useWorkspaces } from '../use-workspaces.js';
 import {
   getPersistedActiveWorkspaceId,
   getPersistedActiveWorkspaceSlug,
+  workspaceEntryPath,
 } from '../workspace.store.js';
 import { Building2 } from 'lucide-react';
 import { Navigate, useNavigate } from 'react-router-dom';
@@ -46,7 +47,8 @@ export function WorkspaceRedirect() {
     allWorkspaces.find((w) => w.slug === persistedSlug) ||
     allWorkspaces[0];
 
-  if (target) return <Navigate to={`/w/${target.slug}`} replace />;
+  // Resume the workspace at the last route the user had open there, not its root.
+  if (target) return <Navigate to={workspaceEntryPath(target)} replace />;
 
   return (
     <div className="p-6 grid min-h-full place-items-center">

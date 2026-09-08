@@ -8,6 +8,7 @@ import {
 } from '@org/api-client';
 import type { CurrentUser } from '@org/types';
 import type { LoginInput, RegisterInput } from '@org/validation';
+import { getDesktopApi } from '@org/web-desktop';
 import {
   useMutation,
   useQueries,
@@ -365,6 +366,16 @@ export function useRemoveAccount() {
           navigate,
         );
       } else {
+        // Nothing left to fall back to — this is a full sign-out. The desktop
+        // shell keeps its own encrypted session in the main process, which
+        // `authApi.logout()` above (a browser-cookie clear) never touches; drop
+        // it too or the next cold start silently signs the user back in. Mirrors
+        // `useLogout`.
+        try {
+          await getDesktopApi()?.auth.clearSession();
+        } catch {
+          // Best-effort — local state is cleared regardless.
+        }
         useAuthStore.getState().clear();
         queryClient.clear();
         navigate('/login', { replace: true });

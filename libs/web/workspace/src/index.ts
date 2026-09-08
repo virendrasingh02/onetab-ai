@@ -39,5 +39,8 @@ export {
   persistActiveWorkspaceSlug,
   getPersistedLastChannel,
   persistLastChannel,
+  getPersistedLastWorkspacePath,
+  persistLastWorkspacePath,
+  workspaceEntryPath,
   type WorkspaceState,
 } from './lib/workspace.store.js';

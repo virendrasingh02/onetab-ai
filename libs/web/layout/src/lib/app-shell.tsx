@@ -39,14 +39,22 @@ import {
   useCurrentWorkspace,
   useWorkspaces,
   useWorkspaceStore,
+  workspaceEntryPath,
   type WorkspaceState,
 } from '@org/web-workspace';
 import { Building2 } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import {
+  Link,
+  Navigate,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
 import { AddAccountDialog } from './add-account-dialog.js';
 import { AppHeader } from './app-header.js';
 import { ChannelNav } from './channel-nav.js';
+import { useRememberWorkspacePath } from './navigation/use-remember-workspace-path.js';
 import { useSidebarSync } from './navigation/use-sidebar-sync.js';
 import {
   toSidebarActivityConfig,
@@ -121,6 +129,10 @@ export function AppShell() {
   const { slug, workspace, workspaceId, isLoading } = useCurrentWorkspace();
   const channelsQuery = useChannels(workspaceId);
   const membersQuery = useMembers(workspaceId);
+
+  // Remember where the user is in this workspace so switching back resumes here.
+  // Fed from the resolved workspace, not the URL param — see the hook's note.
+  useRememberWorkspacePath(workspace?.id, workspace?.slug);
 
   /*
    * The feed is fetched here as well as on the Inbox page so the bell and the
@@ -297,6 +309,14 @@ export function AppShell() {
   }
 
   if (!workspace || !slug || !workspaceId) {
+    // The workspace in the URL is gone (deleted, or membership revoked). If the
+    // user still belongs to another one, drop them straight into it — resuming
+    // where they last were there — rather than showing a dead end. Only when
+    // there is genuinely nowhere else to go does the message stand.
+    const fallback = (workspacesQuery.data ?? []).find((w) => w.slug !== slug);
+    if (fallback) {
+      return <Navigate to={workspaceEntryPath(fallback)} replace />;
+    }
     return (
       <div className="p-6 grid min-h-full place-items-center">
         <EmptyState

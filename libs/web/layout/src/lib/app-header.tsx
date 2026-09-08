@@ -14,7 +14,7 @@ import {
   useRightPanelStore,
 } from '@org/ui';
 import type { ActivityIndicator } from '@org/notifications';
-import { useLogout } from '@org/auth';
+import { useAccounts, useLogout, useRemoveAccount } from '@org/auth';
 import { cn } from '@org/utils';
 import {
   DesktopTitleBarInset,
@@ -89,6 +89,8 @@ export function AppHeader({
   actions,
 }: AppHeaderProps) {
   const logout = useLogout();
+  const removeAccount = useRemoveAccount();
+  const { accounts, activeAccountId } = useAccounts();
   const navigate = useNavigate();
   const { toggleMaximize } = useDesktop();
   const { environment, primaryOption, trackDownload } = useAppDownload();
@@ -492,15 +494,33 @@ export function AppHeader({
                 </>
               )}
 
-              {/* Sign out */}
+              {/*
+                Sign out of the *current account* only. If another account is
+                linked, `useRemoveAccount` drops this one and switches to the
+                most recent remaining account's workspace; it falls through to
+                /login only when nothing is left. A separate item ends every
+                linked session at once, shown just when there is more than one.
+              */}
               <DropdownMenuItem
-                onClick={() => logout.mutate()}
+                onClick={() =>
+                  removeAccount.mutate(activeAccountId ?? user.id)
+                }
+                disabled={removeAccount.isPending}
                 className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg text-destructive hover:bg-destructive/10"
               >
                 <span>
-                  Sign out of {currentWorkspace?.name ?? 'relibit labs'}
+                  Sign out of {currentWorkspace?.name ?? 'this workspace'}
                 </span>
               </DropdownMenuItem>
+
+              {accounts.length > 1 && (
+                <DropdownMenuItem
+                  onClick={() => logout.mutate()}
+                  className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg text-destructive hover:bg-destructive/10"
+                >
+                  <span>Sign out of all accounts</span>
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 

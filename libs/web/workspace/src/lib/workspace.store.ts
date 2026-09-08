@@ -98,6 +98,50 @@ export function persistLastChannel(
   }
 }
 
+/**
+ * The last route the user had open *inside* a given workspace, stored as the
+ * path after `/w/:slug` (e.g. `"threads"`, `"c/general"`, `"tasks/42"`, or `""`
+ * for Home). Keyed by workspace id so a slug rename never loses it.
+ *
+ * Lets a workspace switch — from the switcher, the "/" redirect, or a
+ * dead-workspace fallback — resume exactly where the user left that workspace
+ * rather than always dropping them on Home. Returns `null` when nothing has been
+ * recorded yet.
+ */
+export function getPersistedLastWorkspacePath(
+  workspaceId: string,
+): string | null {
+  try {
+    return localStorage.getItem(`onetab_last_path_${workspaceId}`);
+  } catch {
+    return null;
+  }
+}
+
+export function persistLastWorkspacePath(
+  workspaceId: string,
+  subPath: string,
+): void {
+  try {
+    localStorage.setItem(`onetab_last_path_${workspaceId}`, subPath);
+  } catch {
+    // Ignore
+  }
+}
+
+/**
+ * The URL to open a workspace at: its remembered in-workspace route when there
+ * is one, otherwise its bare root. Shared by every place that navigates *to* a
+ * workspace so the "resume where I was" behaviour stays consistent.
+ */
+export function workspaceEntryPath(workspace: {
+  id: string;
+  slug: string;
+}): string {
+  const sub = getPersistedLastWorkspacePath(workspace.id);
+  return sub ? `/w/${workspace.slug}/${sub}` : `/w/${workspace.slug}`;
+}
+
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   activeWorkspaceId: getPersistedActiveWorkspaceId(),
   activeWorkspaceSlug: getPersistedActiveWorkspaceSlug(),

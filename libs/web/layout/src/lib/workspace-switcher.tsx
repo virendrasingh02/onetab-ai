@@ -22,7 +22,11 @@ import {
   type ActivityLevel,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { useWorkspaceStore, type WorkspaceState } from '@org/web-workspace';
+import {
+  useWorkspaceStore,
+  workspaceEntryPath,
+  type WorkspaceState,
+} from '@org/web-workspace';
 import {
   Check,
   ChevronDown,
@@ -377,6 +381,11 @@ export function WorkspaceMenu({
                           const indicator = isActive
                             ? workspaceActivity?.[workspace.id]
                             : undefined;
+                          // Open another workspace where the user last left it;
+                          // the one they are already in stays pointed at Home.
+                          const target = isSelected
+                            ? `/w/${workspace.slug}`
+                            : workspaceEntryPath(workspace);
 
                           const body = (
                             <>
@@ -418,7 +427,7 @@ export function WorkspaceMenu({
                               >
                                 {isActive ? (
                                   <Link
-                                    to={`/w/${workspace.slug}`}
+                                    to={target}
                                     className="gap-2.5 min-w-0 flex flex-1 items-center outline-none"
                                   >
                                     {body}
@@ -430,7 +439,7 @@ export function WorkspaceMenu({
                                       setMenuOpen(false);
                                       switchAccount.mutate({
                                         accountId: group.accountId,
-                                        to: `/w/${workspace.slug}`,
+                                        to: target,
                                       });
                                     }}
                                     className="gap-2.5 min-w-0 flex flex-1 items-center text-left outline-none"

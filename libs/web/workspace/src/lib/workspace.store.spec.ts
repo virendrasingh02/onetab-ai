@@ -4,8 +4,11 @@ import { WorkspaceRole, WorkspaceStatus, type WorkspaceSummary } from '@org/type
 import {
   getPersistedActiveWorkspaceId,
   getPersistedLastChannel,
+  getPersistedLastWorkspacePath,
   persistLastChannel,
+  persistLastWorkspacePath,
   useWorkspaceStore,
+  workspaceEntryPath,
 } from './workspace.store.js';
 
 const mockWorkspace: WorkspaceSummary = {
@@ -48,5 +51,28 @@ describe('WorkspaceStore and Persistence', () => {
     persistLastChannel('ws-100', 'announcements');
     expect(getPersistedLastChannel('ws-100')).toBe('announcements');
     expect(getPersistedLastChannel('ws-200')).toBeNull();
+  });
+
+  it('persists and restores the last in-workspace route per workspace', () => {
+    persistLastWorkspacePath('ws-100', 'threads');
+    persistLastWorkspacePath('ws-200', 'c/general');
+
+    expect(getPersistedLastWorkspacePath('ws-100')).toBe('threads');
+    expect(getPersistedLastWorkspacePath('ws-200')).toBe('c/general');
+    expect(getPersistedLastWorkspacePath('ws-404')).toBeNull();
+  });
+
+  it('builds the workspace entry path from the remembered route, else the root', () => {
+    // Nothing recorded yet — bare workspace root.
+    expect(workspaceEntryPath({ id: 'ws-1', slug: 'alpha' })).toBe('/w/alpha');
+
+    persistLastWorkspacePath('ws-1', 'tasks/42');
+    expect(workspaceEntryPath({ id: 'ws-1', slug: 'alpha' })).toBe(
+      '/w/alpha/tasks/42',
+    );
+
+    // An explicit Home visit is recorded as "" and resolves back to the root.
+    persistLastWorkspacePath('ws-1', '');
+    expect(workspaceEntryPath({ id: 'ws-1', slug: 'alpha' })).toBe('/w/alpha');
   });
 });
