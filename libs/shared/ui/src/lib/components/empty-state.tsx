@@ -30,31 +30,33 @@ export interface EmptyStateProps
 }
 
 /**
- * Visual layered card stack graphic matching the modern dark empty state reference design.
+ * Layered card-stack graphic for the empty state. Built entirely from theme
+ * tokens so it tracks light / dark and any workspace palette instead of
+ * rendering a fixed dark card.
  */
 function EmptyStateGraphic({ icon }: { icon?: ReactNode }) {
   return (
     <div className="relative mb-5 flex items-center justify-center" aria-hidden>
       {/* Stack Layer 1 (topmost back) */}
-      <div className="absolute -top-3 w-36 sm:w-44 h-12 rounded-t-xl bg-zinc-900/30 border-t border-x border-zinc-800/40 shadow-xs pointer-events-none" />
+      <div className="absolute -top-3 w-36 sm:w-44 h-12 rounded-t-xl bg-surface-muted border-t border-x border-border/60 shadow-xs pointer-events-none" />
       {/* Stack Layer 2 (middle back) */}
-      <div className="absolute -top-1.5 w-42 sm:w-50 h-14 rounded-t-xl bg-zinc-900/60 border-t border-x border-zinc-800/70 shadow-xs pointer-events-none" />
+      <div className="absolute -top-1.5 w-42 sm:w-50 h-14 rounded-t-xl bg-surface-raised border-t border-x border-border shadow-xs pointer-events-none" />
       {/* Front Card Container */}
-      <div className="relative z-10 w-48 sm:w-56 h-18 sm:h-20 rounded-xl bg-[#121214] border border-zinc-800 shadow-2xl p-3 flex items-center gap-3">
+      <div className="relative z-10 w-48 sm:w-56 h-18 sm:h-20 rounded-xl bg-card border border-border shadow-md p-3 flex items-center gap-3">
         {/* Left icon / thumbnail block */}
-        <div className="size-10 sm:size-11 rounded-lg bg-zinc-850 border border-zinc-700/60 flex items-center justify-center text-zinc-400 shrink-0 shadow-inner">
+        <div className="size-10 sm:size-11 rounded-lg bg-surface-inset border border-border flex items-center justify-center text-muted-foreground shrink-0 shadow-inner">
           {icon ? (
-            <div className="[&_svg]:size-5 [&_svg]:text-zinc-300 flex items-center justify-center">
+            <div className="[&_svg]:size-5 [&_svg]:text-muted-foreground flex items-center justify-center">
               {icon}
             </div>
           ) : (
-            <div className="size-4.5 rounded-xs bg-zinc-700/60" />
+            <div className="size-4.5 rounded-xs bg-muted-foreground/30" />
           )}
         </div>
         {/* Right skeleton placeholder lines */}
         <div className="flex flex-col gap-1.5 min-w-0 flex-1">
-          <div className="h-2.5 w-3/4 bg-zinc-700/60 rounded-full" />
-          <div className="h-2 w-1/2 bg-zinc-800/80 rounded-full" />
+          <div className="h-2.5 w-3/4 bg-muted-foreground/30 rounded-full" />
+          <div className="h-2 w-1/2 bg-muted-foreground/20 rounded-full" />
         </div>
       </div>
     </div>
@@ -63,7 +65,8 @@ function EmptyStateGraphic({ icon }: { icon?: ReactNode }) {
 
 /**
  * Shown when a collection or view is legitimately empty.
- * Styled in dark minimalist aesthetic with layered cards graphic, clean typography, and action buttons.
+ * Minimalist layered-card graphic, clean typography, and action buttons —
+ * all theme-aware, so it reads correctly in light and dark.
  */
 export function EmptyState({
   icon,
@@ -86,18 +89,18 @@ export function EmptyState({
       ) : icon ? (
         <div
           aria-hidden
-          className="mb-3 size-10 [&_svg]:size-5 flex items-center justify-center rounded-xl border border-zinc-800 bg-[#121214] text-zinc-400"
+          className="mb-3 size-10 [&_svg]:size-5 flex items-center justify-center rounded-xl border border-border bg-card text-muted-foreground"
         >
           {icon}
         </div>
       ) : null}
 
-      <h3 className="text-base sm:text-lg font-bold tracking-tight text-white text-center">
+      <h3 className="text-base sm:text-lg font-bold tracking-tight text-foreground text-center">
         {title}
       </h3>
 
       {description ? (
-        <p className="max-w-sm sm:max-w-md text-xs sm:text-sm leading-relaxed text-zinc-400 mt-1.5 text-center font-normal">
+        <p className="max-w-sm sm:max-w-md text-xs sm:text-sm leading-relaxed text-muted-foreground mt-1.5 text-center font-normal">
           {description}
         </p>
       ) : null}
