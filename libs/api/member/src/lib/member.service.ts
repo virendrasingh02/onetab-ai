@@ -125,6 +125,14 @@ export class MemberService {
       where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
       data: { role: input.role },
     });
+
+    this.events.emit(AppEvent.WorkspaceMembershipChanged, {
+      workspaceId,
+      actorId: null,
+      userId: targetUserId,
+      action: 'role',
+      role: input.role,
+    });
   }
 
   async remove(
@@ -179,6 +187,17 @@ export class MemberService {
         where: { workspaceId_userId: { workspaceId, userId } },
       }),
     ]);
+
+    // The Matrix bridge kicks the user from the workspace's space room (and,
+    // via the reconciler, from every channel room). Roles/permissions were
+    // already ours; this only mirrors the exit.
+    this.events.emit(AppEvent.WorkspaceMembershipChanged, {
+      workspaceId,
+      actorId: null,
+      userId,
+      action: 'leave',
+      role: null,
+    });
   }
 
   // --- invitations --------------------------------------------------------
@@ -724,6 +743,26 @@ export class MemberService {
       channelId: invitation.channelId,
       invitedById: invitation.invitedById ?? null,
     });
+
+    // Mirror the new membership onto Matrix: the workspace space room always,
+    // and the channel room too when the invite was channel-scoped.
+    this.events.emit(AppEvent.WorkspaceMembershipChanged, {
+      workspaceId: invitation.workspaceId,
+      actorId: userId,
+      userId,
+      action: 'join',
+      role: invitation.role,
+    });
+    if (invitation.channelId) {
+      this.events.emit(AppEvent.ChannelMembershipChanged, {
+        workspaceId: invitation.workspaceId,
+        actorId: userId,
+        channelId: invitation.channelId,
+        userId,
+        action: 'join',
+        role: 'MEMBER',
+      });
+    }
 
     return {
       workspaceSlug: invitation.workspace.slug,

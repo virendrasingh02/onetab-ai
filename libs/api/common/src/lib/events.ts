@@ -27,6 +27,18 @@ export const AppEvent = {
   ChannelCreated: 'channel.created',
   ChannelUpdated: 'channel.updated',
   ChannelDeleted: 'channel.deleted',
+  /**
+   * A user joined or left a channel through our own API. Consumed by the
+   * Matrix bridge to mirror the change into the channel's room immediately,
+   * rather than waiting for the membership reconciler's next pass.
+   */
+  ChannelMembershipChanged: 'channel.membership.changed',
+  /**
+   * A user joined or left a workspace, or had their workspace role changed,
+   * through our own API. Consumed by the Matrix bridge to mirror the change
+   * (and the derived space power level) into the workspace's space room.
+   */
+  WorkspaceMembershipChanged: 'workspace.membership.changed',
   FileShared: 'file.shared',
   MeetingScheduled: 'meeting.scheduled',
   MeetingUpdated: 'meeting.updated',
@@ -143,6 +155,23 @@ export interface ChannelCreatedEvent extends BaseEvent {
   visibility: string;
 }
 
+export interface ChannelMembershipChangedEvent extends BaseEvent {
+  channelId: string;
+  /** The user who joined or left. */
+  userId: string;
+  action: 'join' | 'leave';
+  /** Channel role after the change; null on leave. */
+  role: 'ADMIN' | 'MEMBER' | null;
+}
+
+export interface WorkspaceMembershipChangedEvent extends BaseEvent {
+  /** The user who joined, left, or was re-roled. */
+  userId: string;
+  action: 'join' | 'leave' | 'role';
+  /** Workspace role after the change; null on leave. */
+  role: string | null;
+}
+
 export interface FileSharedEvent extends BaseEvent {
   uploadId: string;
   filename: string;
@@ -190,6 +219,8 @@ export interface AppEventPayloads {
   [AppEvent.DocumentUpdated]: DocumentUpdatedEvent;
   [AppEvent.DocumentDeleted]: DocumentDeletedEvent;
   [AppEvent.ChannelCreated]: ChannelCreatedEvent;
+  [AppEvent.ChannelMembershipChanged]: ChannelMembershipChangedEvent;
+  [AppEvent.WorkspaceMembershipChanged]: WorkspaceMembershipChangedEvent;
   [AppEvent.FileShared]: FileSharedEvent;
   [AppEvent.WorkspaceInvited]: WorkspaceInvitedEvent;
   [AppEvent.MemberJoined]: MemberJoinedEvent;

@@ -5,7 +5,9 @@ import { MatrixAdminService } from './matrix-admin.service.js';
 import { MatrixAuthService } from './matrix-auth.service.js';
 import { MatrixBotMessagingService } from './matrix-bot-messaging.service.js';
 import { MatrixInboundRouterService } from './matrix-inbound-router.service.js';
+import { MatrixMembershipListener } from './matrix-membership.listener.js';
 import { MatrixReconcilerService } from './matrix-reconciler.service.js';
+import { MatrixSpaceService } from './matrix-space.service.js';
 import { MatrixSyncService } from './matrix-sync.service.js';
 import {
   MatrixAppserviceController,
@@ -28,7 +30,9 @@ import { NotificationBridgeService } from './notification-bridge.service.js';
     MatrixAuthService,
     MatrixBotMessagingService,
     MatrixInboundRouterService,
+    MatrixMembershipListener,
     MatrixReconcilerService,
+    MatrixSpaceService,
     MatrixSyncService,
     NotificationBridgeService,
   ],
@@ -37,6 +41,7 @@ import { NotificationBridgeService } from './notification-bridge.service.js';
     MatrixAuthService,
     MatrixBotMessagingService,
     MatrixInboundRouterService,
+    MatrixSpaceService,
   ],
 })
 export class MatrixModule {}

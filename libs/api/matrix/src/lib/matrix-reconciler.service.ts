@@ -1,13 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '@org/database';
+import { WorkspaceRole } from '@org/types';
 import { MatrixAdminService } from './matrix-admin.service.js';
+import {
+  MatrixSpaceService,
+  powerLevelForRole,
+} from './matrix-space.service.js';
 
 /** Channels reconciled per tick, so a large workspace does not stall the loop. */
 const BATCH = 40;
 
 /** Users whose Matrix profile is checked for backfill per tick. */
 const PROFILE_BATCH = 20;
+
+/** Workspaces whose space is reconciled per tick — heavier than a channel
+ *  (member + hierarchy + power-level passes), so a smaller batch. */
+const SPACE_BATCH = 20;
 
 /**
  * Converges Matrix room membership back onto our own.
@@ -32,10 +41,13 @@ export class MatrixReconcilerService {
   private offset = 0;
   /** Rotates through users across profile-backfill ticks. */
   private profileOffset = 0;
+  /** Rotates through workspaces across space-reconcile ticks. */
+  private spaceOffset = 0;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly admin: MatrixAdminService,
+    private readonly space: MatrixSpaceService,
   ) {}
 
   @Cron(CronExpression.EVERY_10_MINUTES, { name: 'matrix-membership-reconcile' })
@@ -122,6 +134,157 @@ export class MatrixReconcilerService {
     if (invited || kicked) {
       this.logger.log(
         `Matrix membership reconcile: +${invited} invited, -${kicked} kicked across ${channels.length} channel(s).`,
+      );
+    }
+  }
+
+  /**
+   * Converges each workspace's Matrix **space** with our own model.
+   *
+   * Per tick, for a batch of workspaces that already have a space — or have a
+   * linked channel room but no space yet (existing tenants, seeded here on the
+   * first pass):
+   *   - invite every ACTIVE member missing from the space, at the power level
+   *     their workspace role maps to;
+   *   - kick every space member who is a known human in this workspace but no
+   *     longer an ACTIVE member (covers SUSPENDED and removed alike);
+   *   - nest every linked, unarchived channel room under the space;
+   *   - fix power-level drift for members whose role changed while they stayed.
+   *
+   * Bots never carry a `User.matrixUserId`, so they are outside the "known
+   * human" set and never kicked — same rule as `reconcile()`.
+   */
+  @Cron(CronExpression.EVERY_10_MINUTES, { name: 'matrix-space-reconcile' })
+  async reconcileSpaces(): Promise<void> {
+    if (!this.admin.isEnabled) return;
+
+    const workspaces = await this.prisma.workspace.findMany({
+      where: {
+        OR: [
+          { matrixSpaceId: { not: null } },
+          { channels: { some: { matrixRoomId: { not: null } } } },
+        ],
+      },
+      orderBy: { createdAt: 'asc' },
+      skip: this.spaceOffset,
+      take: SPACE_BATCH,
+      select: {
+        id: true,
+        name: true,
+        matrixSpaceId: true,
+        members: {
+          where: { status: 'ACTIVE' },
+          select: {
+            role: true,
+            user: { select: { matrixUserId: true } },
+          },
+        },
+        channels: {
+          where: { matrixRoomId: { not: null }, isArchived: false },
+          select: { matrixRoomId: true },
+        },
+      },
+    });
+
+    if (workspaces.length < SPACE_BATCH) {
+      this.spaceOffset = 0;
+    } else {
+      this.spaceOffset += SPACE_BATCH;
+    }
+
+    let invited = 0;
+    let kicked = 0;
+    let nested = 0;
+
+    for (const workspace of workspaces) {
+      try {
+        const spaceId =
+          workspace.matrixSpaceId ??
+          (await this.space.ensureWorkspaceSpace(workspace.id));
+        if (!spaceId) continue;
+
+        const roomMembers = new Set(await this.admin.getRoomMembers(spaceId));
+
+        // Desired: ACTIVE members with a Matrix identity → target power level.
+        const desired = new Map<string, number>();
+        for (const member of workspace.members) {
+          if (member.user.matrixUserId) {
+            desired.set(
+              member.user.matrixUserId,
+              powerLevelForRole(member.role as WorkspaceRole),
+            );
+          }
+        }
+
+        for (const [matrixUserId, powerLevel] of desired) {
+          if (!roomMembers.has(matrixUserId)) {
+            await this.admin.inviteToRoom(spaceId, matrixUserId);
+            invited++;
+            if (powerLevel > 0) {
+              await this.admin.setPowerLevel(spaceId, matrixUserId, powerLevel);
+            }
+          }
+        }
+
+        // Every human this workspace has ever known a Matrix id for — the only
+        // ids eligible to be kicked (never a bot, never another tenant).
+        const workspaceHumans = new Set(
+          (
+            await this.prisma.workspaceMember.findMany({
+              where: {
+                workspaceId: workspace.id,
+                user: { matrixUserId: { not: null } },
+              },
+              select: { user: { select: { matrixUserId: true } } },
+            })
+          )
+            .map((m) => m.user.matrixUserId)
+            .filter((id): id is string => !!id),
+        );
+
+        for (const matrixUserId of roomMembers) {
+          if (workspaceHumans.has(matrixUserId) && !desired.has(matrixUserId)) {
+            await this.admin.kickFromRoom(
+              spaceId,
+              matrixUserId,
+              'Reconciled: no longer an active workspace member',
+            );
+            kicked++;
+          }
+        }
+
+        // Nest any linked channel room not already under the space.
+        const children = new Set(await this.admin.listSpaceChildren(spaceId));
+        for (const channel of workspace.channels) {
+          if (channel.matrixRoomId && !children.has(channel.matrixRoomId)) {
+            await this.admin.addRoomToSpace(spaceId, channel.matrixRoomId);
+            nested++;
+          }
+        }
+
+        // Fix power-level drift in one PUT, only when something is off.
+        const currentLevels = await this.admin.getPowerLevels(spaceId);
+        const corrections: Record<string, number> = {};
+        for (const [matrixUserId, powerLevel] of desired) {
+          if ((currentLevels[matrixUserId] ?? 0) !== powerLevel) {
+            corrections[matrixUserId] = powerLevel;
+          }
+        }
+        if (Object.keys(corrections).length > 0) {
+          await this.admin.setPowerLevels(spaceId, corrections);
+        }
+      } catch (err) {
+        this.logger.warn(
+          `Space reconcile failed for workspace ${workspace.name} (${workspace.id}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+
+    if (invited || kicked || nested) {
+      this.logger.log(
+        `Matrix space reconcile: +${invited} invited, -${kicked} kicked, +${nested} room(s) nested across ${workspaces.length} workspace(s).`,
       );
     }
   }

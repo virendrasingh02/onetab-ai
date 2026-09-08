@@ -105,31 +105,125 @@ export class MatrixSyncService {
   }
 
   /**
-   * Auto-joins a bot identity (agent, app) the moment it is invited.
+   * Handles an inbound `m.room.member` event.
    *
-   * A human joins their DM from their own browser session; a bot has none, so
-   * nothing would ever accept its invite otherwise — and Matrix requires a
-   * *joined* member to send events at all, while `getOrCreateDirectMessage`
-   * only recognises a room as already existing once both sides have joined
-   * it, so a bot stuck on `invite` would get a fresh duplicate room on every
-   * visit. Membership for everyone else stays owned by our database, same as
-   * the sibling events this handler ignores.
+   * Two jobs:
+   *
+   * 1. **Bot auto-join.** A human joins their DM from their own browser
+   *    session; a bot (agent, app) has none, so nothing would ever accept its
+   *    invite otherwise — and Matrix requires a *joined* member to send events
+   *    at all, while `getOrCreateDirectMessage` only recognises a room as
+   *    existing once both sides have joined, so a bot stuck on `invite` would
+   *    get a fresh duplicate room on every visit.
+   *
+   * 2. **Human membership convergence.** A join / leave / kick / ban performed
+   *    on the Matrix side (Synapse admin, a fallback Element client) for a room
+   *    we recognise — a channel room or a workspace space room — is mirrored
+   *    back into `ChannelMember` / `WorkspaceMember`. Our database stays
+   *    authoritative for roles and permissions; only the fact of membership
+   *    crosses back. DMs and group rooms are untouched — their membership is
+   *    already Matrix-native.
    */
   private async handleMembership(event: MatrixTimelineEvent): Promise<void> {
-    if (event.content['membership'] !== 'invite') return;
+    const membership = event.content['membership'];
+    const subject = event.state_key;
+    if (!subject) return;
 
-    const invitee = event.state_key;
-    if (!invitee || !MatrixSyncService.BOT_INVITE_PATTERN.test(invitee)) {
+    if (
+      membership === 'invite' &&
+      MatrixSyncService.BOT_INVITE_PATTERN.test(subject)
+    ) {
+      try {
+        await this.admin.joinRoomAs(subject, event.room_id);
+      } catch (error) {
+        this.logger.error(
+          `Failed to auto-join bot ${subject} into ${event.room_id}: ${String(error)}`,
+        );
+      }
       return;
     }
 
-    try {
-      await this.admin.joinRoomAs(invitee, event.room_id);
-    } catch (error) {
-      this.logger.error(
-        `Failed to auto-join bot ${invitee} into ${event.room_id}: ${String(error)}`,
-      );
+    // `invite` for a human is not yet membership, so it is ignored. Our own
+    // outbound mirror also emits these events; the upserts / deletes below are
+    // idempotent, so the echo is a harmless no-op and needs no dedupe.
+    if (membership !== 'join' && membership !== 'leave' && membership !== 'ban') {
+      return;
     }
+
+    await this.ingestHumanMembership(
+      event.room_id,
+      subject,
+      membership as 'join' | 'leave' | 'ban',
+    );
+  }
+
+  /**
+   * Converges one Matrix-side human membership transition into our tables.
+   *
+   * - **Channel room:** `join` upserts a `ChannelMember` (role MEMBER); a
+   *   `leave` / `ban` deletes it.
+   * - **Space room:** `join` only lifts a prior SUSPENDED back to ACTIVE — a
+   *   workspace membership is never *created* from a Matrix join, because that
+   *   must go through an invitation (plan limits, role). `leave` / `ban`
+   *   SUSPENDs the member (reversible; a delete would cascade ~45 relations),
+   *   and never the workspace owner.
+   * - Any other room (DM, group, untracked): ignored.
+   */
+  private async ingestHumanMembership(
+    roomId: string,
+    matrixUserId: string,
+    membership: 'join' | 'leave' | 'ban',
+  ): Promise<void> {
+    const user = await this.prisma.user.findFirst({
+      where: { matrixUserId },
+      select: { id: true },
+    });
+    if (!user) return;
+
+    const channel = await this.prisma.channel.findFirst({
+      where: { matrixRoomId: roomId },
+      select: { id: true },
+    });
+    if (channel) {
+      if (membership === 'join') {
+        await this.prisma.channelMember.upsert({
+          where: {
+            channelId_userId: { channelId: channel.id, userId: user.id },
+          },
+          create: { channelId: channel.id, userId: user.id, role: 'MEMBER' },
+          update: {},
+        });
+      } else {
+        await this.prisma.channelMember.deleteMany({
+          where: { channelId: channel.id, userId: user.id },
+        });
+      }
+      return;
+    }
+
+    const workspace = await this.prisma.workspace.findFirst({
+      where: { matrixSpaceId: roomId },
+      select: { id: true, ownerId: true },
+    });
+    if (!workspace) return;
+
+    if (membership === 'join') {
+      await this.prisma.workspaceMember.updateMany({
+        where: {
+          workspaceId: workspace.id,
+          userId: user.id,
+          status: 'SUSPENDED',
+        },
+        data: { status: 'ACTIVE' },
+      });
+      return;
+    }
+
+    if (user.id === workspace.ownerId) return;
+    await this.prisma.workspaceMember.updateMany({
+      where: { workspaceId: workspace.id, userId: user.id, status: 'ACTIVE' },
+      data: { status: 'SUSPENDED' },
+    });
   }
 
   /**

@@ -836,7 +836,21 @@ export class MatrixAdminService {
     matrixUserId: string,
     powerLevel: number,
   ): Promise<void> {
+    await this.setPowerLevels(roomId, { [matrixUserId]: powerLevel });
+  }
+
+  /**
+   * Merges a batch of `matrixUserId -> powerLevel` entries into a room's
+   * `m.room.power_levels`, preserving every other key. One GET + one PUT
+   * regardless of how many users change — the reconciler uses this to fix
+   * role drift for a whole workspace at once.
+   */
+  async setPowerLevels(
+    roomId: string,
+    users: Record<string, number>,
+  ): Promise<void> {
     this.assertEnabled();
+    if (Object.keys(users).length === 0) return;
     const accessToken = await this.roomActorToken(roomId);
     const path = `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.power_levels/`;
 
@@ -850,9 +864,147 @@ export class MatrixAdminService {
       accessToken,
       body: JSON.stringify({
         ...current,
-        users: { ...(current.users ?? {}), [matrixUserId]: powerLevel },
+        users: { ...(current.users ?? {}), ...users },
       }),
     });
+  }
+
+  /** The `matrixUserId -> powerLevel` map currently on a room. */
+  async getPowerLevels(roomId: string): Promise<Record<string, number>> {
+    this.assertEnabled();
+    const accessToken = await this.roomActorToken(roomId);
+    const current = await this.request<{ users?: Record<string, number> }>(
+      `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.power_levels/`,
+      { method: 'GET', accessToken },
+    );
+    return current.users ?? {};
+  }
+
+  // --- spaces ------------------------------------------------------------
+
+  /**
+   * Creates an `m.space` room to back one of our workspaces.
+   *
+   * A space carries only hierarchy state (`m.space.child`), never messages, so
+   * it is left unencrypted. Members cannot restructure it: `m.space.child` is
+   * raised to PL50 while the creator keeps the PL100 the preset grants. As with
+   * `createRoom`, admin credentials cannot masquerade, so the bridge borrows
+   * the creator's own session and it is they who end up holding PL100.
+   */
+  async createSpace(input: {
+    name: string;
+    topic?: string;
+    creatorMatrixId: string;
+  }): Promise<string> {
+    const config = this.assertEnabled();
+
+    const accessToken = this.isAdminMode
+      ? await this.actAs(input.creatorMatrixId, { expiresInMs: 60_000 })
+      : config.asToken;
+
+    const path = this.isAdminMode
+      ? '/_matrix/client/v3/createRoom'
+      : `/_matrix/client/v3/createRoom?user_id=${encodeURIComponent(input.creatorMatrixId)}`;
+
+    const response = await this.request<{ room_id: string }>(path, {
+      method: 'POST',
+      accessToken,
+      body: JSON.stringify({
+        name: input.name,
+        topic: input.topic,
+        preset: 'private_chat',
+        creation_content: { type: 'm.space' },
+        power_level_content_override: {
+          events: { 'm.space.child': 50 },
+        },
+      }),
+    });
+
+    return response.room_id;
+  }
+
+  /**
+   * Nests a child room under a space, writing both sides of the link:
+   * `m.space.child` on the space and `m.space.parent` on the child. `via` is
+   * the resident server list clients use to find the room — for a single
+   * homeserver that is just our own server name.
+   */
+  async addRoomToSpace(
+    spaceId: string,
+    childRoomId: string,
+    options: { suggested?: boolean } = {},
+  ): Promise<void> {
+    this.assertEnabled();
+
+    await this.putRoomState(
+      spaceId,
+      'm.space.child',
+      childRoomId,
+      {
+        via: [this.config.serverName],
+        suggested: options.suggested ?? false,
+      },
+    );
+
+    await this.putRoomState(
+      childRoomId,
+      'm.space.parent',
+      spaceId,
+      { via: [this.config.serverName], canonical: true },
+    );
+  }
+
+  /** Removes a child room from a space by clearing both link state events. */
+  async removeRoomFromSpace(
+    spaceId: string,
+    childRoomId: string,
+  ): Promise<void> {
+    this.assertEnabled();
+    await this.putRoomState(spaceId, 'm.space.child', childRoomId, {});
+    await this.putRoomState(childRoomId, 'm.space.parent', spaceId, {});
+  }
+
+  /**
+   * The child room ids currently linked under a space — every `m.space.child`
+   * state event with non-empty content. Feeds `reconcileSpaces`.
+   */
+  async listSpaceChildren(spaceId: string): Promise<string[]> {
+    this.assertEnabled();
+    const accessToken = await this.roomActorToken(spaceId);
+
+    const state = await this.request<
+      Array<{ type: string; state_key: string; content: Record<string, unknown> }>
+    >(`/_matrix/client/v3/rooms/${encodeURIComponent(spaceId)}/state`, {
+      method: 'GET',
+      accessToken,
+    });
+
+    return state
+      .filter(
+        (event) =>
+          event.type === 'm.space.child' &&
+          event.content &&
+          Object.keys(event.content).length > 0,
+      )
+      .map((event) => event.state_key);
+  }
+
+  /** PUTs one state event into a room, acting as a member who holds power. */
+  private async putRoomState(
+    roomId: string,
+    eventType: string,
+    stateKey: string,
+    content: Record<string, unknown>,
+  ): Promise<void> {
+    const accessToken = await this.roomActorToken(roomId);
+    await this.request(
+      `/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/${encodeURIComponent(eventType)}/${encodeURIComponent(stateKey)}`,
+      {
+        method: 'PUT',
+        accessToken,
+        body: JSON.stringify(content),
+      },
+    );
   }
 
   /**

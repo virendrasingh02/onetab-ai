@@ -307,6 +307,20 @@ export class ChannelService {
       skipDuplicates: true,
     });
 
+    // Mirror into the channel's Matrix room. Emitting for every eligible id
+    // (not just the genuinely new ones) is safe — the bridge's invite is
+    // idempotent — and `createMany` does not report which rows it skipped.
+    for (const row of eligible) {
+      this.events.emit(AppEvent.ChannelMembershipChanged, {
+        workspaceId,
+        actorId: userId,
+        channelId,
+        userId: row.userId,
+        action: 'join',
+        role: input.role,
+      });
+    }
+
     return this.listMembers(workspaceId, channelId);
   }
 
@@ -326,6 +340,15 @@ export class ChannelService {
 
     await this.prisma.channelMember.deleteMany({
       where: { channelId, userId: targetUserId },
+    });
+
+    this.events.emit(AppEvent.ChannelMembershipChanged, {
+      workspaceId,
+      actorId,
+      channelId,
+      userId: targetUserId,
+      action: 'leave',
+      role: null,
     });
   }
 
@@ -352,6 +375,15 @@ export class ChannelService {
       where: { channelId_userId: { channelId, userId } },
       create: { channelId, userId, role: ChannelRole.MEMBER },
       update: {},
+    });
+
+    this.events.emit(AppEvent.ChannelMembershipChanged, {
+      workspaceId,
+      actorId: userId,
+      channelId,
+      userId,
+      action: 'join',
+      role: ChannelRole.MEMBER,
     });
   }
 

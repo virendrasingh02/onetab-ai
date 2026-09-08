@@ -16,6 +16,7 @@ import { ConfigService } from '@nestjs/config';
 import { CurrentUser, Public } from '@org/api-common';
 import { MatrixAdminService } from './matrix-admin.service.js';
 import { MatrixAuthService } from './matrix-auth.service.js';
+import { MatrixSpaceService } from './matrix-space.service.js';
 import {
   MatrixSyncService,
   type AppserviceTransaction,
@@ -27,6 +28,7 @@ export class MatrixController {
   constructor(
     private readonly auth: MatrixAuthService,
     private readonly admin: MatrixAdminService,
+    private readonly space: MatrixSpaceService,
   ) {}
 
   /**
@@ -86,6 +88,10 @@ export class MatrixController {
     if (!roomId) {
       throw new ServiceUnavailableException('Matrix is not configured.');
     }
+    // Nest the room under the workspace's space (provisioning the space if this
+    // is the first linked channel). Fire-and-forget: it is fully best-effort
+    // and the reconciler is the backstop, so it must not delay the room link.
+    void this.space.nestChannelRoom(channelId).catch(() => undefined);
     return { roomId };
   }
 

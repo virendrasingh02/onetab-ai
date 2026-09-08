@@ -13,6 +13,8 @@ export {
   type DocumentUpdatedEvent,
   type DocumentDeletedEvent,
   type ChannelCreatedEvent,
+  type ChannelMembershipChangedEvent,
+  type WorkspaceMembershipChangedEvent,
   type FileSharedEvent,
   type WorkspaceInvitedEvent,
   type MemberJoinedEvent,

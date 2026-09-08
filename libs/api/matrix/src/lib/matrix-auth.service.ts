@@ -375,4 +375,39 @@ export class MatrixAuthService {
       );
     }
   }
+
+  /**
+   * Mirrors a channel role change into the room's power levels — a channel
+   * ADMIN gets PL50, matching the space power-level mapping. The role itself
+   * stays ours; this only tracks it so moderation looks right in any Matrix
+   * client. No-op until the channel has a room.
+   */
+  async syncChannelPowerLevel(
+    channelId: string,
+    userId: string,
+    powerLevel: number,
+  ): Promise<void> {
+    if (!this.admin.isEnabled) return;
+
+    const channel = await this.prisma.channel.findUnique({
+      where: { id: channelId },
+      select: { matrixRoomId: true },
+    });
+    if (!channel?.matrixRoomId) return;
+
+    const matrixUserId = await this.ensureIdentity(userId);
+    if (!matrixUserId) return;
+
+    try {
+      await this.admin.setPowerLevel(
+        channel.matrixRoomId,
+        matrixUserId,
+        powerLevel,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to mirror channel power level for ${matrixUserId}: ${String(error)}`,
+      );
+    }
+  }
 }

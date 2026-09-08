@@ -161,6 +161,12 @@ model Workspace {
   archivedAt               DateTime?
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
+  /// Matrix space (an `m.space` room) backing this workspace. Null until the
+  /// first channel in the workspace is linked to a room, then provisioned
+  /// lazily. The workspace stays the source of truth for name, membership and
+  /// roles; the space mirrors them so the channel rooms nest under one
+  /// container on the homeserver.
+  matrixSpaceId            String?                   @unique
   aiAgents                 AIAgent[]
   aiChatSessions           AIChatSession[]
   aiMemories               AIMemory[]
