@@ -177,6 +177,28 @@ export function AppShell() {
   }, [feedChannelActivity, liveRoomActivity, channelsQuery.data]);
 
   /*
+   * The most recent activity timestamp per channel, distilled from the same
+   * feed the dots use. Feeds the sidebar's "recent activity" / "last message"
+   * sort and the "recently active" smart section (§1.2 / §1.1) without a new
+   * request — message bodies live in Matrix, but the feed already records that
+   * *something* happened in a channel and when.
+   */
+  const channelLastActivity = useMemo(() => {
+    const latest: Record<string, string> = {};
+    for (const item of notificationFeed.data ?? []) {
+      const channelId = item.channel?.id;
+      if (!channelId) continue;
+      if (
+        !latest[channelId] ||
+        Date.parse(item.occurredAt) > Date.parse(latest[channelId])
+      ) {
+        latest[channelId] = item.occurredAt;
+      }
+    }
+    return latest;
+  }, [notificationFeed.data]);
+
+  /*
    * Every workspace's feed, not just this one's — the switcher has to say
    * whether anything is waiting in the workspaces the user is *not* looking at,
    * which is the only place that answer can come from.
@@ -348,6 +370,7 @@ export function AppShell() {
       isLoading={channelsQuery.isLoading}
       inboxUnread={unread.count}
       channelActivity={channelActivity}
+      channelLastActivity={channelLastActivity}
       onCreateChannel={() => setCreateChannelOpen(true)}
       onBrowseChannels={() => navigate(`/w/${slug}/channels`)}
       isCollapsed={isSidebarCollapsed && !isMobile}

@@ -2,6 +2,14 @@ import type { SidebarActivityConfig } from '@org/ui';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { DEFAULT_NAV_ITEMS } from './navigation.config.js';
+import {
+  defaultDirectionFor,
+  type ChannelPriority,
+  type ChannelSortDirection,
+  type ChannelSortMode,
+  type ChannelSortPreference,
+  type SidebarSectionDef,
+} from './sidebar-sections.js';
 
 export interface SidebarItemPreference {
   visible: boolean;
@@ -155,6 +163,23 @@ export interface SidebarState {
   /** Activity-indicator (dot/badge) preferences — brief §2. */
   activityIndicators: SidebarActivityPreferences;
 
+  /* --- Smart sidebar & channel sorting (brief §1.1 / §1.2) -------------
+   * All three maps are keyed by workspaceId so a user's organisation of one
+   * workspace never leaks into another, and all three ride the same
+   * `SidebarPreference` server sync as the rest of this store. */
+
+  /** Chosen channel sort per workspace. Absent ⇒ `DEFAULT_CHANNEL_SORT`. */
+  channelSort: Record<string, ChannelSortPreference>;
+  /** User-created (manual) + rule-driven (smart) channel sections per workspace. */
+  sectionDefs: Record<string, SidebarSectionDef[]>;
+  /** Lightweight per-channel metadata (priority) per workspace. */
+  channelMeta: Record<string, Record<string, { priority?: ChannelPriority }>>;
+  /** Per-channel open tally per workspace — powers "frequently visited". */
+  channelVisits: Record<
+    string,
+    Record<string, { count: number; lastAt: string }>
+  >;
+
   // Actions for Navigation Items
   setItemVisibility: (id: string, visible: boolean) => void;
   reorderItems: (orderedIds: string[]) => void;
@@ -204,6 +229,56 @@ export interface SidebarState {
   resetToDefaultOrder: () => void;
   resetAllVisibility: () => void;
   resetAllPreferences: () => void;
+
+  // --- Smart sidebar & channel sorting ---
+  setChannelSort: (
+    workspaceId: string,
+    mode: ChannelSortMode,
+    direction?: ChannelSortDirection,
+  ) => void;
+  addSectionDef: (workspaceId: string, def: SidebarSectionDef) => void;
+  updateSectionDef: (
+    workspaceId: string,
+    id: string,
+    patch: Partial<Omit<SidebarSectionDef, 'id'>>,
+  ) => void;
+  removeSectionDef: (workspaceId: string, id: string) => void;
+  reorderSectionDefs: (workspaceId: string, orderedIds: string[]) => void;
+  toggleSectionDefCollapsed: (workspaceId: string, id: string) => void;
+  /** Add a channel to a manual section (removing it from any other manual one). */
+  assignChannelToSection: (
+    workspaceId: string,
+    sectionId: string,
+    channelId: string,
+  ) => void;
+  removeChannelFromSection: (
+    workspaceId: string,
+    sectionId: string,
+    channelId: string,
+  ) => void;
+  setChannelPriority: (
+    workspaceId: string,
+    channelId: string,
+    priority: ChannelPriority,
+  ) => void;
+  recordChannelVisit: (workspaceId: string, channelId: string) => void;
+  resetChannelOrganization: (workspaceId: string) => void;
+}
+
+/** Keep the visit tally bounded so the synced blob can't grow without limit. */
+const MAX_TRACKED_VISITS = 120;
+
+function pruneVisits(
+  entries: Record<string, { count: number; lastAt: string }>,
+): Record<string, { count: number; lastAt: string }> {
+  const ids = Object.keys(entries);
+  if (ids.length <= MAX_TRACKED_VISITS) return entries;
+  const kept = ids
+    .sort((a, b) => Date.parse(entries[b].lastAt) - Date.parse(entries[a].lastAt))
+    .slice(0, MAX_TRACKED_VISITS);
+  const next: Record<string, { count: number; lastAt: string }> = {};
+  for (const id of kept) next[id] = entries[id];
+  return next;
 }
 
 function getDefaultItemPreferences(): Record<string, SidebarItemPreference> {
@@ -243,6 +318,10 @@ export const useSidebarStore = create<SidebarState>()(
       collapsedGroups: {},
       sidebarCollapsed: false,
       activityIndicators: { ...DEFAULT_ACTIVITY_INDICATORS },
+      channelSort: {},
+      sectionDefs: {},
+      channelMeta: {},
+      channelVisits: {},
 
       setItemVisibility: (id: string, visible: boolean) =>
         set((state) => ({
@@ -511,6 +590,160 @@ export const useSidebarStore = create<SidebarState>()(
           activityIndicators: { ...DEFAULT_ACTIVITY_INDICATORS },
         })),
 
+      // --- Smart sidebar & channel sorting --------------------------------
+
+      setChannelSort: (workspaceId, mode, direction) =>
+        set((state) => ({
+          channelSort: {
+            ...state.channelSort,
+            [workspaceId]: {
+              mode,
+              direction: direction ?? defaultDirectionFor(mode),
+            },
+          },
+        })),
+
+      addSectionDef: (workspaceId, def) =>
+        set((state) => {
+          const existing = state.sectionDefs[workspaceId] ?? [];
+          return {
+            sectionDefs: {
+              ...state.sectionDefs,
+              [workspaceId]: [
+                ...existing,
+                { ...def, order: existing.length },
+              ],
+            },
+          };
+        }),
+
+      updateSectionDef: (workspaceId, id, patch) =>
+        set((state) => ({
+          sectionDefs: {
+            ...state.sectionDefs,
+            [workspaceId]: (state.sectionDefs[workspaceId] ?? []).map((s) =>
+              s.id === id ? ({ ...s, ...patch, id: s.id } as SidebarSectionDef) : s,
+            ),
+          },
+        })),
+
+      removeSectionDef: (workspaceId, id) =>
+        set((state) => ({
+          sectionDefs: {
+            ...state.sectionDefs,
+            [workspaceId]: (state.sectionDefs[workspaceId] ?? [])
+              .filter((s) => s.id !== id)
+              .map((s, index) => ({ ...s, order: index })),
+          },
+        })),
+
+      reorderSectionDefs: (workspaceId, orderedIds) =>
+        set((state) => {
+          const bySection = new Map(
+            (state.sectionDefs[workspaceId] ?? []).map((s) => [s.id, s]),
+          );
+          const next: SidebarSectionDef[] = [];
+          orderedIds.forEach((id, index) => {
+            const s = bySection.get(id);
+            if (s) {
+              next.push({ ...s, order: index });
+              bySection.delete(id);
+            }
+          });
+          // Anything not named keeps its relative order at the end.
+          for (const s of bySection.values()) {
+            next.push({ ...s, order: next.length });
+          }
+          return {
+            sectionDefs: { ...state.sectionDefs, [workspaceId]: next },
+          };
+        }),
+
+      toggleSectionDefCollapsed: (workspaceId, id) =>
+        set((state) => ({
+          sectionDefs: {
+            ...state.sectionDefs,
+            [workspaceId]: (state.sectionDefs[workspaceId] ?? []).map((s) =>
+              s.id === id ? { ...s, collapsed: !s.collapsed } : s,
+            ),
+          },
+        })),
+
+      assignChannelToSection: (workspaceId, sectionId, channelId) =>
+        set((state) => ({
+          sectionDefs: {
+            ...state.sectionDefs,
+            [workspaceId]: (state.sectionDefs[workspaceId] ?? []).map((s) => {
+              if (s.kind !== 'manual') return s;
+              const without = (s.channelIds ?? []).filter(
+                (id) => id !== channelId,
+              );
+              return s.id === sectionId
+                ? { ...s, channelIds: [...without, channelId] }
+                : { ...s, channelIds: without };
+            }),
+          },
+        })),
+
+      removeChannelFromSection: (workspaceId, sectionId, channelId) =>
+        set((state) => ({
+          sectionDefs: {
+            ...state.sectionDefs,
+            [workspaceId]: (state.sectionDefs[workspaceId] ?? []).map((s) =>
+              s.id === sectionId && s.kind === 'manual'
+                ? {
+                    ...s,
+                    channelIds: (s.channelIds ?? []).filter(
+                      (id) => id !== channelId,
+                    ),
+                  }
+                : s,
+            ),
+          },
+        })),
+
+      setChannelPriority: (workspaceId, channelId, priority) =>
+        set((state) => {
+          const wsMeta = { ...(state.channelMeta[workspaceId] ?? {}) };
+          if (priority === 0) delete wsMeta[channelId];
+          else wsMeta[channelId] = { ...wsMeta[channelId], priority };
+          return {
+            channelMeta: { ...state.channelMeta, [workspaceId]: wsMeta },
+          };
+        }),
+
+      recordChannelVisit: (workspaceId, channelId) =>
+        set((state) => {
+          const wsVisits = state.channelVisits[workspaceId] ?? {};
+          const current = wsVisits[channelId];
+          const next = {
+            ...wsVisits,
+            [channelId]: {
+              count: (current?.count ?? 0) + 1,
+              lastAt: new Date().toISOString(),
+            },
+          };
+          return {
+            channelVisits: {
+              ...state.channelVisits,
+              [workspaceId]: pruneVisits(next),
+            },
+          };
+        }),
+
+      resetChannelOrganization: (workspaceId) =>
+        set((state) => {
+          const channelSort = { ...state.channelSort };
+          const sectionDefs = { ...state.sectionDefs };
+          const channelMeta = { ...state.channelMeta };
+          const channelVisits = { ...state.channelVisits };
+          delete channelSort[workspaceId];
+          delete sectionDefs[workspaceId];
+          delete channelMeta[workspaceId];
+          delete channelVisits[workspaceId];
+          return { channelSort, sectionDefs, channelMeta, channelVisits };
+        }),
+
       resetToDefaultOrder: () =>
         set((state) => {
           const defaultPrefs = getDefaultItemPreferences();
@@ -543,6 +776,10 @@ export const useSidebarStore = create<SidebarState>()(
           collapsedGroups: {},
           sidebarCollapsed: false,
           activityIndicators: { ...DEFAULT_ACTIVITY_INDICATORS },
+          channelSort: {},
+          sectionDefs: {},
+          channelMeta: {},
+          channelVisits: {},
         })),
     }),
     {
@@ -555,6 +792,10 @@ export const useSidebarStore = create<SidebarState>()(
         collapsedGroups: state.collapsedGroups,
         sidebarCollapsed: state.sidebarCollapsed,
         activityIndicators: state.activityIndicators,
+        channelSort: state.channelSort,
+        sectionDefs: state.sectionDefs,
+        channelMeta: state.channelMeta,
+        channelVisits: state.channelVisits,
       }),
     },
   ),

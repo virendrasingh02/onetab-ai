@@ -1,0 +1,109 @@
+# Advanced Collaboration & Workspace Intelligence — Phase 1 Audit
+
+**Date:** 2026-09-08 · **Branch:** `main` @ `253852c` · **DB:** Postgres reachable, 35 migrations applied, schema up to date.
+
+Scope: the 23-section "Advanced Collaboration & Workspace Intelligence" brief. This
+document is Phase 1 (Audit) only — it classifies every requested capability against
+the current codebase and proposes a phased build. No feature code has been written yet.
+
+---
+
+## 1. Infrastructure that already exists and will be reused (not rebuilt)
+
+| Concern | Where | Notes |
+|---|---|---|
+| Tenancy guard stack | `libs/api/auth/src/lib/guards.ts` | `JwtAuthGuard` (global) · `SystemRoleGuard` · `WorkspaceRoleGuard` — per-request membership re-check, 404-not-403, archived-workspace mutation freeze. Every new endpoint mounts under `/workspaces/:workspaceId/*` and gets this for free. |
+| Permission vocabulary | `libs/shared/types/src/lib/permissions.ts` | `WorkspacePermission` = `view/create/update/delete/manage_members/manage_settings/manage_billing`. Grant table read by **both** server guard and client. New capabilities (e.g. `manage_channels`, `moderate_anonymous`) are added here once. |
+| Typed event bus | `libs/api/common/src/lib/events.ts` | 28 `AppEvent`s, ~30 emit sites, 4 listener classes (notifications, RAG, automations, realtime bridge). This is the post-write hook for notifications/activity/realtime. |
+| Cron | `@nestjs/schedule` — e.g. `libs/api/matrix/.../matrix-reconciler.service.ts` (`@Cron(EVERY_10_MINUTES)`) | The pattern for every expiration/applier job below. |
+| Realtime | SSE `@Sse('realtime/stream')` + ticket handshake · `RealtimeGatewayService.broadcastToWorkspace` (re-checks `WorkspaceMember status:'ACTIVE'`) · `realtime-domain-bridge.listener.ts` · cross-replica via Redis pub/sub. Client: `libs/shared/realtime`. |
+| Notifications | `Notification` model (`recipientId`, `readAt`, `deepLink`, `@@index([recipientId, readAt])`) · `NotificationsService` · `NotificationKind` enum · notification listener. |
+| Search | `libs/api/search` — Postgres FTS, generated `tsvector` + GIN, `websearch_to_tsquery`. Categories: `channels · docs · files · tasks · projects · people`. Endpoint: `/workspaces/:workspaceId/search`. |
+| Outbound mail | `libs/api/mail` (`@org/api-mail`) — `MailService.send()`, `log` + `http` transports, HTML-escaped templates. Wired into password reset + invitations. |
+| Presence / status | `User.presence` (`ONLINE/AWAY/BUSY/OFFLINE`) + `statusText` + `statusEmoji` + `statusExpiresAt` — **one** status with **one** optional expiry. `presence.service.ts` emits `presence.updated`, caches per-user with 5-min TTL. |
+| Sidebar | `libs/web/layout/src/lib/navigation/sidebar-store.ts` — Zustand + `persist`; server-authoritative copy via `SidebarPreference.data` (JSON blob) + `use-sidebar-sync.ts` (`PUT /users/me/sidebar`, 900 ms debounce). Fixed 8-id section union, per-item visibility/order, per-workspace `resourceOrders`, collapse, `@dnd-kit` drag. Activity dots via `SidebarActivityIndicator` (`@org/ui`). |
+| Channels | `Channel` (`visibility` PUBLIC/PRIVATE, `isArchived`, `matrixRoomId`, pins, FTS vector) · `ChannelMember` (`role`, `isFavorite`, `isMuted`, `lastReadAt`, `joinedAt`) · `ChannelAgent` (added 2026-09-07). `channel.service.ts` — no posting gate, no mode. |
+| Canvas / docs | `WorkDocument` (Notion-style block editor — `NotionBlockEditor.tsx`, `DocToolsDrawer.tsx`) **already extracts a heading outline** into an "Outline" drawer panel. `Whiteboard` (ReactFlow `canvasData` JSON) — no TOC concept (n/a). |
+| Huddle / calls | `packages/matrix-client/src/lib/calls.ts` — `CallManager.startCall()` acquires real mic/camera media, drives call state, then **throws `UNSUPPORTED`**: MatrixRTC (MSC3401) signalling is deliberately deferred. `huddle-dock.tsx` (`@org/ui`) is a **portal slot only**. `Meeting` / `MeetingParticipant` / `MeetingNote` / `MeetingDecision` models exist for *scheduled* meetings. |
+| Cross-device prefs pattern | `ThemeSetting`, `NavigationPreference`, `SidebarPreference`, `WorkspaceThemePreference` — one row per (user) or (user, workspace), `data Json`, validated on write, localStorage mirror for first paint. Copy this shape for new per-user settings. |
+
+---
+
+## 2. Feature matrix
+
+`Exists` = works end-to-end today · `Partial` = some layer present · `Missing` = no code.
+
+| # | Brief § | Feature | State | Evidence / gap | Action |
+|---|---|---|---|---|---|
+| 1 | §1.1 | Smart sidebar sections (recently active, unread-first, mentions, keyword, priority, project, user-created) | **Partial** | Manual only: fixed `SidebarSectionId` union, visibility/order/collapse/DnD, server-synced. No rules engine, no custom sections, no keyword match, no auto-update. | Extend the sidebar blob with `customSections[]` + `smartSections[]` (rule defs); client-side evaluator fed by existing channel/activity/mention queries; recompute on realtime events. Mostly client + JSON-schema widening. |
+| 2 | §1.2 | Global channel sort modes (recent activity, last message, unread, mentions, frequency, priority, alphabetical, keyword, project, manual) + direction | **Partial** | Per-workspace **manual** DnD order only (`channelOrders`/`resourceOrders`). No sort modes, no direction, no per-user persisted choice beyond manual. | Add `channelSort: { mode, direction }` per workspace to the sidebar blob; derive ordering in `useGroupedChannels`; "frequency" needs a lightweight per-user visit counter (new tiny table or reuse `RecentActivity`). |
+| 3 | §2 | Anonymous messaging (per-channel enable, role allowlist, anon identity, anon replies, moderation, report, audit) | **Missing** | Zero code. Messages are Matrix-native — sender identity = Matrix user, visible to all. | New `ChannelAnonymousSetting` + server-side **post proxy**: API posts as a shared "Anonymous Participant" Matrix identity, stores the real author in a restricted `AnonymousMessageAuthor` table readable only via `moderate_anonymous` permission + audit log. Report/remove flows. This is the most security-sensitive slice. |
+| 4 | §3 | Announcement / broadcast channels (mode, posting allowlist, replies/reactions/uploads toggles, header badge) | **Missing** | `Channel.visibility` is PUBLIC/PRIVATE only. No posting policy; `channel.service` + Matrix room default power levels let any member post. | `Channel.mode` (`STANDARD`/`ANNOUNCEMENT`) + `postingRoleIds`/flags. Enforce in the send path **and** set Matrix room `power_levels.events_default` so the client is honest too. Header indicator via existing `channel-details-panel` / header. |
+| 5 | §4 | Federated cross-workspace search (messages, channels, DMs, group DMs, files, projects, agents, apps, canvases, threads, people) + rich filters | **Missing** | `SearchService` is strictly single-workspace. No aggregator, 6 categories (no messages/DMs/threads/agents/apps/canvases), thin filter set. | New `SearchController` **without** `:workspaceId` in the path → fan out over the caller's `ACTIVE` memberships, run the existing per-workspace `SearchService`, merge + re-rank + dedupe, tag every row with workspace context. Add missing categories + filters (workspace, date, type, has-attachment/link, mentions, unread, exact phrase). Virtualized results UI (upgrade `libs/web/search`, don't fork). |
+| 6 | §5 | Universal email integration (email → channel, thread → conversation, reply from platform, threading headers, attachments, loop guard) | **Missing** | Outbound mail only. Gmail *integration* provider is OAuth sync, not email-to-conversation. No inbound path, no per-channel address, no header preservation. | Decision needed on inbound transport (Postmark/Mailgun inbound webhook vs SMTP MX). Then `ChannelEmailAddress` + `EmailMessageLink` (`messageId`/`inReplyTo`/`references`/`matrixEventId`), parser, loop guard, attachment → `Upload`, post via Matrix with an `✉ Email` marker. Largest non-huddle slice. |
+| 7 | §6 | Huddle voice/video stability, reconnect state machine, device recovery | **Missing (feature not built)** | No working transport — `startCall` throws `UNSUPPORTED`. There is nothing to make "reconnect reliably". | **Architecture decision required**: adopt Element Call / LiveKit / MatrixRTC. This is a project in itself. Recommend a separate initiative or an explicit descope to "who's in the huddle" presence + the deep link, no media. |
+| 8 | §7 | Huddle thread history for new participants | **Missing** | Depends on §6. | After a transport exists: bind each huddle to its conversation (channel/DM/project), gate history by the **existing** membership check, render a "you joined at HH:MM" divider. |
+| 9 | §8 | Temporary channel membership (24h/48h/1w/custom, auto-remove, extend, leave early, convert) | **Missing** | `ChannelMember` has `joinedAt`, no expiry or type. `channel.join()` upserts a permanent MEMBER. | `ChannelMember.expiresAt` + `membershipType` (`PERMANENT`/`TEMPORARY`). "Join temporarily" dialog. Cron sweep (matrix-reconciler pattern) removes expired rows + Matrix membership + emits `channel.membership.changed`. Extend / leave / convert endpoints. Server-side expiry, not a client timer. |
+| 10 | §9 | Scheduled status multi-queue (≤5, one-time, recurring, date ranges, emoji, auto-expire, edit/delete/enable, conflict rule) | **Missing** | Single `User.status*` + one `statusExpiresAt`. `ScheduleView` is an unrelated work-tools calendar. | New `ScheduledStatus` model (≤5 enforced, `rrule`-ish recurrence, `startAt`/`endAt`, `priority`). Cron applier writes the winning entry into `User.status*`; deterministic conflict rule (most-recently-created, then narrowest window). Profile UI under the existing status popover. |
+| 11 | §10 | Canvas table of contents (H1–H4, live, scroll-spy, active highlight, collapsible, stable anchors, duplicate-safe, mobile drawer) | **Partial** | `DocToolsDrawer` builds `headingBlocks` and renders a static "Outline" list in a side drawer. Missing: scroll-to on click (verify), active-section tracking, stable slug anchors, duplicate disambiguation, collapsible, responsive drawer, guaranteed rebuild on edit. | Promote the outline into the document surface as a real TOC component; add `IntersectionObserver` scroll-spy + slugged anchors (`heading-<slug>-<n>`); responsive drawer on compact widths. Client-only — no schema, no API. |
+| 12 | §11 | Unified notification & activity intelligence for all of the above | **Partial (infra ready)** | Event bus + `Notification` + bridge exist; `NotificationKind` enum is fixed and has no members for anonymous / announcement / huddle / temp-membership / scheduled-status / canvas / email. | Per slice: add `AppEvent`(s), `NotificationKind`(s), a `notifications.listener` case and a `realtime-domain-bridge` case. No new infra. |
+| 13 | §12 | Workspace isolation for every new entity | **Strong — follow the pattern** | `WorkspaceRoleGuard` + per-service `WHERE workspaceId` + query-key namespacing + per-workspace SSE fan-out; 2026-09-08 isolation audit closed the last leaks (theme, realtime client scope). | Every new model carries `workspaceId` FK + cascade + `@@index([workspaceId, …])`. Federated search is the **one** deliberate cross-workspace surface — it aggregates only over verified `ACTIVE` memberships. |
+
+---
+
+## 2a. Decisions taken (2026-09-08)
+
+* **Start with Slice A** (smart sidebar + channel sort). ✅ **Done** — see §4.
+* **Huddle transport (§6/§7):** Element Call / MatrixRTC (embed, stay in the Matrix stack).
+* **Inbound email transport (§5):** provider inbound webhook (Postmark/Mailgun style), matching the existing `MAIL_TRANSPORT=http` posture.
+
+## 3. Cross-cutting decisions needed before coding
+
+1. **Huddle transport (§6/§7).** No media stack exists. Options: (a) LiveKit (self-host/cloud SFU) — most control, new infra; (b) Element Call embed — fastest, ties to Matrix; (c) descope to presence-only. This is the single biggest fork in the brief.
+2. **Inbound email transport (§5).** Provider inbound webhook (Postmark/Mailgun — no MX ops, fastest) vs self-hosted SMTP/MX. Recommend provider webhook to match the existing `MAIL_TRANSPORT=http` posture.
+3. **"Message" search category (§4).** Message bodies live in Matrix, not Postgres, and can be E2E-encrypted — server-side full-text over message content is not currently possible. Federated search over messages likely means per-workspace Matrix `/search` fan-out (slower, unranked) or accepting that messages are searched client-side only. Needs a call.
+4. **Delivery model.** 12 features × (migration + API + guard + realtime + UI + tests) is a multi-PR program, not one change. Proposal below sequences it into independently shippable vertical slices, each ending green (`typecheck`/`lint`/`test`/`build`).
+
+---
+
+## 4. Proposed phased build (each slice = one end-to-end vertical, shippable alone)
+
+| Order | Slice | Brief § | Size | New migration? | Notes |
+|---|---|---|---|---|---|
+| **A** | Smart sidebar sections + channel sort modes | §1.1, §1.2 | M | No (JSON blob widening only) | ✅ **DONE 2026-09-08** — see below. |
+| **B** | Announcement / broadcast channels | §3 | M | Yes (`Channel` cols) | Bounded. Server posting gate + Matrix power levels + header badge + a "Posting" settings tab. |
+| **C** | Temporary channel membership | §8 | M | Yes (`ChannelMember` cols) | Bounded. Join dialog + cron sweep + extend/leave/convert + realtime. |
+| **D** | Scheduled status multi-queue | §9 | M | Yes (`ScheduledStatus`) | Bounded. Model + cron applier + conflict rule + profile UI. |
+| **E** | Canvas TOC | §10 | S | No | Client-only upgrade of the existing outline. |
+| **F** | Federated cross-workspace search | §4 | L | Maybe (visit/index tuning) | New aggregator controller + expanded categories + filters + virtualized UI. Depends on decision #3. |
+| **G** | Anonymous messaging | §2 | L | Yes (2 models) | Security-sensitive: identity proxy + restricted author table + moderation + audit. |
+| **H** | Universal email integration | §5 | L | Yes (2 models) | Depends on decision #2. Inbound webhook + threading + loop guard + attachments. |
+| **I** | Huddle transport + reconnect + thread history | §6, §7 | XL | Yes | Depends on decision #1. Realistically a separate initiative. |
+
+Every slice: `@org/types` → `@org/api-client` endpoint → API controller/service/DTO + guard + `@RequireWorkspacePermissions` → Prisma migration (`migrate dev` — DB is live) → events/cron → UI on the existing design system with loading/empty/error/permission-denied/success states → vitest unit + a workspace-isolation test → `nx run-many -t typecheck lint test build` green.
+
+### Slice A — Smart sidebar sections + channel sort modes ✅ (2026-09-08, uncommitted)
+
+**No migration, no new endpoint.** The whole slice rides `SidebarPreference.data`
+(the per-user JSON blob already synced by `PUT /users/me/sidebar` + `use-sidebar-sync`),
+keyed by workspace id, so every setting is per-user, per-workspace and cross-device
+with zero backend surface beyond widening one Zod schema.
+
+| Layer | Change |
+|---|---|
+| Logic | New `libs/web/layout/src/lib/navigation/sidebar-sections.ts` — pure, unit-tested: `ChannelSortMode` (`default`/`alphabetical`/`recentActivity`/`unreadCount`/`mentions`/`frequency`/`priority`/`manual`) + direction, `SmartRule` union (unread, mentions, recently-active, frequently-visited, favorites, high-priority, keyword, needs-attention, project-match), `sortChannels`, `resolveSmartSection`, `resolveSidebarLayout` (manual sections claim channels exclusively; smart sections mirror), `buildChannelSignals`. |
+| Store | `sidebar-store.ts` — `+ channelSort` / `sectionDefs` / `channelMeta` / `channelVisits` (all `Record<workspaceId, …>`), `setChannelSort` (auto default direction), section CRUD + reorder + collapse, `assignChannelToSection` (single-manual-section membership), `setChannelPriority` (0 clears), `recordChannelVisit` (tallied, pruned to 120), `resetChannelOrganization`. `partialize` + `resetAllPreferences` updated. |
+| Sync | `use-sidebar-sync.ts` — new keys added to `PersistedSidebar` + `snapshot()`. |
+| Server | `libs/shared/validation/.../profile.schema.ts` — `sidebarPreferencesSchema` pins the 4 new top-level keys, size cap 64 KB → 96 KB. That is the **only** backend change. |
+| UI | New `channel-organization-menu.tsx` (sort mode + direction radio, "Manage sections…") in the Channels header · new `smart-sections-dialog.tsx` (add/rename/delete/reorder manual + smart sections, rule picker, keyword) · `channel-nav.tsx` renders resolved custom/smart sections above the catch-all "Channels" list, disables channel drag unless `mode === 'manual'`, adds "Priority" + "Add to section" submenus to the channel-row menu, records a visit on channel open · `nav-primitives.tsx` `Section` gained optional controlled `open`/`onOpenChange` for persisted per-section collapse · `app-shell.tsx` derives `channelLastActivity` from the notification feed and passes it down. Smart sections + sort recompute in `useMemo` over the live activity map, so they update on realtime activity with no refetch. |
+| Tests | `sidebar-sections.spec.ts` (sort modes + directions, every rule, layout manual-exclusivity + smart-mirroring + ordering, **cross-workspace isolation**, signal derivation) · `sidebar-store.spec.ts` extended (per-workspace sort, section CRUD reindex, single-section membership, priority clear, visit prune, `resetChannelOrganization` scoping, persist round-trip). `nx affected -t lint typecheck test build` green (58 projects, `@org/web-layout` 61 tests). |
+
+**Deliberately deferred within §1:** a pure "keyword relevance" *sort* (needs a
+search-query context the sidebar doesn't have — the keyword *rule* covers the
+use case), and a `Channel.projectId` link (project-match is by name today).
+
+---
+
+## 5. What this audit does **not** change
+
+No behavior changed. Existing channels stay `STANDARD` with today's permissions and sidebar position; existing single-status behavior is preserved as the fallback the scheduled-status applier writes into; the existing single-workspace `/workspaces/:id/search` stays as-is and the federated endpoint is additive.

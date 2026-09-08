@@ -12,6 +12,10 @@ type PersistedSidebar = Pick<
   | 'collapsedGroups'
   | 'sidebarCollapsed'
   | 'activityIndicators'
+  | 'channelSort'
+  | 'sectionDefs'
+  | 'channelMeta'
+  | 'channelVisits'
 >;
 
 function snapshot(state: SidebarState): PersistedSidebar {
@@ -23,6 +27,10 @@ function snapshot(state: SidebarState): PersistedSidebar {
     collapsedGroups: state.collapsedGroups,
     sidebarCollapsed: state.sidebarCollapsed,
     activityIndicators: state.activityIndicators,
+    channelSort: state.channelSort,
+    sectionDefs: state.sectionDefs,
+    channelMeta: state.channelMeta,
+    channelVisits: state.channelVisits,
   };
 }
 

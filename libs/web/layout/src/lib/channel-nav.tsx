@@ -3,8 +3,13 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   Hint,
   ScrollArea,
@@ -50,6 +55,8 @@ import {
   ChevronRight,
   Clock,
   Copy,
+  Flag,
+  FolderTree,
   HardDrive,
   Hash,
   Lock,
@@ -105,12 +112,22 @@ import {
   useCopyLink,
   type NavEntry,
 } from './nav-primitives.js';
+import { ChannelOrganizationMenu } from './navigation/channel-organization-menu.js';
 import { resolveNavigation } from './navigation/navigation-resolver.js';
+import {
+  buildChannelSignals,
+  CHANNEL_PRIORITY_LABELS,
+  DEFAULT_CHANNEL_SORT,
+  resolveSidebarLayout,
+  sortChannels,
+  type ChannelPriority,
+} from './navigation/sidebar-sections.js';
 import { SidebarCustomizerDialog } from './navigation/sidebar-customizer-dialog.js';
 import {
   DEFAULT_SIDEBAR_SECTIONS,
   useSidebarStore,
 } from './navigation/sidebar-store.js';
+import { SmartSectionsDialog } from './navigation/smart-sections-dialog.js';
 import { ProjectNavRow, ProjectsTreeSection } from './projects-section.js';
 import {
   AgentNavRow,
@@ -166,6 +183,7 @@ function ChannelRow({
   onToggleFavorite,
   onToggleMute,
   prompts,
+  sectionOptions = [],
 }: {
   channel: ChannelSummary;
   workspaceId: string;
@@ -174,12 +192,26 @@ function ChannelRow({
   onToggleFavorite: (channel: ChannelSummary) => void;
   onToggleMute: (channel: ChannelSummary) => void;
   prompts: PromptDialog;
+  /** Manual sections this channel can be filed under (brief §1.1). */
+  sectionOptions?: { id: string; label: string; hasChannel: boolean }[];
 }) {
   const [unreadState, setUnreadState] = useState(false);
   const unreadTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const updateChannel = useUpdateChannel(workspaceId);
   const archiveChannel = useArchiveChannel(workspaceId);
   const markChannelUnread = useMarkChannelUnread(workspaceId);
+
+  const priority =
+    useSidebarStore(
+      (s) => s.channelMeta[workspaceId]?.[channel.id]?.priority,
+    ) ?? 0;
+  const setChannelPriority = useSidebarStore((s) => s.setChannelPriority);
+  const assignChannelToSection = useSidebarStore(
+    (s) => s.assignChannelToSection,
+  );
+  const removeChannelFromSection = useSidebarStore(
+    (s) => s.removeChannelFromSection,
+  );
 
   const isFavorite = channel.membership?.isFavorite ?? false;
   const isMuted = channel.membership?.isMuted ?? false;
@@ -340,6 +372,70 @@ function ChannelRow({
                 <ChevronRight className="size-4 text-muted-foreground/70" />
               </DropdownMenuItem>
 
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="gap-2.5">
+                  <Flag className="size-4" />
+                  <span>Priority</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuRadioGroup
+                    value={String(priority)}
+                    onValueChange={(value) =>
+                      setChannelPriority(
+                        workspaceId,
+                        channel.id,
+                        Number(value) as ChannelPriority,
+                      )
+                    }
+                  >
+                    {CHANNEL_PRIORITY_LABELS.map((label, value) => (
+                      <DropdownMenuRadioItem
+                        key={label}
+                        value={String(value)}
+                        className="text-xs"
+                      >
+                        {label}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+
+              {sectionOptions.length > 0 && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="gap-2.5">
+                    <FolderTree className="size-4" />
+                    <span>Add to section</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {sectionOptions.map((section) => (
+                      <DropdownMenuItem
+                        key={section.id}
+                        className="justify-between gap-2.5 text-xs"
+                        onSelect={() =>
+                          section.hasChannel
+                            ? removeChannelFromSection(
+                                workspaceId,
+                                section.id,
+                                channel.id,
+                              )
+                            : assignChannelToSection(
+                                workspaceId,
+                                section.id,
+                                channel.id,
+                              )
+                        }
+                      >
+                        <span className="truncate">{section.label}</span>
+                        {section.hasChannel && (
+                          <Check className="size-3.5 text-success-text" />
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              )}
+
               <DropdownMenuSeparator />
 
               <DropdownMenuItem
@@ -387,6 +483,7 @@ interface SortableChannelRowProps {
   onToggleFavorite: (channel: ChannelSummary) => void;
   onToggleMute: (channel: ChannelSummary) => void;
   prompts: PromptDialog;
+  sectionOptions?: { id: string; label: string; hasChannel: boolean }[];
 }
 
 function SortableChannelRow(props: SortableChannelRowProps) {
@@ -468,6 +565,8 @@ export interface ChannelNavProps {
   inboxUnread?: number;
   /** Unread state per channel id, for the rows' dots. */
   channelActivity?: Record<string, ActivityIndicator>;
+  /** ISO timestamp of the last known activity per channel id — feeds sorting. */
+  channelLastActivity?: Record<string, string>;
   onCreateChannel: () => void;
   onBrowseChannels: () => void;
   /** Whether sidebar is in collapsed icon rail mode */
@@ -481,6 +580,7 @@ export function ChannelNav({
   isLoading,
   inboxUnread = 0,
   channelActivity,
+  channelLastActivity,
   onCreateChannel,
   onBrowseChannels,
   isCollapsed = false,
@@ -590,7 +690,7 @@ export function ChannelNav({
 
   const customChannelOrder = channelOrders[workspaceId];
 
-  const orderedJoinedChannels = useMemo(() => {
+  const manualDragOrder = useMemo(() => {
     if (!customChannelOrder || customChannelOrder.length === 0) {
       return groups.joined;
     }
@@ -613,6 +713,91 @@ export function ChannelNav({
 
     return result;
   }, [groups.joined, customChannelOrder]);
+
+  /* --- Smart sections & channel sorting (brief §1.1 / §1.2) ------------- */
+
+  const channelSort =
+    useSidebarStore((s) => s.channelSort[workspaceId]) ?? DEFAULT_CHANNEL_SORT;
+  const sectionDefs = useSidebarStore((s) => s.sectionDefs[workspaceId]);
+  const channelMeta = useSidebarStore((s) => s.channelMeta[workspaceId]);
+  const channelVisits = useSidebarStore((s) => s.channelVisits[workspaceId]);
+  const recordChannelVisit = useSidebarStore((s) => s.recordChannelVisit);
+  const updateSectionDef = useSidebarStore((s) => s.updateSectionDef);
+  const [sectionsDialogOpen, setSectionsDialogOpen] = useState(false);
+
+  const isManualSort = channelSort.mode === 'manual';
+
+  const channelSignals = useMemo(
+    () =>
+      buildChannelSignals({
+        channels: groups.joined,
+        activity: channelActivity ?? {},
+        lastActivityAt: channelLastActivity ?? {},
+        visits: channelVisits ?? {},
+        meta: channelMeta ?? {},
+        projects: projectsQuery.data ?? [],
+      }),
+    [
+      groups.joined,
+      channelActivity,
+      channelLastActivity,
+      channelVisits,
+      channelMeta,
+      projectsQuery.data,
+    ],
+  );
+
+  const sortedJoinedChannels = useMemo(
+    () =>
+      isManualSort
+        ? manualDragOrder
+        : sortChannels(groups.joined, channelSignals, channelSort),
+    [isManualSort, manualDragOrder, groups.joined, channelSignals, channelSort],
+  );
+
+  const sidebarLayout = useMemo(
+    () =>
+      resolveSidebarLayout({
+        channels: sortedJoinedChannels,
+        defs: sectionDefs ?? [],
+        signals: channelSignals,
+      }),
+    [sortedJoinedChannels, sectionDefs, channelSignals],
+  );
+
+  /* Manual sections the channel-row menu can file a channel under. */
+  const manualSections = useMemo(
+    () =>
+      (sectionDefs ?? [])
+        .filter((d) => d.kind === 'manual')
+        .sort((a, b) => a.order - b.order),
+    [sectionDefs],
+  );
+  const sectionOptionsFor = useCallback(
+    (channelId: string) =>
+      manualSections.map((s) => ({
+        id: s.id,
+        label: s.label,
+        hasChannel: (s.channelIds ?? []).includes(channelId),
+      })),
+    [manualSections],
+  );
+
+  /* Record a channel open so "frequently visited" has data to sort on. One
+     count per real navigation — the ref guard stops the channel-list refetch
+     from re-counting the channel already on screen. */
+  const lastVisitKeyRef = useRef<string>('');
+  useEffect(() => {
+    const match = location.pathname.match(/\/w\/[^/]+\/c\/([^/]+)/);
+    const slug = match?.[1];
+    if (!slug || !workspaceId || !channels) return;
+    const key = `${workspaceId}:${slug}`;
+    if (lastVisitKeyRef.current === key) return;
+    const channel = channels.find((c) => c.slug === slug);
+    if (!channel) return;
+    lastVisitKeyRef.current = key;
+    recordChannelVisit(workspaceId, channel.id);
+  }, [location.pathname, workspaceId, channels, recordChannelVisit]);
 
   const channelSensors = useSensors(
     useSensor(PointerSensor, {
@@ -644,7 +829,7 @@ export function ChannelNav({
       workspaceId,
       active.id as string,
       over.id as string,
-      orderedJoinedChannels.map((c) => c.id),
+      manualDragOrder.map((c) => c.id),
     );
   };
 
@@ -1197,55 +1382,118 @@ export function ChannelNav({
 
               case 'channels':
                 return (
-                  <Section
-                    key="channels"
-                    title="Channels"
-                    count={orderedJoinedChannels.length}
-                    emptyLabel="You have not joined any channels yet."
-                    action={
-                      <Hint label="Create a channel">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={onCreateChannel}
-                          aria-label="Create a channel"
-                          className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
+                  <div key="channels" className="space-y-4">
+                    {/* Custom + smart channel sections (brief §1.1) */}
+                    {sidebarLayout.sections
+                      .filter(
+                        ({ def, channels: list }) =>
+                          list.length > 0 || !def.hideWhenEmpty,
+                      )
+                      .map(({ def, channels: sectionChannels }) => (
+                        <Section
+                          key={def.id}
+                          title={def.label}
+                          count={sectionChannels.length}
+                          open={!def.collapsed}
+                          onOpenChange={(next) =>
+                            updateSectionDef(workspaceId, def.id, {
+                              collapsed: !next,
+                            })
+                          }
+                          emptyLabel={
+                            def.kind === 'manual'
+                              ? 'Add channels from a channel’s ⋯ menu.'
+                              : 'Nothing matches this rule right now.'
+                          }
                         >
-                          <Plus className="size-3.5" />
-                        </Button>
-                      </Hint>
-                    }
-                  >
-                    <DndContext
-                      id={channelDndId}
-                      sensors={channelSensors}
-                      collisionDetection={closestCenter}
-                      onDragEnd={handleChannelDragEnd}
+                          {sectionChannels.map((channel) => (
+                            <ChannelRow
+                              key={channel.id}
+                              channel={channel}
+                              activity={channelActivity?.[channel.id]}
+                              sectionOptions={sectionOptionsFor(channel.id)}
+                              {...rowProps}
+                            />
+                          ))}
+                        </Section>
+                      ))}
+
+                    <Section
+                      title="Channels"
+                      count={sidebarLayout.unsectioned.length}
+                      emptyLabel={
+                        groups.joined.length === 0
+                          ? 'You have not joined any channels yet.'
+                          : 'Every joined channel is filed in a section above.'
+                      }
+                      action={
+                        <div className="flex items-center gap-0.5">
+                          <ChannelOrganizationMenu
+                            workspaceId={workspaceId}
+                            onManageSections={() =>
+                              setSectionsDialogOpen(true)
+                            }
+                          />
+                          <Hint label="Create a channel">
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={onCreateChannel}
+                              aria-label="Create a channel"
+                              className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
+                            >
+                              <Plus className="size-3.5" />
+                            </Button>
+                          </Hint>
+                        </div>
+                      }
                     >
-                      <SortableContext
-                        items={orderedJoinedChannels.map((c) => c.id)}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        {orderedJoinedChannels.map((channel) => (
-                          <SortableChannelRow
+                      {isManualSort ? (
+                        <DndContext
+                          id={channelDndId}
+                          sensors={channelSensors}
+                          collisionDetection={closestCenter}
+                          onDragEnd={handleChannelDragEnd}
+                        >
+                          <SortableContext
+                            items={sidebarLayout.unsectioned.map((c) => c.id)}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            {sidebarLayout.unsectioned.map((channel) => (
+                              <SortableChannelRow
+                                key={channel.id}
+                                channel={channel}
+                                activity={channelActivity?.[channel.id]}
+                                sectionOptions={sectionOptionsFor(channel.id)}
+                                {...rowProps}
+                              />
+                            ))}
+                          </SortableContext>
+                        </DndContext>
+                      ) : (
+                        sidebarLayout.unsectioned.map((channel) => (
+                          <ChannelRow
                             key={channel.id}
                             channel={channel}
                             activity={channelActivity?.[channel.id]}
+                            sectionOptions={sectionOptionsFor(channel.id)}
                             {...rowProps}
                           />
-                        ))}
-                      </SortableContext>
-                    </DndContext>
-                    <li>
-                      <button
-                        onClick={onBrowseChannels}
-                        className={navActionClass({ depth: 1 })}
-                      >
-                        <Plus className={navIconClass(1)} aria-hidden />
-                        <span className="flex-1 truncate">Browse channels</span>
-                      </button>
-                    </li>
-                  </Section>
+                        ))
+                      )}
+                      <li>
+                        <button
+                          onClick={onBrowseChannels}
+                          className={navActionClass({ depth: 1 })}
+                        >
+                          <Plus className={navIconClass(1)} aria-hidden />
+                          <span className="flex-1 truncate">
+                            Browse channels
+                          </span>
+                        </button>
+                      </li>
+                    </Section>
+                  </div>
                 );
 
               case 'dms':
@@ -1321,6 +1569,12 @@ export function ChannelNav({
       <SidebarCustomizerDialog
         open={customizerOpen}
         onOpenChange={setCustomizerOpen}
+      />
+
+      <SmartSectionsDialog
+        open={sectionsDialogOpen}
+        onOpenChange={setSectionsDialogOpen}
+        workspaceId={workspaceId}
       />
 
       {prompts.dialog}

@@ -262,7 +262,9 @@ export const updateUserPreferencesSchema = z.object({
 
 /**
  * The sidebar-customization blob the web client persists — section/item
- * visibility and order, per-workspace resource ordering, collapsed groups.
+ * visibility and order, per-workspace resource ordering, collapsed groups,
+ * plus the smart-section definitions, per-channel metadata, visit tallies and
+ * channel sort choice (brief §1.1 / §1.2), all keyed by workspace id.
  *
  * Validated loosely: the shape is owned by the client's zustand store and
  * evolves with the UI, so this pins the known top-level keys, strips anything
@@ -280,8 +282,20 @@ export const sidebarPreferencesSchema = z
     collapsedGroups: z.record(z.string(), z.boolean()).optional(),
     sidebarCollapsed: z.boolean().optional(),
     activityIndicators: z.record(z.string(), z.unknown()).optional(),
+    /** workspaceId → { mode, direction }. */
+    channelSort: z.record(z.string(), z.unknown()).optional(),
+    /** workspaceId → SidebarSectionDef[]. */
+    sectionDefs: z.record(z.string(), z.array(z.unknown())).optional(),
+    /** workspaceId → channelId → { priority }. */
+    channelMeta: z
+      .record(z.string(), z.record(z.string(), z.unknown()))
+      .optional(),
+    /** workspaceId → channelId → { count, lastAt }. */
+    channelVisits: z
+      .record(z.string(), z.record(z.string(), z.unknown()))
+      .optional(),
   })
-  .refine((value) => JSON.stringify(value).length <= 64_000, {
+  .refine((value) => JSON.stringify(value).length <= 96_000, {
     message: 'Sidebar preferences payload is too large.',
   });
 

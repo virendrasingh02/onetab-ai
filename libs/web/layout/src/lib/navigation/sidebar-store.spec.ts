@@ -7,6 +7,22 @@ import {
   toSidebarActivityConfig,
   type SidebarSectionId,
 } from './sidebar-store.js';
+import {
+  createSectionId,
+  type SidebarSectionDef,
+} from './sidebar-sections.js';
+
+function manualSection(label: string): SidebarSectionDef {
+  return {
+    id: createSectionId(),
+    label,
+    kind: 'manual',
+    order: 0,
+    collapsed: false,
+    hideWhenEmpty: false,
+    channelIds: [],
+  };
+}
 
 describe('Sidebar Store - Section Reordering & Customization', () => {
   beforeEach(() => {
@@ -229,6 +245,126 @@ describe('Sidebar Store - Activity Indicator Preferences', () => {
     expect(cfg.surfaces.notifications).toBe(false);
     expect(cfg.surfaces.main).toBe(true);
     expect(cfg.surfaces.workspace).toBe(true);
+  });
+});
+
+describe('Sidebar Store - Smart sections & channel sorting (§1.1 / §1.2)', () => {
+  const A = 'workspace-a';
+  const B = 'workspace-b';
+
+  beforeEach(() => {
+    useSidebarStore.getState().resetAllPreferences();
+  });
+
+  it('stores a channel sort per workspace with a sensible default direction', () => {
+    const { setChannelSort } = useSidebarStore.getState();
+
+    setChannelSort(A, 'recentActivity');
+    setChannelSort(B, 'alphabetical');
+
+    const state = useSidebarStore.getState();
+    expect(state.channelSort[A]).toEqual({
+      mode: 'recentActivity',
+      direction: 'desc',
+    });
+    expect(state.channelSort[B]).toEqual({
+      mode: 'alphabetical',
+      direction: 'asc',
+    });
+  });
+
+  it('keeps section definitions isolated per workspace', () => {
+    const { addSectionDef } = useSidebarStore.getState();
+    addSectionDef(A, manualSection('Squad A'));
+
+    expect(useSidebarStore.getState().sectionDefs[A]).toHaveLength(1);
+    expect(useSidebarStore.getState().sectionDefs[B]).toBeUndefined();
+  });
+
+  it('reindexes order on add and remove', () => {
+    const { addSectionDef, removeSectionDef } = useSidebarStore.getState();
+    addSectionDef(A, manualSection('one'));
+    addSectionDef(A, manualSection('two'));
+    addSectionDef(A, manualSection('three'));
+
+    let defs = useSidebarStore.getState().sectionDefs[A];
+    expect(defs.map((d) => d.order)).toEqual([0, 1, 2]);
+
+    removeSectionDef(A, defs[1].id);
+    defs = useSidebarStore.getState().sectionDefs[A];
+    expect(defs.map((d) => d.label)).toEqual(['one', 'three']);
+    expect(defs.map((d) => d.order)).toEqual([0, 1]);
+  });
+
+  it('moves a channel between manual sections, never duplicating it', () => {
+    const { addSectionDef, assignChannelToSection } =
+      useSidebarStore.getState();
+    addSectionDef(A, manualSection('first'));
+    addSectionDef(A, manualSection('second'));
+    const [first, second] = useSidebarStore.getState().sectionDefs[A];
+
+    assignChannelToSection(A, first.id, 'chan-1');
+    expect(
+      useSidebarStore.getState().sectionDefs[A][0].channelIds,
+    ).toEqual(['chan-1']);
+
+    assignChannelToSection(A, second.id, 'chan-1');
+    const defs = useSidebarStore.getState().sectionDefs[A];
+    expect(defs[0].channelIds).toEqual([]);
+    expect(defs[1].channelIds).toEqual(['chan-1']);
+  });
+
+  it('clears channel priority when set back to none', () => {
+    const { setChannelPriority } = useSidebarStore.getState();
+    setChannelPriority(A, 'chan-1', 3);
+    expect(useSidebarStore.getState().channelMeta[A]['chan-1'].priority).toBe(3);
+
+    setChannelPriority(A, 'chan-1', 0);
+    expect(useSidebarStore.getState().channelMeta[A]['chan-1']).toBeUndefined();
+  });
+
+  it('tallies channel visits and prunes the least recent past the cap', () => {
+    const { recordChannelVisit } = useSidebarStore.getState();
+
+    recordChannelVisit(A, 'chan-1');
+    recordChannelVisit(A, 'chan-1');
+    recordChannelVisit(A, 'chan-2');
+    expect(useSidebarStore.getState().channelVisits[A]['chan-1'].count).toBe(2);
+    expect(useSidebarStore.getState().channelVisits[A]['chan-2'].count).toBe(1);
+
+    for (let i = 0; i < 200; i++) recordChannelVisit(A, `bulk-${i}`);
+    const kept = Object.keys(useSidebarStore.getState().channelVisits[A]);
+    expect(kept.length).toBeLessThanOrEqual(120);
+  });
+
+  it('resetChannelOrganization only clears the named workspace', () => {
+    const { setChannelSort, addSectionDef, resetChannelOrganization } =
+      useSidebarStore.getState();
+    setChannelSort(A, 'unreadCount');
+    setChannelSort(B, 'mentions');
+    addSectionDef(A, manualSection('gone'));
+    addSectionDef(B, manualSection('stays'));
+
+    resetChannelOrganization(A);
+
+    const state = useSidebarStore.getState();
+    expect(state.channelSort[A]).toBeUndefined();
+    expect(state.sectionDefs[A]).toBeUndefined();
+    expect(state.channelSort[B]).toEqual({ mode: 'mentions', direction: 'desc' });
+    expect(state.sectionDefs[B]).toHaveLength(1);
+  });
+
+  it('persists the new keys through the zustand persist layer', () => {
+    useSidebarStore.getState().setChannelSort(A, 'priority');
+    const raw = localStorage.getItem('onetab:sidebar_preferences');
+    const parsed = JSON.parse(raw as string);
+    expect(parsed.state.channelSort[A]).toEqual({
+      mode: 'priority',
+      direction: 'desc',
+    });
+    expect(parsed.state).toHaveProperty('sectionDefs');
+    expect(parsed.state).toHaveProperty('channelMeta');
+    expect(parsed.state).toHaveProperty('channelVisits');
   });
 });
 

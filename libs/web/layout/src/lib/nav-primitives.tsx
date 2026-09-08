@@ -289,6 +289,8 @@ export function Section({
   emptyLabel,
   action,
   defaultOpen = true,
+  open: openProp,
+  onOpenChange,
   children,
 }: {
   title: string;
@@ -296,13 +298,21 @@ export function Section({
   emptyLabel?: string;
   action?: ReactNode;
   defaultOpen?: boolean;
+  /** Controlled open state — when set, the caller owns collapse (and its persistence). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [openState, setOpenState] = useState(defaultOpen);
+  const open = openProp ?? openState;
 
-  const handleOpenChange = useCallback((nextOpen: boolean) => {
-    setOpen(nextOpen);
-  }, []);
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      setOpenState(nextOpen);
+      onOpenChange?.(nextOpen);
+    },
+    [onOpenChange],
+  );
 
   const isEmpty = count === 0;
 
