@@ -122,6 +122,7 @@ import type {
   PushDevice,
   ReportDefinition,
   ReportType,
+  ScheduledStatusView,
   SaveProviderCredentialInput,
   SavedView,
   SearchCategory,
@@ -197,6 +198,7 @@ import type {
   CreateProjectUpdateInput,
   CreatePromptTemplateInput,
   CreateSavedViewInput,
+  CreateScheduledStatusInput,
   CreateTaskCommentInput,
   CreateTaskInput,
   CreateTeamInput,
@@ -237,6 +239,7 @@ import type {
   UpdateProjectInput,
   UpdatePromptTemplateInput,
   UpdateSavedViewInput,
+  UpdateScheduledStatusInput,
   UpdateStatusInput,
   UpdateTaskInput,
   UpdateTeamInput,
@@ -857,6 +860,25 @@ export const userApi = {
     request<{ presence: string }>(
       http.patch('/users/me/presence', { presence }),
     ),
+
+  /** Scheduled status multi-queue (brief §9) — up to 5 per user. */
+  scheduledStatuses: () =>
+    request<ScheduledStatusView[]>(
+      http.get('/users/me/scheduled-statuses'),
+    ),
+
+  createScheduledStatus: (input: CreateScheduledStatusInput) =>
+    request<ScheduledStatusView>(
+      http.post('/users/me/scheduled-statuses', input),
+    ),
+
+  updateScheduledStatus: (id: string, input: UpdateScheduledStatusInput) =>
+    request<ScheduledStatusView>(
+      http.patch(`/users/me/scheduled-statuses/${id}`, input),
+    ),
+
+  deleteScheduledStatus: (id: string) =>
+    request<void>(http.delete(`/users/me/scheduled-statuses/${id}`)),
 
   byId: (userId: string) => request<PublicUser>(http.get(`/users/${userId}`)),
 

@@ -276,6 +276,14 @@ export function RealtimeProvider({
         });
       },
     );
+    // A scheduled status flipped server-side (brief §9) — refresh the roster so
+    // teammates see the new status text without waiting for a poll.
+    const unsubUserStatus = bus.on(
+      RealtimeEventType.UserStatusChanged,
+      () => {
+        queryClient.invalidateQueries({ queryKey: ['members', ws] });
+      },
+    );
 
     return () => {
       unsubNotifCreated();
@@ -291,6 +299,7 @@ export function RealtimeProvider({
       unsubChannelDeleted();
       unsubMember();
       unsubInvite();
+      unsubUserStatus();
     };
   }, [bus, queryClient, workspaceId]);
 

@@ -18,6 +18,29 @@ export class RealtimeDomainBridgeListener {
     await this.gateway.broadcastPresence(e.presence, e.targetWorkspaces);
   }
 
+  @OnEvent(AppEvent.UserStatusChanged)
+  async onUserStatusChanged(e: {
+    userId: string;
+    workspaceIds: string[];
+    statusText: string | null;
+    statusEmoji: string | null;
+    presence: string | null;
+    source: string;
+  }): Promise<void> {
+    for (const workspaceId of e.workspaceIds) {
+      await this.gateway.broadcastToWorkspace(workspaceId, {
+        type: 'user.status.changed',
+        actorId: null,
+        payload: {
+          userId: e.userId,
+          statusText: e.statusText,
+          statusEmoji: e.statusEmoji,
+          presence: e.presence,
+        },
+      });
+    }
+  }
+
   @OnEvent(AppEvent.TaskCreated)
   async onTaskCreated(e: {
     workspaceId: string;

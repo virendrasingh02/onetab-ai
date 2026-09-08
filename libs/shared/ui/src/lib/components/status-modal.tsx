@@ -151,6 +151,8 @@ export const CLEAR_AFTER_OPTIONS: ClearOption[] = [
 export interface StatusModalProps extends StatusPublisher {
   currentUser?: CurrentUser | null;
   onUserUpdated?: (user: CurrentUser) => void;
+  /** Opens the "Scheduled statuses" manager (brief §9). Hidden when omitted. */
+  onManageSchedules?: () => void;
 }
 
 export function StatusModal({
@@ -158,6 +160,7 @@ export function StatusModal({
   onUserUpdated,
   onSaveStatus,
   onClearStatus,
+  onManageSchedules,
 }: StatusModalProps) {
   const isOpen = useFocusStore((s) => s.isStatusModalOpen);
   const closeStatusModal = useFocusStore((s) => s.closeStatusModal);
@@ -420,6 +423,31 @@ export function StatusModal({
             />
             <span>Pause notifications (Do Not Disturb)</span>
           </label>
+
+          {/* Scheduled statuses */}
+          {onManageSchedules && (
+            <button
+              type="button"
+              onClick={() => {
+                closeStatusModal();
+                onManageSchedules();
+              }}
+              className="gap-2.5 mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-left text-xs transition-colors hover:bg-accent/50 flex items-center justify-between"
+            >
+              <span className="gap-2 flex items-center">
+                <Clock className="size-3.5 text-muted-foreground" />
+                <span>
+                  <span className="font-medium text-foreground">
+                    Scheduled statuses
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    Set your status automatically on a schedule
+                  </span>
+                </span>
+              </span>
+              <span className="text-[11px] text-primary">Manage</span>
+            </button>
+          )}
         </div>
 
         <DialogFooter className="p-4 flex items-center justify-between border-t border-border bg-surface-muted/50">

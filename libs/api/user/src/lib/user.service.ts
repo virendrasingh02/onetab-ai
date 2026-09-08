@@ -163,6 +163,7 @@ export class UserService {
       statusExpiresAt?: Date | null;
       presence?: CurrentUser['presence'];
       lastSeenAt?: Date;
+      scheduledStatusAppliedId?: string | null;
     } = {
       statusText: input.statusText ?? null,
       statusEmoji: input.statusEmoji ?? null,
@@ -170,6 +171,9 @@ export class UserService {
         ? new Date(input.statusExpiresAt)
         : null,
       lastSeenAt: new Date(),
+      // Setting a status by hand takes it out of the scheduler's control — the
+      // per-minute applier will not stomp or clear it (brief §9).
+      scheduledStatusAppliedId: null,
     };
 
     if (input.presence) {

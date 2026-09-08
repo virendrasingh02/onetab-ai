@@ -4,6 +4,7 @@ import type {
   ChannelPin,
   Invitation,
   PublicUser,
+  ScheduledStatusView,
   Upload,
   UploadContext,
   UploadContextType,
@@ -182,6 +183,52 @@ export function toChannelPin(row: ChannelPinRow): ChannelPin {
     note: row.note,
     pinnedById: row.pinnedById,
     pinnedAt: row.pinnedAt.toISOString(),
+  };
+}
+
+interface ScheduledStatusRow {
+  id: string;
+  label: string;
+  statusText: string;
+  statusEmoji: string | null;
+  presence: string | null;
+  isEnabled: boolean;
+  priority: number;
+  recurrence: string;
+  startAt: Date | null;
+  endAt: Date | null;
+  startMinute: number | null;
+  endMinute: number | null;
+  daysOfWeek: number[];
+  activeFrom: Date | null;
+  activeUntil: Date | null;
+  timezone: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export function toScheduledStatus(
+  row: ScheduledStatusRow,
+): ScheduledStatusView {
+  return {
+    id: row.id,
+    label: row.label,
+    statusText: row.statusText,
+    statusEmoji: row.statusEmoji,
+    presence: row.presence as ScheduledStatusView['presence'],
+    isEnabled: row.isEnabled,
+    priority: row.priority,
+    recurrence: row.recurrence as ScheduledStatusView['recurrence'],
+    startAt: row.startAt?.toISOString() ?? null,
+    endAt: row.endAt?.toISOString() ?? null,
+    startMinute: row.startMinute,
+    endMinute: row.endMinute,
+    daysOfWeek: row.daysOfWeek ?? [],
+    activeFrom: row.activeFrom?.toISOString() ?? null,
+    activeUntil: row.activeUntil?.toISOString() ?? null,
+    timezone: row.timezone,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
   };
 }
 

@@ -25,6 +25,11 @@ model User {
   statusText              String?
   statusEmoji             String?
   statusExpiresAt         DateTime?
+  /// Which `ScheduledStatus` currently drives `statusText`/`statusEmoji`, if
+  /// any. Lets the per-minute applier switch/clear the scheduled status without
+  /// stomping a status the user set by hand. Null = the current status (if any)
+  /// is manual.
+  scheduledStatusAppliedId String?
   emailVerifiedAt         DateTime?
   lastSeenAt              DateTime?
   createdAt               DateTime                 @default(now())
@@ -64,6 +69,7 @@ model User {
   sidebarPreference       SidebarPreference?
   themeSetting            ThemeSetting?
   navigationPreference    NavigationPreference?
+  scheduledStatuses       ScheduledStatus[]
   workspaceThemePreferences WorkspaceThemePreference[]
   organizedMeetings       Meeting[]                @relation("MeetingOrganizer")
   meetingParticipations   MeetingParticipant[]
@@ -131,6 +137,61 @@ model NavigationPreference {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("navigation_preferences")
+}
+
+enum ScheduledStatusRecurrence {
+  /// A single absolute window — `startAt` / `endAt`.
+  ONE_TIME
+  /// Every day, in the minute-of-day window.
+  DAILY
+  /// Monday–Friday, in the minute-of-day window.
+  WEEKDAYS
+  /// Specific `daysOfWeek`, in the minute-of-day window.
+  WEEKLY
+}
+
+/// A status the platform sets on the user automatically at a scheduled time
+/// (brief §9). Up to 5 enabled per user (enforced in the service). A
+/// per-minute applier resolves which enabled entry is active now — highest
+/// `priority` wins, ties break to the most recently updated — and writes it
+/// into `User.statusText` / `statusEmoji` (and `presence` when set), tracking
+/// it via `User.scheduledStatusAppliedId` so it can switch or clear without
+/// stomping a status the user set by hand.
+model ScheduledStatus {
+  id          String   @id @default(cuid())
+  userId      String
+  /// Human label for the manage list, e.g. "Focus Time".
+  label       String
+  statusText  String
+  statusEmoji String?
+  /// Also set this presence while the entry is active. Null = leave presence be.
+  presence    PresenceStatus?
+  isEnabled   Boolean  @default(true)
+  /// Higher wins when two enabled entries overlap.
+  priority    Int      @default(0)
+  recurrence  ScheduledStatusRecurrence @default(ONE_TIME)
+  /// ONE_TIME only — the absolute window.
+  startAt     DateTime?
+  endAt       DateTime?
+  /// Recurring only — minutes past local midnight, 0–1439. `endMinute` must be
+  /// greater than `startMinute` (no midnight-wrapping windows in v1).
+  startMinute Int?
+  endMinute   Int?
+  /// WEEKLY only — 0 = Sunday … 6 = Saturday.
+  daysOfWeek  Int[]    @default([])
+  /// Recurring only — optional inclusive calendar-date bounds ("Sep 20 → Sep 23").
+  activeFrom  DateTime?
+  activeUntil DateTime?
+  /// IANA time zone the minute-of-day / date-bound maths run in. Seeded from
+  /// the user's `timezone` at creation.
+  timezone    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isEnabled])
+  @@map("scheduled_statuses")
 }
 
 model Workspace {

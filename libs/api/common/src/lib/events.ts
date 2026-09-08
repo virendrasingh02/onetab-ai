@@ -57,6 +57,12 @@ export const AppEvent = {
   NotificationCreated: 'notification.created',
   PresenceUpdated: 'presence.updated',
   /**
+   * A user's status text / emoji / presence was changed by the server — the
+   * scheduled-status applier or its expiry sweep (brief §9), not the user. The
+   * realtime bridge fans it out to the user's workspaces so rosters refresh.
+   */
+  UserStatusChanged: 'user.status.changed',
+  /**
    * Someone was @named in free text — a channel message (via the Matrix
    * bridge), a task comment, a document. Carries only resolved user ids and a
    * deep link, never the text.
@@ -195,6 +201,18 @@ export interface ChannelAccessExpiredEvent extends BaseEvent {
   userId: string;
 }
 
+export interface UserStatusChangedEvent extends BaseEvent {
+  /** The user whose status changed. */
+  userId: string;
+  /** The user's active workspace ids — where rosters need refreshing. */
+  workspaceIds: string[];
+  statusText: string | null;
+  statusEmoji: string | null;
+  presence: string | null;
+  /** What drove the change. */
+  source: 'schedule' | 'schedule-cleared' | 'expiry';
+}
+
 export interface WorkspaceMembershipChangedEvent extends BaseEvent {
   /** The user who joined, left, or was re-roled. */
   userId: string;
@@ -253,6 +271,7 @@ export interface AppEventPayloads {
   [AppEvent.ChannelUpdated]: ChannelUpdatedEvent;
   [AppEvent.ChannelMembershipChanged]: ChannelMembershipChangedEvent;
   [AppEvent.ChannelAccessExpired]: ChannelAccessExpiredEvent;
+  [AppEvent.UserStatusChanged]: UserStatusChangedEvent;
   [AppEvent.WorkspaceMembershipChanged]: WorkspaceMembershipChangedEvent;
   [AppEvent.FileShared]: FileSharedEvent;
   [AppEvent.WorkspaceInvited]: WorkspaceInvitedEvent;

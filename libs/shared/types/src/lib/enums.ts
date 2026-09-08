@@ -70,6 +70,15 @@ export const ChannelMembershipType = {
 export type ChannelMembershipType =
   (typeof ChannelMembershipType)[keyof typeof ChannelMembershipType];
 
+export const ScheduledStatusRecurrence = {
+  ONE_TIME: 'ONE_TIME',
+  DAILY: 'DAILY',
+  WEEKDAYS: 'WEEKDAYS',
+  WEEKLY: 'WEEKLY',
+} as const;
+export type ScheduledStatusRecurrence =
+  (typeof ScheduledStatusRecurrence)[keyof typeof ScheduledStatusRecurrence];
+
 export const InvitationStatus = {
   PENDING: 'PENDING',
   ACCEPTED: 'ACCEPTED',

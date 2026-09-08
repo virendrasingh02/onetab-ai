@@ -42,6 +42,7 @@ import {
   workspaceEntryPath,
   type WorkspaceState,
 } from '@org/web-workspace';
+import { ScheduledStatusDialog } from '@org/web-profile';
 import { Building2 } from 'lucide-react';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -88,6 +89,7 @@ export function AppShell() {
   /* Creating a channel is a dialog, so the sidebar's "+" no longer navigates
      away from whatever the user was reading. */
   const [createChannelOpen, setCreateChannelOpen] = useState(false);
+  const [scheduledStatusOpen, setScheduledStatusOpen] = useState(false);
 
   const {
     leftWidth,
@@ -596,6 +598,11 @@ export function AppShell() {
           onUserUpdated={setUser}
           onSaveStatus={userApi.updateStatus}
           onClearStatus={userApi.clearStatus}
+          onManageSchedules={() => setScheduledStatusOpen(true)}
+        />
+        <ScheduledStatusDialog
+          open={scheduledStatusOpen}
+          onOpenChange={setScheduledStatusOpen}
         />
         <TeamWorldClockModal
           currentUser={user}

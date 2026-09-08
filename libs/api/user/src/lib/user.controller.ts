@@ -1,9 +1,13 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
+  Post,
   Put,
   Query,
   UseGuards,
@@ -11,26 +15,34 @@ import {
 import { WorkspaceRoleGuard } from '@org/api-auth';
 import { CurrentUser, WorkspaceId, zodBody } from '@org/api-common';
 import {
+  createScheduledStatusSchema,
   navigationPreferenceSchema,
   sidebarPreferencesSchema,
   themeSettingSchema,
   updateLanguageSchema,
   updateProfileSchema,
+  updateScheduledStatusSchema,
   updateStatusSchema,
   updateUserPreferencesSchema,
+  type CreateScheduledStatusInput,
   type NavigationPreferenceInput,
   type SidebarPreferencesInput,
   type ThemeSettingInput,
   type UpdateLanguageInput,
   type UpdateProfileInput,
+  type UpdateScheduledStatusInput,
   type UpdateStatusInput,
   type UpdateUserPreferencesInput,
 } from '@org/validation';
+import { ScheduledStatusService } from './scheduled-status.service.js';
 import { UserService } from './user.service.js';
 
 @Controller({ path: 'users', version: '1' })
 export class UserController {
-  constructor(private readonly users: UserService) {}
+  constructor(
+    private readonly users: UserService,
+    private readonly scheduledStatuses: ScheduledStatusService,
+  ) {}
 
   @Get('me/language')
   getLanguage(@CurrentUser('id') userId: string) {
@@ -121,6 +133,41 @@ export class UserController {
   ) {
     await this.users.setPresence(userId, presence);
     return { presence };
+  }
+
+  // --- scheduled status multi-queue (brief §9) --------------------------
+
+  @Get('me/scheduled-statuses')
+  listScheduledStatuses(@CurrentUser('id') userId: string) {
+    return this.scheduledStatuses.list(userId);
+  }
+
+  @Post('me/scheduled-statuses')
+  createScheduledStatus(
+    @CurrentUser('id') userId: string,
+    @Body(zodBody(createScheduledStatusSchema))
+    body: CreateScheduledStatusInput,
+  ) {
+    return this.scheduledStatuses.create(userId, body);
+  }
+
+  @Patch('me/scheduled-statuses/:id')
+  updateScheduledStatus(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+    @Body(zodBody(updateScheduledStatusSchema))
+    body: UpdateScheduledStatusInput,
+  ) {
+    return this.scheduledStatuses.update(userId, id, body);
+  }
+
+  @Delete('me/scheduled-statuses/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteScheduledStatus(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+  ): Promise<void> {
+    return this.scheduledStatuses.remove(userId, id);
   }
 
   @Get(':userId')

@@ -3,6 +3,7 @@ export {
   ChannelMode,
   ChannelRole,
   ChannelVisibility,
+  ScheduledStatusRecurrence,
   CustomFieldType,
   CycleStatus,
   DocumentKind,
@@ -101,6 +102,21 @@ export type {
   ChannelPostingContext,
   ChannelViewer,
 } from './lib/channel-policy.js';
+
+export {
+  MAX_SCHEDULED_STATUSES,
+  MINUTES_IN_DAY,
+  isScheduledStatusActive,
+  localWallClock,
+  pickActiveScheduledStatus,
+  scheduledStatusWindowEnd,
+} from './lib/scheduled-status.js';
+export type {
+  LocalWallClock,
+  ScheduledStatusRecurrenceValue,
+  ScheduledStatusRule,
+  ScheduledStatusView,
+} from './lib/scheduled-status.js';
 
 export {
   DESIGN_SYSTEM_DEFAULT_APPEARANCE,

@@ -4,6 +4,8 @@ export const RealtimeEventType = {
   // Presence & User
   PresenceUpdated: 'presence.updated',
   UserUpdated: 'user.updated',
+  /** A user's status text/emoji was changed server-side (scheduled status). */
+  UserStatusChanged: 'user.status.changed',
 
   // Notifications
   NotificationCreated: 'notification.created',

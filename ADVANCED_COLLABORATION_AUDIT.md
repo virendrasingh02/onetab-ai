@@ -73,7 +73,7 @@ the current codebase and proposes a phased build. No feature code has been writt
 | **A** | Smart sidebar sections + channel sort modes | §1.1, §1.2 | M | No (JSON blob widening only) | ✅ **DONE 2026-09-08** — see below. |
 | **B** | Announcement / broadcast channels | §3 | M | Yes (`Channel` cols) | ✅ **DONE 2026-09-08** — see below. |
 | **C** | Temporary channel membership | §8 | M | Yes (`ChannelMember` cols) | ✅ **DONE 2026-09-08** — see below. |
-| **D** | Scheduled status multi-queue | §9 | M | Yes (`ScheduledStatus`) | Bounded. Model + cron applier + conflict rule + profile UI. |
+| **D** | Scheduled status multi-queue | §9 | M | Yes (`ScheduledStatus`) | ✅ **DONE 2026-09-08** — see below. |
 | **E** | Canvas TOC | §10 | S | No | Client-only upgrade of the existing outline. |
 | **F** | Federated cross-workspace search | §4 | L | Maybe (visit/index tuning) | New aggregator controller + expanded categories + filters + virtualized UI. Depends on decision #3. |
 | **G** | Anonymous messaging | §2 | L | Yes (2 models) | Security-sensitive: identity proxy + restricted author table + moderation + audit. |
@@ -162,6 +162,30 @@ bridge kicks them) + `ChannelAccessExpired` (→ notifications listener →
 | Tests | `channel-policy.spec.ts` temp-membership block (clamp bounds/round, expiry math for live/lapsed/never windows, active check). `nx affected -t typecheck lint test build` green (74 each; `@org/types` 52 tests). |
 
 **Deferred within §8:** an admin "Temporary Access" management tab (revoke others' temp access) — the details-panel roster already shows who has it and managers can remove them via the existing member menu; `@org/api-channel` service/e2e specs (no test target).
+
+### Slice D — Scheduled status multi-queue ✅ (2026-09-08, uncommitted)
+
+**Migration `20260908150000_scheduled_status_multi_queue`** (hand-written). New
+`ScheduledStatus` model + `ScheduledStatusRecurrence` enum (`ONE_TIME` / `DAILY` /
+`WEEKDAYS` / `WEEKLY`) + `User.scheduledStatusAppliedId`. Status stays a *user*
+attribute (intentionally global, §12) — no workspace scoping.
+
+`User.statusExpiresAt` had **no real expiry** before this — `getMe` masked an
+expired status at read time but never cleared the row or told anyone. The
+applier's second pass finally clears lapsed manual statuses too.
+
+| Layer | Change |
+|---|---|
+| `@org/types` | `ScheduledStatusRecurrence` enum; new pure `scheduled-status.ts` — `localWallClock` (Intl, per-zone), `isScheduledStatusActive`, `pickActiveScheduledStatus` (**conflict rule: priority ↓, then updatedAt ↓, then id ↑**), `scheduledStatusWindowEnd`, `MAX_SCHEDULED_STATUSES = 5` + `scheduled-status.spec.ts` (12 cases: zones, WEEKDAYS/DAILY/WEEKLY, date bounds, one-time end-exclusive, conflict tiebreaks, window end). |
+| `@org/validation` | new `scheduled-status.schema.ts` — `createScheduledStatusSchema` (`.superRefine` on recurrence-appropriate fields; no midnight-wrapping windows), `updateScheduledStatusSchema` (partial, for `{ isEnabled }` toggles). |
+| `@org/api-common` | `toScheduledStatus` serializer; `events.ts` `UserStatusChangedEvent` + `AppEvent.UserStatusChanged` + payload-map. |
+| `@org/api-user` | `ScheduledStatusService` (CRUD, ≤5 enforced, timezone seeded from `User.timezone`, delete clears the user's status if it was the active one) + `ScheduledStatusApplierService` (`@Cron(EVERY_MINUTE)`: apply/switch the winning entry, clear when the window closes, **never stomp a hand-set status** — `updateStatus` now nulls `scheduledStatusAppliedId` so manual wins; a second pass clears lapsed manual statuses; emits `UserStatusChanged`). Routes `GET/POST/PATCH/DELETE /users/me/scheduled-statuses[/:id]`. `+ @nestjs/schedule` + `@nestjs/event-emitter` deps. |
+| Realtime | `realtime-domain-bridge` `@OnEvent(UserStatusChanged)` → `broadcastToWorkspace` per workspace id → `user.status.changed`; `@org/realtime` `RealtimeEventType.UserStatusChanged` + `realtime-provider` invalidates `['members', ws]` so rosters refresh live. |
+| `@org/api-client` | `userApi.scheduledStatuses` / `createScheduledStatus` / `updateScheduledStatus` / `deleteScheduledStatus`. |
+| UI | `@org/ui` `StatusModal` gained `onManageSchedules` → a "Scheduled statuses" row. New `@org/web-profile` `<ScheduledStatusDialog>` (list + inline add/edit form: emoji, text, name, recurrence segmented control, time-of-day / datetime pickers, weekly day chips, optional date bounds, priority, "set me to DND/Away") + `use-scheduled-statuses` hooks; wired in `app-shell.tsx`. |
+| Tests | `scheduled-status.spec.ts`. `nx affected -t typecheck lint test build` green (74 each; `@org/types` 64 tests). |
+
+**Deferred within §9:** a bell notification per scheduled flip (routine, deliberately noise — the realtime roster refresh + the user's own device on next `/users/me` covers it); the user's *own* device live-updating its auth-store status without a refetch; DST-exact `statusExpiresAt` display (the per-minute applier is the real expiry).
 
 ---
 
