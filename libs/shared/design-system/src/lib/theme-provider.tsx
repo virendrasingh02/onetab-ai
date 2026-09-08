@@ -273,6 +273,13 @@ export function ThemeProvider({
     readStoredValue(scopedKeys(scopeKey).radius, defaultRadius, RADIUS_VALUES),
   );
 
+  // Current painted values, for the scope-switch re-hydration below: a key the
+  // new workspace has never stored keeps what's on screen rather than flashing
+  // to a default, and `WorkspaceAppearanceSync` supplies the real value moments
+  // later.
+  const currentRef = useRef({ theme, density, accent, radius, customTheme });
+  currentRef.current = { theme, density, accent, radius, customTheme };
+
   useEffect(() => {
     const next = resolve(theme);
     setResolvedTheme(next);
@@ -292,28 +299,45 @@ export function ThemeProvider({
     return () => query.removeEventListener('change', onChange);
   }, [theme, density, accent, radius, activeCustomTheme]);
 
-  // On a workspace switch, re-hydrate the whole appearance from the new
-  // workspace's namespace. A workspace with nothing cached falls back to the
-  // provider defaults — never the previous workspace's values — and
-  // `WorkspaceAppearanceSync` then fills in the server-resolved blob.
+  // On a workspace switch, re-hydrate appearance from the new workspace's
+  // namespace. Keys the new workspace has cached (from a prior visit) apply
+  // instantly; keys it has never stored keep the current on-screen value rather
+  // than flashing to a default, and `WorkspaceAppearanceSync` then overwrites
+  // them with the server-resolved blob. Nothing here writes back to storage, so
+  // holding the previous value briefly cannot leak into the new workspace's
+  // saved appearance.
   const prevScopeRef = useRef<string | null | undefined>(scopeKey);
   useEffect(() => {
     if (prevScopeRef.current === scopeKey) return;
     prevScopeRef.current = scopeKey;
 
     const k = scopedKeys(scopeKey);
-    const nextCustom = readStoredCustomTheme(k.custom);
+    const cur = currentRef.current;
+
+    const rawCustom =
+      typeof window !== 'undefined'
+        ? (() => {
+            try {
+              return window.localStorage.getItem(k.custom);
+            } catch {
+              return null;
+            }
+          })()
+        : null;
+    const nextCustom =
+      rawCustom !== null ? readStoredCustomTheme(k.custom) : cur.customTheme;
     const nextMode =
-      nextCustom?.mode ?? readStoredValue(k.theme, defaultTheme, MODES);
+      nextCustom?.mode ??
+      readStoredValue(k.theme, cur.theme, MODES);
 
     setCustomThemeState(nextCustom);
     setDraftTheme(null);
     setThemeState(nextMode);
-    setDensityState(readStoredValue(k.density, defaultDensity, DENSITY_VALUES));
-    setAccentState(readStoredValue(k.accent, defaultAccent, ACCENT_VALUES));
-    setRadiusState(readStoredValue(k.radius, defaultRadius, RADIUS_VALUES));
+    setDensityState(readStoredValue(k.density, cur.density, DENSITY_VALUES));
+    setAccentState(readStoredValue(k.accent, cur.accent, ACCENT_VALUES));
+    setRadiusState(readStoredValue(k.radius, cur.radius, RADIUS_VALUES));
     // The main effect re-applies to <html> because the state above changed.
-  }, [scopeKey, defaultTheme, defaultDensity, defaultAccent, defaultRadius]);
+  }, [scopeKey]);
 
   const setTheme = useCallback(
     (next: Theme) => {

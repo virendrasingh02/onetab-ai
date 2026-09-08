@@ -14,15 +14,14 @@ function Probe() {
     <div>
       <span data-testid="theme">{theme}</span>
       <span data-testid="accent">{accent}</span>
-      <button type="button" onClick={() => setTheme('dark')}>
-        dark
-      </button>
-      <button type="button" onClick={() => setAccent('green')}>
-        green
-      </button>
+      <button type="button" aria-label="set-dark" onClick={() => setTheme('dark')} />
+      <button type="button" aria-label="set-green" onClick={() => setAccent('green')} />
     </div>
   );
 }
+
+const clickDark = () => act(() => screen.getByLabelText('set-dark').click());
+const clickGreen = () => act(() => screen.getByLabelText('set-green').click());
 
 beforeEach(() => {
   localStorage.clear();
@@ -36,44 +35,40 @@ describe('ThemeProvider scopeKey', () => {
       </ThemeProvider>,
     );
 
-    act(() => {
-      screen.getByText('dark').click();
-    });
+    clickDark();
 
     expect(localStorage.getItem('onetab.theme::wsA')).toBe('dark');
     // The unscoped key is a "last painted" mirror for the pre-paint script.
     expect(localStorage.getItem('onetab.theme')).toBe('dark');
   });
 
-  it('does not leak one workspace\'s choice into another', () => {
+  it('does not persist one workspace\'s choice into another', () => {
     const { rerender } = render(
       <ThemeProvider scopeKey="wsA">
         <Probe />
       </ThemeProvider>,
     );
-    act(() => {
-      screen.getByText('green').click();
-    });
+    clickGreen();
     expect(localStorage.getItem('onetab.accent::wsA')).toBe('green');
 
-    // Switch workspace: the provider re-hydrates from wsB's (empty) namespace,
-    // so it shows the design-system default, not wsA's green.
+    // Switch to a never-visited workspace: the provider holds the current paint
+    // (no white-flash) but writes NOTHING to wsB's namespace — Workspace
+    // AppearanceSync supplies wsB's real value moments later.
     rerender(
       <ThemeProvider scopeKey="wsB">
         <Probe />
       </ThemeProvider>,
     );
-    expect(screen.getByTestId('accent').textContent).toBe('mint');
+    expect(localStorage.getItem('onetab.accent::wsB')).toBeNull();
 
-    act(() => {
-      screen.getByText('green').click();
-    });
+    // An explicit change under wsB writes only to wsB.
+    clickGreen();
     expect(localStorage.getItem('onetab.accent::wsB')).toBe('green');
-    // wsA's stored value is untouched.
+    // wsA's stored value is untouched throughout.
     expect(localStorage.getItem('onetab.accent::wsA')).toBe('green');
   });
 
-  it('re-hydrates from the workspace namespace on switch', () => {
+  it('re-hydrates a cached value from the workspace namespace on switch', () => {
     localStorage.setItem('onetab.theme::wsB', 'dark');
 
     const { rerender } = render(
