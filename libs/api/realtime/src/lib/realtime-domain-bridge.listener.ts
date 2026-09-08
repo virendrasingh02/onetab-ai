@@ -41,6 +41,27 @@ export class RealtimeDomainBridgeListener {
     }
   }
 
+  @OnEvent(AppEvent.HuddleUpdated)
+  async onHuddleUpdated(e: {
+    workspaceId: string;
+    actorId: string | null;
+    huddleId: string;
+    matrixRoomId: string;
+    channelId: string | null;
+    action: string;
+  }): Promise<void> {
+    await this.gateway.broadcastToWorkspace(e.workspaceId, {
+      type: 'huddle.updated',
+      actorId: e.actorId,
+      payload: {
+        huddleId: e.huddleId,
+        matrixRoomId: e.matrixRoomId,
+        channelId: e.channelId,
+        action: e.action,
+      },
+    });
+  }
+
   @OnEvent(AppEvent.TaskCreated)
   async onTaskCreated(e: {
     workspaceId: string;

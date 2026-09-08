@@ -1,4 +1,8 @@
-import type { Message, RoomMember } from '@org/types';
+import type {
+  HuddleConnectionState,
+  Message,
+  RoomMember,
+} from '@org/types';
 import {
   Badge,
   Button,
@@ -14,6 +18,7 @@ import {
   Bookmark,
   BookmarkX,
   Headphones,
+  Loader2,
   Mic,
   MicOff,
   MonitorUp,
@@ -22,6 +27,7 @@ import {
   Pin,
   PinOff,
   Plus,
+  RotateCw,
   Search,
   Video,
   X,
@@ -141,6 +147,36 @@ export interface HuddleBarProps {
   onToggleMute?: () => void;
   onShareScreen?: () => void;
   onStartVideo?: () => void;
+
+  /* --- backend-driven state (brief §6 / §7) --------------------------------
+     All optional: a decorative caller passes none of it and gets the plain
+     live-audio dock; the channel page passes the real huddle. */
+
+  /** When the huddle started, for the "started 5m ago" line. */
+  startedAt?: string;
+  /** When *you* joined this huddle — the "you joined at 14:03" marker (§7). */
+  viewerJoinedAt?: string | null;
+  /**
+   * The media-connection lifecycle (§6). Drives the reconnecting line and the
+   * "Connection lost — Retry / Leave" state; omit for the decorative dock.
+   */
+  connectionState?: HuddleConnectionState;
+  /** Retry a failed media connection. */
+  onRetry?: () => void;
+  /** Host-only: end the huddle for everyone. Rendered only when provided. */
+  onEnd?: () => void;
+  /** Disables the call controls while a join/leave/end request is in flight. */
+  busy?: boolean;
+  /**
+   * Base URL of the embedded Element Call surface. With it set and the reader
+   * joined, a compact call window is embedded and its load advances the
+   * connection state; without it the huddle is presence-only.
+   */
+  elementCallUrl?: string | null;
+  /** The huddle's Matrix room id — needed to address the Element Call embed. */
+  roomId?: string;
+  /** Fired when the embedded call surface reports itself live. */
+  onMediaReady?: () => void;
 }
 
 /**
@@ -168,14 +204,49 @@ export function HuddleBar({
   onToggleMute,
   onShareScreen,
   onStartVideo,
+  startedAt,
+  viewerJoinedAt,
+  connectionState,
+  onRetry,
+  onEnd,
+  busy = false,
+  elementCallUrl,
+  roomId,
+  onMediaReady,
 }: HuddleBarProps) {
   const dock = useHuddleDockStore((s) => s.slot);
 
   if (participants.length === 0 && !isJoined) return null;
 
+  const reconnecting =
+    connectionState === 'interrupted' || connectionState === 'reconnecting';
+  const failed = connectionState === 'failed';
+
+  const subline = failed
+    ? 'Connection lost'
+    : reconnecting
+      ? 'Reconnecting…'
+      : isJoined
+        ? 'You are in this huddle'
+        : 'Live in this channel';
+
+  const embedUrl =
+    isJoined && elementCallUrl && roomId
+      ? // The exact query contract depends on the deployed Element Call build;
+        // this addresses a room and asks it to run embedded.
+        `${elementCallUrl.replace(/\/+$/, '')}/room/#?roomId=${encodeURIComponent(
+          roomId,
+        )}&embed=true`
+      : null;
+
   const bar = (
     <div
-      className="gap-3 px-2 py-1.5 shadow-xs animate-in fade-in slide-in-from-bottom-2 relative flex flex-wrap items-center overflow-hidden rounded-xl border border-accent-violet/40 bg-linear-to-r from-accent-violet-soft via-card to-accent-violet-soft/60 transition-all duration-300"
+      className={cn(
+        'gap-3 px-2 py-1.5 shadow-xs animate-in fade-in slide-in-from-bottom-2 relative flex flex-wrap items-center overflow-hidden rounded-xl border transition-all duration-300',
+        failed
+          ? 'border-destructive/40 bg-linear-to-r from-destructive/10 via-card to-destructive/5'
+          : 'border-accent-violet/40 bg-linear-to-r from-accent-violet-soft via-card to-accent-violet-soft/60',
+      )}
       role="region"
       aria-label="Huddle"
     >
@@ -183,12 +254,25 @@ export function HuddleBar({
           across the screen, before you read a word of the bar. Same shape as
           the notification bar's bell badge — a live call is the same kind of
           claim on your attention. */}
-      <div className="size-8 shadow-inner relative flex shrink-0 items-center justify-center rounded-lg bg-accent-violet/15 text-accent-violet">
-        <Headphones className="size-4" aria-hidden />
-        <span className="-top-1 -right-1 size-2.5 absolute flex">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-violet opacity-75" />
-          <span className="size-2.5 relative inline-flex rounded-full bg-accent-violet" />
-        </span>
+      <div
+        className={cn(
+          'size-8 shadow-inner relative flex shrink-0 items-center justify-center rounded-lg',
+          failed
+            ? 'bg-destructive/15 text-destructive'
+            : 'bg-accent-violet/15 text-accent-violet',
+        )}
+      >
+        {reconnecting ? (
+          <Loader2 className="size-4 animate-spin" aria-hidden />
+        ) : (
+          <Headphones className="size-4" aria-hidden />
+        )}
+        {!failed && !reconnecting ? (
+          <span className="-top-1 -right-1 size-2.5 absolute flex">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-violet opacity-75" />
+            <span className="size-2.5 relative inline-flex rounded-full bg-accent-violet" />
+          </span>
+        ) : null}
       </div>
 
       <div className="gap-0.5 min-w-0 flex flex-col">
@@ -196,7 +280,10 @@ export function HuddleBar({
           Huddle
         </h4>
         <span className="text-[11px] leading-none text-muted-foreground">
-          {isJoined ? 'You are in this huddle' : 'Live in this channel'}
+          {subline}
+          {startedAt && !failed && !reconnecting ? (
+            <span className="text-subtle"> · started {formatRelative(startedAt)}</span>
+          ) : null}
         </span>
       </div>
 
@@ -216,11 +303,42 @@ export function HuddleBar({
 
         <span className="text-xs truncate text-muted-foreground tabular-nums">
           {participants.length} in the huddle
+          {viewerJoinedAt ? (
+            <span className="text-subtle">
+              {' '}
+              · you joined{' '}
+              {new Date(viewerJoinedAt).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </span>
+          ) : null}
         </span>
       </div>
 
       <div className="gap-2 flex shrink-0 items-center">
-        {isJoined ? (
+        {failed ? (
+          <>
+            <Button
+              size="sm"
+              className="h-8 gap-1.5 text-xs px-3 shadow-sm font-medium"
+              onClick={onRetry}
+              disabled={busy}
+              leadingIcon={<RotateCw className="size-3.5" />}
+            >
+              Retry
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="h-8 gap-1.5 text-xs px-3 shadow-sm font-medium"
+              onClick={onLeave}
+              leadingIcon={<PhoneOff className="size-3.5" />}
+            >
+              Leave
+            </Button>
+          </>
+        ) : isJoined ? (
           <>
             {/* The call controls read as one instrument, so they share a
                 single inset pill rather than floating loose on the bar. */}
@@ -232,6 +350,7 @@ export function HuddleBar({
                   aria-label={isMuted ? 'Unmute' : 'Mute'}
                   aria-pressed={isMuted}
                   onClick={onToggleMute}
+                  disabled={busy}
                   className={cn(
                     'rounded-full',
                     isMuted ? 'text-destructive' : undefined,
@@ -247,6 +366,7 @@ export function HuddleBar({
                   className="rounded-full"
                   aria-label="Turn on video"
                   onClick={onStartVideo}
+                  disabled={busy}
                 >
                   <Video />
                 </Button>
@@ -258,17 +378,31 @@ export function HuddleBar({
                   className="rounded-full"
                   aria-label="Share your screen"
                   onClick={onShareScreen}
+                  disabled={busy}
                 >
                   <MonitorUp />
                 </Button>
               </Hint>
             </div>
 
+            {onEnd ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs px-2 font-medium text-muted-foreground hover:text-destructive"
+                onClick={onEnd}
+                disabled={busy}
+              >
+                End
+              </Button>
+            ) : null}
+
             <Button
               variant="destructive"
               size="sm"
               className="h-8 gap-1.5 text-xs px-3 shadow-sm font-medium"
               onClick={onLeave}
+              disabled={busy}
               leadingIcon={<PhoneOff className="size-3.5" />}
             >
               Leave
@@ -279,12 +413,24 @@ export function HuddleBar({
             size="sm"
             className="h-8 gap-1.5 text-xs px-3 shadow-sm font-medium"
             onClick={onJoin}
+            disabled={busy}
             leadingIcon={<Headphones className="size-3.5" />}
           >
             Join huddle
           </Button>
         )}
       </div>
+
+      {embedUrl ? (
+        <iframe
+          key={embedUrl}
+          src={embedUrl}
+          title="Huddle call"
+          onLoad={onMediaReady}
+          allow="camera; microphone; display-capture; fullscreen; autoplay; clipboard-write"
+          className="h-64 w-full basis-full overflow-hidden rounded-lg border border-border bg-background"
+        />
+      ) : null}
     </div>
   );
 

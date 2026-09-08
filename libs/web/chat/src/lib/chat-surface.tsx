@@ -45,6 +45,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { deriveThreads, groupReplies } from './derive-threads.js';
+import { useHuddleSession } from './use-huddle.js';
 import { useMentionNavigation } from './use-mention-navigation.js';
 import { useMessageScrollTarget } from './use-message-scroll-target.js';
 
@@ -115,6 +116,13 @@ export interface ChatSurfaceProps {
    */
   conversationId?: string | null;
 
+  /**
+   * The workspace this conversation belongs to. Present for channels, DMs and
+   * group DMs; lets the surface bind the huddle (brief §6) to the backend.
+   * Left unset the huddle bar stays a local affordance only.
+   */
+  workspaceId?: string;
+
   messages: Message[];
   members: RoomMember[];
   typingNames: string[];
@@ -167,7 +175,6 @@ export interface ChatSurfaceProps {
    */
   huddleRequest?: number;
 
-  huddleParticipants?: RoomMember[];
   pinnedIds?: string[];
   savedIds?: string[];
   firstUnreadId?: string | null;
@@ -269,6 +276,7 @@ export function ChatSurface({
   connectionState,
   myUserId,
   conversationId,
+  workspaceId,
   messages,
   members,
   typingNames,
@@ -283,7 +291,6 @@ export function ChatSurface({
   showMembers = true,
   welcome,
   huddleRequest = 0,
-  huddleParticipants = [],
   pinnedIds = [],
   savedIds = [],
   firstUnreadId,
@@ -326,13 +333,25 @@ export function ChatSurface({
   const [editing, setEditing] = useState<Message | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightId, setHighlightId] = useState<string | null>(null);
-  const [huddleJoined, setHuddleJoined] = useState(false);
   const [huddleMuted, setHuddleMuted] = useState(false);
 
+  /*
+   * The huddle for this conversation, bound to the backend (brief §6 / §7) —
+   * roster, "you joined at" marker and the reconnect state machine all come
+   * from here. Mute stays local: it is a client media control, not shared
+   * state. With no `workspaceId` the hook is inert and the bar never shows.
+   */
+  const huddle = useHuddleSession(workspaceId, conversationId);
+  const { startOrJoin: startOrJoinHuddle, joined: huddleJoined } = huddle;
+
   /* Zero is the initial value, not a request — see `huddleRequest`. */
+  const handledHuddleRequest = useRef(0);
   useEffect(() => {
-    if (huddleRequest > 0) setHuddleJoined(true);
-  }, [huddleRequest]);
+    if (huddleRequest > 0 && huddleRequest !== handledHuddleRequest.current) {
+      handledHuddleRequest.current = huddleRequest;
+      startOrJoinHuddle();
+    }
+  }, [huddleRequest, startOrJoinHuddle]);
 
   /*
    * Which thread the URL currently points at, as last reconciled here. Guards
@@ -378,7 +397,6 @@ export function ChatSurface({
     setEditing(null);
     setHighlightId(null);
     setSearchQuery('');
-    setHuddleJoined(false);
     setHuddleMuted(false);
     // An open single-thread view has nothing left to show once its root
     // message is gone with it — fall back to the thread list rather than
@@ -456,15 +474,25 @@ export function ChatSurface({
   /* `savedIds` still drives each bubble's bookmark toggle; the list of saved
      messages itself now lives on the Saved page in the sidebar. */
 
-  const huddleRoster = useMemo(() => {
-    const me = myUserId ? memberById.get(myUserId) : undefined;
-    if (!huddleJoined || !me) return huddleParticipants;
-    return huddleParticipants.some(
-      (participant) => participant.userId === me.userId,
-    )
-      ? huddleParticipants
-      : [me, ...huddleParticipants];
-  }, [huddleParticipants, huddleJoined, myUserId, memberById]);
+  /*
+   * The huddle roster comes from the backend participant list (brief §7), not
+   * the Matrix room roster — keyed by our user id so avatars resolve the same
+   * gradient everywhere. Still-connected participants only.
+   */
+  const huddleRoster = useMemo<RoomMember[]>(
+    () =>
+      (huddle.huddle?.participants ?? [])
+        .filter((participant) => !participant.leftAt)
+        .map((participant) => ({
+          userId: participant.user.id,
+          displayName:
+            participant.user.displayName ?? participant.user.name,
+          avatarUrl: participant.user.avatarUrl ?? undefined,
+          powerLevel: 0,
+          membership: 'join' as const,
+        })),
+    [huddle.huddle],
+  );
 
   const searchResults = useMemo(() => {
     const needle = searchQuery.trim().toLowerCase();
@@ -758,13 +786,14 @@ export function ChatSurface({
 
   const headerActions = (
     <>
-      {huddleParticipants.length === 0 && !huddleJoined ? (
+      {!huddle.huddle && !huddleJoined ? (
         <Hint label="Start a huddle">
           <Button
             variant="ghost"
             size="icon-sm"
             aria-label="Start a huddle"
-            onClick={() => setHuddleJoined(true)}
+            onClick={() => huddle.startOrJoin()}
+            disabled={huddle.busy}
           >
             <Headphones />
           </Button>
@@ -920,9 +949,17 @@ export function ChatSurface({
           participants={huddleRoster}
           isJoined={huddleJoined}
           isMuted={huddleMuted}
-          onJoin={() => setHuddleJoined(true)}
-          onLeave={() => setHuddleJoined(false)}
+          onJoin={() => huddle.startOrJoin()}
+          onLeave={() => huddle.leave()}
           onToggleMute={() => setHuddleMuted((muted) => !muted)}
+          startedAt={huddle.huddle?.startedAt}
+          viewerJoinedAt={huddle.huddle?.viewerJoinedAt}
+          connectionState={huddle.connection}
+          onRetry={huddle.retry}
+          busy={huddle.busy}
+          elementCallUrl={huddle.elementCallUrl}
+          roomId={huddle.huddle?.matrixRoomId ?? conversationId ?? undefined}
+          onMediaReady={huddle.onMediaReady}
         />
 
         {/* Threads live in the app's right rail — see the note by `inThreads`. */}
@@ -1030,7 +1067,7 @@ export function ChatSurface({
                     welcome.peer?.kind === 'agent' ||
                     welcome.peer?.kind === 'app'
                       ? undefined
-                      : () => setHuddleJoined(true)
+                      : () => huddle.startOrJoin()
                   }
                 />
               ) : null

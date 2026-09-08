@@ -46,6 +46,8 @@ import type {
   AnonymousModerationRow,
   AnonymousRevealResult,
   ChannelEmailSettingsView,
+  HuddleConfig,
+  HuddleView,
   AppActionDefinition,
   AppActionResult,
   AuthTokens,
@@ -189,6 +191,7 @@ import type {
   ReportAnonymousMessageInput,
   UpdateChannelAnonymousSettingsInput,
   UpdateChannelEmailSettingsInput,
+  StartHuddleInput,
   ExtendMembershipInput,
   JoinChannelInput,
   ConvertIntakeRequestInput,
@@ -2587,6 +2590,34 @@ export const channelEmailApi = {
         input,
       ),
     ),
+};
+
+/** Huddles (brief §6 / §7). */
+export const huddleApi = {
+  config: (workspaceId: string) =>
+    request<HuddleConfig>(
+      http.get(`/workspaces/${workspaceId}/huddles/config`),
+    ),
+  forRoom: (workspaceId: string, roomId: string) =>
+    request<HuddleView | null>(
+      http.get(`/workspaces/${workspaceId}/huddles/for-room`, {
+        params: { roomId },
+      }),
+    ),
+  start: (workspaceId: string, input: StartHuddleInput) =>
+    request<HuddleView>(
+      http.post(`/workspaces/${workspaceId}/huddles`, input),
+    ),
+  join: (workspaceId: string, id: string) =>
+    request<HuddleView>(
+      http.post(`/workspaces/${workspaceId}/huddles/${id}/join`),
+    ),
+  leave: (workspaceId: string, id: string) =>
+    request<void>(
+      http.post(`/workspaces/${workspaceId}/huddles/${id}/leave`),
+    ),
+  end: (workspaceId: string, id: string) =>
+    request<void>(http.post(`/workspaces/${workspaceId}/huddles/${id}/end`)),
 };
 
 export const gifsApi = {

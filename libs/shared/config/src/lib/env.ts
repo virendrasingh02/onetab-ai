@@ -133,6 +133,11 @@ export const apiEnvSchema = z.object({
   INBOUND_EMAIL_DOMAIN: z.string().default('inbound.onetab.ai'),
   INBOUND_EMAIL_SECRET: z.string().optional(),
 
+  // Huddle media (brief §6/§7). Base URL of an Element Call / MatrixRTC
+  // deployment; the client embeds it in the huddle's room. Unset ⇒ huddles are
+  // presence-only (participants + the conversation thread, no media).
+  ELEMENT_CALL_URL: z.string().url().optional(),
+
   // Multi-App API Integration Configuration
   ENCRYPTION_KEY: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),

@@ -8,6 +8,8 @@ import {
   InboundEmailController,
 } from './email.controller.js';
 import { InboundEmailService } from './inbound-email.service.js';
+import { HuddleController } from './huddle.controller.js';
+import { HuddleService } from './huddle.service.js';
 import { MatrixAdminService } from './matrix-admin.service.js';
 import { MatrixAuthService } from './matrix-auth.service.js';
 import { MatrixBotMessagingService } from './matrix-bot-messaging.service.js';
@@ -37,6 +39,7 @@ import { NotificationBridgeService } from './notification-bridge.service.js';
     AnonymousController,
     ChannelEmailController,
     InboundEmailController,
+    HuddleController,
   ],
   providers: [
     MatrixAdminService,
@@ -44,6 +47,7 @@ import { NotificationBridgeService } from './notification-bridge.service.js';
     MatrixBotMessagingService,
     AnonymousMessagingService,
     InboundEmailService,
+    HuddleService,
     MatrixInboundRouterService,
     MatrixMembershipListener,
     MatrixReconcilerService,

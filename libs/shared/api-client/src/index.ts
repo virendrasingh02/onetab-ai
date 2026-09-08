@@ -24,6 +24,7 @@ export {
   channelEmailApi,
   enterpriseApi,
   gifsApi,
+  huddleApi,
   integrationsApi,
   invitationApi,
   marketplaceApi,

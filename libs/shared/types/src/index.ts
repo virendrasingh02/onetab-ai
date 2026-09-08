@@ -91,6 +91,20 @@ export type {
   EmailEventHint,
 } from './lib/email.js';
 
+export {
+  HUDDLE_MAX_RECONNECT_ATTEMPTS,
+  huddleConnectionReducer,
+  isHuddleConnecting,
+} from './lib/huddle.js';
+export type {
+  HuddleConfig,
+  HuddleConnectionEvent,
+  HuddleConnectionState,
+  HuddleParticipantView,
+  HuddleStatus,
+  HuddleView,
+} from './lib/huddle.js';
+
 export { ANON_DISPLAY_NAME } from './lib/anonymous.js';
 export type {
   AnonymousModerationEventView,

@@ -17,6 +17,7 @@ export {
   type ChannelMembershipChangedEvent,
   type ChannelAccessExpiredEvent,
   type UserStatusChangedEvent,
+  type HuddleUpdatedEvent,
   type WorkspaceMembershipChangedEvent,
   type FileSharedEvent,
   type WorkspaceInvitedEvent,

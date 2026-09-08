@@ -62,6 +62,8 @@ export const AppEvent = {
    * realtime bridge fans it out to the user's workspaces so rosters refresh.
    */
   UserStatusChanged: 'user.status.changed',
+  /** A huddle started / a participant joined or left / it ended (brief §6). */
+  HuddleUpdated: 'huddle.updated',
   /**
    * Someone was @named in free text — a channel message (via the Matrix
    * bridge), a task comment, a document. Carries only resolved user ids and a
@@ -213,6 +215,13 @@ export interface UserStatusChangedEvent extends BaseEvent {
   source: 'schedule' | 'schedule-cleared' | 'expiry';
 }
 
+export interface HuddleUpdatedEvent extends BaseEvent {
+  huddleId: string;
+  matrixRoomId: string;
+  channelId: string | null;
+  action: 'started' | 'joined' | 'left' | 'ended';
+}
+
 export interface WorkspaceMembershipChangedEvent extends BaseEvent {
   /** The user who joined, left, or was re-roled. */
   userId: string;
@@ -272,6 +281,7 @@ export interface AppEventPayloads {
   [AppEvent.ChannelMembershipChanged]: ChannelMembershipChangedEvent;
   [AppEvent.ChannelAccessExpired]: ChannelAccessExpiredEvent;
   [AppEvent.UserStatusChanged]: UserStatusChangedEvent;
+  [AppEvent.HuddleUpdated]: HuddleUpdatedEvent;
   [AppEvent.WorkspaceMembershipChanged]: WorkspaceMembershipChangedEvent;
   [AppEvent.FileShared]: FileSharedEvent;
   [AppEvent.WorkspaceInvited]: WorkspaceInvitedEvent;

@@ -591,6 +591,7 @@ export function ChatPanel({
       connectionState={status.state}
       myUserId={client?.getSession()?.userId}
       conversationId={roomId}
+      workspaceId={workspaceId}
       messages={isConnecting ? [] : room.messages}
       members={isConnecting ? [] : room.members}
       typingNames={isConnecting ? [] : room.typingNames}

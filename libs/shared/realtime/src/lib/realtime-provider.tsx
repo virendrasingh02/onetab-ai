@@ -284,6 +284,10 @@ export function RealtimeProvider({
         queryClient.invalidateQueries({ queryKey: ['members', ws] });
       },
     );
+    // A huddle started / changed / ended (brief §6) — refresh the huddle state.
+    const unsubHuddle = bus.on(RealtimeEventType.HuddleUpdated, () => {
+      queryClient.invalidateQueries({ queryKey: ['huddle', ws] });
+    });
 
     return () => {
       unsubNotifCreated();
@@ -300,6 +304,7 @@ export function RealtimeProvider({
       unsubMember();
       unsubInvite();
       unsubUserStatus();
+      unsubHuddle();
     };
   }, [bus, queryClient, workspaceId]);
 

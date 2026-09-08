@@ -218,6 +218,45 @@ applier's second pass finally clears lapsed manual statuses too.
 
 **Deferred within §2:** a member-facing "report" affordance on the message row itself (the `POST .../report` endpoint exists; wiring it needs a pass on the `@org/chat-ui` message context menu). "Selected groups" is roles only — the platform has no group concept. Anonymous messages currently render with the anon identity's default avatar/gradient; a dedicated "incognito" glyph is a follow-up.
 
+### Slice H — Email-to-channel ✅ (2026-09-08, uncommitted)
+
+**Migration `20260908170000_email_to_channel`** (hand-written). `ChannelEmailAddress` (per-channel inbound address: slugified `localpart @unique` + random suffix, `isEnabled`, `threadPerSubject`, lazily-provisioned `matrixUserId`), `EmailMessage` (the inbound record + loop guard: `messageId @unique`, `inReplyTo` / `references`, `fromAddress` / `fromName`, `subject`, `matrixEventId` / `matrixThreadRootId`, `attachmentCount`).
+
+**The security model:** same as Slice G — a provider webhook `POST /email/inbound?secret=…` (`@Public()`, `INBOUND_EMAIL_SECRET`-gated) hands the server a parsed message; the server matches the channel by `localpart`, runs loop guards (dup `messageId`, own domain, `no-reply` / `mailer-daemon` / `postmaster` / `auto-submitted` patterns), resolves the thread root by `In-Reply-To` / `References` then subject, and posts into the room as a shared `@email-<channelId>` identity (`admin.sendEventAs`) with an `org.onetab.email` hint + `m.relates_to` thread. No inbound mail ever bypasses that path.
+
+| Layer | Change |
+|---|---|
+| `@org/config` | `apiEnvSchema` +`INBOUND_EMAIL_DOMAIN` (default `inbound.onetab.ai`) +`INBOUND_EMAIL_SECRET` (optional). `.env.example` updated. |
+| `@org/types` | new `email.ts` — `ChannelEmailSettingsView` (`address` / `isEnabled` / `threadPerSubject` / `messageCount`), `EMAIL_EVENT_KEY`, `EmailEventHint`. |
+| `@org/validation` | `email.schema.ts` — `updateChannelEmailSettingsSchema` + lenient `inboundEmailSchema` (`.passthrough()` over Postmark / Mailgun shapes). |
+| `@org/api-matrix` | new `InboundEmailService` (`ensureAddress` lazy-provision with collision retry, `normalise` / `normaliseSubject`, `handleInbound` with the guards above) + `ChannelEmailController` (`GET` / `PUT` at `/workspaces/:id/channels/:channelId/email`, `MANAGE_SETTINGS` for PUT) + `InboundEmailController` (`POST /email/inbound`, `@Public`, `@HttpCode(200)`). |
+| `@org/api-client` | `channelEmailApi` (`settings`, `updateSettings`). |
+| UI | `ChannelPostingDialog` gained an "Email integration" section (address + copy button, enable toggle, `threadPerSubject` toggle, message count) beside the anonymous section. |
+| Tests | `nx affected -t typecheck lint test build` green (74 projects). |
+
+**Deferred within §11:** outbound (channel reply → email back to the sender); attachment ingestion (the count is recorded, blobs are not pulled into `Upload`); per-address allow-lists / verified-sender enforcement; DKIM/SPF checks (delegated to the provider). Postmark/Mailgun field mapping is covered; SES's nested SNS envelope is not.
+
+### Slice I — Huddles ✅ (2026-09-08, uncommitted)
+
+**Migration `20260908180000_huddles`** (hand-written). `Huddle` (`workspaceId`, `channelId?`, `matrixRoomId`, `startedById`, `status HuddleStatus @default(ACTIVE)`, `startedAt` / `endedAt`), `HuddleParticipant` (`@@unique([huddleId, userId])`, `joinedAt` / `leftAt` — drives the "you joined at" marker, §7), `HuddleStatus` enum.
+
+**The model:** our side owns the huddle record, its participants and the connection state; the media surface is Element Call (MatrixRTC) embedded client-side in the huddle's Matrix room when `ELEMENT_CALL_URL` is set, otherwise the huddle is presence-only. That room **is** the channel's / DM's room, so a late joiner's history is that room and authorization is exactly the room's membership. Leaving with nobody left auto-ends the huddle; the host (or a channel `ADMIN`) can end it for everyone.
+
+| Layer | Change |
+|---|---|
+| `@org/config` | `apiEnvSchema` +`ELEMENT_CALL_URL` (optional URL). |
+| `@org/types` | new `huddle.ts` — `HuddleView` / `HuddleParticipantView` / `HuddleConfig` DTOs + a pure `huddleConnectionReducer` (`connecting → connected → interrupted → reconnecting → connected`, and `reconnecting → failed` once `HUDDLE_MAX_RECONNECT_ATTEMPTS` run out — never a stuck spinner, §6) + `isHuddleConnecting` + `huddle.spec.ts` (6 cases). |
+| `@org/validation` | `huddle.schema.ts` — `startHuddleSchema` (`channelId?` / `matrixRoomId?`, `.refine` one required). |
+| `@org/api-common` | `AppEvent.HuddleUpdated` + `HuddleUpdatedEvent` (`action: started / joined / left / ended`). |
+| `@org/api-matrix` | new `HuddleService` (`start` = join-if-exists-else-create, `forRoom`, `join`, `leave` — auto-ends when empty, `end` — host / channel-admin only; `resolveRoom` membership-checks the channel `ChannelMember` or the DM room via `admin.getRoomMembers`) + `HuddleController` at `/workspaces/:id/huddles` (`GET config`, `GET for-room?roomId`, `POST`, `POST :id/join`, `POST :id/leave`, `POST :id/end`). |
+| `@org/api-realtime` | `RealtimeDomainBridgeListener` `@OnEvent(HuddleUpdated)` → `broadcastToWorkspace` `huddle.updated`. |
+| `@org/realtime` | `RealtimeEventType.HuddleUpdated`; provider invalidates `['huddle', ws]`. |
+| `@org/api-client` | `huddleApi` (`config`, `forRoom`, `start`, `join`, `leave`, `end`). |
+| UI | New `@org/web-chat` `useHuddleSession(workspaceId, roomId)` — binds the room's huddle, runs the `huddleConnectionReducer` off `window` online/offline (and the Element Call iframe's load signal when embedded), auto-retries with backoff. `@org/chat-ui` `HuddleBar` extended: backend roster + "you joined HH:MM" + "started 5m ago", a reconnecting spinner line, a "Connection lost — Retry / Leave" state, `busy` disabling, and a compact embedded Element Call `<iframe>` when `ELEMENT_CALL_URL` is set. `ChatSurface` gained a `workspaceId` prop (passed from `ChatPanel`) and its local `huddleJoined` toggle is replaced by the hook; the decorative `huddleParticipants` prop is gone. |
+| Tests | `huddle.spec.ts` (`@org/types`). `nx affected -t typecheck lint test build` green. |
+
+**Deferred within §6/§7:** real MatrixRTC signalling / the exact Element Call widget-URL param contract (the embed is addressed by room and its load drives the state machine, but a deployed Element Call is needed to verify media); a host-only "End for all" button in the bar (the endpoint enforces it; the bar needs the caller's DB user id threaded through `ChatSurface`, which today only has the Matrix id); mute / screen-share / video are still local UI (client media concerns, no shared state); ringing / "N wants to huddle" invites; a huddle started from a DM/group carries `channelId = null` (resolved via room membership), so "end by channel admin" only applies to channel huddles.
+
 ---
 
 ## 5. What this audit does **not** change

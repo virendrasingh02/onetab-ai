@@ -6,6 +6,8 @@ export const RealtimeEventType = {
   UserUpdated: 'user.updated',
   /** A user's status text/emoji was changed server-side (scheduled status). */
   UserStatusChanged: 'user.status.changed',
+  /** A huddle started / a participant joined or left / it ended (brief §6). */
+  HuddleUpdated: 'huddle.updated',
 
   // Notifications
   NotificationCreated: 'notification.created',
