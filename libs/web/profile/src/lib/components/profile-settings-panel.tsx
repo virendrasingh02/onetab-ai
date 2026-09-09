@@ -13,7 +13,6 @@ import {
   FormLabel,
   FormMessage,
   Input,
-  LanguageSelect,
   LoadingState,
   Textarea,
   toast,
@@ -412,33 +411,6 @@ export function ProfileSettingsPanel() {
                     )}
                   />
                 </div>
-
-                {/* Preferred Language Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="preferredLanguage"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs font-semibold flex items-center gap-1.5">
-                          <Globe className="size-3 text-muted-foreground" />
-                          <span>{t('settings.language', 'Preferred Language')}</span>
-                        </FormLabel>
-                        <FormControl>
-                          <LanguageSelect
-                            value={field.value ?? locale}
-                            onChange={(val) => {
-                              field.onChange(val);
-                              setLocale(val);
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
 
                 {/* Bio */}
                 <FormField

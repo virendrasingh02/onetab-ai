@@ -36,6 +36,7 @@ import { useLiveRoomActivity } from '@org/web-chat';
 import { WorkspaceSearchPanel } from '@org/web-search';
 import { InviteMembersDialog } from '@org/web-invitations';
 import {
+  useApplyWorkspacePreferences,
   useCurrentWorkspace,
   useWorkspaces,
   useWorkspaceStore,
@@ -135,6 +136,10 @@ export function AppShell() {
   const { slug, workspace, workspaceId, isLoading } = useCurrentWorkspace();
   const channelsQuery = useChannels(workspaceId);
   const membersQuery = useMembers(workspaceId);
+
+  // Live-apply the client-side workspace preferences (font size, …) so they
+  // take effect everywhere, not only where the value happens to be read.
+  useApplyWorkspacePreferences(workspaceId);
 
   // Remember where the user is in this workspace so switching back resumes here.
   // Fed from the resolved workspace, not the URL param — see the hook's note.

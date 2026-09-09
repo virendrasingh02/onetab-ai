@@ -1,7 +1,7 @@
 import { useCurrentUser } from '@org/auth';
-import { AddBookmarkDialog } from '@org/chat-ui';
+import { AddBookmarkDialog, Composer } from '@org/chat-ui';
 import { useUserPresenceMap } from '@org/realtime';
-import type { WorkspaceMember } from '@org/types';
+import type { ChannelSummary, RoomMember, WorkspaceMember } from '@org/types';
 import {
   Badge,
   Button,
@@ -42,6 +42,7 @@ import {
   Copy,
   ExternalLink,
   FolderOpen,
+  Hash,
   Mail,
   MessageSquare,
   MessageSquareOff,
@@ -62,7 +63,13 @@ import { ChatPanel } from './chat-panel.js';
 import { ConversationFilesPanel } from './conversation-files-panel.js';
 import { GroupConversation } from './GroupConversation.js';
 import { useMatrix } from './matrix-provider.js';
-import { PeoplePicker } from './people-picker.js';
+import {
+  NewMessageRecipients,
+  type RecipientChannel,
+  type RecipientPerson,
+} from './new-message-recipients.js';
+import { peerKindOf } from './peer-kind.js';
+import { useChannelRoom } from './use-channel-room.js';
 import { useCreateConversation } from './use-create-conversation.js';
 import { useDirectMessageBookmarks } from './use-dm-bookmarks.js';
 import { useDirectRoom } from './use-direct-room.js';
@@ -90,10 +97,17 @@ export interface DirectMessagesViewProps {
    * reverse import would be circular. See `apps/web`'s route for the DM page.
    */
   extraPeers?: WorkspaceMember[];
+  /**
+   * The viewer's channels, for the "New message" recipient field — pick one to
+   * post there instead of opening a DM. Passed in by the host for the same
+   * layering reason as `extraPeers`: `web-chat` sits below `web-channels`.
+   */
+  channels?: ChannelSummary[];
 }
 
 export function DirectMessagesView({
   extraPeers,
+  channels,
 }: DirectMessagesViewProps = {}) {
   const [searchParams] = useSearchParams();
   const { peerId: routePeerId } = useParams<{ peerId?: string }>();
@@ -111,7 +125,7 @@ export function DirectMessagesView({
   return peerId ? (
     <DirectConversation peerId={peerId} extraPeers={extraPeers} />
   ) : (
-    <NewDirectMessage extraPeers={extraPeers} />
+    <NewDirectMessage extraPeers={extraPeers} channels={channels} />
   );
 }
 
@@ -198,13 +212,7 @@ function DirectConversation({
 
   const name = member.user.displayName ?? member.user.name;
   const isSelf = member.user.id === currentUser?.id;
-  const peerKind: 'person' | 'agent' | 'app' = member.user.id.startsWith(
-    'agent-',
-  )
-    ? 'agent'
-    : member.user.id.startsWith('app-')
-      ? 'app'
-      : 'person';
+  const peerKind = peerKindOf(member.user.id);
 
   return (
     <div className="min-h-0 flex flex-1 flex-col">
@@ -822,69 +830,111 @@ function DirectMessageHeader({
 }
 
 /**
- * The picker for a new conversation.
+ * The composer for a new conversation — the "New message" screen.
  *
- * One person selected opens a 1:1 DM (the `?user=` deep link, unchanged); two
- * or more create a group DM (`?room=`). The roster itself is `PeoplePicker`,
- * shared with a group's "Add people" dialog.
+ * Recipients are typed into a Slack-style "To:" field: channels, people, AI
+ * agents and apps all come out of one autocomplete. A channel and a set of
+ * people are mutually exclusive targets — you post to one channel, or you open
+ * a DM (1:1 for one person, group for several).
+ *
+ * The message box below it is the real `Composer`. Its first send *creates*
+ * the conversation (or resolves the channel's room), posts the message, and
+ * navigates into it; "Open without a message" does the create/resolve step
+ * alone. The `?user=` / `?room=` / `/c/:slug` deep links are all unchanged.
  */
-function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
-  const { workspaceId } = useCurrentWorkspace();
+function NewDirectMessage({
+  extraPeers,
+  channels,
+}: {
+  extraPeers?: WorkspaceMember[];
+  channels?: ChannelSummary[];
+}) {
+  const { workspaceId, slug } = useCurrentWorkspace();
   const currentUser = useCurrentUser();
   const members = useMembers(workspaceId);
   const createConversation = useCreateConversation();
-
+  const { client, enabled } = useMatrix();
   const navigate = useNavigate();
-  const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
-  const [selected, setSelected] = useState<string[]>([]);
+
+  const [selectedPeople, setSelectedPeople] = useState<string[]>([]);
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [groupName, setGroupName] = useState('');
+  const [isStarting, setIsStarting] = useState(false);
+
+  // The channel's Matrix room is provisioned as soon as one is picked, so it is
+  // ready by the time the first message is sent.
+  const channelRoom = useChannelRoom(selectedChannelId ?? undefined);
 
   const allPeers = useMemo(
     () => [...(members.data ?? []), ...(extraPeers ?? [])],
     [members.data, extraPeers],
   );
 
+  const peopleOptions = useMemo<RecipientPerson[]>(
+    () =>
+      allPeers.map((member) => {
+        const id = member.user.id;
+        return {
+          id,
+          name: member.user.displayName ?? member.user.name,
+          handle: member.user.name,
+          avatarUrl: member.user.avatarUrl,
+          presence: member.user.presence,
+          kind: peerKindOf(id),
+          isSelf: id === currentUser?.id,
+          statusText: member.user.statusText,
+        };
+      }),
+    [allPeers, currentUser?.id],
+  );
+
+  // Only channels the viewer is in and may post to — anything else would bounce
+  // at the room's power levels.
+  const channelOptions = useMemo<RecipientChannel[]>(
+    () =>
+      (channels ?? [])
+        .filter(
+          (channel) =>
+            channel.membership && channel.canPost && !channel.isArchived,
+        )
+        .map((channel) => ({
+          id: channel.id,
+          name: channel.name,
+          slug: channel.slug,
+          isPrivate: channel.visibility === 'PRIVATE',
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [channels],
+  );
+
+  const selectedChannel =
+    channelOptions.find((channel) => channel.id === selectedChannelId) ?? null;
+
   const selectedMembers = useMemo(
-    () => allPeers.filter((member) => selected.includes(member.user.id)),
-    [allPeers, selected],
+    () => allPeers.filter((member) => selectedPeople.includes(member.user.id)),
+    [allPeers, selectedPeople],
   );
 
   // The caller is implicit in every conversation, so they do not count toward
   // "is this a group?" — picking yourself plus one person is still a 1:1, and
   // picking only yourself is a note-to-self DM.
   const peerSelection = useMemo(
-    () => selected.filter((id) => id !== currentUser?.id),
-    [selected, currentUser?.id],
+    () => selectedPeople.filter((id) => id !== currentUser?.id),
+    [selectedPeople, currentUser?.id],
   );
-  const isSelfOnly = selected.length > 0 && peerSelection.length === 0;
+  const isSelfOnly = selectedPeople.length > 0 && peerSelection.length === 0;
   const isGroup = peerSelection.length >= 2;
+  const hasRecipients = selectedPeople.length > 0 || Boolean(selectedChannel);
+  const isBusy = isStarting || createConversation.isPending;
+  // A picked channel is only a usable target once its Matrix room has resolved.
+  const channelConnecting = Boolean(selectedChannel) && !channelRoom.roomId;
+  const canDispatch = hasRecipients && !isBusy && !channelConnecting;
 
-  const toggle = (id: string) =>
-    setSelected((current) =>
-      current.includes(id)
-        ? current.filter((entry) => entry !== id)
-        : [...current, id],
-    );
+  const recipientCount = selectedPeople.length + (selectedChannel ? 1 : 0);
 
-  const canStart = selected.length > 0 && !createConversation.isPending;
-
-  const start = () => {
-    if (!canStart) return;
-    createConversation.mutate(
-      { peerIds: selected, name: isGroup ? groupName : undefined },
-      {
-        onSuccess: (result) => {
-          navigate(
-            result.kind === 'direct'
-              ? `/w/${workspaceSlug}/dms/${result.peerId}`
-              : `/w/${workspaceSlug}/dms?room=${result.roomId}`,
-            { replace: true },
-          );
-        },
-        onError: (err) =>
-          toast.error(err.message || 'Could not start the conversation'),
-      },
-    );
+  const clearRecipients = () => {
+    setSelectedPeople([]);
+    setSelectedChannelId(null);
   };
 
   const firstPeer = selectedMembers.find(
@@ -893,38 +943,149 @@ function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
   const firstPeerName =
     firstPeer?.user.displayName ?? firstPeer?.user.name ?? 'this person';
 
-  // Spelled out under the picker so the button's effect is never a surprise.
-  const outcome = createConversation.isPending
-    ? 'Starting the conversation…'
-    : selected.length === 0
-      ? 'Pick one person for a direct message, or several for a group.'
-      : isSelfOnly
-        ? 'Opens a private space just for you — notes, links, drafts.'
-        : isGroup
-          ? `Creates a group conversation with ${peerSelection.length} people.`
-          : `Opens a direct message with ${firstPeerName}.`;
+  const composerMembers = useMemo<RoomMember[]>(
+    () =>
+      selectedMembers.map((member) => ({
+        userId: member.user.id,
+        displayName: member.user.displayName ?? member.user.name,
+        avatarUrl: member.user.avatarUrl ?? undefined,
+        powerLevel: 0,
+        membership: 'join' as const,
+      })),
+    [selectedMembers],
+  );
 
-  const buttonLabel = createConversation.isPending
-    ? 'Starting…'
+  /** Creates the DM / group, or points at the chosen channel's room. */
+  const resolveTarget = useCallback(async (): Promise<{
+    roomId: string;
+    href: string;
+  } | null> => {
+    if (selectedChannel) {
+      if (!channelRoom.roomId) {
+        toast.error('That channel is still connecting — try again in a moment.');
+        return null;
+      }
+      return {
+        roomId: channelRoom.roomId,
+        href: `/w/${slug}/c/${selectedChannel.slug}`,
+      };
+    }
+
+    const result = await createConversation.mutateAsync({
+      peerIds: selectedPeople,
+      name: isGroup ? groupName : undefined,
+    });
+    return {
+      roomId: result.roomId,
+      href:
+        result.kind === 'direct'
+          ? `/w/${slug}/dms/${result.peerId}`
+          : `/w/${slug}/dms?room=${result.roomId}`,
+    };
+  }, [
+    selectedChannel,
+    channelRoom.roomId,
+    slug,
+    createConversation,
+    selectedPeople,
+    isGroup,
+    groupName,
+  ]);
+
+  const handleSend = useCallback(
+    async (body: string) => {
+      if (!client || !canDispatch) return;
+      setIsStarting(true);
+      try {
+        const target = await resolveTarget();
+        if (!target) return;
+        if (body.trim()) await client.sendMessage(target.roomId, body);
+        navigate(target.href, { replace: true });
+      } catch (err) {
+        toast.error(
+          err instanceof Error
+            ? err.message
+            : 'Could not start the conversation',
+        );
+      } finally {
+        setIsStarting(false);
+      }
+    },
+    [client, canDispatch, resolveTarget, navigate],
+  );
+
+  const handleAttach = useCallback(
+    async (files: FileList) => {
+      if (!client || !canDispatch || files.length === 0) return;
+      setIsStarting(true);
+      try {
+        const target = await resolveTarget();
+        if (!target) return;
+        for (const file of Array.from(files)) {
+          await client.sendFile(target.roomId, file);
+        }
+        navigate(target.href, { replace: true });
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : 'Could not attach that file',
+        );
+      } finally {
+        setIsStarting(false);
+      }
+    },
+    [client, canDispatch, resolveTarget, navigate],
+  );
+
+  const openWithoutMessage = useCallback(async () => {
+    if (!canDispatch) return;
+    setIsStarting(true);
+    try {
+      const target = await resolveTarget();
+      if (target) navigate(target.href, { replace: true });
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : 'Could not start the conversation',
+      );
+    } finally {
+      setIsStarting(false);
+    }
+  }, [canDispatch, resolveTarget, navigate]);
+
+  // Spelled out under the field so the outcome is never a surprise.
+  const outcome = (() => {
+    if (isBusy) return 'Starting the conversation…';
+    if (channelConnecting) return `Connecting to #${selectedChannel?.name}…`;
+    if (selectedChannel)
+      return `Your message is posted to #${selectedChannel.name}.`;
+    if (selectedPeople.length === 0)
+      return 'Pick a channel to post there, or one or more people for a direct message.';
+    if (isSelfOnly)
+      return 'Opens a private space just for you — notes, links, drafts.';
+    if (isGroup)
+      return `Creates a group conversation with ${peerSelection.length} people.`;
+    return `Opens a direct message with ${firstPeerName}.`;
+  })();
+
+  const openLabel = selectedChannel
+    ? `Open #${selectedChannel.name}`
     : isSelfOnly
-      ? 'Message yourself'
+      ? 'Open your space'
       : isGroup
-        ? `Create group with ${peerSelection.length}`
+        ? `Open group with ${peerSelection.length}`
+        : 'Open conversation';
+
+  const composerPlaceholder = selectedChannel
+    ? `Message #${selectedChannel.name}`
+    : isSelfOnly
+      ? 'Write a note to yourself…'
+      : isGroup
+        ? 'Message the group…'
         : peerSelection.length === 1
-          ? 'Start conversation'
-          : 'Select someone';
+          ? `Message ${firstPeerName}`
+          : 'Start a new message';
 
   return (
-    <div
-      className="min-h-0 flex flex-1 flex-col"
-      onKeyDown={(event) => {
-        // ⌘/Ctrl+Enter starts from anywhere in the picker, matching the composer.
-        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-          event.preventDefault();
-          start();
-        }
-      }}
-    >
+    <div className="min-h-0 flex flex-1 flex-col">
       {/* Channel-style Header (Inbox & Threads style) */}
       <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
         <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
@@ -937,23 +1098,23 @@ function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
               <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
                 New message
               </h2>
-              {selected.length > 0 ? (
+              {recipientCount > 0 ? (
                 <Badge
                   variant="neutral"
                   className="px-1.5 py-0 h-4 text-[10px]"
                 >
-                  {selected.length} selected
+                  {recipientCount} selected
                 </Badge>
               ) : null}
             </div>
           </div>
 
           <div className="gap-2 flex items-center">
-            {selected.length > 0 ? (
+            {recipientCount > 0 ? (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setSelected([])}
+                onClick={clearRecipients}
                 className="h-7 text-xs gap-1.5"
               >
                 <X className="size-3.5" />
@@ -966,7 +1127,7 @@ function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
 
       {/* Content */}
       <div className="min-h-0 p-3 sm:p-6 flex-1 overflow-y-auto">
-        <div className="max-w-xl mx-auto w-full">
+        <div className="max-w-2xl mx-auto w-full">
           {members.isLoading ? (
             <LoadingState label="Loading directory…" />
           ) : members.isError ? (
@@ -974,59 +1135,30 @@ function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
               title="Could not load directory"
               description="The member list for this workspace is unavailable."
             />
+          ) : !enabled ? (
+            <EmptyState
+              size="lg"
+              icon={<MessageSquareOff />}
+              title="Chat is not configured"
+              description="This deployment has no Matrix homeserver. Set MATRIX_ENABLED and the homeserver settings to start a conversation."
+            />
           ) : (
-            <Panel flush title="People, AI Agents & Apps">
-              {selectedMembers.length > 0 ? (
-                <div className="p-3 space-y-2 border-b border-border bg-surface-muted/30">
-                  <div className="gap-2 flex items-center justify-between">
-                    <span className="font-semibold tracking-wide text-[11px] text-muted-foreground uppercase">
-                      Selected · {selectedMembers.length}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setSelected([])}
-                      className="font-medium text-[11px] text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      Clear all
-                    </button>
-                  </div>
-                  <div className="gap-1.5 flex flex-wrap">
-                    {selectedMembers.map((member) => {
-                      const name = member.user.displayName ?? member.user.name;
-                      return (
-                        <button
-                          key={member.user.id}
-                          type="button"
-                          onClick={() => toggle(member.user.id)}
-                          aria-label={`Remove ${name}`}
-                          className="gap-1 pl-1 pr-1.5 py-0.5 text-xs inline-flex items-center rounded-full bg-primary/10 text-primary transition-colors hover:bg-primary/15"
-                        >
-                          <UserAvatar
-                            name={name}
-                            src={member.user.avatarUrl}
-                            seed={member.user.id}
-                            className="size-4"
-                          />
-                          <span className="max-w-[12ch] truncate">{name}</span>
-                          <X className="size-3" />
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="flex h-[22rem] flex-col">
-                <PeoplePicker
-                  members={allPeers}
-                  selectedIds={selected}
-                  onToggle={toggle}
-                  currentUserId={currentUser?.id}
-                  className="flex-1"
+            <Panel
+              flush
+              title="New message"
+              subtitle="Pick a channel or people, write your first message, and send."
+            >
+              <div className="p-3 sm:p-4 space-y-3 border-b border-border">
+                <NewMessageRecipients
+                  people={peopleOptions}
+                  channels={channelOptions}
+                  selectedPeopleIds={selectedPeople}
+                  onChangePeople={setSelectedPeople}
+                  selectedChannelId={selectedChannelId}
+                  onChangeChannel={setSelectedChannelId}
+                  autoFocus
                 />
-              </div>
 
-              <div className="p-3 space-y-2.5 border-t border-border">
                 {isGroup ? (
                   <Field
                     label="Group name"
@@ -1046,7 +1178,9 @@ function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
                 ) : null}
 
                 <p className="gap-1.5 text-xs flex items-start text-muted-foreground">
-                  {isGroup ? (
+                  {selectedChannel ? (
+                    <Hash className="size-3.5 mt-px shrink-0" aria-hidden />
+                  ) : isGroup ? (
                     <Users className="size-3.5 mt-px shrink-0" aria-hidden />
                   ) : (
                     <MessageSquare
@@ -1056,15 +1190,37 @@ function NewDirectMessage({ extraPeers }: { extraPeers?: WorkspaceMember[] }) {
                   )}
                   <span>{outcome}</span>
                 </p>
+              </div>
 
+              <div className="px-3 sm:px-4 py-3">
+                <Composer
+                  conversationId={`new-message:${workspaceId ?? 'default'}`}
+                  members={composerMembers}
+                  placeholder={composerPlaceholder}
+                  disabled={!canDispatch}
+                  onSend={handleSend}
+                  onAttach={handleAttach}
+                  className="static! p-0! sm:p-0!"
+                />
+              </div>
+
+              <div className="gap-2 p-3 flex flex-wrap items-center justify-between border-t border-border">
+                <span className="text-[11px] text-muted-foreground">
+                  Press{' '}
+                  <kbd className="px-1 py-0.5 font-sans text-[10px] rounded border border-border bg-background">
+                    Enter
+                  </kbd>{' '}
+                  to send, or just open the conversation.
+                </span>
                 <Button
                   type="button"
-                  className="w-full"
-                  disabled={!canStart}
-                  onClick={start}
+                  variant="outline"
+                  size="sm"
+                  disabled={!canDispatch}
+                  onClick={openWithoutMessage}
                   leadingIcon={<MessageSquare className="size-4" />}
                 >
-                  {buttonLabel}
+                  {openLabel}
                 </Button>
               </div>
             </Panel>

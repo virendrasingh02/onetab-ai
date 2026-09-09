@@ -9,12 +9,7 @@ import {
 import { cn } from '@org/utils';
 import { Check, Search, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
-
-function peerKind(id: string): 'agent' | 'app' | 'person' {
-  if (id.startsWith('agent-')) return 'agent';
-  if (id.startsWith('app-')) return 'app';
-  return 'person';
-}
+import { peerKindOf } from './peer-kind.js';
 
 export interface PeoplePickerProps {
   members: WorkspaceMember[];
@@ -102,7 +97,7 @@ export function PeoplePicker({
         <ul className="min-h-0 p-2 space-y-px overflow-y-auto">
           {visible.map((member) => {
             const name = member.user.displayName ?? member.user.name;
-            const kind = peerKind(member.user.id);
+            const kind = peerKindOf(member.user.id);
             const isSelected = selected.has(member.user.id);
             const isSelf = member.user.id === currentUserId;
 

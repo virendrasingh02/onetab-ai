@@ -135,8 +135,8 @@ import {
   useDeleteWebAuthn,
 } from '../use-workspaces.js';
 import { SettingsLayout } from '../settings-layout.js';
+import { useWorkspacePreference } from '../settings-preferences.store.js';
 import { WorkspaceMembersSettings } from '../components/workspace-members-settings.js';
-import { WorkspaceAppearanceSettings } from '../components/workspace-appearance-settings.js';
 import { WorkspaceBillingSettings } from '../components/workspace-billing-settings.js';
 import { WorkspaceCompanyAnalytics } from '../components/workspace-company-analytics.js';
 import { UpgradePlanBanner } from '../components/upgrade-plan-banner.js';
@@ -266,6 +266,9 @@ export function WorkspaceSettingsPage({
   const SECTION_ALIASES: Record<string, string> = {
     preferences: 'appearance',
     theme: 'appearance',
+    // The workspace-branding editor was removed; stale links land on the
+    // personal Appearance section, which covers theme for this workspace.
+    'workspace-appearance': 'appearance',
     plans: 'billing',
     'timezone-region': 'profile',
     'focus-status': 'profile',
@@ -283,65 +286,220 @@ export function WorkspaceSettingsPage({
     navigate(`/w/${workspaceSlug}/settings/${val}`);
   };
 
-  // Preference Settings States
-  const [homeView, setHomeView] = useState('agent');
-  const [displayNamePref, setDisplayNamePref] = useState('username');
-  const [firstDay, setFirstDay] = useState('monday');
-  const [convertEmojis, setConvertEmojis] = useState(true);
-  const [sendShortcut, setSendShortcut] = useState('ctrl-enter');
-  const [fontSize, setFontSize] = useState('default');
+  /*
+   * Preferences below have no server API yet. They used to be plain `useState`,
+   * so every one reset on refresh; `useWorkspacePreference` keeps the exact
+   * `useState` signature but persists the value per workspace to `localStorage`
+   * (see `settings-preferences.store.ts`). Settings that *do* have a backend
+   * (profile, workspace name/logo, language, notification categories, theme)
+   * are untouched and still go through their own mutations.
+   */
 
-  // AI & Persona Settings States
-  const [defaultModel, setDefaultModel] = useState('gpt-4o');
-  const [tempSetting, setTempSetting] = useState('balanced');
-  const [contextWindow, setContextWindow] = useState('128k');
-  const [agentAutoApprove, setAgentAutoApprove] = useState(true);
-  const [allowWebSearch, setAllowWebSearch] = useState(true);
-  const [allowFileSystem, setAllowFileSystem] = useState(true);
-  const [maxTurns, setMaxTurns] = useState('25');
-  const [systemPrompt, setSystemPrompt] = useState(
+  // Preference Settings
+  const [homeView, setHomeView] = useWorkspacePreference(
+    workspaceId,
+    'homeView',
+    'agent',
+  );
+  const [displayNamePref, setDisplayNamePref] = useWorkspacePreference(
+    workspaceId,
+    'displayNamePref',
+    'username',
+  );
+  const [firstDay, setFirstDay] = useWorkspacePreference(
+    workspaceId,
+    'firstDay',
+    'monday',
+  );
+  const [convertEmojis, setConvertEmojis] = useWorkspacePreference(
+    workspaceId,
+    'convertEmojis',
+    true,
+  );
+  const [sendShortcut, setSendShortcut] = useWorkspacePreference(
+    workspaceId,
+    'sendShortcut',
+    'ctrl-enter',
+  );
+  const [fontSize, setFontSize] = useWorkspacePreference(
+    workspaceId,
+    'fontSize',
+    'default',
+  );
+
+  // AI & Persona Settings
+  const [defaultModel, setDefaultModel] = useWorkspacePreference(
+    workspaceId,
+    'defaultModel',
+    'gpt-4o',
+  );
+  const [tempSetting, setTempSetting] = useWorkspacePreference(
+    workspaceId,
+    'tempSetting',
+    'balanced',
+  );
+  const [contextWindow, setContextWindow] = useWorkspacePreference(
+    workspaceId,
+    'contextWindow',
+    '128k',
+  );
+  const [agentAutoApprove, setAgentAutoApprove] = useWorkspacePreference(
+    workspaceId,
+    'agentAutoApprove',
+    true,
+  );
+  const [allowWebSearch, setAllowWebSearch] = useWorkspacePreference(
+    workspaceId,
+    'allowWebSearch',
+    true,
+  );
+  const [allowFileSystem, setAllowFileSystem] = useWorkspacePreference(
+    workspaceId,
+    'allowFileSystem',
+    true,
+  );
+  const [maxTurns, setMaxTurns] = useWorkspacePreference(
+    workspaceId,
+    'maxTurns',
+    '25',
+  );
+  const [systemPrompt, setSystemPrompt] = useWorkspacePreference(
+    workspaceId,
+    'systemPrompt',
     'You are Antigravity AI, an intelligent collaborative assistant designed for software development and workspace productivity.',
   );
 
-  // Notifications States. Per-category toggles (mentions / invites / agent
-  // alerts) now live in <NotificationDisplaySettingsPanel>, which is backed by
-  // the notification-preferences API.
-  const [notifyDigest, setNotifyDigest] = useState(false);
-  const [notifyDesktopPush, setNotifyDesktopPush] = useState(true);
-  const [notifyChannelScope, setNotifyChannelScope] = useState('all');
+  // Notifications. Per-category toggles (mentions / invites / agent alerts) now
+  // live in <NotificationDisplaySettingsPanel>, which is backed by the
+  // notification-preferences API.
+  const [notifyDigest, setNotifyDigest] = useWorkspacePreference(
+    workspaceId,
+    'notifyDigest',
+    false,
+  );
+  const [notifyDesktopPush, setNotifyDesktopPush] = useWorkspacePreference(
+    workspaceId,
+    'notifyDesktopPush',
+    true,
+  );
+  const [notifyChannelScope, setNotifyChannelScope] = useWorkspacePreference(
+    workspaceId,
+    'notifyChannelScope',
+    'all',
+  );
   const [testNotifSending, setTestNotifSending] = useState(false);
   const [testNotifSent, setTestNotifSent] = useState(false);
   const notifBarState = useNotificationPermissionBar();
 
-  // Work Tools Feature States
-  const [defaultChannel, setDefaultChannel] = useState('general');
-  const [allowPublicCreation, setAllowPublicCreation] = useState(true);
-  const [allowPrivateCreation, setAllowPrivateCreation] = useState(true);
-  const [archiveInactiveDays, setArchiveInactiveDays] = useState('90');
-  const [encryptedDM, setEncryptedDM] = useState(true);
-  const [readReceipts, setReadReceipts] = useState(true);
+  // Work Tools Feature preferences
+  const [defaultChannel, setDefaultChannel] = useWorkspacePreference(
+    workspaceId,
+    'defaultChannel',
+    'general',
+  );
+  const [allowPublicCreation, setAllowPublicCreation] = useWorkspacePreference(
+    workspaceId,
+    'allowPublicCreation',
+    true,
+  );
+  const [allowPrivateCreation, setAllowPrivateCreation] = useWorkspacePreference(
+    workspaceId,
+    'allowPrivateCreation',
+    true,
+  );
+  const [archiveInactiveDays, setArchiveInactiveDays] = useWorkspacePreference(
+    workspaceId,
+    'archiveInactiveDays',
+    '90',
+  );
+  const [encryptedDM, setEncryptedDM] = useWorkspacePreference(
+    workspaceId,
+    'encryptedDM',
+    true,
+  );
+  const [readReceipts, setReadReceipts] = useWorkspacePreference(
+    workspaceId,
+    'readReceipts',
+    true,
+  );
 
-  const [docAutoSave, setDocAutoSave] = useState(true);
-  const [grammarAssistance, setGrammarAssistance] = useState(true);
-  const [codeSyntaxTheme, setCodeSyntaxTheme] = useState('github-dark');
+  const [docAutoSave, setDocAutoSave] = useWorkspacePreference(
+    workspaceId,
+    'docAutoSave',
+    true,
+  );
+  const [grammarAssistance, setGrammarAssistance] = useWorkspacePreference(
+    workspaceId,
+    'grammarAssistance',
+    true,
+  );
+  const [codeSyntaxTheme, setCodeSyntaxTheme] = useWorkspacePreference(
+    workspaceId,
+    'codeSyntaxTheme',
+    'github-dark',
+  );
 
-  const [highQualityVideo, setHighQualityVideo] = useState(true);
-  const [fileRetention, setFileRetention] = useState('forever');
+  const [highQualityVideo, setHighQualityVideo] = useWorkspacePreference(
+    workspaceId,
+    'highQualityVideo',
+    true,
+  );
+  const [fileRetention, setFileRetention] = useWorkspacePreference(
+    workspaceId,
+    'fileRetention',
+    'forever',
+  );
 
-  const [googleCalendarSync, setGoogleCalendarSync] = useState(true);
-  const [meetingProvider, setMeetingProvider] = useState('onetab-meet');
-  const [autoRecordMeetings, setAutoRecordMeetings] = useState(false);
+  const [googleCalendarSync, setGoogleCalendarSync] = useWorkspacePreference(
+    workspaceId,
+    'googleCalendarSync',
+    true,
+  );
+  const [meetingProvider, setMeetingProvider] = useWorkspacePreference(
+    workspaceId,
+    'meetingProvider',
+    'onetab-meet',
+  );
+  const [autoRecordMeetings, setAutoRecordMeetings] = useWorkspacePreference(
+    workspaceId,
+    'autoRecordMeetings',
+    false,
+  );
 
-  const [trackOnlineStatus, setTrackOnlineStatus] = useState(true);
-  const [trackCommitsInPulse, setTrackCommitsInPulse] = useState(true);
+  const [trackOnlineStatus, setTrackOnlineStatus] = useWorkspacePreference(
+    workspaceId,
+    'trackOnlineStatus',
+    true,
+  );
+  const [trackCommitsInPulse, setTrackCommitsInPulse] = useWorkspacePreference(
+    workspaceId,
+    'trackCommitsInPulse',
+    true,
+  );
 
-  // Workflow Automations States
-  const [githubPRWebhook, setGithubPRWebhook] = useState(true);
-  const [channelTrigger, setChannelTrigger] = useState(true);
-  const [maxConcurrentRuns, setMaxConcurrentRuns] = useState('5');
-  const [retryFailedSteps, setRetryFailedSteps] = useState(true);
+  // Workflow Automations preferences
+  const [githubPRWebhook, setGithubPRWebhook] = useWorkspacePreference(
+    workspaceId,
+    'githubPRWebhook',
+    true,
+  );
+  const [channelTrigger, setChannelTrigger] = useWorkspacePreference(
+    workspaceId,
+    'channelTrigger',
+    true,
+  );
+  const [maxConcurrentRuns, setMaxConcurrentRuns] = useWorkspacePreference(
+    workspaceId,
+    'maxConcurrentRuns',
+    '5',
+  );
+  const [retryFailedSteps, setRetryFailedSteps] = useWorkspacePreference(
+    workspaceId,
+    'retryFailedSteps',
+    true,
+  );
 
-  // Dialog & Notification States
+  // Dialog & transient UI state (not persisted).
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const openStatusModal = useFocusStore((s) => s.openStatusModal);
@@ -350,14 +508,32 @@ export function WorkspaceSettingsPage({
   const [testSoundPlaying, setTestSoundPlaying] =
     useState<FocusSoundType | null>(null);
 
-  // Timezone & Regional Preferences States
-  const [timeFormatPref, setTimeFormatPref] = useState<'12h' | '24h'>('12h');
-  const [dateFormatPref, setDateFormatPref] = useState<
-    'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD'
-  >('MM/DD/YYYY');
-  const [workStartHour, setWorkStartHour] = useState('09:00');
-  const [workEndHour, setWorkEndHour] = useState('18:00');
-  const [workdays, setWorkdays] = useState('mon-fri');
+  // Timezone & Regional Preferences
+  const [timeFormatPref, setTimeFormatPref] = useWorkspacePreference(
+    workspaceId,
+    'timeFormatPref',
+    '12h',
+  );
+  const [dateFormatPref, setDateFormatPref] = useWorkspacePreference(
+    workspaceId,
+    'dateFormatPref',
+    'MM/DD/YYYY',
+  );
+  const [workStartHour, setWorkStartHour] = useWorkspacePreference(
+    workspaceId,
+    'workStartHour',
+    '09:00',
+  );
+  const [workEndHour, setWorkEndHour] = useWorkspacePreference(
+    workspaceId,
+    'workEndHour',
+    '18:00',
+  );
+  const [workdays, setWorkdays] = useWorkspacePreference(
+    workspaceId,
+    'workdays',
+    'mon-fri',
+  );
 
   // Profile Update Form & Mutation
   const updateProfile = useMutation({
@@ -901,6 +1077,288 @@ export function WorkspaceSettingsPage({
             </SettingsCard>
           </div>
 
+          {/* Subsection: Region & Timezone */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
+              Regional & Timezone Settings
+            </h3>
+            <SettingsCard>
+              <div className="sm:grid-cols-2 gap-5 grid grid-cols-1">
+                {/* Region Selector */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium block text-foreground">
+                    Region & Country
+                  </label>
+                  {(() => {
+                    const currentTz =
+                      profileForm.watch('timezone') || systemTimezone;
+                    const currentRegion = getRegionForTimezone(currentTz);
+
+                    return (
+                      <RegionSelect
+                        value={currentRegion.code}
+                        onChange={(region: RegionInfo) => {
+                          profileForm.setValue(
+                            'timezone',
+                            region.defaultTimezone,
+                            {
+                              shouldDirty: true,
+                            },
+                          );
+                        }}
+                      />
+                    );
+                  })()}
+                  <p className="text-[11px] text-muted-foreground">
+                    Determines country flag and regional default settings.
+                  </p>
+                </div>
+
+                {/* Timezone Selector */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium block text-foreground">
+                    Timezone (IANA)
+                  </label>
+                  {(() => {
+                    const zone =
+                      profileForm.watch('timezone') || systemTimezone;
+                    return (
+                      <TimezoneSelect
+                        value={zone}
+                        onChange={(next) =>
+                          profileForm.setValue('timezone', next, {
+                            shouldDirty: true,
+                          })
+                        }
+                      />
+                    );
+                  })()}
+                  <p className="text-[11px] text-muted-foreground">
+                    Used for schedule coordination and header clock.
+                  </p>
+                </div>
+              </div>
+
+              {/* Live Preview Card */}
+              {(() => {
+                const currentTz =
+                  profileForm.watch('timezone') || systemTimezone;
+                const region = getRegionForTimezone(currentTz);
+                const workStatus = getWorkingHoursStatus(currentTz);
+
+                return (
+                  <div className="p-4 sm:flex-row sm:items-center gap-4 text-xs flex flex-col justify-between rounded-xl border border-border bg-surface">
+                    <div className="gap-3 flex items-center">
+                      <span className="text-3xl leading-none">
+                        {region.flag}
+                      </span>
+                      <div>
+                        <div className="font-semibold gap-2 flex items-center text-foreground">
+                          <span className="text-sm">{region.name}</span>
+                          <span className="font-mono text-[11px] text-muted-foreground">
+                            {describeTimezone(currentTz)}
+                          </span>
+                        </div>
+                        <div className="mt-0.5 text-[11px] text-muted-foreground">
+                          {currentTz === systemTimezone
+                            ? '✓ Synchronized with this computer'
+                            : `Device timezone: ${describeTimezone(systemTimezone)}`}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="gap-3 sm:self-auto flex items-center self-end">
+                      <span
+                        className={cn(
+                          'text-xs font-medium px-2.5 py-1 gap-1.5 flex items-center rounded-full',
+                          workStatus.status === 'working'
+                            ? 'bg-success/15 text-success'
+                            : workStatus.status === 'sleeping'
+                              ? 'bg-muted text-muted-foreground'
+                              : 'bg-warning/15 text-warning',
+                        )}
+                      >
+                        <span>{workStatus.icon}</span>
+                        <span>{workStatus.label}</span>
+                      </span>
+
+                      <div className="text-right">
+                        <LocalTime
+                          timezone={currentTz}
+                          showOffset
+                          className="font-bold text-base font-mono text-foreground"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div className="pt-2 flex items-center justify-between border-t border-border/40">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    profileForm.setValue('timezone', systemTimezone, {
+                      shouldDirty: true,
+                    })
+                  }
+                  className="text-xs"
+                >
+                  Reset to device timezone ({describeTimezone(systemTimezone)}
+                  )
+                </Button>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  loading={updateProfile.isPending}
+                  disabled={!profileForm.formState.isDirty}
+                  onClick={profileForm.handleSubmit((data) =>
+                    updateProfile.mutate(data),
+                  )}
+                  className="text-xs"
+                >
+                  Save timezone changes
+                </Button>
+              </div>
+            </SettingsCard>
+          </div>
+
+          {/* Subsection: Date & Time Formatting */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
+              Date & Time Formats
+            </h3>
+            <SettingsCard divided>
+              <SettingsRow
+                title={<>Time display format</>}
+                description={
+                  <>Choose 12-hour AM/PM or 24-hour military clock</>
+                }
+              >
+                <Select
+                  value={timeFormatPref}
+                  onValueChange={setTimeFormatPref}
+                >
+                  <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="12h" className="text-xs">
+                      12-hour (2:30 PM)
+                    </SelectItem>
+                    <SelectItem value="24h" className="text-xs">
+                      24-hour (14:30)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </SettingsRow>
+
+              <SettingsRow
+                title={<>Date display format</>}
+                description={<>Preferred order for calendar dates</>}
+              >
+                <Select
+                  value={dateFormatPref}
+                  onValueChange={setDateFormatPref}
+                >
+                  <SelectTrigger className="w-44 h-8 text-xs border-border bg-surface">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MM/DD/YYYY" className="text-xs">
+                      MM/DD/YYYY (US)
+                    </SelectItem>
+                    <SelectItem value="DD/MM/YYYY" className="text-xs">
+                      DD/MM/YYYY (UK/EU/IN)
+                    </SelectItem>
+                    <SelectItem value="YYYY-MM-DD" className="text-xs">
+                      YYYY-MM-DD (ISO)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </SettingsRow>
+            </SettingsCard>
+          </div>
+
+          {/* Subsection: Working Hours */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
+              Working Hours & Schedule
+            </h3>
+            <SettingsCard divided>
+              <SettingsRow
+                title={<>Daily working hours</>}
+                description={
+                  <>Lets teammates know when you are actively at your desk</>
+                }
+              >
+                <div className="gap-2 text-xs flex items-center">
+                  <Select
+                    value={workStartHour}
+                    onValueChange={setWorkStartHour}
+                  >
+                    <SelectTrigger className="w-24 h-8 text-xs border-border bg-surface">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="08:00" className="text-xs">
+                        08:00 AM
+                      </SelectItem>
+                      <SelectItem value="09:00" className="text-xs">
+                        09:00 AM
+                      </SelectItem>
+                      <SelectItem value="10:00" className="text-xs">
+                        10:00 AM
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-muted-foreground">to</span>
+                  <Select value={workEndHour} onValueChange={setWorkEndHour}>
+                    <SelectTrigger className="w-24 h-8 text-xs border-border bg-surface">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="17:00" className="text-xs">
+                        05:00 PM
+                      </SelectItem>
+                      <SelectItem value="18:00" className="text-xs">
+                        06:00 PM
+                      </SelectItem>
+                      <SelectItem value="19:00" className="text-xs">
+                        07:00 PM
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </SettingsRow>
+
+              <SettingsRow
+                title={<>Working days</>}
+                description={<>Active days of the week</>}
+              >
+                <Select value={workdays} onValueChange={setWorkdays}>
+                  <SelectTrigger className="w-40 h-8 text-xs border-border bg-surface">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="mon-fri" className="text-xs">
+                      Monday – Friday
+                    </SelectItem>
+                    <SelectItem value="mon-sat" className="text-xs">
+                      Monday – Saturday
+                    </SelectItem>
+                    <SelectItem value="sun-thu" className="text-xs">
+                      Sunday – Thursday
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </SettingsRow>
+            </SettingsCard>
+          </div>
+
           <div className="space-y-3">
             <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
               Live Localization & Format Previews
@@ -992,7 +1450,7 @@ export function WorkspaceSettingsPage({
         user && (
           <div className="space-y-8">
             <SettingsSectionHeader
-              title={<>Profile & Details</>}
+              title={<>Profile</>}
               description={
                 <>
                   Manage your personal identity, status, focus preferences, and
@@ -1231,130 +1689,9 @@ export function WorkspaceSettingsPage({
                       )}
                     />
 
-                    {/*
-                  The timezone was in the form's values and in the API contract
-                  all along, but had no control — so every account kept whatever
-                {/* Timezone & Region Settings */}
-                    <div className="space-y-4 pt-2 border-t border-border/50">
-                      <div className="sm:grid-cols-2 gap-4 grid grid-cols-1">
-                        {/* Region / Country Picker */}
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-medium text-foreground">
-                            Region & Country
-                          </label>
-                          {(() => {
-                            const currentTz =
-                              profileForm.watch('timezone') || systemTimezone;
-                            const currentRegion =
-                              getRegionForTimezone(currentTz);
-
-                            return (
-                              <RegionSelect
-                                value={currentRegion.code}
-                                onChange={(region: RegionInfo) => {
-                                  profileForm.setValue(
-                                    'timezone',
-                                    region.defaultTimezone,
-                                    {
-                                      shouldDirty: true,
-                                    },
-                                  );
-                                }}
-                              />
-                            );
-                          })()}
-                          <p className="text-[11px] text-muted-foreground">
-                            Sets country flag and regional formatting defaults.
-                          </p>
-                        </div>
-
-                        {/* Timezone Picker */}
-                        <FormField
-                          control={profileForm.control}
-                          name="timezone"
-                          render={({ field }) => {
-                            const zone = field.value || systemTimezone;
-                            return (
-                              <FormItem>
-                                <FormLabel className="text-xs font-medium">
-                                  Timezone
-                                </FormLabel>
-                                <FormControl>
-                                  <TimezoneSelect
-                                    value={zone}
-                                    onChange={(next) =>
-                                      profileForm.setValue('timezone', next, {
-                                        shouldDirty: true,
-                                      })
-                                    }
-                                  />
-                                </FormControl>
-                                <FormDescription className="text-[11px] text-muted-foreground">
-                                  Used for team time synchronization and
-                                  scheduling.
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            );
-                          }}
-                        />
-                      </div>
-
-                      {/* Live Time & Working Hours Preview Card */}
-                      {(() => {
-                        const currentTz =
-                          profileForm.watch('timezone') || systemTimezone;
-                        const region = getRegionForTimezone(currentTz);
-                        const workStatus = getWorkingHoursStatus(currentTz);
-
-                        return (
-                          <div className="p-3.5 sm:flex-row sm:items-center gap-3 text-xs flex flex-col justify-between rounded-xl border border-border bg-surface">
-                            <div className="gap-2.5 flex items-center">
-                              <span className="text-2xl leading-none">
-                                {region.flag}
-                              </span>
-                              <div>
-                                <div className="font-semibold gap-2 flex items-center text-foreground">
-                                  <span>{region.name}</span>
-                                  <span className="font-normal text-[10px] text-muted-foreground">
-                                    ({describeTimezone(currentTz)})
-                                  </span>
-                                </div>
-                                <div className="mt-0.5 text-[11px] text-muted-foreground">
-                                  {currentTz === systemTimezone
-                                    ? '✓ Matches this device'
-                                    : `Device timezone: ${describeTimezone(systemTimezone)}`}
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="gap-3 sm:self-auto flex items-center self-end">
-                              <span
-                                className={cn(
-                                  'font-medium px-2 py-0.5 gap-1 flex items-center rounded-full text-[11px]',
-                                  workStatus.status === 'working'
-                                    ? 'bg-success/15 text-success'
-                                    : workStatus.status === 'sleeping'
-                                      ? 'bg-muted text-muted-foreground'
-                                      : 'bg-warning/15 text-warning',
-                                )}
-                              >
-                                <span>{workStatus.icon}</span>
-                                <span>{workStatus.label}</span>
-                              </span>
-
-                              <div className="text-right">
-                                <LocalTime
-                                  timezone={currentTz}
-                                  showOffset
-                                  className="font-bold text-sm font-mono text-foreground"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
+                    {/* Region, timezone, date/time formats and working hours
+                        moved to Settings → Language & Region. The `timezone`
+                        field still rides this form; it's edited there. */}
 
                     <div className="pt-2">
                       <Button
@@ -1371,290 +1708,6 @@ export function WorkspaceSettingsPage({
                 </Form>
               </SettingsCard>
             )}
-
-            {/* Subsection: Region & Timezone */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
-                Regional & Timezone Settings
-              </h3>
-              <SettingsCard>
-                <div className="sm:grid-cols-2 gap-5 grid grid-cols-1">
-                  {/* Region Selector */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium block text-foreground">
-                      Region & Country
-                    </label>
-                    {(() => {
-                      const currentTz =
-                        profileForm.watch('timezone') || systemTimezone;
-                      const currentRegion = getRegionForTimezone(currentTz);
-
-                      return (
-                        <RegionSelect
-                          value={currentRegion.code}
-                          onChange={(region: RegionInfo) => {
-                            profileForm.setValue(
-                              'timezone',
-                              region.defaultTimezone,
-                              {
-                                shouldDirty: true,
-                              },
-                            );
-                          }}
-                        />
-                      );
-                    })()}
-                    <p className="text-[11px] text-muted-foreground">
-                      Determines country flag and regional default settings.
-                    </p>
-                  </div>
-
-                  {/* Timezone Selector */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-medium block text-foreground">
-                      Timezone (IANA)
-                    </label>
-                    {(() => {
-                      const zone =
-                        profileForm.watch('timezone') || systemTimezone;
-                      return (
-                        <TimezoneSelect
-                          value={zone}
-                          onChange={(next) =>
-                            profileForm.setValue('timezone', next, {
-                              shouldDirty: true,
-                            })
-                          }
-                        />
-                      );
-                    })()}
-                    <p className="text-[11px] text-muted-foreground">
-                      Used for schedule coordination and header clock.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Live Preview Card */}
-                {(() => {
-                  const currentTz =
-                    profileForm.watch('timezone') || systemTimezone;
-                  const region = getRegionForTimezone(currentTz);
-                  const workStatus = getWorkingHoursStatus(currentTz);
-
-                  return (
-                    <div className="p-4 sm:flex-row sm:items-center gap-4 text-xs flex flex-col justify-between rounded-xl border border-border bg-surface">
-                      <div className="gap-3 flex items-center">
-                        <span className="text-3xl leading-none">
-                          {region.flag}
-                        </span>
-                        <div>
-                          <div className="font-semibold gap-2 flex items-center text-foreground">
-                            <span className="text-sm">{region.name}</span>
-                            <span className="font-mono text-[11px] text-muted-foreground">
-                              {describeTimezone(currentTz)}
-                            </span>
-                          </div>
-                          <div className="mt-0.5 text-[11px] text-muted-foreground">
-                            {currentTz === systemTimezone
-                              ? '✓ Synchronized with this computer'
-                              : `Device timezone: ${describeTimezone(systemTimezone)}`}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="gap-3 sm:self-auto flex items-center self-end">
-                        <span
-                          className={cn(
-                            'text-xs font-medium px-2.5 py-1 gap-1.5 flex items-center rounded-full',
-                            workStatus.status === 'working'
-                              ? 'bg-success/15 text-success'
-                              : workStatus.status === 'sleeping'
-                                ? 'bg-muted text-muted-foreground'
-                                : 'bg-warning/15 text-warning',
-                          )}
-                        >
-                          <span>{workStatus.icon}</span>
-                          <span>{workStatus.label}</span>
-                        </span>
-
-                        <div className="text-right">
-                          <LocalTime
-                            timezone={currentTz}
-                            showOffset
-                            className="font-bold text-base font-mono text-foreground"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <div className="pt-2 flex items-center justify-between border-t border-border/40">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      profileForm.setValue('timezone', systemTimezone, {
-                        shouldDirty: true,
-                      })
-                    }
-                    className="text-xs"
-                  >
-                    Reset to device timezone ({describeTimezone(systemTimezone)}
-                    )
-                  </Button>
-
-                  <Button
-                    type="button"
-                    size="sm"
-                    loading={updateProfile.isPending}
-                    disabled={!profileForm.formState.isDirty}
-                    onClick={profileForm.handleSubmit((data) =>
-                      updateProfile.mutate(data),
-                    )}
-                    className="text-xs"
-                  >
-                    Save timezone changes
-                  </Button>
-                </div>
-              </SettingsCard>
-            </div>
-
-            {/* Subsection: Date & Time Formatting */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
-                Date & Time Formats
-              </h3>
-              <SettingsCard divided>
-                <SettingsRow
-                  title={<>Time display format</>}
-                  description={
-                    <>Choose 12-hour AM/PM or 24-hour military clock</>
-                  }
-                >
-                  <Select
-                    value={timeFormatPref}
-                    onValueChange={(v: '12h' | '24h') => setTimeFormatPref(v)}
-                  >
-                    <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="12h" className="text-xs">
-                        12-hour (2:30 PM)
-                      </SelectItem>
-                      <SelectItem value="24h" className="text-xs">
-                        24-hour (14:30)
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </SettingsRow>
-
-                <SettingsRow
-                  title={<>Date display format</>}
-                  description={<>Preferred order for calendar dates</>}
-                >
-                  <Select
-                    value={dateFormatPref}
-                    onValueChange={(
-                      v: 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD',
-                    ) => setDateFormatPref(v)}
-                  >
-                    <SelectTrigger className="w-44 h-8 text-xs border-border bg-surface">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="MM/DD/YYYY" className="text-xs">
-                        MM/DD/YYYY (US)
-                      </SelectItem>
-                      <SelectItem value="DD/MM/YYYY" className="text-xs">
-                        DD/MM/YYYY (UK/EU/IN)
-                      </SelectItem>
-                      <SelectItem value="YYYY-MM-DD" className="text-xs">
-                        YYYY-MM-DD (ISO)
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </SettingsRow>
-              </SettingsCard>
-            </div>
-
-            {/* Subsection: Working Hours */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
-                Working Hours & Schedule
-              </h3>
-              <SettingsCard divided>
-                <SettingsRow
-                  title={<>Daily working hours</>}
-                  description={
-                    <>Lets teammates know when you are actively at your desk</>
-                  }
-                >
-                  <div className="gap-2 text-xs flex items-center">
-                    <Select
-                      value={workStartHour}
-                      onValueChange={setWorkStartHour}
-                    >
-                      <SelectTrigger className="w-24 h-8 text-xs border-border bg-surface">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="08:00" className="text-xs">
-                          08:00 AM
-                        </SelectItem>
-                        <SelectItem value="09:00" className="text-xs">
-                          09:00 AM
-                        </SelectItem>
-                        <SelectItem value="10:00" className="text-xs">
-                          10:00 AM
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <span className="text-muted-foreground">to</span>
-                    <Select value={workEndHour} onValueChange={setWorkEndHour}>
-                      <SelectTrigger className="w-24 h-8 text-xs border-border bg-surface">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="17:00" className="text-xs">
-                          05:00 PM
-                        </SelectItem>
-                        <SelectItem value="18:00" className="text-xs">
-                          06:00 PM
-                        </SelectItem>
-                        <SelectItem value="19:00" className="text-xs">
-                          07:00 PM
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </SettingsRow>
-
-                <SettingsRow
-                  title={<>Working days</>}
-                  description={<>Active days of the week</>}
-                >
-                  <Select value={workdays} onValueChange={setWorkdays}>
-                    <SelectTrigger className="w-40 h-8 text-xs border-border bg-surface">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mon-fri" className="text-xs">
-                        Monday – Friday
-                      </SelectItem>
-                      <SelectItem value="mon-sat" className="text-xs">
-                        Monday – Saturday
-                      </SelectItem>
-                      <SelectItem value="sun-thu" className="text-xs">
-                        Sunday – Thursday
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </SettingsRow>
-              </SettingsCard>
-            </div>
 
             {/* Subsection: Slack Status */}
             <div className="space-y-3">
@@ -3056,8 +3109,6 @@ export function WorkspaceSettingsPage({
         />
       )}
 
-      {currentTab === 'workspace-appearance' && <WorkspaceAppearanceSettings />}
-
       {currentTab === 'general' && (
         <div className="space-y-8">
           <UpgradePlanBanner
@@ -3274,26 +3325,6 @@ export function WorkspaceSettingsPage({
                       </FormItem>
                     )}
                   />
-
-                  {/* Accent Color / Branding — moved to its own panel so the
-                      workspace theme is one editor, not two that can disagree. */}
-                  <FormItem>
-                    <FormLabel className="text-xs font-medium">
-                      Theme, accent &amp; branding
-                    </FormLabel>
-                    <FormDescription className="text-[11px]">
-                      The workspace&apos;s default color mode, accent and brand
-                      theme now live in{' '}
-                      <button
-                        type="button"
-                        onClick={() => handleTabChange('workspace-appearance')}
-                        className="font-semibold text-primary underline-offset-2 hover:underline"
-                      >
-                        Appearance &amp; Branding
-                      </button>
-                      . They apply only to this workspace.
-                    </FormDescription>
-                  </FormItem>
 
                   <FormField
                     control={workspaceForm.control}

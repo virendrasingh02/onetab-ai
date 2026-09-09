@@ -31,6 +31,14 @@ export { usePlanEntitlements } from './lib/hooks/use-plan-entitlements.js';
 export { SettingsLayout } from './lib/settings-layout.js';
 
 export {
+  useWorkspacePreference,
+  useWorkspacePreferenceValue,
+  useApplyWorkspacePreferences,
+  useSettingsPreferencesStore,
+  WorkspacePreferencesEffects,
+} from './lib/settings-preferences.store.js';
+
+export {
   useWorkspaceStore,
   ACTIVE_WORKSPACE_EVENT,
   getPersistedActiveWorkspaceId,

@@ -5,6 +5,7 @@ import {
   type WorkspaceMember,
 } from '@org/types';
 import { useAgents } from '@org/web-agents';
+import { useChannels } from '@org/web-channels';
 import { DirectMessagesView } from '@org/web-chat';
 import { useIntegrations } from '@org/web-integrations';
 import { useCurrentWorkspace } from '@org/web-workspace';
@@ -24,6 +25,7 @@ export function DirectMessagesPage() {
   const { workspaceId } = useCurrentWorkspace();
   const agents = useAgents(workspaceId);
   const integrations = useIntegrations(workspaceId);
+  const channels = useChannels(workspaceId);
 
   const extraPeers = useMemo<WorkspaceMember[]>(() => {
     const now = new Date().toISOString();
@@ -76,5 +78,7 @@ export function DirectMessagesPage() {
     return [...agentPeers, ...appPeers];
   }, [agents.data, integrations.data, workspaceId]);
 
-  return <DirectMessagesView extraPeers={extraPeers} />;
+  return (
+    <DirectMessagesView extraPeers={extraPeers} channels={channels.data} />
+  );
 }
