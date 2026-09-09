@@ -674,12 +674,7 @@ export function ChannelPage() {
     files.data?.filter((file) => !file.mimeType.startsWith('image/')) ?? [];
 
   return (
-    /*
-     * `channel-conversation-surface` pins this column to pure white in light
-     * mode (the app canvas is a warm off-white); dark mode is unaffected and
-     * follows the selected theme. See theme.css.
-     */
-    <div className="channel-conversation-surface min-h-0 flex flex-1 flex-col bg-background text-foreground">
+    <div className="min-h-0 flex flex-1 flex-col">
       <ChannelHeader
         channel={channel}
         members={members.data ?? []}

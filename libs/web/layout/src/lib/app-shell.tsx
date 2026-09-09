@@ -447,8 +447,11 @@ export function AppShell() {
             </>
           ) : null}
 
-          {/* Column 2 / Box 2: the editor panel — the one lifted surface. */}
-          <div className="min-w-0 bg-card shadow-2xs flex h-full flex-1 flex-col overflow-hidden rounded-xl border border-border text-card-foreground">
+          {/* Column 2 / Box 2: the editor panel — the one lifted surface.
+              `app-content-panel` pins its `--background` to pure white in light
+              mode so every routed view reads as one clean white sheet; dark
+              mode is unaffected (see theme.css). */}
+          <div className="app-content-panel min-w-0 bg-card shadow-2xs flex h-full flex-1 flex-col overflow-hidden rounded-xl border border-border text-card-foreground">
             {/*
               The page scroller. `min-h-full` on the content keeps the column
               full-height for pages that fill it (chat) without capping the ones

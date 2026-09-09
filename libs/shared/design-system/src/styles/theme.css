@@ -713,16 +713,21 @@
   --ring: #9aaaf5;
 }
 
-/* -------------------------------------------- Channel conversation panel ----
+/* ------------------------------------------------- App content panel ----
  *
- * In light mode the app canvas is a warm off-white (`--background: #fcfbf8`)
- * with white panels on it. The channel conversation column is meant to read as
- * one clean white sheet, so light mode pins its `--background` to pure white —
- * the header, tabs, message list and composer all draw `bg-background`, so this
- * one override carries the whole surface. Dark mode is left untouched: the
- * column follows the selected theme like everything else.
+ * The centre panel (column 2 of the shell) that hosts every routed view —
+ * channels, inbox, threads, file manager, DMs, projects, and the rest of the
+ * sidebar destinations. In light mode the app canvas is a warm off-white
+ * (`--background: #fcfbf8`) sitting under white `card` panels; the centre panel
+ * is meant to read as one clean white sheet, so light mode pins its
+ * `--background` to pure white. Views draw their base with `bg-background`, so
+ * this single override carries all of them. The `--surface-muted/raised` depth
+ * steps are left alone, so cards, list rows and toolbars keep their layering.
+ *
+ * Dark mode is untouched: the panel follows the selected theme like everything
+ * else.
  */
-html:not(.dark) .channel-conversation-surface {
+html:not(.dark) .app-content-panel {
   --background: #ffffff;
 }
 
