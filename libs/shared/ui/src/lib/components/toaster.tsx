@@ -25,7 +25,7 @@ export function Toaster({
   richColors = true,
   closeButton = false,
   duration = 5000,
-  visibleToasts = 3,
+  visibleToasts = 1,
   ...props
 }: ToasterProps) {
   const { resolvedTheme } = useTheme();
