@@ -407,6 +407,10 @@ export function AppShell() {
           workspaceActivity={workspaceActivity}
         />
 
+        {/* Notification setup prompt — directly below the header, above the
+            three boxes. `m-1.5 mb-0` lines it up with the content gutter. */}
+        <NotificationEnableBar workspaceId={workspaceId} className="m-1.5 mb-0" />
+
         <div
           className={cn(
             'min-h-0 gap-1.5 p-1.5 pt-0 relative flex flex-1 overflow-hidden',
@@ -504,9 +508,6 @@ export function AppShell() {
         {/* A running huddle opens full-width here, below all three boxes —
             the conversation portals its bar into this row. Empty otherwise. */}
         <HuddleDock />
-
-        {/* Notification Enable Bar at the bottom outside of all boxes */}
-        <NotificationEnableBar workspaceId={workspaceId} />
 
         {/* Device-aware Native App Download Prompt */}
         <AppDownloadBanner workspaceId={workspaceId} />

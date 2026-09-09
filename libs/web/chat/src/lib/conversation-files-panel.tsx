@@ -135,9 +135,9 @@ export function ConversationFilesPanel({
           description="Files shared in this conversation will appear here once messaging is turned on."
         />
       ) : chatAttachments.length > 0 || !isResolving ? (
-        <div className="space-y-4 border-t border-border/60 pt-4">
+        <div className="space-y-4 pt-4 border-t border-border/60">
           <div className="gap-1.5 flex flex-wrap items-center">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
               Shared in chat
             </span>
             <Button
@@ -240,8 +240,10 @@ export function ConversationFilesPanel({
   );
 }
 
-export interface ConversationTabsShellProps
-  extends Omit<ConversationFilesPanelProps, 'context'> {
+export interface ConversationTabsShellProps extends Omit<
+  ConversationFilesPanelProps,
+  'context'
+> {
   filesContext: UploadTarget;
   /** The Messages tab content — normally a `<ChatPanel>`. */
   children: ReactNode;
@@ -266,7 +268,7 @@ export function ConversationTabsShell({
     <Tabs
       value={tab}
       onValueChange={setTab}
-      className="min-h-0 flex flex-1 flex-col"
+      className="min-h-0 gap-0 flex flex-1 flex-col"
     >
       <div className="px-3 sm:px-6 py-1 gap-1 flex items-center border-b border-border bg-background">
         <TabsList className="scrollbar-none overflow-x-auto">

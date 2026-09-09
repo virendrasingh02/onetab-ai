@@ -50,9 +50,9 @@ const DEPTH_PADDING: Record<NavDepth, string> = {
 };
 
 const DEPTH_TEXT: Record<NavDepth, string> = {
-  0: 'text-[13px]',
-  1: 'text-[13px]',
-  2: 'text-xs',
+  0: 'text-sm',
+  1: 'text-sm',
+  2: 'text-[13px]',
 };
 
 /**
@@ -86,7 +86,9 @@ export function navRowClass(
     'transition-all duration-(--duration-fast) ease-standard',
     'outline-none focus-visible:ring-1 focus-visible:ring-ring',
     isActive
-      ? 'font-semibold shadow-2xs bg-accent text-foreground'
+      ? // Selected row: primary-tinted fill + primary text — clearly distinct
+        // from the neutral hover state.
+        'font-semibold text-primary-text bg-primary/12 shadow-2xs ring-1 ring-inset ring-primary/20'
       : 'font-medium text-foreground/90 hover:bg-accent/70 hover:text-foreground',
     extra,
   );
@@ -261,7 +263,7 @@ export function IconOnlyNavRow({
             'relative size-9 flex items-center justify-center rounded-xl transition-all duration-150',
             'outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer',
             active
-              ? 'bg-accent text-foreground shadow-2xs font-semibold'
+              ? 'bg-primary/12 text-primary-text shadow-2xs font-semibold ring-1 ring-inset ring-primary/20'
               : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground',
           );
         }}

@@ -229,7 +229,7 @@ function DirectConversation({
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
-        className="min-h-0 flex flex-1 flex-col"
+        className="min-h-0 gap-0 flex flex-1 flex-col"
       >
         <div className="px-3 sm:px-6 py-1 gap-1 flex items-center border-b border-border bg-background">
           <TabsList className="scrollbar-none overflow-x-auto">
@@ -309,10 +309,7 @@ function DirectConversation({
 
         {/* Bookmarks tab — `ChannelPage`'s counterpart, private to the reader
             and scoped to this one person. */}
-        <TabsContent
-          value="bookmarks"
-          className="min-h-0 flex flex-1 flex-col"
-        >
+        <TabsContent value="bookmarks" className="min-h-0 flex flex-1 flex-col">
           <ScrollArea
             className="min-h-0 flex-1"
             contentClassName="px-4 sm:px-6 py-4 space-y-4"
@@ -325,7 +322,7 @@ function DirectConversation({
                 </h3>
                 <p className="text-xs mt-0.5 text-muted-foreground">
                   {isSelf
-                    ? "Links and resources you keep in your personal space — only visible to you, on this device."
+                    ? 'Links and resources you keep in your personal space — only visible to you, on this device.'
                     : `Links and resources you've saved from your conversation with ${name} — only visible to you, on this device.`}
                 </p>
               </div>

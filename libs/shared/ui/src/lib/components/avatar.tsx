@@ -11,6 +11,7 @@ import {
   createContext,
   useContext,
   type ComponentProps,
+  type CSSProperties,
   type ReactNode,
 } from 'react';
 import { IconRenderer } from './icon-picker-popover.js';
@@ -118,9 +119,10 @@ export const PRESENCE_STYLES: Record<PresenceStatus, string> = {
   online: 'bg-success',
   away: 'bg-warning',
   busy: 'bg-destructive',
-  // Faint, so "offline" and the no-presence-data placeholder read as absence
-  // rather than as a status worth looking at.
-  offline: 'bg-muted-foreground/40',
+  // A solid, muted grey — "offline" (and the no-presence-data placeholder) still
+  // reads as absence next to the bright states, but the dot itself stays fully
+  // opaque so it never looks like a rendering glitch.
+  offline: 'bg-muted-foreground',
 };
 
 export const PRESENCE_LABELS: Record<PresenceStatus, string> = {
@@ -212,21 +214,82 @@ export interface UserAvatarProps extends Omit<AvatarProps, 'shape'> {
    * a hollow placeholder; pass `false` for dense stacks where it would be noise.
    */
   indicator?: boolean;
+  /**
+   * Carve a concave corner (an "inverted radius") out of the avatar behind the
+   * indicator so the dot / emoji reads against the page rather than against a
+   * busy photo. On whenever an indicator is drawn; pass `false` to keep the
+   * avatar a full circle.
+   */
+  notch?: boolean;
   statusEmoji?: string | null;
   statusText?: string | null;
 }
 
-/** Status-indicator geometry, scaled so it stays proportional at every size. */
+/**
+ * Status-indicator geometry, scaled so it stays proportional at every size.
+ * `dot` is the presence-dot box; `emoji` is just the glyph size — both are
+ * placed by `INDICATOR_POSITION`, not by these classes.
+ */
 const INDICATOR_SIZES: Record<
   NonNullable<AvatarProps['size']>,
   { dot: string; emoji: string }
 > = {
-  xs: { dot: 'size-1.5', emoji: 'text-[9px] -right-1 -bottom-1' },
-  sm: { dot: 'size-2', emoji: 'text-[10px] -right-1 -bottom-1' },
-  md: { dot: 'size-2.5', emoji: 'text-[11px] -right-1 -bottom-1' },
-  lg: { dot: 'size-3', emoji: 'text-sm -right-1 -bottom-1' },
-  xl: { dot: 'size-4', emoji: 'text-xl -right-0.5 -bottom-0.5' },
+  xs: { dot: 'size-1.5', emoji: 'text-[9px]' },
+  sm: { dot: 'size-2', emoji: 'text-[10px]' },
+  md: { dot: 'size-2.5', emoji: 'text-[11px]' },
+  lg: { dot: 'size-3', emoji: 'text-xs' },
+  xl: { dot: 'size-4', emoji: 'text-base' },
 };
+
+/**
+ * Rendered pixel size of the presence dot per avatar size — mirrors the
+ * `dot` Tailwind classes above (`size-1.5` = 6px, `size-2` = 8px, …). The dot
+ * is a fixed pixel size regardless of how large the avatar is drawn, so the
+ * concave corner cut is measured from it, not from the avatar.
+ */
+const DOT_PX: Record<NonNullable<AvatarProps['size']>, number> = {
+  xs: 6,
+  sm: 8,
+  md: 10,
+  lg: 12,
+  xl: 16,
+};
+
+/**
+ * Where the indicator sits: centred on the avatar circle's lower-right edge
+ * (~the 45° point of an inscribed circle) rather than the square's corner, so
+ * it stays put at every size and however the avatar is resized via `className`.
+ */
+const INDICATOR_POSITION = {
+  left: '86%',
+  top: '86%',
+  transform: 'translate(-50%, -50%)',
+} as const;
+
+/**
+ * A concave corner ("inverted radius") behind the status dot, as a CSS mask
+ * that punches a round hole where the dot sits. Centred on the same edge point,
+ * with a radius of `max(12%, dot + a little)` — it scales with the avatar but
+ * never shrinks below the dot, so it hugs it cleanly from `xs` to `xl` and on
+ * `className`-resized avatars.
+ *
+ * `corner-shape: scoop` is the direct spec for this but only lands in the
+ * newest Chromium. The mask goes on an inner element — never the one that
+ * carries the caller's `ring` / `shadow`, which a mask would clip.
+ */
+function notchMaskStyle(size: NonNullable<AvatarProps['size']>) {
+  // Dot radius + its 2px ring + ~1px breathing room — the floor below the %.
+  const min = `${DOT_PX[size] / 2 + 3}px`;
+  const r = `max(12%, ${min})`;
+  const mask =
+    `radial-gradient(ellipse ${r} ${r} at 86% 86%, #0000 0 99%, #000 100%)`;
+  return {
+    WebkitMaskImage: mask,
+    maskImage: mask,
+    WebkitMaskRepeat: 'no-repeat',
+    maskRepeat: 'no-repeat',
+  } as const;
+}
 
 export interface PresenceDotProps {
   /** Any presence spelling. `null` / omitted → a faint "unknown" dot. */
@@ -238,6 +301,7 @@ export interface PresenceDotProps {
   /** Wrap in a hover tooltip. Default `true`. */
   hint?: boolean;
   className?: string;
+  style?: CSSProperties;
 }
 
 /**
@@ -251,6 +315,7 @@ export function PresenceDot({
   name,
   hint = true,
   className,
+  style,
 }: PresenceDotProps) {
   const known = presence != null;
   const state = known ? toPresenceStatus(presence) : 'offline';
@@ -260,6 +325,7 @@ export function PresenceDot({
     <span
       role="status"
       title={label}
+      style={style}
       aria-label={
         name
           ? known
@@ -304,10 +370,12 @@ export function UserAvatar({
   seed,
   presence,
   indicator = true,
+  notch = true,
   statusEmoji,
   statusText,
   size,
   className,
+  style,
   ...props
 }: UserAvatarProps) {
   // Prefer the caller's stable seed (a user id), but never let an empty string
@@ -324,6 +392,8 @@ export function UserAvatar({
   const geometry = INDICATOR_SIZES[size ?? 'md'];
   const showEmoji = indicator && Boolean(statusEmoji);
   const showDot = indicator && !statusEmoji;
+  // Carve the concave corner for the dot only — the emoji carries its own chip.
+  const scooped = notch && showDot;
 
   return (
     <span className="relative inline-flex shrink-0">
@@ -331,28 +401,40 @@ export function UserAvatar({
         size={size}
         shape="circle"
         className={cn('rounded-full', className)}
+        style={style}
         {...props}
       >
-        {src ? (
-          <AvatarImage src={src} alt={name} className="rounded-full" />
-        ) : null}
-        <AvatarFallback
-          className="rounded-full"
-          style={{
-            backgroundImage: avatarGradient(tintSeed),
-            // A flat fallback under the gradient for any renderer that drops it.
-            backgroundColor: avatarTint(tintSeed),
-          }}
+        {/*
+         * The image + fallback live in an inner layer so the concave-corner mask
+         * can be applied here without eating the caller's ring / shadow, which
+         * sit on the <Avatar> above.
+         */}
+        <span
+          className="absolute inset-0 overflow-hidden rounded-full"
+          style={scooped ? notchMaskStyle(size ?? 'md') : undefined}
         >
-          {initials(name)}
-        </AvatarFallback>
+          {src ? (
+            <AvatarImage src={src} alt={name} className="rounded-full" />
+          ) : null}
+          <AvatarFallback
+            className="rounded-full"
+            style={{
+              backgroundImage: avatarGradient(tintSeed),
+              // A flat fallback under the gradient for any renderer that drops it.
+              backgroundColor: avatarTint(tintSeed),
+            }}
+          >
+            {initials(name)}
+          </AvatarFallback>
+        </span>
       </Avatar>
       {showDot ? (
         <PresenceDot
           presence={resolvedPresence}
           size={size}
           name={name}
-          className="-right-0.5 -bottom-0.5 absolute ring-2 ring-background cursor-default pointer-events-auto"
+          style={INDICATOR_POSITION}
+          className="pointer-events-auto absolute cursor-default ring-2 ring-background"
         />
       ) : null}
       {showEmoji ? (
@@ -364,8 +446,9 @@ export function UserAvatar({
               : `${name} status ${statusEmoji}`
           }
           title={statusText ? `${statusEmoji} ${statusText}` : undefined}
+          style={INDICATOR_POSITION}
           className={cn(
-            'drop-shadow-xs absolute leading-none select-none',
+            'absolute flex items-center justify-center rounded-full bg-background p-[0.2em] leading-none shadow-sm ring-1 ring-border/50 select-none',
             geometry.emoji,
           )}
         >

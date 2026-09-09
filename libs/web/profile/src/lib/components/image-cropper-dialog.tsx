@@ -16,7 +16,13 @@ import {
   ZoomOut,
   AlertCircle,
 } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 export interface ImageCropperDialogProps {
   open: boolean;
@@ -28,6 +34,30 @@ export interface ImageCropperDialogProps {
   onCropComplete: (croppedDataUrl: string) => void;
 }
 
+/** Cover banner target ratio (~16:6). */
+const COVER_ASPECT = 2.67;
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 4;
+
+type Size = { w: number; h: number };
+type Point = { x: number; y: number };
+
+/** Keep `pan` within the range that still covers the crop window entirely. */
+function clampPan(
+  pan: Point,
+  displayedW: number,
+  displayedH: number,
+  cropW: number,
+  cropH: number,
+): Point {
+  const maxX = Math.max(0, (displayedW - cropW) / 2);
+  const maxY = Math.max(0, (displayedH - cropH) / 2);
+  return {
+    x: Math.min(maxX, Math.max(-maxX, pan.x)),
+    y: Math.min(maxY, Math.max(-maxY, pan.y)),
+  };
+}
+
 export function ImageCropperDialog({
   open,
   onOpenChange,
@@ -37,31 +67,128 @@ export function ImageCropperDialog({
   initialImageUrl,
   onCropComplete,
 }: ImageCropperDialogProps) {
+  const isAvatar = cropType === 'avatar';
+
   const [imageSrc, setImageSrc] = useState<string | null>(initialImageUrl || null);
-  const [zoom, setZoom] = useState<number>(1);
-  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [srcId, setSrcId] = useState(0);
+  const [natural, setNatural] = useState<Size | null>(null);
+  const [containerSize, setContainerSize] = useState<Size | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [dragStart, setDragStart] = useState<Point>({ x: 0, y: 0 });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const resizeObsRef = useRef<ResizeObserver | null>(null);
 
-  // Aspect ratio parameters: Avatar 1:1, Cover 16:6 (~2.67:1)
-  const isAvatar = cropType === 'avatar';
-  const targetAspect = isAvatar ? 1 : 2.67;
-
-  // Reset state when opening or initial image changes
-  useEffect(() => {
-    if (open) {
-      setImageSrc(initialImageUrl || null);
-      setZoom(1);
-      setPan({ x: 0, y: 0 });
-      setErrorMessage(null);
+  // Measure from layout (client*), ignoring the dialog's open-in scale
+  // animation. Only accept a real, non-zero box.
+  const measure = useCallback((el: HTMLDivElement | null) => {
+    if (!el) return;
+    const w = el.clientWidth;
+    const h = el.clientHeight;
+    if (w > 0 && h > 0) {
+      setContainerSize((prev) =>
+        prev && prev.w === w && prev.h === h ? prev : { w, h },
+      );
     }
+  }, []);
+
+  // Callback ref: fires exactly when the viewport node mounts/unmounts, so the
+  // measurement never depends on the dialog's animation timing.
+  const attachViewport = useCallback(
+    (el: HTMLDivElement | null) => {
+      containerRef.current = el;
+      resizeObsRef.current?.disconnect();
+      if (el) {
+        measure(el);
+        resizeObsRef.current = new ResizeObserver(() => measure(el));
+        resizeObsRef.current.observe(el);
+      } else {
+        resizeObsRef.current = null;
+      }
+    },
+    [measure],
+  );
+
+  useEffect(() => () => resizeObsRef.current?.disconnect(), []);
+
+  useEffect(() => {
+    if (open) measure(containerRef.current);
+  }, [open, measure]);
+
+  // Reset all transform state when the dialog opens or the seed image changes.
+  useEffect(() => {
+    if (!open) return;
+    setImageSrc(initialImageUrl || null);
+    setSrcId((n) => n + 1);
+    setNatural(null);
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+    setErrorMessage(null);
+    setIsProcessing(false);
   }, [open, initialImageUrl]);
+
+  // A usable viewport size at all times — measured when available, otherwise a
+  // sane default that the ResizeObserver corrects within a frame.
+  const viewport = useMemo<Size>(
+    () => containerSize ?? { w: 512, h: isAvatar ? 288 : 224 },
+    [containerSize, isAvatar],
+  );
+
+  // The visible crop window, centered in the viewport.
+  const cropBox = useMemo<Size>(() => {
+    const { w, h } = viewport;
+    if (isAvatar) {
+      const side = Math.max(96, Math.round(Math.min(w, h) - 32));
+      return { w: side, h: side };
+    }
+    let cw = w;
+    let ch = Math.round(w / COVER_ASPECT);
+    if (ch > h) {
+      ch = h;
+      cw = Math.round(h * COVER_ASPECT);
+    }
+    return { w: cw, h: ch };
+  }, [viewport, isAvatar]);
+
+  // Size the image so it *covers* the crop window at zoom = 1 (no empty edges).
+  const baseSize = useMemo<Size | null>(() => {
+    if (!natural) return null;
+    const scale = Math.max(cropBox.w / natural.w, cropBox.h / natural.h);
+    return { w: natural.w * scale, h: natural.h * scale };
+  }, [cropBox, natural]);
+
+  // Re-clamp the pan whenever the zoom (and thus displayed size) changes.
+  useEffect(() => {
+    if (!baseSize) return;
+    setPan((p) =>
+      clampPan(p, baseSize.w * zoom, baseSize.h * zoom, cropBox.w, cropBox.h),
+    );
+  }, [zoom, baseSize, cropBox]);
+
+  // Wheel-to-zoom. Registered natively so preventDefault is honoured (React's
+  // onWheel is passive and would let the dialog scroll instead).
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!imageSrc) return;
+      e.preventDefault();
+      setZoom((z) =>
+        Math.min(
+          MAX_ZOOM,
+          Math.max(MIN_ZOOM, +(z - e.deltaY * 0.0016).toFixed(3)),
+        ),
+      );
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [imageSrc]);
 
   const handleFileSelect = (file: File) => {
     setErrorMessage(null);
@@ -69,7 +196,6 @@ export function ImageCropperDialog({
       setErrorMessage('Please select a valid image file (JPG, PNG, WebP).');
       return;
     }
-
     if (file.size > 15 * 1024 * 1024) {
       setErrorMessage('Image size must be 15MB or smaller.');
       return;
@@ -78,32 +204,41 @@ export function ImageCropperDialog({
     const reader = new FileReader();
     reader.onload = (e) => {
       if (e.target?.result) {
-        setImageSrc(e.target.result as string);
+        setNatural(null);
         setZoom(1);
         setPan({ x: 0, y: 0 });
+        setImageSrc(e.target.result as string);
+        setSrcId((n) => n + 1);
       }
     };
-    reader.onerror = () => {
-      setErrorMessage('Failed to read selected image file.');
-    };
+    reader.onerror = () => setErrorMessage('Failed to read selected image file.');
     reader.readAsDataURL(file);
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const openFilePicker = () => fileInputRef.current?.click();
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!imageSrc) return;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
     setIsDragging(true);
     setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
-    setPan({
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y,
-    });
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging || !baseSize) return;
+    setPan(
+      clampPan(
+        { x: e.clientX - dragStart.x, y: e.clientY - dragStart.y },
+        baseSize.w * zoom,
+        baseSize.h * zoom,
+        cropBox.w,
+        cropBox.h,
+      ),
+    );
   };
 
-  const handleMouseUp = () => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
     setIsDragging(false);
   };
 
@@ -114,21 +249,51 @@ export function ImageCropperDialog({
   };
 
   const handleCrop = useCallback(() => {
-    if (!imageSrc || !imageRef.current || !containerRef.current) return;
+    const img = imageRef.current;
+    if (!img || !imageSrc || !natural || !baseSize) return;
 
     try {
       setIsProcessing(true);
-      const img = imageRef.current;
-      const container = containerRef.current;
 
-      const outputWidth = isAvatar ? 400 : 1200;
-      const outputHeight = isAvatar ? 400 : Math.round(1200 / targetAspect);
+      // Uniform mapping: displayed pixels -> natural (bitmap) pixels.
+      const totalScale = (baseSize.w / natural.w) * zoom;
+      const displayedW = natural.w * totalScale;
+      const displayedH = natural.h * totalScale;
+
+      const safePan = clampPan(
+        pan,
+        displayedW,
+        displayedH,
+        cropBox.w,
+        cropBox.h,
+      );
+
+      // Top-left of the (transformed) image and of the crop window, both in
+      // viewport coordinates. The image is flex-centered, then translated.
+      const imgLeft = viewport.w / 2 + safePan.x - displayedW / 2;
+      const imgTop = viewport.h / 2 + safePan.y - displayedH / 2;
+      const cropLeft = (viewport.w - cropBox.w) / 2;
+      const cropTop = (viewport.h - cropBox.h) / 2;
+
+      // Source rectangle in the image bitmap.
+      let sx = (cropLeft - imgLeft) / totalScale;
+      let sy = (cropTop - imgTop) / totalScale;
+      let sw = cropBox.w / totalScale;
+      let sh = cropBox.h / totalScale;
+
+      // Guard against sub-pixel rounding pushing us past the bitmap edge.
+      sx = Math.max(0, Math.min(sx, natural.w - 1));
+      sy = Math.max(0, Math.min(sy, natural.h - 1));
+      sw = Math.max(1, Math.min(sw, natural.w - sx));
+      sh = Math.max(1, Math.min(sh, natural.h - sy));
+
+      const outW = isAvatar ? 512 : 1280;
+      const outH = isAvatar ? 512 : Math.round(outW * (cropBox.h / cropBox.w));
 
       const canvas = document.createElement('canvas');
-      canvas.width = outputWidth;
-      canvas.height = outputHeight;
+      canvas.width = outW;
+      canvas.height = outH;
       const ctx = canvas.getContext('2d');
-
       if (!ctx) {
         setErrorMessage('Failed to initialize canvas context.');
         setIsProcessing(false);
@@ -137,54 +302,39 @@ export function ImageCropperDialog({
 
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
+      // Opaque backing so JPEG encoding of any transparent source stays white.
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, outW, outH);
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
 
-      // Container bounding measurements
-      const containerRect = container.getBoundingClientRect();
-      const containerAspect = containerRect.width / containerRect.height;
-      const imageAspect = img.naturalWidth / img.naturalHeight;
-
-      // Base displayed size without zoom
-      let baseWidth: number;
-      let baseHeight: number;
-
-      if (imageAspect > containerAspect) {
-        baseHeight = containerRect.height;
-        baseWidth = baseHeight * imageAspect;
-      } else {
-        baseWidth = containerRect.width;
-        baseHeight = baseWidth / imageAspect;
+      const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+      if (!croppedDataUrl || croppedDataUrl === 'data:,') {
+        throw new Error('empty output');
       }
 
-      const displayedWidth = baseWidth * zoom;
-      const displayedHeight = baseHeight * zoom;
-
-      // Current center offset of image relative to container center
-      const imageCenterX = containerRect.width / 2 + pan.x;
-      const imageCenterY = containerRect.height / 2 + pan.y;
-
-      const imageLeft = imageCenterX - displayedWidth / 2;
-      const imageTop = imageCenterY - displayedHeight / 2;
-
-      // Mapping from container space to canvas space
-      const scaleX = outputWidth / containerRect.width;
-      const scaleY = outputHeight / containerRect.height;
-
-      const destX = imageLeft * scaleX;
-      const destY = imageTop * scaleY;
-      const destW = displayedWidth * scaleX;
-      const destH = displayedHeight * scaleY;
-
-      ctx.drawImage(img, destX, destY, destW, destH);
-
-      const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.92);
       onCropComplete(croppedDataUrl);
       setIsProcessing(false);
       onOpenChange(false);
     } catch {
-      setErrorMessage('Error cropping image. Please try another image.');
+      setErrorMessage(
+        'Could not process this image. If it is an existing photo, please choose a new file.',
+      );
       setIsProcessing(false);
     }
-  }, [imageSrc, isAvatar, targetAspect, zoom, pan, onCropComplete, onOpenChange]);
+  }, [
+    imageSrc,
+    isAvatar,
+    zoom,
+    pan,
+    viewport,
+    natural,
+    cropBox,
+    baseSize,
+    onCropComplete,
+    onOpenChange,
+  ]);
+
+  const ready = Boolean(imageSrc && natural);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -209,44 +359,61 @@ export function ImageCropperDialog({
             </div>
           )}
 
-          {/* Cropper Viewport */}
+          {/* Cropper viewport */}
           <div
-            ref={containerRef}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            className={`relative w-full overflow-hidden bg-neutral-950 border border-border/80 rounded-xl select-none flex items-center justify-center ${
+            ref={attachViewport}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            className={`relative w-full overflow-hidden bg-neutral-950 border border-border/80 rounded-xl select-none touch-none flex items-center justify-center ${
               isAvatar ? 'h-64 sm:h-72' : 'h-48 sm:h-56'
             } ${imageSrc ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
             onClick={() => {
-              if (!imageSrc && fileInputRef.current) {
-                fileInputRef.current.click();
-              }
+              if (!imageSrc) openFilePicker();
             }}
           >
             {imageSrc ? (
               <>
                 <img
+                  key={srcId}
                   ref={imageRef}
                   src={imageSrc}
                   alt="Crop preview"
                   draggable={false}
+                  onLoad={(e) => {
+                    const el = e.currentTarget;
+                    if (el.naturalWidth && el.naturalHeight) {
+                      setNatural({ w: el.naturalWidth, h: el.naturalHeight });
+                    }
+                  }}
+                  onError={() =>
+                    setErrorMessage(
+                      'Could not load this image for editing. Please choose a new file.',
+                    )
+                  }
                   style={{
+                    width: baseSize ? `${baseSize.w}px` : 'auto',
+                    height: baseSize ? `${baseSize.h}px` : 'auto',
+                    maxWidth: 'none',
+                    maxHeight: 'none',
                     transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
                     transformOrigin: 'center center',
-                    transition: isDragging ? 'none' : 'transform 0.08s ease-out',
+                    transition: isDragging ? 'none' : 'transform 0.06s linear',
+                    willChange: 'transform',
+                    opacity: baseSize ? 1 : 0,
                   }}
-                  className="max-w-none max-h-none pointer-events-none object-contain"
+                  className="pointer-events-none select-none block"
                 />
 
-                {/* Mask Overlay */}
+                {/* Mask overlay — matches the exact region that gets saved */}
                 <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                  {isAvatar ? (
-                    <div className="size-48 sm:size-52 rounded-full border-2 border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.65)] ring-1 ring-black/40" />
-                  ) : (
-                    <div className="w-full h-full border-2 border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)] ring-1 ring-black/40" />
-                  )}
+                  <div
+                    style={{ width: cropBox.w, height: cropBox.h }}
+                    className={`border-2 border-white/90 ring-1 ring-black/40 shadow-[0_0_0_9999px_rgba(0,0,0,0.62)] ${
+                      isAvatar ? 'rounded-full' : 'rounded-md'
+                    }`}
+                  />
                 </div>
               </>
             ) : (
@@ -269,22 +436,21 @@ export function ImageCropperDialog({
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) {
-                handleFileSelect(file);
-              }
+              if (file) handleFileSelect(file);
+              e.target.value = '';
             }}
           />
 
-          {/* Controls Bar: Zoom & Upload */}
+          {/* Controls: zoom & re-upload */}
           {imageSrc && (
             <div className="space-y-3 pt-1">
               <div className="flex items-center gap-3">
                 <ZoomOut className="size-4 text-muted-foreground shrink-0" />
                 <Slider
                   value={[zoom]}
-                  min={0.8}
-                  max={3.0}
-                  step={0.05}
+                  min={MIN_ZOOM}
+                  max={MAX_ZOOM}
+                  step={0.01}
                   onValueChange={(val) => setZoom(val[0])}
                   className="flex-1"
                 />
@@ -299,7 +465,7 @@ export function ImageCropperDialog({
                   type="button"
                   variant="outline"
                   size="xs"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={openFilePicker}
                   className="text-xs gap-1.5"
                 >
                   <ImageIcon className="size-3.5" />
@@ -317,6 +483,10 @@ export function ImageCropperDialog({
                   <span>Reset</span>
                 </Button>
               </div>
+
+              <p className="text-[11px] text-muted-foreground text-center">
+                Drag to reposition · scroll or use the slider to zoom
+              </p>
             </div>
           )}
         </div>
@@ -336,7 +506,7 @@ export function ImageCropperDialog({
             type="button"
             variant="primary"
             size="sm"
-            disabled={!imageSrc || isProcessing}
+            disabled={!ready || isProcessing}
             loading={isProcessing}
             onClick={handleCrop}
             className="text-xs px-4"

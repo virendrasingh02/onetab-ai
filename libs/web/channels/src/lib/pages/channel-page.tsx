@@ -569,7 +569,10 @@ export function ChannelPage() {
   const members = useChannelMembers(workspaceId, channel?.id);
   const channelAgentsApps = useChannelAgentsAndApps(workspaceId, channel?.id);
   const anonSettings = useChannelAnonymousSettings(workspaceId, channel?.id);
-  const anonMutations = useAnonymousMessagingMutations(workspaceId, channel?.id);
+  const anonMutations = useAnonymousMessagingMutations(
+    workspaceId,
+    channel?.id,
+  );
   const [addBookmarkOpen, setAddBookmarkOpen] = useState(false);
   const [addPeopleOpen, setAddPeopleOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -812,7 +815,7 @@ export function ChannelPage() {
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
-        className="min-h-0 flex flex-1 flex-col"
+        className="min-h-0 gap-0 flex flex-1 flex-col"
       >
         <div className="px-3 sm:px-6 py-1 gap-1 flex items-center border-b border-border bg-background">
           <TabsList className="scrollbar-none overflow-x-auto">
@@ -975,7 +978,7 @@ export function ChannelPage() {
 
         <TabsContent
           value="chat"
-          className="min-h-0 flex flex-1 flex-col overflow-hidden"
+          className="min-h-0 mt-0 flex flex-1 flex-col overflow-hidden"
         >
           <ChannelChat
             channelId={channel.id}

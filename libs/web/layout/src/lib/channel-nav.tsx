@@ -1277,16 +1277,16 @@ export function ChannelNav({
             ))}
           </div>
 
-          <div className="pt-1.5 px-1 flex items-center justify-between">
+          <div className="pt-1 pr-1 flex items-center justify-between gap-1">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
                   aria-label="More navigation destinations"
-                  className="gap-1.5 px-2 py-1 text-xs inline-flex items-center rounded-md text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+                  className={navActionClass({ depth: 0, extra: 'w-auto' })}
                 >
-                  <MoreHorizontal className="size-3.5" />
-                  <span>More</span>
+                  <MoreHorizontal className={navIconClass(0)} aria-hidden />
+                  <span className="truncate">More</span>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-52">
