@@ -39,6 +39,14 @@ export {
 } from './lib/settings-preferences.store.js';
 
 export {
+  useSettingsDirtyStore,
+  useSettingsDirty,
+  useRegisterSettingsDirty,
+  getDirtySettingsEntries,
+  type SettingsDirtyEntry,
+} from './lib/settings-dirty.store.js';
+
+export {
   useWorkspaceStore,
   ACTIVE_WORKSPACE_EVENT,
   getPersistedActiveWorkspaceId,

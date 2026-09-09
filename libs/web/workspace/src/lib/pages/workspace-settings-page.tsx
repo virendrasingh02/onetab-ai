@@ -135,6 +135,7 @@ import {
   useDeleteWebAuthn,
 } from '../use-workspaces.js';
 import { SettingsLayout } from '../settings-layout.js';
+import { useRegisterSettingsDirty } from '../settings-dirty.store.js';
 import { useWorkspacePreference } from '../settings-preferences.store.js';
 import { WorkspaceMembersSettings } from '../components/workspace-members-settings.js';
 import { WorkspaceBillingSettings } from '../components/workspace-billing-settings.js';
@@ -617,12 +618,6 @@ export function WorkspaceSettingsPage({
     defaultValues: { currentPassword: '', password: '', confirmPassword: '' },
   });
 
-  if (isLoading || !workspace) return <LoadingState fullPage />;
-
-  const isAdmin = hasWorkspaceRole(workspace.role, WorkspaceRole.ADMIN);
-  const isOwner = workspace.role === WorkspaceRole.OWNER;
-  const isArchived = workspace.status === WorkspaceStatus.ARCHIVED;
-
   const onProfileSubmit = profileForm.handleSubmit(async (values) => {
     try {
       await updateProfile.mutateAsync({
@@ -672,6 +667,37 @@ export function WorkspaceSettingsPage({
       // Rendered by <FormError>.
     }
   });
+
+  /*
+   * Register the two real forms with the unsaved-changes guard, so leaving the
+   * settings surface (a nav row, Back, Close, Escape, tab close) while edits are
+   * in flight prompts first. `settings.profile` also covers the timezone edits
+   * in Language & Region, which dirty `profileForm`. Kept above the early return
+   * so the hook order is stable.
+   */
+  useRegisterSettingsDirty(
+    'settings.profile',
+    profileForm.formState.isDirty,
+    () => onProfileSubmit(),
+    () => profileForm.reset(),
+  );
+  useRegisterSettingsDirty(
+    'settings.workspace',
+    isWorkspaceDirty,
+    () => onWorkspaceSubmit(),
+    () => {
+      workspaceForm.reset();
+      setLogoFile(null);
+      setLogoError(null);
+      setIsLogoRemoved(false);
+    },
+  );
+
+  if (isLoading || !workspace) return <LoadingState fullPage />;
+
+  const isAdmin = hasWorkspaceRole(workspace.role, WorkspaceRole.ADMIN);
+  const isOwner = workspace.role === WorkspaceRole.OWNER;
+  const isArchived = workspace.status === WorkspaceStatus.ARCHIVED;
 
   const onPasswordSubmit = passwordForm.handleSubmit(async (values) => {
     try {

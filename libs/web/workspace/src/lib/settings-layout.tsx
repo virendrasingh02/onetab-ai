@@ -1,4 +1,16 @@
-import { Badge, Button, Input, KbdShortcut } from '@org/ui';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  Badge,
+  Button,
+  Input,
+  KbdShortcut,
+  toast,
+} from '@org/ui';
 import { cn } from '@org/utils';
 import { NotificationEnableBar } from '@org/notifications';
 import {
@@ -32,8 +44,12 @@ import {
   Workflow,
   X,
 } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import {
+  getDirtySettingsEntries,
+  useSettingsDirty,
+} from './settings-dirty.store.js';
 import { WorkspacePreferencesEffects } from './settings-preferences.store.js';
 import { useCurrentWorkspace } from './use-workspaces.js';
 
@@ -156,14 +172,74 @@ export function SettingsLayout({
 
   const backUrl = workspaceSlug ? `/w/${workspaceSlug}` : '/';
 
-  // Keyboard shortcut: Escape to return back to workspace.
+  // --- Unsaved-changes guard -------------------------------------------------
+  const isDirty = useSettingsDirty();
+  // Holds the "where the user was trying to go" until they confirm/cancel.
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
+  const [saving, setSaving] = useState(false);
+  const leaveOpen = pendingLeave !== null;
+
+  const guardedLeave = useCallback((proceed: () => void) => {
+    if (getDirtySettingsEntries().length === 0) {
+      proceed();
+    } else {
+      setPendingLeave(() => proceed);
+    }
+  }, []);
+
+  const keepEditing = () => setPendingLeave(null);
+
+  const discardAndLeave = () => {
+    for (const entry of getDirtySettingsEntries()) entry.reset?.();
+    const proceed = pendingLeave;
+    setPendingLeave(null);
+    proceed?.();
+  };
+
+  const saveAndLeave = async () => {
+    const proceed = pendingLeave;
+    setSaving(true);
+    try {
+      for (const entry of getDirtySettingsEntries()) {
+        if (entry.save) await entry.save();
+      }
+    } catch {
+      toast.error('Could not save your changes — check the highlighted fields.');
+      setSaving(false);
+      return;
+    }
+    setSaving(false);
+    if (getDirtySettingsEntries().length > 0) {
+      // A form blocked its own save (validation) — surface it, don't leave.
+      toast.error('Some changes still need attention before you can leave.');
+      setPendingLeave(null);
+      return;
+    }
+    setPendingLeave(null);
+    proceed?.();
+  };
+
+  // Warn on tab close / refresh while there are unsaved edits.
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
+  // Escape returns to the workspace — through the same guard.
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') navigate(backUrl);
+      if (event.key !== 'Escape') return;
+      if (pendingLeave) return; // the dialog owns Escape while it is open
+      guardedLeave(() => navigate(backUrl));
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, backUrl]);
+  }, [navigate, backUrl, guardedLeave, pendingLeave]);
 
   useEffect(() => {
     try {
@@ -222,13 +298,14 @@ export function SettingsLayout({
         {/* Top Header Bar */}
         <header className="h-12 backdrop-blur-md px-4 sm:px-6 flex shrink-0 items-center justify-between border-b border-border/70 bg-surface/60">
           <div className="gap-2.5 text-xs flex items-center">
-            <Link
-              to={backUrl}
+            <button
+              type="button"
+              onClick={() => guardedLeave(() => navigate(backUrl))}
               className="gap-1.5 font-medium px-2 py-1 inline-flex items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
             >
               <ArrowLeft className="size-3.5" />
               <span>Back</span>
-            </Link>
+            </button>
             <span className="text-muted-foreground/50">/</span>
             <div className="gap-2 flex items-center">
               <span className="font-semibold text-foreground">Settings</span>
@@ -248,23 +325,22 @@ export function SettingsLayout({
           </div>
 
           <div className="gap-2 flex items-center">
-            <Link to={backUrl}>
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label="Close settings"
-                className="h-8 gap-1.5 px-2.5 text-xs rounded-lg text-muted-foreground hover:text-foreground"
-              >
-                <span>Close</span>
-                <KbdShortcut
-                  keys={['Escape']}
-                  size="xs"
-                  variant="muted"
-                  responsive
-                />
-                <X className="size-3.5" />
-              </Button>
-            </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Close settings"
+              onClick={() => guardedLeave(() => navigate(backUrl))}
+              className="h-8 gap-1.5 px-2.5 text-xs rounded-lg text-muted-foreground hover:text-foreground"
+            >
+              <span>Close</span>
+              <KbdShortcut
+                keys={['Escape']}
+                size="xs"
+                variant="muted"
+                responsive
+              />
+              <X className="size-3.5" />
+            </Button>
           </div>
         </header>
 
@@ -345,10 +421,12 @@ export function SettingsLayout({
                               <button
                                 key={item.id}
                                 type="button"
-                                onClick={() => {
-                                  if (item.href) navigate(item.href);
-                                  else onTabChange(item.id);
-                                }}
+                                onClick={() =>
+                                  guardedLeave(() => {
+                                    if (item.href) navigate(item.href);
+                                    else onTabChange(item.id);
+                                  })
+                                }
                                 aria-current={isActive ? 'page' : undefined}
                                 className={cn(
                                   'px-2.5 py-1.5 font-medium flex w-full items-center justify-between rounded-xl text-left text-[13px] transition-all cursor-pointer',
@@ -397,6 +475,46 @@ export function SettingsLayout({
 
       {/* Bottom Managed Notification Bar */}
       <NotificationEnableBar workspaceId={workspaceId} />
+
+      {/* Unsaved-changes guard */}
+      <AlertDialog
+        open={leaveOpen}
+        onOpenChange={(open) => {
+          if (!open && !saving) setPendingLeave(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Leave without saving?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You&apos;ve changed settings in this section that haven&apos;t been
+              saved yet. Save them now, discard them, or stay and keep editing.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={keepEditing}
+              disabled={saving}
+            >
+              Keep editing
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={discardAndLeave}
+              disabled={saving}
+              className="text-destructive hover:text-destructive"
+            >
+              Discard changes
+            </Button>
+            <Button size="sm" onClick={saveAndLeave} loading={saving}>
+              Save &amp; leave
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

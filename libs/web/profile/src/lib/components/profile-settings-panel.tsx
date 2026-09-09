@@ -20,7 +20,10 @@ import {
 } from '@org/ui';
 import { useTranslation, type SupportedLanguageCode } from '@org/i18n';
 import { updateProfileSchema, type UpdateProfileInput } from '@org/validation';
-import { useCurrentWorkspace } from '@org/web-workspace';
+import {
+  useCurrentWorkspace,
+  useRegisterSettingsDirty,
+} from '@org/web-workspace';
 import { useMutation } from '@tanstack/react-query';
 import {
   Briefcase,
@@ -138,6 +141,20 @@ export function ProfileSettingsPanel() {
       github: values.github?.trim() || null,
     });
   });
+
+  // Feed the settings shell's unsaved-changes guard.
+  useRegisterSettingsDirty(
+    'settings.profile-panel',
+    form.formState.isDirty ||
+      firstName !== initialFirstName ||
+      lastName !== initialLastName,
+    () => onSubmit(),
+    () => {
+      form.reset();
+      setFirstName(initialFirstName);
+      setLastName(initialLastName);
+    },
+  );
 
   const handleOpenAvatarCropper = () => {
     setCropType('avatar');
