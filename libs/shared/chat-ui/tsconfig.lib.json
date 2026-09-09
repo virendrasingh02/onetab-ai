@@ -38,6 +38,9 @@
     },
     {
       "path": "../media-preview/tsconfig.lib.json"
+    },
+    {
+      "path": "../hooks/tsconfig.lib.json"
     }
   ]
 }

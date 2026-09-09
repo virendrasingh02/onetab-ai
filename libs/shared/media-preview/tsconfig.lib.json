@@ -36,6 +36,9 @@
     },
     {
       "path": "../types/tsconfig.lib.json"
+    },
+    {
+      "path": "../hooks/tsconfig.lib.json"
     }
   ]
 }

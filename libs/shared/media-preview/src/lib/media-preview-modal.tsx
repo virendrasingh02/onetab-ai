@@ -1,3 +1,4 @@
+import { useAuthenticatedMediaSrc } from '@org/hooks';
 import { Dialog, DialogOverlay, DialogPortal, toast } from '@org/ui';
 import { cn } from '@org/utils';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
@@ -30,6 +31,14 @@ export function MediaPreviewModal() {
 
   const activeItem = items[activeIndex];
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // A Matrix attachment's resolved URL points at its authenticated media
+  // repo — the same problem `@org/ui`'s `AvatarImage` works around — so
+  // every viewer below gets one already-fetchable URL instead of one each
+  // rolling its own handling.
+  const previewUrl = useAuthenticatedMediaSrc(
+    activeItem?.url ?? (activeItem ? resolvedUrls[activeItem.id] : undefined),
+  );
 
   // Kick off resolution for whatever the active item needs, as soon as it
   // becomes active — but never for a category that only ever shows a
@@ -149,7 +158,7 @@ export function MediaPreviewModal() {
 
               <MediaPreviewContent
                 item={activeItem}
-                url={activeItem.url ?? resolvedUrls[activeItem.id]}
+                url={previewUrl ?? undefined}
                 isLoading={!!resolvingIds[activeItem.id]}
                 error={errors[activeItem.id]}
                 onRetry={() => resolve(activeItem)}

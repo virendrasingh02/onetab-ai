@@ -1,3 +1,4 @@
+import { useAuthenticatedMediaSrc } from '@org/hooks';
 import { cn } from '@org/utils';
 import * as PopoverPrimitive from '@radix-ui/react-popover';
 import { Check, X } from 'lucide-react';
@@ -11,6 +12,27 @@ export interface MultiSelectOption {
   avatarUrl?: string | null;
   icon?: ReactNode;
   disabled?: boolean;
+}
+
+/**
+ * A plain `<img>` here (rather than `@org/ui`'s own `Avatar`) so a caller can
+ * pass any `avatarUrl` — including one resolved from Matrix, which is
+ * authenticated media a bare `<img src>` cannot load on its own. Pulled into
+ * its own component because the hook can't be called from inside the
+ * `.map()` below.
+ */
+function OptionAvatarImage({
+  src,
+  alt,
+  className,
+}: {
+  src: string;
+  alt: string;
+  className: string;
+}) {
+  const resolvedSrc = useAuthenticatedMediaSrc(src);
+  if (!resolvedSrc) return null;
+  return <img src={resolvedSrc} alt={alt} className={className} />;
 }
 
 export interface MultiSelectProps {
@@ -132,7 +154,7 @@ export function MultiSelect({
                   className="inline-flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-full bg-surface border border-border/80 text-xs font-medium text-foreground shadow-2xs transition-all hover:bg-accent/40"
                 >
                   {opt.avatarUrl ? (
-                    <img
+                    <OptionAvatarImage
                       src={opt.avatarUrl}
                       alt={opt.label}
                       className="size-5 rounded-full object-cover shrink-0"
@@ -230,7 +252,7 @@ export function MultiSelect({
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         {opt.avatarUrl ? (
-                          <img
+                          <OptionAvatarImage
                             src={opt.avatarUrl}
                             alt={opt.label}
                             className="size-8 rounded-full object-cover shrink-0"

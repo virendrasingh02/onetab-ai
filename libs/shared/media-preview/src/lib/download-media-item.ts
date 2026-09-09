@@ -1,3 +1,4 @@
+import { fetchAuthenticatedMediaBlob } from '@org/hooks';
 import type { MediaItem } from './types.js';
 
 /**
@@ -7,13 +8,17 @@ import type { MediaItem } from './types.js';
  * `<a href download>` is not enough here: it silently opens the file in a new
  * tab instead of saving it for a good few file types/browsers, and it can't
  * be pointed at a blob: URL that's about to be revoked.
+ *
+ * `fetchAuthenticatedMediaBlob` covers Matrix's authenticated media the same
+ * way `AvatarImage` does for on-screen `<img>`s — a plain `fetch(url)` here
+ * would 401 on it exactly as a bare `<img src>` would.
  */
 export async function downloadMediaItem(
   url: string,
   filename: string,
 ): Promise<void> {
-  const response = await fetch(url);
-  const blob = await response.blob();
+  const blob = await fetchAuthenticatedMediaBlob(url);
+  if (!blob) throw new Error(`Could not download ${filename}`);
   const objectUrl = URL.createObjectURL(blob);
 
   const link = document.createElement('a');

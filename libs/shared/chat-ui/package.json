@@ -33,6 +33,7 @@
     }
   },
   "dependencies": {
+    "@org/hooks": "*",
     "@org/media-preview": "*",
     "@org/ui": "*",
     "@tanstack/react-virtual": "^3.14.9",

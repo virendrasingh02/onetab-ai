@@ -1,3 +1,4 @@
+import { useAuthenticatedMediaSrc } from '@org/hooks';
 import { attachmentToMediaItem, useMediaPreview } from '@org/media-preview';
 import type { Attachment } from '@org/types';
 import {
@@ -47,6 +48,22 @@ export interface ConversationFilesPanelProps {
  *  - **Shared in chat** — Matrix attachments scraped from the room timeline.
  *    Preview and download only; they live in the chat, not our object store.
  */
+
+/** `thumbnailUrl`/`url` are Matrix's authenticated media — a bare `<img
+ * src>` cannot load them (see `useAuthenticatedMediaSrc`); split out because
+ * the hook can't be called from inside the `.map()` below. */
+function MediaFileThumbnail({ src, alt }: { src: string; alt: string }) {
+  const resolvedSrc = useAuthenticatedMediaSrc(src);
+  return (
+    <img
+      src={resolvedSrc ?? undefined}
+      alt={alt}
+      className="size-full object-cover transition-transform group-hover:scale-105"
+      loading="lazy"
+    />
+  );
+}
+
 export function ConversationFilesPanel({
   context,
   roomId,
@@ -168,11 +185,9 @@ export function ConversationFilesPanel({
                   }
                   className="group relative aspect-square overflow-hidden rounded-lg border border-border bg-muted"
                 >
-                  <img
+                  <MediaFileThumbnail
                     src={file.thumbnailUrl ?? file.url}
                     alt={file.name}
-                    className="size-full object-cover transition-transform group-hover:scale-105"
-                    loading="lazy"
                   />
                 </button>
               ))}

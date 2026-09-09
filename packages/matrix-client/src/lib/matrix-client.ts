@@ -145,6 +145,22 @@ export class OneTabMatrixClient {
     return this.sdk !== null && this.status.state === 'connected';
   }
 
+  /**
+   * The bearer token this client's own sync connection is using, or `null`
+   * when not connected.
+   *
+   * Every `mxc://` URL this client resolves to HTTP (`resolveMediaUrl` in
+   * `mappers.ts`) points at Matrix's *authenticated* media repo — the browser
+   * cannot attach an `Authorization` header to a plain `<img>`/`<video>` tag,
+   * so callers that need to render one (see `@org/hooks`'s
+   * `useAuthenticatedMediaSrc`) fetch it themselves with this token. This
+   * exposes nothing the client did not already hold for its own `/sync`
+   * calls.
+   */
+  getAccessToken(): string | null {
+    return this.sdk?.getAccessToken() ?? null;
+  }
+
   /** Password login. Persists the session and starts syncing. */
   async login(credentials: LoginCredentials): Promise<MatrixSession> {
     this.setStatus('connecting');

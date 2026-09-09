@@ -1,3 +1,4 @@
+import { useAuthenticatedMediaSrc } from '@org/hooks';
 import { cn } from '@org/utils';
 import {
   File as FileIcon,
@@ -35,7 +36,8 @@ export interface MediaThumbnailProps {
  * is enough (e.g. a file-manager grid). */
 export function MediaThumbnail({ item, className, iconClassName }: MediaThumbnailProps) {
   const Icon = CATEGORY_ICONS[item.category];
-  const imageSrc = item.category === 'image' ? (item.thumbnailUrl ?? item.url) : undefined;
+  const rawSrc = item.category === 'image' ? (item.thumbnailUrl ?? item.url) : undefined;
+  const imageSrc = useAuthenticatedMediaSrc(rawSrc);
 
   if (imageSrc) {
     return (

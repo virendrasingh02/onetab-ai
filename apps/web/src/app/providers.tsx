@@ -13,7 +13,7 @@ import {
   type GifSource,
 } from '@org/ui';
 import { RealtimeProvider, useUserPresenceMap } from '@org/realtime';
-import { MatrixProvider } from '@org/web-chat';
+import { AuthenticatedMediaBridge, MatrixProvider } from '@org/web-chat';
 import { DesktopChrome, DesktopProvider } from '@org/web-desktop';
 import {
   MutationCache,
@@ -210,16 +210,18 @@ export function Providers({ children }: { children: ReactNode }) {
             */}
             <DesktopProvider>
               <MatrixProvider>
-                <RealtimeAppBridge>
-                  <TooltipProvider>
-                    <MediaPreviewProvider>
-                      <GifSourceBridge>
-                        <DesktopChrome>{children}</DesktopChrome>
-                      </GifSourceBridge>
-                    </MediaPreviewProvider>
-                    <AppToaster />
-                  </TooltipProvider>
-                </RealtimeAppBridge>
+                <AuthenticatedMediaBridge>
+                  <RealtimeAppBridge>
+                    <TooltipProvider>
+                      <MediaPreviewProvider>
+                        <GifSourceBridge>
+                          <DesktopChrome>{children}</DesktopChrome>
+                        </GifSourceBridge>
+                      </MediaPreviewProvider>
+                      <AppToaster />
+                    </TooltipProvider>
+                  </RealtimeAppBridge>
+                </AuthenticatedMediaBridge>
               </MatrixProvider>
             </DesktopProvider>
           </WorkspaceThemeScope>

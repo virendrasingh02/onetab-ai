@@ -1,4 +1,5 @@
 export { MatrixProvider, useMatrix } from './lib/matrix-provider.js';
+export { AuthenticatedMediaBridge } from './lib/authenticated-media-bridge.js';
 export {
   useGroupDirectMessages,
   usePresence,

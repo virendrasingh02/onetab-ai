@@ -1,3 +1,4 @@
+import { useAuthenticatedMediaSrc } from '@org/hooks';
 import { useMediaPreview } from '@org/media-preview';
 import type {
   CardActionDefinition,
@@ -118,6 +119,39 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Workflow,
   Layers,
 };
+
+/** An `image` node's `src` can be Matrix's authenticated media (an
+ * agent/app can post one); resolve it the way `AvatarImage` does. Split out
+ * because `renderNode` is a plain function, not a component — there's
+ * nowhere in it to call a hook. */
+function CardImage({
+  src,
+  alt,
+  style,
+  onOpen,
+}: {
+  src: string;
+  alt: string;
+  style: React.CSSProperties;
+  onOpen: (resolvedSrc: string) => void;
+}) {
+  const resolvedSrc = useAuthenticatedMediaSrc(src);
+  return (
+    <button
+      type="button"
+      onClick={() => resolvedSrc && onOpen(resolvedSrc)}
+      className="block w-full cursor-zoom-in text-left"
+      aria-label={`Open ${alt}`}
+    >
+      <img
+        src={resolvedSrc ?? undefined}
+        alt={alt}
+        style={style}
+        className="rounded-xl object-cover border border-border/60 max-h-64 w-full pointer-events-none"
+      />
+    </button>
+  );
+}
 
 export const UniversalCardRenderer = memo(function UniversalCardRenderer({
   cardId,
@@ -561,24 +595,17 @@ export const UniversalCardRenderer = memo(function UniversalCardRenderer({
         const src = evaluateTemplate(props['src'], localData, context);
         const alt = evaluateTemplate(props['alt'], localData, context) || 'Card image';
         return (
-          <button
+          <CardImage
             key={node.id}
-            type="button"
-            onClick={() =>
+            src={src}
+            alt={alt}
+            style={inlineStyle}
+            onOpen={(resolvedSrc) =>
               openPreview([
-                { id: node.id, name: alt, mimeType: 'image/*', category: 'image', url: src },
+                { id: node.id, name: alt, mimeType: 'image/*', category: 'image', url: resolvedSrc },
               ])
             }
-            className="block w-full cursor-zoom-in text-left"
-            aria-label={`Open ${alt}`}
-          >
-            <img
-              src={src}
-              alt={alt}
-              style={inlineStyle}
-              className="rounded-xl object-cover border border-border/60 max-h-64 w-full pointer-events-none"
-            />
-          </button>
+          />
         );
       }
 

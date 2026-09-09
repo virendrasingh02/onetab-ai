@@ -64,6 +64,9 @@
       "path": "../../shared/media-preview/tsconfig.lib.json"
     },
     {
+      "path": "../../shared/hooks/tsconfig.lib.json"
+    },
+    {
       "path": "../auth/tsconfig.lib.json"
     }
   ]

@@ -1,3 +1,4 @@
+import { useAuthenticatedMediaSrc } from '@org/hooks';
 import { cn } from '@org/utils';
 import { CheckSquare, Square } from 'lucide-react';
 import { Fragment, useMemo, type ReactNode } from 'react';
@@ -22,6 +23,22 @@ function safeUrl(raw: string): string | null {
   if (/^(https?:|mailto:)/i.test(url)) return url;
   if (/^www\./i.test(url)) return `https://${url}`;
   return null;
+}
+
+/** A markdown image can reference Matrix's authenticated media (e.g. a link
+ * an app/agent posted); resolve it the same way `AvatarImage` does. Its own
+ * component because the node list below is built imperatively, not mapped —
+ * there's nowhere else to call the hook from. */
+function MarkdownImage({ src, alt }: { src: string; alt: string }) {
+  const resolvedSrc = useAuthenticatedMediaSrc(src);
+  return (
+    <img
+      src={resolvedSrc ?? undefined}
+      alt={alt}
+      loading="lazy"
+      className="my-1 block max-h-72 max-w-full rounded-lg border border-border"
+    />
+  );
 }
 
 const INLINE_PATTERN_SOURCE = [
@@ -110,12 +127,10 @@ function renderInline(
       const source = parsed ? safeUrl(parsed[2]) : null;
       nodes.push(
         source ? (
-          <img
+          <MarkdownImage
             key={key}
             src={source}
             alt={parsed?.[1] || 'Attached image'}
-            loading="lazy"
-            className="my-1 block max-h-72 max-w-full rounded-lg border border-border"
           />
         ) : (
           <Fragment key={key}>{token}</Fragment>

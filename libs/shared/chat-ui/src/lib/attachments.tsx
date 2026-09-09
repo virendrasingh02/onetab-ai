@@ -1,3 +1,4 @@
+import { useAuthenticatedMediaSrc } from '@org/hooks';
 import type { Attachment } from '@org/types';
 import { Button, Skeleton } from '@org/ui';
 import { cn, formatBytes } from '@org/utils';
@@ -169,6 +170,12 @@ export interface ImagePreviewProps {
 export function ImagePreview({ attachment, onOpen }: ImagePreviewProps) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  // Matrix's thumbnail/download URLs require an auth header a plain <img>
+  // can't attach — this fetches and swaps in a blob: URL when that's the
+  // case, and is a no-op for any other kind of attachment URL.
+  const imageSrc = useAuthenticatedMediaSrc(
+    attachment.thumbnailUrl ?? attachment.url,
+  );
 
   const ratio =
     attachment.width && attachment.height
@@ -190,7 +197,7 @@ export function ImagePreview({ attachment, onOpen }: ImagePreviewProps) {
           <Skeleton className="inset-0 absolute size-full rounded-none" />
         ) : null}
         <img
-          src={attachment.thumbnailUrl ?? attachment.url}
+          src={imageSrc ?? undefined}
           alt={attachment.name}
           loading="lazy"
           decoding="async"
@@ -213,16 +220,21 @@ export function VideoPreview({
   attachment: Attachment;
   onOpen?: () => void;
 }) {
+  // Same authenticated-media problem as images: a <video>/poster can't
+  // attach the header Matrix's media repo requires either.
+  const poster = useAuthenticatedMediaSrc(attachment.thumbnailUrl);
+  const videoSrc = useAuthenticatedMediaSrc(attachment.url);
+
   return (
     <div className="relative mt-1 max-w-sm rounded-lg border border-border bg-surface overflow-hidden">
       <video
         controls
         preload="metadata"
-        poster={attachment.thumbnailUrl}
+        poster={poster ?? undefined}
         className="w-full max-h-64 object-contain bg-surface-inset"
         aria-label={attachment.name}
       >
-        <source src={attachment.url} type={attachment.mimeType} />
+        {videoSrc ? <source src={videoSrc} type={attachment.mimeType} /> : null}
         Your browser cannot play this video.
       </video>
       {onOpen ? (
@@ -254,6 +266,7 @@ export function VoiceMessage({ attachment }: VoiceMessageProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
+  const audioSrc = useAuthenticatedMediaSrc(attachment.url);
 
   const samples =
     attachment.waveform?.length && attachment.waveform.length > 1
@@ -313,7 +326,7 @@ export function VoiceMessage({ attachment }: VoiceMessageProps) {
 
       <audio
         ref={audioRef}
-        src={attachment.url}
+        src={audioSrc ?? undefined}
         onTimeUpdate={(event) => {
           const audio = event.currentTarget;
           if (audio.duration) setProgress(audio.currentTime / audio.duration);

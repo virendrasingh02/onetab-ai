@@ -34,6 +34,7 @@
   },
   "dependencies": {
     "@org/design-system": "*",
+    "@org/hooks": "*",
     "@org/i18n": "*",
     "@org/types": "*",
     "@radix-ui/react-alert-dialog": "^1.1.23",

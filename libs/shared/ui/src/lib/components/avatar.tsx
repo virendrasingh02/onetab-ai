@@ -3,6 +3,7 @@ import {
   avatarTint,
   normalizeAvatarSeed,
 } from '@org/design-system';
+import { useAuthenticatedMediaSrc } from '@org/hooks';
 import { cn, initials } from '@org/utils';
 import * as AvatarPrimitive from '@radix-ui/react-avatar';
 import { cva, type VariantProps } from 'class-variance-authority';
@@ -51,13 +52,27 @@ export function Avatar({ className, size, shape, ...props }: AvatarProps) {
   );
 }
 
+/**
+ * The one place an avatar image actually loads. `src` is transparently
+ * resolved through `useAuthenticatedMediaSrc`: a Matrix room/member/sender
+ * avatar comes back as an authenticated-media URL a plain `<img>` cannot
+ * fetch (see that hook's docs), so this is what makes every avatar in the
+ * app — not just the ones built through `UserAvatar`/`WorkspaceAvatar` —
+ * render instead of silently 401ing. Anything else (the app's own uploads,
+ * `data:`/`blob:` URIs) passes through untouched.
+ */
 export function AvatarImage({
   className,
+  src,
   ...props
 }: ComponentProps<typeof AvatarPrimitive.Image>) {
+  const resolvedSrc = useAuthenticatedMediaSrc(
+    typeof src === 'string' ? src : undefined,
+  );
   return (
     <AvatarPrimitive.Image
       data-slot="avatar-image"
+      src={resolvedSrc ?? undefined}
       className={cn('aspect-square size-full object-cover', className)}
       {...props}
     />

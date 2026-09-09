@@ -41,6 +41,9 @@
       "path": "../i18n/tsconfig.lib.json"
     },
     {
+      "path": "../hooks/tsconfig.lib.json"
+    },
+    {
       "path": "../design-system/tsconfig.lib.json"
     }
   ]
