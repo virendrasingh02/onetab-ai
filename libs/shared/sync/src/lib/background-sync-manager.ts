@@ -13,7 +13,11 @@ import { installSyncMetricsProbe, syncMetrics } from './sync-metrics.js';
 import { SyncLeader, type SyncBroadcast } from './sync-leader.js';
 import { SyncScheduler } from './sync-scheduler.js';
 import { syncStore } from './sync-store.js';
-import type { RegisterResourceInput, SyncPriority } from './sync-resource.js';
+import type {
+  RegisterResourceInput,
+  SyncPhase,
+  SyncPriority,
+} from './sync-resource.js';
 
 export interface AttachDeps {
   queryClient: QueryClient;
@@ -50,6 +54,9 @@ export class BackgroundSyncManager {
 
   private workspaceId: string | null = null;
   private connectionState: RealtimeConnectionState = 'disconnected';
+  /** True once the SSE stream has connected at least once this session, so the
+   * first cold connect reads as "Syncing…" rather than "Reconnecting…". */
+  private everConnected = false;
   private online =
     typeof navigator !== 'undefined' ? navigator.onLine : true;
   private visible =
@@ -122,9 +129,10 @@ export class BackgroundSyncManager {
     this.scheduler?.updateConditions({ realtimeConnected: state === 'connected' });
 
     if (state === 'connected' && previous !== 'connected') {
-      if (previous === 'reconnecting' || previous === 'disconnected') {
+      if (this.everConnected) {
         syncMetrics.bump('reconnects');
       }
+      this.everConnected = true;
       // Any transition into `connected` may follow a gap in the stream.
       void this.reconcile('reconnect');
       void this.replayQueue();
@@ -365,18 +373,22 @@ export class BackgroundSyncManager {
 
   private recomputePhase(): void {
     const state = syncStore.get();
-    let phase = state.phase;
+    let phase: SyncPhase;
+
+    const socketDown =
+      this.connectionState === 'reconnecting' ||
+      this.connectionState === 'disconnected';
 
     if (!this.online) {
       phase = 'offline';
+    } else if (socketDown && this.everConnected) {
+      // A *dropped* socket is the informative thing to surface, even with a
+      // reconcile running behind it. A socket that has never connected yet is
+      // just the app warming up — that reads as "Syncing…", not "Reconnecting…".
+      phase = 'reconnecting';
     } else if (state.reconciling) {
       phase = 'syncing';
-    } else if (
-      this.connectionState === 'reconnecting' ||
-      this.connectionState === 'disconnected'
-    ) {
-      phase = 'reconnecting';
-    } else if (this.connectionState === 'connecting' && !state.lastSyncedAt) {
+    } else if (!this.everConnected && this.connectionState !== 'connected') {
       phase = 'syncing';
     } else {
       phase = 'synced';

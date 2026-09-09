@@ -55,5 +55,3 @@ export {
   useSyncCadence,
 } from './lib/hooks.js';
 export type { SyncStatus } from './lib/hooks.js';
-export { SyncStatusIndicator } from './lib/sync-status-indicator.js';
-export type { SyncStatusIndicatorProps } from './lib/sync-status-indicator.js';

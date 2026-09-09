@@ -57,6 +57,7 @@ import { AddAccountDialog } from './add-account-dialog.js';
 import { AppHeader } from './app-header.js';
 import { ChannelNav } from './channel-nav.js';
 import { OfflineSyncBanner } from './offline/offline-sync-banner.js';
+import { SyncStatusIndicator } from './sync/sync-status-indicator.js';
 import { useNavigationSync } from './navigation/use-navigation-sync.js';
 import { useRememberWorkspacePath } from './navigation/use-remember-workspace-path.js';
 import { useSidebarSync } from './navigation/use-sidebar-sync.js';
@@ -507,6 +508,10 @@ export function AppShell() {
         {/* A running huddle opens full-width here, below all three boxes —
             the conversation portals its bar into this row. Empty otherwise. */}
         <HuddleDock />
+
+        {/* Quiet floating pill — appears only while background sync is degraded
+            (reconnecting / offline). Takes no layout height. */}
+        <SyncStatusIndicator variant="pill" />
 
         {/* Device-aware Native App Download Prompt */}
         <AppDownloadBanner workspaceId={workspaceId} />

@@ -16,8 +16,9 @@ import {
 } from '@org/ui';
 import type { ActivityIndicator } from '@org/notifications';
 import { useAccounts, useLogout, useRemoveAccount } from '@org/auth';
-import { SyncStatusIndicator, useManualResync } from '@org/sync';
+import { useManualResync } from '@org/sync';
 import { cn } from '@org/utils';
+import { SyncStatusIndicator } from './sync/sync-status-indicator.js';
 import {
   DesktopTitleBarInset,
   DesktopUpdateIndicator,

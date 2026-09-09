@@ -14,7 +14,7 @@ import {
   type GifSource,
 } from '@org/ui';
 import { RealtimeProvider, useUserPresenceMap } from '@org/realtime';
-import { SyncProvider, SyncStatusIndicator } from '@org/sync';
+import { SyncProvider } from '@org/sync';
 import { AuthenticatedMediaBridge, MatrixProvider } from '@org/web-chat';
 import { DesktopChrome, DesktopProvider } from '@org/web-desktop';
 import {
@@ -100,7 +100,6 @@ function RealtimeAppBridge({ children }: { children: ReactNode }) {
     >
       <SyncProvider userId={user?.id} workspaceId={activeWorkspaceId}>
         <AvatarPresenceBridge>{children}</AvatarPresenceBridge>
-        <SyncStatusIndicator variant="pill" />
       </SyncProvider>
     </RealtimeProvider>
   );

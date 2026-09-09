@@ -89,7 +89,6 @@ export class SyncScheduler {
       process.env?.['NODE_ENV'] !== 'production' &&
       !queryKeyMentionsWorkspace(resource.queryKey, resource.workspaceId)
     ) {
-      // eslint-disable-next-line no-console
       console.warn(
         `[sync] resource "${resource.id}" queryKey does not contain its workspaceId ` +
           `(${resource.workspaceId}) — background invalidation could cross workspaces.`,

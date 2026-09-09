@@ -4,8 +4,12 @@ import type { SyncChangesDigest, SyncResourceChange, SyncState } from '@org/type
 
 /** Rows returned per category. Beyond this the client is told to full-refetch. */
 const CATEGORY_CAP = 200;
-/** The furthest back a `since` is honoured — older asks a full reconcile. */
-const MAX_LOOKBACK_MS = 24 * 60 * 60 * 1000;
+/**
+ * The furthest back a `since` is honoured. A client away longer than this gets
+ * the window clamped and `hasMore` forced, so it does a full refetch instead of
+ * trusting a partial digest.
+ */
+const MAX_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class SyncService {
@@ -27,7 +31,13 @@ export class SyncService {
     const now = new Date();
     const floor = new Date(now.getTime() - MAX_LOOKBACK_MS);
     let since = sinceInput ? new Date(sinceInput) : floor;
-    if (Number.isNaN(since.getTime()) || since < floor) since = floor;
+    // Away longer than the window (or a bad cursor) — clamp and force a full
+    // refetch, since the digest below can no longer be trusted as complete.
+    let clamped = false;
+    if (Number.isNaN(since.getTime()) || since < floor) {
+      since = floor;
+      clamped = Boolean(sinceInput);
+    }
 
     const take = CATEGORY_CAP + 1;
     const byUpdatedAt = { updatedAt: 'desc' as const };
@@ -104,7 +114,13 @@ export class SyncService {
       since: since.toISOString(),
       serverTime: now.toISOString(),
       hasMore:
-        c.capped || m.capped || n.capped || t.capped || p.capped || mt.capped,
+        clamped ||
+        c.capped ||
+        m.capped ||
+        n.capped ||
+        t.capped ||
+        p.capped ||
+        mt.capped,
       changed: {
         channels: c.list,
         members: m.list,
