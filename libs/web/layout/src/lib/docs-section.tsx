@@ -20,7 +20,6 @@ import {
   Building,
   Check,
   ChevronDown,
-  ChevronRight,
   Copy,
   FolderPlus,
   MoreVertical,
@@ -169,7 +168,6 @@ export function DocNavRow({
                 />
                 <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
               </div>
-              <ChevronRight className="size-4 text-muted-foreground/70" />
             </DropdownMenuItem>
 
             {companies.length > 1 && onMoveToCompany ? (

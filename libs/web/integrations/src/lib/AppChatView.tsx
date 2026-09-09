@@ -657,7 +657,6 @@ function AppMessageHeader({ app }: { app: AppModelItem }) {
                     />
                     <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
                   </div>
-                  <ChevronRight className="size-4 text-muted-foreground/70" />
                 </DropdownMenuItem>
 
                 <DropdownMenuItem

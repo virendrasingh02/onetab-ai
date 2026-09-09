@@ -37,7 +37,6 @@ import {
   Bookmark,
   Bot,
   Check,
-  ChevronRight,
   Copy,
   ExternalLink,
   FolderOpen,
@@ -769,7 +768,6 @@ function DirectMessageHeader({
                     />
                     <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
                   </div>
-                  <ChevronRight className="size-4 text-muted-foreground/70" />
                 </DropdownMenuItem>
 
                 <DropdownMenuSeparator />

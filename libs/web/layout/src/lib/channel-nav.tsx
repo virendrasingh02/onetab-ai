@@ -51,7 +51,6 @@ import {
   BellOff,
   Bookmark,
   Check,
-  ChevronRight,
   Clock,
   Copy,
   Flag,
@@ -373,7 +372,6 @@ function ChannelRow({
                   />
                   <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
                 </div>
-                <ChevronRight className="size-4 text-muted-foreground/70" />
               </DropdownMenuItem>
 
               <DropdownMenuSub>

@@ -20,7 +20,6 @@ import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   Bot,
   Check,
-  ChevronRight,
   Copy,
   Pause,
   Pencil,
@@ -295,7 +294,6 @@ export function AgentNavRow({
                 />
                 <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
               </div>
-              <ChevronRight className="size-4 text-muted-foreground/70" />
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
@@ -461,7 +459,6 @@ export function AppNavRow({
                 />
                 <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
               </div>
-              <ChevronRight className="size-4 text-muted-foreground/70" />
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
@@ -631,7 +628,6 @@ export function WorkflowNavRow({
                 />
                 <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
               </div>
-              <ChevronRight className="size-4 text-muted-foreground/70" />
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />

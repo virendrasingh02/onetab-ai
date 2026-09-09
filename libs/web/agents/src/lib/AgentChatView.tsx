@@ -31,7 +31,6 @@ import {
   BellOff,
   Bot,
   Check,
-  ChevronRight,
   Copy,
   MessageSquareOff,
   MoreHorizontal,
@@ -421,7 +420,6 @@ function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
                     />
                     <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
                   </div>
-                  <ChevronRight className="size-4 text-muted-foreground/70" />
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
