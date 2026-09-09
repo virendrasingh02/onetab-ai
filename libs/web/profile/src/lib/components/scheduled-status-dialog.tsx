@@ -5,6 +5,7 @@ import {
 } from '@org/types';
 import {
   Button,
+  confirm,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -276,7 +277,17 @@ export function ScheduledStatusDialog({
                     variant="ghost"
                     size="icon-sm"
                     aria-label={`Delete ${s.label}`}
-                    onClick={() => remove.mutate(s.id)}
+                    onClick={() => {
+                      void confirm({
+                        title: `Delete the scheduled status “${s.label}”?`,
+                        description:
+                          "It won't be applied on its next scheduled time. This can't be undone.",
+                        confirmLabel: 'Delete',
+                        destructive: true,
+                      }).then((ok) => {
+                        if (ok) remove.mutate(s.id);
+                      });
+                    }}
                     className="text-muted-foreground hover:text-destructive"
                   >
                     <Trash2 className="size-3.5" />

@@ -4,6 +4,7 @@ import { type TaskStatus } from '@org/types';
 import { FiledFilesSection } from '@org/web-upload';
 import {
   Button,
+  confirm,
   DatePicker,
   Dialog,
   DialogContent,
@@ -535,8 +536,17 @@ function CardDetailsBody({
               <DropdownMenuItem
                 variant="destructive"
                 onClick={() => {
-                  dispatch({ type: 'card/remove', cardId: card.id });
-                  onClose();
+                  void confirm({
+                    title: `Delete “${card.title}”?`,
+                    description:
+                      "The task and its details are removed. This can't be undone.",
+                    confirmLabel: 'Delete task',
+                    destructive: true,
+                  }).then((ok) => {
+                    if (!ok) return;
+                    dispatch({ type: 'card/remove', cardId: card.id });
+                    onClose();
+                  });
                 }}
               >
                 <Trash2 className="size-3.5 mr-2" />

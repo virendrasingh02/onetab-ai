@@ -5,6 +5,7 @@ import {
 import type { CardDefinition } from '@org/types';
 import {
   Button,
+  confirm,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -277,8 +278,17 @@ export function CardRegistryView() {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         onClick={() => {
-                          store.deleteCard(card.cardId);
-                          toast.info(`Deleted "${card.name}"`);
+                          void confirm({
+                            title: `Delete the card “${card.name}”?`,
+                            description:
+                              'It is removed from the registry and every surface that uses it. This cannot be undone.',
+                            confirmLabel: 'Delete card',
+                            destructive: true,
+                          }).then((ok) => {
+                            if (!ok) return;
+                            store.deleteCard(card.cardId);
+                            toast.info(`Deleted "${card.name}"`);
+                          });
                         }}
                         className="text-destructive focus:text-destructive"
                       >

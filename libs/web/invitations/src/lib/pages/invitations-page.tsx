@@ -1,6 +1,7 @@
 import {
   Badge,
   Button,
+  confirm,
   EmptyState,
   SearchInput,
   Select,
@@ -415,7 +416,17 @@ export function InvitationsPage({ embedded = false }: InvitationsPageProps = {})
                               type="button"
                               variant="ghost"
                               size="xs"
-                              onClick={() => revoke.mutate(invitation.id)}
+                              onClick={() => {
+                                void confirm({
+                                  title: `Revoke the invitation for ${invitation.email}?`,
+                                  description:
+                                    'Their invite link stops working right away. You can send a new invitation later.',
+                                  confirmLabel: 'Revoke invitation',
+                                  destructive: true,
+                                }).then((ok) => {
+                                  if (ok) revoke.mutate(invitation.id);
+                                });
+                              }}
                               loading={revoke.isPending}
                               className="text-xs h-7 text-destructive hover:bg-destructive/10 px-2"
                             >

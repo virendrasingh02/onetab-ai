@@ -1,5 +1,6 @@
 import {
   Button,
+  confirm,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -265,9 +266,18 @@ export function KanbanListColumn({
               <DropdownMenuItem
                 variant="destructive"
                 disabled={list.cards.length === 0}
-                onSelect={() =>
-                  dispatch({ type: 'list/clear', listId: list.id })
-                }
+                onSelect={() => {
+                  void confirm({
+                    title: `Delete all ${list.cards.length} card${
+                      list.cards.length === 1 ? '' : 's'
+                    } in “${list.title}”?`,
+                    description: "This can't be undone.",
+                    confirmLabel: 'Delete all cards',
+                    destructive: true,
+                  }).then((ok) => {
+                    if (ok) dispatch({ type: 'list/clear', listId: list.id });
+                  });
+                }}
               >
                 <Eraser />
                 Delete all cards
@@ -322,7 +332,16 @@ export function KanbanListColumn({
               drag={drag.getCardHandlers(card.id, list.id, index)}
               onOpen={() => onOpenCard(card.id)}
               onCopy={() => dispatch({ type: 'card/copy', cardId: card.id })}
-              onDelete={() => dispatch({ type: 'card/remove', cardId: card.id })}
+              onDelete={() => {
+                void confirm({
+                  title: `Delete “${card.title}”?`,
+                  description: "The task and its details are removed. This can't be undone.",
+                  confirmLabel: 'Delete card',
+                  destructive: true,
+                }).then((ok) => {
+                  if (ok) dispatch({ type: 'card/remove', cardId: card.id });
+                });
+              }}
               onMoveToList={(toListId) =>
                 dispatch({
                   type: 'card/move',

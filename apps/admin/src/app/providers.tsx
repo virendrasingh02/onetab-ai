@@ -1,6 +1,12 @@
 import { ApiError } from '@org/api-client';
 import { ThemeProvider } from '@org/design-system';
-import { ErrorBoundary, Toaster, TooltipProvider, toast } from '@org/ui';
+import {
+  ConfirmRoot,
+  ErrorBoundary,
+  Toaster,
+  TooltipProvider,
+  toast,
+} from '@org/ui';
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 
@@ -63,6 +69,7 @@ export function Providers({ children }: { children: ReactNode }) {
           <TooltipProvider>
             {children}
             <Toaster />
+            <ConfirmRoot />
           </TooltipProvider>
         </ThemeProvider>
       </QueryClientProvider>

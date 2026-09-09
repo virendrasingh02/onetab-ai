@@ -219,6 +219,13 @@ export {
 } from './lib/components/use-prompt-dialog.js';
 
 export {
+  confirm,
+  useConfirm,
+  ConfirmRoot,
+  type ConfirmOptions,
+} from './lib/components/confirm-dialog.js';
+
+export {
   ScrollArea,
   type ScrollAreaProps,
 } from './lib/components/scroll-area.js';

@@ -1,6 +1,7 @@
 import type { CurrentUser, WorkspaceSummary } from '@org/types';
 import {
   Button,
+  confirm,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -502,9 +503,19 @@ export function AppHeader({
                 linked session at once, shown just when there is more than one.
               */}
               <DropdownMenuItem
-                onClick={() =>
-                  removeAccount.mutate(activeAccountId ?? user.id)
-                }
+                onClick={() => {
+                  void confirm({
+                    title: `Sign out of ${
+                      currentWorkspace?.name ?? 'this workspace'
+                    }?`,
+                    description:
+                      'This ends your session for this account. You will need to sign in again to come back.',
+                    confirmLabel: 'Sign out',
+                    destructive: true,
+                  }).then((ok) => {
+                    if (ok) removeAccount.mutate(activeAccountId ?? user.id);
+                  });
+                }}
                 disabled={removeAccount.isPending}
                 className="px-2.5 py-2 text-xs font-medium cursor-pointer rounded-lg text-destructive hover:bg-destructive/10"
               >

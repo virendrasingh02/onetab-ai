@@ -364,12 +364,25 @@ export function MeetingDetailSheet({
                             m.removeParticipant.isPending &&
                             m.removeParticipant.variables?.userId === p.userId
                           }
-                          onClick={() =>
-                            m.removeParticipant.mutate({
-                              id: meetingId_,
-                              userId: p.userId,
-                            })
-                          }
+                          onClick={() => {
+                            void prompts
+                              .confirmAction({
+                                title: `Remove ${
+                                  p.user.displayName ?? p.user.name
+                                } from this meeting?`,
+                                description:
+                                  'They are taken off the invite and stop getting updates for it.',
+                                confirmLabel: 'Remove',
+                                destructive: true,
+                              })
+                              .then((ok) => {
+                                if (ok)
+                                  m.removeParticipant.mutate({
+                                    id: meetingId_,
+                                    userId: p.userId,
+                                  });
+                              });
+                          }}
                         >
                           <X className="size-3.5" />
                         </Button>
@@ -429,12 +442,22 @@ export function MeetingDetailSheet({
                             size="icon-sm"
                             className="opacity-0 group-hover:opacity-100"
                             aria-label="Delete note"
-                            onClick={() =>
-                              m.deleteNote.mutate({
-                                id: meetingId_,
-                                noteId: note.id,
-                              })
-                            }
+                            onClick={() => {
+                              void prompts
+                                .confirmAction({
+                                  title: 'Delete this note?',
+                                  description: "This can't be undone.",
+                                  confirmLabel: 'Delete note',
+                                  destructive: true,
+                                })
+                                .then((ok) => {
+                                  if (ok)
+                                    m.deleteNote.mutate({
+                                      id: meetingId_,
+                                      noteId: note.id,
+                                    });
+                                });
+                            }}
                           >
                             <Trash2 className="size-3.5" />
                           </Button>
@@ -495,12 +518,22 @@ export function MeetingDetailSheet({
                           size="icon-sm"
                           className="opacity-0 group-hover:opacity-100"
                           aria-label="Delete decision"
-                          onClick={() =>
-                            m.deleteDecision.mutate({
-                              id: meetingId_,
-                              decisionId: d.id,
-                            })
-                          }
+                          onClick={() => {
+                            void prompts
+                              .confirmAction({
+                                title: 'Delete this decision?',
+                                description: "This can't be undone.",
+                                confirmLabel: 'Delete decision',
+                                destructive: true,
+                              })
+                              .then((ok) => {
+                                if (ok)
+                                  m.deleteDecision.mutate({
+                                    id: meetingId_,
+                                    decisionId: d.id,
+                                  });
+                              });
+                          }}
                         >
                           <Trash2 className="size-3.5" />
                         </Button>

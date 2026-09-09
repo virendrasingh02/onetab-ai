@@ -3,6 +3,7 @@ import type { ChannelSummary } from '@org/types';
 import {
   Badge,
   Button,
+  confirm,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -909,7 +910,17 @@ export function ChannelAgentsAndAppsView({
                     <Button
                       size="icon-sm"
                       variant="ghost"
-                      onClick={() => onRemoveAgent(agent.id)}
+                      onClick={() => {
+                        void confirm({
+                          title: `Remove ${agent.name} from this channel?`,
+                          description:
+                            'It stops responding here. You can add it back later.',
+                          confirmLabel: 'Remove agent',
+                          destructive: true,
+                        }).then((ok) => {
+                          if (ok) onRemoveAgent(agent.id);
+                        });
+                      }}
                       className="size-7 text-muted-foreground hover:text-destructive"
                       title="Remove agent from channel"
                     >
@@ -1042,7 +1053,17 @@ export function ChannelAgentsAndAppsView({
                     <Button
                       size="icon-sm"
                       variant="ghost"
-                      onClick={() => onRemoveApp(app.id)}
+                      onClick={() => {
+                        void confirm({
+                          title: `Disconnect ${app.name} from this channel?`,
+                          description:
+                            'It stops posting and reacting here. You can reconnect it later.',
+                          confirmLabel: 'Disconnect',
+                          destructive: true,
+                        }).then((ok) => {
+                          if (ok) onRemoveApp(app.id);
+                        });
+                      }}
                       className="size-7 text-muted-foreground hover:text-destructive"
                       title="Disconnect app"
                     >

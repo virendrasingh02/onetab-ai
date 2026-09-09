@@ -1,4 +1,5 @@
 import {
+  confirm,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -432,8 +433,17 @@ export function IntegrationHubView() {
 
   const toggleConnection = (card: IntegrationCard) => {
     const connected = connectedMap.get(card.id.toUpperCase());
-    if (connected) disconnect.mutate(connected.id);
-    else void startConnect(card);
+    if (connected) {
+      void confirm({
+        title: `Disconnect ${card.name}?`,
+        description:
+          'This integration is removed from your workspace and its webhooks stop firing. You can reconnect it later.',
+        confirmLabel: 'Disconnect',
+        destructive: true,
+      }).then((ok) => {
+        if (ok) disconnect.mutate(connected.id);
+      });
+    } else void startConnect(card);
   };
 
   const filteredCards = integrationsList.filter((card) => {

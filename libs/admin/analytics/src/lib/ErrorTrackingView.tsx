@@ -1,6 +1,6 @@
 import type { ErrorGroup } from '@org/types';
 import { AlertOctagon, Bug, Layers, Trash2 } from 'lucide-react';
-import { Button, SegmentedControl } from '@org/ui';
+import { Button, confirm, SegmentedControl } from '@org/ui';
 import { useState } from 'react';
 import {
   BarChart,
@@ -73,7 +73,17 @@ export function ErrorTrackingView() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => clear.mutate()}
+              onClick={() => {
+                void confirm({
+                  title: 'Clear the in-memory error buffer?',
+                  description:
+                    'Buffered request failures and their stack traces are discarded. Persisted workspace errors are kept.',
+                  confirmLabel: 'Clear buffer',
+                  destructive: true,
+                }).then((ok) => {
+                  if (ok) clear.mutate();
+                });
+              }}
               loading={clear.isPending}
               leadingIcon={<Trash2 />}
               title="Clears the in-memory buffer; persisted workspace errors are kept"

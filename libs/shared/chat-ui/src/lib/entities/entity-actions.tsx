@@ -1,5 +1,6 @@
 import {
   Button,
+  confirm,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -146,7 +147,14 @@ export function EntityActions({
             variant="destructive"
             onSelect={() => {
               setIsOpen(false);
-              handlers.onDelete?.(entity);
+              void confirm({
+                title: `Delete “${entity.title}”?`,
+                description: "This can't be undone.",
+                confirmLabel: 'Delete',
+                destructive: true,
+              }).then((ok) => {
+                if (ok) handlers.onDelete?.(entity);
+              });
             }}
             className="gap-2 text-destructive focus:bg-destructive/10"
           >

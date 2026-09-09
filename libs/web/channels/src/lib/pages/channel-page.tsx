@@ -3,6 +3,7 @@ import type { ChannelMember, ChannelSummary } from '@org/types';
 import {
   Badge,
   Button,
+  confirm,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -431,12 +432,28 @@ function ChannelHeader({
                       “Delete Channel” while calling the archive mutation. */}
                   {channel.membership?.role === 'ADMIN' ? (
                     <DropdownMenuItem
-                      onClick={() =>
-                        archive.mutate({
-                          channelId: channel.id,
-                          archived: !channel.isArchived,
-                        })
-                      }
+                      onClick={() => {
+                        if (channel.isArchived) {
+                          archive.mutate({
+                            channelId: channel.id,
+                            archived: false,
+                          });
+                          return;
+                        }
+                        void confirm({
+                          title: `Archive #${channel.name}?`,
+                          description:
+                            'The channel becomes read-only and leaves everyone’s sidebar. Its history is kept, and an admin can unarchive it later.',
+                          confirmLabel: 'Archive channel',
+                          destructive: true,
+                        }).then((ok) => {
+                          if (ok)
+                            archive.mutate({
+                              channelId: channel.id,
+                              archived: true,
+                            });
+                        });
+                      }}
                       variant={channel.isArchived ? undefined : 'destructive'}
                       className="gap-2.5"
                     >

@@ -5,6 +5,7 @@ import { ThemeProvider } from '@org/design-system';
 import { MediaPreviewProvider } from '@org/media-preview';
 import {
   AvatarPresenceProvider,
+  ConfirmRoot,
   ErrorBoundary,
   GifSourceProvider,
   Toaster,
@@ -219,6 +220,7 @@ export function Providers({ children }: { children: ReactNode }) {
                         </GifSourceBridge>
                       </MediaPreviewProvider>
                       <AppToaster />
+                      <ConfirmRoot />
                     </TooltipProvider>
                   </RealtimeAppBridge>
                 </AuthenticatedMediaBridge>

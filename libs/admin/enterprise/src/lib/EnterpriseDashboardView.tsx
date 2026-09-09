@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   Card,
+  confirm,
   Dialog,
   DialogContent,
   DialogFooter,
@@ -263,12 +264,21 @@ function OrganizationPanel({
                   size="icon-sm"
                   aria-label={`Delete ${department.name}`}
                   disabled={remove.isPending}
-                  onClick={() =>
-                    remove.mutate({
-                      organizationId: organization.id,
-                      departmentId: department.id,
-                    })
-                  }
+                  onClick={() => {
+                    void confirm({
+                      title: `Delete the “${department.name}” department?`,
+                      description:
+                        'Members are not deleted, but they lose this department assignment. This cannot be undone.',
+                      confirmLabel: 'Delete department',
+                      destructive: true,
+                    }).then((ok) => {
+                      if (ok)
+                        remove.mutate({
+                          organizationId: organization.id,
+                          departmentId: department.id,
+                        });
+                    });
+                  }}
                   className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
                 >
                   <Trash2 className="size-3.5 text-destructive" />

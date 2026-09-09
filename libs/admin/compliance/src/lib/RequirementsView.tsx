@@ -11,6 +11,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  confirm,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -189,13 +190,14 @@ export function RequirementsView() {
   };
 
   const handleDeleteRequirement = async (id: string) => {
-    if (
-      !window.confirm(
-        'Are you sure you want to delete this compliance requirement? Existing evaluation records will lose link to this rule.',
-      )
-    ) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Delete this compliance requirement?',
+      description:
+        'Existing evaluation records lose their link to this rule. This cannot be undone.',
+      confirmLabel: 'Delete requirement',
+      destructive: true,
+    });
+    if (!ok) return;
     await mutations.deleteRequirement.mutateAsync(id);
   };
 

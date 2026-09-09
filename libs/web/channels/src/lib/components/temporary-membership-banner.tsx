@@ -1,6 +1,7 @@
 import { TEMP_MEMBERSHIP_PRESETS } from '@org/types';
 import {
   Button,
+  confirm,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -91,7 +92,17 @@ export function TemporaryMembershipBanner({
           size="sm"
           variant="ghost"
           disabled={busy}
-          onClick={() => leave.mutate({ channelId, userId: currentUserId })}
+          onClick={() => {
+            void confirm({
+              title: 'Leave this channel?',
+              description:
+                "You'll stop receiving its messages and need a new invite or to rejoin to come back.",
+              confirmLabel: 'Leave channel',
+              destructive: true,
+            }).then((ok) => {
+              if (ok) leave.mutate({ channelId, userId: currentUserId });
+            });
+          }}
         >
           Leave
         </Button>

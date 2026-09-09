@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Card,
+  confirm,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -670,7 +671,17 @@ export function MeetingsView() {
                         disconnect.isPending &&
                         disconnect.variables === app.provider
                       }
-                      onToggle={() => disconnect.mutate(app.provider as string)}
+                      onToggle={() => {
+                        void confirm({
+                          title: `Disconnect ${app.name}?`,
+                          description:
+                            'Meetings stop syncing with this app for the whole workspace. You can reconnect it later.',
+                          confirmLabel: 'Disconnect',
+                          destructive: true,
+                        }).then((ok) => {
+                          if (ok) disconnect.mutate(app.provider as string);
+                        });
+                      }}
                     />
                   ))}
                 </div>

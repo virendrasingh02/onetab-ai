@@ -129,7 +129,9 @@ export function ChannelWelcome({
   const isConversation = kind === 'direct' || kind === 'self';
   const peerKind = peer?.kind ?? 'person';
   const isPersonPeer = kind === 'direct' && peerKind === 'person';
-  const displayName = isConversation ? (peer?.name ?? channelName) : channelName;
+  const displayName = isConversation
+    ? (peer?.name ?? channelName)
+    : channelName;
 
   const offered: (WelcomeAction | false | undefined)[] = [
     onAddPeople &&
@@ -167,7 +169,8 @@ export function ChannelWelcome({
       kind === 'channel' && {
         key: 'bookmark',
         label: 'Pin a resource',
-        description: 'Keep the docs and links this channel needs one click away.',
+        description:
+          'Keep the docs and links this channel needs one click away.',
         icon: <Bookmark className="size-4" />,
         iconColor: 'text-warning-text',
         onClick: onAddBookmark,
@@ -195,8 +198,8 @@ export function ChannelWelcome({
       },
   ];
 
-  const actions = offered.filter(
-    (action): action is WelcomeAction => Boolean(action),
+  const actions = offered.filter((action): action is WelcomeAction =>
+    Boolean(action),
   );
 
   const intro: ReactNode = (() => {
@@ -217,8 +220,8 @@ export function ChannelWelcome({
         return (
           <>
             This is the start of your conversation with{' '}
-            <span className="font-semibold text-foreground">{displayName}</span>.
-            It’s an AI agent — it replies here automatically.
+            <span className="font-semibold text-foreground">{displayName}</span>
+            . It’s an AI agent — it replies here automatically.
           </>
         );
       }
@@ -226,8 +229,8 @@ export function ChannelWelcome({
         return (
           <>
             This is the start of your conversation with{' '}
-            <span className="font-semibold text-foreground">{displayName}</span>.
-            Messages and commands here go to the connected app.
+            <span className="font-semibold text-foreground">{displayName}</span>
+            . Messages and commands here go to the connected app.
           </>
         );
       }
@@ -242,7 +245,9 @@ export function ChannelWelcome({
       <>
         {createdByName ? (
           <>
-            <span className="font-semibold text-foreground">{createdByName}</span>{' '}
+            <span className="font-semibold text-foreground">
+              {createdByName}
+            </span>{' '}
             created this channel
           </>
         ) : (
@@ -306,9 +311,13 @@ export function ChannelWelcome({
           aria-hidden
           className="size-12 flex shrink-0 items-center justify-center rounded-2xl border border-border bg-surface-raised text-foreground"
         >
-          {isPrivate ? <Lock className="size-5" /> : <Hash className="size-5" />}
+          {isPrivate ? (
+            <Lock className="size-5" />
+          ) : (
+            <Hash className="size-5" />
+          )}
         </span>
-        <h2 className="min-w-0 truncate text-lg font-semibold tracking-tight text-foreground">
+        <h2 className="min-w-0 text-lg font-semibold tracking-tight truncate text-foreground">
           {channelName}
         </h2>
       </div>
@@ -333,7 +342,7 @@ export function ChannelWelcome({
           </span>
         )}
         <div className="min-w-0">
-          <h2 className="truncate text-lg font-semibold tracking-tight text-foreground">
+          <h2 className="text-lg font-semibold tracking-tight truncate text-foreground">
             {channelName}
           </h2>
           {total > 0 ? (
@@ -361,7 +370,7 @@ export function ChannelWelcome({
         )}
         <div className="min-w-0">
           <div className="gap-2 flex items-center">
-            <h2 className="truncate text-lg font-semibold tracking-tight text-foreground">
+            <h2 className="text-lg font-semibold tracking-tight truncate text-foreground">
               {displayName}
             </h2>
             {peerKind === 'agent' ? (
@@ -383,7 +392,9 @@ export function ChannelWelcome({
             ) : null}
           </div>
           {peer?.role ? (
-            <p className="truncate text-sm text-muted-foreground">{peer.role}</p>
+            <p className="text-sm truncate text-muted-foreground">
+              {peer.role}
+            </p>
           ) : kind === 'self' ? (
             <p className="text-sm text-muted-foreground">Just you</p>
           ) : null}
@@ -476,7 +487,7 @@ export function ChannelWelcome({
                     {action.icon}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="text-[13px] font-medium block text-foreground">
+                    <span className="font-medium block text-[13px] text-foreground">
                       {action.label}
                     </span>
                     <span className="mt-0.5 text-xs leading-relaxed block text-muted-foreground">
@@ -485,22 +496,13 @@ export function ChannelWelcome({
                   </span>
                   <ArrowRight
                     aria-hidden
-                    className="mt-1 size-3.5 shrink-0 text-muted-foreground/40 transition-all group-hover:translate-x-0.5 group-hover:text-muted-foreground"
+                    className="mt-1 size-3.5 group-hover:translate-x-0.5 shrink-0 text-muted-foreground/40 transition-all group-hover:text-muted-foreground"
                   />
                 </button>
               </li>
             ))}
           </ul>
         ) : null}
-
-        <p className="mt-5 pt-3 text-xs border-t border-border/60 text-muted-foreground">
-          Messages support{' '}
-          <span className="font-semibold text-foreground/80">**markdown**</span>,{' '}
-          <span className="font-semibold text-foreground/80">@mentions</span>,{' '}
-          <span className="font-semibold text-foreground/80">/commands</span> and{' '}
-          <span className="font-semibold text-foreground/80">:emoji:</span> —
-          start typing below.
-        </p>
       </div>
     </section>
   );

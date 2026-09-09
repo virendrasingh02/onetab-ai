@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   Card,
+  confirm,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -192,8 +193,17 @@ export function WorkflowListView() {
     if (!workspaceId) return;
     const existing = workflows.find((w) => w.name === template.name);
     if (existing) {
-      remove.mutate(existing.id, {
-        onSuccess: () => toast.info(`Removed "${template.name}"`),
+      void confirm({
+        title: `Remove the “${template.name}” automation?`,
+        description:
+          'The workflow and any steps you wired up are deleted for the whole workspace. This cannot be undone.',
+        confirmLabel: 'Remove automation',
+        destructive: true,
+      }).then((ok) => {
+        if (ok)
+          remove.mutate(existing.id, {
+            onSuccess: () => toast.info(`Removed "${template.name}"`),
+          });
       });
       return;
     }

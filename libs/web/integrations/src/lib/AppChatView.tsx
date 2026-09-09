@@ -1,6 +1,7 @@
 import {
   Badge,
   Button,
+  confirm,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -731,11 +732,21 @@ function AppDetailPanel({ app }: { app: AppModelItem }) {
                 variant="outline"
                 size="sm"
                 disabled={isBusy}
-                onClick={() =>
-                  disconnect.mutate(app.integrationId ?? app.provider, {
-                    onSuccess: () => toast.success(`${app.name} disconnected`),
-                  })
-                }
+                onClick={() => {
+                  void confirm({
+                    title: `Disconnect ${app.name}?`,
+                    description:
+                      'This app is removed from your workspace and its webhooks stop firing. You can reconnect it later.',
+                    confirmLabel: 'Disconnect',
+                    destructive: true,
+                  }).then((ok) => {
+                    if (ok)
+                      disconnect.mutate(app.integrationId ?? app.provider, {
+                        onSuccess: () =>
+                          toast.success(`${app.name} disconnected`),
+                      });
+                  });
+                }}
               >
                 Disconnect
               </Button>

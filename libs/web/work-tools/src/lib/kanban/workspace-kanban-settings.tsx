@@ -1,6 +1,7 @@
 import {
   Badge,
   Button,
+  confirm,
   Dialog,
   DialogContent,
   DialogFooter,
@@ -258,7 +259,17 @@ export function WorkspaceKanbanSettings() {
                 {status.isCustom ? (
                   <button
                     type="button"
-                    onClick={() => store.removeStatus(status.id)}
+                    onClick={() => {
+                      void confirm({
+                        title: `Remove the “${status.label}” status?`,
+                        description:
+                          'Cards in this status move back to the default. This cannot be undone.',
+                        confirmLabel: 'Remove status',
+                        destructive: true,
+                      }).then((ok) => {
+                        if (ok) store.removeStatus(status.id);
+                      });
+                    }}
                     className="text-muted-foreground hover:text-destructive p-1 transition-colors"
                     title="Remove custom status"
                   >
@@ -318,7 +329,17 @@ export function WorkspaceKanbanSettings() {
                 {priority.isCustom ? (
                   <button
                     type="button"
-                    onClick={() => store.removePriority(priority.id)}
+                    onClick={() => {
+                      void confirm({
+                        title: `Remove the “${priority.label}” priority?`,
+                        description:
+                          'Cards at this priority move back to the default. This cannot be undone.',
+                        confirmLabel: 'Remove priority',
+                        destructive: true,
+                      }).then((ok) => {
+                        if (ok) store.removePriority(priority.id);
+                      });
+                    }}
                     className="text-muted-foreground hover:text-destructive p-1 transition-colors"
                     title="Remove custom priority"
                   >
@@ -371,7 +392,17 @@ export function WorkspaceKanbanSettings() {
                 <span>{lbl.name}</span>
                 <button
                   type="button"
-                  onClick={() => store.removeLabel(lbl.id)}
+                  onClick={() => {
+                    void confirm({
+                      title: `Remove the “${lbl.name}” label?`,
+                      description:
+                        'It is taken off every card that has it. This cannot be undone.',
+                      confirmLabel: 'Remove label',
+                      destructive: true,
+                    }).then((ok) => {
+                      if (ok) store.removeLabel(lbl.id);
+                    });
+                  }}
                   className="opacity-50 group-hover:opacity-100 hover:text-destructive cursor-pointer ml-1"
                   title="Remove label"
                 >
@@ -414,7 +445,16 @@ export function WorkspaceKanbanSettings() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => store.removeTeam(team.id)}
+                  onClick={() => {
+                    void confirm({
+                      title: `Remove the “${team.name}” team?`,
+                      description: 'This cannot be undone.',
+                      confirmLabel: 'Remove team',
+                      destructive: true,
+                    }).then((ok) => {
+                      if (ok) store.removeTeam(team.id);
+                    });
+                  }}
                   className="text-muted-foreground hover:text-destructive p-1"
                 >
                   <Trash2 className="size-3" />
@@ -453,7 +493,17 @@ export function WorkspaceKanbanSettings() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => store.removeSlackChannel(slk.id)}
+                  onClick={() => {
+                    void confirm({
+                      title: `Remove #${slk.name}?`,
+                      description:
+                        'Kanban updates stop posting to this Slack channel. This cannot be undone.',
+                      confirmLabel: 'Remove channel',
+                      destructive: true,
+                    }).then((ok) => {
+                      if (ok) store.removeSlackChannel(slk.id);
+                    });
+                  }}
                   className="text-muted-foreground hover:text-destructive p-1"
                 >
                   <Trash2 className="size-3" />

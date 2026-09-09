@@ -4,6 +4,7 @@ import { WorkspacePermission, WorkspaceRole } from '@org/types';
 import {
   Badge,
   Button,
+  confirm,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -232,7 +233,19 @@ export function MembersPage() {
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             variant="destructive"
-                            onClick={() => remove.mutate(member.user.id)}
+                            onClick={() => {
+                              const name =
+                                member.user.displayName ?? member.user.name;
+                              void confirm({
+                                title: `Remove ${name} from this workspace?`,
+                                description:
+                                  'They lose access immediately. Their content stays, and you can re-invite them later.',
+                                confirmLabel: 'Remove',
+                                destructive: true,
+                              }).then((ok) => {
+                                if (ok) remove.mutate(member.user.id);
+                              });
+                            }}
                           >
                             Remove from workspace
                           </DropdownMenuItem>

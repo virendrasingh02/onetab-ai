@@ -5,6 +5,7 @@ import { useTheme } from '@org/design-system';
 import {
   Badge,
   Button,
+  confirm,
   Dialog,
   DialogClose,
   DialogContent,
@@ -3789,9 +3790,19 @@ export function WorkspaceSettingsPage({
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() =>
-                                deleteWebAuthnMutation.mutate(key.id)
-                              }
+                              onClick={() => {
+                                void confirm({
+                                  title: `Remove the passkey “${
+                                    key.deviceName || 'Security Key'
+                                  }”?`,
+                                  description:
+                                    'You can no longer sign in with this passkey. Make sure you have another way in first.',
+                                  confirmLabel: 'Remove passkey',
+                                  destructive: true,
+                                }).then((ok) => {
+                                  if (ok) deleteWebAuthnMutation.mutate(key.id);
+                                });
+                              }}
                               className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
                             >
                               <Trash2 className="h-3.5 w-3.5" />

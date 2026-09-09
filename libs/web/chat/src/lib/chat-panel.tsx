@@ -7,7 +7,13 @@ import {
 } from '@org/chat-ui';
 import type { Message, StructuredMessageAction } from '@org/matrix-client';
 import { useReadReceipts } from '@org/common';
-import { Button, EmptyState, toast, useRightPanelStore } from '@org/ui';
+import {
+  Button,
+  confirm,
+  EmptyState,
+  toast,
+  useRightPanelStore,
+} from '@org/ui';
 import { MessageSquareOff } from 'lucide-react';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -132,6 +138,23 @@ export function ChatPanel({
   const room = useRoom(roomId ?? undefined, { trackRead: following });
   const actions = useRoomActions(roomId ?? undefined);
   const threads = useRoomThreads(roomId ?? undefined);
+
+  /* Deleting a message is a redaction everyone sees and cannot be undone, so
+     it always goes through a confirm — the menu item used to fire straight
+     off the click. */
+  const handleDeleteMessage = useCallback(
+    async (messageId: string) => {
+      const ok = await confirm({
+        title: 'Delete this message?',
+        description:
+          'It is removed for everyone in the conversation. This cannot be undone.',
+        confirmLabel: 'Delete',
+        destructive: true,
+      });
+      if (ok) await actions.remove(messageId);
+    },
+    [actions],
+  );
 
   /*
    * The URL is the source of truth for which thread is open and which message
@@ -638,7 +661,7 @@ export function ChatPanel({
       onMarkRead={handleMarkRead}
       onSend={actions.send}
       onEdit={actions.edit}
-      onDelete={actions.remove}
+      onDelete={handleDeleteMessage}
       onReact={actions.toggleReaction}
       onTyping={actions.setTyping}
       onAttach={actions.attach}

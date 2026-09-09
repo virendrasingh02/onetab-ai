@@ -12,6 +12,7 @@ import {
 import {
   Badge,
   Button,
+  confirm,
   Dialog,
   DialogClose,
   DialogContent,
@@ -622,9 +623,18 @@ export function WorkspaceMembersSettings({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() =>
-                          revokeInvitationMutation.mutate(invitation.id)
-                        }
+                        onClick={() => {
+                          void confirm({
+                            title: `Revoke the invitation for ${invitation.email}?`,
+                            description:
+                              'Their invite link stops working right away. You can send a new invitation later.',
+                            confirmLabel: 'Revoke invitation',
+                            destructive: true,
+                          }).then((ok) => {
+                            if (ok)
+                              revokeInvitationMutation.mutate(invitation.id);
+                          });
+                        }}
                         className="text-xs h-7.5 text-destructive hover:bg-destructive/10 px-2.5"
                       >
                         <Trash2 className="size-3.5 mr-1" />

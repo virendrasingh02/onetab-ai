@@ -1,5 +1,6 @@
 import {
   Button,
+  confirm,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -366,7 +367,23 @@ export function DocSidebar({
                         )}
                         {onDeleteCompany && companies.length > 1 && (
                           <DropdownMenuItem
-                            onClick={() => onDeleteCompany(company.id)}
+                            onClick={() => {
+                              const docCount = docs.filter(
+                                (d) => d.companyId === company.id,
+                              ).length;
+                              void confirm({
+                                title: `Delete “${company.name}”?`,
+                                description: docCount
+                                  ? `This permanently deletes the folder and its ${docCount} doc${
+                                      docCount === 1 ? '' : 's'
+                                    }. This can't be undone.`
+                                  : "This permanently deletes the folder. This can't be undone.",
+                                confirmLabel: 'Delete folder',
+                                destructive: true,
+                              }).then((ok) => {
+                                if (ok) onDeleteCompany(company.id);
+                              });
+                            }}
                             className="text-xs gap-2 text-destructive focus:text-destructive"
                           >
                             <Trash2 className="size-3" />

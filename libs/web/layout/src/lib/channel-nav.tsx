@@ -413,7 +413,7 @@ function ChannelRow({
                     {sectionOptions.map((section) => (
                       <DropdownMenuItem
                         key={section.id}
-                        className="justify-between gap-2.5 text-xs"
+                        className="gap-2.5 text-xs justify-between"
                         onSelect={() =>
                           section.hasChannel
                             ? removeChannelFromSection(
@@ -1201,8 +1201,8 @@ export function ChannelNav({
     return (
       <div className="min-h-0 py-2 flex h-full flex-col items-center justify-between">
         {/* TODO: restore <ScrollArea> (SimpleBar) here later */}
-        <div className="min-h-0 px-1 w-full flex-1 overflow-y-auto scrollbar-on-hover">
-          <div className="flex flex-col items-center gap-1.5 py-1">
+        <div className="min-h-0 px-1 w-full flex-1 scrollbar-on-hover overflow-y-auto">
+          <div className="gap-1.5 py-1 flex flex-col items-center">
             {resolvedNav.visibleItems.map((item) => (
               <IconOnlyNavRow
                 key={item.id}
@@ -1243,225 +1243,172 @@ export function ChannelNav({
   return (
     <div className="min-h-0 flex h-full flex-col overflow-hidden bg-background">
       {/* TODO: restore <ScrollArea> (SimpleBar) here later */}
-      <div className="min-h-0 p-3 flex-1 overflow-y-auto scrollbar-on-hover">
+      <div className="min-h-0 p-3 px-1.5 flex-1 scrollbar-on-hover overflow-y-auto">
         <div className="p-2 space-y-4">
-        {/* Top Primary Navigation Items (Customizable via Dialog) */}
-        <nav
-          aria-label="Workspace navigation"
-          className="space-y-0.5 pb-3 border-b border-border/60"
-        >
-          <div className="space-y-0.5">
-            {resolvedNav.visibleItems.map((item) => (
-              <NavRow
-                key={item.id}
-                entry={{
-                  path: item.href,
-                  label: item.label,
-                  icon: item.icon,
-                  badge: item.badge ?? undefined,
-                  end: item.href === '',
-                }}
-                workspaceSlug={workspaceSlug}
-                activity={navActivity[item.id]}
-                surface={navSurfaceFor(item.id)}
-                isActiveOverride={
-                  item.id === 'channels'
-                    ? location.pathname.includes('/c/')
-                    : undefined
-                }
-              />
-            ))}
-          </div>
+          {/* Top Primary Navigation Items (Customizable via Dialog) */}
+          <nav
+            aria-label="Workspace navigation"
+            className="space-y-0.5 pb-3 border-b border-border/60"
+          >
+            <div className="space-y-0.5">
+              {resolvedNav.visibleItems.map((item) => (
+                <NavRow
+                  key={item.id}
+                  entry={{
+                    path: item.href,
+                    label: item.label,
+                    icon: item.icon,
+                    badge: item.badge ?? undefined,
+                    end: item.href === '',
+                  }}
+                  workspaceSlug={workspaceSlug}
+                  activity={navActivity[item.id]}
+                  surface={navSurfaceFor(item.id)}
+                  isActiveOverride={
+                    item.id === 'channels'
+                      ? location.pathname.includes('/c/')
+                      : undefined
+                  }
+                />
+              ))}
+            </div>
 
-          <div className="pt-1 pr-1 flex items-center justify-between gap-1">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+            <div className="pt-1 pr-1 gap-1 flex items-center justify-between">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="More navigation destinations"
+                    className={navActionClass({ depth: 0, extra: 'w-auto' })}
+                  >
+                    <MoreHorizontal className={navIconClass(0)} aria-hidden />
+                    <span className="truncate">More</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-52">
+                  {MORE_DESTINATIONS.map((entry) => {
+                    const isPinned = pinnedNavPaths.includes(entry.path);
+                    const EntryIcon = entry.icon;
+                    return (
+                      <DropdownMenuItem
+                        key={entry.path}
+                        onSelect={() =>
+                          navigate(`/w/${workspaceSlug}/${entry.path}`)
+                        }
+                        className="justify-between"
+                      >
+                        <div className="gap-2 flex items-center">
+                          <EntryIcon
+                            className="size-4 text-muted-foreground"
+                            aria-hidden
+                          />
+                          <span>{entry.label}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleNavPinned(entry.path);
+                          }}
+                          className={cn(
+                            'p-1 transition-colors hover:text-foreground',
+                            isPinned
+                              ? 'text-primary'
+                              : 'text-muted-foreground opacity-40 hover:opacity-100',
+                          )}
+                          title={
+                            isPinned ? 'Unpin from sidebar' : 'Pin to sidebar'
+                          }
+                        >
+                          <Pin className="size-3" />
+                        </button>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={() => setCustomizerOpen(true)}
+                    className="gap-2 text-xs"
+                  >
+                    <SlidersHorizontal className="size-3.5" />
+                    <span>Customize Sidebar</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <Hint label="Customize navigation">
                 <button
                   type="button"
-                  aria-label="More navigation destinations"
-                  className={navActionClass({ depth: 0, extra: 'w-auto' })}
-                >
-                  <MoreHorizontal className={navIconClass(0)} aria-hidden />
-                  <span className="truncate">More</span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-52">
-                {MORE_DESTINATIONS.map((entry) => {
-                  const isPinned = pinnedNavPaths.includes(entry.path);
-                  const EntryIcon = entry.icon;
-                  return (
-                    <DropdownMenuItem
-                      key={entry.path}
-                      onSelect={() =>
-                        navigate(`/w/${workspaceSlug}/${entry.path}`)
-                      }
-                      className="justify-between"
-                    >
-                      <div className="gap-2 flex items-center">
-                        <EntryIcon
-                          className="size-4 text-muted-foreground"
-                          aria-hidden
-                        />
-                        <span>{entry.label}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleNavPinned(entry.path);
-                        }}
-                        className={cn(
-                          'p-1 transition-colors hover:text-foreground',
-                          isPinned
-                            ? 'text-primary'
-                            : 'text-muted-foreground opacity-40 hover:opacity-100',
-                        )}
-                        title={
-                          isPinned ? 'Unpin from sidebar' : 'Pin to sidebar'
-                        }
-                      >
-                        <Pin className="size-3" />
-                      </button>
-                    </DropdownMenuItem>
-                  );
-                })}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onSelect={() => setCustomizerOpen(true)}
-                  className="gap-2 text-xs"
+                  onClick={() => setCustomizerOpen(true)}
+                  aria-label="Customize sidebar navigation"
+                  className="size-7 flex items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 >
                   <SlidersHorizontal className="size-3.5" />
-                  <span>Customize Sidebar</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </button>
+              </Hint>
+            </div>
+          </nav>
 
-            <Hint label="Customize navigation">
-              <button
-                type="button"
-                onClick={() => setCustomizerOpen(true)}
-                aria-label="Customize sidebar navigation"
-                className="size-7 flex items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <SlidersHorizontal className="size-3.5" />
-              </button>
-            </Hint>
-          </div>
-        </nav>
-
-        {/* Dynamic Resource Sections (Channels, DMs, Projects, Docs, AI Agents, Apps, Workflows, Starred) */}
-        <div className="space-y-4">
-          {activeSections.map((sec) => {
-            switch (sec.id) {
-              case 'starred':
-                return (
-                  <Section
-                    key="starred"
-                    title="Starred"
-                    count={totalStarredCount}
-                    emptyLabel="Drop an important item here to keep it handy."
-                  >
-                    <DndContext
-                      id={starredDndId}
-                      sensors={starredSensors}
-                      collisionDetection={closestCenter}
-                      onDragEnd={handleStarredDragEnd}
-                    >
-                      <SortableContext
-                        items={orderedStarredItems.map((i) => i.id)}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        {orderedStarredItems.map((item) => (
-                          <SortableStarredItem key={item.id} id={item.id}>
-                            {item.render()}
-                          </SortableStarredItem>
-                        ))}
-                      </SortableContext>
-                    </DndContext>
-                  </Section>
-                );
-
-              case 'channels':
-                return (
-                  <div key="channels" className="space-y-4">
-                    {/* Custom + smart channel sections (brief §1.1) */}
-                    {sidebarLayout.sections
-                      .filter(
-                        ({ def, channels: list }) =>
-                          list.length > 0 || !def.hideWhenEmpty,
-                      )
-                      .map(({ def, channels: sectionChannels }) => (
-                        <Section
-                          key={def.id}
-                          title={def.label}
-                          count={sectionChannels.length}
-                          open={!def.collapsed}
-                          onOpenChange={(next) =>
-                            updateSectionDef(workspaceId, def.id, {
-                              collapsed: !next,
-                            })
-                          }
-                          emptyLabel={
-                            def.kind === 'manual'
-                              ? 'Add channels from a channel’s ⋯ menu.'
-                              : 'Nothing matches this rule right now.'
-                          }
-                        >
-                          {sectionChannels.map((channel) => (
-                            <ChannelRow
-                              key={channel.id}
-                              channel={channel}
-                              activity={channelActivity?.[channel.id]}
-                              sectionOptions={sectionOptionsFor(channel.id)}
-                              {...rowProps}
-                            />
-                          ))}
-                        </Section>
-                      ))}
-
+          {/* Dynamic Resource Sections (Channels, DMs, Projects, Docs, AI Agents, Apps, Workflows, Starred) */}
+          <div className="space-y-4">
+            {activeSections.map((sec) => {
+              switch (sec.id) {
+                case 'starred':
+                  return (
                     <Section
-                      title="Channels"
-                      count={sidebarLayout.unsectioned.length}
-                      emptyLabel={
-                        groups.joined.length === 0
-                          ? 'You have not joined any channels yet.'
-                          : 'Every joined channel is filed in a section above.'
-                      }
-                      action={
-                        <div className="flex items-center gap-0.5">
-                          <ChannelOrganizationMenu
-                            workspaceId={workspaceId}
-                            onManageSections={() =>
-                              setSectionsDialogOpen(true)
-                            }
-                          />
-                          <Hint label="Create a channel">
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={onCreateChannel}
-                              aria-label="Create a channel"
-                              className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
-                            >
-                              <Plus className="size-3.5" />
-                            </Button>
-                          </Hint>
-                        </div>
-                      }
+                      key="starred"
+                      title="Starred"
+                      count={totalStarredCount}
+                      emptyLabel="Drop an important item here to keep it handy."
                     >
-                      {isManualSort ? (
-                        <DndContext
-                          id={channelDndId}
-                          sensors={channelSensors}
-                          collisionDetection={closestCenter}
-                          onDragEnd={handleChannelDragEnd}
+                      <DndContext
+                        id={starredDndId}
+                        sensors={starredSensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleStarredDragEnd}
+                      >
+                        <SortableContext
+                          items={orderedStarredItems.map((i) => i.id)}
+                          strategy={verticalListSortingStrategy}
                         >
-                          <SortableContext
-                            items={sidebarLayout.unsectioned.map((c) => c.id)}
-                            strategy={verticalListSortingStrategy}
+                          {orderedStarredItems.map((item) => (
+                            <SortableStarredItem key={item.id} id={item.id}>
+                              {item.render()}
+                            </SortableStarredItem>
+                          ))}
+                        </SortableContext>
+                      </DndContext>
+                    </Section>
+                  );
+
+                case 'channels':
+                  return (
+                    <div key="channels" className="space-y-4">
+                      {/* Custom + smart channel sections (brief §1.1) */}
+                      {sidebarLayout.sections
+                        .filter(
+                          ({ def, channels: list }) =>
+                            list.length > 0 || !def.hideWhenEmpty,
+                        )
+                        .map(({ def, channels: sectionChannels }) => (
+                          <Section
+                            key={def.id}
+                            title={def.label}
+                            count={sectionChannels.length}
+                            open={!def.collapsed}
+                            onOpenChange={(next) =>
+                              updateSectionDef(workspaceId, def.id, {
+                                collapsed: !next,
+                              })
+                            }
+                            emptyLabel={
+                              def.kind === 'manual'
+                                ? 'Add channels from a channel’s ⋯ menu.'
+                                : 'Nothing matches this rule right now.'
+                            }
                           >
-                            {sidebarLayout.unsectioned.map((channel) => (
-                              <SortableChannelRow
+                            {sectionChannels.map((channel) => (
+                              <ChannelRow
                                 key={channel.id}
                                 channel={channel}
                                 activity={channelActivity?.[channel.id]}
@@ -1469,92 +1416,145 @@ export function ChannelNav({
                                 {...rowProps}
                               />
                             ))}
-                          </SortableContext>
-                        </DndContext>
-                      ) : (
-                        sidebarLayout.unsectioned.map((channel) => (
-                          <ChannelRow
-                            key={channel.id}
-                            channel={channel}
-                            activity={channelActivity?.[channel.id]}
-                            sectionOptions={sectionOptionsFor(channel.id)}
-                            {...rowProps}
-                          />
-                        ))
-                      )}
-                      <li>
-                        <button
-                          onClick={onBrowseChannels}
-                          className={navActionClass({ depth: 1 })}
-                        >
-                          <Plus className={navIconClass(1)} aria-hidden />
-                          <span className="flex-1 truncate">
-                            Browse channels
-                          </span>
-                        </button>
-                      </li>
-                    </Section>
-                  </div>
-                );
+                          </Section>
+                        ))}
 
-              case 'dms':
-                return (
-                  <DirectMessagesSection
-                    key="dms"
-                    workspaceSlug={workspaceSlug}
-                  />
-                );
+                      <Section
+                        title="Channels"
+                        count={sidebarLayout.unsectioned.length}
+                        emptyLabel={
+                          groups.joined.length === 0
+                            ? 'You have not joined any channels yet.'
+                            : 'Every joined channel is filed in a section above.'
+                        }
+                        action={
+                          <div className="gap-0.5 flex items-center">
+                            <ChannelOrganizationMenu
+                              workspaceId={workspaceId}
+                              onManageSections={() =>
+                                setSectionsDialogOpen(true)
+                              }
+                            />
+                            <Hint label="Create a channel">
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={onCreateChannel}
+                                aria-label="Create a channel"
+                                className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
+                              >
+                                <Plus className="size-3.5" />
+                              </Button>
+                            </Hint>
+                          </div>
+                        }
+                      >
+                        {isManualSort ? (
+                          <DndContext
+                            id={channelDndId}
+                            sensors={channelSensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleChannelDragEnd}
+                          >
+                            <SortableContext
+                              items={sidebarLayout.unsectioned.map((c) => c.id)}
+                              strategy={verticalListSortingStrategy}
+                            >
+                              {sidebarLayout.unsectioned.map((channel) => (
+                                <SortableChannelRow
+                                  key={channel.id}
+                                  channel={channel}
+                                  activity={channelActivity?.[channel.id]}
+                                  sectionOptions={sectionOptionsFor(channel.id)}
+                                  {...rowProps}
+                                />
+                              ))}
+                            </SortableContext>
+                          </DndContext>
+                        ) : (
+                          sidebarLayout.unsectioned.map((channel) => (
+                            <ChannelRow
+                              key={channel.id}
+                              channel={channel}
+                              activity={channelActivity?.[channel.id]}
+                              sectionOptions={sectionOptionsFor(channel.id)}
+                              {...rowProps}
+                            />
+                          ))
+                        )}
+                        <li>
+                          <button
+                            onClick={onBrowseChannels}
+                            className={navActionClass({ depth: 1 })}
+                          >
+                            <Plus className={navIconClass(1)} aria-hidden />
+                            <span className="flex-1 truncate">
+                              Browse channels
+                            </span>
+                          </button>
+                        </li>
+                      </Section>
+                    </div>
+                  );
 
-              case 'projects':
-                return (
-                  <ProjectsTreeSection
-                    key="projects"
-                    workspaceSlug={workspaceSlug}
-                    prompts={prompts}
-                  />
-                );
+                case 'dms':
+                  return (
+                    <DirectMessagesSection
+                      key="dms"
+                      workspaceSlug={workspaceSlug}
+                    />
+                  );
 
-              case 'docs':
-                return (
-                  <DocsTreeSection
-                    key="docs"
-                    workspaceSlug={workspaceSlug}
-                    prompts={prompts}
-                  />
-                );
+                case 'projects':
+                  return (
+                    <ProjectsTreeSection
+                      key="projects"
+                      workspaceSlug={workspaceSlug}
+                      prompts={prompts}
+                    />
+                  );
 
-              case 'agents':
-                return (
-                  <AgentsSection
-                    key="agents"
-                    workspaceSlug={workspaceSlug}
-                    prompts={prompts}
-                  />
-                );
+                case 'docs':
+                  return (
+                    <DocsTreeSection
+                      key="docs"
+                      workspaceSlug={workspaceSlug}
+                      prompts={prompts}
+                    />
+                  );
 
-              case 'apps':
-                return (
-                  <AppsSection
-                    key="apps"
-                    workspaceSlug={workspaceSlug}
-                    prompts={prompts}
-                  />
-                );
+                case 'agents':
+                  return (
+                    <AgentsSection
+                      key="agents"
+                      workspaceSlug={workspaceSlug}
+                      prompts={prompts}
+                    />
+                  );
 
-              case 'workflows':
-                return (
-                  <WorkflowsSection
-                    key="workflows"
-                    workspaceSlug={workspaceSlug}
-                    prompts={prompts}
-                  />
-                );
+                case 'apps':
+                  return (
+                    <AppsSection
+                      key="apps"
+                      workspaceSlug={workspaceSlug}
+                      prompts={prompts}
+                    />
+                  );
 
-              default:
-                return null;
-            }
-          })}
-        </div>
+                case 'workflows':
+                  return (
+                    <WorkflowsSection
+                      key="workflows"
+                      workspaceSlug={workspaceSlug}
+                      prompts={prompts}
+                    />
+                  );
+
+                default:
+                  return null;
+              }
+            })}
+          </div>
         </div>
       </div>
 
