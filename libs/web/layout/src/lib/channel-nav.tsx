@@ -12,7 +12,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   Hint,
-  ScrollArea,
   SidebarActivityIndicator,
   SkeletonList,
   usePromptDialog,
@@ -1203,26 +1202,26 @@ export function ChannelNav({
   if (isCollapsed) {
     return (
       <div className="min-h-0 py-2 flex h-full flex-col items-center justify-between">
-        <ScrollArea
-          className="min-h-0 px-1 w-full flex-1"
-          contentClassName="flex flex-col items-center gap-1.5 py-1"
-        >
-          {resolvedNav.visibleItems.map((item) => (
-            <IconOnlyNavRow
-              key={item.id}
-              entry={{
-                path: item.href,
-                label: item.label,
-                icon: item.icon,
-                badge: item.badge ?? undefined,
-                end: item.href === '',
-              }}
-              workspaceSlug={workspaceSlug}
-              activity={navActivity[item.id]}
-              surface={navSurfaceFor(item.id)}
-            />
-          ))}
-        </ScrollArea>
+        {/* TODO: restore <ScrollArea> (SimpleBar) here later */}
+        <div className="min-h-0 px-1 w-full flex-1 overflow-y-auto scrollbar-on-hover">
+          <div className="flex flex-col items-center gap-1.5 py-1">
+            {resolvedNav.visibleItems.map((item) => (
+              <IconOnlyNavRow
+                key={item.id}
+                entry={{
+                  path: item.href,
+                  label: item.label,
+                  icon: item.icon,
+                  badge: item.badge ?? undefined,
+                  end: item.href === '',
+                }}
+                workspaceSlug={workspaceSlug}
+                activity={navActivity[item.id]}
+                surface={navSurfaceFor(item.id)}
+              />
+            ))}
+          </div>
+        </div>
 
         <SidebarFooterActions
           workspaceSlug={workspaceSlug}
@@ -1245,10 +1244,9 @@ export function ChannelNav({
   // --- Expanded Standard Sidebar View ---
   return (
     <div className="min-h-0 flex h-full flex-col overflow-hidden bg-background">
-      <ScrollArea
-        className="min-h-0 p-3 flex-1"
-        contentClassName="p-2 space-y-4"
-      >
+      {/* TODO: restore <ScrollArea> (SimpleBar) here later */}
+      <div className="min-h-0 p-3 flex-1 overflow-y-auto scrollbar-on-hover">
+        <div className="p-2 space-y-4">
         {/* Top Primary Navigation Items (Customizable via Dialog) */}
         <nav
           aria-label="Workspace navigation"
@@ -1559,7 +1557,8 @@ export function ChannelNav({
             }
           })}
         </div>
-      </ScrollArea>
+        </div>
+      </div>
 
       <div className="p-2.5 shrink-0 border-t border-border/70 bg-surface-muted/30">
         <SidebarFooterActions

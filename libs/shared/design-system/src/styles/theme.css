@@ -912,6 +912,37 @@ html:not(.dark) .app-content-panel {
   }
 }
 
+/*
+ * Native scroll container whose bar only appears while the pointer is inside it
+ * (or something within it holds focus). The track width is still reserved the
+ * whole time — WebKit always lays out `::-webkit-scrollbar` — so revealing the
+ * thumb causes no reflow; it just fades in. Firefox toggles `scrollbar-color`.
+ * Used where we want SimpleBar-like behaviour without SimpleBar (e.g. sidebar).
+ */
+@utility scrollbar-on-hover {
+  scrollbar-color: transparent transparent;
+
+  &:hover,
+  &:focus-within {
+    scrollbar-color: var(--border-strong) transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    transition: background-color 0.15s ease;
+  }
+
+  &:hover::-webkit-scrollbar-thumb,
+  &:focus-within::-webkit-scrollbar-thumb {
+    background-color: var(--border-strong);
+  }
+
+  &:hover::-webkit-scrollbar-thumb:hover,
+  &:focus-within::-webkit-scrollbar-thumb:hover {
+    background-color: var(--disabled);
+  }
+}
+
 /* ------------------------------------------------------- SimpleBar skin ----
  *
  * Everything that scrolls inside a `<ScrollArea>` (@org/ui) is a SimpleBar, so
