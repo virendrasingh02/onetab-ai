@@ -17,6 +17,20 @@ function usesDarkCanvas(category: string): boolean {
   return category === 'image' || category === 'video' || category === 'pdf';
 }
 
+/**
+ * The toolbar floats over the media and is hidden until the pointer is over the
+ * viewer (or a control inside it takes focus, or its "More" menu is open), the
+ * way a photo viewer's chrome auto-hides. Opacity — not `display` — so the
+ * buttons stay keyboard-reachable while faded out.
+ */
+const TOOLBAR_REVEAL = cn(
+  'absolute inset-x-0 top-0 z-20 shadow-lg transition duration-200 ease-standard',
+  'pointer-events-none -translate-y-1 opacity-0',
+  'group-hover/preview:pointer-events-auto group-hover/preview:translate-y-0 group-hover/preview:opacity-100',
+  'focus-within:pointer-events-auto focus-within:translate-y-0 focus-within:opacity-100',
+  'has-data-[state=open]:pointer-events-auto has-data-[state=open]:translate-y-0 has-data-[state=open]:opacity-100',
+);
+
 export function MediaPreviewModal() {
   const items = useMediaPreviewStore((state) => state.items);
   const activeIndex = useMediaPreviewStore((state) => state.activeIndex);
@@ -112,7 +126,7 @@ export function MediaPreviewModal() {
               // panels (see app-shell.tsx), framed the same way — rounded-xl
               // with a 1px border — so the viewer reads as one of the app's
               // surfaces rather than a full-bleed takeover.
-              'fixed inset-1.5 z-50 flex flex-col overflow-hidden rounded-xl border border-border outline-none',
+              'group/preview fixed inset-1.5 z-50 flex flex-col overflow-hidden rounded-xl border border-border outline-none',
               'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-98',
               'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-98',
               'duration-(--duration-base) ease-standard',
@@ -135,6 +149,7 @@ export function MediaPreviewModal() {
               isResolving={resolvingIds[activeItem.id]}
               onDownload={handleDownload}
               onClose={close}
+              className={TOOLBAR_REVEAL}
             />
 
             <div

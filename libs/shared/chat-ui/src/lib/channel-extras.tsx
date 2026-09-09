@@ -1,8 +1,4 @@
-import type {
-  HuddleConnectionState,
-  Message,
-  RoomMember,
-} from '@org/types';
+import type { HuddleConnectionState, Message, RoomMember } from '@org/types';
 import {
   Badge,
   Button,
@@ -78,7 +74,7 @@ export function BookmarksBar({
         <div
           key={bookmark.id}
           className={cn(
-            'group px-2 py-1 text-xs shadow-xs duration-fast relative flex shrink-0 items-center rounded-md border border-border/70 bg-surface text-muted-foreground transition-all',
+            'group px-2 py-1 text-xs duration-fast relative flex shrink-0 items-center rounded-md border border-border/70 bg-surface text-muted-foreground shadow-xs transition-all',
             'hover:border-border hover:bg-surface-raised hover:text-foreground',
           )}
         >
@@ -242,7 +238,7 @@ export function HuddleBar({
   const bar = (
     <div
       className={cn(
-        'gap-3 px-2 py-1.5 shadow-xs animate-in fade-in slide-in-from-bottom-2 relative flex flex-wrap items-center overflow-hidden rounded-xl border transition-all duration-300',
+        'm-1.5 mt-0 gap-3 px-2 py-1.5 animate-in fade-in slide-in-from-bottom-2 relative flex flex-wrap items-center overflow-hidden rounded-xl border shadow-xs transition-all duration-300',
         failed
           ? 'border-destructive/40 bg-linear-to-r from-destructive/10 via-card to-destructive/5'
           : 'border-accent-violet/40 bg-linear-to-r from-accent-violet-soft via-card to-accent-violet-soft/60',
@@ -267,12 +263,12 @@ export function HuddleBar({
         ) : (
           <Headphones className="size-4" aria-hidden />
         )}
-        {!failed && !reconnecting ? (
+        {/* {!failed && !reconnecting ? (
           <span className="-top-1 -right-1 size-2.5 absolute flex">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-violet opacity-75" />
             <span className="size-2.5 relative inline-flex rounded-full bg-accent-violet" />
           </span>
-        ) : null}
+        ) : null} */}
       </div>
 
       <div className="gap-0.5 min-w-0 flex flex-col">
@@ -282,7 +278,10 @@ export function HuddleBar({
         <span className="text-[11px] leading-none text-muted-foreground">
           {subline}
           {startedAt && !failed && !reconnecting ? (
-            <span className="text-subtle"> · started {formatRelative(startedAt)}</span>
+            <span className="text-subtle">
+              {' '}
+              · started {formatRelative(startedAt)}
+            </span>
           ) : null}
         </span>
       </div>
@@ -321,7 +320,7 @@ export function HuddleBar({
           <>
             <Button
               size="sm"
-              className="h-8 gap-1.5 text-xs px-3 shadow-sm font-medium"
+              className="h-8 gap-1.5 text-xs px-3 font-medium shadow-sm"
               onClick={onRetry}
               disabled={busy}
               leadingIcon={<RotateCw className="size-3.5" />}
@@ -331,7 +330,7 @@ export function HuddleBar({
             <Button
               variant="destructive"
               size="sm"
-              className="h-8 gap-1.5 text-xs px-3 shadow-sm font-medium"
+              className="h-8 gap-1.5 text-xs px-3 font-medium shadow-sm"
               onClick={onLeave}
               leadingIcon={<PhoneOff className="size-3.5" />}
             >
@@ -400,7 +399,7 @@ export function HuddleBar({
             <Button
               variant="destructive"
               size="sm"
-              className="h-8 gap-1.5 text-xs px-3 shadow-sm font-medium"
+              className="h-8 gap-1.5 text-xs px-3 font-medium shadow-sm"
               onClick={onLeave}
               disabled={busy}
               leadingIcon={<PhoneOff className="size-3.5" />}
@@ -411,7 +410,7 @@ export function HuddleBar({
         ) : (
           <Button
             size="sm"
-            className="h-8 gap-1.5 text-xs px-3 shadow-sm font-medium"
+            className="h-8 gap-1.5 text-xs px-3 font-medium shadow-sm"
             onClick={onJoin}
             disabled={busy}
             leadingIcon={<Headphones className="size-3.5" />}

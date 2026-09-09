@@ -93,13 +93,13 @@ export function MediaPreviewToolbar({
   return (
     <div
       className={cn(
-        'gap-3 px-3 sm:px-4 h-16 flex shrink-0 items-center justify-between border-b border-border/60 bg-popover text-popover-foreground',
+        'gap-3 px-3 sm:px-4 h-12 flex shrink-0 items-center justify-between border-b border-border/60 bg-popover text-popover-foreground',
         className,
       )}
     >
       {uploaderName ? (
         /* Uploader profile & file context */
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
           <UserAvatar
             name={uploaderName}
             src={uploaderAvatar}
@@ -107,13 +107,13 @@ export function MediaPreviewToolbar({
             presence={item.senderPresence}
             statusEmoji={item.senderStatusEmoji}
             statusText={item.senderStatusText}
-            size="md"
-            className="size-9 shrink-0 ring-1 ring-border/50"
+            size="sm"
+            className="size-7 shrink-0 ring-1 ring-border/50"
           />
 
           <div className="flex min-w-0 flex-1 flex-col justify-center">
             <div className="flex min-w-0 items-center gap-2">
-              <span className="truncate text-sm font-semibold leading-tight text-foreground">
+              <span className="truncate text-[13px] font-semibold leading-tight text-foreground">
                 {uploaderName}
               </span>
               {count > 1 ? (
@@ -123,7 +123,7 @@ export function MediaPreviewToolbar({
               ) : null}
             </div>
 
-            <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] leading-none text-muted-foreground">
+            <div className="flex min-w-0 items-center gap-1.5 text-[11px] leading-none text-muted-foreground">
               {relativeTime ? <span className="shrink-0">{relativeTime}</span> : null}
 
               {channelName ? (
@@ -161,8 +161,10 @@ export function MediaPreviewToolbar({
       ) : (
         <>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">{item.name}</p>
-            <p className="hidden text-[11px] text-muted-foreground sm:block">
+            <p className="truncate text-[13px] font-medium leading-tight text-foreground">
+              {item.name}
+            </p>
+            <p className="hidden text-[11px] leading-none text-muted-foreground sm:block">
               {describeItem(item)}
               {count > 1 ? ` • ${index + 1} / ${count}` : ''}
             </p>
