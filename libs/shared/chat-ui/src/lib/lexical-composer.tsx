@@ -209,6 +209,11 @@ export interface MentionCandidate {
   /** Group mentions (`@here`, `@channel`) are listed above people, AI agents and apps have distinct badges. */
   kind?: 'user' | 'group' | 'agent' | 'app';
   badge?: string;
+  /**
+   * The signed-in user. Tagged "you" in the menu and floated to the top of the
+   * people list so mentioning yourself is a first-class option.
+   */
+  isSelf?: boolean;
 }
 
 export interface LexicalComposerInputProps {
@@ -753,15 +758,38 @@ function MentionsPlugin({
 
   const options = useMemo(() => {
     const needle = (query ?? '').toLowerCase().trim();
-    return candidates
-      .filter(
-        (candidate) =>
-          !needle ||
-          candidate.name.toLowerCase().includes(needle) ||
-          candidate.subtitle?.toLowerCase().includes(needle),
-      )
-      .slice(0, 12)
-      .map((candidate) => new MentionMenuOption(candidate));
+    const matches = (candidate: MentionCandidate) =>
+      !needle ||
+      candidate.name.toLowerCase().includes(needle) ||
+      candidate.subtitle?.toLowerCase().includes(needle);
+
+    const inKind = (kind: 'group' | 'agent' | 'app' | 'user') =>
+      candidates.filter((candidate) =>
+        kind === 'user'
+          ? !candidate.kind || candidate.kind === 'user'
+          : candidate.kind === kind,
+      );
+
+    const groups = inKind('group').filter(matches);
+    const people = inKind('user').filter(matches);
+    const agents = inKind('agent').filter(matches);
+    const apps = inKind('app').filter(matches);
+
+    /*
+     * People are what most `@`s reach for, so they sit right below the group
+     * mentions and are never pushed out of view by a long agent/app roster — a
+     * flat "first 12 of everything" slice used to drop every channel member
+     * when the built-in agents and apps alone filled the list. Without a query
+     * each kind still shows a representative slice; with one, people get the
+     * widest berth and the bots stay a short list.
+     */
+    const [peopleCap, botCap] = needle ? [20, 8] : [8, 4];
+    return [
+      ...groups,
+      ...people.slice(0, peopleCap),
+      ...agents.slice(0, botCap),
+      ...apps.slice(0, botCap),
+    ].map((candidate) => new MentionMenuOption(candidate));
   }, [candidates, query]);
 
   const onSelectOption = useCallback(
@@ -853,6 +881,11 @@ function MentionsPlugin({
               <span className="min-w-0 flex-1">
                 <span className="gap-1.5 font-semibold flex items-center text-foreground">
                   <span className="truncate">@{option.candidate.name}</span>
+                  {option.candidate.isSelf ? (
+                    <span className="px-1 py-0 font-bold tracking-wider text-[9px] shrink-0 rounded bg-muted text-muted-foreground uppercase">
+                      You
+                    </span>
+                  ) : null}
                   {isAgent ? (
                     <Badge
                       variant="primary"
@@ -892,6 +925,13 @@ function MentionsPlugin({
             ) : null}
             {groups.map(renderOption)}
 
+            {people.length > 0 ? (
+              <li className="mt-1 px-2 py-1 font-bold text-[10px] text-subtle uppercase">
+                People — {people.length}
+              </li>
+            ) : null}
+            {people.map(renderOption)}
+
             {agents.length > 0 ? (
               <li className="mt-1 px-2 py-1 font-bold text-[10px] text-primary uppercase">
                 AI Agents — {agents.length}
@@ -905,13 +945,6 @@ function MentionsPlugin({
               </li>
             ) : null}
             {apps.map(renderOption)}
-
-            {people.length > 0 ? (
-              <li className="mt-1 px-2 py-1 font-bold text-[10px] text-subtle uppercase">
-                People — {people.length}
-              </li>
-            ) : null}
-            {people.map(renderOption)}
           </MenuShell>,
           anchorRef.current,
         );

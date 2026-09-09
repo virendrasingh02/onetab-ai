@@ -238,6 +238,12 @@ export interface ComposerProps {
   onAttach?: (files: FileList) => void;
   conversationId?: string | null;
   members?: RoomMember[];
+  /**
+   * The signed-in user's id. When it matches one of `members`, that entry is
+   * tagged "you" and floated to the top of the `@` menu's people list so
+   * mentioning yourself is an obvious, first-class option.
+   */
+  currentUserId?: string;
   agentMentions?: MentionCandidate[];
   appMentions?: MentionCandidate[];
   placeholder?: string;
@@ -289,6 +295,7 @@ export function Composer({
   onAttach,
   conversationId,
   members = [],
+  currentUserId,
   agentMentions,
   appMentions,
   placeholder = 'Message channel…',
@@ -441,20 +448,25 @@ export function Composer({
 
   const canSend = hasContent || attachments.length > 0;
 
-  const mentionCandidates = useMemo<MentionCandidate[]>(
-    () => [
+  const mentionCandidates = useMemo<MentionCandidate[]>(() => {
+    const people: MentionCandidate[] = members.map((member) => ({
+      id: member.userId,
+      name: member.displayName,
+      avatarUrl: member.avatarUrl,
+      kind: 'user' as const,
+      isSelf: !!currentUserId && member.userId === currentUserId,
+    }));
+    // "You" leads the roster — mentioning yourself (a note, a task you're
+    // claiming) shouldn't mean scrolling the whole member list to find it.
+    people.sort((a, b) => Number(b.isSelf ?? false) - Number(a.isSelf ?? false));
+
+    return [
       ...GROUP_MENTIONS,
+      ...people,
       ...(agentMentions ?? DEFAULT_AI_AGENT_MENTIONS),
       ...(appMentions ?? DEFAULT_APP_MENTIONS),
-      ...members.map((member) => ({
-        id: member.userId,
-        name: member.displayName,
-        avatarUrl: member.avatarUrl,
-        kind: 'user' as const,
-      })),
-    ],
-    [members, agentMentions, appMentions],
-  );
+    ];
+  }, [members, currentUserId, agentMentions, appMentions]);
 
   const handleSelectGif = (gif: { url: string; title: string }) => {
     void onSend(`![${gif.title || 'GIF'}](${gif.url})`);

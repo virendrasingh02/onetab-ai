@@ -996,6 +996,7 @@ export function ChatSurface({
                           : null
                       }
                       members={members}
+                      currentUserId={myUserId}
                       showFormatting={false}
                       placeholder="Reply in thread…"
                       onSend={(body) => onSend(body, threadRoot.id)}
@@ -1085,6 +1086,7 @@ export function ChatSurface({
           <Composer
             conversationId={conversationId}
             members={members}
+            currentUserId={myUserId}
             onTyping={onTyping}
             onAttach={onAttach ? (files) => void onAttach(files) : undefined}
             placeholder={editing ? 'Edit your message…' : `Message ${title}`}
