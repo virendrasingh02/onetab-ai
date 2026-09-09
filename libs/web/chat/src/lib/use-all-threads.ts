@@ -2,6 +2,12 @@ import type { Message, Room, RoomKind } from '@org/matrix-client';
 import { useCallback, useEffect, useState } from 'react';
 import { useMatrix } from './matrix-provider.js';
 
+export interface ThreadParticipant {
+  userId: string;
+  name: string;
+  avatarUrl?: string;
+}
+
 export interface CrossRoomThread {
   /** The thread root's event id — unique across rooms. */
   id: string;
@@ -16,6 +22,8 @@ export interface CrossRoomThread {
   replyCount: number;
   lastReplyAt: number | undefined;
   hasUnread: boolean;
+  /** Everyone who has posted in the thread, for an avatar stack. */
+  participants: ThreadParticipant[];
 }
 
 /**
@@ -46,6 +54,9 @@ export function useAllThreads() {
           .getTimeline(room.id)
           .messages.map((message) => [message.id, message]),
       );
+      const memberById = new Map(
+        client.getMembers(room.id).map((member) => [member.userId, member]),
+      );
 
       for (const thread of client.getThreads(room.id)) {
         const root = byId.get(thread.rootId) ?? null;
@@ -61,6 +72,14 @@ export function useAllThreads() {
           replyCount: thread.replyCount,
           lastReplyAt: thread.latestReplyAt,
           hasUnread: thread.hasUnread,
+          participants: thread.participantIds.slice(0, 5).map((userId) => {
+            const member = memberById.get(userId);
+            return {
+              userId,
+              name: member?.displayName ?? userId,
+              avatarUrl: member?.avatarUrl,
+            };
+          }),
         });
       }
     }

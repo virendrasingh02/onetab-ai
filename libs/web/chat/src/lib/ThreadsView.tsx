@@ -1,5 +1,6 @@
 import { channelApi, queryKeys } from '@org/api-client';
-import { useQuery } from '@tanstack/react-query';
+import { Composer, MarkdownMessage } from '@org/chat-ui';
+import type { Message } from '@org/matrix-client';
 import {
   Badge,
   Button,
@@ -11,103 +12,339 @@ import {
   TabsTrigger,
   UserAvatar,
 } from '@org/ui';
-import { formatRelative } from '@org/utils';
+import { cn, formatListTimestamp, formatRelative } from '@org/utils';
 import { useCurrentWorkspace } from '@org/web-workspace';
-import { Hash, MessagesSquare, Reply } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import {
+  ArrowUpRight,
+  ChevronDown,
+  Hash,
+  MessagesSquare,
+  Paperclip,
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useMatrix } from './matrix-provider.js';
 import { useAllThreads, type CrossRoomThread } from './use-all-threads.js';
+import { useRoomActions, useRoomSummary } from './use-chat.js';
+import { useThreadConversation } from './use-thread-conversation.js';
 
-function ThreadCard({
+/** The route that opens this thread in its own conversation. */
+function useChannelLink(
+  thread: CrossRoomThread,
+  workspaceSlug: string | undefined,
+  channelSlugByName?: Map<string, string>,
+) {
+  return useMemo(() => {
+    if (thread.roomKind === 'channel') {
+      const slug =
+        channelSlugByName?.get(thread.roomName?.toLowerCase() ?? '') ||
+        thread.roomName?.toLowerCase().replace(/[^a-z0-9-_]/g, '-') ||
+        'general';
+      return `/w/${workspaceSlug}/c/${slug}?thread=${thread.id}`;
+    }
+    if (thread.roomKind === 'group') {
+      return `/w/${workspaceSlug}/dms?room=${thread.roomId}&thread=${thread.id}`;
+    }
+    return `/w/${workspaceSlug}/dms`;
+  }, [thread, workspaceSlug, channelSlugByName]);
+}
+
+/* --- one message row inside an opened thread ----------------------------- */
+
+function ThreadMessage({
+  message,
+  isOwn,
+  mentionNames,
+}: {
+  message: Message;
+  isOwn: boolean;
+  mentionNames: string[];
+}) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <UserAvatar
+        name={message.senderName}
+        src={message.senderAvatarUrl}
+        seed={message.senderId}
+        size="sm"
+        indicator={false}
+      />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-2">
+          <span className="text-xs font-semibold text-foreground">
+            {message.senderName}
+          </span>
+          {isOwn ? (
+            <span className="text-[10px] font-normal text-subtle">you</span>
+          ) : null}
+          <span className="shrink-0 text-[10px] text-subtle">
+            {formatListTimestamp(message.timestamp)}
+          </span>
+          {message.sendState === 'sending' ? (
+            <span className="text-[10px] text-subtle">sending…</span>
+          ) : null}
+          {message.sendState === 'failed' ? (
+            <span className="text-[10px] font-medium text-destructive">
+              failed to send
+            </span>
+          ) : null}
+        </div>
+
+        {message.isRedacted ? (
+          <p className="mt-0.5 text-[13px] italic text-subtle">
+            This message was deleted.
+          </p>
+        ) : message.body ? (
+          <MarkdownMessage
+            text={message.body}
+            mentionNames={mentionNames}
+            className="mt-0.5"
+          />
+        ) : null}
+
+        {message.attachment ? (
+          <a
+            href={message.attachment.url}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-1 inline-flex max-w-full items-center gap-1 text-xs text-primary-text hover:underline"
+          >
+            <Paperclip className="size-3 shrink-0" aria-hidden />
+            <span className="truncate">{message.attachment.name}</span>
+          </a>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/* --- an opened thread: root, replies, and a live reply box -------------- */
+
+function ThreadDetail({
   thread,
+  channelLink,
+}: {
+  thread: CrossRoomThread;
+  channelLink: string;
+}) {
+  const { client } = useMatrix();
+  const { members } = useRoomSummary(thread.roomId);
+  const actions = useRoomActions(thread.roomId);
+  const { messages, isLoading, send, markRead } = useThreadConversation(
+    thread.roomId,
+    thread.id,
+  );
+
+  const myUserId = client?.getSession()?.userId;
+
+  // Opening an unread thread catches its read marker up to the latest reply.
+  useEffect(() => {
+    if (thread.hasUnread) markRead();
+  }, [markRead, thread.hasUnread]);
+
+  const rootMessage =
+    thread.root ?? messages.find((message) => message.id === thread.id) ?? null;
+  const replies = useMemo(
+    () => messages.filter((message) => message.id !== thread.id),
+    [messages, thread.id],
+  );
+  const mentionNames = useMemo(
+    () => members.map((member) => member.displayName),
+    [members],
+  );
+
+  const roomLabel =
+    thread.roomKind === 'channel'
+      ? `#${thread.roomName}`
+      : thread.roomKind === 'group'
+        ? thread.roomName
+        : 'conversation';
+
+  return (
+    <div className="border-t border-border bg-muted/30">
+      {rootMessage ? (
+        <div className="px-3 py-3 sm:px-4">
+          <ThreadMessage
+            message={rootMessage}
+            isOwn={rootMessage.senderId === myUserId}
+            mentionNames={mentionNames}
+          />
+        </div>
+      ) : null}
+
+      <div className="px-3 sm:px-4">
+        <div className="flex items-center gap-2 py-1 text-[11px] font-medium text-muted-foreground">
+          <span className="h-px flex-1 bg-border" aria-hidden />
+          <span>
+            {isLoading
+              ? 'Loading replies…'
+              : replies.length === 0
+                ? 'No replies yet'
+                : `${replies.length} ${replies.length === 1 ? 'reply' : 'replies'}`}
+          </span>
+          <span className="h-px flex-1 bg-border" aria-hidden />
+        </div>
+
+        {!isLoading && replies.length === 0 ? (
+          <p className="pb-3 text-xs text-subtle">
+            Be the first to reply — your message stays in this thread.
+          </p>
+        ) : (
+          <ul className="space-y-3 pb-3">
+            {replies.map((reply) => (
+              <li key={reply.id}>
+                <ThreadMessage
+                  message={reply}
+                  isOwn={reply.senderId === myUserId}
+                  mentionNames={mentionNames}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="border-t border-border bg-card px-2 py-2">
+        <Composer
+          onSend={send}
+          onTyping={actions.setTyping}
+          onAttach={(files) => void actions.attach(files, thread.id)}
+          conversationId={`thread:${thread.id}`}
+          members={members}
+          currentUserId={myUserId}
+          placeholder={`Reply in ${roomLabel}…`}
+          showFormatting={false}
+        />
+        <div className="flex justify-end px-1 pt-1">
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+          >
+            <Link to={channelLink}>
+              <span>Open in {roomLabel}</span>
+              <ArrowUpRight className="size-3.5" aria-hidden />
+            </Link>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* --- collapsed thread summary ----------------------------------------------- */
+
+function ThreadRow({
+  thread,
+  open,
+  onToggle,
   workspaceSlug,
   channelSlugByName,
 }: {
   thread: CrossRoomThread;
+  open: boolean;
+  onToggle: (id: string) => void;
   workspaceSlug?: string;
-  /** Lower-cased channel name → real slug, so the link is not a guess. */
   channelSlugByName?: Map<string, string>;
 }) {
   const isChannel = thread.roomKind === 'channel';
-  const channelSlug =
-    channelSlugByName?.get(thread.roomName?.toLowerCase() ?? '') ||
-    thread.roomName?.toLowerCase().replace(/[^a-z0-9-_]/g, '-') ||
-    'general';
-
-  /* Opening the room with `?thread=` lands on the conversation with this thread
-     already open — see `ChatPanel`. A 1:1 DM has no room-addressable route, so
-     it falls back to the DM home. */
-  const channelLink = isChannel
-    ? `/w/${workspaceSlug}/c/${channelSlug}?thread=${thread.id}`
-    : thread.roomKind === 'group'
-      ? `/w/${workspaceSlug}/dms?room=${thread.roomId}&thread=${thread.id}`
-      : `/w/${workspaceSlug}/dms`;
+  const channelLink = useChannelLink(thread, workspaceSlug, channelSlugByName);
 
   return (
     <li>
-      <Card className="p-4 gap-4 group flex items-start justify-between bg-surface transition-colors hover:border-border-strong">
-        <div className="gap-3 min-w-0 flex flex-1 items-start">
+      <Card
+        className={cn(
+          'gap-0 overflow-hidden p-0 bg-card transition-colors',
+          open ? 'border-border-strong' : 'hover:border-border-strong',
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => onToggle(thread.id)}
+          aria-expanded={open}
+          className="flex w-full items-start gap-3 p-3 text-left outline-none focus-visible:bg-muted/40 sm:p-4"
+        >
           <UserAvatar
             name={thread.authorName}
             src={thread.root?.senderAvatarUrl}
             seed={thread.root?.senderId ?? thread.id}
+            size="md"
+            indicator={false}
           />
 
           <div className="min-w-0 flex-1">
-            <div className="gap-2 flex flex-wrap items-center">
-              <span className="text-xs font-semibold text-foreground">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="truncate text-sm font-semibold text-foreground">
                 {thread.authorName}
               </span>
-              <Link
-                to={channelLink}
-                className="gap-1 font-medium inline-flex items-center text-[11px] text-muted-foreground hover:text-foreground"
-              >
-                <Badge
-                  variant="outline"
-                  className="gap-1 py-0 h-5 text-[11px]"
-                >
-                  {isChannel ? (
-                    <Hash className="size-3" aria-hidden />
-                  ) : (
-                    <MessagesSquare className="size-3" aria-hidden />
-                  )}
-                  {thread.roomName}
-                </Badge>
-              </Link>
+              <span className="inline-flex h-5 items-center gap-1 rounded-md border border-border bg-muted/60 px-1.5 text-[11px] font-medium text-muted-foreground">
+                {isChannel ? (
+                  <Hash className="size-3 shrink-0" aria-hidden />
+                ) : (
+                  <MessagesSquare className="size-3 shrink-0" aria-hidden />
+                )}
+                <span className="max-w-[16ch] truncate">{thread.roomName}</span>
+              </span>
               {thread.hasUnread ? (
-                <Badge variant="primary" className="py-0 h-4 text-[10px]">
+                <Badge variant="primary" className="h-4 py-0 text-[10px]">
                   Unread
                 </Badge>
               ) : null}
               {thread.lastReplyAt ? (
-                <span className="font-mono text-[11px] text-muted-foreground">
-                  · last reply{' '}
+                <span className="ml-auto shrink-0 font-mono text-[11px] text-subtle">
                   {formatRelative(new Date(thread.lastReplyAt).toISOString())}
                 </span>
               ) : null}
             </div>
 
-            <p className="mt-2 text-xs sm:text-sm font-medium leading-relaxed line-clamp-2 text-foreground">
+            <p
+              className={cn(
+                'mt-1.5 text-sm leading-relaxed text-foreground',
+                !open && 'line-clamp-2',
+              )}
+            >
               {thread.title}
             </p>
-            <p className="mt-1.5 font-mono text-[10px] text-subtle">
-              {thread.replyCount}{' '}
-              {thread.replyCount === 1 ? 'reply' : 'replies'} in conversation
-            </p>
-          </div>
-        </div>
 
-        <Button
-          asChild
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1.5 text-xs shrink-0"
-        >
-          <Link to={channelLink}>
-            <Reply className="size-3.5" />
-            <span>Reply</span>
-          </Link>
-        </Button>
+            <div className="mt-2 flex items-center gap-2">
+              {thread.participants.length > 0 ? (
+                <span className="flex items-center -space-x-1.5">
+                  {thread.participants.slice(0, 3).map((participant) => (
+                    <UserAvatar
+                      key={participant.userId}
+                      name={participant.name}
+                      src={participant.avatarUrl}
+                      seed={participant.userId}
+                      size="xs"
+                      indicator={false}
+                      className="ring-2 ring-card"
+                    />
+                  ))}
+                </span>
+              ) : null}
+              <span className="text-xs font-medium text-primary-text">
+                {thread.replyCount}{' '}
+                {thread.replyCount === 1 ? 'reply' : 'replies'}
+              </span>
+              <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+                {open ? 'Hide thread' : 'Open & reply'}
+                <ChevronDown
+                  className={cn(
+                    'size-3.5 transition-transform',
+                    open && 'rotate-180',
+                  )}
+                  aria-hidden
+                />
+              </span>
+            </div>
+          </div>
+        </button>
+
+        {open ? (
+          <ThreadDetail thread={thread} channelLink={channelLink} />
+        ) : null}
       </Card>
     </li>
   );
@@ -138,6 +375,8 @@ function ThreadList({
   items,
   isLoading,
   emptyDescription,
+  openIds,
+  onToggle,
   workspaceSlug,
   firstChannelSlug,
   channelSlugByName,
@@ -145,6 +384,8 @@ function ThreadList({
   items: CrossRoomThread[];
   isLoading: boolean;
   emptyDescription: string;
+  openIds: ReadonlySet<string>;
+  onToggle: (id: string) => void;
   workspaceSlug?: string;
   firstChannelSlug?: string;
   channelSlugByName?: Map<string, string>;
@@ -189,18 +430,20 @@ function ThreadList({
         const Icon = group.icon;
         return (
           <section key={group.key}>
-            <h3 className="mb-2.5 gap-1.5 px-0.5 flex items-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <h3 className="mb-2.5 flex items-center gap-1.5 px-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               <Icon className="size-3.5" aria-hidden />
               <span>{group.label}</span>
-              <Badge variant="neutral" className="px-1.5 py-0 h-4 text-[10px]">
+              <Badge variant="neutral" className="h-4 px-1.5 py-0 text-[10px]">
                 {group.items.length}
               </Badge>
             </h3>
             <ul className="space-y-2.5">
               {group.items.map((thread) => (
-                <ThreadCard
+                <ThreadRow
                   key={thread.id}
                   thread={thread}
+                  open={openIds.has(thread.id)}
+                  onToggle={onToggle}
                   workspaceSlug={workspaceSlug}
                   channelSlugByName={channelSlugByName}
                 />
@@ -214,11 +457,17 @@ function ThreadList({
 }
 
 /**
- * Every thread the reader can see, across rooms, in one place.
+ * Every thread the reader can see, across rooms, in one place — each one
+ * openable inline with its replies and a live reply box, so following up never
+ * means leaving this page.
  */
 export function ThreadsView() {
   const [tab, setTab] = useState('all');
+  const [openIds, setOpenIds] = useState<ReadonlySet<string>>(
+    () => new Set<string>(),
+  );
   const { slug, workspaceId } = useCurrentWorkspace();
+
   const channelsQuery = useQuery({
     queryKey: queryKeys.channels.list(workspaceId ?? '', false),
     queryFn: () => channelApi.list(workspaceId as string, false),
@@ -226,6 +475,15 @@ export function ThreadsView() {
     staleTime: 30_000,
   });
   const { threads, isLoading } = useAllThreads();
+
+  const toggle = useCallback((id: string) => {
+    setOpenIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   const unread = useMemo(
     () => threads.filter((thread) => thread.hasUnread),
@@ -247,62 +505,48 @@ export function ThreadsView() {
   const firstChannel = channelsQuery.data?.[0]?.slug ?? 'general';
 
   return (
-    <div className="min-h-0 flex flex-1 flex-col">
-      {/* Channel-style Header (Inbox & Saved style) */}
-      <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
-        <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
-          <div className="min-w-0 gap-2 flex items-center">
-            <div className="min-w-0 gap-1.5 flex items-center">
-              <MessagesSquare
-                className="size-4 shrink-0 text-muted-foreground"
-                aria-hidden
-              />
-              <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
-                Threads
-              </h2>
-              {/* <Badge
-                variant={threads.length > 0 ? 'primary' : 'neutral'}
-                className="px-1.5 py-0 h-4.5 text-[11px]"
+    <div className="flex min-h-0 flex-1 flex-col bg-background text-foreground">
+      <div className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/95 backdrop-blur-md">
+        <div className="flex min-h-12 flex-wrap items-center justify-between gap-2.5 px-3 py-1.5 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2">
+            <MessagesSquare
+              className="size-4 shrink-0 text-primary"
+              aria-hidden
+            />
+            <h2 className="truncate text-sm font-semibold tracking-tight text-foreground">
+              Threads
+            </h2>
+            <Badge variant="outline" className="h-5 px-1.5 py-0 text-[11px]">
+              {threads.length}
+            </Badge>
+          </div>
+
+          <Tabs value={tab} onValueChange={setTab} className="h-7">
+            <TabsList className="h-7 p-0.5">
+              <TabsTrigger value="all" className="h-6 px-2.5 text-xs">
+                All
+              </TabsTrigger>
+              <TabsTrigger
+                value="unread"
+                className="h-6 gap-1 px-2.5 text-xs"
               >
-                {threads.length > 0 ? `${threads.length} threads` : '0 threads'}
-              </Badge> */}
-            </div>
-
-            {/* <div className="h-4 mx-1 sm:block hidden w-px bg-border" />
-
-            <p className="min-w-0 text-xs sm:block hidden max-w-[48ch] truncate text-muted-foreground">
-              Follow-up conversations from every channel you are in
-            </p> */}
-          </div>
-
-          <div className="gap-2 flex items-center">
-            <Tabs value={tab} onValueChange={setTab} className="h-7">
-              <TabsList className="h-7 p-0.5">
-                <TabsTrigger value="all" className="h-6 px-2.5 text-xs">
-                  All
-                </TabsTrigger>
-                <TabsTrigger
-                  value="unread"
-                  className="h-6 px-2.5 text-xs gap-1"
-                >
-                  <span>Unread</span>
-                  {unread.length > 0 ? (
-                    <Badge
-                      variant="neutral"
-                      className="px-1 py-0 h-3.5 text-[10px]"
-                    >
-                      {unread.length}
-                    </Badge>
-                  ) : null}
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
+                <span>Unread</span>
+                {unread.length > 0 ? (
+                  <Badge
+                    variant="neutral"
+                    className="h-3.5 px-1 py-0 text-[10px]"
+                  >
+                    {unread.length}
+                  </Badge>
+                ) : null}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
       </div>
 
-      <div className="min-h-0 p-3 sm:p-6 flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-6">
+        <div className="mx-auto max-w-3xl">
           <ThreadList
             items={activeThreads}
             isLoading={isLoading}
@@ -311,6 +555,8 @@ export function ThreadsView() {
                 ? 'You are caught up on every thread.'
                 : 'Reply in a thread from any channel and it will collect here.'
             }
+            openIds={openIds}
+            onToggle={toggle}
             workspaceSlug={slug}
             firstChannelSlug={firstChannel}
             channelSlugByName={channelSlugByName}

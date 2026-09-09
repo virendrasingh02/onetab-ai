@@ -43,7 +43,15 @@ export {
   GroupConversation,
   type GroupConversationProps,
 } from './lib/GroupConversation.js';
-export { useAllThreads, type CrossRoomThread } from './lib/use-all-threads.js';
+export {
+  useAllThreads,
+  type CrossRoomThread,
+  type ThreadParticipant,
+} from './lib/use-all-threads.js';
+export {
+  useThreadConversation,
+  type ThreadConversation,
+} from './lib/use-thread-conversation.js';
 export {
   useWorkspaceRoomFiles,
   type RoomFile,
