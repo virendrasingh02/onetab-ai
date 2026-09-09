@@ -21,10 +21,11 @@ import { formatRelative } from '@org/utils';
 import {
   useCurrentWorkspace,
   useWorkspacePermission,
+  useWorkspaceStore,
+  type WorkspaceState,
 } from '@org/web-workspace';
 import { MoreHorizontal, UserPlus, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useMemberMutations, useMembers } from '../use-members.js';
 
 const ROLE_BADGE: Record<string, 'primary' | 'info' | 'neutral'> = {
@@ -35,13 +36,15 @@ const ROLE_BADGE: Record<string, 'primary' | 'info' | 'neutral'> = {
 };
 
 export function MembersPage() {
-  const { slug, workspaceId } = useCurrentWorkspace();
+  const { workspaceId } = useCurrentWorkspace();
   const members = useMembers(workspaceId);
   const { updateRole, remove } = useMemberMutations(workspaceId);
   const currentUser = useCurrentUser();
   const presenceMap = useUserPresenceMap();
   const openProfilePanel = useRightPanelStore((s) => s.openProfile);
-  const navigate = useNavigate();
+  const setInviteMembersOpen = useWorkspaceStore(
+    (s: WorkspaceState) => s.setInviteMembersOpen,
+  );
   const [query, setQuery] = useState('');
 
   // Asks for the capability rather than comparing role rungs, so this agrees
@@ -93,7 +96,7 @@ export function MembersPage() {
             />
             {canManage ? (
               <Button
-                onClick={() => navigate(`/w/${slug}/invitations`)}
+                onClick={() => setInviteMembersOpen(true)}
                 size="sm"
                 className="h-7 text-xs gap-1"
                 leadingIcon={<UserPlus className="size-3.5" />}

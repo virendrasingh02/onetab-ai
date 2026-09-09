@@ -14,6 +14,8 @@ import { formatRelative } from '@org/utils';
 import {
   useCurrentWorkspace,
   useWorkspacePermission,
+  useWorkspaceStore,
+  type WorkspaceState,
 } from '@org/web-workspace';
 import { WorkspacePermission, type Invitation } from '@org/types';
 import {
@@ -47,10 +49,24 @@ const STATUS_BADGES: Record<
   REVOKED: { variant: 'destructive', label: 'Revoked' },
 };
 
-export function InvitationsPage() {
+export interface InvitationsPageProps {
+  /**
+   * Rendered inside the workspace-settings surface rather than as its own
+   * routed page. Drops the page chrome — the header bar, the outer scroll
+   * container, the width cap — so the content flows in the settings column,
+   * and routes "Invite People" through the app-wide invite dialog the settings
+   * surface already mounts instead of a second local one.
+   */
+  embedded?: boolean;
+}
+
+export function InvitationsPage({ embedded = false }: InvitationsPageProps = {}) {
   const { workspace, workspaceId } = useCurrentWorkspace();
   const { can } = useWorkspacePermission();
   const canManage = can(WorkspacePermission.MANAGE_MEMBERS);
+  const setInviteMembersOpen = useWorkspaceStore(
+    (s: WorkspaceState) => s.setInviteMembersOpen,
+  );
 
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [scopeFilter, setScopeFilter] = useState<string>('ALL');
@@ -64,6 +80,16 @@ export function InvitationsPage() {
    * this map is the only place it lives after issue time.
    */
   const [sessionTokens, setSessionTokens] = useState<Record<string, string>>({});
+
+  /*
+   * Embedded in workspace settings, "Invite People" opens the one app-wide
+   * invite dialog (already mounted by the settings surface); standalone, it
+   * toggles this page's own local dialog.
+   */
+  const openInvite = () => {
+    if (embedded) setInviteMembersOpen(true);
+    else setIsInviteDialogOpen(true);
+  };
 
   // Queries
   const invitationsQuery = useInvitations(workspaceId, {
@@ -150,8 +176,9 @@ export function InvitationsPage() {
   );
 
   return (
-    <div className="min-h-0 flex flex-1 flex-col">
-      {/* Header */}
+    <div className={embedded ? undefined : 'min-h-0 flex flex-1 flex-col'}>
+      {/* Header — the settings surface renders its own, so skip it there. */}
+      {!embedded && (
       <div className="border-b border-border bg-background">
         <div className="gap-3 px-4 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
           <div className="min-w-0 gap-2 flex items-center">
@@ -177,7 +204,7 @@ export function InvitationsPage() {
             <Button
               variant="primary"
               size="sm"
-              onClick={() => setIsInviteDialogOpen(true)}
+              onClick={openInvite}
               className="text-xs font-semibold h-8"
               leadingIcon={<MailPlus className="size-3.5" />}
             >
@@ -186,10 +213,17 @@ export function InvitationsPage() {
           )}
         </div>
       </div>
+      )}
 
       {/* Main Body */}
-      <div className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto space-y-5">
-        <div className="max-w-5xl mx-auto space-y-5">
+      <div
+        className={
+          embedded
+            ? undefined
+            : 'min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto space-y-5'
+        }
+      >
+        <div className={embedded ? 'space-y-5' : 'max-w-5xl mx-auto space-y-5'}>
           {/* Feedback Toast */}
           {feedbackToast && (
             <div className="flex items-center gap-2 rounded-xl border border-success/30 bg-success/10 p-3 text-xs text-success-text shadow-xs">
@@ -288,11 +322,7 @@ export function InvitationsPage() {
               }
               action={
                 canManage ? (
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={() => setIsInviteDialogOpen(true)}
-                  >
+                  <Button size="sm" variant="primary" onClick={openInvite}>
                     Invite Team Members
                   </Button>
                 ) : undefined
@@ -404,10 +434,13 @@ export function InvitationsPage() {
         </div>
       </div>
 
-      <InviteMembersDialog
-        open={isInviteDialogOpen}
-        onOpenChange={setIsInviteDialogOpen}
-      />
+      {/* Standalone only: settings mounts the app-wide invite dialog itself. */}
+      {!embedded && (
+        <InviteMembersDialog
+          open={isInviteDialogOpen}
+          onOpenChange={setIsInviteDialogOpen}
+        />
+      )}
     </div>
   );
 }

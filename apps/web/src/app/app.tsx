@@ -115,6 +115,7 @@ function WorkspaceSettings() {
         kanbanPanel={<WorkspaceKanbanSettings />}
         themePanel={<ThemeSettings />}
         profilePanel={<ProfileSettingsPanel />}
+        invitationsPanel={<InvitationsPage embedded />}
       />
       {/* The settings surface renders outside AppShell, so it needs its own
           mount of the app-wide invite dialog for the Members "Invite" buttons. */}
@@ -308,6 +309,10 @@ export function App() {
             element={<WorkspaceSettings />}
           />
           <Route
+            path="/w/:workspaceSlug/invitations"
+            element={<LegacySettingsRedirect section="invitations" />}
+          />
+          <Route
             path="/w/:workspaceSlug/import-export"
             element={<LegacySettingsRedirect section="import-export" />}
           />
@@ -347,7 +352,6 @@ export function App() {
             <Route path="members" element={<MembersPage />} />
             {/* The sidebar calls the member list "Directory". */}
             <Route path="directory" element={<MembersPage />} />
-            <Route path="invitations" element={<InvitationsPage />} />
             <Route path="inbox" element={<InboxView />} />
             <Route path="schedule" element={<ScheduleView />} />
             <Route path="tasks" element={<AsanaProjectManager />} />

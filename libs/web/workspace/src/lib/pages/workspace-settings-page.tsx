@@ -168,6 +168,8 @@ export interface WorkspaceSettingsPageProps {
   themePanel?: ReactNode;
   /** The full profile panel, from `@org/web-profile`. */
   profilePanel?: ReactNode;
+  /** The invitations & access-links manager, from `@org/web-invitations`. */
+  invitationsPanel?: ReactNode;
 }
 
 export function WorkspaceSettingsPage({
@@ -175,6 +177,7 @@ export function WorkspaceSettingsPage({
   kanbanPanel,
   themePanel,
   profilePanel,
+  invitationsPanel,
 }: WorkspaceSettingsPageProps = {}) {
   const { workspace, workspaceId, isLoading } = useCurrentWorkspace();
   const updateWorkspace = useUpdateWorkspace(workspaceId);
@@ -270,8 +273,6 @@ export function WorkspaceSettingsPage({
     // The workspace-branding editor was removed; stale links land on the
     // personal Appearance section, which covers theme for this workspace.
     'workspace-appearance': 'appearance',
-    // Members & Invitations are one section now.
-    invitations: 'members',
     plans: 'billing',
     'timezone-region': 'profile',
     'focus-status': 'profile',
@@ -3119,6 +3120,21 @@ export function WorkspaceSettingsPage({
           workspaceRole={workspace?.role}
           onNavigateToTab={handleTabChange}
         />
+      )}
+
+      {currentTab === 'invitations' && (
+        <div className="space-y-8">
+          <SettingsSectionHeader
+            title={<>Invitations &amp; Access</>}
+            description={
+              <>
+                Track pending invitations, resend or revoke them, and manage
+                shareable access links for {workspace?.name ?? 'this workspace'}.
+              </>
+            }
+          />
+          {invitationsPanel}
+        </div>
       )}
 
       {(currentTab === 'billing' || currentTab === 'plans') && (

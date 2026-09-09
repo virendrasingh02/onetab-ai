@@ -31,6 +31,7 @@ import {
   Globe,
   Kanban,
   Key,
+  Mail,
   MessageSquare,
   Palette,
   Plug,
@@ -91,7 +92,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: 'general', label: 'General Settings', icon: Building2, keywords: 'name slug url logo' },
       { id: 'appearance', label: 'Appearance & Preferences', icon: Palette, keywords: 'theme dark light font density branding accent' },
-      { id: 'members', label: 'Members', icon: Users, keywords: 'people roles admins directory invite invitations link join pending' },
+      { id: 'members', label: 'Members', icon: Users, keywords: 'people roles admins directory' },
+      { id: 'invitations', label: 'Invitations & Access', icon: Mail, keywords: 'invite invitations shareable link join pending resend revoke access email' },
       { id: 'import-export', label: 'Import & Export', icon: UploadCloud, keywords: 'migrate backup data slack' },
       { id: 'danger', label: 'Danger Zone', icon: AlertTriangle, keywords: 'delete archive transfer' },
     ],

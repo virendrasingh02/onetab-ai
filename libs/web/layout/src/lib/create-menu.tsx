@@ -483,7 +483,7 @@ export function SidebarFooterActions({
               if (onOpenInvite) {
                 onOpenInvite();
               } else {
-                navigate(`/w/${workspaceSlug}/invitations`);
+                navigate(`/w/${workspaceSlug}/settings/invitations`);
               }
             }}
             className="gap-3 px-2.5 py-2 flex cursor-pointer items-center"
