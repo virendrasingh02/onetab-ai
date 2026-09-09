@@ -5,11 +5,7 @@ import {
   type ActionExecutionContext,
   type ActionExecutionResult,
 } from '@org/chat-ui';
-import type {
-  Message,
-  StructuredChatMessage,
-  StructuredMessageAction,
-} from '@org/matrix-client';
+import type { Message, StructuredMessageAction } from '@org/matrix-client';
 import { useReadReceipts } from '@org/common';
 import { Button, EmptyState, toast, useRightPanelStore } from '@org/ui';
 import { MessageSquareOff } from 'lucide-react';
@@ -509,22 +505,6 @@ export function ChatPanel({
     [client, roomId, workspaceId],
   );
 
-  const handleSendCard = useCallback(
-    async (cardId: string, version: number, data: Record<string, unknown>) => {
-      if (!client || !roomId) return;
-      const cardMessage: StructuredChatMessage = {
-        type: 'mie.card',
-        cardId,
-        version,
-        data,
-      };
-      await client.sendStructuredMessage(roomId, cardMessage, {
-        fallbackBody: `[Universal Card: ${cardId} (v${version})]`,
-      });
-    },
-    [client, roomId],
-  );
-
   const handleRetryAgent = useCallback(
     async (message: Message) => {
       if (!client || !roomId) return;
@@ -672,7 +652,6 @@ export function ChatPanel({
       onViewContext={handleViewContext}
       onAction={handleAction}
       onRetryAgent={handleRetryAgent}
-      onSendCard={handleSendCard}
       composerReadOnlyMessage={composerReadOnlyMessage}
       anonymousPosting={anonymousPosting}
     />

@@ -237,11 +237,6 @@ export interface ChatSurfaceProps {
     action: StructuredMessageAction,
   ) => void | Promise<void>;
   onRetryAgent?: (message: Message) => void | Promise<void>;
-  onSendCard?: (
-    cardId: string,
-    version: number,
-    data: Record<string, unknown>,
-  ) => void | Promise<void>;
   /**
    * When set, the main composer is replaced by a read-only notice — the viewer
    * cannot post here (an announcement channel, brief §3).
@@ -323,7 +318,6 @@ export function ChatSurface({
   onSchedule,
   onAction,
   onRetryAgent,
-  onSendCard,
   composerReadOnlyMessage,
   anonymousPosting,
 }: ChatSurfaceProps) {
@@ -1093,7 +1087,6 @@ export function ChatSurface({
             readOnlyMessage={editing ? undefined : composerReadOnlyMessage}
             anonymousPosting={editing ? undefined : anonymousPosting}
             onSchedule={onSchedule}
-            onSendCard={onSendCard}
             contextSlot={
               editing ? (
                 <div className="mb-2 gap-2 px-2 py-1 text-xs flex items-center rounded-md bg-muted">

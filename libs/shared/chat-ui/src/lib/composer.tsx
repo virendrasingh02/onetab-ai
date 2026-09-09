@@ -16,7 +16,6 @@ import {
   Clock,
   File as FileIcon,
   Film,
-  LayoutGrid,
   Lock,
   Plus,
   Send,
@@ -36,7 +35,6 @@ import {
   type ReactNode,
 } from 'react';
 import { useDraftsStore } from './drafts-store.js';
-import { SendCardDialog } from './cards/send-card-dialog.js';
 import {
   LexicalComposerInput,
   type LexicalEditorRef,
@@ -273,11 +271,6 @@ export interface ComposerProps {
   onSchedule?: (body: string, when: string) => void;
   onStartHuddle?: () => void;
   onRecordClip?: () => void;
-  onSendCard?: (
-    cardId: string,
-    version: number,
-    data: Record<string, unknown>,
-  ) => void | Promise<void>;
   className?: string;
 }
 
@@ -307,14 +300,12 @@ export function Composer({
   slashCommands = DEFAULT_SLASH_COMMANDS,
   onSchedule,
   onStartHuddle,
-  onSendCard,
   className,
 }: ComposerProps) {
   const [pickerState, setPickerState] = useState<{
     open: boolean;
     tab: 'emoji' | 'gif';
   }>({ open: false, tab: 'emoji' });
-  const [sendCardOpen, setSendCardOpen] = useState(false);
   /* Collapsed by default, Slack-style — the formatting bar is for people who
      go looking for it, not a permanent fixture above every message. */
   const [toolbarOpen, setToolbarOpen] = useState(false);
@@ -606,16 +597,6 @@ export function Composer({
               </Hint>
             ) : null}
 
-            <Hint label="Send Universal Card">
-              <button
-                type="button"
-                onClick={() => setSendCardOpen(true)}
-                className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <LayoutGrid className="size-4 text-primary" />
-              </button>
-            </Hint>
-
             <span className="mx-1 h-4 w-px bg-accent/50" />
 
             {/* Typing the trigger is what opens the menu, so these buttons do
@@ -806,19 +787,6 @@ export function Composer({
           emoji · markdown as you type
         </span>
       </div> */}
-
-      <SendCardDialog
-        open={sendCardOpen}
-        onOpenChange={setSendCardOpen}
-        onSendCard={async (cardId, version, data) => {
-          if (onSendCard) {
-            await onSendCard(cardId, version, data);
-          } else {
-            // Text fallback if onSendCard not directly attached
-            await onSend(`Sent card: ${cardId} (v${version})`);
-          }
-        }}
-      />
     </div>
   );
 }
