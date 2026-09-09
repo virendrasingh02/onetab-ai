@@ -713,6 +713,18 @@
   --ring: #9aaaf5;
 }
 
+/* -------------------------------------------- Channel conversation panel ----
+ *
+ * In light mode the app canvas is a warm off-white (`--background: #fcfbf8`)
+ * with white panels on it. The channel conversation column is meant to read as
+ * one clean white sheet, so light mode pins its `--background` to pure white —
+ * the header, tabs, message list and composer all draw `bg-background`, so this
+ * one override carries the whole surface. Dark mode is left untouched: the
+ * column follows the selected theme like everything else.
+ */
+html:not(.dark) .channel-conversation-surface {
+  --background: #ffffff;
+}
 
 @layer base {
   * {
