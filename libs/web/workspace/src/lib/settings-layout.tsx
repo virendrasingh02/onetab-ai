@@ -315,7 +315,7 @@ export function SettingsLayout({
             {workspace?.name ? (
               <Badge
                 variant="neutral"
-                className="sm:inline-flex font-normal hidden text-[10px] text-muted-foreground"
+                className="sm:inline-flex font-medium hidden text-xs text-foreground/80"
               >
                 {workspace.name}
               </Badge>

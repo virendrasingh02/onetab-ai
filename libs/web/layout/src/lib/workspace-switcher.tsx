@@ -282,10 +282,10 @@ export function WorkspaceMenu({
 
             {/* Workspace Name */}
             <span className="min-w-0 leading-tight flex flex-1 flex-col justify-center">
-              <span className="font-semibold tracking-tight text-xs sm:text-sm gap-1 flex items-center truncate text-foreground">
+              <span className="font-semibold tracking-tight text-sm sm:text-base gap-1 flex items-center truncate text-foreground">
                 <span className="truncate">{current.name}</span>
                 <ChevronDown
-                  className="size-3 shrink-0 text-muted-foreground transition-transform duration-(--duration-fast) group-data-[state=open]/trigger:rotate-180"
+                  className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-(--duration-fast) group-data-[state=open]/trigger:rotate-180"
                   aria-hidden
                 />
               </span>
