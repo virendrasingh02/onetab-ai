@@ -3,6 +3,9 @@ import {
   Button,
   EmptyState,
   ErrorState,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   ScrollArea,
   Spinner,
   UserAvatarGroup,
@@ -10,7 +13,7 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { ArrowDown, MessageSquare } from 'lucide-react';
+import { ArrowDown, ChevronDown, MessageSquare } from 'lucide-react';
 import {
   useCallback,
   useEffect,
@@ -23,7 +26,11 @@ import {
   type ReactNode,
 } from 'react';
 import { UnreadDivider } from './channel-extras.js';
-import { DateSeparator, formatDaySeparatorLabel } from './chat-bubble.js';
+import {
+  DateSeparator,
+  JumpToDatePicker,
+  formatDaySeparatorLabel,
+} from './chat-bubble.js';
 import { ConnectionPill, UnreadMentionsPill } from './indicators.js';
 import {
   getScrollAnchor,
@@ -247,6 +254,8 @@ export function MessageList({
     ts: number;
     shift: number;
   } | null>(null);
+  /** Whether the floating day chip's "jump to date" popover is open. */
+  const [dayJumpOpen, setDayJumpOpen] = useState(false);
 
   const rows = useMemo(
     () => buildRows(messages, unreadBeforeId),
@@ -441,19 +450,12 @@ export function MessageList({
   }, [reportFollowing]);
 
   /**
-   * Centre a message row in the viewport, paging the virtualiser to it and then
-   * re-centring for a few frames while the rows around it settle to their real
-   * heights. Returns `false` when the id is not among the loaded rows, so the
-   * host can page older history in and call again.
+   * Page the virtualiser to a row and hold the view on it for a few frames
+   * while the rows around it settle to their real heights. Shared by the
+   * message deep-link jump (`'center'`) and the date-picker jump (`'start'`).
    */
-  const scrollToMessageRow = useCallback(
-    (messageId: string): boolean => {
-      if (!scrollRef.current) return false;
-      const index = rowsRef.current.findIndex(
-        (row) => row.kind === 'message' && row.key === messageId,
-      );
-      if (index < 0) return false;
-
+  const animateToIndex = useCallback(
+    (index: number, align: 'center' | 'start') => {
       stickToBottom.current = false;
       reportFollowing(false);
       pendingAnchor.current = null;
@@ -468,7 +470,7 @@ export function MessageList({
           return;
         }
         adjusting.current = true;
-        virtualizer.scrollToIndex(index, { align: 'center' });
+        virtualizer.scrollToIndex(index, { align });
         if (--frames > 0) {
           settleRaf.current = requestAnimationFrame(step);
         } else {
@@ -477,9 +479,108 @@ export function MessageList({
         }
       };
       settleRaf.current = requestAnimationFrame(step);
-      return true;
     },
     [virtualizer, releaseAdjusting, reportFollowing],
+  );
+
+  /**
+   * Centre a message row in the viewport. Returns `false` when the id is not
+   * among the loaded rows, so the host can page older history in and call again.
+   */
+  const scrollToMessageRow = useCallback(
+    (messageId: string): boolean => {
+      if (!scrollRef.current) return false;
+      const index = rowsRef.current.findIndex(
+        (row) => row.kind === 'message' && row.key === messageId,
+      );
+      if (index < 0) return false;
+      animateToIndex(index, 'center');
+      return true;
+    },
+    [animateToIndex],
+  );
+
+  /**
+   * Jump the timeline to the first row on or after the day the reader picked
+   * from a date separator's dropdown. `target` is one of `JumpToDatePicker`'s
+   * preset tokens or a `yyyy-MM-dd` string. A day older than the loaded history
+   * lands at the top, where the normal near-top backfill takes over; one newer
+   * than every loaded message lands at the bottom.
+   */
+  const jumpToDate = useCallback(
+    (target: string) => {
+      if (!scrollRef.current) return;
+
+      const now = new Date();
+      const DAY = 86_400_000;
+      const dayStart = (d: Date) =>
+        new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+      let floor: number;
+      switch (target) {
+        case 'today':
+          floor = dayStart(now);
+          break;
+        case 'yesterday':
+          floor = dayStart(now) - DAY;
+          break;
+        case 'last_7_days':
+        case 'last_week':
+          floor = dayStart(now) - 7 * DAY;
+          break;
+        case 'last_30_days':
+        case 'last_month':
+          floor = dayStart(now) - 30 * DAY;
+          break;
+        case 'month_to_date':
+          floor = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+          break;
+        case 'year_to_date':
+          floor = new Date(now.getFullYear(), 0, 1).getTime();
+          break;
+        case 'last_year':
+          floor = new Date(now.getFullYear() - 1, 0, 1).getTime();
+          break;
+        case 'beginning':
+          floor = 0;
+          break;
+        default: {
+          const [y, m, d] = target.split('-').map(Number);
+          if (!y || !m || !d) return;
+          floor = new Date(y, m - 1, d).getTime();
+        }
+      }
+
+      const list = rowsRef.current;
+      const rowTs = (row: Row) =>
+        row.kind === 'separator'
+          ? row.timestamp
+          : row.kind === 'message'
+            ? row.message.timestamp
+            : null;
+
+      let index = list.findIndex((row) => {
+        const ts = rowTs(row);
+        return ts !== null && ts >= floor;
+      });
+
+      // Nothing loaded that recent — the newest message predates the target.
+      if (index < 0) {
+        scrollToBottom();
+        return;
+      }
+
+      // Land on that day's separator rather than the first message beneath it.
+      if (
+        list[index]?.kind !== 'separator' &&
+        list[index - 1]?.kind === 'separator'
+      ) {
+        index -= 1;
+      }
+
+      animateToIndex(index, 'start');
+    },
+    [animateToIndex, scrollToBottom],
   );
 
   useImperativeHandle(
@@ -876,7 +977,10 @@ export function MessageList({
                 }}
               >
                 {row.kind === 'separator' ? (
-                  <DateSeparator timestamp={row.timestamp} />
+                  <DateSeparator
+                    timestamp={row.timestamp}
+                    onJumpToDate={jumpToDate}
+                  />
                 ) : row.kind === 'unread' ? (
                   <UnreadDivider />
                 ) : (
@@ -939,10 +1043,37 @@ export function MessageList({
           }
         >
           <div
-            className="mt-2 px-4 py-1 text-xs font-semibold rounded-full border border-border bg-surface text-foreground shadow-xs"
+            className="mt-2 pointer-events-auto"
             style={{ transform: `translateY(${floatingDay.shift}px)` }}
           >
-            {formatDaySeparatorLabel(floatingDay.ts)}
+            <Popover open={dayJumpOpen} onOpenChange={setDayJumpOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`Jump to date — showing ${formatDaySeparatorLabel(
+                    floatingDay.ts,
+                  )}`}
+                  className="gap-1.5 px-4 py-1 text-xs font-semibold flex cursor-pointer items-center rounded-full border border-border bg-surface text-foreground shadow-xs transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <span>{formatDaySeparatorLabel(floatingDay.ts)}</span>
+                  <ChevronDown className="size-3 text-muted-foreground" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="center"
+                sideOffset={6}
+                className="p-0 w-auto border-0 bg-transparent shadow-none"
+              >
+                <JumpToDatePicker
+                  selectedDate={new Date(floatingDay.ts)}
+                  onSelectDate={(target) => {
+                    jumpToDate(target);
+                    setDayJumpOpen(false);
+                  }}
+                  onClose={() => setDayJumpOpen(false)}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       ) : null}
