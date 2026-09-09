@@ -34,7 +34,7 @@ import {
 } from '@org/notifications';
 import { useLiveRoomActivity } from '@org/web-chat';
 import { WorkspaceSearchPanel } from '@org/web-search';
-import { InviteMembersDialog } from '@org/web-invitations';
+import { GlobalInviteMembersDialog } from '@org/web-invitations';
 import {
   useApplyWorkspacePreferences,
   useCurrentWorkspace,
@@ -122,14 +122,8 @@ export function AppShell() {
   const setAddAccountOpen = useWorkspaceStore(
     (s: WorkspaceState) => s.setAddAccountOpen,
   );
-  const isInviteMembersOpen = useWorkspaceStore(
-    (s: WorkspaceState) => s.isInviteMembersOpen,
-  );
   const setInviteMembersOpen = useWorkspaceStore(
     (s: WorkspaceState) => s.setInviteMembersOpen,
-  );
-  const inviteTargetWorkspace = useWorkspaceStore(
-    (s: WorkspaceState) => s.inviteTargetWorkspace,
   );
 
   const workspacesQuery = useWorkspaces();
@@ -586,13 +580,7 @@ export function AppShell() {
           onOpenChange={setAddAccountOpen}
         />
 
-        <InviteMembersDialog
-          open={isInviteMembersOpen}
-          onOpenChange={setInviteMembersOpen}
-          workspaceId={inviteTargetWorkspace?.id || workspaceId}
-          workspaceName={inviteTargetWorkspace?.name || workspace.name}
-          workspaceSlug={inviteTargetWorkspace?.slug || slug}
-        />
+        <GlobalInviteMembersDialog />
 
         {/*
           `@org/ui` is presentational and cannot call the API itself, so the

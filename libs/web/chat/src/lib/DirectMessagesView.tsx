@@ -17,7 +17,6 @@ import {
   Hint,
   Input,
   LoadingState,
-  Panel,
   ScrollArea,
   Tabs,
   TabsContent,
@@ -1084,6 +1083,16 @@ function NewDirectMessage({
           ? `Message ${firstPeerName}`
           : 'Start a new message';
 
+  const headline = selectedChannel
+    ? `Message #${selectedChannel.name}`
+    : isSelfOnly
+      ? 'Your space'
+      : isGroup
+        ? 'New group message'
+        : peerSelection.length === 1
+          ? `New message to ${firstPeerName}`
+          : 'Who do you want to message?';
+
   return (
     <div className="min-h-0 flex flex-1 flex-col">
       {/* Channel-style Header (Inbox & Threads style) */}
@@ -1125,108 +1134,109 @@ function NewDirectMessage({
         </div>
       </div>
 
-      {/* Content */}
-      <div className="min-h-0 p-3 sm:p-6 flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto w-full">
-          {members.isLoading ? (
-            <LoadingState label="Loading directory…" />
-          ) : members.isError ? (
-            <ErrorState
-              title="Could not load directory"
-              description="The member list for this workspace is unavailable."
-            />
-          ) : !enabled ? (
-            <EmptyState
-              size="lg"
-              icon={<MessageSquareOff />}
-              title="Chat is not configured"
-              description="This deployment has no Matrix homeserver. Set MATRIX_ENABLED and the homeserver settings to start a conversation."
-            />
-          ) : (
-            <Panel
-              flush
-              title="New message"
-              subtitle="Pick a channel or people, write your first message, and send."
-            >
-              <div className="p-3 sm:p-4 space-y-3 border-b border-border">
-                <NewMessageRecipients
-                  people={peopleOptions}
-                  channels={channelOptions}
-                  selectedPeopleIds={selectedPeople}
-                  onChangePeople={setSelectedPeople}
-                  selectedChannelId={selectedChannelId}
-                  onChangeChannel={setSelectedChannelId}
-                  autoFocus
-                />
-
-                {isGroup ? (
-                  <Field
-                    label="Group name"
-                    optional
-                    htmlFor="new-dm-group-name"
-                    hint="Leave blank to name it after the people in it."
-                  >
-                    <Input
-                      id="new-dm-group-name"
-                      value={groupName}
-                      onChange={(event) => setGroupName(event.target.value)}
-                      placeholder={`${firstPeerName} and ${
-                        peerSelection.length - 1
-                      } more`}
-                    />
-                  </Field>
-                ) : null}
-
-                <p className="gap-1.5 text-xs flex items-start text-muted-foreground">
-                  {selectedChannel ? (
-                    <Hash className="size-3.5 mt-px shrink-0" aria-hidden />
-                  ) : isGroup ? (
-                    <Users className="size-3.5 mt-px shrink-0" aria-hidden />
-                  ) : (
-                    <MessageSquare
-                      className="size-3.5 mt-px shrink-0"
-                      aria-hidden
-                    />
-                  )}
-                  <span>{outcome}</span>
-                </p>
-              </div>
-
-              <div className="px-3 sm:px-4 py-3">
-                <Composer
-                  conversationId={`new-message:${workspaceId ?? 'default'}`}
-                  members={composerMembers}
-                  placeholder={composerPlaceholder}
-                  disabled={!canDispatch}
-                  onSend={handleSend}
-                  onAttach={handleAttach}
-                  className="static! p-0! sm:p-0!"
-                />
-              </div>
-
-              <div className="gap-2 p-3 flex flex-wrap items-center justify-between border-t border-border">
-                <span className="text-[11px] text-muted-foreground">
-                  Press{' '}
-                  <kbd className="px-1 py-0.5 font-sans text-[10px] rounded border border-border bg-background">
-                    Enter
-                  </kbd>{' '}
-                  to send, or just open the conversation.
-                </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={!canDispatch}
-                  onClick={openWithoutMessage}
-                  leadingIcon={<MessageSquare className="size-4" />}
-                >
-                  {openLabel}
-                </Button>
-              </div>
-            </Panel>
-          )}
+      {/* Content — a full-height compose view, laid out like an open
+          conversation: recipients strip, a body that fills, composer pinned. */}
+      {members.isLoading ? (
+        <div className="flex flex-1 items-center justify-center p-6">
+          <LoadingState label="Loading directory…" />
         </div>
-      </div>
+      ) : members.isError ? (
+        <div className="flex flex-1 items-center justify-center p-6">
+          <ErrorState
+            title="Could not load directory"
+            description="The member list for this workspace is unavailable."
+          />
+        </div>
+      ) : !enabled ? (
+        <div className="flex flex-1 items-center justify-center p-6">
+          <EmptyState
+            size="lg"
+            icon={<MessageSquareOff />}
+            title="Chat is not configured"
+            description="This deployment has no Matrix homeserver. Set MATRIX_ENABLED and the homeserver settings to start a conversation."
+          />
+        </div>
+      ) : (
+        <div className="min-h-0 flex flex-1 flex-col">
+          {/* Recipients strip */}
+          <div className="shrink-0 px-4 sm:px-6 py-3 sm:py-4 space-y-3 border-b border-border bg-background">
+            <NewMessageRecipients
+              people={peopleOptions}
+              channels={channelOptions}
+              selectedPeopleIds={selectedPeople}
+              onChangePeople={setSelectedPeople}
+              selectedChannelId={selectedChannelId}
+              onChangeChannel={setSelectedChannelId}
+              autoFocus
+            />
+
+            {isGroup ? (
+              <Field
+                label="Group name"
+                optional
+                htmlFor="new-dm-group-name"
+                hint="Leave blank to name it after the people in it."
+              >
+                <Input
+                  id="new-dm-group-name"
+                  value={groupName}
+                  onChange={(event) => setGroupName(event.target.value)}
+                  placeholder={`${firstPeerName} and ${
+                    peerSelection.length - 1
+                  } more`}
+                />
+              </Field>
+            ) : null}
+          </div>
+
+          {/* Body — fills the space between the recipients and the composer. */}
+          <div className="min-h-0 gap-4 p-6 text-center flex flex-1 flex-col items-center justify-center overflow-y-auto">
+            <div className="size-12 flex items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+              {selectedChannel ? (
+                <Hash className="size-6" />
+              ) : isGroup ? (
+                <Users className="size-6" />
+              ) : (
+                <MessageSquare className="size-6" />
+              )}
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold text-foreground">
+                {headline}
+              </h3>
+              <p className="max-w-md mx-auto text-xs text-muted-foreground">
+                {outcome} Type below and press{' '}
+                <kbd className="px-1 py-0.5 font-sans text-[10px] rounded border border-border bg-background">
+                  Enter
+                </kbd>{' '}
+                to send.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!canDispatch}
+              onClick={openWithoutMessage}
+              leadingIcon={<MessageSquare className="size-4" />}
+            >
+              {openLabel}
+            </Button>
+          </div>
+
+          {/* Composer — pinned to the bottom, like a real conversation. */}
+          <div className="shrink-0 border-t border-border">
+            <Composer
+              conversationId={`new-message:${workspaceId ?? 'default'}`}
+              members={composerMembers}
+              placeholder={composerPlaceholder}
+              disabled={!canDispatch}
+              onSend={handleSend}
+              onAttach={handleAttach}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

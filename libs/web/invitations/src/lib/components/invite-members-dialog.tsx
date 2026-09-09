@@ -9,6 +9,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
   toast,
 } from '@org/ui';
 import { parseEmails } from '@org/utils';
@@ -378,12 +381,18 @@ export function InviteMembersDialog({
               </div>
             )}
 
-            {/* Search channels input & Dropdown */}
-            <div className="relative">
-              <div
-                onClick={() => channelSearchRef.current?.focus()}
-                className="min-h-9 px-2.5 py-1.5 gap-1.5 flex w-full cursor-text flex-wrap items-center rounded-xl border border-border bg-surface-inset/40 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary"
-              >
+            {/* Search channels input & Dropdown. The list is portaled via
+                <Popover> so it is never clipped by the dialog's ScrollArea. */}
+            <Popover
+              open={showChannelDropdown}
+              onOpenChange={setShowChannelDropdown}
+              modal={false}
+            >
+              <PopoverAnchor asChild>
+                <div
+                  onClick={() => channelSearchRef.current?.focus()}
+                  className="min-h-9 px-2.5 py-1.5 gap-1.5 flex w-full cursor-text flex-wrap items-center rounded-xl border border-border bg-surface-inset/40 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary"
+                >
                 {selectedChannels.map((ch) => (
                   <span
                     key={ch.id}
@@ -426,46 +435,44 @@ export function InviteMembersDialog({
                   }
                   className="text-xs p-0.5 min-w-[140px] flex-1 border-none bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
                 />
-              </div>
+                </div>
+              </PopoverAnchor>
 
-              {showChannelDropdown && (
-                <>
-                  <div
-                    className="inset-0 fixed z-40"
-                    onClick={() => setShowChannelDropdown(false)}
-                  />
-                  <div className="left-0 right-0 mt-1 max-h-48 shadow-xl p-1 space-y-0.5 absolute top-full z-50 overflow-y-auto rounded-xl border border-border bg-surface-raised">
-                    {filteredChannels.length === 0 ? (
-                      <p className="py-3 text-xs text-center text-muted-foreground">
-                        No matching channels
-                      </p>
-                    ) : (
-                      filteredChannels.map((ch) => (
-                        <button
-                          key={ch.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedChannels((prev) => [...prev, ch]);
-                            setChannelSearch('');
-                            setShowChannelDropdown(false);
-                          }}
-                          className="px-2.5 py-1.5 gap-2 text-xs flex w-full cursor-pointer items-center rounded-lg text-left text-foreground transition-colors hover:bg-accent"
-                        >
-                          {ch.visibility === 'PRIVATE' ? (
-                            <Lock className="size-3.5 shrink-0 text-muted-foreground" />
-                          ) : (
-                            <Hash className="size-3.5 shrink-0 text-muted-foreground" />
-                          )}
-                          <span className="font-medium truncate">
-                            {ch.name}
-                          </span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
+              <PopoverContent
+                align="start"
+                sideOffset={6}
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                onCloseAutoFocus={(e) => e.preventDefault()}
+                className="w-(--radix-popover-trigger-width) max-h-56 p-1 space-y-0.5"
+              >
+                {filteredChannels.length === 0 ? (
+                  <p className="py-3 text-xs text-center text-muted-foreground">
+                    No matching channels
+                  </p>
+                ) : (
+                  filteredChannels.map((ch) => (
+                    <button
+                      key={ch.id}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setSelectedChannels((prev) => [...prev, ch]);
+                        setChannelSearch('');
+                        setShowChannelDropdown(false);
+                      }}
+                      className="px-2.5 py-1.5 gap-2 text-xs flex w-full cursor-pointer items-center rounded-lg text-left text-foreground transition-colors hover:bg-accent"
+                    >
+                      {ch.visibility === 'PRIVATE' ? (
+                        <Lock className="size-3.5 shrink-0 text-muted-foreground" />
+                      ) : (
+                        <Hash className="size-3.5 shrink-0 text-muted-foreground" />
+                      )}
+                      <span className="font-medium truncate">{ch.name}</span>
+                    </button>
+                  ))
+                )}
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 

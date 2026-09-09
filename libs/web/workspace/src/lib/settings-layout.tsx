@@ -39,7 +39,6 @@ import {
   Sparkles,
   UploadCloud,
   User,
-  UserPlus,
   Users,
   Workflow,
   X,
@@ -92,8 +91,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: 'general', label: 'General Settings', icon: Building2, keywords: 'name slug url logo' },
       { id: 'appearance', label: 'Appearance & Preferences', icon: Palette, keywords: 'theme dark light font density branding accent' },
-      { id: 'members', label: 'Members & Directory', icon: Users, keywords: 'people roles admins directory' },
-      { id: 'invitations', label: 'Workspace Invitations', icon: UserPlus, keywords: 'invite link join pending' },
+      { id: 'members', label: 'Members', icon: Users, keywords: 'people roles admins directory invite invitations link join pending' },
       { id: 'import-export', label: 'Import & Export', icon: UploadCloud, keywords: 'migrate backup data slack' },
       { id: 'danger', label: 'Danger Zone', icon: AlertTriangle, keywords: 'delete archive transfer' },
     ],

@@ -270,6 +270,8 @@ export function WorkspaceSettingsPage({
     // The workspace-branding editor was removed; stale links land on the
     // personal Appearance section, which covers theme for this workspace.
     'workspace-appearance': 'appearance',
+    // Members & Invitations are one section now.
+    invitations: 'members',
     plans: 'billing',
     'timezone-region': 'profile',
     'focus-status': 'profile',
@@ -3109,7 +3111,7 @@ export function WorkspaceSettingsPage({
       )}
 
       {/* ---------------- SECTION 8: WORKSPACE ADMIN ---------------- */}
-      {(currentTab === 'members' || currentTab === 'invitations') && (
+      {currentTab === 'members' && (
         <WorkspaceMembersSettings
           workspaceId={workspaceId}
           workspaceSlug={workspace?.slug}

@@ -65,6 +65,11 @@ const AcceptInvitationPage = lazy(() =>
     default: m.AcceptInvitationPage,
   })),
 );
+const GlobalInviteMembersDialog = lazy(() =>
+  import('@org/web-invitations').then((m) => ({
+    default: m.GlobalInviteMembersDialog,
+  })),
+);
 const ProfileSettingsPanel = lazy(() =>
   import('@org/web-profile').then((m) => ({ default: m.ProfileSettingsPanel })),
 );
@@ -104,12 +109,19 @@ const ThemeSettings = lazy(() =>
  */
 function WorkspaceSettings() {
   return (
-    <WorkspaceSettingsPage
-      importPanel={<SlackNotionImportView embedded />}
-      kanbanPanel={<WorkspaceKanbanSettings />}
-      themePanel={<ThemeSettings />}
-      profilePanel={<ProfileSettingsPanel />}
-    />
+    <>
+      <WorkspaceSettingsPage
+        importPanel={<SlackNotionImportView embedded />}
+        kanbanPanel={<WorkspaceKanbanSettings />}
+        themePanel={<ThemeSettings />}
+        profilePanel={<ProfileSettingsPanel />}
+      />
+      {/* The settings surface renders outside AppShell, so it needs its own
+          mount of the app-wide invite dialog for the Members "Invite" buttons. */}
+      <Suspense fallback={null}>
+        <GlobalInviteMembersDialog />
+      </Suspense>
+    </>
   );
 }
 const WorkspaceRedirect = lazy(() =>
