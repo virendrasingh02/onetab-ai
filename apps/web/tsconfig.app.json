@@ -104,6 +104,9 @@
       "path": "../../libs/shared/realtime/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/shared/sync/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/shared/i18n/tsconfig.lib.json"
     }
   ]

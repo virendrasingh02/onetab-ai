@@ -9,6 +9,8 @@ import type {
   CrossObjectLinkDto,
   NotificationView,
   Paginated,
+  SyncChangesDigest,
+  SyncState,
   UserPresence,
   AppPlatform,
   AppOperatingSystem,
@@ -3258,6 +3260,23 @@ export const bookmarksApi = {
         `/workspaces/${workspaceId}/bookmarks/by-target/${targetType}/${targetId}`,
       ),
     ),
+};
+
+/**
+ * Incremental background-sync endpoints. Read-only, workspace-guarded, and
+ * additive — an older API simply 404s and the client falls back to a full
+ * refetch. Consumed by `@org/sync`'s catch-up reconciliation.
+ */
+export const syncApi = {
+  changes: (workspaceId: string, since?: string | null) =>
+    request<SyncChangesDigest>(
+      http.get(`/workspaces/${workspaceId}/sync/changes`, {
+        params: since ? { since } : undefined,
+      }),
+    ),
+
+  state: (workspaceId: string) =>
+    request<SyncState>(http.get(`/workspaces/${workspaceId}/sync/state`)),
 };
 
 

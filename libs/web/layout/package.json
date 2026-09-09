@@ -41,6 +41,7 @@
     "@org/hooks": "*",
     "@org/notifications": "*",
     "@org/realtime": "*",
+    "@org/sync": "*",
     "@org/web-ai": "*",
     "@org/web-chat": "*",
     "@org/web-desktop": "0.0.1",

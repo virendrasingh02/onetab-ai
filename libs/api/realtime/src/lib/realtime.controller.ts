@@ -45,6 +45,12 @@ interface StreamQuery {
   /** Raw access token — legacy fallback for a client that has no ticket yet. */
   token?: string;
   workspaceId?: string;
+  /**
+   * The id of the last event the client processed before it disconnected. On
+   * reconnect the gateway flushes everything broadcast to the workspace since
+   * then, so a blip in the stream does not silently drop updates.
+   */
+  lastEventId?: string;
 }
 
 export interface MessageEvent {
@@ -90,6 +96,7 @@ export class RealtimeController {
   async stream(
     @Query() query: StreamQuery,
     @Headers('authorization') authHeader: string | undefined,
+    @Headers('last-event-id') lastEventIdHeader: string | undefined,
     @Req() _req: Request,
   ): Promise<Observable<MessageEvent>> {
     let userId: string;
@@ -169,7 +176,9 @@ export class RealtimeController {
       requestedWorkspaceId,
     );
 
-    // Initial connected event
+    // Initial connected event, then a replay of anything the client missed
+    // while it was disconnected (if it told us where it left off).
+    const lastEventId = query.lastEventId || lastEventIdHeader || null;
     setTimeout(() => {
       eventSubject.next({
         type: 'event',
@@ -183,9 +192,20 @@ export class RealtimeController {
             userId,
             workspaceId: requestedWorkspaceId,
             serverTime: Date.now(),
+            replayed: 0,
           },
         }),
       });
+
+      if (requestedWorkspaceId && lastEventId) {
+        const missed = this.gateway.getReplaySince(
+          requestedWorkspaceId,
+          lastEventId,
+        );
+        for (const evt of missed) {
+          eventSubject.next(evt);
+        }
+      }
     }, 10);
 
     // Keepalive ping every 20 seconds

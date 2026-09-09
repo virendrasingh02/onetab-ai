@@ -22,6 +22,9 @@
       "path": "./libs/shared/realtime"
     },
     {
+      "path": "./libs/shared/sync"
+    },
+    {
       "path": "./libs/shared/common"
     },
     {
@@ -107,6 +110,9 @@
     },
     {
       "path": "./libs/api/realtime"
+    },
+    {
+      "path": "./libs/api/sync"
     },
     {
       "path": "./packages/matrix-client"

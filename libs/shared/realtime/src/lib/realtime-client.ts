@@ -48,6 +48,9 @@ export class RealtimeClient {
    * stream nobody asked for any more. */
   private connectGeneration = 0;
   private lastHeartbeatAt = 0;
+  /** Id of the last real event seen — replayed from on reconnect so a blip in
+   * the stream does not silently drop updates. Cleared on a workspace switch. */
+  private lastEventId: string | null = null;
   private stateListeners = new Set<ConnectionStateListener>();
   private broadcastChannel: BroadcastChannel | null = null;
 
@@ -110,6 +113,9 @@ export class RealtimeClient {
   public setWorkspace(workspaceId: string | null): void {
     if (this.currentWorkspaceId === workspaceId) return;
     this.currentWorkspaceId = workspaceId;
+    // A different workspace is a different event stream — its replay cursor
+    // does not carry over.
+    this.lastEventId = null;
 
     if (this.state === 'connected' || this.state === 'connecting') {
       this.reconnect();
@@ -168,6 +174,9 @@ export class RealtimeClient {
     if (this.currentWorkspaceId) {
       params.set('workspaceId', this.currentWorkspaceId);
     }
+    if (this.lastEventId) {
+      params.set('lastEventId', this.lastEventId);
+    }
 
     const streamUrl = `${this.baseUrl}/realtime/stream?${params.toString()}`;
 
@@ -223,6 +232,16 @@ export class RealtimeClient {
       if (parsed && parsed.type) {
         this.lastHeartbeatAt = Date.now();
         this.armHeartbeatWatchdog();
+        // Remember the cursor for reconnect replay — but not for transient
+        // frames (`connected` handshake, heartbeats) which are not part of the
+        // ordered event log.
+        if (
+          parsed.id &&
+          parsed.type !== 'connected' &&
+          parsed.type !== RealtimeEventType.Heartbeat
+        ) {
+          this.lastEventId = parsed.id;
+        }
         this.bus.emit(parsed);
         this.broadcastToSiblingTabs(parsed);
       }

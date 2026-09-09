@@ -1,13 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { intelligenceApi, queryKeys, workToolsApi } from '@org/api-client';
+import { useSyncCadence } from '@org/sync';
 import type { AttentionItem, CatchUpSummary } from '@org/types';
 
 export function useAttention(workspaceId: string | undefined) {
+  // The manager pauses this while the tab is hidden and slows it while the
+  // realtime stream is healthy.
+  const refetchInterval = useSyncCadence('low');
   return useQuery<AttentionItem[]>({
     queryKey: workspaceId ? queryKeys.intelligence.attention(workspaceId) : ['intelligence', 'none'],
     queryFn: () => (workspaceId ? intelligenceApi.attention(workspaceId) : Promise.resolve([])),
     enabled: Boolean(workspaceId),
-    refetchInterval: 30_000,
+    refetchInterval,
   });
 }
 

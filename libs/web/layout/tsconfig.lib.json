@@ -41,9 +41,6 @@
       "path": "../agents/tsconfig.lib.json"
     },
     {
-      "path": "../workspace/tsconfig.lib.json"
-    },
-    {
       "path": "../invitations/tsconfig.lib.json"
     },
     {
@@ -59,9 +56,6 @@
       "path": "../../shared/types/tsconfig.lib.json"
     },
     {
-      "path": "../../shared/realtime/tsconfig.lib.json"
-    },
-    {
       "path": "../../shared/validation/tsconfig.lib.json"
     },
     {
@@ -69,6 +63,9 @@
     },
     {
       "path": "../../shared/ui/tsconfig.lib.json"
+    },
+    {
+      "path": "../workspace/tsconfig.lib.json"
     },
     {
       "path": "../work-tools/tsconfig.lib.json"
@@ -90,6 +87,12 @@
     },
     {
       "path": "../ai/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/sync/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/realtime/tsconfig.lib.json"
     },
     {
       "path": "../notifications/tsconfig.lib.json"

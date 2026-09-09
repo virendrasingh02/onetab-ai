@@ -51,6 +51,21 @@ export class RealtimeGatewayService implements OnModuleInit, OnModuleDestroy {
   // workspaceId -> Set<clientId>
   private readonly workspaceClientMap = new Map<string, Set<string>>();
 
+  /**
+   * A short, in-memory replay buffer of the events most recently broadcast to
+   * each workspace, so a client that reconnects after a blip can ask for
+   * "everything since <lastEventId>" and not silently miss updates. Populated on
+   * every node (local originator *and* Redis fan-out), bounded per workspace and
+   * by age. Best-effort — a cold node or an old cursor just means the client
+   * falls back to its incremental catch-up fetch.
+   */
+  private readonly recentEvents = new Map<
+    string,
+    Array<{ id: string; at: number; data: string }>
+  >();
+  private static readonly REPLAY_MAX_PER_WORKSPACE = 300;
+  private static readonly REPLAY_MAX_AGE_MS = 5 * 60_000;
+
   private keepAliveTimer: NodeJS.Timeout | null = null;
 
   constructor(
@@ -217,8 +232,10 @@ export class RealtimeGatewayService implements OnModuleInit, OnModuleDestroy {
     event: { id?: string; type: string; payload: unknown; actorId?: string | null },
     excludeClientId?: string,
   ): Promise<void> {
+    const eventId =
+      event.id ?? `evt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const payloadString = JSON.stringify({
-      id: event.id ?? `evt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: eventId,
       type: event.type,
       workspaceId,
       actorId: event.actorId ?? null,
@@ -226,9 +243,13 @@ export class RealtimeGatewayService implements OnModuleInit, OnModuleDestroy {
       payload: event.payload,
     });
 
+    // Record it for reconnect replay before the early-return below, so the
+    // buffer is complete even on a node with no local subscribers right now.
+    this.recordRecentEvent(workspaceId, eventId, payloadString);
+
     const sseEvent: SseMessageEvent = {
       data: payloadString,
-      id: event.id,
+      id: eventId,
       type: 'event',
     };
 
@@ -368,6 +389,53 @@ export class RealtimeGatewayService implements OnModuleInit, OnModuleDestroy {
    */
   getConnectionCount(): number {
     return this.clients.size;
+  }
+
+  // --- reconnect replay ------------------------------------------------
+
+  private recordRecentEvent(
+    workspaceId: string,
+    id: string,
+    data: string,
+  ): void {
+    let buffer = this.recentEvents.get(workspaceId);
+    if (!buffer) {
+      buffer = [];
+      this.recentEvents.set(workspaceId, buffer);
+    }
+    buffer.push({ id, at: Date.now(), data });
+
+    const cutoff = Date.now() - RealtimeGatewayService.REPLAY_MAX_AGE_MS;
+    while (
+      buffer.length > 0 &&
+      (buffer.length > RealtimeGatewayService.REPLAY_MAX_PER_WORKSPACE ||
+        buffer[0].at < cutoff)
+    ) {
+      buffer.shift();
+    }
+  }
+
+  /**
+   * The events broadcast to `workspaceId` after the one with id `lastEventId`.
+   * If the cursor is unknown (too old, or this node never saw it) the whole
+   * current buffer is returned — the client de-duplicates by event id, so a
+   * small over-send is harmless.
+   */
+  getReplaySince(
+    workspaceId: string,
+    lastEventId: string | null,
+  ): SseMessageEvent[] {
+    const buffer = this.recentEvents.get(workspaceId);
+    if (!buffer || buffer.length === 0) return [];
+
+    let startIndex = 0;
+    if (lastEventId) {
+      const found = buffer.findIndex((e) => e.id === lastEventId);
+      startIndex = found >= 0 ? found + 1 : 0;
+    }
+    return buffer
+      .slice(startIndex)
+      .map((e) => ({ data: e.data, id: e.id, type: 'event' }));
   }
 }
 

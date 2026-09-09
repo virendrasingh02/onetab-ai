@@ -1,4 +1,5 @@
 import { notificationApi, queryKeys } from '@org/api-client';
+import { useBackgroundResource, useSyncCadence } from '@org/sync';
 import type { ActivityFeedItem, NotificationPreference } from '@org/types';
 import type { ActivityLevel } from '@org/ui';
 import {
@@ -13,18 +14,36 @@ import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 const FEED_LIMIT = 50;
 
 /**
- * Activity is append-only and arrives from Matrix, so a short poll keeps the
- * bell honest without a socket. Long enough that an idle tab is cheap.
+ * Activity is append-only and arrives from Matrix. The central
+ * `BackgroundSyncManager` decides the cadence now — no poll while the realtime
+ * stream is up and the tab is hidden, a slow backstop otherwise — and
+ * invalidates this key on the relevant realtime events.
  */
-const FEED_REFETCH_MS = 60_000;
-
 export function useNotificationFeed(workspaceId: string | undefined) {
+  const refetchInterval = useSyncCadence('low');
+  useBackgroundResource(
+    workspaceId
+      ? {
+          id: `notifications-feed:${workspaceId}`,
+          workspaceId,
+          resourceType: 'notifications',
+          queryKey: queryKeys.notifications.feed(workspaceId),
+          cadence: 'low',
+          priority: 'high',
+          realtimeEvents: [
+            'notification.created',
+            'notification.read',
+            'mention.created',
+          ],
+        }
+      : null,
+  );
   return useQuery({
     queryKey: queryKeys.notifications.feed(workspaceId ?? ''),
     queryFn: () => notificationApi.feed(workspaceId as string, FEED_LIMIT),
     enabled: !!workspaceId,
     staleTime: 30_000,
-    refetchInterval: FEED_REFETCH_MS,
+    refetchInterval,
   });
 }
 
@@ -343,13 +362,17 @@ export function useWorkspaceActivity(
   workspaceIds: string[],
 ): Record<string, ActivityIndicator> {
   const seenVersionValue = useSeenVersion();
+  // Every workspace's dot, including ones not on screen, so the manager (which
+  // is active-workspace-scoped) does not cover these — but the cadence still
+  // adapts to visibility / connection.
+  const refetchInterval = useSyncCadence('low');
 
   const feeds = useQueries({
     queries: workspaceIds.map((workspaceId) => ({
       queryKey: queryKeys.notifications.feed(workspaceId),
       queryFn: () => notificationApi.feed(workspaceId, FEED_LIMIT),
       staleTime: 30_000,
-      refetchInterval: FEED_REFETCH_MS,
+      refetchInterval,
     })),
   });
 

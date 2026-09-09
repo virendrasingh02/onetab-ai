@@ -274,6 +274,12 @@ export const queryKeys = {
     all: () => ['realtime'] as const,
     presence: (workspaceId: string) => ['realtime', 'presence', workspaceId] as const,
   },
+  sync: {
+    all: (workspaceId: string) => ['sync', workspaceId] as const,
+    changes: (workspaceId: string, since: string) =>
+      ['sync', workspaceId, 'changes', since] as const,
+    state: (workspaceId: string) => ['sync', workspaceId, 'state'] as const,
+  },
   compliance: {
     all: () => ['compliance'] as const,
     overview: () => ['compliance', 'overview'] as const,

@@ -318,3 +318,9 @@ export {
 
 export * from './lib/app-versions.js';
 export * from './lib/unified-platform.js';
+
+export type {
+  SyncChangesDigest,
+  SyncResourceChange,
+  SyncState,
+} from './lib/sync.js';

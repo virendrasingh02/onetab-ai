@@ -14,6 +14,7 @@ import {
   type GifSource,
 } from '@org/ui';
 import { RealtimeProvider, useUserPresenceMap } from '@org/realtime';
+import { SyncProvider, SyncStatusIndicator } from '@org/sync';
 import { AuthenticatedMediaBridge, MatrixProvider } from '@org/web-chat';
 import { DesktopChrome, DesktopProvider } from '@org/web-desktop';
 import {
@@ -25,7 +26,6 @@ import {
 import { useI18nStore } from '@org/i18n';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Provider } from 'react-redux';
-import { RealtimeStatusPill } from './realtime-status-pill';
 import { useActiveWorkspaceId } from './use-active-workspace-id';
 import { useWorkspaceAppearanceSync } from './workspace-appearance-sync';
 
@@ -89,9 +89,19 @@ function RealtimeAppBridge({ children }: { children: ReactNode }) {
   // realtime event from another workspace never lands on this one's queries.
   const activeWorkspaceId = useActiveWorkspaceId();
   return (
-    <RealtimeProvider userId={user?.id} workspaceId={activeWorkspaceId}>
-      <AvatarPresenceBridge>{children}</AvatarPresenceBridge>
-      <RealtimeStatusPill />
+    // `manageCache={false}` — the BackgroundSyncManager (via <SyncProvider>) owns
+    // the one consolidated realtime→cache invalidation map, adaptive polling,
+    // reconnect catch-up and the offline queue. RealtimeProvider stays the
+    // transport + presence layer only.
+    <RealtimeProvider
+      userId={user?.id}
+      workspaceId={activeWorkspaceId}
+      manageCache={false}
+    >
+      <SyncProvider userId={user?.id} workspaceId={activeWorkspaceId}>
+        <AvatarPresenceBridge>{children}</AvatarPresenceBridge>
+        <SyncStatusIndicator variant="pill" />
+      </SyncProvider>
     </RealtimeProvider>
   );
 }

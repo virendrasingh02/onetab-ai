@@ -28,6 +28,18 @@ export default defineConfig({
         import.meta.dirname,
         '../../shared/types/src/index.ts',
       ),
+      '@org/sync': path.resolve(
+        import.meta.dirname,
+        '../../shared/sync/src/index.ts',
+      ),
+      '@org/realtime': path.resolve(
+        import.meta.dirname,
+        '../../shared/realtime/src/index.ts',
+      ),
+      '@org/api-client': path.resolve(
+        import.meta.dirname,
+        '../../shared/api-client/src/index.ts',
+      ),
       '@org/web-desktop': path.resolve(
         import.meta.dirname,
         '../desktop/src/index.ts',

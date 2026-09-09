@@ -33,6 +33,7 @@ import { NotificationsModule } from '@org/api-notifications';
 import { RealtimeModule } from '@org/api-realtime';
 import { SearchModule } from '@org/api-search';
 import { StorageModule } from '@org/api-storage';
+import { SyncModule } from '@org/api-sync';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -87,6 +88,7 @@ import { AppService } from './app.service';
     AIInfrastructureModule,
     NotificationsModule,
     RealtimeModule,
+    SyncModule,
     SearchModule,
     GifsModule,
     StorageModule,

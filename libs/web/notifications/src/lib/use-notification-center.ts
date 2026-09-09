@@ -1,4 +1,5 @@
 import { notificationApi, queryKeys } from '@org/api-client';
+import { useBackgroundResource, useSyncCadence } from '@org/sync';
 import type { NotificationView, Paginated } from '@org/types';
 import {
   useInfiniteQuery,
@@ -20,12 +21,30 @@ const PAGE_SIZE = 15;
  * up without a reload.
  */
 export function useNotificationUnreadCount(workspaceId: string | undefined) {
+  const refetchInterval = useSyncCadence('high');
+  useBackgroundResource(
+    workspaceId
+      ? {
+          id: `notifications-unread:${workspaceId}`,
+          workspaceId,
+          resourceType: 'notifications',
+          queryKey: queryKeys.notifications.unreadCount(workspaceId),
+          cadence: 'high',
+          priority: 'active',
+          realtimeEvents: [
+            'notification.created',
+            'notification.read',
+            'mention.created',
+          ],
+        }
+      : null,
+  );
   return useQuery({
     queryKey: queryKeys.notifications.unreadCount(workspaceId ?? ''),
     queryFn: () => notificationApi.unreadCount(workspaceId as string),
     enabled: !!workspaceId,
     staleTime: 20_000,
-    refetchInterval: 45_000,
+    refetchInterval,
     refetchOnWindowFocus: true,
     select: (data) => data.count,
   });

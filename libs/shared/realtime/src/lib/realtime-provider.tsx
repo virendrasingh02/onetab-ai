@@ -60,6 +60,14 @@ export interface RealtimeProviderProps {
   userId?: string | null;
   workspaceId?: string | null;
   baseUrl?: string;
+  /**
+   * Whether this provider should invalidate TanStack Query keys in response to
+   * realtime events. Defaults to `true` (self-contained behaviour). Set to
+   * `false` when `@org/sync`'s `BackgroundSyncManager` is mounted — it owns the
+   * one consolidated realtime→cache invalidation map, and running both would
+   * double every invalidation.
+   */
+  manageCache?: boolean;
 }
 
 export function RealtimeProvider({
@@ -67,6 +75,7 @@ export function RealtimeProvider({
   userId,
   workspaceId,
   baseUrl,
+  manageCache = true,
 }: RealtimeProviderProps) {
   const queryClient = useQueryClient();
   const [bus] = useState(() => new RealtimeEventBus());
@@ -114,8 +123,10 @@ export function RealtimeProvider({
     }
   }, [client, workspaceId]);
 
-  // Automated TanStack Query Cache Integration
+  // Automated TanStack Query Cache Integration.
+  // Skipped when `@org/sync` is driving invalidation (see `manageCache`).
   useEffect(() => {
+    if (!manageCache) return;
     const ws = workspaceId ?? '';
 
     // 1. Notification Created
@@ -306,7 +317,7 @@ export function RealtimeProvider({
       unsubUserStatus();
       unsubHuddle();
     };
-  }, [bus, queryClient, workspaceId]);
+  }, [bus, queryClient, workspaceId, manageCache]);
 
   const value = useMemo<RealtimeContextValue>(
     () => ({

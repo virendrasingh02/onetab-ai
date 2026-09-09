@@ -33,6 +33,7 @@ export {
   notificationApi,
   promptTemplateApi,
   searchApi,
+  syncApi,
   uploadApi,
   userApi,
   workToolsApi,

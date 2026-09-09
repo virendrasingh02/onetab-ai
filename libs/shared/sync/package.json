@@ -1,5 +1,5 @@
 {
-  "name": "@org/notifications",
+  "name": "@org/sync",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -14,27 +14,20 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@hookform/resolvers": "^5.7.1",
     "@org/api-client": "*",
-    "@org/common": "*",
-    "@org/platform": "*",
     "@org/realtime": "*",
-    "@org/sync": "*",
     "@org/types": "*",
     "@org/ui": "*",
     "@org/utils": "*",
-    "@org/web-desktop": "*",
     "@tanstack/react-query": "^5.101.4",
     "lucide-react": "^1.28.0",
-    "react-hook-form": "^7.84.0",
-    "react-router-dom": "^6.30.3",
-    "zod": "^4.4.3",
+    "react": "^19.0.0",
     "zustand": "^5.0.14"
   },
   "nx": {
     "tags": [
-      "type:feature",
-      "scope:web"
+      "type:data-access",
+      "scope:shared"
     ],
     "targets": {
       "test": {
@@ -44,7 +37,7 @@
           "{projectRoot}/test-output/vitest/coverage"
         ],
         "options": {
-          "command": "node scripts/run-vitest.mjs libs/web/notifications",
+          "command": "node scripts/run-vitest.mjs libs/shared/sync",
           "cwd": "{workspaceRoot}"
         }
       }
