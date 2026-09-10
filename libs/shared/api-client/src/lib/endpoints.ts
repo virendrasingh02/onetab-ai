@@ -35,6 +35,21 @@ import type {
   AdminUserDetail,
   AdminWorkspace,
   AdminWorkspaceDetail,
+  AdminAnalyticsFilter,
+  AdminPlatformOverview,
+  AdminUserAnalytics,
+  AdminPlatformUsageAnalytics,
+  AdminWorkspaceAnalyticsResponse,
+  AdminWorkspaceDetailAnalytics,
+  AdminApiAnalytics,
+  AdminMessagingAnalytics,
+  AdminStorageAnalytics,
+  AdminDeviceAnalytics,
+  AdminLocationAnalytics,
+  AdminRevenueAnalytics,
+  AdminSubscriptionAnalytics,
+  AdminEngagementAnalytics,
+  AdminLiveActivityItem,
   AgentExecutionLog,
   AgentExecutionLogEntry,
   AgentRunResult,
@@ -2784,7 +2799,105 @@ export const adminApi = {
     request<AdminPage<AdminAuditLogEntry>>(
       http.get('/admin/audit-logs', { params }),
     ),
+
+  analytics: {
+    overview: (filter?: AdminAnalyticsFilter) =>
+      request<AdminPlatformOverview>(
+        http.get('/admin/analytics/overview', { params: filter }),
+      ),
+
+    users: (filter?: AdminAnalyticsFilter) =>
+      request<AdminUserAnalytics>(
+        http.get('/admin/analytics/users', { params: filter }),
+      ),
+
+    platformUsage: (filter?: AdminAnalyticsFilter) =>
+      request<AdminPlatformUsageAnalytics>(
+        http.get('/admin/analytics/platform-usage', { params: filter }),
+      ),
+
+    workspaces: (
+      params: {
+        range?: string;
+        page?: number;
+        pageSize?: number;
+        search?: string;
+        status?: string;
+      } = {},
+    ) =>
+      request<AdminWorkspaceAnalyticsResponse>(
+        http.get('/admin/analytics/workspaces', { params }),
+      ),
+
+    workspaceDetail: (workspaceId: string, filter?: AdminAnalyticsFilter) =>
+      request<AdminWorkspaceDetailAnalytics>(
+        http.get(`/admin/analytics/workspaces/${workspaceId}`, {
+          params: filter,
+        }),
+      ),
+
+    apis: (filter?: AdminAnalyticsFilter) =>
+      request<AdminApiAnalytics>(
+        http.get('/admin/analytics/apis', { params: filter }),
+      ),
+
+    messaging: (filter?: AdminAnalyticsFilter) =>
+      request<AdminMessagingAnalytics>(
+        http.get('/admin/analytics/messaging', { params: filter }),
+      ),
+
+    storage: (filter?: AdminAnalyticsFilter) =>
+      request<AdminStorageAnalytics>(
+        http.get('/admin/analytics/storage', { params: filter }),
+      ),
+
+    devices: (filter?: AdminAnalyticsFilter) =>
+      request<AdminDeviceAnalytics>(
+        http.get('/admin/analytics/devices', { params: filter }),
+      ),
+
+    locations: (filter?: AdminAnalyticsFilter) =>
+      request<AdminLocationAnalytics>(
+        http.get('/admin/analytics/locations', { params: filter }),
+      ),
+
+    revenue: (filter?: AdminAnalyticsFilter) =>
+      request<AdminRevenueAnalytics>(
+        http.get('/admin/analytics/revenue', { params: filter }),
+      ),
+
+    subscriptions: (filter?: AdminAnalyticsFilter) =>
+      request<AdminSubscriptionAnalytics>(
+        http.get('/admin/analytics/subscriptions', { params: filter }),
+      ),
+
+    engagement: (filter?: AdminAnalyticsFilter) =>
+      request<AdminEngagementAnalytics>(
+        http.get('/admin/analytics/engagement', { params: filter }),
+      ),
+
+    liveActivity: () =>
+      request<AdminLiveActivityItem[]>(
+        http.get('/admin/analytics/live-activity'),
+      ),
+
+    exportCsv: (type: string, filter?: AdminAnalyticsFilter) =>
+      request<string>(
+        http.get(`/admin/analytics/export/${type}`, {
+          params: { ...filter, format: 'csv' },
+          responseType: 'text',
+        }),
+      ),
+
+    exportJson: (type: string, filter?: AdminAnalyticsFilter) =>
+      request<string>(
+        http.get(`/admin/analytics/export/${type}`, {
+          params: { ...filter, format: 'json' },
+        }),
+      ),
+  },
 };
+
 
 /**
  * Enterprise governance — organisations, SSO and SCIM.

@@ -28,6 +28,77 @@ const ErrorTrackingView = lazy(() =>
   import('@org/admin-analytics').then((m) => ({ default: m.ErrorTrackingView })),
 );
 
+const OverviewDashboardView = lazy(() =>
+  import('@org/admin-analytics').then((m) => ({
+    default: m.OverviewDashboardView,
+  })),
+);
+const UserAnalyticsView = lazy(() =>
+  import('@org/admin-analytics').then((m) => ({
+    default: m.UserAnalyticsView,
+  })),
+);
+const PlatformUsageView = lazy(() =>
+  import('@org/admin-analytics').then((m) => ({
+    default: m.PlatformUsageView,
+  })),
+);
+const WorkspaceAnalyticsView = lazy(() =>
+  import('@org/admin-analytics').then((m) => ({
+    default: m.WorkspaceAnalyticsView,
+  })),
+);
+const WorkspaceDetailAnalyticsView = lazy(() =>
+  import('@org/admin-analytics').then((m) => ({
+    default: m.WorkspaceDetailAnalyticsView,
+  })),
+);
+const ApiAnalyticsView = lazy(() =>
+  import('@org/admin-analytics').then((m) => ({
+    default: m.ApiAnalyticsView,
+  })),
+);
+const MessagingAnalyticsView = lazy(() =>
+  import('@org/admin-analytics').then((m) => ({
+    default: m.MessagingAnalyticsView,
+  })),
+);
+const StorageAnalyticsView = lazy(() =>
+  import('@org/admin-analytics').then((m) => ({
+    default: m.StorageAnalyticsView,
+  })),
+);
+const DeviceAnalyticsView = lazy(() =>
+  import('@org/admin-analytics').then((m) => ({
+    default: m.DeviceAnalyticsView,
+  })),
+);
+const LocationAnalyticsView = lazy(() =>
+  import('@org/admin-analytics').then((m) => ({
+    default: m.LocationAnalyticsView,
+  })),
+);
+const RevenueAnalyticsView = lazy(() =>
+  import('@org/admin-analytics').then((m) => ({
+    default: m.RevenueAnalyticsView,
+  })),
+);
+const SubscriptionAnalyticsView = lazy(() =>
+  import('@org/admin-analytics').then((m) => ({
+    default: m.SubscriptionAnalyticsView,
+  })),
+);
+const EngagementAnalyticsView = lazy(() =>
+  import('@org/admin-analytics').then((m) => ({
+    default: m.EngagementAnalyticsView,
+  })),
+);
+const LiveActivityView = lazy(() =>
+  import('@org/admin-analytics').then((m) => ({
+    default: m.LiveActivityView,
+  })),
+);
+
 const EnterpriseDashboardView = lazy(() =>
   import('@org/admin-enterprise').then((m) => ({
     default: m.EnterpriseDashboardView,
@@ -149,9 +220,47 @@ export function App() {
     <Suspense fallback={<LoadingState fullPage />}>
       <Routes>
         <Route element={<AdminShell />}>
-          {/* Health is the landing screen: the first question on arrival is
-              whether the platform is up. */}
-          <Route path="/" element={<Navigate to="/health" replace />} />
+          {/* Overview & Platform Intelligence Dashboard */}
+          <Route path="/" element={<Navigate to="/overview" replace />} />
+          <Route path="/overview" element={<OverviewDashboardView />} />
+
+          {/* Analytics Intelligence Routes */}
+          <Route path="/analytics/users" element={<UserAnalyticsView />} />
+          <Route
+            path="/analytics/platform-usage"
+            element={<PlatformUsageView />}
+          />
+          <Route
+            path="/analytics/workspaces"
+            element={<WorkspaceAnalyticsView />}
+          />
+          <Route
+            path="/analytics/workspaces/:workspaceId"
+            element={<WorkspaceDetailAnalyticsView />}
+          />
+          <Route path="/analytics/apis" element={<ApiAnalyticsView />} />
+          <Route
+            path="/analytics/messaging"
+            element={<MessagingAnalyticsView />}
+          />
+          <Route path="/analytics/storage" element={<StorageAnalyticsView />} />
+          <Route path="/analytics/devices" element={<DeviceAnalyticsView />} />
+          <Route
+            path="/analytics/locations"
+            element={<LocationAnalyticsView />}
+          />
+          <Route path="/analytics/revenue" element={<RevenueAnalyticsView />} />
+          <Route
+            path="/analytics/subscriptions"
+            element={<SubscriptionAnalyticsView />}
+          />
+          <Route
+            path="/analytics/engagement"
+            element={<EngagementAnalyticsView />}
+          />
+          <Route path="/analytics/live" element={<LiveActivityView />} />
+
+          {/* System Operations */}
           <Route path="/health" element={<HealthDashboardView />} />
           <Route path="/performance" element={<PerformanceMonitoringView />} />
           <Route path="/errors" element={<ErrorTrackingView />} />

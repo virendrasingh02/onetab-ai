@@ -130,3 +130,50 @@ export function systemRoleHasCompliancePermission(
   );
 }
 
+/**
+ * Platform administration analytics permissions.
+ */
+export const AdminAnalyticsPermission = {
+  VIEW_PLATFORM: 'analytics.platform.view',
+  VIEW_USERS: 'analytics.users.view',
+  VIEW_WORKSPACES: 'analytics.workspaces.view',
+  VIEW_REVENUE: 'analytics.revenue.view',
+  VIEW_BILLING: 'analytics.billing.view',
+  VIEW_APIS: 'analytics.apis.view',
+  VIEW_DEVICES: 'analytics.devices.view',
+  VIEW_LOCATIONS: 'analytics.locations.view',
+  EXPORT: 'analytics.export',
+} as const;
+export type AdminAnalyticsPermission =
+  (typeof AdminAnalyticsPermission)[keyof typeof AdminAnalyticsPermission];
+
+export const ADMIN_ANALYTICS_PERMISSIONS: readonly AdminAnalyticsPermission[] =
+  Object.values(AdminAnalyticsPermission);
+
+export const SYSTEM_ROLE_ANALYTICS_PERMISSIONS: Readonly<
+  Record<string, readonly AdminAnalyticsPermission[]>
+> = {
+  SUPERADMIN: ADMIN_ANALYTICS_PERMISSIONS,
+  SUPPORT: [
+    AdminAnalyticsPermission.VIEW_PLATFORM,
+    AdminAnalyticsPermission.VIEW_USERS,
+    AdminAnalyticsPermission.VIEW_WORKSPACES,
+    AdminAnalyticsPermission.VIEW_APIS,
+    AdminAnalyticsPermission.VIEW_DEVICES,
+    AdminAnalyticsPermission.VIEW_LOCATIONS,
+  ],
+  USER: [],
+};
+
+export function systemRoleHasAnalyticsPermission(
+  systemRole: string | undefined,
+  permission: AdminAnalyticsPermission,
+): boolean {
+  if (!systemRole) return false;
+  return (
+    SYSTEM_ROLE_ANALYTICS_PERMISSIONS[systemRole]?.includes(permission) ??
+    false
+  );
+}
+
+

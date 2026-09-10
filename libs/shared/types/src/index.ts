@@ -42,7 +42,12 @@ export {
   permissionsForRole,
   roleHasAllPermissions,
   roleHasPermission,
+  AdminAnalyticsPermission,
+  ADMIN_ANALYTICS_PERMISSIONS,
+  SYSTEM_ROLE_ANALYTICS_PERMISSIONS,
+  systemRoleHasAnalyticsPermission,
 } from './lib/permissions.js';
+
 
 export type {
   Channel,
@@ -192,7 +197,26 @@ export type {
   AdminWorkspaceDetail,
   EnterpriseOrganization,
   SSOConfiguration,
+  AdminAnalyticsFilter,
+  ExecutiveKpi,
+  AdminLiveActivityItem,
+  AdminPlatformOverview,
+  AdminUserAnalytics,
+  AdminPlatformUsageAnalytics,
+  AdminWorkspaceAnalyticsRow,
+  AdminWorkspaceAnalyticsResponse,
+  AdminWorkspaceDetailAnalytics,
+  AdminApiAnalytics,
+  AdminMessagingAnalytics,
+  AdminStorageAnalytics,
+  AdminDeviceAnalytics,
+  AdminLocationAnalytics,
+  AdminRevenueAnalytics,
+  AdminSubscriptionAnalytics,
+  AdminEngagementAnalytics,
+  MetricDefinition,
 } from './lib/admin.js';
+
 
 export type {
   AgentExecutionLog,

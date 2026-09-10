@@ -3,30 +3,40 @@ import { Badge, Button, Hint, LoadingState, ScrollArea } from '@org/ui';
 import { cn } from '@org/utils';
 import {
   AlertTriangle,
+  BarChart3,
   Blocks,
   Bot,
   Bug,
   Building2,
   CheckSquare,
+  CreditCard,
+  DollarSign,
   FileStack,
   FileText,
   Gauge,
   Globe,
+  HardDrive,
   HeartPulse,
+  Laptop,
   Layers,
+  MessageSquare,
   Monitor,
   Moon,
   Palette,
   Plug,
   Puzzle,
+  Radio,
   Rocket,
   Scale,
+  Server,
   Shield,
   ShieldAlert,
   ShieldCheck,
   Store,
   Sun,
+  Users,
   Workflow,
+  Zap,
 } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { Suspense, useState } from 'react';
@@ -44,12 +54,106 @@ interface NavItem {
 /**
  * The console's whole surface, as data.
  *
- * Groups mirror the three things the admin console is for: watching the
- * platform run, governing the organization, and curating the catalogue.
+ * Groups mirror the primary domains: watching platform intelligence, governing
+ * organizations, maintaining systems, and curating the catalogue.
  */
 const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
   {
-    title: 'Platform',
+    title: 'Overview',
+    items: [
+      {
+        to: '/overview',
+        label: 'Platform Overview',
+        icon: BarChart3,
+        tone: 'text-primary',
+        end: true,
+      },
+      {
+        to: '/analytics/live',
+        label: 'Live Activity Stream',
+        icon: Radio,
+        tone: 'text-success',
+      },
+    ],
+  },
+  {
+    title: 'Analytics',
+    items: [
+      {
+        to: '/analytics/users',
+        label: 'Users & Growth',
+        icon: Users,
+        tone: 'text-accent-blue',
+      },
+      {
+        to: '/analytics/platform-usage',
+        label: 'Web vs Desktop',
+        icon: Laptop,
+        tone: 'text-accent-violet',
+      },
+      {
+        to: '/analytics/workspaces',
+        label: 'Workspaces',
+        icon: Building2,
+        tone: 'text-accent-cyan',
+      },
+      {
+        to: '/analytics/apis',
+        label: 'API Intelligence',
+        icon: Server,
+        tone: 'text-warning',
+      },
+      {
+        to: '/analytics/messaging',
+        label: 'Messaging',
+        icon: MessageSquare,
+        tone: 'text-accent-pink',
+      },
+      {
+        to: '/analytics/storage',
+        label: 'Storage & Files',
+        icon: HardDrive,
+        tone: 'text-accent-blue',
+      },
+      {
+        to: '/analytics/devices',
+        label: 'Devices & Clients',
+        icon: Monitor,
+        tone: 'text-muted-foreground',
+      },
+      {
+        to: '/analytics/locations',
+        label: 'Geographic',
+        icon: Globe,
+        tone: 'text-success',
+      },
+      {
+        to: '/analytics/engagement',
+        label: 'Engagement & Stickiness',
+        icon: Zap,
+        tone: 'text-warning',
+      },
+    ],
+  },
+  {
+    title: 'Business',
+    items: [
+      {
+        to: '/analytics/revenue',
+        label: 'Revenue & Finance',
+        icon: DollarSign,
+        tone: 'text-success',
+      },
+      {
+        to: '/analytics/subscriptions',
+        label: 'Subscriptions',
+        icon: CreditCard,
+        tone: 'text-accent-blue',
+      },
+    ],
+  },
+  {
+    title: 'System',
     items: [
       {
         to: '/health',

@@ -168,7 +168,38 @@ export const queryKeys = {
     organizations: () => ['admin', 'organizations'] as const,
     auditLogs: (organizationId: string, page: number) =>
       ['admin', 'audit-logs', organizationId, page] as const,
+    analytics: {
+      all: () => ['admin', 'analytics'] as const,
+      overview: (filter?: Record<string, unknown>) =>
+        ['admin', 'analytics', 'overview', filter ?? {}] as const,
+      users: (filter?: Record<string, unknown>) =>
+        ['admin', 'analytics', 'users', filter ?? {}] as const,
+      platformUsage: (filter?: Record<string, unknown>) =>
+        ['admin', 'analytics', 'platform-usage', filter ?? {}] as const,
+      workspaces: (params?: Record<string, unknown>) =>
+        ['admin', 'analytics', 'workspaces', params ?? {}] as const,
+      workspaceDetail: (id: string, filter?: Record<string, unknown>) =>
+        ['admin', 'analytics', 'workspaces', id, filter ?? {}] as const,
+      apis: (filter?: Record<string, unknown>) =>
+        ['admin', 'analytics', 'apis', filter ?? {}] as const,
+      messaging: (filter?: Record<string, unknown>) =>
+        ['admin', 'analytics', 'messaging', filter ?? {}] as const,
+      storage: (filter?: Record<string, unknown>) =>
+        ['admin', 'analytics', 'storage', filter ?? {}] as const,
+      devices: (filter?: Record<string, unknown>) =>
+        ['admin', 'analytics', 'devices', filter ?? {}] as const,
+      locations: (filter?: Record<string, unknown>) =>
+        ['admin', 'analytics', 'locations', filter ?? {}] as const,
+      revenue: (filter?: Record<string, unknown>) =>
+        ['admin', 'analytics', 'revenue', filter ?? {}] as const,
+      subscriptions: (filter?: Record<string, unknown>) =>
+        ['admin', 'analytics', 'subscriptions', filter ?? {}] as const,
+      engagement: (filter?: Record<string, unknown>) =>
+        ['admin', 'analytics', 'engagement', filter ?? {}] as const,
+      liveActivity: () => ['admin', 'analytics', 'live-activity'] as const,
+    },
   },
+
   enterprise: {
     all: () => ['enterprise'] as const,
     organization: (organizationId: string) =>
@@ -332,5 +363,7 @@ export const queryKeys = {
       ['bookmarks', workspaceId, { targetType }] as const,
   },
 } as const;
+
+
 
 

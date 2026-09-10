@@ -9,3 +9,6 @@ export {
   isValidSemVer,
   hashClientIdToBucket,
 } from './lib/app-versions.service.js';
+export { AdminAnalyticsController } from './lib/admin-analytics.controller.js';
+export { AdminAnalyticsService } from './lib/admin-analytics.service.js';
+

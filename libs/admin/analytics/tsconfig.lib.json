@@ -19,6 +19,9 @@
   "exclude": ["out-tsc", "dist", "src/**/*.spec.ts", "src/**/*.spec.tsx"],
   "references": [
     {
+      "path": "../../shared/utils/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/ui/tsconfig.lib.json"
     },
     {
