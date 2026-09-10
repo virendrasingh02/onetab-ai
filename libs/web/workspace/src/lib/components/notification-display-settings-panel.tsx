@@ -2,20 +2,28 @@ import {
   useNotificationDisplayPreferences,
   useUserPreferences,
 } from '@org/common';
-import { notificationService } from '@org/notifications';
+import {
+  notificationService,
+  useNotificationSoundControls,
+  useWorkspaceSoundMuteControl,
+} from '@org/notifications';
 import type {
   NotificationDismissDuration,
   NotificationPosition,
   NotificationSize,
+  NotificationSoundEvent,
 } from '@org/types';
 import {
   Badge,
   Button,
+  NOTIFICATION_SOUND_EVENT_LABELS,
+  NOTIFICATION_SOUND_PROFILE_OPTIONS,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Slider,
   Switch,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -27,21 +35,51 @@ import {
 } from '@org/web-desktop';
 import {
   AlignJustify,
+  AtSign,
   Bell,
+  BellRing,
   CheckCircle2,
   Clock,
   ExternalLink,
   Eye,
   EyeOff,
   Laptop,
+  MessageSquare,
+  Phone,
   PhoneCall,
+  Play,
   RotateCcw,
+  ShieldAlert,
   Sparkles,
+  Volume1,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { useState } from 'react';
 
+const SOUND_EVENT_ORDER: NotificationSoundEvent[] = [
+  'message',
+  'dm',
+  'mention',
+  'priority',
+  'call',
+  'success',
+];
+
+const SOUND_EVENT_ICON: Record<
+  NotificationSoundEvent,
+  typeof MessageSquare
+> = {
+  message: MessageSquare,
+  dm: Bell,
+  mention: AtSign,
+  priority: ShieldAlert,
+  call: Phone,
+  success: CheckCircle2,
+};
+
 export function NotificationDisplaySettingsPanel({
-  workspaceId: _workspaceId,
+  workspaceId,
 }: {
   workspaceId?: string;
 }) {
@@ -51,6 +89,19 @@ export function NotificationDisplaySettingsPanel({
   const capabilities = useCapabilities();
   const isTaskbarFlashSupported = useTaskbarFlashSupported();
   const isSystemSettingsSupported = useSystemSettingsSupported();
+
+  const {
+    sound,
+    reduceDistractionActive,
+    setEnabled: setSoundEnabled,
+    setVolume: setSoundVolume,
+    setProfile: setSoundProfile,
+    setOnlyWhenUnfocused: setSoundOnlyWhenUnfocused,
+    setEventEnabled: setSoundEventEnabled,
+    preview: previewSound,
+  } = useNotificationSoundControls();
+  const [workspaceSoundMuted, setWorkspaceSoundMuted] =
+    useWorkspaceSoundMuteControl(workspaceId);
 
   const [testSending, setTestSending] = useState(false);
   const [testSuccess, setTestSuccess] = useState(false);
@@ -244,6 +295,279 @@ export function NotificationDisplaySettingsPanel({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 1.5 Notification Sounds */}
+      <div className="space-y-3">
+        <div className="px-1 flex items-end justify-between">
+          <div>
+            <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Notification Sounds
+            </h3>
+            <p className="text-xs mt-0.5 text-muted-foreground">
+              Soft, short audio cues for meaningful notifications. Sounds are
+              never the only signal — badges, unread dots and banners are
+              unchanged.
+            </p>
+          </div>
+        </div>
+
+        <div className="divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs">
+          {/* Master switch */}
+          <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
+            <div className="gap-3 flex items-start">
+              <div className="size-8 mt-0.5 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                {sound.enabled ? (
+                  <BellRing className="size-4" />
+                ) : (
+                  <VolumeX className="size-4" />
+                )}
+              </div>
+              <div>
+                <h4 className="text-xs font-medium text-foreground">
+                  Play notification sounds
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Turn off to silence every notification sound everywhere. Visual
+                  notifications keep working.
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={sound.enabled}
+              onCheckedChange={setSoundEnabled}
+              aria-label="Play notification sounds"
+            />
+          </div>
+
+          {/* Master volume */}
+          <div
+            className={cn(
+              'p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40',
+              !sound.enabled && 'opacity-50',
+            )}
+          >
+            <div className="gap-3 flex items-start">
+              <div className="size-8 mt-0.5 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                {sound.volume < 0.05 ? (
+                  <VolumeX className="size-4" />
+                ) : sound.volume < 0.5 ? (
+                  <Volume1 className="size-4" />
+                ) : (
+                  <Volume2 className="size-4" />
+                )}
+              </div>
+              <div>
+                <h4 className="text-xs font-medium text-foreground">
+                  Master volume
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  All cues sit deliberately low, under speech.
+                </p>
+              </div>
+            </div>
+            <div className="gap-3 w-44 flex items-center">
+              <Slider
+                value={[Math.round(sound.volume * 100)]}
+                min={0}
+                max={100}
+                step={5}
+                disabled={!sound.enabled}
+                onValueChange={([value]) => setSoundVolume((value ?? 0) / 100)}
+                aria-label="Master notification volume"
+              />
+              <span className="text-[11px] tabular-nums w-8 text-right text-muted-foreground">
+                {Math.round(sound.volume * 100)}%
+              </span>
+            </div>
+          </div>
+
+          {/* Sound profile */}
+          <div
+            className={cn(
+              'p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40',
+              !sound.enabled && 'opacity-50',
+            )}
+          >
+            <div className="gap-3 flex items-start">
+              <div className="size-8 mt-0.5 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Sparkles className="size-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-medium text-foreground">
+                  Sound profile
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {NOTIFICATION_SOUND_PROFILE_OPTIONS.find(
+                    (option) => option.id === sound.profile,
+                  )?.description ?? 'Choose a tone palette.'}
+                </p>
+              </div>
+            </div>
+            <div className="gap-2 flex items-center">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={!sound.enabled}
+                onClick={() => previewSound('message')}
+                className="size-8 p-0 shrink-0"
+                aria-label="Preview sound profile"
+              >
+                <Play className="size-3.5" />
+              </Button>
+              <Select
+                value={sound.profile}
+                onValueChange={(value) =>
+                  setSoundProfile(value as typeof sound.profile)
+                }
+                disabled={!sound.enabled}
+              >
+                <SelectTrigger className="w-32 h-8 text-xs border-border bg-surface">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {NOTIFICATION_SOUND_PROFILE_OPTIONS.map((option) => (
+                    <SelectItem
+                      key={option.id}
+                      value={option.id}
+                      className="text-xs"
+                    >
+                      {option.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Only when unfocused */}
+          <div
+            className={cn(
+              'p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40',
+              !sound.enabled && 'opacity-50',
+            )}
+          >
+            <div className="gap-3 flex items-start">
+              <div className="size-8 mt-0.5 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Eye className="size-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-medium text-foreground">
+                  Only when I&rsquo;m not viewing the conversation
+                </h4>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Skip the sound when the relevant channel or DM is already open
+                  in front of you. New-message and DM cues are always skipped for
+                  the conversation on screen.
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={sound.onlyWhenUnfocused}
+              onCheckedChange={setSoundOnlyWhenUnfocused}
+              disabled={!sound.enabled}
+              aria-label="Play sounds only when not viewing the conversation"
+            />
+          </div>
+
+          {/* Per-workspace mute */}
+          <div className="p-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40">
+            <div className="gap-3 flex items-start">
+              <div className="size-8 mt-0.5 flex shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <VolumeX className="size-4" />
+              </div>
+              <div>
+                <div className="gap-2 flex items-center">
+                  <h4 className="text-xs font-medium text-foreground">
+                    Mute notification sounds in this workspace
+                  </h4>
+                  <Badge variant="neutral" className="py-0 px-1.5 text-[9px]">
+                    This workspace
+                  </Badge>
+                </div>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  Silences sounds for this workspace only. Your other workspaces
+                  and their settings are untouched.
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={workspaceSoundMuted}
+              onCheckedChange={setWorkspaceSoundMuted}
+              disabled={!workspaceId}
+              aria-label="Mute notification sounds in this workspace"
+            />
+          </div>
+        </div>
+
+        {/* Sounds by type */}
+        <div
+          className={cn(
+            'divide-y divide-border/40 overflow-hidden rounded-2xl border border-border bg-surface-inset shadow-xs',
+            !sound.enabled && 'opacity-50',
+          )}
+        >
+          <div className="p-3 px-4">
+            <h4 className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+              Sounds by type
+            </h4>
+          </div>
+          {SOUND_EVENT_ORDER.map((event) => {
+            const Icon = SOUND_EVENT_ICON[event];
+            return (
+              <div
+                key={event}
+                className="p-3 px-4 gap-4 flex items-center justify-between transition-colors hover:bg-accent/40"
+              >
+                <div className="gap-3 flex items-center">
+                  <div className="size-7 flex shrink-0 items-center justify-center rounded-lg bg-surface text-muted-foreground">
+                    <Icon className="size-3.5" />
+                  </div>
+                  <span className="text-xs font-medium text-foreground">
+                    {NOTIFICATION_SOUND_EVENT_LABELS[event]}
+                  </span>
+                </div>
+                <div className="gap-2 flex items-center">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={!sound.enabled}
+                    onClick={() => previewSound(event)}
+                    className="size-7 p-0 shrink-0 text-muted-foreground hover:text-foreground"
+                    aria-label={`Preview ${NOTIFICATION_SOUND_EVENT_LABELS[event]} sound`}
+                  >
+                    <Play className="size-3" />
+                  </Button>
+                  <Switch
+                    checked={sound.events[event] !== false}
+                    onCheckedChange={(checked) =>
+                      setSoundEventEnabled(event, checked)
+                    }
+                    disabled={!sound.enabled}
+                    aria-label={`${NOTIFICATION_SOUND_EVENT_LABELS[event]} sound`}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <p className="px-1 text-[11px] leading-relaxed text-muted-foreground">
+          The master switch, volume, profile and per-type choices apply to every
+          workspace you&rsquo;re in. Muted channels, muted DMs, &ldquo;mentions
+          only&rdquo; and quiet hours are per workspace and already control which
+          notifications make a sound here.
+          {reduceDistractionActive && (
+            <>
+              {' '}
+              Your system &ldquo;reduced motion&rdquo; setting is on, so ambient
+              cues (new message, success) are held back and the volume is eased
+              down automatically.
+            </>
+          )}
+        </p>
       </div>
 
       {/* 2. Position on Screen */}

@@ -239,6 +239,10 @@ export type {
   WorkItemRelation,
 } from './lib/work-tools.js';
 
+export {
+  NOTIFICATION_SOUND_PRIORITY,
+  DEFAULT_NOTIFICATION_SOUND_PREFERENCES,
+} from './lib/notifications.js';
 export type {
   ActivityFeedItem,
   ChatPreferences,
@@ -249,6 +253,10 @@ export type {
   NotificationPosition,
   NotificationPreference,
   NotificationSize,
+  NotificationSoundEvent,
+  NotificationSoundPreferences,
+  NotificationSoundPreferencesPatch,
+  NotificationSoundProfile,
   NotificationView,
   OpenChatPosition,
   PushDevice,

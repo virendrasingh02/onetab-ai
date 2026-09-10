@@ -21,6 +21,30 @@ vi.mock('@org/notifications', () => ({
     requestPermission: vi.fn(),
     resetBarState: vi.fn(),
   }),
+  useNotificationSoundControls: vi.fn().mockReturnValue({
+    sound: {
+      enabled: true,
+      volume: 0.5,
+      profile: 'calm',
+      onlyWhenUnfocused: false,
+      events: {
+        message: true,
+        dm: true,
+        mention: true,
+        priority: true,
+        call: true,
+        success: true,
+      },
+    },
+    reduceDistractionActive: false,
+    setEnabled: vi.fn(),
+    setVolume: vi.fn(),
+    setProfile: vi.fn(),
+    setOnlyWhenUnfocused: vi.fn(),
+    setEventEnabled: vi.fn(),
+    preview: vi.fn(),
+  }),
+  useWorkspaceSoundMuteControl: vi.fn().mockReturnValue([false, vi.fn()]),
 }));
 
 vi.mock('@org/web-desktop', () => ({

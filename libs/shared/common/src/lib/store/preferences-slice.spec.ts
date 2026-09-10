@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import preferencesReducer, {
   updateChatPreferences,
   updateNotificationPreferences,
+  updateNotificationSoundPreferences,
   resetPreferences,
+  DEFAULT_NOTIFICATION_SOUND_PREFERENCES,
   DEFAULT_USER_PREFERENCES,
   PREFERENCES_STORAGE_KEY,
   loadInitialPreferences,
@@ -107,6 +109,11 @@ describe('preferences-slice', () => {
           dismissDuration: null,
           position: 'top-left',
           size: 'compact',
+          sound: {
+            ...DEFAULT_NOTIFICATION_SOUND_PREFERENCES,
+            enabled: false,
+            volume: 0.1,
+          },
         },
       },
       isLoadedFromServer: true,
@@ -116,5 +123,41 @@ describe('preferences-slice', () => {
 
     const resetState = preferencesReducer(customState, resetPreferences());
     expect(resetState.preferences).toEqual(DEFAULT_USER_PREFERENCES);
+  });
+
+  it('defaults sound preferences and clamps a stored volume', () => {
+    window.localStorage.setItem(
+      PREFERENCES_STORAGE_KEY,
+      JSON.stringify({
+        notifications: {
+          sound: { volume: 5, profile: 'nope', events: { dm: false } },
+        },
+      }),
+    );
+
+    const loaded = loadInitialPreferences();
+    expect(loaded.notifications.sound.volume).toBe(1);
+    expect(loaded.notifications.sound.profile).toBe('calm');
+    expect(loaded.notifications.sound.enabled).toBe(true);
+    expect(loaded.notifications.sound.events.dm).toBe(false);
+    expect(loaded.notifications.sound.events.message).toBe(true);
+  });
+
+  it('patches only the nested sound block, keeping the event map', () => {
+    const initialState: PreferencesState = {
+      preferences: DEFAULT_USER_PREFERENCES,
+      isLoadedFromServer: false,
+      isSyncing: false,
+      lastError: null,
+    };
+
+    const next = preferencesReducer(
+      initialState,
+      updateNotificationSoundPreferences({ events: { mention: false } }),
+    );
+
+    expect(next.preferences.notifications.sound.events.mention).toBe(false);
+    expect(next.preferences.notifications.sound.events.dm).toBe(true);
+    expect(next.preferences.notifications.sound.enabled).toBe(true);
   });
 });

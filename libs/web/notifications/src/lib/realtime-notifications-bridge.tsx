@@ -78,15 +78,38 @@ export function RealtimeNotificationsBridge({
           return;
         }
 
-        const isMessageKind = /MESSAGE|MENTION|DM|COMMENT|REPLY/i.test(
-          notification.kind ?? '',
-        );
+        const kind = notification.kind ?? '';
+        const isMessageKind = /MESSAGE|MENTION|DM|COMMENT|REPLY/i.test(kind);
+        const isMentionKind = /MENTION/i.test(kind);
+        const isCriticalKind = /SECURITY|CRITICAL/i.test(kind);
+        // An incoming huddle / call — the one cue allowed to be a touch more
+        // distinguishable. Harmless until such a notification kind exists; it
+        // then rings with the user-configurable "Incoming call" cue.
+        const isCallKind = /\b(CALL|HUDDLE|RINGING)\b/i.test(kind);
+
+        // Pick the calm cue that fits: incoming calls, then mentions and
+        // security alerts, then the soft "message" tone for everything else.
+        // A plain task / invite / doc notification keeps `info` + `message`.
+        const soundEvent = isCallKind
+          ? 'call'
+          : isCriticalKind
+            ? 'priority'
+            : isMentionKind
+              ? 'mention'
+              : 'message';
 
         void notificationService.notify({
           id: notification.id,
           title: notification.title,
           body: notification.body ?? '',
           type: isMessageKind ? 'message' : 'info',
+          priority:
+            isCallKind || isCriticalKind
+              ? 'critical'
+              : isMentionKind
+                ? 'high'
+                : 'normal',
+          soundEvent,
           route: resolved.route ?? undefined,
           workspaceId: notification.workspaceId,
           // Focused-but-elsewhere: a toast is enough, skip the OS-level

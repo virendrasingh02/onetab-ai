@@ -36,6 +36,7 @@
     "@org/auth": "*",
     "@org/hooks": "*",
     "@org/media-preview": "*",
+    "@org/notifications": "*",
     "@org/realtime": "*",
     "@org/ui": "*",
     "@org/utils": "*",

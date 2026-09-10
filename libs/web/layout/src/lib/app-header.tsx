@@ -16,9 +16,7 @@ import {
 } from '@org/ui';
 import type { ActivityIndicator } from '@org/notifications';
 import { useAccounts, useLogout, useRemoveAccount } from '@org/auth';
-import { useManualResync } from '@org/sync';
 import { cn } from '@org/utils';
-import { SyncStatusIndicator } from './sync/sync-status-indicator.js';
 import {
   DesktopTitleBarInset,
   DesktopUpdateIndicator,
@@ -40,7 +38,6 @@ import {
   HelpCircle,
   Laptop,
   PanelLeft,
-  RefreshCw,
   Search,
   Settings,
   Sliders,
@@ -96,7 +93,6 @@ export function AppHeader({
   const removeAccount = useRemoveAccount();
   const { accounts, activeAccountId } = useAccounts();
   const navigate = useNavigate();
-  const resync = useManualResync();
   const { toggleMaximize } = useDesktop();
   const { environment, primaryOption, trackDownload } = useAppDownload();
 
@@ -304,15 +300,6 @@ export function AppHeader({
             </Button>
           </Hint>
 
-          {/* Background-sync status — quiet; click to re-sync. Hidden text
-              below sm to keep the mobile header uncluttered. */}
-          <div
-            style={NO_DRAG}
-            className="sm:flex hidden items-center"
-          >
-            <SyncStatusIndicator variant="inline" />
-          </div>
-
           {/* Update nudge — desktop app update only */}
           <div style={NO_DRAG} className="flex items-center gap-1.5">
             <DesktopUpdateIndicator />
@@ -447,16 +434,6 @@ export function AppHeader({
               >
                 <CreditCard className="size-3.5 text-muted-foreground" />
                 <span>Plans & Billing</span>
-              </DropdownMenuItem>
-
-              {/* Manual background re-sync — invalidate + incremental catch-up,
-                  never a full reload. */}
-              <DropdownMenuItem
-                onClick={() => void resync()}
-                className="px-2.5 py-2 text-xs font-medium gap-2.5 cursor-pointer rounded-lg hover:bg-accent/60"
-              >
-                <RefreshCw className="size-3.5 text-muted-foreground" />
-                <span>Re-sync now</span>
               </DropdownMenuItem>
 
               <DropdownMenuSeparator className="my-1 border-border/60" />

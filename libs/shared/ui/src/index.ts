@@ -408,6 +408,13 @@ export {
 } from './lib/components/focus-audio.js';
 
 export {
+  notificationAudio,
+  NOTIFICATION_SOUND_PROFILE_OPTIONS,
+  NOTIFICATION_SOUND_EVENT_LABELS,
+  type NotificationSoundProfileOption,
+} from './lib/components/notification-audio.js';
+
+export {
   useFocusStore,
   type FocusState,
 } from './lib/components/focus-mode-store.js';

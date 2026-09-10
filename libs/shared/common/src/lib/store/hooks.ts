@@ -7,6 +7,8 @@ import type {
   NotificationDisplayPreferences,
   NotificationPosition,
   NotificationSize,
+  NotificationSoundPreferences,
+  NotificationSoundPreferencesPatch,
   OpenChatPosition,
   UserPreferences,
 } from '@org/types';
@@ -14,6 +16,7 @@ import {
   setPreferences,
   updateChatPreferences,
   updateNotificationPreferences,
+  updateNotificationSoundPreferences,
   resetPreferences,
 } from './preferences-slice.js';
 import type { AppDispatch, RootState } from './store.js';
@@ -108,6 +111,26 @@ export function useNotificationDisplayPreferences(): {
     notifications,
     updateNotificationPreferences: handleUpdateNotifications,
   };
+}
+
+export function useNotificationSoundPreferences(): {
+  sound: NotificationSoundPreferences;
+  updateNotificationSoundPreferences: (
+    patch: NotificationSoundPreferencesPatch,
+  ) => void;
+} {
+  const dispatch = useAppDispatch();
+  const sound = useAppSelector(
+    (state) => state.preferences.preferences.notifications.sound,
+  );
+
+  const handleUpdate = useCallback(
+    (patch: NotificationSoundPreferencesPatch) =>
+      dispatch(updateNotificationSoundPreferences(patch)),
+    [dispatch],
+  );
+
+  return { sound, updateNotificationSoundPreferences: handleUpdate };
 }
 
 export function useMessageDensity(): MessageDensity {

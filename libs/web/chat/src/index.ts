@@ -1,6 +1,16 @@
 export { MatrixProvider, useMatrix } from './lib/matrix-provider.js';
 export { AuthenticatedMediaBridge } from './lib/authenticated-media-bridge.js';
 export {
+  NotificationSoundBridge,
+  type NotificationSoundBridgeProps,
+} from './lib/notification-sound-bridge.js';
+export {
+  setActiveConversation,
+  getActiveConversation,
+  subscribeActiveConversation,
+  useRegisterActiveConversation,
+} from './lib/active-conversation.js';
+export {
   useGroupDirectMessages,
   usePresence,
   useRoom,

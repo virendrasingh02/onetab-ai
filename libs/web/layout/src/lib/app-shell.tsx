@@ -28,11 +28,13 @@ import {
   mergeActivityIndicators,
   useChannelActivity,
   useNotificationFeed,
+  useNotificationSoundSync,
   useNotificationUnread,
   useWorkspaceActivity,
   type ActivityIndicator,
 } from '@org/notifications';
-import { useLiveRoomActivity } from '@org/web-chat';
+import { NotificationSoundBridge, useLiveRoomActivity } from '@org/web-chat';
+import { useChatNotificationSoundGate } from './notifications/chat-sound-gate.js';
 import { WorkspaceSearchPanel } from '@org/web-search';
 import { GlobalInviteMembersDialog } from '@org/web-invitations';
 import {
@@ -80,6 +82,9 @@ export function AppShell() {
   useSidebarSync(!!user);
   // Same, for the per-workspace "resume where I left off" navigation memory.
   useNavigationSync(!!user);
+  // Keep the notification-sound engine configured from user preferences and
+  // unlock the audio context on the first user gesture.
+  useNotificationSoundSync();
   const navigate = useNavigate();
   const location = useLocation();
   const palette = useCommandPalette();
@@ -131,6 +136,15 @@ export function AppShell() {
   const { slug, workspace, workspaceId, isLoading } = useCurrentWorkspace();
   const channelsQuery = useChannels(workspaceId);
   const membersQuery = useMembers(workspaceId);
+
+  // Per-workspace gate for the calm chat notification sounds — muted channels,
+  // muted DMs, "mentions only", quiet hours, Focus Mode and the per-workspace
+  // sound mute, all read for the active workspace.
+  const chatSoundGate = useChatNotificationSoundGate({
+    workspaceId,
+    channels: channelsQuery.data,
+    members: membersQuery.data,
+  });
 
   // Live-apply the client-side workspace preferences (font size, …) so they
   // take effect everywhere, not only where the value happens to be read.
@@ -389,6 +403,17 @@ export function AppShell() {
         workspace, and unmounts cleanly on the way out.
       */}
       <RealtimeNotificationsBridge currentUserId={user?.id} workspaceSlug={slug} />
+      {/*
+        Calm audio cues for Matrix chat traffic (new messages, DMs) — the
+        counterpart to RealtimeNotificationsBridge, which covers mentions,
+        tasks, invites and calls from the server notification stream.
+      */}
+      <NotificationSoundBridge
+        suppressed={chatSoundGate.suppressed}
+        mentionsOnly={chatSoundGate.mentionsOnly}
+        mutedChannelNames={chatSoundGate.mutedChannelNames}
+        mutedPeerNames={chatSoundGate.mutedPeerNames}
+      />
       <div className="flex h-full flex-col overflow-hidden bg-background bg-app-gradient font-sans text-foreground">
         {/* Top Header Bar spanning full width */}
         <OfflineSyncBanner />

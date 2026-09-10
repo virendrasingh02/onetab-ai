@@ -53,6 +53,26 @@ export {
 } from './lib/notification-service.js';
 
 export {
+  notificationSound,
+  NotificationSoundService,
+  type PlaySoundContext,
+  type NotificationSoundEngine,
+} from './lib/notification-sound.js';
+
+export {
+  useNotificationSoundSync,
+  useNotificationSoundControls,
+  type NotificationSoundControls,
+} from './lib/use-notification-sound.js';
+
+export {
+  useWorkspaceSoundMuted,
+  useWorkspaceSoundMuteControl,
+  useWorkspaceSoundMuteStore,
+  isWorkspaceSoundMuted,
+} from './lib/workspace-sound-mute.store.js';
+
+export {
   RealtimeNotificationsBridge,
   type RealtimeNotificationsBridgeProps,
 } from './lib/realtime-notifications-bridge.js';

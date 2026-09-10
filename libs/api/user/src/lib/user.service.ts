@@ -2,7 +2,12 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PUBLIC_USER_SELECT, toPublicUser } from '@org/api-common';
 import { MatrixAdminService } from '@org/api-matrix';
 import { PrismaService } from '@org/database';
-import type { CurrentUser, PublicUser, UserPreferences } from '@org/types';
+import {
+  DEFAULT_NOTIFICATION_SOUND_PREFERENCES,
+  type CurrentUser,
+  type PublicUser,
+  type UserPreferences,
+} from '@org/types';
 import type {
   NavigationPreferenceInput,
   SidebarPreferencesInput,
@@ -394,6 +399,7 @@ export class UserService {
         dismissDuration: 5000,
         position: 'bottom-right',
         size: 'comfy',
+        sound: DEFAULT_NOTIFICATION_SOUND_PREFERENCES,
       },
       language: user?.preferredLanguage ?? 'en',
     };

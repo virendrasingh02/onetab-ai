@@ -10,6 +10,12 @@ vi.mock('@org/ui', () => ({
     warning: vi.fn(),
     info: vi.fn(),
   }),
+  notificationAudio: {
+    play: vi.fn().mockReturnValue(true),
+    unlock: vi.fn().mockResolvedValue(true),
+    setMasterVolume: vi.fn(),
+    isUnlocked: true,
+  },
 }));
 
 vi.mock('@org/web-desktop', () => ({

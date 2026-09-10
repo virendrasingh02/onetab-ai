@@ -44,6 +44,7 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { useRegisterActiveConversation } from './active-conversation.js';
 import { deriveThreads, groupReplies } from './derive-threads.js';
 import { useHuddleSession } from './use-huddle.js';
 import { useMentionNavigation } from './use-mention-navigation.js';
@@ -324,6 +325,10 @@ export function ChatSurface({
   const messageDensity = useMessageDensity();
   const openPosition = useOpenChatPosition();
   const { openPreview } = useMediaPreview();
+
+  // Tell the notification-sound bridge which room is on screen, so a message
+  // landing in the conversation the user is already reading does not also chime.
+  useRegisterActiveConversation(conversationId ?? undefined);
   const [panel, setPanel] = useState<SidePanel>('none');
   const [threadRootId, setThreadRootId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Message | null>(null);

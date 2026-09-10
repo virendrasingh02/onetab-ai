@@ -22,6 +22,92 @@ export interface ChatPreferences {
   readReceipts: boolean;
 }
 
+/**
+ * The distinct sounds the notification-audio system can play. Ordered loosely
+ * by salience — see {@link NOTIFICATION_SOUND_PRIORITY}.
+ */
+export type NotificationSoundEvent =
+  | 'message'
+  | 'dm'
+  | 'mention'
+  | 'priority'
+  | 'call'
+  | 'success';
+
+/**
+ * A curated set of tone palettes. Every profile stays soft, short and warm;
+ * they differ only in timbre so users can pick what is least fatiguing for
+ * them, not in how loud or attention-grabbing they are.
+ */
+export type NotificationSoundProfile = 'calm' | 'warm' | 'crisp';
+
+/**
+ * Priority band per sound, used to decide which single sound wins when a burst
+ * of events is grouped into one, and whether a sound may bypass the debounce
+ * window. Higher number = higher priority.
+ */
+export const NOTIFICATION_SOUND_PRIORITY: Record<NotificationSoundEvent, number> =
+  {
+    call: 100,
+    priority: 80,
+    mention: 60,
+    dm: 50,
+    success: 30,
+    message: 20,
+  };
+
+/**
+ * User-level, cross-workspace notification-sound preferences. Sits beside the
+ * other global notification *display* preferences (taskbar flash, content
+ * preview) rather than in the per-workspace `NotificationPreference` row:
+ * master volume / on-off / timbre are device-ergonomic, not workspace-semantic.
+ * Per-workspace isolation of *behaviour* comes from the existing
+ * `NotificationPreference` (muted channels, mentions-only, quiet hours) plus the
+ * per-workspace "mute sounds in this workspace" switch.
+ */
+export interface NotificationSoundPreferences {
+  /** Master switch. When false, no notification sound ever plays. */
+  enabled: boolean;
+  /** Master volume, 0..1. `0` is equivalent to `enabled: false` for playback. */
+  volume: number;
+  /** Which tone palette to use. */
+  profile: NotificationSoundProfile;
+  /**
+   * When true, a sound is suppressed if the user is already looking at the
+   * conversation the event belongs to (window focused + that room on screen).
+   */
+  onlyWhenUnfocused: boolean;
+  /** Per-event opt-out. A missing key is treated as enabled. */
+  events: Record<NotificationSoundEvent, boolean>;
+}
+
+/**
+ * A partial update to {@link NotificationSoundPreferences}. `events` is a
+ * shallow-partial map so a caller can flip one cue without restating the rest.
+ */
+export type NotificationSoundPreferencesPatch = Partial<
+  Omit<NotificationSoundPreferences, 'events'>
+> & {
+  events?: Partial<Record<NotificationSoundEvent, boolean>>;
+};
+
+/** Deliberately quiet defaults — see the field docs above. */
+export const DEFAULT_NOTIFICATION_SOUND_PREFERENCES: NotificationSoundPreferences =
+  {
+    enabled: true,
+    volume: 0.5,
+    profile: 'calm',
+    onlyWhenUnfocused: false,
+    events: {
+      message: true,
+      dm: true,
+      mention: true,
+      priority: true,
+      call: true,
+      success: true,
+    },
+  };
+
 export interface NotificationDisplayPreferences {
   showContentPreview: boolean;
   showDuringCalls: boolean;
@@ -29,6 +115,8 @@ export interface NotificationDisplayPreferences {
   dismissDuration: NotificationDismissDuration;
   position: NotificationPosition;
   size: NotificationSize;
+  /** Calm notification-sound controls. */
+  sound: NotificationSoundPreferences;
 }
 
 export interface UserPreferences {

@@ -114,6 +114,30 @@ export const chatPreferencesSchema = z.object({
   readReceipts: z.boolean().default(true),
 });
 
+export const notificationSoundEventsSchema = z.object({
+  message: z.boolean().default(true),
+  dm: z.boolean().default(true),
+  mention: z.boolean().default(true),
+  priority: z.boolean().default(true),
+  call: z.boolean().default(true),
+  success: z.boolean().default(true),
+});
+
+export const notificationSoundPreferencesSchema = z.object({
+  enabled: z.boolean().default(true),
+  volume: z.number().min(0).max(1).default(0.5),
+  profile: z.enum(['calm', 'warm', 'crisp']).default('calm'),
+  onlyWhenUnfocused: z.boolean().default(false),
+  events: notificationSoundEventsSchema.default({
+    message: true,
+    dm: true,
+    mention: true,
+    priority: true,
+    call: true,
+    success: true,
+  }),
+});
+
 export const notificationDisplayPreferencesSchema = z.object({
   showContentPreview: z.boolean().default(true),
   showDuringCalls: z.boolean().default(true),
@@ -132,6 +156,20 @@ export const notificationDisplayPreferencesSchema = z.object({
     .enum(['bottom-right', 'top-right', 'bottom-left', 'top-left'])
     .default('bottom-right'),
   size: z.enum(['comfy', 'compact']).default('comfy'),
+  sound: notificationSoundPreferencesSchema.default({
+    enabled: true,
+    volume: 0.5,
+    profile: 'calm',
+    onlyWhenUnfocused: false,
+    events: {
+      message: true,
+      dm: true,
+      mention: true,
+      priority: true,
+      call: true,
+      success: true,
+    },
+  }),
 });
 
 const hexColorRegex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
@@ -248,6 +286,20 @@ export const userPreferencesSchema = z.object({
     dismissDuration: 5000,
     position: 'bottom-right',
     size: 'comfy',
+    sound: {
+      enabled: true,
+      volume: 0.5,
+      profile: 'calm',
+      onlyWhenUnfocused: false,
+      events: {
+        message: true,
+        dm: true,
+        mention: true,
+        priority: true,
+        call: true,
+        success: true,
+      },
+    },
   }),
   theme: themeConfigSchema.optional(),
   language: languageCodeSchema.default('en'),
