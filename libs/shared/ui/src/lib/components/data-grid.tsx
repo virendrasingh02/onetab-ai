@@ -1,6 +1,8 @@
+import { useIsMobile } from '@org/hooks';
 import { cn } from '@org/utils';
 import {
   ArrowDown,
+  ArrowDownUp,
   ArrowUp,
   ArrowUpDown,
   Download,
@@ -10,13 +12,14 @@ import {
   X,
 } from 'lucide-react';
 import {
+  Fragment,
   useMemo,
   useState,
   type ReactNode,
 } from 'react';
 import { Badge } from './badge.js';
 import { Button } from './button.js';
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './dropdown-menu.js';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './dropdown-menu.js';
 import { EmptyState } from './empty-state.js';
 import { Pagination } from './pagination.js';
 import { Skeleton } from './skeleton.js';
@@ -65,6 +68,15 @@ export interface DataGridProps<T> {
   title?: ReactNode;
   actionSlot?: ReactNode;
   onRefresh?: () => void;
+  /**
+   * How the grid renders on a phone-width screen.
+   * - `auto` (default): a stacked card per row below `md`, the table from `md`
+   *   up. Sorting moves to a "Sort" menu; search, selection, bulk actions,
+   *   column visibility, export and pagination all keep working.
+   * - `table`: always the table (it scrolls horizontally in its own region).
+   * - `cards`: always the card layout.
+   */
+  mobileVariant?: 'auto' | 'table' | 'cards';
 }
 
 export function DataGrid<T extends Record<string, any>>({
@@ -87,7 +99,11 @@ export function DataGrid<T extends Record<string, any>>({
   title,
   actionSlot,
   onRefresh,
+  mobileVariant = 'auto',
 }: DataGridProps<T>) {
+  const isMobile = useIsMobile();
+  const showCards =
+    mobileVariant === 'cards' || (mobileVariant === 'auto' && isMobile);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -226,9 +242,9 @@ export function DataGrid<T extends Record<string, any>>({
           </Badge>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-1 flex-wrap items-center justify-end gap-2 sm:flex-none">
           {enableSearch && (
-            <div className="relative">
+            <div className="relative min-w-40 flex-1 sm:w-64 sm:flex-none">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-subtle" />
               <input
                 type="text"
@@ -238,7 +254,7 @@ export function DataGrid<T extends Record<string, any>>({
                   setCurrentPage(1);
                 }}
                 placeholder={searchPlaceholder}
-                className="h-8 w-48 sm:w-64 rounded-input border border-input bg-surface pl-8 pr-3 text-xs text-foreground placeholder:text-subtle outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+                className="h-8 w-full rounded-input border border-input bg-surface pl-8 pr-3 text-xs text-foreground placeholder:text-subtle outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
               />
               {searchQuery && (
                 <button
@@ -250,6 +266,63 @@ export function DataGrid<T extends Record<string, any>>({
                 </button>
               )}
             </div>
+          )}
+
+          {/* Card layout has no column headers to click, so sorting moves
+              here. Hidden when the table is showing. */}
+          {showCards && columns.some((c) => c.sortable) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  leadingIcon={<ArrowDownUp className="size-3.5" />}
+                >
+                  Sort
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {columns
+                  .filter((c) => c.sortable)
+                  .map((col) => {
+                    const isSorted = sortColumn === col.id;
+                    return (
+                      <DropdownMenuItem
+                        key={col.id}
+                        onSelect={() => handleSort(col.id)}
+                        className="justify-between"
+                      >
+                        <span className="truncate">
+                          {typeof col.header === 'string' ? col.header : col.id}
+                        </span>
+                        {isSorted ? (
+                          sortDirection === 'asc' ? (
+                            <ArrowUp className="size-3.5 text-primary" />
+                          ) : (
+                            <ArrowDown className="size-3.5 text-primary" />
+                          )
+                        ) : null}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                {sortColumn && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        setSortColumn(null);
+                        setSortDirection(null);
+                      }}
+                    >
+                      <X className="mr-2 size-3.5" />
+                      Clear sort
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
 
           {enableColumnVisibility && (
@@ -335,7 +408,82 @@ export function DataGrid<T extends Record<string, any>>({
         </div>
       )}
 
-      {/* Table Surface */}
+      {/* Render surface — a stacked card per row on phones, the table above. */}
+      {showCards ? (
+        <ul className="flex flex-col gap-2">
+          {loading ? (
+            Array.from({ length: Math.min(pageSize, 6) }).map((_, i) => (
+              <li
+                key={`skel-card-${i}`}
+                className="rounded-md border border-border bg-surface p-3"
+              >
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="mt-2 h-4 w-full max-w-50" />
+                <Skeleton className="mt-2 h-4 w-full max-w-40" />
+              </li>
+            ))
+          ) : paginatedData.length === 0 ? (
+            <li className="rounded-md border border-border bg-surface py-10">
+              <EmptyState
+                title={emptyTitle}
+                description={emptyDescription}
+                size="sm"
+              />
+            </li>
+          ) : (
+            paginatedData.map((row, rIdx) => {
+              const rowId = getRowId(
+                row,
+                (currentPage - 1) * pageSize + rIdx,
+              );
+              const isSelected = selectedIds.has(rowId);
+              return (
+                <li key={rowId}>
+                  <div
+                    className={cn(
+                      'flex flex-col gap-2 rounded-md border border-border bg-surface p-3',
+                      isSelected && 'bg-selected/40 ring-1 ring-primary/30',
+                    )}
+                  >
+                    {enableSelection && (
+                      <label className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectRow(rowId)}
+                          className="size-4 rounded border-border accent-primary cursor-pointer"
+                        />
+                        <span>{isSelected ? 'Selected' : 'Select'}</span>
+                      </label>
+                    )}
+                    <dl className="grid grid-cols-[minmax(0,7.5rem)_1fr] gap-x-3 gap-y-1.5 text-xs">
+                      {activeColumns.map((col) => {
+                        const rawValue = col.accessorKey
+                          ? row[col.accessorKey]
+                          : row[col.id];
+                        return (
+                          <Fragment key={col.id}>
+                            <dt className="truncate text-muted-foreground">
+                              {typeof col.header === 'string'
+                                ? col.header
+                                : col.id}
+                            </dt>
+                            <dd className="min-w-0 wrap-break-word text-foreground/90">
+                              {col.cell
+                                ? col.cell(row, rIdx)
+                                : String(rawValue ?? '—')}
+                            </dd>
+                          </Fragment>
+                        );
+                      })}
+                    </dl>
+                  </div>
+                </li>
+              );
+            })
+          )}
+        </ul>
+      ) : (
       <div className="relative overflow-x-auto rounded-md border border-border">
         <table className="w-full text-left text-xs border-collapse">
           {/* Table Header */}
@@ -503,6 +651,7 @@ export function DataGrid<T extends Record<string, any>>({
           </tbody>
         </table>
       </div>
+      )}
 
       {/* Pagination Footer */}
       {!loading && sortedData.length > 0 && (

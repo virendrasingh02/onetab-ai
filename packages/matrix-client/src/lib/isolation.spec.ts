@@ -31,6 +31,7 @@ describe('package isolation', () => {
       'matrix-client.ts',
       'mappers.ts',
       'verification.ts',
+      'calls.ts',
     ]);
 
     // Deep imports count too: crypto lives at `matrix-js-sdk/lib/crypto-api`,

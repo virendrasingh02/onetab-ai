@@ -5,7 +5,17 @@
     <title>OneTab AI</title>
     <base href="/" />
 
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!--
+      `viewport-fit=cover` lets the page paint under the notch / home indicator
+      and makes `env(safe-area-inset-*)` non-zero so the `*-safe` utilities and
+      `--safe-*` tokens in the design system actually clear those regions.
+      `interactive-widget=resizes-content` asks the engine to shrink the layout
+      viewport when the virtual keyboard opens rather than pan over the page.
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <meta
       name="description"
       content="OneTab AI — workspaces, channels and files for focused team collaboration."

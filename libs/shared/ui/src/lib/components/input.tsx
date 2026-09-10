@@ -51,6 +51,9 @@ export function Input({
         className={cn(
           'flex w-full items-center gap-1.5 rounded-input border border-input bg-surface text-foreground',
           sizeClasses,
+          // Comfortable tap height on touch; the global 16px font rule below
+          // `sm` needs the extra room anyway.
+          'pointer-coarse:min-h-11',
           'transition-[color,background-color,border-color,box-shadow] duration-(--duration-fast)',
           'focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25',
           'has-[input:disabled]:cursor-not-allowed has-[input:disabled]:bg-surface-muted has-[input:disabled]:text-disabled has-[input:disabled]:opacity-100',
@@ -91,6 +94,7 @@ export function Input({
       className={cn(
         'min-w-0 flex w-full rounded-input border border-input bg-surface text-foreground',
         sizeClasses,
+        'pointer-coarse:min-h-11',
         'placeholder:text-subtle',
         'transition-[color,background-color,border-color,box-shadow] duration-(--duration-fast) outline-none',
         'focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25',

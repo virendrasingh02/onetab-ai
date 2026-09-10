@@ -26,6 +26,9 @@ export {
   type VerificationListener,
 } from './lib/verification.js';
 
+export { KeyBackupManager } from './lib/services/crypto/key-backup.js';
+export { MatrixSearchService } from './lib/services/search/search-service.js';
+
 export {
   LocalStorageSessionStore,
   MemorySessionStore,
@@ -46,6 +49,9 @@ export type {
   DeviceTrust,
   EncryptionStatus,
   EventId,
+  KeyBackupRestoreResult,
+  KeyBackupSetupResult,
+  KeyBackupStatus,
   MatrixClientEvent,
   MatrixErrorCode,
   MatrixEventListener,
@@ -53,6 +59,7 @@ export type {
   MatrixUserId,
   Message,
   MessageKind,
+  MessageSearchResult,
   NotificationCounts,
   Presence,
   PresenceState,

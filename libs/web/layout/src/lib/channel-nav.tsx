@@ -1243,7 +1243,7 @@ export function ChannelNav({
   return (
     <div className="min-h-0 flex h-full flex-col overflow-hidden bg-background">
       {/* TODO: restore <ScrollArea> (SimpleBar) here later */}
-      <div className="min-h-0 p-3 px-1.5 flex-1 scrollbar-on-hover overflow-y-auto">
+      <div className="min-h-0 p-3 px-1.5 flex-1 scrollbar-on-hover overflow-y-auto overscroll-none-touch">
         <div className="p-2 space-y-4">
           {/* Top Primary Navigation Items (Customizable via Dialog) */}
           <nav
@@ -1441,7 +1441,7 @@ export function ChannelNav({
                                 size="icon-sm"
                                 onClick={onCreateChannel}
                                 aria-label="Create a channel"
-                                className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
+                                className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
                               >
                                 <Plus className="size-3.5" />
                               </Button>

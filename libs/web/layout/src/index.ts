@@ -6,6 +6,10 @@ export {
   type AssistantPanelProps,
 } from './lib/assistant-panel.js';
 export { ChannelNav, type ChannelNavProps } from './lib/channel-nav.js';
+export {
+  MobileBottomNav,
+  type MobileBottomNavProps,
+} from './lib/mobile-bottom-nav.js';
 export { RightPanel, type RightPanelProps } from './lib/right-panel.js';
 export {
   WorkspaceMenu,

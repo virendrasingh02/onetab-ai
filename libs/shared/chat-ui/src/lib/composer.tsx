@@ -9,6 +9,7 @@ import {
   EmojiGifPickerPopover,
   Hint,
 } from '@org/ui';
+import { useKeyboardInset } from '@org/hooks';
 import { cn, formatBytes } from '@org/utils';
 import {
   AtSign,
@@ -222,7 +223,7 @@ function StagedAttachmentChip({
         type="button"
         onClick={onRemove}
         aria-label={`Remove ${file.name}`}
-        className="-right-1.5 -top-1.5 size-5 absolute flex items-center justify-center rounded-full border border-border bg-background text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover/chip:opacity-100 hover:text-destructive focus-visible:opacity-100"
+        className="-right-1.5 -top-1.5 size-5 absolute flex items-center justify-center rounded-full border border-border bg-background text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover/chip:opacity-100 hover:text-destructive focus-visible:opacity-100 pointer-coarse:opacity-100"
       >
         <X className="size-3" />
       </button>
@@ -439,6 +440,18 @@ export function Composer({
 
   const canSend = hasContent || attachments.length > 0;
 
+  /*
+   * Keep the box above the on-screen keyboard. On engines that honour
+   * `interactive-widget=resizes-content` the layout viewport already shrinks and
+   * this stays 0; on iOS Safari it does not, so we pad the sticky footer by the
+   * covered height instead. `env(safe-area-inset-bottom)` covers the resting
+   * (home-indicator) case — it collapses to 0 while the keyboard is up.
+   */
+  const keyboard = useKeyboardInset();
+  const composerPadBottom = keyboard.isOpen
+    ? `${keyboard.height}px`
+    : 'max(1rem, env(safe-area-inset-bottom))';
+
   const mentionCandidates = useMemo<MentionCandidate[]>(() => {
     const people: MentionCandidate[] = members.map((member) => ({
       id: member.userId,
@@ -468,9 +481,10 @@ export function Composer({
     return (
       <div
         className={cn(
-          'bottom-0 p-3 sm:p-4 sticky z-20 shrink-0 bg-background',
+          'bottom-0 px-3 pt-3 sm:px-4 sm:pt-4 sticky z-20 shrink-0 bg-background',
           className,
         )}
+        style={{ paddingBottom: composerPadBottom }}
       >
         {contextSlot}
         <div className="gap-2.5 px-4 py-3 flex items-center rounded-xl border border-border bg-surface-muted text-xs text-muted-foreground">
@@ -484,9 +498,10 @@ export function Composer({
   return (
     <div
       className={cn(
-        'bottom-0 p-3 sm:p-4 sticky z-20 shrink-0 bg-background',
+        'bottom-0 px-3 pt-3 sm:px-4 sm:pt-4 sticky z-20 shrink-0 bg-background',
         className,
       )}
+      style={{ paddingBottom: composerPadBottom }}
     >
       {contextSlot}
 
@@ -555,14 +570,18 @@ export function Composer({
           }}
         />
 
-        {/* Action bar */}
+        {/* Action bar. On phones the secondary buttons (formatting, @, /, GIF,
+            huddle) are hidden — `@` and `/` still open their menus when typed,
+            GIF lives in the emoji picker's second tab — leaving a row of full
+            44px targets that fits a 320px screen. The left cluster scrolls
+            horizontally as a backstop rather than wrapping or clipping. */}
         <div className="px-2.5 py-1.5 flex items-center justify-between rounded-b-xl border-t border-border bg-surface-raised">
-          <div className="gap-1 flex items-center">
+          <div className="gap-1 flex min-w-0 flex-1 items-center overflow-x-auto no-scrollbar">
             <Hint label="Attach file or media">
               <button
                 type="button"
                 onClick={() => document.getElementById(fileInputId)?.click()}
-                className="size-7 flex items-center justify-center rounded-full bg-accent text-foreground transition-colors hover:bg-selected"
+                className="size-7 shrink-0 touch-target flex items-center justify-center rounded-full bg-accent text-foreground transition-colors hover:bg-selected"
               >
                 <Plus className="size-4" />
               </button>
@@ -586,7 +605,7 @@ export function Composer({
                   aria-label="Toggle formatting bar"
                   onClick={() => setToolbarOpen((open) => !open)}
                   className={cn(
-                    'h-7 min-w-7 px-1.5 text-xs font-bold flex items-center justify-center rounded-md transition-colors',
+                    'max-sm:hidden h-7 min-w-7 px-1.5 text-xs font-bold flex items-center justify-center rounded-md transition-colors',
                     toolbarOpen
                       ? 'bg-primary text-primary-foreground'
                       : 'text-muted-foreground hover:bg-accent hover:text-foreground',
@@ -597,10 +616,11 @@ export function Composer({
               </Hint>
             ) : null}
 
-            <span className="mx-1 h-4 w-px bg-accent/50" />
+            <span className="max-sm:hidden mx-1 h-4 w-px bg-accent/50" />
 
             {/* Typing the trigger is what opens the menu, so these buttons do
-                exactly that rather than duplicating the menu themselves. */}
+                exactly that rather than duplicating the menu themselves. Hidden
+                on phones — typing `@` / `/` still opens the menu. */}
             <Hint label="Mention someone (@)">
               <button
                 type="button"
@@ -608,7 +628,7 @@ export function Composer({
                   lexicalRef.current?.focus();
                   lexicalRef.current?.insertText('@');
                 }}
-                className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="max-sm:hidden size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 <AtSign className="size-4" />
               </button>
@@ -633,7 +653,7 @@ export function Composer({
                 title="Emoji & GIFs"
                 aria-label="Insert emoji or GIF"
                 className={cn(
-                  'size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+                  'size-7 shrink-0 touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
                   pickerState.open && 'bg-primary text-primary-foreground',
                 )}
               >
@@ -651,7 +671,7 @@ export function Composer({
                   }))
                 }
                 className={cn(
-                  'gap-1 px-1.5 py-1 text-xs font-bold flex items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+                  'max-sm:hidden gap-1 px-1.5 py-1 text-xs font-bold flex items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
                   pickerState.open &&
                     pickerState.tab === 'gif' &&
                     'bg-primary text-primary-foreground',
@@ -671,7 +691,7 @@ export function Composer({
                   lexicalRef.current?.focus();
                   lexicalRef.current?.insertText('/');
                 }}
-                className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="max-sm:hidden size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 <Slash className="size-3.5" />
               </button>
@@ -682,7 +702,7 @@ export function Composer({
                 <button
                   type="button"
                   onClick={onStartHuddle}
-                  className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  className="max-sm:hidden size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 >
                   <Video className="size-4" />
                 </button>
@@ -690,7 +710,7 @@ export function Composer({
             ) : null}
           </div>
 
-          <div className="gap-1 flex items-center">
+          <div className="gap-1 flex shrink-0 items-center">
             {anonAllowed ? (
               <Hint
                 label={
@@ -705,7 +725,7 @@ export function Composer({
                   aria-label="Toggle anonymous posting"
                   onClick={() => setAnon((v) => !v)}
                   className={cn(
-                    'size-7 flex items-center justify-center rounded-md transition-colors',
+                    'size-7 touch-target flex items-center justify-center rounded-md transition-colors',
                     anon
                       ? 'bg-primary/15 text-primary'
                       : 'text-muted-foreground hover:bg-accent hover:text-foreground',
@@ -721,7 +741,7 @@ export function Composer({
                   <button
                     type="button"
                     aria-label="Schedule message"
-                    className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    className="size-7 touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
                     <ChevronDown className="size-3.5" />
                   </button>
@@ -764,7 +784,7 @@ export function Composer({
                 disabled={disabled || !canSend}
                 aria-label="Send message"
                 className={cn(
-                  'size-7 flex items-center justify-center rounded-full transition-colors',
+                  'size-7 shrink-0 touch-target flex items-center justify-center rounded-full transition-colors',
                   canSend && !disabled
                     ? 'bg-primary text-primary-foreground hover:bg-primary-hover active:scale-95'
                     : 'bg-transparent text-muted-foreground/40',

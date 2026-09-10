@@ -36,6 +36,7 @@ export function SelectTrigger({
         'data-[placeholder]:text-subtle',
         "[&_svg:not([class*='size-'])]:size-3.5 [&_svg]:pointer-events-none [&_svg]:shrink-0",
         size === 'sm' ? 'h-7 px-2.5' : 'h-8 px-3',
+        'touch-target',
         className,
       )}
       {...props}
@@ -63,7 +64,7 @@ export function SelectContent({
            are the same object to the eye, so they share radius and lift. */
         className={cn(
           'relative z-50 max-h-(--radix-select-content-available-height) bg-popover text-popover-foreground',
-          'min-w-36 p-1 overflow-hidden rounded-popup border border-border shadow-overlay',
+          'min-w-36 max-w-[calc(100vw-1rem)] p-1 overflow-hidden rounded-popup border border-border shadow-overlay',
           position === 'popper' &&
             'data-[side=bottom]:translate-y-1.5 data-[side=top]:-translate-y-1.5',
           className,
@@ -112,6 +113,7 @@ export function SelectItem({
       data-slot="select-item"
       className={cn(
         'gap-2 py-1.5 pr-7 pl-2 relative flex w-full cursor-pointer items-center rounded-btn',
+        'pointer-coarse:py-2.5',
         'text-xs font-medium outline-none select-none',
         'transition-colors duration-(--duration-fast) ease-standard',
         'focus:bg-accent focus:text-accent-foreground',

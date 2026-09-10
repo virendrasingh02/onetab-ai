@@ -1,5 +1,8 @@
 export { MatrixProvider, useMatrix } from './lib/matrix-provider.js';
 export { AuthenticatedMediaBridge } from './lib/authenticated-media-bridge.js';
+export { CallModal } from './lib/call-modal.js';
+export { CallOverlayBridge } from './lib/call-overlay-bridge.js';
+export { useCall, type UseCallResult } from './lib/use-call.js';
 export {
   NotificationSoundBridge,
   type NotificationSoundBridgeProps,
@@ -112,4 +115,5 @@ export {
   useBookmarks,
   useBookmarkMutations,
 } from './lib/use-bookmarks.js';
+export { EncryptionSecurityPanel } from './lib/encryption-security-panel.js';
 

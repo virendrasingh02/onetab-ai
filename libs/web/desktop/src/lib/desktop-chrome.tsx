@@ -18,7 +18,13 @@ import { DesktopTitleBar } from './desktop-title-bar.js';
  */
 export function DesktopChrome({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-background">
+    /*
+      `pt-safe`/`px-safe` keep the frame clear of a phone's notch and rounded
+      corners on the web build (insets are `0px` on desktop and in Electron's
+      normal window state, so this is inert there). `h-dvh` with border-box means
+      the padding is carved out of the dynamic viewport height, not added to it.
+    */
+    <div className="flex h-dvh flex-col overflow-hidden bg-background pt-safe px-safe">
       <DesktopTitleBar />
       {/*
         `min-h-0` is what lets this shrink below its content's intrinsic height;

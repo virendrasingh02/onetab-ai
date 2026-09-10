@@ -45,6 +45,7 @@ import {
   MessageSquare,
   MessageSquareOff,
   MoreHorizontal,
+  Phone,
   Pin,
   Plus,
   RefreshCw,
@@ -53,6 +54,7 @@ import {
   Trash2,
   UserRound,
   Users,
+  Video,
   X,
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
@@ -67,6 +69,7 @@ import {
   type RecipientPerson,
 } from './new-message-recipients.js';
 import { peerKindOf } from './peer-kind.js';
+import { useCall } from './use-call.js';
 import { useChannelRoom } from './use-channel-room.js';
 import { useCreateConversation } from './use-create-conversation.js';
 import { useDirectMessageBookmarks } from './use-dm-bookmarks.js';
@@ -217,6 +220,7 @@ function DirectConversation({
       <DirectMessageHeader
         member={member}
         isSelf={isSelf}
+        roomId={roomId}
         onAddBookmark={() => setAddBookmarkOpen(true)}
         chatActionsRef={setChatActionsSlot}
       />
@@ -508,6 +512,7 @@ function DirectRoom({
 function DirectMessageHeader({
   member,
   isSelf = false,
+  roomId,
   onAddBookmark,
   chatActionsRef,
 }: {
@@ -518,6 +523,8 @@ function DirectMessageHeader({
    * it is always there.
    */
   isSelf?: boolean;
+  /** The resolved Matrix room id, required to start a 1:1 call. */
+  roomId?: string | null;
   /** Opens the "Add bookmark" dialog — mirrors `ChannelHeader`'s menu entry. */
   onAddBookmark?: () => void;
   chatActionsRef: (element: HTMLDivElement | null) => void;
@@ -527,6 +534,39 @@ function DirectMessageHeader({
   const openProfilePanel = useRightPanelStore((s) => s.openProfile);
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const { state: callState, startCall } = useCall();
+
+  const canCall =
+    !isSelf &&
+    !member.user.id.startsWith('agent-') &&
+    !member.user.id.startsWith('app-') &&
+    Boolean(roomId);
+
+  const handleStartVoiceCall = useCallback(async () => {
+    if (!roomId) {
+      toast.error('Conversation is still connecting');
+      return;
+    }
+    try {
+      await startCall(roomId, 'voice');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      toast.error('Could not start voice call', { description: message });
+    }
+  }, [roomId, startCall]);
+
+  const handleStartVideoCall = useCallback(async () => {
+    if (!roomId) {
+      toast.error('Conversation is still connecting');
+      return;
+    }
+    try {
+      await startCall(roomId, 'video');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      toast.error('Could not start video call', { description: message });
+    }
+  }, [roomId, startCall]);
 
   // Live presence, exactly as the sidebar's DM row reads it — the avatar's
   // status dot was bound to `member.user.presence`, a snapshot from the members
@@ -798,6 +838,28 @@ function DirectMessageHeader({
                   <span>Notification settings</span>
                 </DropdownMenuItem>
 
+                {canCall ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={handleStartVoiceCall}
+                      disabled={callState !== null && callState !== 'ended'}
+                      className="gap-2.5"
+                    >
+                      <Phone className="size-4" />
+                      <span>Start voice call</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={handleStartVideoCall}
+                      disabled={callState !== null && callState !== 'ended'}
+                      className="gap-2.5"
+                    >
+                      <Video className="size-4" />
+                      <span>Start video call</span>
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
+
                 {!isSelf ? (
                   <>
                     <DropdownMenuSeparator />
@@ -816,11 +878,40 @@ function DirectMessageHeader({
           </div>
         </div>
 
-        {/* Conversation tools portal in from the chat surface. */}
-        <div
-          ref={chatActionsRef}
-          className="gap-0.5 flex items-center empty:hidden"
-        />
+        <div className="gap-1 flex items-center">
+          {canCall ? (
+            <>
+              <Hint label="Start voice call">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Start voice call"
+                  onClick={handleStartVoiceCall}
+                  disabled={callState !== null && callState !== 'ended'}
+                >
+                  <Phone className="size-4" />
+                </Button>
+              </Hint>
+              <Hint label="Start video call">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Start video call"
+                  onClick={handleStartVideoCall}
+                  disabled={callState !== null && callState !== 'ended'}
+                >
+                  <Video className="size-4" />
+                </Button>
+              </Hint>
+            </>
+          ) : null}
+
+          {/* Conversation tools portal in from the chat surface. */}
+          <div
+            ref={chatActionsRef}
+            className="gap-0.5 flex items-center empty:hidden"
+          />
+        </div>
       </div>
     </div>
   );

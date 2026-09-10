@@ -81,6 +81,8 @@ export function navRowClass(
   const { depth = 0, extra } = options;
   return cn(
     'group gap-2.5 py-1.5 font-medium relative flex items-center rounded-xl tracking-[-0.01em]',
+    // Dense on desktop; a full 44px tap target under a coarse pointer.
+    'pointer-coarse:min-h-11',
     DEPTH_PADDING[depth],
     DEPTH_TEXT[depth],
     'transition-all duration-(--duration-fast) ease-standard',
@@ -107,6 +109,7 @@ export function navActionClass(
   const { depth = 0, extra } = options;
   return cn(
     'group gap-2.5 py-1.5 font-medium flex w-full items-center rounded-xl text-left',
+    'pointer-coarse:min-h-11',
     DEPTH_PADDING[depth],
     DEPTH_TEXT[depth],
     'text-foreground/80 transition-all duration-(--duration-fast) ease-standard',
@@ -202,7 +205,7 @@ export function NavRow({
       </NavLink>
 
       {onTogglePin && entry.path !== '' ? (
-        <div className="right-1 absolute top-1/2 -translate-y-1/2 opacity-0 transition-opacity group-focus-within/nav-row:opacity-100 group-hover/nav-row:opacity-100">
+        <div className="right-1 absolute top-1/2 -translate-y-1/2 opacity-0 transition-opacity group-focus-within/nav-row:opacity-100 group-hover/nav-row:opacity-100 pointer-coarse:opacity-100">
           <Hint label="Unpin from sidebar">
             <button
               type="button"
@@ -339,7 +342,7 @@ export function Section({
             <ChevronDown
               className={cn(
                 'size-3 shrink-0 text-foreground/60 opacity-0 transition-all duration-150',
-                'group-focus-within/section:opacity-100 group-hover/section:opacity-100',
+                'group-focus-within/section:opacity-100 group-hover/section:opacity-100 pointer-coarse:opacity-100',
                 !open && '-rotate-90',
               )}
               aria-hidden
@@ -399,7 +402,10 @@ export function NavRowActions({
         'right-1 gap-0.5 absolute top-1/2 flex -translate-y-1/2 items-center transition-opacity',
         isPinned
           ? 'opacity-100'
-          : 'opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 focus-within:opacity-100',
+          : // On touch there is no hover to reveal these — the row's ⋯ menu and
+            // favourite toggle would be unreachable. Show them whenever the
+            // pointer is coarse.
+            'opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100',
         className,
       )}
     >

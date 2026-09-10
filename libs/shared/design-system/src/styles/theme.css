@@ -36,6 +36,15 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Pointer-type variants. `pointer-coarse:` applies on touch (finger) input,
+ * `pointer-fine:` on a mouse/trackpad. Use `pointer-coarse:` to make a
+ * hover-reveal affordance always visible on touch, e.g.
+ * `opacity-0 group-hover:opacity-100 pointer-coarse:opacity-100`.
+ */
+@custom-variant pointer-coarse (@media (pointer: coarse));
+@custom-variant pointer-fine (@media (pointer: fine));
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -220,6 +229,26 @@
   --z-modal: 50;
   --z-toast: 60;
   --z-tooltip: 70;
+
+  /*
+   * Device safe-area insets, resolved once here so components read a plain
+   * custom property instead of repeating the `env()` + fallback. Non-zero only
+   * when the document opts in with `<meta name="viewport" … viewport-fit=cover>`
+   * (see each app's index.html); `0px` everywhere else, so they are always safe
+   * to add to padding. Use the `*-safe` utilities below rather than these
+   * directly where a utility exists.
+   */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
+  /*
+   * Minimum comfortable touch target (WCAG 2.5.5 / Apple HIG). Interactive
+   * controls that shrink below this on desktop must still hit it on touch —
+   * see the `touch-target` utility.
+   */
+  --touch-target: 44px;
 
   /* Base step the sm/md/lg/xl ramp is derived from. */
   --radius: 6px;
@@ -787,6 +816,34 @@ html:not(.dark) .app-content-panel {
   }
 
   /*
+   * Kill the grey flash iOS/Android paint over a tapped control, and the ~300ms
+   * click delay legacy touch handling still adds on some engines. `:where()`
+   * keeps specificity at 0 so any component can override.
+   */
+  :where(button, a, summary, label, [role='button'], [role='tab'], [role='menuitem'], [role='option']) {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /*
+   * iOS Safari zooms the page in when a form control smaller than 16px is
+   * focused, then leaves it zoomed. Pin text-entry controls to 16px below the
+   * `sm` breakpoint (phones) so focus never triggers the zoom. Desktop and
+   * tablet keep the design system's 14px. Scoped with `:where()` (specificity
+   * 0) and only the entry types, so a component that deliberately sets a size
+   * still wins and non-text inputs (checkbox, radio, range) are untouched.
+   */
+  @media (max-width: 639px) {
+    :where(
+        input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='button']):not([type='submit']):not([type='reset']),
+        textarea,
+        select
+      ) {
+      font-size: 16px;
+    }
+  }
+
+  /*
    * `SearchInput` renders `type="search"` for the mobile keyboard and the
    * screen-reader announcement, then draws its own clear button so the control
    * is themed and properly labelled. WebKit adds a second, unlabelled clear
@@ -910,6 +967,87 @@ html:not(.dark) .app-content-panel {
   &::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* ------------------------------------------------ Mobile safe areas ----
+ *
+ * Padding utilities that clear the device's rounded corners, notch and home
+ * indicator. They *set* the padding on that side to the inset value (they do
+ * not add to a `p-*` utility on the same element — last rule wins), so put them
+ * on a wrapper whose only job is edge-clearance and let a child carry the
+ * content padding. For "content padding + inset" on one element use an
+ * arbitrary value: `pb-[calc(0.75rem+env(safe-area-inset-bottom))]`.
+ *
+ * Insets are `0px` unless the document sets `<meta … viewport-fit=cover>`, so
+ * these are inert on desktop and older browsers.
+ *
+ * `min-h-dvh`, `h-dvh`, `h-svh` etc. are Tailwind v4 built-ins — use those for
+ * dynamic viewport height and reserve these for the inset padding.
+ */
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@utility pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+@utility pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+@utility px-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+@utility py-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@utility p-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+/* Same, as margin — for a floating element pinned to a screen edge. */
+@utility mb-safe {
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+@utility mt-safe {
+  margin-top: env(safe-area-inset-top, 0px);
+}
+
+/*
+ * Extra scroll room at the bottom of a scroll container so its last row is not
+ * hidden behind a bottom bar / home indicator. Add to the scroller, not the
+ * page.
+ */
+@utility scroll-pb-safe {
+  scroll-padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/*
+ * Guarantees a comfortable tap target on touch without changing desktop
+ * metrics: the minimum only kicks in under a coarse pointer. Put it on
+ * icon-only buttons and other controls that render below 44px.
+ */
+@utility touch-target {
+  @media (pointer: coarse) {
+    min-height: var(--touch-target);
+    min-width: var(--touch-target);
+  }
+}
+
+/*
+ * Momentum scrolling + no scroll chaining to the page behind. The standard
+ * wrapper for any in-app scroll region on touch (message list, drawer body,
+ * bottom sheet).
+ */
+@utility overscroll-none-touch {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /*

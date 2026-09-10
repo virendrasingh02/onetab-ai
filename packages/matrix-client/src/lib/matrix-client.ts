@@ -11,9 +11,11 @@ import {
   type MatrixClient as SdkClient,
   type MatrixEvent,
   type Room as SdkRoom,
+  type MatrixCall,
 } from 'matrix-js-sdk';
 // Crypto lives in its own entry point: `matrix-js-sdk` does not re-export it.
 import { CryptoEvent } from 'matrix-js-sdk/lib/crypto-api/index.js';
+import { CallManager } from './calls.js';
 import { toMatrixError, withRetry } from './errors.js';
 import {
   collectUnreadMentions,
@@ -28,6 +30,8 @@ import {
   toRoomMember,
   toThread,
 } from './mappers.js';
+import { KeyBackupManager } from './services/crypto/key-backup.js';
+import { MatrixSearchService } from './services/search/search-service.js';
 import {
   LocalStorageSessionStore,
   type SessionStore,
@@ -40,10 +44,14 @@ import {
   type Device,
   type EncryptionStatus,
   type EventId,
+  type KeyBackupRestoreResult,
+  type KeyBackupSetupResult,
+  type KeyBackupStatus,
   type MatrixClientEvent,
   type MatrixEventListener,
   type MatrixSession,
   type Message,
+  type MessageSearchResult,
   type NotificationCounts,
   type UnreadMention,
   type PresenceState,
@@ -96,6 +104,11 @@ export class OneTabMatrixClient {
     () => this.sdk?.getUserId() ?? null,
     (request) => this.emit({ type: 'verification.requested', request }),
   );
+  private readonly calls = new CallManager(this);
+  private readonly keyBackup = new KeyBackupManager(
+    () => this.sdk?.getCrypto(),
+  );
+  private readonly searchService = new MatrixSearchService(() => this.sdk);
 
   constructor(options: MatrixClientOptions) {
     this.sessionStore = options.sessionStore ?? new LocalStorageSessionStore();
@@ -104,6 +117,7 @@ export class OneTabMatrixClient {
       enableEncryption: options.enableEncryption ?? true,
       initialSyncLimit: options.initialSyncLimit ?? 30,
     };
+    this.calls.on((call) => this.emit({ type: 'call.updated', call }));
   }
 
   // --- lifecycle -----------------------------------------------------------
@@ -159,6 +173,40 @@ export class OneTabMatrixClient {
    */
   getAccessToken(): string | null {
     return this.sdk?.getAccessToken() ?? null;
+  }
+
+  /** Internal SDK reference for package-private managers (Calls, Crypto, Search). */
+  getSdk(): SdkClient | null {
+    return this.sdk;
+  }
+
+  /** The VoIP and WebRTC call manager for 1:1 voice/video calls. */
+  getCallManager(): CallManager {
+    return this.calls;
+  }
+
+  /** Gets current key backup and recovery status. */
+  async getKeyBackupStatus(): Promise<KeyBackupStatus> {
+    return this.keyBackup.getStatus();
+  }
+
+  /** Sets up 4S secret storage and server-side key backup. */
+  async setupKeyBackup(passphrase?: string): Promise<KeyBackupSetupResult> {
+    return this.keyBackup.setupKeyBackup(passphrase);
+  }
+
+  /** Restores room encryption keys using a recovery key or passphrase. */
+  async restoreKeyBackup(keyOrPassphrase: string): Promise<KeyBackupRestoreResult> {
+    return this.keyBackup.restoreKeyBackup(keyOrPassphrase);
+  }
+
+  /** Searches message content in rooms and loaded timelines. */
+  async searchMessages(
+    query: string,
+    roomId?: RoomId,
+    limit = 25,
+  ): Promise<MessageSearchResult[]> {
+    return this.searchService.searchMessages(query, roomId, limit);
   }
 
   /** Password login. Persists the session and starts syncing. */
@@ -338,6 +386,7 @@ export class OneTabMatrixClient {
     this.sdk = null;
     this.session = null;
     this.verification.dispose();
+    this.calls.hangUp();
 
     try {
       sdk?.stopClient();
@@ -354,6 +403,7 @@ export class OneTabMatrixClient {
 
   /** Stops syncing but keeps the session, for page unload. */
   stop(): void {
+    this.calls.hangUp();
     this.sdk?.stopClient();
     this.verification.dispose();
     this.setStatus('disconnected');
@@ -572,6 +622,14 @@ export class OneTabMatrixClient {
       void this.getDevices()
         .then((devices) => this.emit({ type: 'device.updated', devices }))
         .catch(() => undefined);
+    });
+
+    (
+      sdk as unknown as {
+        on(event: string, listener: (call: MatrixCall) => void): void;
+      }
+    ).on('Call.incoming', (incomingCall: MatrixCall) => {
+      this.calls.handleIncomingCall(incomingCall);
     });
   }
 

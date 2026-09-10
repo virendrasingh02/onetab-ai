@@ -31,28 +31,49 @@ export function ChatLayout({
         <div className="relative min-w-0 flex flex-1 flex-col overflow-hidden bg-background">{children}</div>
 
         {sidePanel ? (
-          <aside
-            aria-label={sidePanelTitle ?? 'Details'}
-            className="w-80 flex shrink-0 flex-col border-l border-border bg-surface text-foreground shadow-md"
-          >
-            <div className="h-12 flex shrink-0 items-center justify-between border-b border-border px-3.5">
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground truncate">
-                <Hash className="size-4 text-muted-foreground" />
-                <span className="truncate">{sidePanelTitle}</span>
-              </h3>
-              {onCloseSidePanel ? (
-                <button
-                  type="button"
-                  aria-label="Close panel"
-                  onClick={onCloseSidePanel}
-                  className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-                >
-                  <X className="size-4" />
-                </button>
-              ) : null}
-            </div>
-            <ScrollArea className="min-h-0 flex-1">{sidePanel}</ScrollArea>
-          </aside>
+          <>
+            {/*
+              Below `md` the details/members panel is an overlay drawer, not a
+              third column — a fixed 320px column would leave the conversation a
+              sliver on a phone. From `md` up it is the in-flow column it has
+              always been. A tap on the scrim dismisses it.
+            */}
+            {onCloseSidePanel ? (
+              <button
+                type="button"
+                aria-label="Close panel"
+                onClick={onCloseSidePanel}
+                className="md:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] animate-in fade-in-0 duration-150"
+              />
+            ) : null}
+            <aside
+              aria-label={sidePanelTitle ?? 'Details'}
+              className={cn(
+                'flex flex-col border-l border-border bg-surface text-foreground',
+                'md:relative md:inset-auto md:z-auto md:w-80 md:max-w-none md:shrink-0 md:shadow-md md:animate-none md:pt-0 md:pb-0 md:pr-0',
+                'fixed inset-y-0 right-0 z-50 w-80 max-w-[92vw] shadow-overlay',
+                'pt-safe pb-safe pr-safe animate-in slide-in-from-right duration-200',
+              )}
+            >
+              <div className="h-12 flex shrink-0 items-center justify-between border-b border-border px-3.5">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground truncate">
+                  <Hash className="size-4 text-muted-foreground" />
+                  <span className="truncate">{sidePanelTitle}</span>
+                </h3>
+                {onCloseSidePanel ? (
+                  <button
+                    type="button"
+                    aria-label="Close panel"
+                    onClick={onCloseSidePanel}
+                    className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors touch-target"
+                  >
+                    <X className="size-4" />
+                  </button>
+                ) : null}
+              </div>
+              <ScrollArea className="min-h-0 flex-1">{sidePanel}</ScrollArea>
+            </aside>
+          </>
         ) : null}
       </div>
     </div>

@@ -1,9 +1,10 @@
+import { BREAKPOINTS, useIsMobile } from '@org/hooks';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const LAYOUT_STORAGE_KEY = 'onetab_layout_preferences_v1';
 
 /** Matches the `md:` breakpoint the shell uses to switch to drawer mode. */
-const MOBILE_BREAKPOINT = 768;
+const MOBILE_BREAKPOINT = BREAKPOINTS.md;
 
 /** No side panel may eat more than this share of the viewport. */
 const MAX_PANEL_VIEWPORT_RATIO = 0.45;
@@ -121,9 +122,12 @@ export function useResizableLayout(options: UseResizableLayoutOptions = {}) {
     }
   });
 
-  const [isMobile, setIsMobile] = useState<boolean>(() =>
-    canUseDOM() ? window.innerWidth < MOBILE_BREAKPOINT : false,
-  );
+  /*
+   * Single source of truth for the breakpoint, shared with every other
+   * component via `@org/hooks`. Below `md` the shell renders both side panels
+   * as overlay drawers instead of columns.
+   */
+  const isMobile = useIsMobile();
 
   const [leftWidth, setLeftWidth] = useState(initial.leftWidth);
   const [rightWidth, setRightWidth] = useState(initial.rightWidth);
@@ -154,24 +158,6 @@ export function useResizableLayout(options: UseResizableLayoutOptions = {}) {
       /* Quota or private mode — layout preferences are not worth surfacing. */
     }
   }, [isMobile, leftWidth, rightWidth, sidebarOpen]);
-
-  /*
-   * Track the breakpoint with `matchMedia` instead of a `resize` handler: it
-   * fires only when the boundary is actually crossed, not on every frame of a
-   * window drag.
-   */
-  useEffect(() => {
-    if (!canUseDOM()) return;
-
-    const query = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
-    const sync = (event: MediaQueryList | MediaQueryListEvent) => {
-      setIsMobile(event.matches);
-    };
-
-    sync(query);
-    query.addEventListener('change', sync);
-    return () => query.removeEventListener('change', sync);
-  }, []);
 
   /* Shrink panels that no longer fit after the window narrows. */
   useEffect(() => {

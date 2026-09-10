@@ -171,6 +171,8 @@ export interface WorkspaceSettingsPageProps {
   profilePanel?: ReactNode;
   /** The invitations & access-links manager, from `@org/web-invitations`. */
   invitationsPanel?: ReactNode;
+  /** The Matrix end-to-end encryption and key backup panel, from `@org/web-chat`. */
+  encryptionSecurityPanel?: ReactNode;
 }
 
 export function WorkspaceSettingsPage({
@@ -179,6 +181,7 @@ export function WorkspaceSettingsPage({
   themePanel,
   profilePanel,
   invitationsPanel,
+  encryptionSecurityPanel,
 }: WorkspaceSettingsPageProps = {}) {
   const { workspace, workspaceId, isLoading } = useCurrentWorkspace();
   const updateWorkspace = useUpdateWorkspace(workspaceId);
@@ -3971,6 +3974,9 @@ export function WorkspaceSettingsPage({
               )}
             </SettingsCard>
           </div>
+
+          {/* 4. MATRIX END-TO-END ENCRYPTION & KEY BACKUP */}
+          {encryptionSecurityPanel}
         </div>
       )}
 

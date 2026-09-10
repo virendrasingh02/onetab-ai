@@ -22,9 +22,12 @@ const sheetVariants = cva(
   {
     variants: {
       side: {
-        top: 'inset-x-0 top-0 data-[state=open]:slide-in-from-top data-[state=closed]:slide-out-to-top h-auto border-b',
+        // Edge sheets clear the notch / home indicator on the edge they dock
+        // to. `left`/`right` leave the cross-axis insets to the caller, which
+        // knows whether it also spans the top and bottom edges.
+        top: 'inset-x-0 top-0 data-[state=open]:slide-in-from-top data-[state=closed]:slide-out-to-top h-auto max-h-[92dvh] border-b pt-safe',
         bottom:
-          'inset-x-0 bottom-0 data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom h-auto border-t',
+          'inset-x-0 bottom-0 data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom h-auto max-h-[92dvh] border-t pb-safe',
         left: 'inset-y-0 left-0 sm:max-w-sm data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left h-full w-3/4 border-r',
         right:
           'inset-y-0 right-0 sm:max-w-sm data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right h-full w-3/4 border-l',

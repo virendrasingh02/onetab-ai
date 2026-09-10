@@ -514,6 +514,32 @@ export interface EncryptionStatus {
   ownDeviceTrust: DeviceTrust;
 }
 
+export interface KeyBackupStatus {
+  enabled: boolean;
+  version: string | null;
+  trusted: boolean;
+  keyCount?: number;
+}
+
+export interface KeyBackupSetupResult {
+  recoveryKey: string;
+  version?: string;
+}
+
+export interface KeyBackupRestoreResult {
+  total: number;
+  imported: number;
+}
+
+export interface MessageSearchResult {
+  eventId: string;
+  roomId: string;
+  body: string;
+  senderId: string;
+  senderName?: string;
+  timestamp: number;
+}
+
 export interface VerificationRequestSummary {
   id: string;
   otherUserId: MatrixUserId;

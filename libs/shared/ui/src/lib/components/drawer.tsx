@@ -40,11 +40,11 @@ export function Drawer({
 
   const positionClasses = {
     bottom:
-      'inset-x-0 bottom-0 max-h-[85vh] rounded-t-dialog border-t animate-in slide-in-from-bottom duration-200',
+      'inset-x-0 bottom-0 max-h-[85dvh] rounded-t-dialog border-t animate-in slide-in-from-bottom duration-200 pb-[max(1.5rem,env(safe-area-inset-bottom))]',
     left:
-      'inset-y-0 left-0 w-full max-w-sm rounded-r-dialog border-r animate-in slide-in-from-left duration-200',
+      'inset-y-0 left-0 w-full max-w-sm rounded-r-dialog border-r animate-in slide-in-from-left duration-200 pl-[max(1.5rem,env(safe-area-inset-left))] pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]',
     right:
-      'inset-y-0 right-0 w-full max-w-sm rounded-l-dialog border-l animate-in slide-in-from-right duration-200',
+      'inset-y-0 right-0 w-full max-w-sm rounded-l-dialog border-l animate-in slide-in-from-right duration-200 pr-[max(1.5rem,env(safe-area-inset-right))] pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]',
   }[position];
 
   return (
@@ -86,7 +86,9 @@ export function Drawer({
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto pt-4 scrollbar-subtle">{children}</div>
+        <div className="flex-1 overflow-y-auto overscroll-contain pt-4 scrollbar-subtle">
+          {children}
+        </div>
       </div>
     </div>
   );

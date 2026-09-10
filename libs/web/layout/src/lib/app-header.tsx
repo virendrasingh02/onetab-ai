@@ -161,9 +161,12 @@ export function AppHeader({
                 aria-expanded={sidebarOpen}
                 style={NO_DRAG}
                 className={cn(
-                  'size-7 p-0 shrink-0 cursor-pointer text-muted-foreground hover:text-foreground',
-                  'opacity-0 transition-opacity duration-(--duration-fast) ease-standard',
-                  'group-focus-within/left:opacity-100 group-hover/left:opacity-100 focus-visible:opacity-100',
+                  'size-7 p-0 shrink-0 cursor-pointer text-muted-foreground hover:text-foreground touch-target',
+                  // Always visible on touch/phone — there is no hover to reveal
+                  // it, and it is the only route into the navigation drawer.
+                  // From `md` up it stays a quiet hover affordance as before.
+                  'opacity-100 transition-opacity duration-(--duration-fast) ease-standard',
+                  'md:opacity-0 md:group-focus-within/left:opacity-100 md:group-hover/left:opacity-100 focus-visible:opacity-100',
                 )}
               >
                 <PanelLeft className="size-4" />
@@ -261,7 +264,7 @@ export function AppHeader({
               onClick={onOpenSearch}
               aria-label="Search"
               style={NO_DRAG}
-              className="sm:hidden size-7 p-0 flex text-muted-foreground hover:text-foreground"
+              className="sm:hidden size-7 p-0 flex text-muted-foreground hover:text-foreground touch-target"
             >
               <Search className="size-4" />
             </Button>
@@ -293,7 +296,7 @@ export function AppHeader({
               aria-pressed={isAssistantActive}
               aria-label={isAssistantActive ? 'Close AI assistant' : 'Ask AI'}
               style={NO_DRAG}
-              className="gap-1 px-2 text-xs font-medium sm:gap-1.5 sm:px-3 h-7 cursor-pointer"
+              className="gap-1 px-2 text-xs font-medium sm:gap-1.5 sm:px-3 h-7 cursor-pointer touch-target"
             >
               <Sparkles className="size-3.5" />
               <span className="sm:inline hidden">Ask AI</span>
@@ -314,7 +317,7 @@ export function AppHeader({
               <button
                 type="button"
                 style={NO_DRAG}
-                className="ml-1 cursor-pointer rounded-full transition-transform outline-none hover:scale-105 focus-visible:ring-1 focus-visible:ring-ring"
+                className="ml-1 flex items-center justify-center cursor-pointer rounded-full transition-transform outline-none hover:scale-105 focus-visible:ring-1 focus-visible:ring-ring touch-target"
                 aria-label="Account menu"
               >
                 <UserAvatar

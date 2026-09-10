@@ -16,7 +16,7 @@ import { Button, EmptyState, LoadingState } from '@org/ui';
  * `MatrixProvider` on every render — so its screens are imported statically
  * too. Splitting them would only add a chunk boundary with nothing behind it.
  */
-import { SavedView, ThreadsView } from '@org/web-chat';
+import { EncryptionSecurityPanel, SavedView, ThreadsView } from '@org/web-chat';
 /*
  * `@org/web-desktop` is already in the main chunk too — `Providers` mounts its
  * `DesktopProvider`/`DesktopChrome` on every render (see providers.tsx) — so
@@ -116,6 +116,7 @@ function WorkspaceSettings() {
         themePanel={<ThemeSettings />}
         profilePanel={<ProfileSettingsPanel />}
         invitationsPanel={<InvitationsPage embedded />}
+        encryptionSecurityPanel={<EncryptionSecurityPanel />}
       />
       {/* The settings surface renders outside AppShell, so it needs its own
           mount of the app-wide invite dialog for the Members "Invite" buttons. */}

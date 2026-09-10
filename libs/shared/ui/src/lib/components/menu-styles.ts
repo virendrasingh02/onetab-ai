@@ -21,7 +21,7 @@
  * overflow instead of clipping rows off the bottom where they can't be clicked.
  */
 export const menuSurfaceBase = [
-  'z-50 min-w-44 bg-popover text-popover-foreground',
+  'z-50 min-w-44 max-w-[calc(100vw-1rem)] bg-popover text-popover-foreground',
   'overflow-y-auto overflow-x-hidden overscroll-contain scrollbar-subtle',
   'rounded-popup border border-border p-1 shadow-overlay outline-none',
 ];
@@ -34,6 +34,8 @@ export const menuSurfaceBase = [
  */
 export const menuItemClasses = [
   'group relative flex cursor-pointer select-none items-center gap-2 rounded-btn px-2 py-1.5 text-xs font-medium outline-none',
+  // Roomier rows under a coarse pointer so a menu item is a comfortable tap.
+  'pointer-coarse:py-2.5',
   'transition-colors duration-(--duration-fast) ease-standard',
   'focus:bg-accent focus:text-accent-foreground',
   'data-[disabled]:pointer-events-none data-[disabled]:opacity-40',

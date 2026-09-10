@@ -1,19 +1,13 @@
+import { CallEvent, type MatrixCall } from 'matrix-js-sdk';
+import { CallErrorCode } from 'matrix-js-sdk/lib/webrtc/call.js';
 import type { OneTabMatrixClient } from './matrix-client.js';
-import { MatrixError, type Call, type CallKind, type RoomId } from './types.js';
-
-/**
- * Voice and video calling — foundation.
- *
- * Phase 3 establishes the domain model, the state machine and the media
- * plumbing so the UI can be built against a stable contract. Signalling is
- * intentionally left unimplemented: Matrix is mid-transition from legacy 1:1
- * calls (MSC2746) to MatrixRTC/Element Call (MSC3401), and committing to the
- * legacy stack now would mean rewriting this within a release.
- *
- * `startCall` therefore acquires real media and drives real state, but throws
- * `UNSUPPORTED` at the point signalling would begin, rather than silently
- * pretending to connect.
- */
+import {
+  MatrixError,
+  type Call,
+  type CallKind,
+  type CallState,
+  type RoomId,
+} from './types.js';
 
 export interface CallMediaConstraints {
   audio: boolean;
@@ -22,14 +16,27 @@ export interface CallMediaConstraints {
 
 export type CallListener = (call: Call) => void;
 
+/**
+ * Voice and video calling — WebRTC Matrix calling layer.
+ *
+ * Implements full 1:1 calling using matrix-js-sdk's WebRTC MatrixCall layer:
+ * - Signaling via Matrix events (m.call.invite, m.call.answer, m.call.hangup, m.call.candidates)
+ * - Local & remote media stream acquisition and binding
+ * - Call lifecycle states (ringing, connecting, connected, ended, rejected, failed)
+ * - Audio mute, video toggle, and screensharing controls
+ */
 export class CallManager {
   private readonly listeners = new Set<CallListener>();
   private active: Call | null = null;
+  private matrixCall: MatrixCall | null = null;
   private localStream: MediaStream | null = null;
+  private remoteStream: MediaStream | null = null;
+  private muted = false;
+  private videoEnabled = true;
+  private screensharing = false;
 
   constructor(private readonly client: OneTabMatrixClient) {}
 
-  /** Rejects early when the room is unknown, rather than after prompting. */
   private assertRoom(roomId: RoomId): void {
     if (!this.client.getRoom(roomId)) {
       throw new MatrixError('NOT_FOUND', 'That room is not available.');
@@ -43,7 +50,13 @@ export class CallManager {
 
   private emit(call: Call): void {
     this.active = call;
-    for (const listener of this.listeners) listener(call);
+    for (const listener of this.listeners) {
+      try {
+        listener(call);
+      } catch (err) {
+        console.error('[calls] listener threw', err);
+      }
+    }
   }
 
   getActiveCall(): Call | null {
@@ -51,10 +64,25 @@ export class CallManager {
   }
 
   getLocalStream(): MediaStream | null {
-    return this.localStream;
+    return this.matrixCall?.localUsermediaStream ?? this.localStream;
   }
 
-  /** True when the browser can source microphone/camera media at all. */
+  getRemoteStream(): MediaStream | null {
+    return this.matrixCall?.remoteUsermediaStream ?? this.remoteStream;
+  }
+
+  isMuted(): boolean {
+    return this.muted;
+  }
+
+  isVideoEnabled(): boolean {
+    return this.videoEnabled;
+  }
+
+  isScreensharing(): boolean {
+    return this.screensharing;
+  }
+
   static isSupported(): boolean {
     return (
       typeof navigator !== 'undefined' &&
@@ -64,10 +92,91 @@ export class CallManager {
   }
 
   /**
-   * Acquires local media and moves the call to `connecting`.
-   *
-   * Permission is requested before any signalling so the user is not left in a
-   * ringing state that can never connect because the mic was denied.
+   * Receives and tracks an incoming MatrixCall from the homeserver.
+   */
+  handleIncomingCall(matrixCall: MatrixCall): void {
+    if (this.active && this.active.state !== 'ended') {
+      // Busy: another call in progress, reject incoming
+      try {
+        matrixCall.reject();
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    const roomId = matrixCall.roomId;
+    const kind: CallKind = matrixCall.type === 'video' ? 'video' : 'voice';
+    this.bindMatrixCall(matrixCall, roomId, kind, true);
+  }
+
+  private bindMatrixCall(
+    matrixCall: MatrixCall,
+    roomId: RoomId,
+    kind: CallKind,
+    isIncoming: boolean,
+  ): void {
+    this.matrixCall = matrixCall;
+    this.videoEnabled = kind === 'video';
+    this.muted = false;
+    this.screensharing = false;
+
+    const initialCall: Call = {
+      id: matrixCall.callId,
+      roomId,
+      kind,
+      state: isIncoming ? 'ringing' : 'connecting',
+      isIncoming,
+      remoteUserId: matrixCall.getOpponentMember()?.userId,
+      startedAt: Date.now(),
+    };
+    this.emit(initialCall);
+
+    matrixCall.on(CallEvent.State, (state: string) => {
+      let mappedState: CallState = 'connecting';
+      switch (state) {
+        case 'ringing':
+          mappedState = 'ringing';
+          break;
+        case 'fledgling':
+        case 'wait_local_media':
+        case 'create_offer':
+        case 'create_answer':
+        case 'connecting':
+        case 'invite_sent':
+          mappedState = 'connecting';
+          break;
+        case 'connected':
+          mappedState = 'connected';
+          break;
+        case 'ended':
+          mappedState = 'ended';
+          this.cleanup();
+          break;
+      }
+      if (this.active) {
+        this.emit({ ...this.active, state: mappedState });
+      }
+    });
+
+    matrixCall.on(CallEvent.Error, () => {
+      if (this.active) {
+        this.emit({ ...this.active, state: 'failed' });
+      }
+      this.cleanup();
+    });
+
+    matrixCall.on(CallEvent.FeedsChanged, () => {
+      this.localStream = matrixCall.localUsermediaStream ?? null;
+      this.remoteStream = matrixCall.remoteUsermediaStream ?? null;
+      if (this.active) {
+        this.emit({ ...this.active });
+      }
+    });
+  }
+
+  /**
+   * Starts an outbound voice or video call in the given room.
    */
   async startCall(roomId: RoomId, kind: CallKind): Promise<Call> {
     if (!CallManager.isSupported()) {
@@ -81,62 +190,144 @@ export class CallManager {
     }
     this.assertRoom(roomId);
 
-    const call: Call = {
-      id: `call-${Date.now()}`,
-      roomId,
-      kind,
-      state: 'connecting',
-      isIncoming: false,
-      startedAt: Date.now(),
-    };
-    this.emit(call);
+    const sdk = this.client.getSdk();
+    if (!sdk) {
+      throw new MatrixError('SESSION_EXPIRED', 'Matrix client is not ready.');
+    }
 
     try {
-      this.localStream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: kind === 'video',
-      });
-    } catch {
-      const failed: Call = { ...call, state: 'failed' };
-      this.emit(failed);
+      const matrixCall = sdk.createCall(roomId);
+      if (!matrixCall) {
+        throw new MatrixError('UNSUPPORTED', 'Failed to initialize Matrix call.');
+      }
+
+      this.bindMatrixCall(matrixCall, roomId, kind, false);
+
+      if (kind === 'video') {
+        await matrixCall.placeVideoCall();
+      } else {
+        await matrixCall.placeVoiceCall();
+      }
+
+      const result = this.active;
+      if (!result) {
+        throw new MatrixError('UNKNOWN', 'Call failed to transition to active state.');
+      }
+      return result;
+    } catch (err) {
+      this.cleanup();
+      if (err instanceof MatrixError) throw err;
       throw new MatrixError(
-        'FORBIDDEN',
-        'Microphone or camera permission was denied.',
+        'UNKNOWN',
+        `Failed to start call: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
-
-    // Everything above is production-ready; the next step is MatrixRTC
-    // signalling, deliberately deferred.
-    this.hangUp();
-    throw new MatrixError(
-      'UNSUPPORTED',
-      'Call signalling is not implemented yet. Media capture and call state are in place; MatrixRTC (MSC3401) signalling lands in a later phase.',
-    );
   }
 
-  /** Releases devices and ends the call. Safe to call when idle. */
-  hangUp(): void {
-    for (const track of this.localStream?.getTracks() ?? []) {
-      // Without this the camera light stays on after the call ends.
-      track.stop();
+  /**
+   * Answers an incoming call.
+   */
+  async answerCall(kind?: CallKind): Promise<void> {
+    if (!this.matrixCall) {
+      throw new MatrixError('NOT_FOUND', 'No active call to answer.');
     }
-    this.localStream = null;
+    const isVideo = kind === 'video' || this.matrixCall.type === 'video';
+    this.videoEnabled = isVideo;
 
+    try {
+      await this.matrixCall.answer(true, isVideo);
+      if (this.active) {
+        this.emit({ ...this.active, state: 'connecting' });
+      }
+    } catch (err) {
+      if (this.active) {
+        this.emit({ ...this.active, state: 'failed' });
+      }
+      this.cleanup();
+      throw err;
+    }
+  }
+
+  /**
+   * Rejects an incoming call.
+   */
+  rejectCall(): void {
+    if (this.matrixCall) {
+      try {
+        this.matrixCall.reject();
+      } catch {
+        // ignore
+      }
+    }
+    if (this.active) {
+      this.emit({ ...this.active, state: 'rejected' });
+    }
+    this.cleanup();
+  }
+
+  /**
+   * Hangs up the active call.
+   */
+  hangUp(): void {
+    if (this.matrixCall) {
+      try {
+        this.matrixCall.hangup(CallErrorCode.UserHangup, false);
+      } catch {
+        // ignore
+      }
+    }
     if (this.active && this.active.state !== 'ended') {
       this.emit({ ...this.active, state: 'ended' });
     }
+    this.cleanup();
   }
 
-  setMuted(muted: boolean): void {
+  private cleanup(): void {
+    for (const track of this.localStream?.getTracks() ?? []) {
+      track.stop();
+    }
+    for (const track of this.matrixCall?.localUsermediaStream?.getTracks() ?? []) {
+      track.stop();
+    }
+    this.localStream = null;
+    this.remoteStream = null;
+    this.matrixCall = null;
+    this.muted = false;
+    this.videoEnabled = true;
+    this.screensharing = false;
+  }
+
+  async setMuted(muted: boolean): Promise<void> {
+    this.muted = muted;
+    if (this.matrixCall) {
+      await this.matrixCall.setMicrophoneMuted(muted);
+    }
     for (const track of this.localStream?.getAudioTracks() ?? []) {
       track.enabled = !muted;
     }
   }
 
-  setVideoEnabled(enabled: boolean): void {
+  async setVideoEnabled(enabled: boolean): Promise<void> {
+    this.videoEnabled = enabled;
+    if (this.matrixCall) {
+      await this.matrixCall.setLocalVideoMuted(!enabled);
+    }
     for (const track of this.localStream?.getVideoTracks() ?? []) {
       track.enabled = enabled;
     }
+  }
+
+  async setScreensharingEnabled(enabled: boolean): Promise<boolean> {
+    if (this.matrixCall) {
+      try {
+        const success = await this.matrixCall.setScreensharingEnabled(enabled);
+        this.screensharing = success;
+        return success;
+      } catch {
+        return false;
+      }
+    }
+    return false;
   }
 }
 

@@ -14,8 +14,12 @@ import {
   type GifSource,
 } from '@org/ui';
 import { RealtimeProvider, useUserPresenceMap } from '@org/realtime';
+import {
+  AuthenticatedMediaBridge,
+  CallOverlayBridge,
+  MatrixProvider,
+} from '@org/web-chat';
 import { SyncProvider } from '@org/sync';
-import { AuthenticatedMediaBridge, MatrixProvider } from '@org/web-chat';
 import { DesktopChrome, DesktopProvider } from '@org/web-desktop';
 import {
   MutationCache,
@@ -221,6 +225,7 @@ export function Providers({ children }: { children: ReactNode }) {
             <DesktopProvider>
               <MatrixProvider>
                 <AuthenticatedMediaBridge>
+                  <CallOverlayBridge />
                   <RealtimeAppBridge>
                     <TooltipProvider>
                       <MediaPreviewProvider>

@@ -58,6 +58,7 @@ import {
 import { AddAccountDialog } from './add-account-dialog.js';
 import { AppHeader } from './app-header.js';
 import { ChannelNav } from './channel-nav.js';
+import { MobileBottomNav } from './mobile-bottom-nav.js';
 import { OfflineSyncBanner } from './offline/offline-sync-banner.js';
 import { SyncStatusIndicator } from './sync/sync-status-indicator.js';
 import { useNavigationSync } from './navigation/use-navigation-sync.js';
@@ -534,6 +535,23 @@ export function AppShell() {
             the conversation portals its bar into this row. Empty otherwise. */}
         <HuddleDock />
 
+        {/*
+          Phone-only bottom tab bar. In normal flow as the last column child, so
+          the content area shrinks by its height and nothing is covered. Above
+          it: Home, Chat, Search, Inbox — plus "Menu", which opens the same
+          navigation drawer as the header hamburger, keeping the full IA
+          reachable. Hidden from `md` up, where the real sidebar is present.
+        */}
+        {isMobile ? (
+          <MobileBottomNav
+            workspaceSlug={slug}
+            inboxUnread={unread.count}
+            onOpenSearch={() => palette.setOpen(true)}
+            onOpenMenu={toggleSidebar}
+            menuOpen={sidebarOpen}
+          />
+        ) : null}
+
         {/* Quiet floating pill — appears only while background sync is degraded
             (reconnecting / offline). Takes no layout height. */}
         <SyncStatusIndicator variant="pill" />
@@ -553,7 +571,7 @@ export function AppShell() {
           <SheetContent
             side="left"
             hideCloseButton
-            className="w-75 gap-0 p-0 max-w-[85vw] bg-surface-muted"
+            className="w-75 gap-0 p-0 max-w-[85vw] pt-safe pb-safe pl-safe bg-surface-muted"
           >
             <SheetTitle className="sr-only">Workspace navigation</SheetTitle>
             <div className="h-12 px-2 flex shrink-0 items-center border-b border-border">
@@ -575,7 +593,7 @@ export function AppShell() {
           <SheetContent
             side="right"
             hideCloseButton
-            className="w-85 gap-0 p-0 max-w-[90vw] bg-surface-muted"
+            className="w-85 gap-0 p-0 max-w-[90vw] pt-safe pb-safe pr-safe bg-surface-muted"
           >
             <SheetTitle className="sr-only">Side panel</SheetTitle>
             <RightPanel

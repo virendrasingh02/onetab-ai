@@ -55,7 +55,8 @@ import {
   subMonths,
   subYears,
 } from 'date-fns';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useLongPress } from '@org/hooks';
 import { MarkdownMessage } from './markdown-message.js';
 import { UserProfileCard } from './user-profile-card.js';
 
@@ -179,6 +180,36 @@ export function ChatBubble({
 }: ChatBubbleProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isReactionOpen, setIsReactionOpen] = useState(false);
+  /*
+   * Touch has no hover, so the floating action toolbar is opened by a
+   * long-press on the message instead. It stays up until a tap or scroll
+   * outside the message, or until a menu it launched closes.
+   */
+  const [actionsPinned, setActionsPinned] = useState(false);
+  const articleRef = useRef<HTMLElement | null>(null);
+  const longPress = useLongPress(() => setActionsPinned(true), {
+    disabled: message.isRedacted,
+  });
+
+  useEffect(() => {
+    if (!actionsPinned) return;
+    const dismiss = (event: Event) => {
+      if (isMenuOpen || isReactionOpen) return;
+      if (
+        event.type === 'pointerdown' &&
+        articleRef.current?.contains(event.target as Node)
+      ) {
+        return;
+      }
+      setActionsPinned(false);
+    };
+    document.addEventListener('pointerdown', dismiss, true);
+    window.addEventListener('scroll', dismiss, true);
+    return () => {
+      document.removeEventListener('pointerdown', dismiss, true);
+      window.removeEventListener('scroll', dismiss, true);
+    };
+  }, [actionsPinned, isMenuOpen, isReactionOpen]);
 
   if (message.isRedacted) {
     return (
@@ -291,8 +322,11 @@ export function ChatBubble({
   return (
     <article
       data-message-id={message.id}
+      ref={articleRef}
+      {...longPress}
       className={cn(
         'group/message relative flex transition-colors hover:bg-accent',
+        actionsPinned && 'bg-accent',
         isCompact
           ? cn(
               'chat-density-compact gap-2.5 px-3',
@@ -636,11 +670,12 @@ export function ChatBubble({
         ) : null}
       </div>
 
-      {/* Floating Hover Toolbar */}
+      {/* Floating action toolbar — revealed on hover/focus (pointer), or
+          long-press (touch, via `actionsPinned`). */}
       <div
         className={cn(
           '-top-3.5 right-4 p-0.5 absolute z-20 items-center rounded-lg border border-border bg-surface-raised shadow-lg',
-          isMenuOpen || isReactionOpen
+          isMenuOpen || isReactionOpen || actionsPinned
             ? 'flex'
             : 'hidden group-focus-within/message:flex group-hover/message:flex',
         )}
@@ -649,9 +684,12 @@ export function ChatBubble({
           ? QUICK_REACTIONS.map((emoji) => (
               <Hint key={emoji} label={`React with ${emoji}`}>
                 <button
-                  onClick={() => onReact(emoji)}
+                  onClick={() => {
+                    onReact(emoji);
+                    setActionsPinned(false);
+                  }}
                   aria-label={`React with ${emoji}`}
-                  className="size-7 text-sm flex items-center justify-center rounded-md transition-colors hover:bg-accent"
+                  className="max-sm:hidden size-7 text-sm flex items-center justify-center rounded-md transition-colors hover:bg-accent"
                 >
                   <span aria-hidden>{emoji}</span>
                 </button>
@@ -663,11 +701,14 @@ export function ChatBubble({
           <ReactionPicker
             onSelect={onReact}
             open={isReactionOpen}
-            onOpenChange={setIsReactionOpen}
+            onOpenChange={(open) => {
+              setIsReactionOpen(open);
+              if (!open) setActionsPinned(false);
+            }}
           >
             <button
               aria-label="Add a reaction"
-              className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="size-7 touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <Smile className="size-4" />
             </button>
@@ -677,8 +718,11 @@ export function ChatBubble({
         <Hint label="Reply in thread">
           <button
             aria-label="Reply in thread"
-            onClick={onOpenThread ?? onReply}
-            className="size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            onClick={() => {
+              (onOpenThread ?? onReply)?.();
+              setActionsPinned(false);
+            }}
+            className="size-7 touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <Reply className="size-4" />
           </button>
@@ -691,7 +735,7 @@ export function ChatBubble({
               aria-pressed={isSaved}
               onClick={onToggleSave}
               className={cn(
-                'size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+                'size-7 touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
                 isSaved && 'text-primary-text',
               )}
             >
@@ -700,12 +744,18 @@ export function ChatBubble({
           </Hint>
         ) : null}
 
-        <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+        <DropdownMenu
+          open={isMenuOpen}
+          onOpenChange={(open) => {
+            setIsMenuOpen(open);
+            if (!open) setActionsPinned(false);
+          }}
+        >
           <DropdownMenuTrigger asChild>
             <button
               aria-label="More actions"
               className={cn(
-                'size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+                'size-7 touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
                 isMenuOpen && 'bg-accent text-foreground',
               )}
             >

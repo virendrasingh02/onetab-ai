@@ -49,6 +49,7 @@ import { deriveThreads, groupReplies } from './derive-threads.js';
 import { useHuddleSession } from './use-huddle.js';
 import { useMentionNavigation } from './use-mention-navigation.js';
 import { useMessageScrollTarget } from './use-message-scroll-target.js';
+import { useMatrix } from './matrix-provider.js';
 
 /**
  * Everything the welcome block at the top of the timeline needs that the
@@ -495,14 +496,64 @@ export function ChatSurface({
     [huddle.huddle],
   );
 
+  const { client } = useMatrix();
+  const [remoteSearchResults, setRemoteSearchResults] = useState<Message[]>([]);
+
+  useEffect(() => {
+    const needle = searchQuery.trim();
+    if (!needle || !client || !conversationId) {
+      setRemoteSearchResults([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const results = await client.searchMessages(needle, conversationId, 50);
+        if (cancelled) return;
+        const mapped: Message[] = results.map((r) => ({
+          id: r.eventId,
+          roomId: r.roomId,
+          senderId: r.senderId,
+          senderName: r.senderName || r.senderId,
+          kind: 'text',
+          body: r.body,
+          timestamp: r.timestamp,
+          reactions: [],
+          isEdited: false,
+          isRedacted: false,
+          isEncrypted: false,
+        }));
+        setRemoteSearchResults(mapped);
+      } catch (err) {
+        console.warn('Matrix search error:', err);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [client, conversationId, searchQuery]);
+
   const searchResults = useMemo(() => {
     const needle = searchQuery.trim().toLowerCase();
     if (!needle) return [];
-    return messages.filter(
+    const localMatches = messages.filter(
       (message) =>
         !message.isRedacted && message.body.toLowerCase().includes(needle),
     );
-  }, [messages, searchQuery]);
+    if (remoteSearchResults.length === 0) return localMatches;
+
+    const seen = new Set(localMatches.map((m) => m.id));
+    const combined = [...localMatches];
+    for (const remote of remoteSearchResults) {
+      if (!seen.has(remote.id)) {
+        seen.add(remote.id);
+        combined.push(remote);
+      }
+    }
+    return combined.sort((a, b) => a.timestamp - b.timestamp);
+  }, [messages, searchQuery, remoteSearchResults]);
 
   /*
    * One reliable "go to this message" for every caller — the mentions pill,
