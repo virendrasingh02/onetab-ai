@@ -165,6 +165,8 @@ const WORKSPACE_STATIC_TITLES: Record<string, string> = {
   '/automations/builder': 'Automations & Workflows',
   '/automations/logs': 'Automations & Workflows',
   '/integrations': 'Integration Hub',
+  '/marketplace': 'Agents & Apps',
+  '/marketplace/developer': 'Developer Portal',
   '/apps': 'Apps',
   '/apps/chat': 'Apps',
 };

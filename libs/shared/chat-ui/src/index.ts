@@ -101,6 +101,13 @@ export {
   type VoiceMessageProps,
 } from './lib/attachments.js';
 
+export { WaveformBars, type WaveformBarsProps } from './lib/waveform-bars.js';
+
+export {
+  VoiceRecorderBar,
+  type VoiceRecorderBarProps,
+} from './lib/voice-recorder-bar.js';
+
 export {
   ConnectionBanner,
   ConnectionPill,

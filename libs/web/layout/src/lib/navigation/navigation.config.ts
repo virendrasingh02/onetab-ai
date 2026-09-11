@@ -248,14 +248,14 @@ export const DEFAULT_NAV_ITEMS: readonly NavItemConfig[] = [
   },
   {
     id: 'agents',
-    label: 'AI Agents',
+    label: 'Agents & Apps',
     icon: Bot,
-    href: 'agents',
+    href: 'marketplace',
     visible: true,
     order: 2,
     group: 'ai',
-    description: 'Autonomous multi-step agents and marketplace',
-    keywords: ['agents', 'marketplace', 'bots', 'builder'],
+    description: 'Discover verified apps, integrations, and autonomous AI agents',
+    keywords: ['agents', 'apps', 'marketplace', 'directory', 'integrations', 'bots', 'builder'],
   },
   {
     id: 'automations',

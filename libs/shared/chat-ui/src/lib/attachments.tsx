@@ -1,6 +1,6 @@
 import { useAuthenticatedMediaSrc } from '@org/hooks';
 import type { Attachment } from '@org/types';
-import { Button, Skeleton } from '@org/ui';
+import { Button, Hint, Skeleton } from '@org/ui';
 import { cn, formatBytes } from '@org/utils';
 import {
   Download,
@@ -14,6 +14,7 @@ import {
   Play,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { WaveformBars } from './waveform-bars.js';
 
 function iconFor(mimeType: string) {
   if (mimeType.startsWith('video/')) return Film;
@@ -256,6 +257,10 @@ export interface VoiceMessageProps {
   attachment: Attachment;
 }
 
+/** Cycled by the speed toggle, fastest last so a repeated tap sweeps
+ *  1× → 1.5× → 2× → back to 1×. */
+const PLAYBACK_SPEEDS = [1, 1.5, 2] as const;
+
 /**
  * Voice note with a waveform scrubber.
  *
@@ -266,12 +271,8 @@ export function VoiceMessage({ attachment }: VoiceMessageProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [speedIndex, setSpeedIndex] = useState(0);
   const audioSrc = useAuthenticatedMediaSrc(attachment.url);
-
-  const samples =
-    attachment.waveform?.length && attachment.waveform.length > 1
-      ? attachment.waveform
-      : Array.from({ length: 32 }, () => 0.35);
 
   const toggle = () => {
     const audio = audioRef.current;
@@ -284,12 +285,18 @@ export function VoiceMessage({ attachment }: VoiceMessageProps) {
     setPlaying(!playing);
   };
 
+  const cycleSpeed = () => {
+    const next = (speedIndex + 1) % PLAYBACK_SPEEDS.length;
+    setSpeedIndex(next);
+    if (audioRef.current) audioRef.current.playbackRate = PLAYBACK_SPEEDS[next];
+  };
+
   const durationSeconds = attachment.duration
     ? Math.round(attachment.duration / 1000)
     : 0;
 
   return (
-    <div className="mt-1 max-w-sm gap-3 p-2.5 flex items-center rounded-lg border border-border bg-surface">
+    <div className="mt-1 max-w-sm gap-2 p-2.5 flex items-center rounded-lg border border-border bg-surface">
       <Button
         variant="secondary"
         size="icon-sm"
@@ -299,30 +306,40 @@ export function VoiceMessage({ attachment }: VoiceMessageProps) {
         {playing ? <Pause /> : <Play />}
       </Button>
 
-      <div
-        className="h-8 flex flex-1 items-center gap-px"
-        role="img"
+      <WaveformBars
+        samples={attachment.waveform ?? []}
+        progress={progress}
         aria-label={`Voice message, ${durationSeconds} seconds`}
-      >
-        {samples.map((sample, index) => {
-          const played = index / samples.length <= progress;
-          return (
-            <span
-              key={index}
-              className={cn(
-                'flex-1 rounded-full',
-                played ? 'bg-primary' : 'bg-muted-foreground/30',
-              )}
-              style={{ height: `${Math.max(10, sample * 100)}%` }}
-            />
-          );
-        })}
-      </div>
+      />
 
       <span className="w-9 text-xs text-right text-muted-foreground tabular-nums">
         {Math.floor(durationSeconds / 60)}:
         {String(durationSeconds % 60).padStart(2, '0')}
       </span>
+
+      <Hint label="Playback speed">
+        <button
+          type="button"
+          onClick={cycleSpeed}
+          aria-label={`Playback speed, ${PLAYBACK_SPEEDS[speedIndex]}×. Tap to change.`}
+          className="h-6 min-w-8 px-1 text-[11px] font-semibold shrink-0 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          {PLAYBACK_SPEEDS[speedIndex]}×
+        </button>
+      </Hint>
+
+      {audioSrc ? (
+        <Hint label="Download voice message">
+          <a
+            href={audioSrc}
+            download={attachment.name || 'voice-message'}
+            aria-label="Download voice message"
+            className="size-7 shrink-0 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <Download className="size-3.5" />
+          </a>
+        </Hint>
+      ) : null}
 
       <audio
         ref={audioRef}

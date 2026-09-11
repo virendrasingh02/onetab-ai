@@ -38,4 +38,24 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommand[] = [
   { name: '/poll', args: '[question]', description: 'Start a quick poll' },
   { name: '/away', description: 'Toggle your away status' },
   { name: '/shrug', args: '[message]', description: 'Append ¯\\_(ツ)_/¯' },
+  {
+    name: '/github',
+    args: '<issue | pr | repo>',
+    description: 'Query GitHub pull requests or issues',
+  },
+  {
+    name: '/linear',
+    args: '<issue-id | create>',
+    description: 'Lookup or create Linear issues',
+  },
+  {
+    name: '/jira',
+    args: '<issue-key>',
+    description: 'Lookup Jira tickets and status',
+  },
+  {
+    name: '/agent',
+    args: '<review | triage | query>',
+    description: 'Invoke an autonomous AI agent',
+  },
 ];

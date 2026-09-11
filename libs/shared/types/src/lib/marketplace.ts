@@ -29,10 +29,68 @@ export type MarketplacePricingModel = 'FREE' | 'FREEMIUM' | 'PAID';
 
 export type MarketplaceSort = 'popular' | 'rating' | 'newest' | 'name';
 
+export type IntegrationEntityType = 'APP' | 'AGENT';
+
+export type VerificationBadge =
+  | 'VERIFIED'
+  | 'OFFICIAL'
+  | 'INTERNAL'
+  | 'COMMUNITY'
+  | 'UNVERIFIED';
+
+export type PermissionLevel = 'READ' | 'WRITE' | 'ADMIN' | 'SENSITIVE';
+
+export interface IntegrationPermission {
+  scope: string;
+  name: string;
+  level: PermissionLevel;
+  description: string;
+}
+
+export interface IntegrationCommand {
+  command: string;
+  description: string;
+  args?: string;
+}
+
+export interface IntegrationSecurity {
+  dataAccessed: string[];
+  authentication: string;
+  dataStorage: string;
+  externalServices: string[];
+  dataBoundaries: string;
+  modelProvider?: string;
+  approvalRequiredActions?: string[];
+}
+
+export interface IntegrationCompatibility {
+  minVersion?: string;
+  platforms: string[];
+}
+
+export interface IntegrationChangelogItem {
+  version: string;
+  date: string;
+  notes: string;
+}
+
+export interface ApprovalRequest {
+  requestedBy: string;
+  requestedByName: string;
+  reason: string;
+  requestedAt: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  reviewedBy?: string;
+  reviewedAt?: string;
+  rejectionReason?: string;
+}
+
 export interface MarketplacePublisher {
   name: string;
   slug: string;
   isVerified: boolean;
+  websiteUrl?: string | null;
+  supportEmail?: string | null;
 }
 
 export interface MarketplaceListing {
@@ -60,6 +118,23 @@ export interface MarketplaceListing {
   installed?: boolean;
   /** Only present when the browse call passed `includePayload`. */
   payload?: Record<string, unknown>;
+  /** First-class entity designation */
+  entityType?: IntegrationEntityType;
+  badge?: VerificationBadge;
+  capabilities?: string[];
+  permissions?: IntegrationPermission[];
+  commands?: IntegrationCommand[];
+  examplePrompts?: string[];
+  requiresAdmin?: boolean;
+  security?: IntegrationSecurity;
+  compatibility?: IntegrationCompatibility;
+  screenshots?: string[];
+  changelog?: IntegrationChangelogItem[];
+  description?: string;
+  publisherName?: string;
+  approvalStatus?: string;
+  installationCount?: number;
+  ratingAverage?: number;
 }
 
 export interface MarketplaceReview {
@@ -96,20 +171,42 @@ export interface MarketplaceStorefrontStat {
   installedHere: number;
 }
 
+export type InstallationStatus =
+  | 'ACTIVE'
+  | 'DISABLED'
+  | 'PENDING_APPROVAL'
+  | 'CONFIG_REQUIRED'
+  | 'SUSPENDED'
+  | 'FAILED'
+  | 'UNINSTALLED';
+
 export interface MarketplaceInstallation {
   id: string;
   listingId: string;
   workspaceId: string;
   version: string;
-  status: 'ACTIVE' | 'DISABLED' | 'UNINSTALLED';
+  status: InstallationStatus;
   settings: Record<string, unknown>;
   grantedScopes: string[];
   installedAt: string;
   listing: MarketplaceListing;
+  approvalRequest?: ApprovalRequest | null;
+  lastActivityAt?: string | null;
+  entityType?: IntegrationEntityType;
+  listingSlug?: string;
+  name?: string;
+  kind?: MarketplaceKind;
+  iconUrl?: string | null;
+  enabled?: boolean;
+  approvalStatus?: string;
+  requestReason?: string;
+  requestedBy?: string;
+  requesterName?: string;
 }
 
 export interface MarketplaceBrowseParams {
   kind?: MarketplaceKind;
+  entityType?: IntegrationEntityType;
   category?: string;
   search?: string;
   pricing?: MarketplacePricingModel;

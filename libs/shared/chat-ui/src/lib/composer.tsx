@@ -9,7 +9,11 @@ import {
   EmojiGifPickerPopover,
   Hint,
 } from '@org/ui';
-import { useKeyboardInset } from '@org/hooks';
+import {
+  isVoiceRecordingSupported,
+  useKeyboardInset,
+  useSpeechToText,
+} from '@org/hooks';
 import { cn, formatBytes } from '@org/utils';
 import {
   AtSign,
@@ -18,10 +22,12 @@ import {
   File as FileIcon,
   Film,
   Lock,
+  Mic,
   Plus,
   Send,
   Slash,
   Smile,
+  Speech,
   VenetianMask,
   Video,
   X,
@@ -42,6 +48,7 @@ import {
   type MentionCandidate,
 } from './lexical-composer.js';
 import { DEFAULT_SLASH_COMMANDS, type SlashCommand } from './slash-commands.js';
+import { VoiceRecorderBar } from './voice-recorder-bar.js';
 
 export { DEFAULT_SLASH_COMMANDS, type SlashCommand };
 
@@ -271,7 +278,16 @@ export interface ComposerProps {
   slashCommands?: SlashCommand[];
   onSchedule?: (body: string, when: string) => void;
   onStartHuddle?: () => void;
-  onRecordClip?: () => void;
+  /**
+   * Presence of this prop is what shows the mic button (in addition to the
+   * browser actually supporting recording) — the same "no prop, no control"
+   * convention `onSchedule`/`onStartHuddle` already use.
+   */
+  onSendVoice?: (
+    blob: Blob,
+    meta: { durationMs: number; waveform: number[]; mimeType: string },
+    onProgress?: (percent: number) => void,
+  ) => void | Promise<void>;
   className?: string;
 }
 
@@ -301,6 +317,7 @@ export function Composer({
   slashCommands = DEFAULT_SLASH_COMMANDS,
   onSchedule,
   onStartHuddle,
+  onSendVoice,
   className,
 }: ComposerProps) {
   const [pickerState, setPickerState] = useState<{
@@ -440,6 +457,53 @@ export function Composer({
 
   const canSend = hasContent || attachments.length > 0;
 
+  /* --- speech-to-text (dictate into the text box; never auto-sent) -------- */
+  const speech = useSpeechToText();
+  const dictatedLengthRef = useRef(0);
+
+  // Each newly *confirmed* chunk of speech lands in the editor once; interim
+  // (not-yet-final) text is deliberately not inserted — there is no API here
+  // to edit an already-inserted range, so showing it live would mean typing
+  // it twice.
+  useEffect(() => {
+    if (!speech.listening) return;
+    const delta = speech.finalText.slice(dictatedLengthRef.current);
+    if (delta) {
+      lexicalRef.current?.insertText(delta);
+      dictatedLengthRef.current = speech.finalText.length;
+    }
+  }, [speech.finalText, speech.listening]);
+
+  /* --- voice messages ------------------------------------------------------
+   * Recording takes over the whole input row (see the render below), which is
+   * what gives the "no conflicting state" rule for free — the attach/emoji/
+   * slash/huddle controls simply aren't on screen while it's active. The one
+   * thing that needs an explicit guard is *starting* a recording (or
+   * dictation) with attachments already staged, since those would otherwise
+   * silently vanish under the recorder bar.
+   */
+  const voiceSupported = useMemo(() => isVoiceRecordingSupported(), []);
+  const [recordingActive, setRecordingActive] = useState(false);
+  const canStartVoiceAction = !disabled && attachments.length === 0;
+
+  const startRecording = useCallback(() => {
+    if (!canStartVoiceAction) return;
+    if (speech.listening) speech.stop();
+    setRecordingActive(true);
+  }, [canStartVoiceAction, speech]);
+
+  const toggleDictate = useCallback(() => {
+    if (speech.listening) {
+      speech.stop();
+      return;
+    }
+    if (!canStartVoiceAction) return;
+    speech.reset();
+    dictatedLengthRef.current = 0;
+    lexicalRef.current?.focus();
+    speech.start();
+  }, [speech, canStartVoiceAction]);
+
   /*
    * Keep the box above the on-screen keyboard. On engines that honour
    * `interactive-widget=resizes-content` the layout viewport already shrinks and
@@ -512,6 +576,13 @@ export function Composer({
         </div>
       ) : null}
 
+      {recordingActive && onSendVoice ? (
+        <VoiceRecorderBar
+          onCancel={() => setRecordingActive(false)}
+          onSent={() => setRecordingActive(false)}
+          onSend={onSendVoice}
+        />
+      ) : (
       <div
         className={cn(
           'relative flex flex-col rounded-xl border border-border bg-surface transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary',
@@ -661,6 +732,45 @@ export function Composer({
               </button>
             </EmojiGifPickerPopover>
 
+            {/* Mic and dictate stay visible at every breakpoint (unlike the
+                secondary buttons above/below) — the brief calls for the mic
+                to stay reachable on phones specifically. */}
+            {voiceSupported && onSendVoice ? (
+              <Hint label="Record a voice message">
+                <button
+                  type="button"
+                  onClick={startRecording}
+                  disabled={!canStartVoiceAction}
+                  aria-label="Start voice recording"
+                  className="size-7 shrink-0 touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                >
+                  <Mic className="size-4" />
+                </button>
+              </Hint>
+            ) : null}
+
+            {speech.supported ? (
+              <Hint
+                label={speech.listening ? 'Stop dictating' : 'Dictate (speech to text)'}
+              >
+                <button
+                  type="button"
+                  onClick={toggleDictate}
+                  disabled={!speech.listening && !canStartVoiceAction}
+                  aria-label={speech.listening ? 'Stop dictating' : 'Dictate speech to text'}
+                  aria-pressed={speech.listening}
+                  className={cn(
+                    'size-7 shrink-0 touch-target flex items-center justify-center rounded-md transition-colors disabled:pointer-events-none disabled:opacity-40',
+                    speech.listening
+                      ? 'bg-primary text-primary-foreground motion-safe:animate-pulse'
+                      : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                  )}
+                >
+                  <Speech className="size-4" />
+                </button>
+              </Hint>
+            ) : null}
+
             <Hint label="Open GIF picker">
               <button
                 type="button"
@@ -796,6 +906,7 @@ export function Composer({
           </div>
         </div>
       </div>
+      )}
 
       {/* <div className="mt-1 px-1 flex items-center justify-between text-[11px] text-muted-foreground">
         <span>

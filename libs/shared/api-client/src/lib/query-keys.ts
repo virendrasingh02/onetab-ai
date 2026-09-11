@@ -106,6 +106,8 @@ export const queryKeys = {
     reviews: (slug: string) => ['marketplace', 'reviews', slug] as const,
     installations: (workspaceId: string, kind: string) =>
       ['marketplace', 'installations', workspaceId, kind] as const,
+    approvals: (workspaceId: string) =>
+      ['marketplace', 'approvals', workspaceId] as const,
     sdk: () => ['marketplace', 'sdk'] as const,
     registration: (slug: string) =>
       ['marketplace', 'registration', slug] as const,

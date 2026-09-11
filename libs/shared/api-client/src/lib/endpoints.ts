@@ -1197,6 +1197,53 @@ export const marketplaceApi = {
       ),
     ),
 
+  requestAccess: (
+    workspaceId: string,
+    slug: string,
+    input: { reason: string },
+  ) =>
+    request<MarketplaceInstallation>(
+      http.post(
+        `/marketplace/workspaces/${workspaceId}/installations/${slug}/request-access`,
+        input,
+      ),
+    ),
+
+  approvals: (workspaceId: string) =>
+    request<MarketplaceInstallation[]>(
+      http.get(`/marketplace/workspaces/${workspaceId}/approvals`),
+    ),
+
+  resolveApproval: (
+    workspaceId: string,
+    slug: string,
+    input: { action: 'APPROVE' | 'REJECT'; rejectionReason?: string },
+  ) =>
+    request<MarketplaceInstallation>(
+      http.post(
+        `/marketplace/workspaces/${workspaceId}/approvals/${slug}/resolve`,
+        input,
+      ),
+    ),
+
+  publishCustom: (input: {
+    kind: MarketplaceKind;
+    name: string;
+    slug: string;
+    tagline?: string;
+    description?: string;
+    category: string;
+    capabilities?: string[];
+    permissions?: Array<{ scope: string; name: string; level: string; description: string }>;
+    commands?: Array<{ command: string; description: string; args?: string }>;
+    examplePrompts?: string[];
+    iconUrl?: string;
+    version?: string;
+  }) =>
+    request<MarketplaceListingDetail>(
+      http.post('/marketplace/listings/custom', input),
+    ),
+
   // --- Plugin SDK ---------------------------------------------------------
 
   sdk: () => request<PluginSDKDescriptor>(http.get('/marketplace/sdk')),

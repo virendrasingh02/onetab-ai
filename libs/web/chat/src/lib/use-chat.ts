@@ -434,6 +434,25 @@ export function useGroupDirectMessages(): GroupDirectMessageSummary[] {
   return groups;
 }
 
+/** Best-guess file extension for a recorded voice note's mime type — only
+ *  cosmetic (the filename Matrix stores alongside the upload), so an unknown
+ *  type just falls back to `.audio` rather than failing anything. */
+function extensionForAudioMimeType(mimeType: string): string {
+  const base = mimeType.split(';')[0]?.trim().toLowerCase();
+  switch (base) {
+    case 'audio/webm':
+      return 'weba';
+    case 'audio/mp4':
+      return 'm4a';
+    case 'audio/aac':
+      return 'aac';
+    case 'audio/ogg':
+      return 'ogg';
+    default:
+      return 'audio';
+  }
+}
+
 /** Message actions for a room, with the room id already bound. */
 export function useRoomActions(roomId: RoomId | undefined) {
   const { client } = useMatrix();
@@ -509,6 +528,31 @@ export function useRoomActions(roomId: RoomId | undefined) {
     [client, roomId],
   );
 
+  /** Sends a recorded clip as an MSC3245 voice note — same transport as
+   *  `attach`, just tagged `voice` so it renders as a `VoiceMessage` bubble
+   *  instead of a generic audio file (see `mappers.ts`'s `toMessageKind`). */
+  const sendVoice = useCallback(
+    async (
+      blob: Blob,
+      meta: { durationMs: number; waveform: number[]; mimeType: string },
+      onProgress?: (percent: number) => void,
+      threadRootId?: string,
+    ) => {
+      if (!client || !roomId) return;
+      const file = new File(
+        [blob],
+        `voice-message.${extensionForAudioMimeType(meta.mimeType)}`,
+        { type: meta.mimeType },
+      );
+      await client.sendFile(roomId, file, {
+        threadRootId,
+        onProgress,
+        voice: { durationMs: meta.durationMs, waveform: meta.waveform },
+      });
+    },
+    [client, roomId],
+  );
+
   return {
     send,
     retry,
@@ -518,6 +562,7 @@ export function useRoomActions(roomId: RoomId | undefined) {
     setTyping,
     markRead,
     attach,
+    sendVoice,
   };
 }
 

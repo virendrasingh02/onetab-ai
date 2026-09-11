@@ -384,6 +384,10 @@ export function App() {
             <Route path="ai/prompts" element={<PromptLibraryView />} />
             <Route path="whiteboards" element={<WhiteboardCanvas />} />
             <Route path="agents" element={<AgentMarketplaceView />} />
+            <Route path="marketplace" element={<AgentMarketplaceView />} />
+            <Route path="marketplace/apps/:slug" element={<AgentMarketplaceView />} />
+            <Route path="marketplace/agents/:slug" element={<AgentMarketplaceView />} />
+            <Route path="marketplace/developer" element={<AgentMarketplaceView />} />
             <Route path="agents/chat" element={<AgentChatView />} />
             <Route path="agents/:agentId/chat" element={<AgentChatView />} />
             <Route path="agents/builder" element={<AgentBuilderView />} />

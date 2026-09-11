@@ -191,6 +191,67 @@ export class MarketplaceController {
     return this.marketplace.uninstall(workspaceId, slug);
   }
 
+  @Post('workspaces/:workspaceId/installations/:slug/request-access')
+  @UseGuards(WorkspaceRoleGuard)
+  requestAccess(
+    @Param('workspaceId') workspaceId: string,
+    @Param('slug') slug: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { reason: string },
+  ) {
+    return this.marketplace.requestAccess(
+      workspaceId,
+      slug,
+      user.id,
+      user.name ?? user.email,
+      body.reason || 'Requested by workspace member',
+    );
+  }
+
+  @Get('workspaces/:workspaceId/approvals')
+  @UseGuards(WorkspaceRoleGuard)
+  listApprovals(@Param('workspaceId') workspaceId: string) {
+    return this.marketplace.listApprovals(workspaceId);
+  }
+
+  @Post('workspaces/:workspaceId/approvals/:slug/resolve')
+  @UseGuards(WorkspaceRoleGuard)
+  resolveApproval(
+    @Param('workspaceId') workspaceId: string,
+    @Param('slug') slug: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { action: 'APPROVE' | 'REJECT'; rejectionReason?: string },
+  ) {
+    return this.marketplace.resolveApproval(
+      workspaceId,
+      slug,
+      user.id,
+      body.action,
+      body.rejectionReason,
+    );
+  }
+
+  @Post('listings/custom')
+  publishCustom(
+    @Body()
+    body: {
+      kind: string;
+      name: string;
+      slug: string;
+      tagline?: string;
+      description?: string;
+      category: string;
+      capabilities?: string[];
+      permissions?: Array<{ scope: string; name: string; level: string; description: string }>;
+      commands?: Array<{ command: string; description: string; args?: string }>;
+      examplePrompts?: string[];
+      iconUrl?: string;
+      version?: string;
+    },
+  ) {
+    return this.marketplace.publishCustom(body);
+  }
+
   // --- plugin SDK ----------------------------------------------------------
 
   /** The SDK contract: runtimes, scopes, surfaces and a worked manifest. */

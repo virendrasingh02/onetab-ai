@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  type OnModuleInit,
 } from '@nestjs/common';
 import { PrismaService } from '@org/database';
 import {
@@ -16,6 +17,7 @@ import {
   type ListingKind,
   type ListingStatus,
 } from './marketplace.constants.js';
+import { SEED_LISTINGS, SEED_PUBLISHER } from './marketplace.seeds.js';
 import type {
   BrowseQuery,
   InstallInput,
@@ -47,7 +49,7 @@ function toSlug(value: string): string {
 
 /** Publisher fields a listing response is allowed to carry. */
 const PUBLISHER_SELECT = {
-  select: { name: true, slug: true, isVerified: true },
+  select: { name: true, slug: true, isVerified: true, websiteUrl: true, supportEmail: true },
 } as const;
 
 /**
@@ -61,6 +63,7 @@ interface ListingRow {
   slug: string;
   name: string;
   tagline: string;
+  description?: string;
   category: string;
   version: string;
   iconUrl: string | null;
@@ -74,15 +77,84 @@ interface ListingRow {
   installCount: number;
   ratingSum: number;
   ratingCount: number;
-  publisher?: { name: string; slug: string; isVerified: boolean } | null;
+  publisher?: {
+    name: string;
+    slug: string;
+    isVerified: boolean;
+    websiteUrl?: string | null;
+    supportEmail?: string | null;
+  } | null;
   payloadJson?: string;
+  manifestJson?: string;
 }
 
 @Injectable()
-export class MarketplaceService {
+export class MarketplaceService implements OnModuleInit {
   private readonly logger = new Logger(MarketplaceService.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
+  async onModuleInit() {
+    await this.seedOfficialListings();
+  }
+
+  /** Ensures high-fidelity official Apps and Agents are available in the directory. */
+  async seedOfficialListings() {
+    try {
+      const publisher = await this.prisma.marketplacePublisher.upsert({
+        where: { slug: SEED_PUBLISHER.slug },
+        create: SEED_PUBLISHER,
+        update: SEED_PUBLISHER,
+      });
+
+      for (const item of SEED_LISTINGS) {
+        const data = {
+          kind: item.kind,
+          slug: item.slug,
+          name: item.name,
+          tagline: item.tagline ?? '',
+          description: item.description ?? '',
+          category: item.category,
+          version: item.version ?? '1.0.0',
+          iconUrl: item.iconUrl ?? null,
+          previewUrl: item.previewUrl ?? null,
+          tags: JSON.stringify(item.tags ?? []),
+          manifestJson: JSON.stringify(item.manifest ?? {}),
+          payloadJson: JSON.stringify(item.payload ?? {}),
+          pricingModel: item.pricingModel ?? 'FREE',
+          priceCents: item.priceCents ?? 0,
+          status: 'PUBLISHED',
+          isOfficial: true,
+          isFeatured: true,
+          publisherId: publisher.id,
+          publishedAt: new Date(),
+        };
+
+        await this.prisma.marketplaceListing.upsert({
+          where: { slug: item.slug },
+          create: data,
+          update: {
+            name: data.name,
+            tagline: data.tagline,
+            description: data.description,
+            category: data.category,
+            iconUrl: data.iconUrl,
+            tags: data.tags,
+            manifestJson: data.manifestJson,
+          },
+        });
+      }
+      this.logger.log(
+        `Marketplace official listings verified (${SEED_LISTINGS.length} items).`,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Failed to seed official marketplace listings: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
 
   // -------------------------------------------------------------------------
   // Browse & detail
@@ -107,9 +179,14 @@ export class MarketplaceService {
     }
 
     const search = query.search?.trim();
-    const where = {
+    const where: Record<string, unknown> = {
       status: 'PUBLISHED',
       ...(query.kind ? { kind: query.kind } : {}),
+      ...(query.entityType === 'AGENT'
+        ? { kind: 'AGENT' }
+        : query.entityType === 'APP'
+        ? { kind: { not: 'AGENT' } }
+        : {}),
       ...(query.category ? { category: query.category } : {}),
       ...(query.pricing ? { pricingModel: query.pricing.toUpperCase() } : {}),
       ...(query.featured === true || query.featured === 'true'
@@ -380,6 +457,40 @@ export class MarketplaceService {
       });
     }
 
+    // When an AGENT is installed, ensure a corresponding workspace AIAgent exists
+    if (listing.kind === 'AGENT') {
+      try {
+        const existingAgent = await this.prisma.aIAgent.findFirst({
+          where: { workspaceId: input.workspaceId, name: listing.name },
+        });
+        if (!existingAgent) {
+          await this.prisma.aIAgent.create({
+            data: {
+              workspaceId: input.workspaceId,
+              name: listing.name,
+              role: listing.category,
+              description: listing.tagline || listing.description,
+              avatarUrl: listing.iconUrl,
+              systemPrompt: `You are ${listing.name}, an autonomous ${listing.category} assistant.`,
+              isMarketplace: true,
+              isActive: true,
+            },
+          });
+        } else if (!existingAgent.isActive) {
+          await this.prisma.aIAgent.update({
+            where: { id: existingAgent.id },
+            data: { isActive: true },
+          });
+        }
+      } catch (err) {
+        this.logger.warn(
+          `Could not auto-provision workspace AIAgent: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+
     this.logger.log(
       `Installed '${listing.slug}' into workspace ${input.workspaceId}`,
     );
@@ -395,6 +506,22 @@ export class MarketplaceService {
       data: { status: 'UNINSTALLED' },
     });
 
+    if (listing.kind === 'AGENT') {
+      try {
+        const agent = await this.prisma.aIAgent.findFirst({
+          where: { workspaceId, name: listing.name },
+        });
+        if (agent) {
+          await this.prisma.aIAgent.update({
+            where: { id: agent.id },
+            data: { isActive: false },
+          });
+        }
+      } catch (err) {
+        this.logger.warn(`Could not deactivate AIAgent: ${err}`);
+      }
+    }
+
     if (installation.status !== 'UNINSTALLED') {
       await this.prisma.marketplaceListing.update({
         where: { id: listing.id },
@@ -404,6 +531,220 @@ export class MarketplaceService {
     }
 
     return { listingSlug, workspaceId, status: 'UNINSTALLED' as const };
+  }
+
+  async requestAccess(
+    workspaceId: string,
+    listingSlug: string,
+    userId: string,
+    userName: string,
+    reason: string,
+  ): Promise<InstallationView> {
+    const listing = await this.requireListing(listingSlug);
+    const approvalRequest = {
+      requestedBy: userId,
+      requestedByName: userName,
+      reason,
+      requestedAt: new Date().toISOString(),
+      status: 'PENDING',
+    };
+
+    const settingsJson = JSON.stringify({
+      approvalRequest,
+      lastActivityAt: new Date().toISOString(),
+    });
+
+    const installation = await this.prisma.marketplaceInstallation.upsert({
+      where: {
+        listingId_workspaceId: {
+          listingId: listing.id,
+          workspaceId,
+        },
+      },
+      create: {
+        listingId: listing.id,
+        workspaceId,
+        installedById: userId,
+        version: listing.version,
+        status: 'PENDING_APPROVAL',
+        grantedScopes: '[]',
+        settingsJson,
+      },
+      update: {
+        status: 'PENDING_APPROVAL',
+        settingsJson,
+      },
+      include: { listing: { include: { publisher: PUBLISHER_SELECT } } },
+    });
+
+    this.logger.log(
+      `User ${userId} requested access for '${listing.slug}' in workspace ${workspaceId}`,
+    );
+    return this.toInstallation(installation);
+  }
+
+  async listApprovals(workspaceId: string): Promise<InstallationView[]> {
+    const rows = await this.prisma.marketplaceInstallation.findMany({
+      where: {
+        workspaceId,
+        status: 'PENDING_APPROVAL',
+      },
+      include: { listing: { include: { publisher: PUBLISHER_SELECT } } },
+      orderBy: { updatedAt: 'desc' },
+    });
+    return rows.map((row) => this.toInstallation(row));
+  }
+
+  async resolveApproval(
+    workspaceId: string,
+    listingSlug: string,
+    adminUserId: string,
+    action: 'APPROVE' | 'REJECT',
+    rejectionReason?: string,
+  ): Promise<InstallationView> {
+    const listing = await this.requireListing(listingSlug);
+    const installation = await this.requireInstallation(workspaceId, listing.id);
+
+    const existingSettings = parseJson<Record<string, unknown>>(
+      installation.settingsJson,
+      {},
+    );
+    const existingReq =
+      (existingSettings['approvalRequest'] as Record<string, unknown>) || {};
+
+    const updatedApproval = {
+      ...existingReq,
+      reviewedBy: adminUserId,
+      reviewedAt: new Date().toISOString(),
+      status: action === 'APPROVE' ? 'APPROVED' : 'REJECTED',
+      ...(rejectionReason ? { rejectionReason } : {}),
+    };
+
+    const newSettings = {
+      ...existingSettings,
+      approvalRequest: updatedApproval,
+      lastActivityAt: new Date().toISOString(),
+    };
+
+    if (action === 'APPROVE') {
+      const updated = await this.prisma.marketplaceInstallation.update({
+        where: { id: installation.id },
+        data: {
+          status: 'ACTIVE',
+          settingsJson: JSON.stringify(newSettings),
+        },
+        include: { listing: { include: { publisher: PUBLISHER_SELECT } } },
+      });
+
+      if (listing.kind === 'AGENT') {
+        const existingAgent = await this.prisma.aIAgent.findFirst({
+          where: { workspaceId, name: listing.name },
+        });
+        if (!existingAgent) {
+          await this.prisma.aIAgent.create({
+            data: {
+              workspaceId,
+              name: listing.name,
+              role: listing.category,
+              description: listing.tagline || listing.description,
+              avatarUrl: listing.iconUrl,
+              systemPrompt: `You are ${listing.name}, an autonomous ${listing.category} assistant.`,
+              isMarketplace: true,
+              isActive: true,
+            },
+          });
+        } else if (!existingAgent.isActive) {
+          await this.prisma.aIAgent.update({
+            where: { id: existingAgent.id },
+            data: { isActive: true },
+          });
+        }
+      }
+
+      return this.toInstallation(updated);
+    } else {
+      const updated = await this.prisma.marketplaceInstallation.update({
+        where: { id: installation.id },
+        data: {
+          status: 'UNINSTALLED',
+          settingsJson: JSON.stringify(newSettings),
+        },
+        include: { listing: { include: { publisher: PUBLISHER_SELECT } } },
+      });
+      return this.toInstallation(updated);
+    }
+  }
+
+  async publishCustom(input: {
+    kind: string;
+    name: string;
+    slug: string;
+    tagline?: string;
+    description?: string;
+    category: string;
+    capabilities?: string[];
+    permissions?: Array<{ scope: string; name: string; level: string; description: string }>;
+    commands?: Array<{ command: string; description: string; args?: string }>;
+    examplePrompts?: string[];
+    iconUrl?: string;
+    version?: string;
+  }): Promise<ListingSummary> {
+    const slug = toSlug(input.slug || input.name);
+    const publisher = await this.ensurePublisher('community-developer', 'Community Developer');
+
+    const manifest = {
+      entityType: input.kind === 'AGENT' ? 'AGENT' : 'APP',
+      badge: 'COMMUNITY',
+      capabilities: input.capabilities ?? [],
+      permissions: input.permissions ?? [],
+      commands: input.commands ?? [],
+      examplePrompts: input.examplePrompts ?? [],
+      requiresAdmin: false,
+      security: {
+        dataAccessed: ['Workspace context'],
+        authentication: 'Custom Integration Protocol',
+        dataStorage: 'Isolated workspace context',
+        externalServices: [],
+        dataBoundaries: 'Workspace isolated',
+      },
+      compatibility: { platforms: ['Web', 'Desktop', 'Mobile'] },
+    };
+
+    const listing = await this.prisma.marketplaceListing.upsert({
+      where: { slug },
+      create: {
+        kind: input.kind as ListingKind,
+        slug,
+        name: input.name,
+        tagline: input.tagline ?? '',
+        description: input.description ?? '',
+        category: input.category,
+        version: input.version ?? '1.0.0',
+        iconUrl: input.iconUrl ?? null,
+        previewUrl: null,
+        tags: JSON.stringify([input.category.toLowerCase(), input.kind.toLowerCase()]),
+        manifestJson: JSON.stringify(manifest),
+        payloadJson: JSON.stringify({}),
+        pricingModel: 'FREE',
+        priceCents: 0,
+        status: 'PUBLISHED',
+        isOfficial: false,
+        isFeatured: false,
+        publisherId: publisher.id,
+        publishedAt: new Date(),
+      },
+      update: {
+        name: input.name,
+        tagline: input.tagline ?? '',
+        description: input.description ?? '',
+        category: input.category,
+        iconUrl: input.iconUrl ?? null,
+        manifestJson: JSON.stringify(manifest),
+      },
+      include: { publisher: PUBLISHER_SELECT },
+    });
+
+    return this.toSummary(listing);
   }
 
   async setInstallationEnabled(
@@ -583,6 +924,9 @@ export class MarketplaceService {
     installed?: boolean,
     includePayload = false,
   ): ListingSummary {
+    const manifest = parseJson<Record<string, unknown>>(row.manifestJson, {});
+    const isAgent = row.kind === 'AGENT' || manifest['entityType'] === 'AGENT';
+
     return {
       id: row.id,
       kind: row.kind as ListingSummary['kind'],
@@ -610,6 +954,20 @@ export class MarketplaceService {
       ...(includePayload
         ? { payload: parseJson<Record<string, unknown>>(row.payloadJson, {}) }
         : {}),
+      entityType: isAgent ? 'AGENT' : 'APP',
+      badge:
+        (manifest['badge'] as string) ||
+        (row.isOfficial ? 'OFFICIAL' : 'COMMUNITY'),
+      capabilities: (manifest['capabilities'] as string[]) || [],
+      permissions: (manifest['permissions'] as any) || [],
+      commands: (manifest['commands'] as any) || [],
+      examplePrompts: (manifest['examplePrompts'] as string[]) || [],
+      requiresAdmin: Boolean(manifest['requiresAdmin']),
+      security: (manifest['security'] as Record<string, unknown>) || undefined,
+      compatibility:
+        (manifest['compatibility'] as Record<string, unknown>) || undefined,
+      screenshots: (manifest['screenshots'] as string[]) || [],
+      changelog: (manifest['changelog'] as any) || [],
     };
   }
 
@@ -624,16 +982,27 @@ export class MarketplaceService {
     installedAt: Date;
     listing: ListingRow;
   }): InstallationView {
+    const settings = parseJson<Record<string, unknown>>(row.settingsJson, {});
+    const approvalRequest = settings['approvalRequest'] as
+      | Record<string, unknown>
+      | null;
+    const lastActivityAt =
+      (settings['lastActivityAt'] as string) || row.installedAt.toISOString();
+    const isAgent = row.listing.kind === 'AGENT';
+
     return {
       id: row.id,
       listingId: row.listingId,
       workspaceId: row.workspaceId,
       version: row.version,
       status: row.status,
-      settings: parseJson<Record<string, unknown>>(row.settingsJson, {}),
+      settings,
       grantedScopes: parseJson<string[]>(row.grantedScopes, []),
       installedAt: row.installedAt,
       listing: this.toSummary(row.listing, true),
+      approvalRequest: approvalRequest ?? null,
+      lastActivityAt,
+      entityType: isAgent ? 'AGENT' : 'APP',
     };
   }
 }

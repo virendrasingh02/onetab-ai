@@ -34,6 +34,17 @@ export interface ListingSummary {
    * every card, and one bulk read beats one detail request per card.
    */
   payload?: Record<string, unknown>;
+  entityType?: 'APP' | 'AGENT';
+  badge?: string;
+  capabilities?: string[];
+  permissions?: Array<{ scope: string; name: string; level: string; description: string }>;
+  commands?: Array<{ command: string; description: string; args?: string }>;
+  examplePrompts?: string[];
+  requiresAdmin?: boolean;
+  security?: Record<string, unknown>;
+  compatibility?: Record<string, unknown>;
+  screenshots?: string[];
+  changelog?: Array<{ version: string; date: string; notes: string }>;
 }
 
 export interface ListingDetail extends ListingSummary {
@@ -64,10 +75,14 @@ export interface InstallationView {
   grantedScopes: string[];
   installedAt: Date;
   listing: ListingSummary;
+  approvalRequest?: Record<string, unknown> | null;
+  lastActivityAt?: string | null;
+  entityType?: 'APP' | 'AGENT';
 }
 
 export interface BrowseQuery {
   kind?: string;
+  entityType?: string;
   category?: string;
   search?: string;
   pricing?: string;

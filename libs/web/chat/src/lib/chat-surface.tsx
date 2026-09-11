@@ -225,6 +225,12 @@ export interface ChatSurfaceProps {
   ) => void | Promise<void>;
   onTyping?: (isTyping: boolean) => void;
   onAttach?: (files: FileList, threadRootId?: string) => void | Promise<void>;
+  onSendVoice?: (
+    blob: Blob,
+    meta: { durationMs: number; waveform: number[]; mimeType: string },
+    onProgress?: (percent: number) => void,
+    threadRootId?: string,
+  ) => void | Promise<void>;
   onRetry?: (messageId: string) => void | Promise<void>;
   onTogglePin?: (eventId: string) => void;
   onToggleSave?: (eventId: string) => void;
@@ -309,6 +315,7 @@ export function ChatSurface({
   onReact,
   onTyping,
   onAttach,
+  onSendVoice,
   onRetry,
   onTogglePin,
   onToggleSave,
@@ -1056,6 +1063,20 @@ export function ChatSurface({
                           ? (files) => void onAttach(files, threadRoot.id)
                           : undefined
                       }
+                      onSendVoice={
+                        onSendVoice
+                          ? (
+                              blob: Blob,
+                              meta: {
+                                durationMs: number;
+                                waveform: number[];
+                                mimeType: string;
+                              },
+                              onProgress?: (percent: number) => void,
+                            ) =>
+                              onSendVoice(blob, meta, onProgress, threadRoot.id)
+                          : undefined
+                      }
                     />
                   }
                 />
@@ -1139,6 +1160,7 @@ export function ChatSurface({
             currentUserId={myUserId}
             onTyping={onTyping}
             onAttach={onAttach ? (files) => void onAttach(files) : undefined}
+            onSendVoice={onSendVoice}
             placeholder={editing ? 'Edit your message…' : `Message ${title}`}
             readOnlyMessage={editing ? undefined : composerReadOnlyMessage}
             anonymousPosting={editing ? undefined : anonymousPosting}

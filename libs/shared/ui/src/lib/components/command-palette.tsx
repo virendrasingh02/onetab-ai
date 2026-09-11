@@ -118,13 +118,13 @@ export function CommandPalette({
       },
     },
     {
-      id: 'agents',
-      category: 'AI Workflows',
-      label: 'AI Agent Marketplace & Builder',
+      id: 'marketplace',
+      category: 'AI & Ecosystem',
+      label: 'Agents & Apps Marketplace (Directory)',
       icon: <Sparkles className="size-4 text-accent-green" />,
       action: () => {
         onOpenChange(false);
-        navigate('agents');
+        navigate('marketplace');
       },
     },
     {
