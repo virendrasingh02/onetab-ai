@@ -22,10 +22,7 @@ import {
 } from 'lucide-react';
 import { parseDay } from './card-meta.js';
 import { useKanbanCustomStore } from './kanban-custom-store.js';
-import {
-  ActivityPulseBadge,
-  CubeProjectIcon,
-} from './kanban-icons.js';
+import { CubeProjectIcon } from './kanban-icons.js';
 import { KanbanLeadPicker } from './KanbanLeadPicker.js';
 import { KanbanStatusPicker } from './KanbanStatusPicker.js';
 import type { BoardMember, KanbanCard, KanbanList } from './types.js';
@@ -118,7 +115,7 @@ export function KanbanCardTile({
         'has-[:focus-visible]:border-ring has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/30',
       )}
     >
-      {/* Top Row: [Orange Cube] [Title]  ... [Pulse] [StatusIcon] [More] [Avatar] */}
+      {/* Top Row: [Orange Cube] [Title]  ... [StatusIcon] [More] [Avatar] */}
       <div className="flex items-start justify-between gap-2 min-w-0">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <CubeProjectIcon className="size-4 shrink-0" />
@@ -133,9 +130,6 @@ export function KanbanCardTile({
 
         {/* Every control here owns its own press, so none of them start a drag. */}
         <div data-no-drag className="flex items-center gap-1 shrink-0">
-          {/* Activity pulse badge */}
-          <ActivityPulseBadge />
-
           {/* Status picker trigger */}
           <KanbanStatusPicker
             status={currentStatus}

@@ -66,7 +66,6 @@ export {
   getStatusLabel,
   type StatusIconProps,
   PriorityIcon,
-  ActivityPulseBadge,
   CubeProjectIcon,
   UnassignedLeadIcon,
 } from './lib/kanban/kanban-icons.js';

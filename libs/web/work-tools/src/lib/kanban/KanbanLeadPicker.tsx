@@ -224,11 +224,6 @@ export function KanbanLeadPicker({
                         <span className="block truncate text-xs font-semibold text-foreground leading-tight">
                           {member.displayName ?? member.name}
                         </span>
-                        {member.email && (
-                          <span className="block truncate text-[11px] text-muted-foreground mt-0.5 leading-tight font-normal">
-                            {member.email}
-                          </span>
-                        )}
                       </div>
                     </div>
 

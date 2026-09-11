@@ -351,28 +351,6 @@ export function PriorityIcon({ priority, className }: PriorityIconProps) {
 
 /* ------------------------------------------------------------- badge icons --- */
 
-export function ActivityPulseBadge({ className }: { className?: string }) {
-  return (
-    <div
-      title="Active activity"
-      className={cn(
-        'size-5 rounded-full border border-dashed border-accent-green/70 bg-accent-green-soft flex items-center justify-center text-accent-green shrink-0',
-        className,
-      )}
-    >
-      <svg className="size-2.5" viewBox="0 0 16 16" fill="none">
-        <path
-          d="M2 8.5L5 8.5L7 4.5L9 11.5L11 8.5L14 8.5"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </div>
-  );
-}
-
 export function CubeProjectIcon({ className }: { className?: string }) {
   return (
     <svg
