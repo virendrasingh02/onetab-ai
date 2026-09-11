@@ -3,13 +3,17 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleInit,
   PayloadTooLargeException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { randomUUID } from 'node:crypto';
 import {
   ImageProcessingService,
   ImageSecurityService,
+  MediaQueueService,
   STANDARD_IMAGE_PRESETS,
+  type MediaJobPayload,
   type ProcessPipelineOptions,
 } from '@org/api-media-processing';
 import {
@@ -30,6 +34,9 @@ import type {
 import { getPlanLimit, isLimitReached, isNearLimit, normalizePlanTier } from '@org/types';
 import type { UpdateUploadInput } from '@org/validation';
 import { StorageService } from './storage.service.js';
+
+/** Standard responsive variants generated for every image upload. */
+const DEFAULT_IMAGE_VARIANTS = ['thumbnail', 'small', 'medium', 'large'];
 
 /** 25 MB. Large enough for documents and screenshots, small enough to stream. */
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
@@ -128,7 +135,7 @@ function decodeCursor(cursor: string): { ms: number; id: string } | null {
 }
 
 @Injectable()
-export class UploadService {
+export class UploadService implements OnModuleInit {
   private readonly logger = new Logger(UploadService.name);
 
   constructor(
@@ -137,7 +144,20 @@ export class UploadService {
     private readonly events: EventEmitter2,
     private readonly imageProcessing: ImageProcessingService,
     private readonly imageSecurity: ImageSecurityService,
+    private readonly mediaQueue: MediaQueueService,
   ) {}
+
+  /**
+   * Registers this service as the `MediaQueueService` worker. Variant
+   * generation used to be a fire-and-forget promise attached directly to the
+   * upload request (`void this.generateAndStoreVariants(...)`) — CPU-heavy
+   * sharp work competing with live request handling on the same process, and
+   * silently lost if the process restarted before it finished. The queue
+   * already existed for exactly this; it just had no handler registered.
+   */
+  onModuleInit(): void {
+    this.mediaQueue.registerHandler((job) => this.processVariantJob(job));
+  }
 
   /** Short-lived signed URLs so a plain `<img>`/`<a>` can reach the bytes. */
   private urlsFor(row: { id: string; mimeType: string }): UploadUrls {
@@ -443,10 +463,6 @@ export class UploadService {
     const key = this.storage.buildKey(workspaceId, file.originalname);
     const stored = await this.storage.put(key, file.buffer);
 
-    if (file.mimetype?.startsWith('image/')) {
-      void this.generateAndStoreVariants(stored.key, file.buffer);
-    }
-
     const row = await this.prisma.upload.create({
       data: {
         workspaceId,
@@ -464,6 +480,7 @@ export class UploadService {
       include: { uploader: { select: PUBLIC_USER_SELECT } },
     });
 
+    await this.enqueueVariantJob(workspaceId, row.id, stored.key, file);
     this.emitShared(workspaceId, uploaderId, row, false);
 
     const contexts = await this.resolveContexts(workspaceId, [row]);
@@ -502,10 +519,6 @@ export class UploadService {
     const key = this.storage.buildKey(workspaceId, file.originalname);
     const stored = await this.storage.put(key, file.buffer);
 
-    if (file.mimetype?.startsWith('image/')) {
-      void this.generateAndStoreVariants(stored.key, file.buffer);
-    }
-
     const row = await this.prisma.$transaction(async (tx) => {
       await tx.upload.update({
         where: { id: current.id },
@@ -531,6 +544,7 @@ export class UploadService {
       });
     });
 
+    await this.enqueueVariantJob(workspaceId, row.id, stored.key, file);
     this.emitShared(workspaceId, uploaderId, row, true);
 
     const contexts = await this.resolveContexts(workspaceId, [row]);
@@ -819,27 +833,64 @@ export class UploadService {
   }
 
   /**
-   * Helper to generate and store standard responsive variants.
+   * Hands a freshly stored image off to the background queue for variant
+   * generation, rather than blocking the upload response on it. `await`ed
+   * only for the (cheap, non-throwing) enqueue itself — the sharp work
+   * happens later, off the request path, in `processVariantJob`.
    */
-  async generateAndStoreVariants(
+  private async enqueueVariantJob(
+    workspaceId: string,
+    uploadId: string,
     storageKey: string,
-    buffer: Buffer,
+    file: Pick<IncomingFile, 'originalname' | 'mimetype'>,
   ): Promise<void> {
+    if (!file.mimetype?.startsWith('image/')) return;
+
+    await this.mediaQueue.enqueue({
+      jobId: randomUUID(),
+      workspaceId,
+      uploadId,
+      storageKey,
+      filename: file.originalname,
+      mimeType: file.mimetype,
+      variants: DEFAULT_IMAGE_VARIANTS,
+      createdAt: Date.now(),
+    });
+  }
+
+  /**
+   * The `MediaQueueService` worker's job handler — generates and stores every
+   * requested variant for one uploaded image. Re-reads the bytes from
+   * storage by key rather than carrying them in the job payload, since queue
+   * payloads (Redis-backed in production) should stay small and serializable.
+   */
+  private async processVariantJob(job: MediaJobPayload): Promise<void> {
+    if (!job.mimeType.startsWith('image/')) return;
+
     try {
-      const variants = await this.imageProcessing.generateVariants(buffer, [
-        'thumbnail',
-        'small',
-        'medium',
-        'large',
-      ]);
+      if (!(await this.storage.exists(job.storageKey))) {
+        // Deleted or superseded before the job was picked up.
+        return;
+      }
+      const buffer = await this.storage.get(job.storageKey);
+      const variants = await this.imageProcessing.generateVariants(
+        buffer,
+        job.variants.length ? job.variants : DEFAULT_IMAGE_VARIANTS,
+      );
       await Promise.all(
-        Object.entries(variants).map(([name, output]: [string, any]) => {
-          const variantKey = this.storage.buildVariantKey(storageKey, name, output.format);
+        Object.entries(variants).map(([name, output]) => {
+          const variantKey = this.storage.buildVariantKey(
+            job.storageKey,
+            name,
+            output.format,
+          );
           return this.storage.put(variantKey, output.buffer);
         }),
       );
     } catch (err) {
-      this.logger.warn(`Failed to generate variants for ${storageKey}: ${err}`);
+      this.logger.warn(
+        `Failed to generate variants for upload ${job.uploadId} (${job.storageKey}): ${err}`,
+      );
     }
   }
 

@@ -4,6 +4,7 @@ import { ImageProcessingService } from './image-processing.service.js';
 import { ImageSecurityService } from './image-security.service.js';
 import {
   InvalidCropException,
+  InvalidDimensionsException,
   InvalidImageException,
   PixelLimitExceededException,
 } from './image-processing.errors.js';
@@ -203,6 +204,28 @@ describe('ImageProcessingService & ImageSecurityService', () => {
 
       expect(filtered.width).toBe(100);
       expect(filtered.height).toBe(100);
+    });
+
+    it('accepts a bare sharpen sigma, same as processImageSchema sends', async () => {
+      const buffer = await createTestImage(100, 100, 'png');
+
+      // A number used to fall through to the boolean-false branch silently —
+      // this just has to not throw and to still produce a valid image.
+      const filtered = await service.process(buffer, { sharpen: 2.5 });
+
+      expect(filtered.width).toBe(100);
+      expect(filtered.height).toBe(100);
+    });
+
+    it('rejects a resize target beyond the maximum allowed output dimensions', async () => {
+      const buffer = await createTestImage(100, 100, 'png');
+
+      await expect(
+        service.resize(buffer, { width: 50_000, height: 200 }),
+      ).rejects.toThrow(InvalidDimensionsException);
+      await expect(
+        service.resize(buffer, { width: 200, height: 50_000 }),
+      ).rejects.toThrow(InvalidDimensionsException);
     });
 
     it('generates standardized thumbnails and variant batches', async () => {

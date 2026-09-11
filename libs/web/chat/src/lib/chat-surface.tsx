@@ -1,5 +1,6 @@
 import { useMessageDensity, useOpenChatPosition } from '@org/common';
 import {
+  AttachmentGrid,
   AttachmentRenderer,
   ChatHeader,
   ChatLayout,
@@ -45,6 +46,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useRegisterActiveConversation } from './active-conversation.js';
+import { deriveAttachmentBursts } from './derive-attachment-bursts.js';
 import { deriveThreads, groupReplies } from './derive-threads.js';
 import { useHuddleSession } from './use-huddle.js';
 import { useMentionNavigation } from './use-mention-navigation.js';
@@ -461,6 +463,16 @@ export function ChatSurface({
     [messages],
   );
 
+  /**
+   * Multi-file uploads still arrive as one Matrix event per file — this
+   * regroups the caption-less runs so the timeline renders one grid per
+   * upload instead of one bubble per file. See `renderMessage` below.
+   */
+  const attachmentBursts = useMemo(
+    () => deriveAttachmentBursts(rootMessages),
+    [rootMessages],
+  );
+
   const threads = useMemo(
     () =>
       deriveThreads(messages, members, {
@@ -665,7 +677,11 @@ export function ChatSurface({
 
   const renderMessage = useCallback(
     (message: Message, grouped: boolean) => {
+      // Folded into its burst's head bubble as a grid tile — see below.
+      if (attachmentBursts.hidden.has(message.id)) return null;
+
       const replies = repliesByRoot.get(message.id) ?? [];
+      const burst = attachmentBursts.membersByHead.get(message.id);
 
       return (
         <MessageRenderer
@@ -742,6 +758,49 @@ export function ChatSurface({
             )
           }
           attachmentSlot={(() => {
+            const uploaderContext = {
+              senderId: message.senderId,
+              senderName: message.senderName,
+              senderAvatarUrl: message.senderAvatarUrl,
+              senderPresence: presenceOf
+                ? PRESENCE_FOR_AVATAR[presenceOf(message.senderId)]
+                : undefined,
+              channelName: title,
+              isEncrypted: isEncrypted || message.isEncrypted,
+            };
+
+            // A grouped bulk upload — grid of every file in the burst, any
+            // tile opens the lightbox scoped to just that burst.
+            if (burst && burst.length > 1) {
+              const files = burst.filter(
+                (
+                  item,
+                ): item is Message & {
+                  attachment: NonNullable<Message['attachment']>;
+                } => !!item.attachment,
+              );
+              return (
+                <AttachmentGrid
+                  items={files.map((item) => ({
+                    attachment: item.attachment,
+                    kind: item.kind,
+                    onOpen: () =>
+                      openPreview(
+                        files.map((file) =>
+                          attachmentToMediaItem(
+                            file.attachment,
+                            file.kind,
+                            file.id,
+                            { ...uploaderContext, timestamp: file.timestamp },
+                          ),
+                        ),
+                        files.findIndex((file) => file.id === item.id),
+                      ),
+                  }))}
+                />
+              );
+            }
+
             const attachment = message.attachment;
             if (!attachment) return null;
             return (
@@ -751,15 +810,8 @@ export function ChatSurface({
                 onOpen={() =>
                   openPreview([
                     attachmentToMediaItem(attachment, message.kind, message.id, {
-                      senderId: message.senderId,
-                      senderName: message.senderName,
-                      senderAvatarUrl: message.senderAvatarUrl,
-                      senderPresence: presenceOf
-                        ? PRESENCE_FOR_AVATAR[presenceOf(message.senderId)]
-                        : undefined,
+                      ...uploaderContext,
                       timestamp: message.timestamp,
-                      channelName: title,
-                      isEncrypted: isEncrypted || message.isEncrypted,
                     }),
                   ])
                 }
@@ -770,6 +822,7 @@ export function ChatSurface({
       );
     },
     [
+      attachmentBursts,
       repliesByRoot,
       memberById,
       myUserId,

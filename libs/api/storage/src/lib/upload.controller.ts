@@ -25,7 +25,12 @@ import {
   zodBody,
 } from '@org/api-common';
 import { WorkspacePermission } from '@org/types';
-import { updateUploadSchema, type UpdateUploadInput } from '@org/validation';
+import {
+  processImageSchema,
+  updateUploadSchema,
+  type ProcessImageInput,
+  type UpdateUploadInput,
+} from '@org/validation';
 import type { Response } from 'express';
 import {
   MAX_UPLOAD_BYTES,
@@ -168,7 +173,7 @@ export class UploadController {
   async process(
     @WorkspaceId() workspaceId: string,
     @Param('uploadId') uploadId: string,
-    @Body() body: any,
+    @Body(zodBody(processImageSchema)) body: ProcessImageInput,
   ) {
     const result = await this.uploads.processImage(workspaceId, uploadId, body);
     return {

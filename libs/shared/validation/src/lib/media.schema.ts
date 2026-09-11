@@ -23,15 +23,15 @@ export const imagePositionSchema = z.enum([
   'attention',
 ]);
 
-export const imageFormatSchema = z.enum([
-  'jpeg',
-  'jpg',
-  'png',
-  'webp',
-  'avif',
-  'gif',
-  'tiff',
-]);
+/**
+ * `jpg` is accepted as the common spelling but normalized to `jpeg` — the
+ * only one `SupportedOutputFormat` (and Sharp's own `.jpeg()` encoder) knows,
+ * so every caller downstream of this schema can treat `format` as that exact
+ * union without a second `jpg` case to remember.
+ */
+export const imageFormatSchema = z
+  .enum(['jpeg', 'jpg', 'png', 'webp', 'avif', 'gif', 'tiff'])
+  .transform((format) => (format === 'jpg' ? 'jpeg' : format));
 
 export const imageBlendModeSchema = z.enum([
   'clear',

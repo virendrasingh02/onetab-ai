@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { availableParallelism, cpus } from 'node:os';
 import sharp from 'sharp';
 import {
   AVATAR_STANDARD_SIZES,
@@ -137,7 +138,8 @@ export interface ProcessPipelineOptions {
   flop?: boolean;
   trim?: boolean | number;
   flatten?: boolean | { background: string | { r: number; g: number; b: number } };
-  sharpen?: boolean | { sigma?: number; m1?: number; m2?: number };
+  /** A bare number is the sharpen sigma directly — what `processImageSchema` sends. */
+  sharpen?: boolean | number | { sigma?: number; m1?: number; m2?: number };
   blur?: boolean | number;
   grayscale?: boolean;
   tint?: string | { r: number; g: number; b: number };
@@ -165,15 +167,28 @@ export interface ProcessedOutput {
   durationMs: number;
 }
 
+/**
+ * Sharp's cache and concurrency limits are process-wide (libvips) settings,
+ * not state that belongs to any one `ImageProcessingService` instance — Nest
+ * constructs a fresh instance per testing module (and would per request, were
+ * this ever made request-scoped), so applying them from the constructor
+ * re-ran the same global mutation on every instantiation. Module load runs
+ * exactly once per process, which is what this setting actually needs.
+ *
+ * `os.availableParallelism()` (Node 18.15+/19.4+) is the correct source for
+ * this — unlike `navigator.hardwareConcurrency`, which is a browser API only
+ * incidentally present in modern Node and not guaranteed across runtimes.
+ */
+sharp.cache({ memory: 128, files: 50, items: 200 });
+sharp.concurrency(
+  Math.max(1, Math.min(4, availableParallelism?.() ?? cpus().length ?? 2)),
+);
+
 @Injectable()
 export class ImageProcessingService {
   private readonly logger = new Logger(ImageProcessingService.name);
 
-  constructor(private readonly security: ImageSecurityService) {
-    // Configure Sharp cache and concurrency limits for predictable memory
-    sharp.cache({ memory: 128, files: 50, items: 200 });
-    sharp.concurrency(Math.max(1, Math.min(4, Math.floor(navigator?.hardwareConcurrency || 2))));
-  }
+  constructor(private readonly security: ImageSecurityService) {}
 
   /**
    * Fast metadata extraction without decoding the entire image into memory.
@@ -543,6 +558,22 @@ export class ImageProcessingService {
         if (r.height !== undefined && r.height <= 0) {
           throw new InvalidDimensionsException('Height must be greater than 0.');
         }
+        // `limitInputPixels` below only bounds the *source* decode — nothing
+        // stops a caller asking for e.g. a 50000x50000 *output*, which is its
+        // own decompression-bomb vector (2.5 billion pixels from a tiny
+        // input). The one route that exposes `resize` to a workspace member
+        // also validates with `processImageSchema`, but the bound belongs
+        // here too so every caller of this service is covered.
+        if (r.width !== undefined && r.width > IMAGE_SECURITY_LIMITS.MAX_WIDTH) {
+          throw new InvalidDimensionsException(
+            `Width ${r.width}px exceeds the maximum allowed ${IMAGE_SECURITY_LIMITS.MAX_WIDTH}px.`,
+          );
+        }
+        if (r.height !== undefined && r.height > IMAGE_SECURITY_LIMITS.MAX_HEIGHT) {
+          throw new InvalidDimensionsException(
+            `Height ${r.height}px exceeds the maximum allowed ${IMAGE_SECURITY_LIMITS.MAX_HEIGHT}px.`,
+          );
+        }
         pipeline = pipeline.resize({
           width: r.width,
           height: r.height,
@@ -573,7 +604,9 @@ export class ImageProcessingService {
 
       // 7. Adjustments & Filters
       if (options.sharpen) {
-        if (typeof options.sharpen === 'object') {
+        if (typeof options.sharpen === 'number') {
+          pipeline = pipeline.sharpen({ sigma: options.sharpen });
+        } else if (typeof options.sharpen === 'object') {
           pipeline = pipeline.sharpen({
             sigma: options.sharpen.sigma ?? 1,
             m1: options.sharpen.m1,

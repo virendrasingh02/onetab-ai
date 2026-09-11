@@ -171,12 +171,17 @@ export interface ImagePreviewProps {
 export function ImagePreview({ attachment, onOpen }: ImagePreviewProps) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  // The original bytes, not `attachment.thumbnailUrl` — that's the
+  // homeserver's own generated thumbnail, a fixed, fairly aggressive JPEG
+  // recompression we don't control (see `resolveMediaUrl` in
+  // `matrix-client`'s mappers), and it visibly softened inline images. The
+  // original is what `sendFile` actually uploaded, so this is the same
+  // bytes a full-quality preview needs anyway.
+  //
   // Matrix's thumbnail/download URLs require an auth header a plain <img>
   // can't attach — this fetches and swaps in a blob: URL when that's the
   // case, and is a no-op for any other kind of attachment URL.
-  const imageSrc = useAuthenticatedMediaSrc(
-    attachment.thumbnailUrl ?? attachment.url,
-  );
+  const imageSrc = useAuthenticatedMediaSrc(attachment.url);
 
   const ratio =
     attachment.width && attachment.height
@@ -400,6 +405,170 @@ export function MediaPreview({
       onOpen={onOpen}
       className={className}
     />
+  );
+}
+
+export interface AttachmentGridItem {
+  attachment: Attachment;
+  kind?: string;
+  onOpen?: () => void;
+}
+
+/** Media tiles beyond this many collapse into a "+N" overlay on the last one. */
+const GRID_MEDIA_LIMIT = 4;
+
+function isMediaItem(item: AttachmentGridItem) {
+  return (
+    item.kind === 'image' ||
+    item.kind === 'video' ||
+    item.attachment.mimeType?.startsWith('image/') ||
+    item.attachment.mimeType?.startsWith('video/')
+  );
+}
+
+/** One square tile inside an {@link AttachmentGrid}. */
+function AttachmentGridTile({
+  item,
+  overflowCount,
+}: {
+  item: AttachmentGridItem;
+  overflowCount: number;
+}) {
+  const { attachment, kind, onOpen } = item;
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const isVideo = kind === 'video' || attachment.mimeType?.startsWith('video/');
+  // Images: the original bytes, for the same full-quality reason as
+  // `ImagePreview`. Videos: the sender's poster thumbnail, if any — the tile
+  // can't play the video file itself, so there is no "original" fallback.
+  const imageSrc = useAuthenticatedMediaSrc(
+    isVideo ? attachment.thumbnailUrl : attachment.url,
+  );
+
+  if (failed) {
+    return (
+      <button
+        type="button"
+        onClick={onOpen}
+        className="aspect-square flex flex-col items-center justify-center gap-1 bg-surface-inset text-muted-foreground"
+        aria-label={`Open ${attachment.name}`}
+      >
+        <FileIcon className="size-5" />
+        <span className="max-w-[85%] truncate text-[10px]">{attachment.name}</span>
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="relative aspect-square block overflow-hidden bg-surface-inset focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none cursor-pointer group"
+      aria-label={`Open ${attachment.name}`}
+    >
+      {!loaded ? (
+        <Skeleton className="inset-0 absolute size-full rounded-none" />
+      ) : null}
+      <img
+        src={imageSrc ?? undefined}
+        alt={attachment.name}
+        loading="lazy"
+        decoding="async"
+        onLoad={() => setLoaded(true)}
+        onError={() => setFailed(true)}
+        className={cn(
+          'size-full object-cover transition-transform group-hover:scale-105 duration-200',
+          loaded ? 'opacity-100' : 'opacity-0',
+        )}
+      />
+      {isVideo && !overflowCount ? (
+        <span className="absolute inset-0 flex items-center justify-center bg-black/15">
+          <span className="size-8 flex items-center justify-center rounded-full bg-black/60 text-white">
+            <Play className="size-3.5 fill-current translate-x-px" />
+          </span>
+        </span>
+      ) : null}
+      {overflowCount > 0 ? (
+        <span className="absolute inset-0 flex items-center justify-center bg-black/55 text-base font-bold text-white">
+          +{overflowCount}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+export interface AttachmentGridProps {
+  /** The files sent together in one upload, oldest first. */
+  items: AttachmentGridItem[];
+}
+
+/**
+ * Renders a burst of attachments sent as one upload — a Slack/Discord-style
+ * grid instead of a stacked row per file. Images and videos tile up to
+ * {@link GRID_MEDIA_LIMIT} squares (extra files collapse into a "+N" overlay
+ * on the last tile); anything else (voice notes, PDFs, generic files) falls
+ * back to the regular full-width card, stacked beneath the grid.
+ *
+ * A single item skips the grid entirely and renders exactly like a lone
+ * attachment always has.
+ */
+export function AttachmentGrid({ items }: AttachmentGridProps) {
+  if (items.length === 0) return null;
+  if (items.length === 1) {
+    const [only] = items;
+    return (
+      <MediaPreview
+        attachment={only.attachment}
+        kind={only.kind}
+        onOpen={only.onOpen}
+      />
+    );
+  }
+
+  const media = items.filter(isMediaItem);
+  const other = items.filter((item) => !isMediaItem(item));
+  const visibleMedia = media.slice(0, GRID_MEDIA_LIMIT);
+  const overflow = media.length - visibleMedia.length;
+
+  return (
+    <div className="mt-1.5 max-w-sm space-y-1.5">
+      {media.length === 1 ? (
+        <MediaPreview
+          attachment={media[0].attachment}
+          kind={media[0].kind}
+          onOpen={media[0].onOpen}
+        />
+      ) : media.length > 1 ? (
+        <div
+          className={cn(
+            'grid gap-0.5 overflow-hidden rounded-lg border border-border',
+            visibleMedia.length === 2 && 'grid-cols-2',
+            visibleMedia.length === 3 && 'grid-cols-3',
+            visibleMedia.length >= 4 && 'grid-cols-2',
+          )}
+        >
+          {visibleMedia.map((item, index) => (
+            <AttachmentGridTile
+              key={`${item.attachment.url}-${index}`}
+              item={item}
+              overflowCount={
+                index === visibleMedia.length - 1 ? overflow : 0
+              }
+            />
+          ))}
+        </div>
+      ) : null}
+
+      {other.map((item, index) => (
+        <MediaPreview
+          key={`${item.attachment.url}-${index}`}
+          attachment={item.attachment}
+          kind={item.kind}
+          onOpen={item.onOpen}
+          className="mt-0"
+        />
+      ))}
+    </div>
   );
 }
 

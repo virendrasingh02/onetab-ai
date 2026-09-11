@@ -89,6 +89,7 @@ export {
 
 export {
   AttachmentCard,
+  AttachmentGrid,
   AttachmentRenderer,
   ImagePreview,
   MediaPreview,
@@ -96,6 +97,8 @@ export {
   VideoPreview,
   VoiceMessage,
   type AttachmentCardProps,
+  type AttachmentGridItem,
+  type AttachmentGridProps,
   type ImagePreviewProps,
   type MediaPreviewProps,
   type VoiceMessageProps,

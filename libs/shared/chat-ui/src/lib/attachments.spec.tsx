@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Attachment } from '@org/types';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { VoiceMessage } from './attachments.js';
+import { AttachmentGrid, ImagePreview, VoiceMessage } from './attachments.js';
 
 function baseAttachment(overrides: Partial<Attachment> = {}): Attachment {
   return {
@@ -86,5 +86,65 @@ describe('VoiceMessage', () => {
     const link = screen.getByRole('link', { name: 'Download voice message' });
     expect(link).toHaveAttribute('href', 'https://cdn.example.com/voice-message.weba');
     expect(link).toHaveAttribute('download', 'clip.weba');
+  });
+});
+
+describe('ImagePreview', () => {
+  it('renders the original image, never the homeserver-generated thumbnail', () => {
+    render(
+      <ImagePreview
+        attachment={baseAttachment({
+          name: 'photo.png',
+          mimeType: 'image/png',
+          url: 'https://cdn.example.com/photo-original.png',
+          thumbnailUrl: 'https://cdn.example.com/photo-thumb-480.png',
+        })}
+      />,
+    );
+
+    expect(screen.getByAltText('photo.png')).toHaveAttribute(
+      'src',
+      'https://cdn.example.com/photo-original.png',
+    );
+  });
+});
+
+describe('AttachmentGrid', () => {
+  it('tiles images at full quality and videos at their poster thumbnail', () => {
+    render(
+      <AttachmentGrid
+        items={[
+          {
+            attachment: baseAttachment({
+              name: 'a.png',
+              mimeType: 'image/png',
+              url: 'https://cdn.example.com/a-original.png',
+              thumbnailUrl: 'https://cdn.example.com/a-thumb.png',
+            }),
+            kind: 'image',
+          },
+          {
+            attachment: baseAttachment({
+              name: 'b.mp4',
+              mimeType: 'video/mp4',
+              url: 'https://cdn.example.com/b-original.mp4',
+              thumbnailUrl: 'https://cdn.example.com/b-poster.png',
+            }),
+            kind: 'video',
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByAltText('a.png')).toHaveAttribute(
+      'src',
+      'https://cdn.example.com/a-original.png',
+    );
+    // A video tile can't play back the raw file as an <img> — it has to stay
+    // on the sender's poster.
+    expect(screen.getByAltText('b.mp4')).toHaveAttribute(
+      'src',
+      'https://cdn.example.com/b-poster.png',
+    );
   });
 });
