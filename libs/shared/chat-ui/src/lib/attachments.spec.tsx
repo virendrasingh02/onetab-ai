@@ -1,8 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Attachment } from '@org/types';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AttachmentGrid, ImagePreview, VoiceMessage } from './attachments.js';
+
+const { downloadMediaItem } = vi.hoisted(() => ({
+  downloadMediaItem: vi.fn(async () => undefined),
+}));
+vi.mock('@org/media-preview', () => ({ downloadMediaItem }));
 
 function baseAttachment(overrides: Partial<Attachment> = {}): Attachment {
   return {
@@ -90,6 +95,10 @@ describe('VoiceMessage', () => {
 });
 
 describe('ImagePreview', () => {
+  beforeEach(() => {
+    downloadMediaItem.mockClear();
+  });
+
   it('renders the original image, never the homeserver-generated thumbnail', () => {
     render(
       <ImagePreview
@@ -107,9 +116,114 @@ describe('ImagePreview', () => {
       'https://cdn.example.com/photo-original.png',
     );
   });
+
+  it('shows the filename and size, and downloads on click without opening the lightbox', async () => {
+    const user = userEvent.setup();
+    const onOpen = vi.fn();
+    render(
+      <ImagePreview
+        attachment={baseAttachment({
+          name: 'photo.png',
+          mimeType: 'image/png',
+          url: 'https://cdn.example.com/photo-original.png',
+          size: 2_400_000,
+        })}
+        onOpen={onOpen}
+      />,
+    );
+
+    expect(screen.getByText('photo.png')).toBeInTheDocument();
+    expect(screen.getByText('2.3 MB')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Download photo.png' }));
+
+    expect(downloadMediaItem).toHaveBeenCalledWith(
+      'https://cdn.example.com/photo-original.png',
+      'photo.png',
+    );
+    // The download button sits inside the "open" region — it must not also
+    // open the lightbox.
+    expect(onOpen).not.toHaveBeenCalled();
+  });
 });
 
 describe('AttachmentGrid', () => {
+  beforeEach(() => {
+    downloadMediaItem.mockClear();
+  });
+
+  function threeImages() {
+    return [
+      {
+        attachment: baseAttachment({
+          name: 'a.png',
+          mimeType: 'image/png',
+          url: 'https://cdn.example.com/a.png',
+          size: 1000,
+        }),
+        kind: 'image',
+      },
+      {
+        attachment: baseAttachment({
+          name: 'b.png',
+          mimeType: 'image/png',
+          url: 'https://cdn.example.com/b.png',
+          size: 2000,
+        }),
+        kind: 'image',
+      },
+      {
+        attachment: baseAttachment({
+          name: 'c.png',
+          mimeType: 'image/png',
+          url: 'https://cdn.example.com/c.png',
+          size: 3000,
+        }),
+        kind: 'image',
+      },
+    ];
+  }
+
+  it('shows each tile\'s filename and size, and downloads just that one on click', async () => {
+    const user = userEvent.setup();
+    const items = threeImages();
+    render(<AttachmentGrid items={items} />);
+
+    expect(screen.getByText('a.png')).toBeInTheDocument();
+    expect(screen.getByText('1000 B')).toBeInTheDocument();
+    expect(screen.getByText('b.png')).toBeInTheDocument();
+    expect(screen.getByText('c.png')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Download b.png' }));
+
+    expect(downloadMediaItem).toHaveBeenCalledTimes(1);
+    expect(downloadMediaItem).toHaveBeenCalledWith('https://cdn.example.com/b.png', 'b.png');
+  });
+
+  it('does not open the lightbox for the tile whose download button was clicked', async () => {
+    const user = userEvent.setup();
+    const onOpen = vi.fn();
+    const items = threeImages().map((item) => ({ ...item, onOpen }));
+    render(<AttachmentGrid items={items} />);
+
+    await user.click(screen.getByRole('button', { name: 'Download a.png' }));
+
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('downloads every file in the burst, in order, from "download all"', async () => {
+    const user = userEvent.setup();
+    const items = threeImages();
+    render(<AttachmentGrid items={items} />);
+
+    await user.click(screen.getByRole('button', { name: 'Download all 3 files' }));
+
+    expect(downloadMediaItem).toHaveBeenCalledTimes(3);
+    expect(downloadMediaItem).toHaveBeenNthCalledWith(1, 'https://cdn.example.com/a.png', 'a.png');
+    expect(downloadMediaItem).toHaveBeenNthCalledWith(2, 'https://cdn.example.com/b.png', 'b.png');
+    expect(downloadMediaItem).toHaveBeenNthCalledWith(3, 'https://cdn.example.com/c.png', 'c.png');
+  });
+
   it('tiles images at full quality and videos at their poster thumbnail', () => {
     render(
       <AttachmentGrid
