@@ -34,6 +34,12 @@
       "path": "../database/tsconfig.lib.json"
     },
     {
+      "path": "../storage/tsconfig.lib.json"
+    },
+    {
+      "path": "../media-processing/tsconfig.lib.json"
+    },
+    {
       "path": "../matrix/tsconfig.lib.json"
     }
   ]

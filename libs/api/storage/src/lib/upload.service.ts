@@ -1,10 +1,17 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   PayloadTooLargeException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  ImageProcessingService,
+  ImageSecurityService,
+  STANDARD_IMAGE_PRESETS,
+  type ProcessPipelineOptions,
+} from '@org/api-media-processing';
 import {
   AppEvent,
   PUBLIC_USER_SELECT,
@@ -122,10 +129,14 @@ function decodeCursor(cursor: string): { ms: number; id: string } | null {
 
 @Injectable()
 export class UploadService {
+  private readonly logger = new Logger(UploadService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly events: EventEmitter2,
+    private readonly imageProcessing: ImageProcessingService,
+    private readonly imageSecurity: ImageSecurityService,
   ) {}
 
   /** Short-lived signed URLs so a plain `<img>`/`<a>` can reach the bytes. */
@@ -137,10 +148,37 @@ export class UploadService {
       ttlSeconds: SIGNED_URL_TTL_SECONDS,
       download: true,
     })}`;
+    const isImage = row.mimeType.startsWith('image/');
+    const thumbnail = isImage
+      ? `/files/${this.storage.signContentToken(row.id, {
+          ttlSeconds: SIGNED_URL_TTL_SECONDS,
+          variant: 'thumbnail',
+        })}`
+      : null;
+
+    const variants = isImage
+      ? {
+          thumbnail: thumbnail!,
+          small: `/files/${this.storage.signContentToken(row.id, {
+            ttlSeconds: SIGNED_URL_TTL_SECONDS,
+            variant: 'small',
+          })}`,
+          medium: `/files/${this.storage.signContentToken(row.id, {
+            ttlSeconds: SIGNED_URL_TTL_SECONDS,
+            variant: 'medium',
+          })}`,
+          large: `/files/${this.storage.signContentToken(row.id, {
+            ttlSeconds: SIGNED_URL_TTL_SECONDS,
+            variant: 'large',
+          })}`,
+        }
+      : null;
+
     return {
       contentUrl: content,
       downloadUrl: download,
-      thumbnailUrl: row.mimeType.startsWith('image/') ? content : null,
+      thumbnailUrl: thumbnail,
+      variants,
     };
   }
 
@@ -405,6 +443,10 @@ export class UploadService {
     const key = this.storage.buildKey(workspaceId, file.originalname);
     const stored = await this.storage.put(key, file.buffer);
 
+    if (file.mimetype?.startsWith('image/')) {
+      void this.generateAndStoreVariants(stored.key, file.buffer);
+    }
+
     const row = await this.prisma.upload.create({
       data: {
         workspaceId,
@@ -459,6 +501,10 @@ export class UploadService {
 
     const key = this.storage.buildKey(workspaceId, file.originalname);
     const stored = await this.storage.put(key, file.buffer);
+
+    if (file.mimetype?.startsWith('image/')) {
+      void this.generateAndStoreVariants(stored.key, file.buffer);
+    }
 
     const row = await this.prisma.$transaction(async (tx) => {
       await tx.upload.update({
@@ -647,38 +693,67 @@ export class UploadService {
     };
   }
 
-  /** The row plus its bytes, for the download route. */
+  /** The row plus its bytes, for the download route or variant delivery. */
   async read(
     workspaceId: string | null,
     uploadId: string,
+    variant?: string | null,
   ): Promise<{ filename: string; mimeType: string; content: Buffer }> {
     const row = await this.prisma.upload.findFirst({
       where: workspaceId ? { id: uploadId, workspaceId } : { id: uploadId },
     });
     if (!row) throw new NotFoundException('File not found.');
 
-    if (!(await this.storage.exists(row.storageKey))) {
+    let targetKey = row.storageKey;
+    let targetMime = row.mimeType;
+
+    if (variant && row.mimeType.startsWith('image/')) {
+      const variantKey = this.storage.buildVariantKey(row.storageKey, variant, 'webp');
+      const variantExists = await this.storage.exists(variantKey);
+      if (variantExists) {
+        targetKey = variantKey;
+        targetMime = 'image/webp';
+      } else if (await this.storage.exists(row.storageKey)) {
+        // Generate on demand if missing
+        try {
+          const original = await this.storage.get(row.storageKey);
+          const generated = await this.imageProcessing.generateThumbnail(
+            original,
+            STANDARD_IMAGE_PRESETS[variant] || { width: 320, height: 320, fit: 'cover' },
+          );
+          await this.storage.put(variantKey, generated.buffer);
+          targetKey = variantKey;
+          targetMime = generated.mimeType;
+        } catch (err) {
+          this.logger.warn(`On-demand variant generation failed for ${variant}: ${err}`);
+        }
+      }
+    }
+
+    if (!(await this.storage.exists(targetKey))) {
       throw new NotFoundException('The stored file is no longer available.');
     }
 
     return {
       filename: row.filename,
-      mimeType: row.mimeType,
-      content: await this.storage.get(row.storageKey),
+      mimeType: targetMime,
+      content: await this.storage.get(targetKey),
     };
   }
 
   /** Resolves a signed content token to the file, for the public route. */
   async readByToken(
     token: string,
+    requestedVariant?: string | null,
   ): Promise<{ filename: string; mimeType: string; content: Buffer; download: boolean }> {
     const verified = this.storage.verifyContentToken(token);
     if (!verified) throw new NotFoundException('This link is invalid or has expired.');
-    const file = await this.read(null, verified.uploadId);
+    const variant = verified.variant || requestedVariant || null;
+    const file = await this.read(null, verified.uploadId, variant);
     return { ...file, download: verified.download };
   }
 
-  /** Deletes a file and every older version behind it — rows and bytes. */
+  /** Deletes a file and every older version behind it — rows and bytes and variants. */
   async remove(workspaceId: string, uploadId: string): Promise<void> {
     const head = await this.prisma.upload.findFirst({
       where: { id: uploadId, workspaceId },
@@ -702,7 +777,12 @@ export class UploadService {
     }
 
     await this.prisma.upload.deleteMany({ where: { id: { in: ids } } });
-    await Promise.all(keys.map((key) => this.storage.delete(key)));
+    await Promise.all(
+      keys.map(async (key) => {
+        await this.storage.delete(key);
+        await this.storage.deleteVariants(key);
+      }),
+    );
   }
 
   private assertUploadable(file: IncomingFile): void {
@@ -719,6 +799,74 @@ export class UploadService {
         'That file type is not allowed. Executables and inline-script files (.html, .svg, .js) are rejected.',
       );
     }
+
+    // Additional security assertions for images
+    if (file.mimetype?.startsWith('image/')) {
+      const sniffed = this.imageSecurity.sniffFormat(file.buffer);
+      if (!sniffed) {
+        throw new BadRequestException('The image file content is invalid or corrupted.');
+      }
+      if (sniffed.format === 'svg') {
+        try {
+          this.imageSecurity.validateSvg(file.buffer);
+        } catch (err) {
+          throw new BadRequestException(
+            err instanceof Error ? err.message : 'Invalid or malicious SVG file.',
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Helper to generate and store standard responsive variants.
+   */
+  async generateAndStoreVariants(
+    storageKey: string,
+    buffer: Buffer,
+  ): Promise<void> {
+    try {
+      const variants = await this.imageProcessing.generateVariants(buffer, [
+        'thumbnail',
+        'small',
+        'medium',
+        'large',
+      ]);
+      await Promise.all(
+        Object.entries(variants).map(([name, output]: [string, any]) => {
+          const variantKey = this.storage.buildVariantKey(storageKey, name, output.format);
+          return this.storage.put(variantKey, output.buffer);
+        }),
+      );
+    } catch (err) {
+      this.logger.warn(`Failed to generate variants for ${storageKey}: ${err}`);
+    }
+  }
+
+  /**
+   * Fast metadata extraction for an uploaded media item.
+   */
+  async getImageMetadata(workspaceId: string, uploadId: string) {
+    const file = await this.read(workspaceId, uploadId);
+    if (!file.mimeType.startsWith('image/')) {
+      throw new BadRequestException('The specified file is not an image.');
+    }
+    return this.imageProcessing.getMetadata(file.content);
+  }
+
+  /**
+   * On-demand image processing pipeline for an existing upload.
+   */
+  async processImage(
+    workspaceId: string,
+    uploadId: string,
+    options: ProcessPipelineOptions,
+  ) {
+    const file = await this.read(workspaceId, uploadId);
+    if (!file.mimeType.startsWith('image/')) {
+      throw new BadRequestException('The specified file is not an image.');
+    }
+    return this.imageProcessing.process(file.content, options);
   }
 
   private emitShared(

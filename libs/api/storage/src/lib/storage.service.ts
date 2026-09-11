@@ -126,15 +126,35 @@ export class StorageService implements OnModuleInit {
     );
   }
 
-  /** `<base64url payload>.<base64url sig>` — payload is `{ u, e, d }`. */
+  buildVariantKey(storageKey: string, variant: string, format = 'webp'): string {
+    const dot = storageKey.lastIndexOf('.');
+    const base = dot >= 0 ? storageKey.slice(0, dot) : storageKey;
+    return `${base}.${variant}.${format}`;
+  }
+
+  async deleteVariants(
+    key: string,
+    variants = ['thumbnail', 'small', 'medium', 'large', 'avatar'],
+  ): Promise<void> {
+    const keysToDelete: string[] = [];
+    for (const v of variants) {
+      for (const fmt of ['webp', 'jpeg', 'png', 'avif']) {
+        keysToDelete.push(this.buildVariantKey(key, v, fmt));
+      }
+    }
+    await Promise.all(keysToDelete.map((k) => this.driver.delete(k).catch(() => false)));
+  }
+
+  /** `<base64url payload>.<base64url sig>` — payload is `{ u, e, d, v }`. */
   signContentToken(
     uploadId: string,
-    opts: { ttlSeconds?: number; download?: boolean } = {},
+    opts: { ttlSeconds?: number; download?: boolean; variant?: string } = {},
   ): string {
     const payload = {
       u: uploadId,
       e: Date.now() + (opts.ttlSeconds ?? 3600) * 1000,
       d: opts.download ? 1 : 0,
+      v: opts.variant || undefined,
     };
     const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
     const sig = createHmac('sha256', this.urlSecret)
@@ -143,10 +163,10 @@ export class StorageService implements OnModuleInit {
     return `${body}.${sig}`;
   }
 
-  /** Returns the upload id + disposition, or null when invalid/expired. */
+  /** Returns the upload id, disposition and optional variant, or null when invalid/expired. */
   verifyContentToken(
     token: string,
-  ): { uploadId: string; download: boolean } | null {
+  ): { uploadId: string; download: boolean; variant: string | null } | null {
     const [body, sig] = token.split('.');
     if (!body || !sig) return null;
 
@@ -163,7 +183,11 @@ export class StorageService implements OnModuleInit {
         return null;
       }
       if (Date.now() > payload.e) return null;
-      return { uploadId: payload.u, download: payload.d === 1 };
+      return {
+        uploadId: payload.u,
+        download: payload.d === 1,
+        variant: typeof payload.v === 'string' ? payload.v : null,
+      };
     } catch {
       return null;
     }

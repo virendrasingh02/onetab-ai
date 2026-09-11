@@ -11,6 +11,9 @@ import {
 import {
   Image as ImageIcon,
   RotateCcw,
+  RotateCw,
+  FlipHorizontal,
+  FlipVertical,
   Upload,
   ZoomIn,
   ZoomOut,
@@ -75,6 +78,9 @@ export function ImageCropperDialog({
   const [containerSize, setContainerSize] = useState<Size | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
+  const [rotation, setRotation] = useState(0);
+  const [flipH, setFlipH] = useState(false);
+  const [flipV, setFlipV] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<Point>({ x: 0, y: 0 });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -129,6 +135,9 @@ export function ImageCropperDialog({
     setNatural(null);
     setZoom(1);
     setPan({ x: 0, y: 0 });
+    setRotation(0);
+    setFlipH(false);
+    setFlipV(false);
     setErrorMessage(null);
     setIsProcessing(false);
   }, [open, initialImageUrl]);
@@ -245,6 +254,9 @@ export function ImageCropperDialog({
   const handleReset = () => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
+    setRotation(0);
+    setFlipH(false);
+    setFlipV(false);
     setErrorMessage(null);
   };
 
@@ -305,7 +317,17 @@ export function ImageCropperDialog({
       // Opaque backing so JPEG encoding of any transparent source stays white.
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, outW, outH);
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
+
+      ctx.save();
+      ctx.translate(outW / 2, outH / 2);
+      if (rotation) {
+        ctx.rotate((rotation * Math.PI) / 180);
+      }
+      if (flipH || flipV) {
+        ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
+      }
+      ctx.drawImage(img, sx, sy, sw, sh, -outW / 2, -outH / 2, outW, outH);
+      ctx.restore();
 
       const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
       if (!croppedDataUrl || croppedDataUrl === 'data:,') {
@@ -326,6 +348,9 @@ export function ImageCropperDialog({
     isAvatar,
     zoom,
     pan,
+    rotation,
+    flipH,
+    flipV,
     viewport,
     natural,
     cropBox,
@@ -397,7 +422,7 @@ export function ImageCropperDialog({
                     height: baseSize ? `${baseSize.h}px` : 'auto',
                     maxWidth: 'none',
                     maxHeight: 'none',
-                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom}) rotate(${rotation}deg) scale(${flipH ? -1 : 1}, ${flipV ? -1 : 1})`,
                     transformOrigin: 'center center',
                     transition: isDragging ? 'none' : 'transform 0.06s linear',
                     willChange: 'transform',
@@ -481,6 +506,54 @@ export function ImageCropperDialog({
                 >
                   <RotateCcw className="size-3.5" />
                   <span>Reset</span>
+                </Button>
+              </div>
+
+              {/* Transform shortcuts: rotate & flip */}
+              <div className="flex items-center justify-center gap-1.5 pt-1 border-t border-border/40">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  onClick={() => setRotation((r) => (r - 90 + 360) % 360)}
+                  className="text-xs gap-1"
+                  title="Rotate 90° counter-clockwise"
+                >
+                  <RotateCcw className="size-3" />
+                  <span className="text-[11px]">Rotate -90°</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  onClick={() => setRotation((r) => (r + 90) % 360)}
+                  className="text-xs gap-1"
+                  title="Rotate 90° clockwise"
+                >
+                  <RotateCw className="size-3" />
+                  <span className="text-[11px]">Rotate +90°</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant={flipH ? 'secondary' : 'outline'}
+                  size="xs"
+                  onClick={() => setFlipH((f) => !f)}
+                  className="text-xs gap-1"
+                  title="Flip horizontally"
+                >
+                  <FlipHorizontal className="size-3" />
+                  <span className="text-[11px]">Flip H</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant={flipV ? 'secondary' : 'outline'}
+                  size="xs"
+                  onClick={() => setFlipV((f) => !f)}
+                  className="text-xs gap-1"
+                  title="Flip vertically"
+                >
+                  <FlipVertical className="size-3" />
+                  <span className="text-[11px]">Flip V</span>
                 </Button>
               </div>
 

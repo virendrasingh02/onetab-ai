@@ -80,6 +80,7 @@ export type {
   UploadDestinations,
   UploadPage,
   UploadStorageUsage,
+  ImageMetadataDto,
   Workspace,
   WorkspaceMember,
   WorkspaceSummary,

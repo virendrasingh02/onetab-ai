@@ -8,8 +8,11 @@ import { ScheduledStatusService } from './scheduled-status.service.js';
 import { UserController, WorkspaceUserController } from './user.controller.js';
 import { UserService } from './user.service.js';
 
+import { StorageModule } from '@org/api-storage';
+import { MediaProcessingModule } from '@org/api-media-processing';
+
 @Module({
-  imports: [AuthModule, MatrixModule],
+  imports: [AuthModule, MatrixModule, StorageModule, MediaProcessingModule],
   controllers: [
     UserController,
     WorkspaceUserController,

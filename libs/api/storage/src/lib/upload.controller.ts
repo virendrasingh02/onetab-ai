@@ -141,15 +141,45 @@ export class UploadController {
   async download(
     @WorkspaceId() workspaceId: string,
     @Param('uploadId') uploadId: string,
+    @Query('variant') variant: string | undefined,
     @Res() response: Response,
   ): Promise<void> {
-    const file = await this.uploads.read(workspaceId, uploadId);
+    const file = await this.uploads.read(workspaceId, uploadId, variant);
     response.setHeader('Content-Type', file.mimeType);
     response.setHeader(
       'Content-Disposition',
       `attachment; filename="${encodeURIComponent(file.filename)}"`,
     );
     response.send(file.content);
+  }
+
+  /** Retrieve image metadata (dimensions, format, channels, animation) */
+  @Get(':uploadId/metadata')
+  metadata(
+    @WorkspaceId() workspaceId: string,
+    @Param('uploadId') uploadId: string,
+  ) {
+    return this.uploads.getImageMetadata(workspaceId, uploadId);
+  }
+
+  /** Apply image processing pipeline on an existing upload */
+  @Post(':uploadId/process')
+  @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
+  async process(
+    @WorkspaceId() workspaceId: string,
+    @Param('uploadId') uploadId: string,
+    @Body() body: any,
+  ) {
+    const result = await this.uploads.processImage(workspaceId, uploadId, body);
+    return {
+      format: result.format,
+      mimeType: result.mimeType,
+      width: result.width,
+      height: result.height,
+      size: result.size,
+      durationMs: result.durationMs,
+      dataUrl: `data:${result.mimeType};base64,${result.buffer.toString('base64')}`,
+    };
   }
 
   @Delete(':uploadId')
@@ -180,9 +210,10 @@ export class PublicFileController {
   @Header('Cache-Control', 'private, max-age=3600')
   async serve(
     @Param('token') token: string,
+    @Query('variant') queryVariant: string | undefined,
     @Res() response: Response,
   ): Promise<void> {
-    const file = await this.uploads.readByToken(token);
+    const file = await this.uploads.readByToken(token, queryVariant);
     response.setHeader('Content-Type', file.mimeType);
     response.setHeader(
       'Content-Disposition',

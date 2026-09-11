@@ -10,10 +10,15 @@ import {
   Post,
   Put,
   Query,
+  Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { WorkspaceRoleGuard } from '@org/api-auth';
-import { CurrentUser, WorkspaceId, zodBody } from '@org/api-common';
+import { CurrentUser, Public, WorkspaceId, zodBody } from '@org/api-common';
+import type { Response } from 'express';
 import {
   createScheduledStatusSchema,
   navigationPreferenceSchema,
@@ -118,6 +123,15 @@ export class UserController {
     return this.users.updateProfile(userId, body);
   }
 
+  @Post('me/avatar')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 15 * 1024 * 1024 } }))
+  uploadAvatar(
+    @CurrentUser('id') userId: string,
+    @UploadedFile() file: any,
+  ) {
+    return this.users.uploadAvatar(userId, file);
+  }
+
   @Patch('me/status')
   updateStatus(
     @CurrentUser('id') userId: string,
@@ -178,6 +192,20 @@ export class UserController {
     // Only people you share a workspace with — this route is otherwise a
     // lookup of any account on the platform by id (audit S9).
     return this.users.findPublicForViewer(callerId, userId);
+  }
+
+  @Public()
+  @Get(':userId/avatar')
+  async getAvatar(
+    @Param('userId') userId: string,
+    @Query('size') size: string | undefined,
+    @Res() response: Response,
+  ): Promise<void> {
+    const s = size ? parseInt(size, 10) : undefined;
+    const { content, mimeType } = await this.users.readAvatar(userId, s);
+    response.setHeader('Content-Type', mimeType);
+    response.setHeader('Cache-Control', 'public, max-age=86400');
+    response.send(content);
   }
 }
 

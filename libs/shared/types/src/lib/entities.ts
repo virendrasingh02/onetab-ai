@@ -510,7 +510,25 @@ export interface Upload {
   downloadUrl: string | null;
   /** For images, the same as `contentUrl`; null otherwise. */
   thumbnailUrl: string | null;
+  /** Optimized responsive variants map (e.g. thumbnail, small, medium, large, webp). */
+  variants?: Record<string, string> | null;
+  /** Extracted image metadata when available (dimensions, format, animated, etc.). */
+  imageMetadata?: ImageMetadataDto | null;
   uploader: PublicUser;
+}
+
+export interface ImageMetadataDto {
+  width?: number;
+  height?: number;
+  format?: string;
+  mimeType?: string;
+  size?: number;
+  channels?: number;
+  hasAlpha?: boolean;
+  isAnimated?: boolean;
+  pageCount?: number;
+  orientation?: number;
+  aspectRatio?: number;
 }
 
 /** One page of the Files hub. */

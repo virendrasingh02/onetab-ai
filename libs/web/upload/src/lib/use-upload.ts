@@ -25,7 +25,7 @@ export interface UploadCandidate {
   previewUrl?: string;
   error?: string;
   progress: number;
-  status: 'pending' | 'uploading' | 'done' | 'error';
+  status: 'pending' | 'uploading' | 'processing' | 'optimizing' | 'done' | 'error';
   /** Set once the transfer succeeds. */
   uploaded?: Upload;
 }
@@ -175,10 +175,19 @@ export function useFileUpload({
       patch(entry.id, { status: 'uploading', progress: 0 });
 
       try {
+        const isImage = entry.file.type.startsWith('image/');
         const uploaded = await uploadApi.upload(workspaceId, entry.file, {
           ...targetParams(target),
           signal: controller.signal,
-          onProgress: (percent) => patch(entry.id, { progress: percent }),
+          onProgress: (percent) => {
+            if (percent >= 100 && isImage) {
+              patch(entry.id, { status: 'optimizing', progress: 100 });
+            } else if (percent >= 90 && isImage) {
+              patch(entry.id, { status: 'processing', progress: percent });
+            } else {
+              patch(entry.id, { status: 'uploading', progress: percent });
+            }
+          },
         });
         patch(entry.id, { status: 'done', progress: 100, uploaded });
         onUploaded?.(uploaded);

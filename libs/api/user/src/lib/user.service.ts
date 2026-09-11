@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PUBLIC_USER_SELECT, toPublicUser } from '@org/api-common';
 import { MatrixAdminService } from '@org/api-matrix';
+import { ImageProcessingService } from '@org/api-media-processing';
+import { StorageService } from '@org/api-storage';
 import { PrismaService } from '@org/database';
 import {
   DEFAULT_NOTIFICATION_SOUND_PREFERENCES,
@@ -22,7 +24,63 @@ export class UserService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly matrix: MatrixAdminService,
+    private readonly storage: StorageService,
+    private readonly imageProcessing: ImageProcessingService,
   ) {}
+
+  async uploadAvatar(
+    userId: string,
+    file: { buffer: Buffer; originalname: string; mimetype: string },
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Avatar file is empty.');
+    }
+
+    // Process avatar into square webp variants (256x256 main, plus 32, 48, 64, 96, 128, 512)
+    const { main, variants } = await this.imageProcessing.processAvatar(file.buffer, 256);
+
+    // Save main avatar
+    const mainKey = `avatars/${userId}/avatar.webp`;
+    await this.storage.put(mainKey, main.buffer);
+
+    // Save all size variants
+    await Promise.all(
+      Object.entries(variants).map(([size, variant]: [string, any]) =>
+        this.storage.put(`avatars/${userId}/avatar_${size}.webp`, variant.buffer),
+      ),
+    );
+
+    const avatarUrl = `/users/${userId}/avatar?v=${Date.now()}`;
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl },
+    });
+    return { avatarUrl };
+  }
+
+  async readAvatar(userId: string, size?: number): Promise<{ content: Buffer; mimeType: string }> {
+    const key = size && size !== 256
+      ? `avatars/${userId}/avatar_${size}.webp`
+      : `avatars/${userId}/avatar.webp`;
+
+    if (await this.storage.exists(key)) {
+      return {
+        content: await this.storage.get(key),
+        mimeType: 'image/webp',
+      };
+    }
+
+    // Fallback to main avatar
+    const mainKey = `avatars/${userId}/avatar.webp`;
+    if (await this.storage.exists(mainKey)) {
+      return {
+        content: await this.storage.get(mainKey),
+        mimeType: 'image/webp',
+      };
+    }
+
+    throw new NotFoundException('Avatar not found.');
+  }
 
   async findPublic(userId: string): Promise<PublicUser> {
     const user = await this.prisma.user.findUniqueOrThrow({

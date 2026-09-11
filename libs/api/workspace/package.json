@@ -37,6 +37,7 @@
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
+    "@org/api-media-processing": "*",
     "@org/api-storage": "*"
   }
 }

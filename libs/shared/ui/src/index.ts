@@ -17,6 +17,13 @@ export {
   type IconButtonProps,
 } from './lib/components/button.js';
 
+export {
+  PlatformImage,
+  type PlatformImageProps,
+  type PlatformImageVariant,
+  type MediaAssetSource,
+} from './lib/components/platform-image.js';
+
 
 export {
   Card,

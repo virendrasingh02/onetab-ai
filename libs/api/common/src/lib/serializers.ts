@@ -323,6 +323,7 @@ export interface UploadUrls {
   contentUrl?: string | null;
   downloadUrl?: string | null;
   thumbnailUrl?: string | null;
+  variants?: Record<string, string> | null;
 }
 
 /**
@@ -363,6 +364,7 @@ export function toUpload(
     contentUrl: urls?.contentUrl ?? null,
     downloadUrl: urls?.downloadUrl ?? null,
     thumbnailUrl: urls?.thumbnailUrl ?? null,
+    variants: urls?.variants ?? null,
     uploader: toPublicUser(row.uploader),
   };
 }

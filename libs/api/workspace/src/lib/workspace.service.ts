@@ -8,6 +8,7 @@ import {
 import { PUBLIC_USER_SELECT, toPublicUser, toWorkspace } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import { StorageService, type IncomingFile } from '@org/api-storage';
+import { ImageProcessingService } from '@org/api-media-processing';
 import {
   ApiErrorCode,
   WorkspaceRole,
@@ -45,6 +46,7 @@ export class WorkspaceService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly imageProcessing: ImageProcessingService,
   ) {}
 
   /** Every workspace the user belongs to, for the switcher. */
@@ -321,9 +323,25 @@ export class WorkspaceService {
       select: { avatarKey: true },
     });
 
-    const extension = LOGO_EXTENSIONS[file.mimetype as WorkspaceLogoMimeType];
+    // Process logo: contain in 512x512, auto-orient, optimize to WebP, strip metadata
+    let processedBuffer = file.buffer;
+    let extension = LOGO_EXTENSIONS[file.mimetype as WorkspaceLogoMimeType] || 'webp';
+    try {
+      const processed = await this.imageProcessing.process(file.buffer, {
+        resize: { width: 512, height: 512, fit: 'contain' },
+        format: 'webp',
+        quality: 90,
+        autoOrient: true,
+        stripMetadata: true,
+      });
+      processedBuffer = processed.buffer;
+      extension = 'webp';
+    } catch {
+      // Fallback to original buffer if processing error
+    }
+
     const key = this.storage.buildKey(workspaceId, `logo.${extension}`);
-    const stored = await this.storage.put(key, file.buffer);
+    const stored = await this.storage.put(key, processedBuffer);
 
     const workspace = await this.prisma.workspace.update({
       where: { id: workspaceId },

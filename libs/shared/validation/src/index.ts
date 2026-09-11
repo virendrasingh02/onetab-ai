@@ -10,4 +10,5 @@ export * from './lib/scheduled-status.schema.js';
 export * from './lib/work-tools.schema.js';
 export * from './lib/ai.schema.js';
 export * from './lib/unified-platform.schema.js';
+export * from './lib/media.schema.js';
 
