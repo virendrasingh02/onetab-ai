@@ -87,15 +87,19 @@ export interface ResourceItemData {
 }
 
 export const APP_LOGOS: Record<string, string> = {
+  gmail: 'https://cdn.simpleicons.org/gmail',
   github: 'https://cdn.simpleicons.org/github',
   gitlab: 'https://cdn.simpleicons.org/gitlab',
   jira: 'https://cdn.simpleicons.org/jira',
   linear: 'https://cdn.simpleicons.org/linear',
   figma: 'https://cdn.simpleicons.org/figma',
+  trello: 'https://cdn.simpleicons.org/trello',
   gdrive: 'https://cdn.simpleicons.org/googledrive',
   google_drive: 'https://cdn.simpleicons.org/googledrive',
   gcal: 'https://cdn.simpleicons.org/googlecalendar',
   google_calendar: 'https://cdn.simpleicons.org/googlecalendar',
+  google_docs: 'https://cdn.simpleicons.org/googledocs',
+  google_sheets: 'https://cdn.simpleicons.org/googlesheets',
   outlook: 'https://cdn.simpleicons.org/microsoftoutlook',
   microsoft_outlook: 'https://cdn.simpleicons.org/microsoftoutlook',
   zendesk: 'https://cdn.simpleicons.org/zendesk',

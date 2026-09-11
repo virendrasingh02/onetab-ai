@@ -16,12 +16,17 @@ import { IntegrationsController } from './integrations.controller.js';
 import { IntegrationsService } from './integrations.service.js';
 import { NotionImporterService } from './notion-importer.service.js';
 import { CustomApiProvider } from './providers/custom-api.provider.js';
+import { GitHubProvider } from './providers/github.provider.js';
 import { GmailProvider } from './providers/gmail.provider.js';
 import { GoogleCalendarProvider } from './providers/google-calendar.provider.js';
 import { GoogleDocsProvider } from './providers/google-docs.provider.js';
 import { GoogleDriveProvider } from './providers/google-drive.provider.js';
 import { GoogleSheetsProvider } from './providers/google-sheets.provider.js';
+import { LinearProvider } from './providers/linear.provider.js';
+import { NotionProvider } from './providers/notion.provider.js';
 import { OneTabAppProvider } from './providers/onetab-app.provider.js';
+import { SlackProvider } from './providers/slack.provider.js';
+import { TrelloProvider } from './providers/trello.provider.js';
 import { SlackImporterService } from './slack-importer.service.js';
 import { WebhooksController } from './webhooks.controller.js';
 
@@ -46,6 +51,11 @@ import { WebhooksController } from './webhooks.controller.js';
     GoogleDriveProvider,
     GoogleDocsProvider,
     GoogleSheetsProvider,
+    GitHubProvider,
+    LinearProvider,
+    NotionProvider,
+    SlackProvider,
+    TrelloProvider,
     CustomApiProvider,
     OneTabAppProvider,
 
@@ -69,6 +79,11 @@ import { WebhooksController } from './webhooks.controller.js';
     GoogleDriveProvider,
     GoogleDocsProvider,
     GoogleSheetsProvider,
+    GitHubProvider,
+    LinearProvider,
+    NotionProvider,
+    SlackProvider,
+    TrelloProvider,
     CustomApiProvider,
     SlackImporterService,
     NotionImporterService,

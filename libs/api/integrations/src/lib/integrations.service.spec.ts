@@ -10,12 +10,17 @@ import { SSRFGuardService } from './core/ssrf-guard.service.js';
 import { WebhookService } from './core/webhook.service.js';
 import { IntegrationsService } from './integrations.service.js';
 import { CustomApiProvider } from './providers/custom-api.provider.js';
+import { GitHubProvider } from './providers/github.provider.js';
 import { GmailProvider } from './providers/gmail.provider.js';
 import { GoogleCalendarProvider } from './providers/google-calendar.provider.js';
 import { GoogleDocsProvider } from './providers/google-docs.provider.js';
 import { GoogleDriveProvider } from './providers/google-drive.provider.js';
 import { GoogleSheetsProvider } from './providers/google-sheets.provider.js';
+import { LinearProvider } from './providers/linear.provider.js';
+import { NotionProvider } from './providers/notion.provider.js';
 import { OneTabAppProvider } from './providers/onetab-app.provider.js';
+import { SlackProvider } from './providers/slack.provider.js';
+import { TrelloProvider } from './providers/trello.provider.js';
 
 describe('IntegrationsService', () => {
   let service: IntegrationsService;
@@ -77,6 +82,11 @@ describe('IntegrationsService', () => {
     const googleDriveProvider = new GoogleDriveProvider(configService);
     const googleDocsProvider = new GoogleDocsProvider(configService);
     const googleSheetsProvider = new GoogleSheetsProvider(configService);
+    const githubProvider = new GitHubProvider(configService);
+    const linearProvider = new LinearProvider(configService);
+    const notionProvider = new NotionProvider(configService);
+    const slackProvider = new SlackProvider(configService);
+    const trelloProvider = new TrelloProvider();
     const customApiProvider = new CustomApiProvider(ssrfGuard);
     const oneTabAppProvider = new OneTabAppProvider();
 
@@ -89,6 +99,11 @@ describe('IntegrationsService', () => {
       googleDriveProvider,
       googleDocsProvider,
       googleSheetsProvider,
+      githubProvider,
+      linearProvider,
+      notionProvider,
+      slackProvider,
+      trelloProvider,
       customApiProvider,
       oneTabAppProvider,
     );

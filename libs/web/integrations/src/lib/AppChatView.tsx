@@ -255,11 +255,11 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     category: 'Developer Tools',
     provider: 'github',
     description:
-      'Repository activity, pull request reviews, CI/CD status, and issue sync directly in chat.',
+      'Real repositories, issues, pull requests, commits, and notifications from your connected GitHub account.',
     quickStarters: [
-      'Show open pull requests awaiting review',
-      'Check latest CI build status on main branch',
-      'List recent commits merged today',
+      'Show my open issues',
+      'What PRs need my review?',
+      'Create an issue for this problem',
     ],
   },
   {
@@ -268,11 +268,11 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     category: 'Productivity & Project Management',
     provider: 'linear',
     description:
-      'High-performance issue tracking, sprint cycle progress, and roadmaps.',
+      'Real teams, cycles, and issues — each with its own identifier prefix (e.g. ENG-123).',
     quickStarters: [
-      'List active sprint issues assigned to me',
-      'Create bug ticket: "Fix dropdown z-index collision"',
-      'Show Cycle 24 completion percentage',
+      'Show my high-priority issues',
+      'What is due this week?',
+      'Move this issue to In Progress',
     ],
   },
   {
@@ -315,29 +315,15 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     ],
   },
   {
-    id: 'gdrive',
-    name: 'Google Drive',
-    category: 'Productivity & Project Management',
-    provider: 'gdrive',
-    description:
-      'Cloud file sharing, document access, sheets indexing, and permission controls.',
-    quickStarters: [
-      'Search shared drive for "Q3 Product Roadmap"',
-      'List recently edited team spreadsheets',
-      'Link team assets folder to dev channels',
-    ],
-  },
-  {
     id: 'slack',
-    name: 'Slack Sync',
+    name: 'Slack',
     category: 'Customer Support & Communication',
     provider: 'slack',
-    description:
-      'Bi-directional message bridging, webhook integrations, and cross-platform notifications.',
+    description: 'Search, read, and post in channels and DMs in your connected Slack workspace.',
     quickStarters: [
-      'Check Slack bridge webhook status',
-      'Sync announcements channel to #general',
-      'Export channel transcript to Slack archive',
+      'Summarize the #engineering channel',
+      'Find messages about the mobile release',
+      'Send this message to the engineering channel',
     ],
   },
   {
@@ -345,12 +331,23 @@ export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
     name: 'Notion',
     category: 'Productivity & Project Management',
     provider: 'notion',
-    description:
-      'Knowledge base synchronization, wikis, and team document indexing.',
+    description: 'Search real pages and databases shared with this integration.',
     quickStarters: [
-      'Search Notion wiki for engineering guidelines',
-      'Create new meeting notes page for today',
-      'Sync product specs database with channels',
+      'Find our product roadmap',
+      'Summarize this page',
+      'Find pages mentioning pricing',
+    ],
+  },
+  {
+    id: 'trello',
+    name: 'Trello',
+    category: 'Productivity & Project Management',
+    provider: 'trello',
+    description: 'Real boards, lists, and cards from your connected Trello account.',
+    quickStarters: [
+      'Show overdue cards',
+      'Create a card for the mobile issue',
+      'Move this card to Done',
     ],
   },
   {

@@ -8,12 +8,17 @@ import {
 import { PrismaService } from '@org/database';
 import type { IntegrationCapabilities } from '@org/types';
 import { CustomApiProvider } from '../providers/custom-api.provider.js';
+import { GitHubProvider } from '../providers/github.provider.js';
 import { GmailProvider } from '../providers/gmail.provider.js';
 import { GoogleCalendarProvider } from '../providers/google-calendar.provider.js';
 import { GoogleDocsProvider } from '../providers/google-docs.provider.js';
 import { GoogleDriveProvider } from '../providers/google-drive.provider.js';
 import { GoogleSheetsProvider } from '../providers/google-sheets.provider.js';
+import { LinearProvider } from '../providers/linear.provider.js';
+import { NotionProvider } from '../providers/notion.provider.js';
 import { OneTabAppProvider } from '../providers/onetab-app.provider.js';
+import { SlackProvider } from '../providers/slack.provider.js';
+import { TrelloProvider } from '../providers/trello.provider.js';
 import { IntegrationEncryptionService } from './integration-encryption.service.js';
 import type { ProviderAdapter, ResolvedCredential } from './provider-adapter.interface.js';
 import { WebhookService } from './webhook.service.js';
@@ -32,6 +37,11 @@ export class IntegrationManagerService implements OnModuleInit {
     private readonly googleDriveProvider: GoogleDriveProvider,
     private readonly googleDocsProvider: GoogleDocsProvider,
     private readonly googleSheetsProvider: GoogleSheetsProvider,
+    private readonly githubProvider: GitHubProvider,
+    private readonly linearProvider: LinearProvider,
+    private readonly notionProvider: NotionProvider,
+    private readonly slackProvider: SlackProvider,
+    private readonly trelloProvider: TrelloProvider,
     private readonly customApiProvider: CustomApiProvider,
     private readonly oneTabAppProvider: OneTabAppProvider,
   ) {}
@@ -42,6 +52,11 @@ export class IntegrationManagerService implements OnModuleInit {
     this.registerAdapter(this.googleDriveProvider);
     this.registerAdapter(this.googleDocsProvider);
     this.registerAdapter(this.googleSheetsProvider);
+    this.registerAdapter(this.githubProvider);
+    this.registerAdapter(this.linearProvider);
+    this.registerAdapter(this.notionProvider);
+    this.registerAdapter(this.slackProvider);
+    this.registerAdapter(this.trelloProvider);
     this.registerAdapter(this.customApiProvider);
     this.registerAdapter(this.oneTabAppProvider);
     this.logger.log(`Initialized IntegrationManager with ${this.adapters.size} providers.`);

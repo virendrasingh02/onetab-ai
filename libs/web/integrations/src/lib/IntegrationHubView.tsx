@@ -38,6 +38,7 @@ import { GoogleDocsModal } from './GoogleDocsModal.js';
 import { GoogleDriveModal } from './GoogleDriveModal.js';
 import { GoogleSheetsModal } from './GoogleSheetsModal.js';
 import { IntegrationLogsView } from './IntegrationLogsView.js';
+import { TrelloConnectModal } from './TrelloConnectModal.js';
 import {
   useIntegrationMutations,
   useIntegrationProviders,
@@ -184,6 +185,47 @@ function IntegrationAppIcon({ id }: { id: string; name: string }) {
         </svg>
       );
 
+    case 'gmail':
+      return (
+        <svg className="size-5 shrink-0" viewBox="0 0 24 24">
+          <path fill="#EA4335" d="M1.5 6.5 12 14 22.5 6.5v11a1.5 1.5 0 0 1-1.5 1.5h-1V8.7l-8 5.8-8-5.8V19H2a1.5 1.5 0 0 1-1.5-1.5v-11Z" />
+          <path fill="#EA4335" d="M1.5 6.5A1.5 1.5 0 0 1 3 5h1l8 5.8L20 5h1a1.5 1.5 0 0 1 1.5 1.5L12 14 1.5 6.5Z" />
+        </svg>
+      );
+
+    case 'github':
+      return (
+        <div className="size-5 shrink-0 flex items-center justify-center rounded-full bg-[#181717]">
+          <svg className="size-3.5 fill-white" viewBox="0 0 24 24">
+            <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55 0-.27-.01-1.17-.02-2.12-3.2.7-3.87-1.36-3.87-1.36-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.18-1.18 3.18-1.18.63 1.59.23 2.76.11 3.05.74.81 1.18 1.83 1.18 3.09 0 4.41-2.69 5.39-5.25 5.67.41.36.78 1.06.78 2.14 0 1.55-.01 2.79-.01 3.17 0 .3.2.66.79.55A10.51 10.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z" />
+          </svg>
+        </div>
+      );
+
+    case 'linear':
+      return (
+        <div className="size-5 shrink-0 flex items-center justify-center rounded-full bg-[#5E6AD2]">
+          <span className="font-black text-white text-[11px] leading-none">L</span>
+        </div>
+      );
+
+    case 'notion':
+      return (
+        <div className="size-5 shrink-0 flex items-center justify-center rounded-md border border-border bg-white">
+          <span className="font-black text-black text-[11px] leading-none">N</span>
+        </div>
+      );
+
+    case 'trello':
+      return (
+        <div className="size-5 shrink-0 p-[3px] rounded-md bg-[#0052CC]">
+          <div className="size-full grid grid-cols-2 gap-[2px]">
+            <span className="rounded-[1px] bg-white" />
+            <span className="rounded-[1px] bg-white/50" />
+          </div>
+        </div>
+      );
+
     case 'spotify':
       return (
         <svg className="size-5 shrink-0" viewBox="0 0 24 24">
@@ -266,16 +308,16 @@ const integrationsList: IntegrationCard[] = [
     id: 'slack',
     name: 'Slack',
     category: 'Customer Support & Communication',
-    description: 'Releases, on-call alerts, and approvals in your channels.',
-    supported: false,
+    description: 'Search, read, and post in your connected Slack workspace.',
+    supported: true,
   },
   {
     id: 'github',
     name: 'GitHub',
     category: 'Developer Tools',
     description:
-      'PR code reviews, issue sync, and commit webhooks directly in channels.',
-    supported: false,
+      'Repos, issues, pull requests, commits, and notifications from your real GitHub account.',
+    supported: true,
   },
   {
     id: 'jira',
@@ -288,22 +330,22 @@ const integrationsList: IntegrationCard[] = [
     id: 'linear',
     name: 'Linear',
     category: 'Productivity & Project Management',
-    description: 'Fast, modern issue tracking and workspace project linking.',
-    supported: false,
+    description: 'Real issues, teams, and cycles — including each team\'s own identifier prefix.',
+    supported: true,
   },
   {
     id: 'notion',
     name: 'Notion',
     category: 'Productivity & Project Management',
-    description: 'Workspaces, pages, and databases searchable from your platform.',
-    supported: false,
+    description: 'Search real pages and databases shared with this integration.',
+    supported: true,
   },
   {
     id: 'trello',
     name: 'Trello',
     category: 'Productivity & Project Management',
-    description: 'Boards, lists, and cards kept in sync with your workspace.',
-    supported: false,
+    description: 'Real boards, lists, and cards using your personal Trello API key + token.',
+    supported: true,
   },
   {
     id: 'figma',
@@ -496,6 +538,7 @@ export function IntegrationHubView() {
     'All',
   );
   const [isCustomApiModalOpen, setIsCustomApiModalOpen] = useState(false);
+  const [isTrelloModalOpen, setIsTrelloModalOpen] = useState(false);
   const [activeAppModal, setActiveAppModal] = useState<ActiveAppModal | null>(null);
   const [logsCard, setLogsCard] = useState<IntegrationCard | null>(null);
 
@@ -516,6 +559,11 @@ export function IntegrationHubView() {
   const startConnect = async (card: IntegrationCard) => {
     if (card.id === 'custom_api') {
       setIsCustomApiModalOpen(true);
+      return;
+    }
+
+    if (card.id === 'trello') {
+      setIsTrelloModalOpen(true);
       return;
     }
 
@@ -773,6 +821,19 @@ export function IntegrationHubView() {
                               </Hint>
                             )}
 
+                            {card.id === 'trello' && (
+                              <Hint label="Update key/token">
+                                <button
+                                  type="button"
+                                  aria-label="Update key/token"
+                                  onClick={() => setIsTrelloModalOpen(true)}
+                                  className="p-1 rounded-md text-muted-foreground transition-colors hover:text-foreground"
+                                >
+                                  <Code2 className="size-3.5" />
+                                </button>
+                              </Hint>
+                            )}
+
                             <Hint label="Sync now">
                               <button
                                 type="button"
@@ -935,6 +996,13 @@ export function IntegrationHubView() {
         workspaceId={workspaceId}
         isOpen={isCustomApiModalOpen}
         onClose={() => setIsCustomApiModalOpen(false)}
+      />
+
+      {/* Trello Connect Modal */}
+      <TrelloConnectModal
+        workspaceId={workspaceId}
+        isOpen={isTrelloModalOpen}
+        onClose={() => setIsTrelloModalOpen(false)}
       />
 
       {/* Sync & Activity Log Modal */}

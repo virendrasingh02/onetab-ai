@@ -23,6 +23,7 @@ export { GoogleDriveModal } from './lib/GoogleDriveModal.js';
 export { GoogleDocsModal } from './lib/GoogleDocsModal.js';
 export { GoogleSheetsModal } from './lib/GoogleSheetsModal.js';
 export { CustomApiModal } from './lib/CustomApiModal.js';
+export { TrelloConnectModal } from './lib/TrelloConnectModal.js';
 export { IntegrationLogsView } from './lib/IntegrationLogsView.js';
 export { SlackNotionImportView } from './lib/SlackNotionImportView.js';
 export {

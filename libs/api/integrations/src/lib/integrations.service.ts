@@ -89,6 +89,11 @@ export class IntegrationsService {
       'GOOGLE_DRIVE',
       'GOOGLE_DOCS',
       'GOOGLE_SHEETS',
+      'GITHUB',
+      'LINEAR',
+      'NOTION',
+      'SLACK',
+      'TRELLO',
     ]);
     const scopeType = params.scopeType ?? (USER_SCOPED_PROVIDERS.has(providerKey) ? 'USER' : 'WORKSPACE');
 
@@ -198,7 +203,67 @@ export class IntegrationsService {
       return this.formatSafeIntegration(saved);
     }
 
-    // Generic direct connect fallback (for backward compatibility)
+    // Manual credential flow — any provider that isn't OAuth2 and isn't the
+    // generic Custom API connector (e.g. Trello's personal API key + token,
+    // or a future provider that only issues a static API token). The whole
+    // config is validated against the real API before it is ever saved, then
+    // stored through the same encrypted column an OAuth access token uses —
+    // `resolveCredential` hands it back to the adapter verbatim as
+    // `credential.accessToken` for it to parse. Never persisted in plaintext.
+    if (adapter.getCapabilities().authType !== 'NONE') {
+      const config = params.config || {};
+      const testResult = await adapter.testConnection(config);
+      if (!testResult.success) {
+        throw new BadRequestException(`Failed to connect to ${providerKey}: ${testResult.message}`);
+      }
+
+      const encryptedAccessToken = this.encryption.encrypt(JSON.stringify(config));
+      const safeMetadata: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(config)) {
+        safeMetadata[key] = typeof value === 'string' ? this.encryption.maskSecret(value) : value;
+      }
+
+      const integrationId =
+        scopeType === 'USER'
+          ? `user_${params.userId}_${providerKey}`
+          : `${params.workspaceId}_${providerKey}`;
+
+      const saved = await this.prisma.externalIntegration.upsert({
+        where: { id: integrationId },
+        create: {
+          id: integrationId,
+          workspaceId: scopeType === 'WORKSPACE' ? params.workspaceId : null,
+          userId: params.userId,
+          scopeType,
+          provider: providerKey,
+          status: 'CONNECTED',
+          encryptedAccessToken,
+          metadata: JSON.stringify(safeMetadata),
+        },
+        update: {
+          status: 'CONNECTED',
+          encryptedAccessToken,
+          metadata: JSON.stringify(safeMetadata),
+          lastErrorAt: null,
+          lastErrorMessage: null,
+        },
+      });
+
+      await this.auditLogger.logAudit({
+        integrationId: saved.id,
+        workspaceId: params.workspaceId,
+        userId: params.userId,
+        action: 'MANUAL_CREDENTIAL_CONNECTED',
+        status: 'SUCCESS',
+        durationMs: Date.now() - startTime,
+        details: { provider: providerKey },
+      });
+
+      return this.formatSafeIntegration(saved);
+    }
+
+    // Generic direct connect fallback — providers with authType 'NONE' (e.g.
+    // the internal OneTab bridge), which hold no credential to validate.
     const integrationId = `${params.workspaceId}_${providerKey}`;
     const saved = await this.prisma.externalIntegration.upsert({
       where: { id: integrationId },
