@@ -1,4 +1,5 @@
 import {
+  Badge,
   confirm,
   Dialog,
   DialogContent,
@@ -32,9 +33,14 @@ import { useState } from 'react';
 import type { ExternalIntegration } from '@org/types';
 import { CustomApiModal } from './CustomApiModal.js';
 import { GmailInboxModal } from './GmailInboxModal.js';
+import { GoogleCalendarModal } from './GoogleCalendarModal.js';
+import { GoogleDocsModal } from './GoogleDocsModal.js';
+import { GoogleDriveModal } from './GoogleDriveModal.js';
+import { GoogleSheetsModal } from './GoogleSheetsModal.js';
 import { IntegrationLogsView } from './IntegrationLogsView.js';
 import {
   useIntegrationMutations,
+  useIntegrationProviders,
   useIntegrations,
 } from './use-integrations.js';
 import { useWorkspaceId } from './use-workspace-id.js';
@@ -45,7 +51,23 @@ export interface IntegrationCard {
   category: AppCategory;
   description: string;
   isInternal?: boolean;
+  /**
+   * Whether this deployment has a real, registered backend adapter for this
+   * provider (`IntegrationManagerService.getAllCapabilities()`). An
+   * unsupported card never gets a working Connect button — nothing in this
+   * product should look connectable when it can't actually connect to
+   * anything real.
+   */
+  supported: boolean;
 }
+
+/** Providers with a viewer/actions modal beyond the generic connect toggle. */
+type ActiveAppModal =
+  | { kind: 'gmail'; integrationId: string; email?: string }
+  | { kind: 'google_calendar'; integrationId: string; email?: string }
+  | { kind: 'google_drive'; integrationId: string; email?: string }
+  | { kind: 'google_docs'; integrationId: string; email?: string }
+  | { kind: 'google_sheets'; integrationId: string; email?: string };
 
 export type AppCategory =
   | 'Analytics'
@@ -184,119 +206,44 @@ function IntegrationAppIcon({ id }: { id: string; name: string }) {
  */
 const integrationsList: IntegrationCard[] = [
   {
-    id: 'slack',
-    name: 'Slack',
-    category: 'Customer Support & Communication',
-    description: 'Releases, on-call alerts, and approvals in your channels.',
-  },
-  {
-    id: 'stripe',
-    name: 'Stripe',
-    category: 'Finance',
-    description: 'Charges, retries, and payouts across connected tools.',
-  },
-  {
-    id: 'supabase',
-    name: 'Supabase',
-    category: 'Developer Tools',
-    description: 'DB and auth events for live dashboards.',
-  },
-  {
-    id: 'make',
-    name: 'Make',
-    category: 'Developer Tools',
-    description: 'Automation runs: successes and failures in one place.',
-  },
-  {
-    id: 'zoom',
-    name: 'Zoom',
-    category: 'Productivity & Project Management',
-    description: 'Recordings, attendance, and follow-ups synced.',
-  },
-  {
-    id: 'loom',
-    name: 'Loom',
-    category: 'Productivity & Project Management',
-    description: 'Async walkthroughs and feedback in one queue.',
-  },
-  {
-    id: 'discord',
-    name: 'Discord',
-    category: 'Customer Support & Communication',
-    description: 'Community signals and mod flags to internal channels.',
-  },
-  {
-    id: 'gemini',
-    name: 'Gemini AI',
-    category: 'Developer Tools',
-    description: 'AI for documents and content workflows.',
-  },
-  {
-    id: 'spotify',
-    name: 'Spotify',
-    category: 'Other',
-    description: 'Playlists and listening data for workspace apps.',
-  },
-  {
     id: 'gmail',
     name: 'Gmail',
     category: 'Productivity & Project Management',
     description:
       'Read, send, and search Gmail threads directly from your workspace.',
+    supported: true,
   },
   {
-    id: 'github',
-    name: 'GitHub',
-    category: 'Developer Tools',
-    description:
-      'PR code reviews, issue sync, and commit webhooks directly in channels.',
-  },
-  {
-    id: 'gitlab',
-    name: 'GitLab',
-    category: 'Developer Tools',
-    description:
-      'Merge request checks and CI/CD pipeline deployment notifications.',
-  },
-  {
-    id: 'jira',
-    name: 'Jira Software',
-    category: 'Productivity & Project Management',
-    description: 'Two-way task, backlog, and sprint status synchronization.',
-  },
-  {
-    id: 'linear',
-    name: 'Linear',
-    category: 'Productivity & Project Management',
-    description: 'Fast, modern issue tracking and workspace project linking.',
-  },
-  {
-    id: 'figma',
-    name: 'Figma',
-    category: 'Design',
-    description:
-      'Design file embeds, live cursor feedback, and canvas updates.',
-  },
-  {
-    id: 'gdrive',
-    name: 'Google Drive',
-    category: 'Productivity & Project Management',
-    description:
-      'Embed files, preview docs, and search attachments across rooms.',
-  },
-  {
-    id: 'gcal',
+    id: 'google_calendar',
     name: 'Google Calendar',
     category: 'Productivity & Project Management',
     description:
-      'Auto-schedule meetings, sync availability, and event reminders.',
+      'Day/week agenda, availability, and event creation synced with Google Calendar.',
+    supported: true,
   },
   {
-    id: 'outlook',
-    name: 'Microsoft Outlook',
+    id: 'google_drive',
+    name: 'Google Drive',
     category: 'Productivity & Project Management',
     description:
-      'Sync Outlook calendar invitations, availability, and meeting join links.',
+      'Browse, search, preview, and upload files across your Google Drive.',
+    supported: true,
+  },
+  {
+    id: 'google_docs',
+    name: 'Google Docs',
+    category: 'Productivity & Project Management',
+    description:
+      'Browse and read Google Docs — real content, ready for AI summarization.',
+    supported: true,
+  },
+  {
+    id: 'google_sheets',
+    name: 'Google Sheets',
+    category: 'Productivity & Project Management',
+    description:
+      'Browse spreadsheets and read real cell data, sortable and filterable.',
+    supported: true,
   },
   {
     id: 'custom_api',
@@ -304,6 +251,7 @@ const integrationsList: IntegrationCard[] = [
     category: 'Developer Tools',
     description:
       'Connect any REST API with custom headers, bearer tokens, or API keys.',
+    supported: true,
   },
   {
     id: 'onetab_internal',
@@ -312,46 +260,87 @@ const integrationsList: IntegrationCard[] = [
     description:
       'Internal workspace events, activity streams, and channel notifications.',
     isInternal: true,
+    supported: true,
   },
   {
-    id: 'zendesk',
-    name: 'Zendesk',
+    id: 'slack',
+    name: 'Slack',
     category: 'Customer Support & Communication',
-    description:
-      'Customer support ticket routing, triage, and reply notifications.',
+    description: 'Releases, on-call alerts, and approvals in your channels.',
+    supported: false,
   },
   {
-    id: 'intercom',
-    name: 'Intercom',
+    id: 'github',
+    name: 'GitHub',
+    category: 'Developer Tools',
+    description:
+      'PR code reviews, issue sync, and commit webhooks directly in channels.',
+    supported: false,
+  },
+  {
+    id: 'jira',
+    name: 'Jira Software',
+    category: 'Productivity & Project Management',
+    description: 'Two-way task, backlog, and sprint status synchronization.',
+    supported: false,
+  },
+  {
+    id: 'linear',
+    name: 'Linear',
+    category: 'Productivity & Project Management',
+    description: 'Fast, modern issue tracking and workspace project linking.',
+    supported: false,
+  },
+  {
+    id: 'notion',
+    name: 'Notion',
+    category: 'Productivity & Project Management',
+    description: 'Workspaces, pages, and databases searchable from your platform.',
+    supported: false,
+  },
+  {
+    id: 'trello',
+    name: 'Trello',
+    category: 'Productivity & Project Management',
+    description: 'Boards, lists, and cards kept in sync with your workspace.',
+    supported: false,
+  },
+  {
+    id: 'figma',
+    name: 'Figma',
+    category: 'Design',
+    description:
+      'Design file embeds, live cursor feedback, and canvas updates.',
+    supported: false,
+  },
+  {
+    id: 'outlook',
+    name: 'Microsoft Outlook',
+    category: 'Productivity & Project Management',
+    description:
+      'Sync Outlook mail, availability, and meeting join links.',
+    supported: false,
+  },
+  {
+    id: 'microsoft_calendar',
+    name: 'Microsoft Calendar',
+    category: 'Productivity & Project Management',
+    description: 'Events, attendees, and availability from Microsoft 365.',
+    supported: false,
+  },
+  {
+    id: 'onedrive',
+    name: 'Microsoft OneDrive',
+    category: 'Productivity & Project Management',
+    description: 'Browse and search files stored in Microsoft OneDrive.',
+    supported: false,
+  },
+  {
+    id: 'teams',
+    name: 'Microsoft Teams',
     category: 'Customer Support & Communication',
-    description: 'Live lead chat alerts and customer conversation management.',
-  },
-  {
-    id: 'mixpanel',
-    name: 'Mixpanel',
-    category: 'Analytics',
-    description:
-      'Product analytics, event tracking reports, and metrics summaries.',
-  },
-  {
-    id: 'datadog',
-    name: 'Datadog',
-    category: 'Analytics',
-    description:
-      'Real-time infrastructure monitoring, alerts, and incident tracking.',
-  },
-  {
-    id: 'quickbooks',
-    name: 'QuickBooks',
-    category: 'Finance',
-    description: 'Accounting receipts, expense tracking, and payroll reports.',
-  },
-  {
-    id: 'bamboohr',
-    name: 'BambooHR',
-    category: 'HR & Team Culture',
-    description:
-      'Team birthday reminders, PTO approvals, and onboarding workflows.',
+    description: 'Teams, channels, and messages surfaced in your workspace.',
+    supported: false,
   },
   {
     id: 'hubspot',
@@ -359,6 +348,131 @@ const integrationsList: IntegrationCard[] = [
     category: 'Sales & Marketing',
     description:
       'CRM deal stage tracking, contact leads, and sales pipeline alerts.',
+    supported: false,
+  },
+  {
+    id: 'todoist',
+    name: 'Todoist',
+    category: 'Productivity & Project Management',
+    description: 'Projects, tasks, and due dates synced with your workspace.',
+    supported: false,
+  },
+  {
+    id: 'cal',
+    name: 'Cal.com',
+    category: 'Productivity & Project Management',
+    description: 'Booking types, bookings, and availability from Cal.com.',
+    supported: false,
+  },
+  {
+    id: 'zoom',
+    name: 'Zoom',
+    category: 'Productivity & Project Management',
+    description: 'Meetings, recordings, and participants synced.',
+    supported: false,
+  },
+  {
+    id: 'gitlab',
+    name: 'GitLab',
+    category: 'Developer Tools',
+    description:
+      'Merge request checks and CI/CD pipeline deployment notifications.',
+    supported: false,
+  },
+  {
+    id: 'stripe',
+    name: 'Stripe',
+    category: 'Finance',
+    description: 'Charges, retries, and payouts across connected tools.',
+    supported: false,
+  },
+  {
+    id: 'supabase',
+    name: 'Supabase',
+    category: 'Developer Tools',
+    description: 'DB and auth events for live dashboards.',
+    supported: false,
+  },
+  {
+    id: 'make',
+    name: 'Make',
+    category: 'Developer Tools',
+    description: 'Automation runs: successes and failures in one place.',
+    supported: false,
+  },
+  {
+    id: 'loom',
+    name: 'Loom',
+    category: 'Productivity & Project Management',
+    description: 'Async walkthroughs and feedback in one queue.',
+    supported: false,
+  },
+  {
+    id: 'discord',
+    name: 'Discord',
+    category: 'Customer Support & Communication',
+    description: 'Community signals and mod flags to internal channels.',
+    supported: false,
+  },
+  {
+    id: 'gemini',
+    name: 'Gemini AI',
+    category: 'Developer Tools',
+    description: 'AI for documents and content workflows.',
+    supported: false,
+  },
+  {
+    id: 'spotify',
+    name: 'Spotify',
+    category: 'Other',
+    description: 'Playlists and listening data for workspace apps.',
+    supported: false,
+  },
+  {
+    id: 'zendesk',
+    name: 'Zendesk',
+    category: 'Customer Support & Communication',
+    description:
+      'Customer support ticket routing, triage, and reply notifications.',
+    supported: false,
+  },
+  {
+    id: 'intercom',
+    name: 'Intercom',
+    category: 'Customer Support & Communication',
+    description: 'Live lead chat alerts and customer conversation management.',
+    supported: false,
+  },
+  {
+    id: 'mixpanel',
+    name: 'Mixpanel',
+    category: 'Analytics',
+    description:
+      'Product analytics, event tracking reports, and metrics summaries.',
+    supported: false,
+  },
+  {
+    id: 'datadog',
+    name: 'Datadog',
+    category: 'Analytics',
+    description:
+      'Real-time infrastructure monitoring, alerts, and incident tracking.',
+    supported: false,
+  },
+  {
+    id: 'quickbooks',
+    name: 'QuickBooks',
+    category: 'Finance',
+    description: 'Accounting receipts, expense tracking, and payroll reports.',
+    supported: false,
+  },
+  {
+    id: 'bamboohr',
+    name: 'BambooHR',
+    category: 'HR & Team Culture',
+    description:
+      'Team birthday reminders, PTO approvals, and onboarding workflows.',
+    supported: false,
   },
   {
     id: 'webhooks',
@@ -367,25 +481,22 @@ const integrationsList: IntegrationCard[] = [
     description:
       'Incoming and outgoing custom REST webhooks for internal tools.',
     isInternal: true,
+    supported: false,
   },
 ];
-
-const REAL_PROVIDERS = new Set(['gmail', 'custom_api', 'onetab_internal']);
 
 export function IntegrationHubView() {
   const workspaceId = useWorkspaceId() ?? '';
   const integrations = useIntegrations(workspaceId);
   const { connect, disconnect, sync } = useIntegrationMutations(workspaceId);
+  const providersQuery = useIntegrationProviders(workspaceId);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'All' | AppCategory>(
     'All',
   );
   const [isCustomApiModalOpen, setIsCustomApiModalOpen] = useState(false);
-  const [activeGmailModal, setActiveGmailModal] = useState<{
-    integrationId: string;
-    email?: string;
-  } | null>(null);
+  const [activeAppModal, setActiveAppModal] = useState<ActiveAppModal | null>(null);
   const [logsCard, setLogsCard] = useState<IntegrationCard | null>(null);
 
   const connectedMap = new Map<string, ExternalIntegration>();
@@ -395,13 +506,25 @@ export function IntegrationHubView() {
     }
   }
 
+  /**
+   * Any OAuth2 provider gets the same popup-based authorize flow — nothing
+   * here is Gmail-specific. `providersQuery` reflects exactly what
+   * `IntegrationManagerService` has registered on the backend, so a card the
+   * server doesn't recognize (not yet built) never reaches this function:
+   * the UI disables it below instead.
+   */
   const startConnect = async (card: IntegrationCard) => {
-    if (card.id === 'gmail') {
+    if (card.id === 'custom_api') {
+      setIsCustomApiModalOpen(true);
+      return;
+    }
+
+    const providerKey = card.id.toUpperCase();
+    const capabilities = providersQuery.data?.find((p) => p.provider === providerKey);
+
+    if (capabilities?.authType === 'OAUTH2') {
       try {
-        const result = await connect.mutateAsync({
-          provider: 'GMAIL',
-          scopeType: 'USER',
-        });
+        const result = await connect.mutateAsync({ provider: providerKey });
         if (result.authUrl) {
           const width = 600;
           const height = 700;
@@ -409,29 +532,30 @@ export function IntegrationHubView() {
           const top = window.screen.height / 2 - height / 2;
           window.open(
             result.authUrl,
-            'Google OAuth',
+            `${card.name} OAuth`,
             `width=${width},height=${height},left=${left},top=${top}`,
           );
         }
       } catch (err: unknown) {
         toast.error(
-          err instanceof Error
-            ? err.message
-            : 'Failed to start Gmail connection.',
+          err instanceof Error ? err.message : `Failed to start ${card.name} connection.`,
         );
       }
       return;
     }
 
-    if (card.id === 'custom_api') {
-      setIsCustomApiModalOpen(true);
-      return;
-    }
-
-    connect.mutate({ provider: card.id.toUpperCase() });
+    connect.mutate(
+      { provider: providerKey },
+      {
+        onError: (err: unknown) =>
+          toast.error(err instanceof Error ? err.message : `Failed to connect ${card.name}.`),
+      },
+    );
   };
 
   const toggleConnection = (card: IntegrationCard) => {
+    if (!card.supported) return;
+
     const connected = connectedMap.get(card.id.toUpperCase());
     if (connected) {
       void confirm({
@@ -445,6 +569,27 @@ export function IntegrationHubView() {
       });
     } else void startConnect(card);
   };
+
+  const openAppModal = (card: IntegrationCard, integration: ExternalIntegration) => {
+    const email = integration.displayName ?? undefined;
+    if (card.id === 'gmail') setActiveAppModal({ kind: 'gmail', integrationId: integration.id, email });
+    else if (card.id === 'google_calendar')
+      setActiveAppModal({ kind: 'google_calendar', integrationId: integration.id, email });
+    else if (card.id === 'google_drive')
+      setActiveAppModal({ kind: 'google_drive', integrationId: integration.id, email });
+    else if (card.id === 'google_docs')
+      setActiveAppModal({ kind: 'google_docs', integrationId: integration.id, email });
+    else if (card.id === 'google_sheets')
+      setActiveAppModal({ kind: 'google_sheets', integrationId: integration.id, email });
+  };
+
+  const APPS_WITH_MODAL = new Set([
+    'gmail',
+    'google_calendar',
+    'google_drive',
+    'google_docs',
+    'google_sheets',
+  ]);
 
   const filteredCards = integrationsList.filter((card) => {
     const matchesSearch =
@@ -577,13 +722,15 @@ export function IntegrationHubView() {
               {filteredCards.map((card) => {
                 const connectedInfo = connectedMap.get(card.id.toUpperCase());
                 const isConnected = Boolean(connectedInfo);
-                const showQuickActions =
-                  isConnected && REAL_PROVIDERS.has(card.id);
+                const showQuickActions = isConnected && card.supported;
 
                 return (
                   <div
                     key={card.id}
-                    className="group p-5 flex min-h-[175px] flex-col justify-between rounded-2xl border border-border bg-surface-inset shadow-xs transition-all hover:border-border-strong"
+                    className={cn(
+                      'group p-5 flex min-h-[175px] flex-col justify-between rounded-2xl border border-border bg-surface-inset shadow-xs transition-all',
+                      card.supported ? 'hover:border-border-strong' : 'opacity-60',
+                    )}
                   >
                     {/* Top Row: App Icon & External Link / Action Menu */}
                     <div className="flex items-start justify-between">
@@ -592,20 +739,20 @@ export function IntegrationHubView() {
                       </div>
 
                       <div className="gap-1.5 flex items-center">
+                        {!card.supported ? (
+                          <Badge variant="secondary" className="text-[10px]">
+                            Coming soon
+                          </Badge>
+                        ) : null}
+
                         {showQuickActions && connectedInfo && (
                           <>
-                            {card.id === 'gmail' && (
-                              <Hint label="Open inbox">
+                            {APPS_WITH_MODAL.has(card.id) && (
+                              <Hint label={`Open ${card.name}`}>
                                 <button
                                   type="button"
-                                  aria-label="Open inbox"
-                                  onClick={() =>
-                                    setActiveGmailModal({
-                                      integrationId: connectedInfo.id,
-                                      email:
-                                        connectedInfo.displayName ?? undefined,
-                                    })
-                                  }
+                                  aria-label={`Open ${card.name}`}
+                                  onClick={() => openAppModal(card, connectedInfo)}
                                   className="p-1 rounded-md text-muted-foreground transition-colors hover:text-foreground"
                                 >
                                   <Inbox className="size-3.5" />
@@ -656,14 +803,16 @@ export function IntegrationHubView() {
                           </>
                         )}
 
-                        <button
-                          type="button"
-                          onClick={() => toggleConnection(card)}
-                          aria-label={`Open ${card.name}`}
-                          className="p-1 rounded-md text-muted-foreground transition-colors hover:text-foreground"
-                        >
-                          <ExternalLink className="size-4" />
-                        </button>
+                        {card.supported ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleConnection(card)}
+                            aria-label={`Open ${card.name}`}
+                            className="p-1 rounded-md text-muted-foreground transition-colors hover:text-foreground"
+                          >
+                            <ExternalLink className="size-4" />
+                          </button>
+                        ) : null}
                       </div>
                     </div>
 
@@ -674,7 +823,11 @@ export function IntegrationHubView() {
 
                     {/* Bottom Row: Action Button & Toggle Switch */}
                     <div className="pt-1 flex items-center justify-between">
-                      {isConnected ? (
+                      {!card.supported ? (
+                        <span className="px-3.5 py-1.5 text-xs font-semibold text-muted-foreground">
+                          Not yet available
+                        </span>
+                      ) : isConnected ? (
                         <button
                           type="button"
                           onClick={() => toggleConnection(card)}
@@ -698,10 +851,16 @@ export function IntegrationHubView() {
                         type="button"
                         role="switch"
                         aria-checked={isConnected}
+                        disabled={!card.supported}
                         onClick={() => toggleConnection(card)}
-                        aria-label={`Toggle ${card.name} connection`}
+                        aria-label={
+                          card.supported
+                            ? `Toggle ${card.name} connection`
+                            : `${card.name} is not yet available`
+                        }
                         className={cn(
-                          'w-9 h-5 px-0.5 flex cursor-pointer items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          'w-9 h-5 px-0.5 flex items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          card.supported ? 'cursor-pointer' : 'cursor-not-allowed',
                           isConnected
                             ? 'justify-end bg-primary'
                             : 'justify-start border border-border bg-muted',
@@ -725,13 +884,49 @@ export function IntegrationHubView() {
 
       {/* Gmail Inbox Modal */}
 
-      {activeGmailModal ? (
+      {activeAppModal?.kind === 'gmail' ? (
         <GmailInboxModal
           workspaceId={workspaceId}
-          integrationId={activeGmailModal.integrationId}
-          accountEmail={activeGmailModal.email}
-          isOpen={Boolean(activeGmailModal)}
-          onClose={() => setActiveGmailModal(null)}
+          integrationId={activeAppModal.integrationId}
+          accountEmail={activeAppModal.email}
+          isOpen
+          onClose={() => setActiveAppModal(null)}
+        />
+      ) : null}
+      {activeAppModal?.kind === 'google_calendar' ? (
+        <GoogleCalendarModal
+          workspaceId={workspaceId}
+          integrationId={activeAppModal.integrationId}
+          accountEmail={activeAppModal.email}
+          isOpen
+          onClose={() => setActiveAppModal(null)}
+        />
+      ) : null}
+      {activeAppModal?.kind === 'google_drive' ? (
+        <GoogleDriveModal
+          workspaceId={workspaceId}
+          integrationId={activeAppModal.integrationId}
+          accountEmail={activeAppModal.email}
+          isOpen
+          onClose={() => setActiveAppModal(null)}
+        />
+      ) : null}
+      {activeAppModal?.kind === 'google_docs' ? (
+        <GoogleDocsModal
+          workspaceId={workspaceId}
+          integrationId={activeAppModal.integrationId}
+          accountEmail={activeAppModal.email}
+          isOpen
+          onClose={() => setActiveAppModal(null)}
+        />
+      ) : null}
+      {activeAppModal?.kind === 'google_sheets' ? (
+        <GoogleSheetsModal
+          workspaceId={workspaceId}
+          integrationId={activeAppModal.integrationId}
+          accountEmail={activeAppModal.email}
+          isOpen
+          onClose={() => setActiveAppModal(null)}
         />
       ) : null}
 

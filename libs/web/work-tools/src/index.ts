@@ -53,6 +53,15 @@ export { KanbanPriorityPicker } from './lib/kanban/KanbanPriorityPicker.js';
 export { KanbanLeadPicker } from './lib/kanban/KanbanLeadPicker.js';
 export { KanbanLabelPicker } from './lib/kanban/KanbanLabelPicker.js';
 export {
+  KanbanRefPicker,
+  type KanbanRefPickerItem,
+} from './lib/kanban/KanbanRefPicker.js';
+export { KanbanEstimatePicker } from './lib/kanban/KanbanEstimatePicker.js';
+export {
+  KanbanTaskLinkPicker,
+  type KanbanTaskLinkOption,
+} from './lib/kanban/KanbanTaskLinkPicker.js';
+export {
   useKanbanCustomStore,
   type CustomStatusItem,
   type CustomPriorityItem,

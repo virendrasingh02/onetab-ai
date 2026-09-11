@@ -248,6 +248,7 @@ export type {
   Project,
   ProjectDetail,
   ProjectUpdate,
+  RelationTaskRef,
   SavedView,
   Sprint,
   Task,

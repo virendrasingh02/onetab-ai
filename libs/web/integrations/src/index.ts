@@ -6,6 +6,9 @@ export {
   useIntegrationMessages,
   useIntegrationThread,
   useIntegrationSyncJobs,
+  useIntegrationActions,
+  useIntegrationActionQuery,
+  useExecuteIntegrationAction,
 } from './lib/use-integrations.js';
 
 export {
@@ -15,6 +18,10 @@ export {
 } from './lib/IntegrationHubView.js';
 
 export { GmailInboxModal } from './lib/GmailInboxModal.js';
+export { GoogleCalendarModal } from './lib/GoogleCalendarModal.js';
+export { GoogleDriveModal } from './lib/GoogleDriveModal.js';
+export { GoogleDocsModal } from './lib/GoogleDocsModal.js';
+export { GoogleSheetsModal } from './lib/GoogleSheetsModal.js';
 export { CustomApiModal } from './lib/CustomApiModal.js';
 export { IntegrationLogsView } from './lib/IntegrationLogsView.js';
 export { SlackNotionImportView } from './lib/SlackNotionImportView.js';

@@ -25,6 +25,8 @@ export type {
 
 export interface KanbanBoardProps {
   workspaceId: string | undefined;
+  /** The open project — threaded to the card dialog for Epic/Module/Cycle and task-link pickers. */
+  projectId?: string;
   /** The open project's tasks, grouped into status columns. */
   board: BoardState;
   dispatch: (action: BoardAction) => void;
@@ -53,6 +55,7 @@ export interface KanbanBoardProps {
  */
 export function KanbanBoard({
   workspaceId,
+  projectId,
   board,
   dispatch,
   milestones = [],
@@ -351,6 +354,7 @@ export function KanbanBoard({
       {openCardId ? (
         <CardDetailsDialog
           workspaceId={workspaceId}
+          projectId={projectId}
           cardId={openCardId}
           board={board}
           dispatch={dispatch}

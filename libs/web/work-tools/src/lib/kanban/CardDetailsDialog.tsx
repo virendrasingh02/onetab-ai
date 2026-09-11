@@ -1,6 +1,6 @@
 import { aiApi } from '@org/api-client';
 import { useCurrentUser } from '@org/auth';
-import { type TaskStatus } from '@org/types';
+import { type RelationType, type TaskStatus } from '@org/types';
 import { FiledFilesSection } from '@org/web-upload';
 import {
   Button,
@@ -26,6 +26,7 @@ import {
   AlertTriangle,
   AlignLeft,
   AtSign,
+  Boxes,
   CalendarDays,
   CalendarPlus,
   CalendarX2,
@@ -34,10 +35,15 @@ import {
   ChevronDown,
   ChevronRight,
   Clock,
+  CornerUpLeft,
   Copy,
   Expand,
   Filter,
+  Gauge,
+  Layers,
+  Link2,
   ListCheck,
+  ListTree,
   Maximize2,
   MessageSquare,
   MoreHorizontal,
@@ -45,6 +51,7 @@ import {
   PanelRight,
   Pencil,
   Plus,
+  Repeat,
   Search,
   Send,
   Share2,
@@ -54,6 +61,7 @@ import {
   Tag,
   Timer,
   Trash2,
+  UsersRound,
   Users,
   Video,
   X,
@@ -64,7 +72,16 @@ import { useNavigate } from 'react-router-dom';
 import {
   useAddTaskComment,
   useCurrentWorkspace,
+  useCycles,
+  useEpics,
+  useModules,
+  useRelationMutations,
   useTaskComments,
+  useTaskDetail,
+  useTaskMutations,
+  useTasks,
+  useTeams,
+  useWorkItemRelations,
 } from '../use-work-tools.js';
 import { parseDay } from './card-meta.js';
 import {
@@ -75,19 +92,32 @@ import {
   useKanbanCustomStore,
   type ChecklistItem,
 } from './kanban-custom-store.js';
+import { KanbanEstimatePicker } from './KanbanEstimatePicker.js';
 import { KanbanLabelPicker } from './KanbanLabelPicker.js';
 import { KanbanLeadPicker } from './KanbanLeadPicker.js';
 import {
   KanbanPriorityPicker,
   type PriorityOption,
 } from './KanbanPriorityPicker.js';
+import { KanbanRefPicker, type KanbanRefPickerItem } from './KanbanRefPicker.js';
 import { KanbanStatusPicker } from './KanbanStatusPicker.js';
+import {
+  KanbanTaskLinkPicker,
+  type KanbanTaskLinkOption,
+} from './KanbanTaskLinkPicker.js';
 import {
   CubeProjectIcon,
   PriorityIcon,
   StatusIcon,
   UnassignedLeadIcon,
 } from './kanban-icons.js';
+import {
+  formatMinutes,
+  isBlockingView,
+  LINKABLE_RELATION_TYPES,
+  relationsFor,
+  relationVerb,
+} from './relation-meta.js';
 import type { BoardAction } from './server-board.js';
 import type {
   BoardMember,
@@ -99,6 +129,8 @@ import type {
 
 export interface CardDetailsDialogProps {
   workspaceId: string | undefined;
+  /** The open project — Epic/Module/Cycle and the parent/relation task pickers scope to it. */
+  projectId: string | undefined;
   board: BoardState;
   /** Open card, or null when the dialog is closed. */
   cardId: string | null;
@@ -128,6 +160,7 @@ function findCard(
  */
 export function CardDetailsDialog({
   workspaceId,
+  projectId,
   board,
   cardId,
   dispatch,
@@ -160,6 +193,7 @@ export function CardDetailsDialog({
   const body = (
     <CardDetailsBody
       workspaceId={workspaceId}
+      projectId={projectId}
       board={board}
       card={found.card}
       listId={found.list.id}
@@ -253,6 +287,7 @@ function CardViewSwitcher() {
 
 interface CardDetailsBodyProps {
   workspaceId: string | undefined;
+  projectId: string | undefined;
   board: BoardState;
   card: KanbanCard;
   listId: KanbanList['id'];
@@ -271,6 +306,7 @@ function formatDateShort(dateStr?: string): string {
 
 function CardDetailsBody({
   workspaceId,
+  projectId,
   board,
   card,
   listId,
@@ -294,6 +330,120 @@ function CardDetailsBody({
 
   const comments = useTaskComments(workspaceId, card.id);
   const addComment = useAddTaskComment(workspaceId, card.id);
+
+  /*
+   * Team/Epic/Module/Cycle/Estimate/time/Parent/sub-issues/relations all live
+   * on the real `Task`, not the board's narrower `KanbanCard` projection — so
+   * the dialog fetches its own full detail, the same way it already fetches
+   * comments separately rather than through `board`.
+   */
+  const taskDetail = useTaskDetail(workspaceId, card.id);
+  const detail = taskDetail.data;
+  const taskMutations = useTaskMutations(workspaceId);
+  const teamsQuery = useTeams(workspaceId);
+  const epicsQuery = useEpics(workspaceId, projectId);
+  const modulesQuery = useModules(workspaceId, projectId);
+  const cyclesQuery = useCycles(workspaceId, projectId);
+  // Shares its query key (and cache) with the board's own `useTasks` call.
+  const projectTasksQuery = useTasks(workspaceId, projectId);
+  const relationsQuery = useWorkItemRelations(workspaceId, card.id);
+  const relationMutations = useRelationMutations(workspaceId);
+
+  const [isSubIssuesOpen, setIsSubIssuesOpen] = useState(true);
+  const [newSubIssueText, setNewSubIssueText] = useState('');
+  const [isAddingSubIssue, setIsAddingSubIssue] = useState(false);
+  const [isLoggingTime, setIsLoggingTime] = useState(false);
+  const [logHours, setLogHours] = useState('');
+  const [logMinutes, setLogMinutes] = useState('');
+  const [addRelationType, setAddRelationType] = useState<RelationType>('BLOCKS');
+
+  const relations = relationsFor(relationsQuery.data, card.id);
+  const blockingRelations = relations.filter(isBlockingView);
+  const activeBlockingRelations = blockingRelations.filter(
+    (view) => view.otherTask.status !== 'DONE' && view.otherTask.status !== 'CANCELLED',
+  );
+
+  const subIssues = detail?.subItems ?? [];
+  const linkableTasks: KanbanTaskLinkOption[] = (projectTasksQuery.data ?? []).map((t) => ({
+    id: t.id,
+    title: t.title,
+    identifier: t.identifier,
+    status: t.status,
+  }));
+  // A parent can't be one of this card's own descendants, or the card itself.
+  const parentExcludeIds = [card.id, ...subIssues.map((s) => s.id)];
+
+  const teamItems: KanbanRefPickerItem[] = (teamsQuery.data ?? []).map((t) => ({
+    id: t.id,
+    label: t.name,
+    color: t.color,
+  }));
+  const epicItems: KanbanRefPickerItem[] = (epicsQuery.data ?? []).map((e) => ({
+    id: e.id,
+    label: e.name,
+    color: e.color,
+  }));
+  const moduleItems: KanbanRefPickerItem[] = (modulesQuery.data ?? []).map((m) => ({
+    id: m.id,
+    label: m.name,
+    color: m.color,
+  }));
+  const cycleItems: KanbanRefPickerItem[] = (cyclesQuery.data ?? []).map((c) => ({
+    id: c.id,
+    label: c.name,
+    sublabel: c.status,
+  }));
+
+  const handleTeamChange = (teamId: string | null) =>
+    taskMutations.update.mutate({ taskId: card.id, input: { teamId } });
+  const handleEpicChange = (epicId: string | null) =>
+    taskMutations.update.mutate({ taskId: card.id, input: { epicId } });
+  const handleModuleChange = (moduleId: string | null) =>
+    taskMutations.update.mutate({ taskId: card.id, input: { moduleId } });
+  const handleCycleChange = (cycleId: string | null) =>
+    taskMutations.update.mutate({ taskId: card.id, input: { cycleId } });
+  const handleEstimateChange = (estimate: number | null) =>
+    taskMutations.update.mutate({ taskId: card.id, input: { estimate } });
+  const handleParentChange = (parentId: string | null) =>
+    taskMutations.update.mutate({ taskId: card.id, input: { parentId } });
+
+  const handleLogTime = (e: React.FormEvent) => {
+    e.preventDefault();
+    const addedMinutes = (Number(logHours) || 0) * 60 + (Number(logMinutes) || 0);
+    if (addedMinutes <= 0) return;
+    taskMutations.update.mutate({
+      taskId: card.id,
+      input: { timeSpent: (detail?.timeSpent ?? 0) + addedMinutes },
+    });
+    setLogHours('');
+    setLogMinutes('');
+    setIsLoggingTime(false);
+  };
+
+  const handleAddSubIssue = (e: React.FormEvent) => {
+    e.preventDefault();
+    const title = newSubIssueText.trim();
+    if (!title) return;
+    taskMutations.create.mutate({ title, parentId: card.id, projectId: projectId ?? null });
+    setNewSubIssueText('');
+    setIsAddingSubIssue(false);
+  };
+
+  const handleToggleSubIssue = (subId: string, done: boolean) =>
+    taskMutations.update.mutate({
+      taskId: subId,
+      input: { status: done ? 'TODO' : 'DONE' },
+    });
+
+  const handleAddRelation = (target: KanbanTaskLinkOption) =>
+    relationMutations.addRelation.mutate({
+      sourceId: card.id,
+      targetId: target.id,
+      type: addRelationType,
+    });
+
+  const handleRemoveRelation = (relationId: string) =>
+    relationMutations.removeRelation.mutate(relationId);
 
   // Custom Kanban Store
   const customStore = useKanbanCustomStore();
@@ -776,10 +926,55 @@ function CardDetailsBody({
                 <Timer className="size-3.5" />
                 <span>Track time</span>
               </span>
-              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-border/70 bg-surface font-mono font-medium text-foreground">
-                <Clock className="size-3 text-primary" />
-                <span>96h 17m</span>
-              </div>
+              <DropdownMenu open={isLoggingTime} onOpenChange={setIsLoggingTime}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-border/70 bg-surface font-mono font-medium text-foreground hover:bg-accent/50 transition-colors cursor-pointer"
+                  >
+                    <Clock className="size-3 text-primary" />
+                    <span>
+                      {detail?.timeSpent ? formatMinutes(detail.timeSpent) : 'No time logged'}
+                    </span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="w-56 p-3 rounded-xl border border-border bg-popover text-popover-foreground shadow-xl"
+                >
+                  <form onSubmit={handleLogTime} className="space-y-2">
+                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                      Log time
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={0}
+                        value={logHours}
+                        onChange={(e) => setLogHours(e.target.value)}
+                        placeholder="0"
+                        aria-label="Hours"
+                        className="w-16 text-xs bg-surface border border-border rounded-md px-2 py-1 outline-none focus:border-primary"
+                      />
+                      <span className="text-xs text-muted-foreground">h</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={59}
+                        value={logMinutes}
+                        onChange={(e) => setLogMinutes(e.target.value)}
+                        placeholder="0"
+                        aria-label="Minutes"
+                        className="w-16 text-xs bg-surface border border-border rounded-md px-2 py-1 outline-none focus:border-primary"
+                      />
+                      <span className="text-xs text-muted-foreground">m</span>
+                    </div>
+                    <Button type="submit" size="sm" className="w-full h-7 text-xs">
+                      Add to logged time
+                    </Button>
+                  </form>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {/* Row 3 Right: Tags */}
@@ -819,17 +1014,267 @@ function CardDetailsBody({
                 />
               </div>
             </div>
+
+            {/* Row 4 Left: Team */}
+            <div className="flex items-center gap-3">
+              <span className="w-24 text-muted-foreground flex items-center gap-1.5 font-medium">
+                <UsersRound className="size-3.5" />
+                <span>Team</span>
+              </span>
+              <KanbanRefPicker
+                items={teamItems}
+                selectedId={detail?.teamId}
+                onSelect={handleTeamChange}
+                noneLabel="No team"
+                emptyMessage="No teams in this workspace yet"
+                trigger={
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-border/70 text-foreground hover:bg-accent/50 font-medium cursor-pointer"
+                  >
+                    <UsersRound className="size-3 text-muted-foreground" />
+                    <span>{detail?.team?.name ?? 'No team'}</span>
+                  </button>
+                }
+              />
+            </div>
+
+            {/* Row 4 Right: Epic */}
+            <div className="flex items-center gap-3">
+              <span className="w-24 text-muted-foreground flex items-center gap-1.5 font-medium">
+                <Layers className="size-3.5" />
+                <span>Epic</span>
+              </span>
+              <KanbanRefPicker
+                items={epicItems}
+                selectedId={detail?.epicId}
+                onSelect={handleEpicChange}
+                noneLabel="No epic"
+                emptyMessage="No epics in this project yet"
+                trigger={
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-border/70 text-foreground hover:bg-accent/50 font-medium cursor-pointer"
+                  >
+                    <Layers className="size-3 text-muted-foreground" />
+                    <span>{detail?.epic?.name ?? 'No epic'}</span>
+                  </button>
+                }
+              />
+            </div>
+
+            {/* Row 5 Left: Module */}
+            <div className="flex items-center gap-3">
+              <span className="w-24 text-muted-foreground flex items-center gap-1.5 font-medium">
+                <Boxes className="size-3.5" />
+                <span>Module</span>
+              </span>
+              <KanbanRefPicker
+                items={moduleItems}
+                selectedId={detail?.moduleId}
+                onSelect={handleModuleChange}
+                noneLabel="No module"
+                emptyMessage="No modules in this project yet"
+                trigger={
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-border/70 text-foreground hover:bg-accent/50 font-medium cursor-pointer"
+                  >
+                    <Boxes className="size-3 text-muted-foreground" />
+                    <span>{detail?.module?.name ?? 'No module'}</span>
+                  </button>
+                }
+              />
+            </div>
+
+            {/* Row 5 Right: Cycle */}
+            <div className="flex items-center gap-3">
+              <span className="w-24 text-muted-foreground flex items-center gap-1.5 font-medium">
+                <Repeat className="size-3.5" />
+                <span>Cycle</span>
+              </span>
+              <KanbanRefPicker
+                items={cycleItems}
+                selectedId={detail?.cycleId}
+                onSelect={handleCycleChange}
+                noneLabel="No cycle"
+                emptyMessage="No cycles in this project yet"
+                trigger={
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-border/70 text-foreground hover:bg-accent/50 font-medium cursor-pointer"
+                  >
+                    <Repeat className="size-3 text-muted-foreground" />
+                    <span>{detail?.cycle?.name ?? 'No cycle'}</span>
+                  </button>
+                }
+              />
+            </div>
+
+            {/* Row 6 Left: Estimate */}
+            <div className="flex items-center gap-3">
+              <span className="w-24 text-muted-foreground flex items-center gap-1.5 font-medium">
+                <Gauge className="size-3.5" />
+                <span>Estimate</span>
+              </span>
+              <KanbanEstimatePicker
+                estimate={detail?.estimate}
+                onEstimateChange={handleEstimateChange}
+                trigger={
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-border/70 text-foreground hover:bg-accent/50 font-mono font-medium cursor-pointer"
+                  >
+                    <span>{detail?.estimate != null ? `${detail.estimate} pts` : 'No estimate'}</span>
+                  </button>
+                }
+              />
+            </div>
+
+            {/* Row 6 Right: Parent */}
+            <div className="flex items-center gap-3">
+              <span className="w-24 text-muted-foreground flex items-center gap-1.5 font-medium">
+                <CornerUpLeft className="size-3.5" />
+                <span>Parent</span>
+              </span>
+              <div className="flex items-center gap-1.5">
+                <KanbanTaskLinkPicker
+                  options={linkableTasks}
+                  excludeIds={parentExcludeIds}
+                  onSelect={(task) => handleParentChange(task.id)}
+                  placeholder="Search tasks..."
+                  emptyMessage="No other tasks in this project"
+                  trigger={
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-border/70 text-foreground hover:bg-accent/50 font-medium cursor-pointer max-w-56"
+                    >
+                      <span className="truncate">
+                        {detail?.parent
+                          ? (detail.parent.identifier ?? detail.parent.title)
+                          : 'No parent'}
+                      </span>
+                    </button>
+                  }
+                />
+                {detail?.parent && (
+                  <button
+                    type="button"
+                    onClick={() => handleParentChange(null)}
+                    className="p-0.5 text-muted-foreground hover:text-foreground rounded hover:bg-muted"
+                    aria-label="Clear parent"
+                  >
+                    <X className="size-3" />
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* Blocked by Alert Badge */}
-          <div className="flex items-center gap-2 p-2.5 rounded-xl border border-accent-amber/25 bg-accent-amber-soft text-xs text-foreground">
-            <AlertTriangle className="size-3.5 text-accent-amber shrink-0" />
-            <span className="font-semibold text-accent-amber">Blocked by</span>
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-surface border border-border/80 text-[11px] font-medium">
-              <StatusIcon status="BACKLOG" className="size-3" />
-              <span>subtask 2</span>
-            </span>
-          </div>
+          {/* Blocked by Alert Badge — only while something un-done actually blocks this card */}
+          {activeBlockingRelations.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl border border-accent-amber/25 bg-accent-amber-soft text-xs text-foreground">
+              <AlertTriangle className="size-3.5 text-accent-amber shrink-0" />
+              <span className="font-semibold text-accent-amber">Blocked by</span>
+              {activeBlockingRelations.map((view) => (
+                <span
+                  key={view.id}
+                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-surface border border-border/80 text-[11px] font-medium"
+                >
+                  <StatusIcon status={view.otherTask.status} className="size-3" />
+                  {view.otherTask.identifier && (
+                    <span className="font-mono text-muted-foreground">
+                      {view.otherTask.identifier}
+                    </span>
+                  )}
+                  <span className="truncate max-w-40">{view.otherTask.title}</span>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Relations */}
+          <section className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                <Link2 className="size-3.5" />
+                <span>Relations</span>
+              </h3>
+              <KanbanTaskLinkPicker
+                options={linkableTasks}
+                excludeIds={[card.id]}
+                onSelect={handleAddRelation}
+                placeholder="Search tasks to link..."
+                emptyMessage="No other tasks in this project"
+                header={
+                  <select
+                    value={addRelationType}
+                    onChange={(e) => setAddRelationType(e.target.value as RelationType)}
+                    className="w-full mb-1 text-xs bg-surface border border-border rounded-md px-2 py-1 outline-none focus:border-primary"
+                  >
+                    {LINKABLE_RELATION_TYPES.map((option) => (
+                      <option key={option.type} value={option.type}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                }
+                trigger={
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                  >
+                    <Plus className="size-3" />
+                    <span>Add relation</span>
+                  </button>
+                }
+              />
+            </div>
+
+            {relations.length === 0 ? (
+              <p className="text-xs text-muted-foreground/70 italic">
+                No linked tasks yet.
+              </p>
+            ) : (
+              <div className="space-y-1">
+                {relations.map((view) => (
+                  <div
+                    key={view.id}
+                    className={cn(
+                      'flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs group',
+                      isBlockingView(view)
+                        ? 'bg-accent-amber-soft/60'
+                        : 'bg-surface-muted',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'font-medium shrink-0',
+                        isBlockingView(view) ? 'text-accent-amber' : 'text-muted-foreground',
+                      )}
+                    >
+                      {relationVerb(view.type, view.direction)}
+                    </span>
+                    <StatusIcon status={view.otherTask.status} className="size-3 shrink-0" />
+                    {view.otherTask.identifier && (
+                      <span className="font-mono text-[10px] text-muted-foreground shrink-0">
+                        {view.otherTask.identifier}
+                      </span>
+                    )}
+                    <span className="truncate flex-1">{view.otherTask.title}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveRelation(view.id)}
+                      className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-0.5 shrink-0"
+                      aria-label="Remove relation"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
 
           {/* Description Section */}
           <section className="space-y-2">
@@ -999,6 +1444,87 @@ function CardDetailsBody({
                     </form>
                   )}
                 </div>
+              </div>
+            )}
+          </section>
+
+          {/* Sub-issues — real child tasks (`Task.parentId`), the same hierarchy
+              the spreadsheet view's "X/Y" badge already summarises. */}
+          <section className="border-t border-border/50 pt-4 space-y-3">
+            <button
+              type="button"
+              onClick={() => setIsSubIssuesOpen(!isSubIssuesOpen)}
+              className="flex items-center gap-1.5 text-xs font-semibold text-foreground hover:text-primary transition-colors cursor-pointer"
+            >
+              {isSubIssuesOpen ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+              <ListTree className="size-3.5" />
+              <span>
+                Sub-issues ({subIssues.filter((s) => s.status === 'DONE').length}/{subIssues.length})
+              </span>
+            </button>
+
+            {isSubIssuesOpen && (
+              <div className="pl-5 space-y-1.5 text-xs">
+                {subIssues.map((sub) => (
+                  <div
+                    key={sub.id}
+                    className="flex items-center gap-2.5 group p-1 rounded-lg hover:bg-accent/40 transition-colors"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSubIssue(sub.id, sub.status === 'DONE')}
+                      aria-label={sub.status === 'DONE' ? 'Mark as not done' : 'Mark as done'}
+                      className="shrink-0"
+                    >
+                      <StatusIcon status={sub.status} className="size-3.5" />
+                    </button>
+                    {sub.identifier && (
+                      <span className="font-mono text-[10px] text-muted-foreground shrink-0">
+                        {sub.identifier}
+                      </span>
+                    )}
+                    <span
+                      className={cn(
+                        'flex-1 truncate text-xs transition-colors',
+                        sub.status === 'DONE' && 'line-through text-muted-foreground',
+                      )}
+                    >
+                      {sub.title}
+                    </span>
+                  </div>
+                ))}
+
+                {isAddingSubIssue ? (
+                  <form onSubmit={handleAddSubIssue} className="flex items-center gap-2 pt-1">
+                    <input
+                      autoFocus
+                      value={newSubIssueText}
+                      onChange={(e) => setNewSubIssueText(e.target.value)}
+                      placeholder="Add sub-issue title..."
+                      className="flex-1 text-xs bg-surface border border-border rounded-md px-2 py-1 outline-none focus:border-primary"
+                    />
+                    <Button size="sm" type="submit" className="h-7 text-xs">
+                      Add
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setIsAddingSubIssue(false)}
+                      className="h-7 text-xs"
+                    >
+                      Cancel
+                    </Button>
+                  </form>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingSubIssue(true)}
+                    className="text-xs text-primary hover:underline flex items-center gap-1 pt-1"
+                  >
+                    <Plus className="size-3" />
+                    <span>Add sub-issue</span>
+                  </button>
+                )}
               </div>
             )}
           </section>

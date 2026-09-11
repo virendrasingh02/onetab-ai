@@ -48,6 +48,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import {
   useIntegrationMutations,
+  useIntegrationProviders,
   useIntegrations,
 } from './use-integrations.js';
 
@@ -152,15 +153,25 @@ export interface AppModelItem {
 }
 
 export const APP_LOGOS: Record<string, string> = {
+  gmail: 'https://cdn.simpleicons.org/gmail',
   github: 'https://cdn.simpleicons.org/github',
   gitlab: 'https://cdn.simpleicons.org/gitlab',
   jira: 'https://cdn.simpleicons.org/jira',
   linear: 'https://cdn.simpleicons.org/linear',
   figma: 'https://cdn.simpleicons.org/figma',
+  trello: 'https://cdn.simpleicons.org/trello',
+  todoist: 'https://cdn.simpleicons.org/todoist',
+  zoom: 'https://cdn.simpleicons.org/zoom',
+  cal: 'https://cdn.simpleicons.org/cal-dot-com',
+  onedrive: 'https://cdn.simpleicons.org/microsoftonedrive',
+  teams: 'https://cdn.simpleicons.org/microsoftteams',
+  microsoft_calendar: 'https://cdn.simpleicons.org/microsoftoutlook',
   gdrive: 'https://cdn.simpleicons.org/googledrive',
   google_drive: 'https://cdn.simpleicons.org/googledrive',
   gcal: 'https://cdn.simpleicons.org/googlecalendar',
   google_calendar: 'https://cdn.simpleicons.org/googlecalendar',
+  google_docs: 'https://cdn.simpleicons.org/googledocs',
+  google_sheets: 'https://cdn.simpleicons.org/googlesheets',
   outlook: 'https://cdn.simpleicons.org/microsoftoutlook',
   microsoft_outlook: 'https://cdn.simpleicons.org/microsoftoutlook',
   zendesk: 'https://cdn.simpleicons.org/zendesk',
@@ -178,6 +189,66 @@ export const APP_LOGOS: Record<string, string> = {
 };
 
 export const DEFAULT_WORKSPACE_APPS: AppModelItem[] = [
+  {
+    id: 'gmail',
+    name: 'Gmail',
+    category: 'Productivity & Project Management',
+    provider: 'gmail',
+    description: 'Read, search, and send email directly through your connected Gmail account.',
+    quickStarters: [
+      'Show my unread emails',
+      'Find emails from John about the invoice',
+      'Draft a reply to the latest thread',
+    ],
+  },
+  {
+    id: 'google_calendar',
+    name: 'Google Calendar',
+    category: 'Productivity & Project Management',
+    provider: 'google_calendar',
+    description: 'Agenda, availability, and event management for your connected Google Calendar.',
+    quickStarters: [
+      'What meetings do I have tomorrow?',
+      'Find a free 30-minute slot this week',
+      'Create a meeting tomorrow at 3 PM',
+    ],
+  },
+  {
+    id: 'google_drive',
+    name: 'Google Drive',
+    category: 'Productivity & Project Management',
+    provider: 'google_drive',
+    description: 'Search and browse files and folders across your connected Google Drive.',
+    quickStarters: [
+      'Find my latest project document',
+      'Search for spreadsheets mentioning revenue',
+      'Show files shared with me',
+    ],
+  },
+  {
+    id: 'google_docs',
+    name: 'Google Docs',
+    category: 'Productivity & Project Management',
+    provider: 'google_docs',
+    description: 'Browse and read Google Docs — real document text, ready for summarization.',
+    quickStarters: [
+      'Find the roadmap document',
+      'Summarize the latest product spec',
+      'Search my docs for "pricing"',
+    ],
+  },
+  {
+    id: 'google_sheets',
+    name: 'Google Sheets',
+    category: 'Productivity & Project Management',
+    provider: 'google_sheets',
+    description: 'Browse spreadsheets and read real cell data from your connected Google Sheets.',
+    quickStarters: [
+      'Show my recent spreadsheets',
+      'Get the values in Sheet1!A1:D50 of the budget sheet',
+      'Find spreadsheets mentioning Q3',
+    ],
+  },
   {
     id: 'github',
     name: 'GitHub',
@@ -708,9 +779,40 @@ function AppMessageHeader({ app }: { app: AppModelItem }) {
 function AppDetailPanel({ app }: { app: AppModelItem }) {
   const { workspaceId } = useCurrentWorkspace();
   const { connect, disconnect } = useIntegrationMutations(workspaceId);
+  const providersQuery = useIntegrationProviders(workspaceId);
 
   const isBusy = connect.isPending || disconnect.isPending;
   const failure = connect.error ?? disconnect.error;
+
+  /**
+   * Mirrors `IntegrationHubView.startConnect`: any OAuth2 provider needs its
+   * authorization URL opened in a popup, not just a bare POST — without this
+   * an OAuth app's "Connect" button here would silently do nothing once the
+   * server responds with `{ authUrl }` and nobody opens it.
+   */
+  const handleConnect = async () => {
+    const providerKey = app.provider.toUpperCase();
+    const capabilities = providersQuery.data?.find((p) => p.provider === providerKey);
+
+    try {
+      const result = await connect.mutateAsync({ provider: app.provider });
+      if (capabilities?.authType === 'OAUTH2' && result.authUrl) {
+        const width = 600;
+        const height = 700;
+        const left = window.screen.width / 2 - width / 2;
+        const top = window.screen.height / 2 - height / 2;
+        window.open(
+          result.authUrl,
+          `${app.name} OAuth`,
+          `width=${width},height=${height},left=${left},top=${top}`,
+        );
+      } else {
+        toast.success(`${app.name} connected`);
+      }
+    } catch {
+      // Surfaced below via `failure` (connect.error) — no separate toast needed.
+    }
+  };
 
   return (
     <div className="min-h-0 flex flex-1 flex-col overflow-hidden">
@@ -751,18 +853,7 @@ function AppDetailPanel({ app }: { app: AppModelItem }) {
                 Disconnect
               </Button>
             ) : (
-              <Button
-                size="sm"
-                disabled={isBusy}
-                onClick={() =>
-                  connect.mutate(
-                    { provider: app.provider },
-                    {
-                      onSuccess: () => toast.success(`${app.name} connected`),
-                    },
-                  )
-                }
-              >
+              <Button size="sm" disabled={isBusy} onClick={() => void handleConnect()}>
                 Connect {app.name}
               </Button>
             )}

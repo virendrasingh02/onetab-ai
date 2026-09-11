@@ -984,6 +984,7 @@ export function AsanaProjectManager() {
             {viewMode === 'board' && (
               <KanbanBoard
                 workspaceId={workspaceId}
+                projectId={activeProject?.id}
                 board={board.board}
                 dispatch={board.dispatch}
                 milestones={milestones}
@@ -1166,6 +1167,7 @@ export function AsanaProjectManager() {
       {selectedCardId && (
         <CardDetailsDialog
           workspaceId={workspaceId}
+          projectId={activeProject?.id}
           board={board.board}
           cardId={selectedCardId}
           dispatch={board.dispatch}

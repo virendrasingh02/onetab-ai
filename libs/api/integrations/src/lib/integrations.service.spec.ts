@@ -11,6 +11,10 @@ import { WebhookService } from './core/webhook.service.js';
 import { IntegrationsService } from './integrations.service.js';
 import { CustomApiProvider } from './providers/custom-api.provider.js';
 import { GmailProvider } from './providers/gmail.provider.js';
+import { GoogleCalendarProvider } from './providers/google-calendar.provider.js';
+import { GoogleDocsProvider } from './providers/google-docs.provider.js';
+import { GoogleDriveProvider } from './providers/google-drive.provider.js';
+import { GoogleSheetsProvider } from './providers/google-sheets.provider.js';
 import { OneTabAppProvider } from './providers/onetab-app.provider.js';
 
 describe('IntegrationsService', () => {
@@ -69,6 +73,10 @@ describe('IntegrationsService', () => {
     const permissions = new IntegrationPermissionService(mockPrisma);
 
     const gmailProvider = new GmailProvider(configService);
+    const googleCalendarProvider = new GoogleCalendarProvider(configService);
+    const googleDriveProvider = new GoogleDriveProvider(configService);
+    const googleDocsProvider = new GoogleDocsProvider(configService);
+    const googleSheetsProvider = new GoogleSheetsProvider(configService);
     const customApiProvider = new CustomApiProvider(ssrfGuard);
     const oneTabAppProvider = new OneTabAppProvider();
 
@@ -77,6 +85,10 @@ describe('IntegrationsService', () => {
       encryption,
       webhook,
       gmailProvider,
+      googleCalendarProvider,
+      googleDriveProvider,
+      googleDocsProvider,
+      googleSheetsProvider,
       customApiProvider,
       oneTabAppProvider,
     );

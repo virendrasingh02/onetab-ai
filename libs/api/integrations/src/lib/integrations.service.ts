@@ -83,7 +83,14 @@ export class IntegrationsService {
     const startTime = Date.now();
     const providerKey = params.provider.toUpperCase();
     const adapter = this.manager.getAdapter(providerKey);
-    const scopeType = params.scopeType ?? (providerKey === 'GMAIL' ? 'USER' : 'WORKSPACE');
+    const USER_SCOPED_PROVIDERS = new Set([
+      'GMAIL',
+      'GOOGLE_CALENDAR',
+      'GOOGLE_DRIVE',
+      'GOOGLE_DOCS',
+      'GOOGLE_SHEETS',
+    ]);
+    const scopeType = params.scopeType ?? (USER_SCOPED_PROVIDERS.has(providerKey) ? 'USER' : 'WORKSPACE');
 
     // OAuth flow
     if (adapter.getCapabilities().authType === 'OAUTH2') {

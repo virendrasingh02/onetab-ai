@@ -154,6 +154,15 @@ export const queryKeys = {
       ['integrations', workspaceId, 'thread', integrationId, threadId] as const,
     syncJobs: (workspaceId: string, integrationId: string) =>
       ['integrations', workspaceId, 'sync-jobs', integrationId] as const,
+    actions: (workspaceId: string, integrationId: string) =>
+      ['integrations', workspaceId, 'actions', integrationId] as const,
+    actionResult: (
+      workspaceId: string,
+      integrationId: string,
+      actionId: string,
+      input?: Record<string, unknown>,
+    ) =>
+      ['integrations', workspaceId, 'action-result', integrationId, actionId, input] as const,
   },
   admin: {
     all: () => ['admin'] as const,

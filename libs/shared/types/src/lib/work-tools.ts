@@ -170,6 +170,14 @@ export interface TaskProjectRef extends IconSelection {
   ticketPrefix?: string | null;
 }
 
+/** The slim task carried on each side of a relation — `getRelations`' `select`. */
+export interface RelationTaskRef {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  identifier?: string | null;
+}
+
 export interface WorkItemRelation {
   id: string;
   workspaceId: string;
@@ -177,7 +185,9 @@ export interface WorkItemRelation {
   targetId: string;
   type: RelationType;
   createdAt: IsoDateString;
-  targetWorkItem?: Task;
+  /** The relation's own ends, as the API actually returns them. */
+  source?: RelationTaskRef;
+  target?: RelationTaskRef;
 }
 
 export interface Task {
@@ -222,6 +232,7 @@ export interface Task {
   assigneeIds?: string[];
   reporter?: PublicUser | null;
   project: TaskProjectRef | null;
+  team?: Team | null;
   epic?: Epic | null;
   module?: Module | null;
   cycle?: Cycle | null;

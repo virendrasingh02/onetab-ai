@@ -1,5 +1,6 @@
 import { integrationsApi, queryKeys } from '@org/api-client';
 import type {
+  AppActionResult,
   IntegrationExecuteRequestInput,
   ReplyMessageInput,
   SendMessageInput,
@@ -97,6 +98,95 @@ export function useIntegrationSyncJobs(
       integrationsApi.getSyncJobs(workspaceId as string, integrationId as string),
     enabled: !!workspaceId && !!integrationId,
     refetchInterval: 5_000, // poll while viewing sync jobs
+  });
+}
+
+/**
+ * The named actions a connected app exposes (`getActions()` on its
+ * provider adapter) — the same list `AppMatrixBridgeService` uses to answer
+ * `/help` in the app's chat DM, surfaced here so a bespoke viewer UI (e.g.
+ * `GoogleCalendarModal`) can call the exact same backend action rather than
+ * duplicating request logic per screen.
+ */
+export function useIntegrationActions(
+  workspaceId: string | undefined,
+  integrationId: string | undefined,
+) {
+  return useQuery({
+    queryKey: queryKeys.integrations.actions(workspaceId ?? '', integrationId ?? ''),
+    queryFn: () => integrationsApi.getActions(workspaceId as string, integrationId as string),
+    enabled: !!workspaceId && !!integrationId,
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * Runs one registered action. Read actions (`requiresConfirmation: false`)
+ * can be called immediately; a write/destructive action must be called again
+ * with `confirm: true` once the user has approved a preview — the server
+ * refuses it otherwise (`IntegrationsService.executeAction`).
+ */
+export function useExecuteIntegrationAction(workspaceId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      integrationId,
+      actionId,
+      input,
+      confirm,
+    }: {
+      integrationId: string;
+      actionId: string;
+      input?: Record<string, unknown>;
+      confirm?: boolean;
+    }): Promise<AppActionResult> =>
+      integrationsApi.executeAction(workspaceId as string, integrationId, actionId, {
+        input,
+        confirm,
+      }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.integrations.all(workspaceId ?? ''),
+      }),
+  });
+}
+
+/**
+ * Runs a read-only action (`requiresConfirmation: false`) as a cached query
+ * instead of an imperative mutation — the shape a list/detail screen wants
+ * (e.g. Calendar's `list_events`, Drive's `search_files`). Never use this for
+ * a write/destructive action: those belong behind `useExecuteIntegrationAction`
+ * so the confirm step is explicit.
+ */
+export function useIntegrationActionQuery<T = unknown>(
+  workspaceId: string | undefined,
+  integrationId: string | undefined,
+  actionId: string | undefined,
+  input?: Record<string, unknown>,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: queryKeys.integrations.actionResult(
+      workspaceId ?? '',
+      integrationId ?? '',
+      actionId ?? '',
+      input,
+    ),
+    queryFn: async () => {
+      const result = await integrationsApi.executeAction(
+        workspaceId as string,
+        integrationId as string,
+        actionId as string,
+        { input },
+      );
+      if (!result.success) {
+        throw new Error(result.message || `${actionId} failed.`);
+      }
+      return result.data as T;
+    },
+    enabled:
+      !!workspaceId && !!integrationId && !!actionId && (options?.enabled ?? true),
+    staleTime: 15_000,
   });
 }
 
