@@ -1,6 +1,8 @@
 import { channelApi, queryKeys } from '@org/api-client';
-import { Composer, MarkdownMessage } from '@org/chat-ui';
-import type { Message } from '@org/matrix-client';
+import { useMessageDensity } from '@org/common';
+import { AttachmentRenderer, Composer, MessageRenderer } from '@org/chat-ui';
+import type { Message, RoomKind, RoomMember } from '@org/matrix-client';
+import { attachmentToMediaItem, useMediaPreview } from '@org/media-preview';
 import {
   Badge,
   Button,
@@ -10,19 +12,12 @@ import {
   Tabs,
   TabsList,
   TabsTrigger,
-  UserAvatar,
 } from '@org/ui';
-import { cn, formatListTimestamp, formatRelative } from '@org/utils';
+import { formatRelative } from '@org/utils';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { useQuery } from '@tanstack/react-query';
-import {
-  ArrowUpRight,
-  ChevronDown,
-  Hash,
-  MessagesSquare,
-  Paperclip,
-} from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowUpRight, Hash, MessagesSquare } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useMatrix } from './matrix-provider.js';
 import { useAllThreads, type CrossRoomThread } from './use-all-threads.js';
@@ -50,171 +45,213 @@ function useChannelLink(
   }, [thread, workspaceSlug, channelSlugByName]);
 }
 
-/* --- one message row inside an opened thread ----------------------------- */
+/** Every thread bucketed under the specific channel or DM it belongs to. */
+interface RoomThreadGroup {
+  roomId: string;
+  roomName: string;
+  roomKind: RoomKind;
+  threads: CrossRoomThread[];
+  lastActivity: number;
+  unreadCount: number;
+}
 
-function ThreadMessage({
-  message,
-  isOwn,
-  mentionNames,
-}: {
-  message: Message;
-  isOwn: boolean;
-  mentionNames: string[];
-}) {
-  return (
-    <div className="flex items-start gap-2.5">
-      <UserAvatar
-        name={message.senderName}
-        src={message.senderAvatarUrl}
-        seed={message.senderId}
-        size="sm"
-        indicator={false}
-      />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2">
-          <span className="text-xs font-semibold text-foreground">
-            {message.senderName}
-          </span>
-          {isOwn ? (
-            <span className="text-[10px] font-normal text-subtle">you</span>
-          ) : null}
-          <span className="shrink-0 text-[10px] text-subtle">
-            {formatListTimestamp(message.timestamp)}
-          </span>
-          {message.sendState === 'sending' ? (
-            <span className="text-[10px] text-subtle">sending…</span>
-          ) : null}
-          {message.sendState === 'failed' ? (
-            <span className="text-[10px] font-medium text-destructive">
-              failed to send
-            </span>
-          ) : null}
-        </div>
+/** Groups a mixed thread list by the exact room it hangs off, most active room first. */
+function groupThreadsByRoom(items: CrossRoomThread[]): RoomThreadGroup[] {
+  const byRoom = new Map<string, RoomThreadGroup>();
 
-        {message.isRedacted ? (
-          <p className="mt-0.5 text-[13px] italic text-subtle">
-            This message was deleted.
-          </p>
-        ) : message.body ? (
-          <MarkdownMessage
-            text={message.body}
-            mentionNames={mentionNames}
-            className="mt-0.5"
-          />
-        ) : null}
+  for (const thread of items) {
+    let group = byRoom.get(thread.roomId);
+    if (!group) {
+      group = {
+        roomId: thread.roomId,
+        roomName: thread.roomName,
+        roomKind: thread.roomKind,
+        threads: [],
+        lastActivity: 0,
+        unreadCount: 0,
+      };
+      byRoom.set(thread.roomId, group);
+    }
+    group.threads.push(thread);
+    group.lastActivity = Math.max(group.lastActivity, thread.lastReplyAt ?? 0);
+    if (thread.hasUnread) group.unreadCount += 1;
+  }
 
-        {message.attachment ? (
-          <a
-            href={message.attachment.url}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-1 inline-flex max-w-full items-center gap-1 text-xs text-primary-text hover:underline"
-          >
-            <Paperclip className="size-3 shrink-0" aria-hidden />
-            <span className="truncate">{message.attachment.name}</span>
-          </a>
-        ) : null}
-      </div>
-    </div>
+  return [...byRoom.values()].sort((a, b) => b.lastActivity - a.lastActivity);
+}
+
+/** Renders a message's file attachment the same way a channel timeline does. */
+function useAttachmentSlot() {
+  const { openPreview } = useMediaPreview();
+
+  return useCallback(
+    (message: Message): ReactNode => {
+      const attachment = message.attachment;
+      if (!attachment) return undefined;
+      return (
+        <AttachmentRenderer
+          attachment={attachment}
+          kind={message.kind}
+          onOpen={() =>
+            openPreview([
+              attachmentToMediaItem(attachment, message.kind, message.id, {
+                senderId: message.senderId,
+                senderName: message.senderName,
+                senderAvatarUrl: message.senderAvatarUrl,
+                timestamp: message.timestamp,
+              }),
+            ])
+          }
+        />
+      );
+    },
+    [openPreview],
   );
 }
 
-/* --- an opened thread: root, replies, and a live reply box -------------- */
+/* --- an opened thread's replies and a live reply box --------------------- */
 
 function ThreadDetail({
   thread,
   channelLink,
+  members,
+  mentionNames,
+  actions,
+  myUserId,
+  editing,
+  setEditing,
+  attachmentSlot,
+  density,
 }: {
   thread: CrossRoomThread;
   channelLink: string;
+  members: RoomMember[];
+  mentionNames: string[];
+  actions: ReturnType<typeof useRoomActions>;
+  myUserId: string | undefined;
+  editing: Message | null;
+  setEditing: (message: Message | null) => void;
+  attachmentSlot: (message: Message) => ReactNode;
+  density: 'comfy' | 'compact';
 }) {
-  const { client } = useMatrix();
-  const { members } = useRoomSummary(thread.roomId);
-  const actions = useRoomActions(thread.roomId);
   const { messages, isLoading, send, markRead } = useThreadConversation(
     thread.roomId,
     thread.id,
   );
-
-  const myUserId = client?.getSession()?.userId;
 
   // Opening an unread thread catches its read marker up to the latest reply.
   useEffect(() => {
     if (thread.hasUnread) markRead();
   }, [markRead, thread.hasUnread]);
 
-  const rootMessage =
-    thread.root ?? messages.find((message) => message.id === thread.id) ?? null;
   const replies = useMemo(
     () => messages.filter((message) => message.id !== thread.id),
     [messages, thread.id],
   );
-  const mentionNames = useMemo(
-    () => members.map((member) => member.displayName),
-    [members],
-  );
 
   const roomLabel =
-    thread.roomKind === 'channel'
-      ? `#${thread.roomName}`
-      : thread.roomKind === 'group'
-        ? thread.roomName
-        : 'conversation';
+    thread.roomKind === 'channel' ? `#${thread.roomName}` : thread.roomName;
 
   return (
-    <div className="border-t border-border bg-muted/30">
-      {rootMessage ? (
-        <div className="px-3 py-3 sm:px-4">
-          <ThreadMessage
-            message={rootMessage}
-            isOwn={rootMessage.senderId === myUserId}
-            mentionNames={mentionNames}
-          />
-        </div>
-      ) : null}
-
-      <div className="px-3 sm:px-4">
-        <div className="flex items-center gap-2 py-1 text-[11px] font-medium text-muted-foreground">
-          <span className="h-px flex-1 bg-border" aria-hidden />
-          <span>
-            {isLoading
-              ? 'Loading replies…'
-              : replies.length === 0
-                ? 'No replies yet'
-                : `${replies.length} ${replies.length === 1 ? 'reply' : 'replies'}`}
-          </span>
-          <span className="h-px flex-1 bg-border" aria-hidden />
-        </div>
-
-        {!isLoading && replies.length === 0 ? (
-          <p className="pb-3 text-xs text-subtle">
-            Be the first to reply — your message stays in this thread.
-          </p>
-        ) : (
-          <ul className="space-y-3 pb-3">
-            {replies.map((reply) => (
-              <li key={reply.id}>
-                <ThreadMessage
-                  message={reply}
-                  isOwn={reply.senderId === myUserId}
-                  mentionNames={mentionNames}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
+    <div className="border-t border-border bg-muted/20">
+      <div className="flex items-center gap-2 px-4 py-1.5 text-[11px] font-medium text-muted-foreground">
+        <span className="h-px flex-1 bg-border" aria-hidden />
+        <span>
+          {isLoading
+            ? 'Loading replies…'
+            : replies.length === 0
+              ? 'No replies yet'
+              : `${replies.length} ${replies.length === 1 ? 'reply' : 'replies'}`}
+        </span>
+        <span className="h-px flex-1 bg-border" aria-hidden />
       </div>
+
+      {!isLoading && replies.length === 0 ? (
+        <p className="px-4 pb-3 text-xs text-subtle">
+          Be the first to reply — your message stays in this thread.
+        </p>
+      ) : (
+        <ul>
+          {replies.map((reply) => (
+            <li key={reply.id}>
+              <MessageRenderer
+                message={reply}
+                isOwn={reply.senderId === myUserId}
+                density={density}
+                mentionNames={mentionNames}
+                onReact={(key) =>
+                  void actions.toggleReaction(
+                    reply.id,
+                    key,
+                    reply.reactions.some(
+                      (reaction) =>
+                        reaction.key === key && reaction.reactedByMe,
+                    ),
+                  )
+                }
+                onEdit={
+                  reply.senderId === myUserId
+                    ? () => setEditing(reply)
+                    : undefined
+                }
+                onDelete={
+                  reply.senderId === myUserId
+                    ? () => void actions.remove(reply.id)
+                    : undefined
+                }
+                onRetry={
+                  reply.sendState === 'failed'
+                    ? () => void actions.retry(reply.id)
+                    : undefined
+                }
+                onCopyText={() =>
+                  void navigator.clipboard?.writeText(reply.body)
+                }
+                onCopyLink={() =>
+                  void navigator.clipboard?.writeText(
+                    `${window.location.origin}${window.location.pathname}#${reply.id}`,
+                  )
+                }
+                attachmentSlot={attachmentSlot(reply)}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
 
       <div className="border-t border-border bg-card px-2 py-2">
         <Composer
-          onSend={send}
+          onSend={async (body) => {
+            if (editing) {
+              await actions.edit(editing.id, body);
+              setEditing(null);
+            } else {
+              await send(body);
+            }
+          }}
           onTyping={actions.setTyping}
           onAttach={(files) => void actions.attach(files, thread.id)}
           conversationId={`thread:${thread.id}`}
           members={members}
           currentUserId={myUserId}
-          placeholder={`Reply in ${roomLabel}…`}
+          placeholder={editing ? 'Edit your message…' : `Reply in ${roomLabel}…`}
           showFormatting={false}
+          contextSlot={
+            editing ? (
+              <div className="mb-2 flex items-center gap-2 rounded-md bg-muted px-2 py-1 text-xs">
+                <span className="flex-1 truncate">
+                  Editing: {editing.body}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditing(null)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : null
+          }
         />
         <div className="flex justify-end px-1 pt-1">
           <Button
@@ -234,7 +271,7 @@ function ThreadDetail({
   );
 }
 
-/* --- collapsed thread summary ----------------------------------------------- */
+/* --- a thread's root, rendered as the same bubble the channel renders ---- */
 
 function ThreadRow({
   thread,
@@ -242,134 +279,186 @@ function ThreadRow({
   onToggle,
   workspaceSlug,
   channelSlugByName,
+  myUserId,
+  density,
 }: {
   thread: CrossRoomThread;
   open: boolean;
   onToggle: (id: string) => void;
   workspaceSlug?: string;
   channelSlugByName?: Map<string, string>;
+  myUserId?: string;
+  density: 'comfy' | 'compact';
 }) {
-  const isChannel = thread.roomKind === 'channel';
+  const { members } = useRoomSummary(thread.roomId);
+  const actions = useRoomActions(thread.roomId);
+  const attachmentSlot = useAttachmentSlot();
+  const [editing, setEditing] = useState<Message | null>(null);
   const channelLink = useChannelLink(thread, workspaceSlug, channelSlugByName);
+
+  const mentionNames = useMemo(
+    () => members.map((member) => member.displayName),
+    [members],
+  );
+
+  const threadParticipants = useMemo<RoomMember[]>(
+    () =>
+      thread.participants.map((participant) => ({
+        userId: participant.userId,
+        displayName: participant.name,
+        avatarUrl: participant.avatarUrl,
+        powerLevel: 0,
+        membership: 'join' as const,
+      })),
+    [thread.participants],
+  );
+
+  if (!thread.root) {
+    // Rare: the root hasn't synced into this room's loaded timeline yet.
+    return (
+      <li className="px-4 py-3 text-sm text-subtle">
+        {thread.authorName} started a thread — {thread.replyCount}{' '}
+        {thread.replyCount === 1 ? 'reply' : 'replies'}.
+      </li>
+    );
+  }
+  const root = thread.root;
 
   return (
     <li>
-      <Card
-        className={cn(
-          'gap-0 overflow-hidden p-0 bg-card transition-colors',
-          open ? 'border-border-strong' : 'hover:border-border-strong',
-        )}
-      >
-        <button
-          type="button"
-          onClick={() => onToggle(thread.id)}
-          aria-expanded={open}
-          className="flex w-full items-start gap-3 p-3 text-left outline-none focus-visible:bg-muted/40 sm:p-4"
-        >
-          <UserAvatar
-            name={thread.authorName}
-            src={thread.root?.senderAvatarUrl}
-            seed={thread.root?.senderId ?? thread.id}
-            size="md"
-            indicator={false}
-          />
+      <MessageRenderer
+        message={root}
+        isOwn={root.senderId === myUserId}
+        density={density}
+        mentionNames={mentionNames}
+        threadReplyCount={thread.replyCount}
+        threadHasUnread={thread.hasUnread}
+        threadParticipants={threadParticipants}
+        lastReplyAt={thread.lastReplyAt}
+        onOpenThread={() => onToggle(thread.id)}
+        onReact={(key) =>
+          void actions.toggleReaction(
+            root.id,
+            key,
+            root.reactions.some(
+              (reaction) => reaction.key === key && reaction.reactedByMe,
+            ),
+          )
+        }
+        onEdit={
+          root.senderId === myUserId
+            ? () => {
+                setEditing(root);
+                if (!open) onToggle(thread.id);
+              }
+            : undefined
+        }
+        onDelete={
+          root.senderId === myUserId
+            ? () => void actions.remove(root.id)
+            : undefined
+        }
+        onRetry={
+          root.sendState === 'failed'
+            ? () => void actions.retry(root.id)
+            : undefined
+        }
+        onCopyText={() => void navigator.clipboard?.writeText(root.body)}
+        onCopyLink={() =>
+          void navigator.clipboard?.writeText(
+            `${window.location.origin}${window.location.pathname}#${root.id}`,
+          )
+        }
+        attachmentSlot={attachmentSlot(root)}
+      />
 
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="truncate text-sm font-semibold text-foreground">
-                {thread.authorName}
-              </span>
-              <span className="inline-flex h-5 items-center gap-1 rounded-md border border-border bg-muted/60 px-1.5 text-[11px] font-medium text-muted-foreground">
-                {isChannel ? (
-                  <Hash className="size-3 shrink-0" aria-hidden />
-                ) : (
-                  <MessagesSquare className="size-3 shrink-0" aria-hidden />
-                )}
-                <span className="max-w-[16ch] truncate">{thread.roomName}</span>
-              </span>
-              {thread.hasUnread ? (
-                <Badge variant="primary" className="h-4 py-0 text-[10px]">
-                  Unread
-                </Badge>
-              ) : null}
-              {thread.lastReplyAt ? (
-                <span className="ml-auto shrink-0 font-mono text-[11px] text-subtle">
-                  {formatRelative(new Date(thread.lastReplyAt).toISOString())}
-                </span>
-              ) : null}
-            </div>
-
-            <p
-              className={cn(
-                'mt-1.5 text-sm leading-relaxed text-foreground',
-                !open && 'line-clamp-2',
-              )}
-            >
-              {thread.title}
-            </p>
-
-            <div className="mt-2 flex items-center gap-2">
-              {thread.participants.length > 0 ? (
-                <span className="flex items-center -space-x-1.5">
-                  {thread.participants.slice(0, 3).map((participant) => (
-                    <UserAvatar
-                      key={participant.userId}
-                      name={participant.name}
-                      src={participant.avatarUrl}
-                      seed={participant.userId}
-                      size="xs"
-                      indicator={false}
-                      className="ring-2 ring-card"
-                    />
-                  ))}
-                </span>
-              ) : null}
-              <span className="text-xs font-medium text-primary-text">
-                {thread.replyCount}{' '}
-                {thread.replyCount === 1 ? 'reply' : 'replies'}
-              </span>
-              <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
-                {open ? 'Hide thread' : 'Open & reply'}
-                <ChevronDown
-                  className={cn(
-                    'size-3.5 transition-transform',
-                    open && 'rotate-180',
-                  )}
-                  aria-hidden
-                />
-              </span>
-            </div>
-          </div>
-        </button>
-
-        {open ? (
-          <ThreadDetail thread={thread} channelLink={channelLink} />
-        ) : null}
-      </Card>
+      {open ? (
+        <ThreadDetail
+          thread={thread}
+          channelLink={channelLink}
+          members={members}
+          mentionNames={mentionNames}
+          actions={actions}
+          myUserId={myUserId}
+          editing={editing}
+          setEditing={setEditing}
+          attachmentSlot={attachmentSlot}
+          density={density}
+        />
+      ) : null}
     </li>
   );
 }
 
-/** Buckets a mixed thread list into the sidebar's own top-level categories. */
-const THREAD_GROUPS: ReadonlyArray<{
-  key: string;
-  label: string;
-  icon: typeof Hash;
-  match: (thread: CrossRoomThread) => boolean;
-}> = [
-  {
-    key: 'channels',
-    label: 'Channels',
-    icon: Hash,
-    match: (thread) => thread.roomKind === 'channel',
-  },
-  {
-    key: 'dms',
-    label: 'Direct Messages',
-    icon: MessagesSquare,
-    match: (thread) => thread.roomKind !== 'channel',
-  },
-];
+/* --- one room's threads, under its own channel/DM heading ---------------- */
+
+function RoomThreadSection({
+  group,
+  openIds,
+  onToggle,
+  workspaceSlug,
+  channelSlugByName,
+  myUserId,
+  density,
+}: {
+  group: RoomThreadGroup;
+  openIds: ReadonlySet<string>;
+  onToggle: (id: string) => void;
+  workspaceSlug?: string;
+  channelSlugByName?: Map<string, string>;
+  myUserId?: string;
+  density: 'comfy' | 'compact';
+}) {
+  const isChannel = group.roomKind === 'channel';
+
+  return (
+    <section>
+      <div className="mb-2 flex items-center gap-1.5 px-1">
+        {isChannel ? (
+          <Hash className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        ) : (
+          <MessagesSquare
+            className="size-3.5 shrink-0 text-muted-foreground"
+            aria-hidden
+          />
+        )}
+        <h3 className="truncate text-[13px] font-semibold text-foreground">
+          {group.roomName}
+        </h3>
+        <Badge variant="neutral" className="h-4 px-1.5 py-0 text-[10px]">
+          {group.threads.length}
+        </Badge>
+        {group.unreadCount > 0 ? (
+          <Badge variant="primary" className="h-4 px-1.5 py-0 text-[10px]">
+            {group.unreadCount} unread
+          </Badge>
+        ) : null}
+        {group.lastActivity ? (
+          <span className="ml-auto shrink-0 font-mono text-[11px] text-subtle">
+            {formatRelative(new Date(group.lastActivity).toISOString())}
+          </span>
+        ) : null}
+      </div>
+
+      <Card className="gap-0 overflow-hidden p-0">
+        <ul className="divide-y divide-border">
+          {group.threads.map((thread) => (
+            <ThreadRow
+              key={thread.id}
+              thread={thread}
+              open={openIds.has(thread.id)}
+              onToggle={onToggle}
+              workspaceSlug={workspaceSlug}
+              channelSlugByName={channelSlugByName}
+              myUserId={myUserId}
+              density={density}
+            />
+          ))}
+        </ul>
+      </Card>
+    </section>
+  );
+}
 
 function ThreadList({
   items,
@@ -380,6 +469,8 @@ function ThreadList({
   workspaceSlug,
   firstChannelSlug,
   channelSlugByName,
+  myUserId,
+  density,
 }: {
   items: CrossRoomThread[];
   isLoading: boolean;
@@ -389,15 +480,10 @@ function ThreadList({
   workspaceSlug?: string;
   firstChannelSlug?: string;
   channelSlugByName?: Map<string, string>;
+  myUserId?: string;
+  density: 'comfy' | 'compact';
 }) {
-  const groups = useMemo(
-    () =>
-      THREAD_GROUPS.map((group) => ({
-        ...group,
-        items: items.filter(group.match),
-      })).filter((group) => group.items.length > 0),
-    [items],
-  );
+  const groups = useMemo(() => groupThreadsByRoom(items), [items]);
 
   if (isLoading) return <LoadingState label="Loading threads…" />;
 
@@ -426,40 +512,28 @@ function ThreadList({
 
   return (
     <div className="space-y-6">
-      {groups.map((group) => {
-        const Icon = group.icon;
-        return (
-          <section key={group.key}>
-            <h3 className="mb-2.5 flex items-center gap-1.5 px-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              <Icon className="size-3.5" aria-hidden />
-              <span>{group.label}</span>
-              <Badge variant="neutral" className="h-4 px-1.5 py-0 text-[10px]">
-                {group.items.length}
-              </Badge>
-            </h3>
-            <ul className="space-y-2.5">
-              {group.items.map((thread) => (
-                <ThreadRow
-                  key={thread.id}
-                  thread={thread}
-                  open={openIds.has(thread.id)}
-                  onToggle={onToggle}
-                  workspaceSlug={workspaceSlug}
-                  channelSlugByName={channelSlugByName}
-                />
-              ))}
-            </ul>
-          </section>
-        );
-      })}
+      {groups.map((group) => (
+        <RoomThreadSection
+          key={group.roomId}
+          group={group}
+          openIds={openIds}
+          onToggle={onToggle}
+          workspaceSlug={workspaceSlug}
+          channelSlugByName={channelSlugByName}
+          myUserId={myUserId}
+          density={density}
+        />
+      ))}
     </div>
   );
 }
 
 /**
- * Every thread the reader can see, across rooms, in one place — each one
- * openable inline with its replies and a live reply box, so following up never
- * means leaving this page.
+ * Every thread the reader can see, across rooms, in one place — grouped under
+ * the exact channel or DM it belongs to and rendered with the same bubble a
+ * channel timeline uses, so a thread here looks and behaves like it does in
+ * the conversation it came from. Each one opens inline with its replies and a
+ * live reply box, so following up never means leaving this page.
  */
 export function ThreadsView() {
   const [tab, setTab] = useState('all');
@@ -467,6 +541,13 @@ export function ThreadsView() {
     () => new Set<string>(),
   );
   const { slug, workspaceId } = useCurrentWorkspace();
+  const { client } = useMatrix();
+  // Read here so this view stays consistent with whatever comfy/compact
+  // preference the reader already set for channels — ChatBubble is a
+  // controlled component and needs it passed explicitly.
+  const density = useMessageDensity();
+
+  const myUserId = client?.getSession()?.userId;
 
   const channelsQuery = useQuery({
     queryKey: queryKeys.channels.list(workspaceId ?? '', false),
@@ -546,22 +627,22 @@ export function ThreadsView() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-6">
-        <div className="mx-auto max-w-3xl">
-          <ThreadList
-            items={activeThreads}
-            isLoading={isLoading}
-            emptyDescription={
-              tab === 'unread'
-                ? 'You are caught up on every thread.'
-                : 'Reply in a thread from any channel and it will collect here.'
-            }
-            openIds={openIds}
-            onToggle={toggle}
-            workspaceSlug={slug}
-            firstChannelSlug={firstChannel}
-            channelSlugByName={channelSlugByName}
-          />
-        </div>
+        <ThreadList
+          items={activeThreads}
+          isLoading={isLoading}
+          emptyDescription={
+            tab === 'unread'
+              ? 'You are caught up on every thread.'
+              : 'Reply in a thread from any channel and it will collect here.'
+          }
+          openIds={openIds}
+          onToggle={toggle}
+          workspaceSlug={slug}
+          firstChannelSlug={firstChannel}
+          channelSlugByName={channelSlugByName}
+          myUserId={myUserId}
+          density={density}
+        />
       </div>
     </div>
   );

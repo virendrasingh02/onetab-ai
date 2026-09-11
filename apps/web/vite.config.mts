@@ -229,10 +229,26 @@ export default defineConfig(() => ({
     // the module is served raw and the browser's native ESM loader can't
     // find a `default` export on a `module.exports =` file. Listing it
     // explicitly forces it through the interop-providing bundle every time.
+    // `@org/matrix-client` (a workspace package, so excluded below and served
+    // as live source) reaches past the `matrix-js-sdk` package entry into
+    // `matrix-js-sdk/lib/webrtc/call.js` (CallErrorCode) and
+    // `matrix-js-sdk/lib/crypto-api/index.js` (CryptoEvent). Including only the
+    // package root does not pre-bundle those deep files, so they get served
+    // raw — and with them their CJS-only leaf deps (`loglevel`, `debug`,
+    // `sdp-transform`, `bs58`), whose `module.exports =` shape has no `default`
+    // export for the browser's native ESM loader. The first one hit
+    // (`import loglevel from "loglevel"` in `lib/logger.js`) throws a
+    // SyntaxError that aborts the whole app to a blank screen. Listing the
+    // deep entry points forces esbuild to pre-bundle them with real interop;
+    // the bare CJS names are belt-and-suspenders for any other deep path.
     include: [
       'react',
       'react-dom',
       'matrix-js-sdk',
+      'matrix-js-sdk/lib/webrtc/call.js',
+      'matrix-js-sdk/lib/crypto-api/index.js',
+      'loglevel',
+      'debug',
       'prismjs',
       'use-sync-external-store/shim/with-selector.js',
     ],

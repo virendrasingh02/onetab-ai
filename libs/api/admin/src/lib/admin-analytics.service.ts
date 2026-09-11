@@ -1277,7 +1277,7 @@ export class AdminAnalyticsService {
   // 10. Location Analytics (Privacy-safe)
   // ---------------------------------------------------------------------------
 
-  async getLocationAnalytics(filter?: AdminAnalyticsFilter): Promise<AdminLocationAnalytics> {
+  async getLocationAnalytics(_filter?: AdminAnalyticsFilter): Promise<AdminLocationAnalytics> {
     const users = await this.prisma.user.findMany({
       select: { timezone: true },
       take: 5000,
@@ -1432,7 +1432,7 @@ export class AdminAnalyticsService {
   // 12. Subscription Analytics
   // ---------------------------------------------------------------------------
 
-  async getSubscriptionAnalytics(filter?: AdminAnalyticsFilter): Promise<AdminSubscriptionAnalytics> {
+  async getSubscriptionAnalytics(_filter?: AdminAnalyticsFilter): Promise<AdminSubscriptionAnalytics> {
     const subscriptions = await this.prisma.workspaceSubscription.findMany({
       select: { planTier: true, status: true },
     });
@@ -1491,7 +1491,7 @@ export class AdminAnalyticsService {
   // 13. Engagement Analytics
   // ---------------------------------------------------------------------------
 
-  async getEngagementAnalytics(filter?: AdminAnalyticsFilter): Promise<AdminEngagementAnalytics> {
+  async getEngagementAnalytics(_filter?: AdminAnalyticsFilter): Promise<AdminEngagementAnalytics> {
     const [dauCount, wauCount, mauCount, workspaces, users] = await this.prisma.$transaction([
       this.prisma.refreshToken.groupBy({
         by: ['userId'],
@@ -1595,7 +1595,7 @@ export class AdminAnalyticsService {
     format: 'json' | 'csv' = 'csv',
     filter?: AdminAnalyticsFilter,
   ): Promise<string> {
-    let data: Record<string, unknown>[] = [];
+    let data: Record<string, unknown>[];
 
     switch (type) {
       case 'users': {
@@ -1645,7 +1645,7 @@ export class AdminAnalyticsService {
       }
       default: {
         const res = await this.getOverview(filter);
-        data = Object.entries(res.platformKpis).map(([k, v]) => ({
+        data = Object.entries(res.platformKpis).map(([, v]) => ({
           Metric: v.label,
           Value: v.value,
           Previous: v.previousValue ?? '—',

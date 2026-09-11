@@ -13,20 +13,11 @@ import {
   useRightPanelStore,
 } from '@org/ui';
 import {
-  describeTimezone,
-  formatZoneDifference,
-  getRegionForTimezone,
-  getSystemTimezone,
-  getWorkingHoursStatus,
-} from '@org/utils';
-import {
   Calendar,
-  Clock,
   Headphones,
   Mail,
   MessageSquare,
   Shield,
-  Sparkles,
   Zap,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -179,7 +170,7 @@ export function UserProfileCard({
 
         {/* User Avatar Row */}
         <div className="px-4 pb-3 pt-0 relative">
-          <div className="-mt-10 mb-2 flex items-end justify-between">
+          <div className="-mt-10 mb-2 flex items-end">
             <UserAvatar
               name={name}
               src={avatarUrl}
@@ -190,14 +181,6 @@ export function UserProfileCard({
               statusText={statusText}
               className="size-20 rounded-full shadow-lg ring-4 ring-popover"
             />
-
-            <Button
-              size="sm"
-              onClick={handleClick}
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover"
-            >
-              Right Bar Details
-            </Button>
           </div>
 
           {/* Display Name & Handle */}
@@ -243,71 +226,14 @@ export function UserProfileCard({
               </p>
             </div>
 
-            <div>
-              <p className="font-bold tracking-wider text-[10px] text-muted-foreground uppercase">
-                Roles
-              </p>
-              <div className="mt-1 gap-1 flex flex-wrap">
-                <Badge
-                  variant="neutral"
-                  className="border-border bg-surface text-foreground"
-                >
-                  {role}
-                </Badge>
-                <Badge
-                  variant="neutral"
-                  className="border-primary/40 bg-surface text-primary-text"
-                >
-                  Power {powerLevel}
-                </Badge>
-              </div>
-            </div>
-
-            {/* Timezone & Region section */}
-            <div>
-              <p className="font-bold tracking-wider text-[10px] text-muted-foreground uppercase">
-                Local Time & Region
-              </p>
-              {(() => {
-                const userTimezone = timezone || 'UTC';
-                const reg = getRegionForTimezone(userTimezone);
-                const viewerZone = getSystemTimezone();
-                const diff = formatZoneDifference(userTimezone, viewerZone);
-                const workStatus = getWorkingHoursStatus(userTimezone);
-
-                return (
-                  <div className="mt-1 p-2 text-xs flex items-center justify-between rounded-lg border border-border bg-surface">
-                    <div className="gap-2 min-w-0 flex items-center">
-                      <span className="text-base leading-none">{reg.flag}</span>
-                      <div className="min-w-0">
-                        <div className="font-medium truncate text-foreground">
-                          {describeTimezone(userTimezone)}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground">
-                          {diff === 'same time as you'
-                            ? 'Same time as you'
-                            : diff}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="shrink-0 text-right">
-                      <LocalTime
-                        timezone={userTimezone}
-                        className="font-bold text-xs font-mono text-foreground"
-                      />
-                      <div className="gap-1 flex items-center justify-end text-[10px] text-muted-foreground">
-                        <span>{workStatus.icon}</span>
-                        <span>
-                          {workStatus.status === 'working'
-                            ? 'Working'
-                            : 'Off-hours'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
+            {/* Local time — just the clock and the time, nothing else. */}
+            <div className="gap-1.5 flex items-center text-muted-foreground">
+              <LocalTime
+                timezone={timezone || 'UTC'}
+                icon
+                className="font-medium text-foreground"
+              />
+              <span>local time</span>
             </div>
           </div>
 
@@ -379,13 +305,8 @@ export function UserProfileRightPanel({
         style={{
           background: `linear-gradient(135deg, ${userColor} 0%, var(--surface-inset) 100%)`,
         }}
-        className="h-24 p-4 relative flex w-full items-start justify-between"
-      >
-        <span className="bg-black/40 px-2.5 py-1 font-bold text-white backdrop-blur-xs gap-1 flex items-center rounded-full text-[10px]">
-          <Sparkles className="size-3 text-warning-text" />
-          User Profile
-        </span>
-      </div>
+        className="h-24 relative w-full"
+      />
 
       {/* Profile Details Content Body */}
       <ScrollArea
@@ -478,52 +399,15 @@ export function UserProfileRightPanel({
 
         <hr className="border-border" />
 
-        {/* Local Time & Region */}
-        {(() => {
-          const userTimezone = timezone || 'UTC';
-          const reg = getRegionForTimezone(userTimezone);
-          const viewerZone = getSystemTimezone();
-          const diff = formatZoneDifference(userTimezone, viewerZone);
-          const workStatus = getWorkingHoursStatus(userTimezone);
-
-          return (
-            <div className="p-3 space-y-2 text-xs rounded-xl border border-border bg-surface-inset/50">
-              <div className="flex items-center justify-between">
-                <div className="gap-1.5 font-bold tracking-wider flex items-center text-[10px] text-muted-foreground uppercase">
-                  <Clock className="size-3 text-primary-text" />
-                  <span>Local Time</span>
-                </div>
-                <div className="gap-1 font-medium flex items-center text-[10px] text-muted-foreground">
-                  <span>{workStatus.icon}</span>
-                  <span>
-                    {workStatus.status === 'working'
-                      ? 'Working hours'
-                      : 'Off-hours'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="pt-0.5 flex items-center justify-between">
-                <div className="gap-2 min-w-0 flex items-center">
-                  <span className="text-base leading-none">{reg.flag}</span>
-                  <div className="min-w-0">
-                    <div className="font-semibold text-xs truncate text-foreground">
-                      {describeTimezone(userTimezone)}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {diff === 'same time as you' ? 'Same time as you' : diff}
-                    </div>
-                  </div>
-                </div>
-
-                <LocalTime
-                  timezone={userTimezone}
-                  className="font-bold text-sm font-mono text-foreground"
-                />
-              </div>
-            </div>
-          );
-        })()}
+        {/* Local time — just the clock and the time, nothing else. */}
+        <div className="gap-1.5 flex items-center text-xs text-muted-foreground">
+          <LocalTime
+            timezone={timezone || 'UTC'}
+            icon
+            className="font-medium text-foreground"
+          />
+          <span>local time</span>
+        </div>
 
         {/* Bio & Details */}
         <div className="space-y-3 text-xs">

@@ -326,6 +326,20 @@ export function MessageList({
     estimateSize: () => 64,
     overscan: 8,
     getItemKey: (index) => rows[index]?.key ?? index,
+    /*
+     * The default `flushSync`-driven re-render fires synchronously the
+     * instant a row's real height is measured — which happens from inside
+     * React's commit phase (`measureElement` is a ref callback). Bubbles with
+     * variable height (attachments, reactions, structured cards) all measure
+     * on mount, so opening or scrolling a busy channel fired a burst of
+     * synchronous re-renders stacked on top of the render already in
+     * progress: React logs "flushSync was called from inside a lifecycle
+     * method" and paints each correction separately, which is what read as
+     * the timeline flickering instead of settling smoothly like Slack's.
+     * Letting these go through the normal React update queue instead batches
+     * them into one paint.
+     */
+    useFlushSync: false,
   });
 
   const totalSize = virtualizer.getTotalSize();

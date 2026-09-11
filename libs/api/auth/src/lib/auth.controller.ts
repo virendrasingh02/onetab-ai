@@ -95,7 +95,7 @@ export class AuthController {
   @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   async register(
     @Body(zodBody(registerSchema)) body: RegisterInput,
     @Req() request: Request,
@@ -187,7 +187,10 @@ export class AuthController {
 
   @Public()
   @Post('forgot-password')
-  @HttpCode(HttpStatus.OK)
+  // 202 Accepted: the request is acknowledged and a reset link is dispatched
+  // out of band. The body carries only a generic message (never an
+  // account-existence signal).
+  @HttpCode(HttpStatus.ACCEPTED)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   async forgotPassword(
     @Body(zodBody(forgotPasswordSchema)) body: ForgotPasswordInput,

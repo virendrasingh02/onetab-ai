@@ -57,6 +57,13 @@ import { AppService } from './app.service';
           },
         ],
         storage,
+        // Rate limiting is an abuse control for production. Outside it — local
+        // dev, and the e2e suite, whose specs share one API instance's global
+        // counters — it only gets in the way, so it is off unless this is a
+        // production build or THROTTLE_ENABLED is set explicitly.
+        skipIf: () =>
+          process.env['NODE_ENV'] !== 'production' &&
+          process.env['THROTTLE_ENABLED'] !== 'true',
       }),
     }),
     // In-process domain event bus. Producers emit `AppEvent.*`; listener
