@@ -5,6 +5,40 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 /**
+ * Hostnames allowed to reach the dev server and the preview server through the
+ * Host header — mirrors apps/web/vite.config.mts so the console can be shared
+ * the same way the web app is. `.trycloudflare.com` covers `cloudflared
+ * tunnel --url http://localhost:4201` (random subdomain per run);
+ * `.cfargotunnel.com` covers a named tunnel addressed by its UUID. A tunnel
+ * routed at your own domain also needs that domain added here.
+ */
+const TUNNEL_HOSTS = [
+  'my-custom-domain.local',
+  'host.docker.internal',
+  '.ngrok-free.app',
+  '.trycloudflare.com',
+  '.cfargotunnel.com',
+];
+
+/**
+ * A tunnel forwards exactly one local port, so the API has to be reachable
+ * through that same port for a single tunnel URL to work end to end. This
+ * proxies `/api/*` server-side to the locally running Nest API, which also
+ * sidesteps CORS entirely — the browser only ever sees the tunnel origin.
+ *
+ * Pairs with `VITE_API_URL=/api/v1` in `apps/admin/.env.local`: the client
+ * calls a same-origin relative path instead of `http://localhost:3000`,
+ * which would resolve to the *visitor's* machine over a shared tunnel. See
+ * apps/web/vite.config.mts for the full writeup.
+ */
+const API_PROXY = {
+  '/api': {
+    target: 'http://localhost:3000',
+    changeOrigin: true,
+  },
+};
+
+/**
  * Every @org/* package is a node_modules/@org/foo -> libs/**\/foo workspace
  * symlink. With preserveSymlinks: true below, Vite's optimizer can't tell
  * those apart from real node_modules dependencies and pre-bundles them,
@@ -70,6 +104,8 @@ export default defineConfig(() => ({
     port: 4201,
     strictPort: true,
     host: 'localhost',
+    allowedHosts: TUNNEL_HOSTS,
+    proxy: API_PROXY,
     watch: {
       ignored: ['!**/node_modules/@org/**', '!**/libs/**', '!**/packages/**'],
     },
@@ -78,6 +114,10 @@ export default defineConfig(() => ({
     port: 4201,
     strictPort: true,
     host: 'localhost',
+    // A shared preview build is reached through the same tunnel hostnames the
+    // dev server uses, and preview enforces `allowedHosts` just as strictly.
+    allowedHosts: TUNNEL_HOSTS,
+    proxy: API_PROXY,
   },
   resolve: {
     // Every @org lib resolves through its npm-workspace symlink
@@ -103,7 +143,27 @@ export default defineConfig(() => ({
     // use-sync-external-store/shim/with-selector.js is CJS-only and needs
     // esbuild's pre-bundling pass for its default-export interop — see
     // apps/web/vite.config.mts for the full writeup.
-    include: ['react', 'react-dom', 'use-sync-external-store/shim/with-selector.js'],
+    //
+    // `recharts` (behind @org/admin-analytics's charts, lazy-loaded off the
+    // default `/overview` route) imports the *named* export
+    // `useSyncExternalStoreWithSelector` from that same shim path
+    // (recharts/es6/state/hooks.js). Left to be auto-discovered later —
+    // recharts is only reachable through a `React.lazy()` boundary, so the
+    // cold-start scan misses it — esbuild ends up pre-bundling the shim
+    // twice, in two separate passes that don't agree on its shape: the
+    // first (triggered by this file's own forced include, in isolation)
+    // can't statically prove the shim re-exports that name, so it emits a
+    // default-only chunk; recharts' later, on-demand pass then imports a
+    // name that chunk never declared, and the browser's ESM loader throws
+    // "does not provide an export named 'useSyncExternalStoreWithSelector'".
+    // Listing `recharts` here too forces both into the *same* pre-bundle
+    // pass from server start, so esbuild reconciles the shim's shape once.
+    include: [
+      'react',
+      'react-dom',
+      'use-sync-external-store/shim/with-selector.js',
+      'recharts',
+    ],
     // Keeps every @org/* lib off the pre-bundle path — see
     // ORG_WORKSPACE_PACKAGES above.
     exclude: ORG_WORKSPACE_PACKAGES,

@@ -15,6 +15,8 @@
     "dev:api": "nx serve @org/api",
     "tunnel": "cloudflared tunnel --url http://localhost:4200",
     "preview:tunnel": "concurrently -k -n api,web,tunnel -c blue,green,magenta \"nx run @org/api:serve\" \"nx run @org/web:preview\" \"npm run tunnel\"",
+    "tunnel:admin": "cloudflared tunnel --url http://localhost:4201",
+    "preview:tunnel:admin": "concurrently -k -n api,admin,tunnel -c blue,green,magenta \"nx run @org/api:serve\" \"nx run @org/admin:preview\" \"npm run tunnel:admin\"",
     "build": "nx run-many -t build",
     "test": "nx run-many -t test",
     "test:watch": "nx run-many -t test -- --watch",
