@@ -79,6 +79,11 @@ export {
 } from './lib/components/channel-setup-dialogs.js';
 
 export {
+  AddAiEntityToChannelDialog,
+  type AddAiEntityToChannelDialogProps,
+} from './lib/components/add-ai-entity-to-channel-dialog.js';
+
+export {
   AddAppDialog,
   type AddAppDialogProps,
 } from './lib/components/add-app-dialog.js';

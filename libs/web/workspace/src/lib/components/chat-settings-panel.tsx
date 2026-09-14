@@ -6,14 +6,20 @@ import type { MessageDensity, OpenChatPosition } from '@org/types';
 import { Badge, Button, Switch } from '@org/ui';
 import { cn } from '@org/utils';
 import {
+  Activity,
   AlignJustify,
   ArrowDown,
+  AtSign,
   BookmarkCheck,
   CheckCircle2,
+  CornerDownLeft,
   Eye,
+  Keyboard,
   MessageSquare,
   RotateCcw,
+  Shield,
   Sparkles,
+  Users,
 } from 'lucide-react';
 
 export function ChatSettingsPanel() {
@@ -30,6 +36,24 @@ export function ChatSettingsPanel() {
 
   const handleReadReceiptsToggle = (enabled: boolean) => {
     updateChatPreferences({ readReceipts: enabled });
+  };
+
+  const handleEnterToSendToggle = (enabled: boolean) => {
+    updateChatPreferences({ enterToSend: enabled });
+  };
+
+  const handleSendTypingNoticeToggle = (enabled: boolean) => {
+    updateChatPreferences({ sendTypingNotice: enabled });
+  };
+
+  const handleMentionWarningsToggle = (enabled: boolean) => {
+    updateChatPreferences({ mentionWarningsEnabled: enabled });
+  };
+
+  const handleAllowDirectMessagesFromChange = (
+    value: 'everyone' | 'members' | 'admins',
+  ) => {
+    updateChatPreferences({ allowDirectMessagesFrom: value });
   };
 
   return (
@@ -295,12 +319,13 @@ export function ChatSettingsPanel() {
         </div>
       </div>
 
-      {/* 3. Read Receipts */}
+      {/* 3. Privacy & Read Indicators */}
       <div className="space-y-3">
         <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
-          Privacy & Read Indicators
+          Privacy & Indicators
         </h3>
         <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+          {/* Read Receipts */}
           <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
             <div className="flex items-start gap-3">
               <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
@@ -320,6 +345,145 @@ export function ChatSettingsPanel() {
               onCheckedChange={handleReadReceiptsToggle}
             />
           </div>
+
+          {/* Typing Notifications */}
+          <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="flex items-start gap-3">
+              <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                <Activity className="size-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-medium text-foreground">
+                  Send typing indicators
+                </h4>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Broadcast when you are actively composing a reply in a channel or thread.
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={chat.sendTypingNotice ?? true}
+              onCheckedChange={handleSendTypingNoticeToggle}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* 4. Composer & Sending Controls */}
+      <div className="space-y-3">
+        <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
+          Composer & Smart Feedback
+        </h3>
+        <div className="bg-surface-inset rounded-2xl border border-border shadow-xs divide-y divide-border/40 overflow-hidden">
+          {/* Enter to Send */}
+          <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="flex items-start gap-3">
+              <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                <CornerDownLeft className="size-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-medium text-foreground">
+                  Press Enter to send
+                </h4>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Press Enter to send your message, and Shift+Enter to start a new line. When disabled, Enter adds a new line.
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={chat.enterToSend ?? true}
+              onCheckedChange={handleEnterToSendToggle}
+            />
+          </div>
+
+          {/* Mention Warnings */}
+          <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="flex items-start gap-3">
+              <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                <AtSign className="size-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-medium text-foreground">
+                  Mention reachability warnings
+                </h4>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Show inline warnings and quick-add actions when mentioning teammates, agents, or apps not present in the channel.
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={chat.mentionWarningsEnabled ?? true}
+              onCheckedChange={handleMentionWarningsToggle}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* 5. Direct Message Permissions */}
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase px-1">
+            Direct Message Privacy
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5 px-1">
+            Choose who can initiate direct conversations with you in this workspace.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {(
+            [
+              {
+                id: 'everyone',
+                label: 'Everyone',
+                description: 'Anyone in the workspace can DM you.',
+              },
+              {
+                id: 'members',
+                label: 'Members Only',
+                description: 'Workspace members and admins only.',
+              },
+              {
+                id: 'admins',
+                label: 'Admins Only',
+                description: 'Only workspace admins can initiate DMs.',
+              },
+            ] as const
+          ).map((opt) => {
+            const isSelected =
+              (chat.allowDirectMessagesFrom ?? 'everyone') === opt.id;
+            return (
+              <div
+                key={opt.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => handleAllowDirectMessagesFromChange(opt.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    handleAllowDirectMessagesFromChange(opt.id);
+                  }
+                }}
+                className={cn(
+                  'p-3.5 rounded-2xl border transition-all cursor-pointer select-none text-left flex flex-col justify-between gap-2',
+                  isSelected
+                    ? 'border-primary/80 bg-primary/5 ring-2 ring-primary/20 shadow-xs'
+                    : 'border-border bg-surface-inset hover:border-border-focus hover:bg-accent/30',
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-xs font-bold text-foreground">
+                    {opt.label}
+                  </span>
+                  {isSelected && (
+                    <CheckCircle2 className="size-3.5 text-primary shrink-0" />
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  {opt.description}
+                </p>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

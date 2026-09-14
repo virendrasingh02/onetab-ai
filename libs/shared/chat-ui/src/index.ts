@@ -58,11 +58,13 @@ export {
   $createCommandNode,
   $createMentionNode,
   $getChipTarget,
+  $getMentionKind,
   $isCommandNode,
   $isMentionNode,
   CommandNode,
   MentionNode,
 } from './lib/lexical-nodes.js';
+
 
 export {
   AddBookmarkDialog,
@@ -295,4 +297,19 @@ export {
   type EntityActionHandlers,
   type EntityKind,
 } from './lib/entities/types.js';
+
+export {
+  ComposerWarning,
+  formatTargetSentence,
+  formatActionLabel,
+  type ComposerWarningProps,
+  type ComposerWarningState,
+  type ComposerWarningTarget,
+} from './lib/composer-warning.js';
+
+export {
+  useComposerWarningStore,
+  type ComposerWarningStoreState,
+} from './lib/composer-warning-store.js';
+
 

@@ -20,6 +20,10 @@ export interface ChatPreferences {
   messageDensity: MessageDensity;
   openPosition: OpenChatPosition;
   readReceipts: boolean;
+  enterToSend?: boolean;
+  sendTypingNotice?: boolean;
+  mentionWarningsEnabled?: boolean;
+  allowDirectMessagesFrom?: 'everyone' | 'members' | 'admins';
 }
 
 /**

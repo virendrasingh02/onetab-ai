@@ -443,12 +443,21 @@ export class UserService {
     const density =
       settings?.density === 'compact' ? 'compact' : 'comfy';
     const readReceipts = settings?.showReadReceipts ?? true;
+    const enterToSend = settings?.enterToSend ?? true;
+    const sendTypingNotice = settings?.sendTypingNotice ?? true;
+    const mentionWarningsEnabled = settings?.mentionWarningsEnabled ?? true;
+    const allowDirectMessagesFrom =
+      (settings?.allowDirectMessagesFrom as 'everyone' | 'members' | 'admins') ?? 'everyone';
 
     return {
       chat: {
         messageDensity: density,
         openPosition: 'last-read',
         readReceipts,
+        enterToSend,
+        sendTypingNotice,
+        mentionWarningsEnabled,
+        allowDirectMessagesFrom,
       },
       notifications: {
         showContentPreview: true,
@@ -491,10 +500,18 @@ export class UserService {
           userId,
           density: densityForDb,
           showReadReceipts: updated.chat.readReceipts,
+          enterToSend: updated.chat.enterToSend ?? true,
+          sendTypingNotice: updated.chat.sendTypingNotice ?? true,
+          mentionWarningsEnabled: updated.chat.mentionWarningsEnabled ?? true,
+          allowDirectMessagesFrom: updated.chat.allowDirectMessagesFrom ?? 'everyone',
         },
         update: {
           density: densityForDb,
           showReadReceipts: updated.chat.readReceipts,
+          enterToSend: updated.chat.enterToSend ?? true,
+          sendTypingNotice: updated.chat.sendTypingNotice ?? true,
+          mentionWarningsEnabled: updated.chat.mentionWarningsEnabled ?? true,
+          allowDirectMessagesFrom: updated.chat.allowDirectMessagesFrom ?? 'everyone',
         },
       }),
     ];

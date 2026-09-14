@@ -25,6 +25,7 @@ export const RealtimeEventType = {
   ChannelCreated: 'channel.created',
   ChannelUpdated: 'channel.updated',
   ChannelDeleted: 'channel.deleted',
+  ChannelMembershipChanged: 'channel.membership.changed',
 
   // Workspaces & Members
   WorkspaceUpdated: 'workspace.updated',
@@ -183,6 +184,13 @@ export interface ChannelUpdatedPayload {
 export interface ChannelDeletedPayload {
   channelId: string;
   workspaceId: string;
+}
+
+export interface ChannelMembershipChangedPayload {
+  channelId: string;
+  workspaceId: string;
+  userId?: string;
+  action?: 'joined' | 'left' | 'added' | 'removed' | 'role_updated';
 }
 
 export interface WorkspaceUpdatedPayload {

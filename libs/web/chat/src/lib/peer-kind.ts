@@ -4,10 +4,11 @@
  * ones. This is the single place that mapping lives — it was hand-inlined in
  * the picker, the header and the new-message roster.
  */
-export type PeerKind = 'person' | 'agent' | 'app';
+export type PeerKind = 'person' | 'agent' | 'coworker' | 'app';
 
 export function peerKindOf(id: string): PeerKind {
   if (id.startsWith('agent-')) return 'agent';
+  if (id.startsWith('coworker-')) return 'coworker';
   if (id.startsWith('app-')) return 'app';
   return 'person';
 }

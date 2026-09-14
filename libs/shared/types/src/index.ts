@@ -53,8 +53,10 @@ export type {
   Channel,
   ChannelBookmark,
   ChannelAgentView,
+  ChannelAppView,
   ChannelCoworkerView,
   ProjectCoworkerView,
+
   ChannelMember,
   ChannelPin,
   ChannelSummary,
@@ -367,9 +369,12 @@ export {
 
 export * from './lib/app-versions.js';
 export * from './lib/unified-platform.js';
+export * from './lib/composer-context.js';
+export * from './lib/composer-policy.js';
 
 export type {
   SyncChangesDigest,
   SyncResourceChange,
   SyncState,
 } from './lib/sync.js';
+

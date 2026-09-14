@@ -49,7 +49,12 @@ export const queryKeys = {
       ['channels', workspaceId, channelId, 'files'] as const,
     agents: (workspaceId: string, channelId: string) =>
       ['channels', workspaceId, channelId, 'agents'] as const,
+    coworkers: (workspaceId: string, channelId: string) =>
+      ['channels', workspaceId, channelId, 'coworkers'] as const,
+    apps: (workspaceId: string, channelId: string) =>
+      ['channels', workspaceId, channelId, 'apps'] as const,
   },
+
   members: {
     all: (workspaceId: string) => ['members', workspaceId] as const,
     list: (workspaceId: string) => ['members', workspaceId, 'list'] as const,

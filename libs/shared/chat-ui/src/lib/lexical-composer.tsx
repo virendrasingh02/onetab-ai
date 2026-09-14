@@ -68,6 +68,7 @@ import {
   $isElementNode,
   $isRangeSelection,
   $isTextNode,
+  $nodesOfType,
   COMMAND_PRIORITY_CRITICAL,
   COMMAND_PRIORITY_HIGH,
   COMMAND_PRIORITY_NORMAL,
@@ -106,14 +107,18 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { searchEmojiShortcodes, useEmojiShortcodeIndex } from '@org/ui';
+import type { DetectedMention, MentionKind } from '@org/types';
 import { CHAT_TRANSFORMERS } from './lexical-markdown.js';
 import {
   $createCommandNode,
   $createMentionNode,
+  $getChipTarget,
+  $getMentionKind,
   CommandNode,
   MentionNode,
 } from './lexical-nodes.js';
 import type { SlashCommand } from './slash-commands.js';
+
 
 /**
  * Classes the editor hangs on the DOM it renders.
@@ -198,6 +203,9 @@ const TYPING_IDLE_MS = 4000;
 const TYPING_REFRESH_MS = 3500;
 /** Coalesce the markdown serialisation behind the draft this long. */
 const DRAFT_DEBOUNCE_MS = 500;
+/** Coalesce the live mention extraction this long. */
+const MENTIONS_DEBOUNCE_MS = 300;
+
 
 /** Someone (or something) a `@` mention can point at. */
 export interface MentionCandidate {
@@ -207,7 +215,7 @@ export interface MentionCandidate {
   subtitle?: string;
   avatarUrl?: string;
   /** Group mentions (`@here`, `@channel`) are listed above people, AI agents and apps have distinct badges. */
-  kind?: 'user' | 'group' | 'agent' | 'app';
+  kind?: MentionKind;
   badge?: string;
   /**
    * The signed-in user. Tagged "you" in the menu and floated to the top of the
@@ -219,6 +227,8 @@ export interface MentionCandidate {
 export interface LexicalComposerInputProps {
   placeholder?: string;
   onSend: (text: string) => void | Promise<void>;
+  /** When false, bare Enter inserts a newline and Ctrl/Cmd+Enter sends. Defaults to true. */
+  enterToSend?: boolean;
   /**
    * Typing lifecycle for the remote "…is typing" indicator: `true` once when
    * the user starts, `false` after ~4s of no edits, on send, and on unmount —
@@ -236,6 +246,10 @@ export interface LexicalComposerInputProps {
    * editor is emptied.
    */
   onDraftChange?: (markdown: string) => void;
+  /**
+   * Debounced list of mentions currently present in the editor document.
+   */
+  onMentionsChange?: (mentions: DetectedMention[]) => void;
   disabled?: boolean;
   autoFocus?: boolean;
   initialMarkdown?: string;
@@ -263,7 +277,8 @@ export interface LexicalEditorRef {
   insertText: (text: string) => void;
   insertMention: (candidate: MentionCandidate) => void;
   /** Replaces a half-typed `@query` with a finished mention chip. */
-  replaceMentionQuery: (name: string, id?: string) => void;
+  replaceMentionQuery: (name: string, id?: string, kind?: MentionKind) => void;
+
   /** Replaces the whole document with the given markdown. */
   setMarkdown: (markdown: string) => void;
   getMarkdown: () => string;
@@ -292,11 +307,13 @@ function EditorApiPlugin({
   onTyping,
   onRegisterRef,
   hasPendingAttachments = false,
+  enterToSend = true,
 }: {
   onSend: (text: string) => void | Promise<void>;
   onTyping?: (isTyping: boolean) => void;
   onRegisterRef?: (ref: LexicalEditorRef) => void;
   hasPendingAttachments?: boolean;
+  enterToSend?: boolean;
 }) {
   const [editor] = useLexicalComposerContext();
 
@@ -359,16 +376,24 @@ function EditorApiPlugin({
     return editor.registerCommand(
       KEY_ENTER_COMMAND,
       (event: KeyboardEvent | null) => {
+        if (!event) return false;
+        if (enterToSend === false) {
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            return send();
+          }
+          return false;
+        }
         // Shift+Enter is the line break. Everything else sends — the typeahead
         // menus claim Enter at CRITICAL priority while they are open, so this
         // only ever runs when no menu is showing.
-        if (!event || event.shiftKey) return false;
+        if (event.shiftKey) return false;
         event.preventDefault();
         return send();
       },
       COMMAND_PRIORITY_HIGH,
     );
-  }, [editor, send]);
+  }, [editor, send, enterToSend]);
 
   useEffect(() => {
     if (!onRegisterRef) return;
@@ -378,11 +403,11 @@ function EditorApiPlugin({
 
       insertMention: (candidate) =>
         insertNodesAtCaret(() => [
-          $createMentionNode(candidate.name, candidate.id),
+          $createMentionNode(candidate.name, candidate.id, candidate.kind ?? 'user'),
           $createTextNode(' '),
         ]),
 
-      replaceMentionQuery: (name, id) => {
+      replaceMentionQuery: (name, id, kind?: MentionKind) => {
         editor.update(() => {
           const selection = $getSelection();
           if (!$isRangeSelection(selection)) return;
@@ -399,9 +424,13 @@ function EditorApiPlugin({
             }
           }
 
-          $insertNodes([$createMentionNode(name, id), $createTextNode(' ')]);
+          $insertNodes([
+            $createMentionNode(name, id, kind ?? 'user'),
+            $createTextNode(' '),
+          ]);
         });
       },
+
 
       setMarkdown: (markdown) => {
         editor.update(
@@ -460,16 +489,28 @@ function ChangeSignalsPlugin({
   onTyping,
   onEmptyChange,
   onDraftChange,
+  onMentionsChange,
 }: {
   onTyping?: (isTyping: boolean) => void;
   onEmptyChange?: (isEmpty: boolean) => void;
   onDraftChange?: (markdown: string) => void;
+  onMentionsChange?: (mentions: DetectedMention[]) => void;
 }) {
   const [editor] = useLexicalComposerContext();
 
   // Latest callbacks, without re-subscribing the update listener every render.
-  const callbacks = useRef({ onTyping, onEmptyChange, onDraftChange });
-  callbacks.current = { onTyping, onEmptyChange, onDraftChange };
+  const callbacks = useRef({
+    onTyping,
+    onEmptyChange,
+    onDraftChange,
+    onMentionsChange,
+  });
+  callbacks.current = {
+    onTyping,
+    onEmptyChange,
+    onDraftChange,
+    onMentionsChange,
+  };
 
   useEffect(() => {
     let typing = false;
@@ -477,6 +518,7 @@ function ChangeSignalsPlugin({
     let wasEmpty: boolean | null = null;
     let idleTimer: ReturnType<typeof setTimeout> | null = null;
     let draftTimer: ReturnType<typeof setTimeout> | null = null;
+    let mentionsTimer: ReturnType<typeof setTimeout> | null = null;
 
     const readIsEmpty = () =>
       editor.getEditorState().read(() => {
@@ -528,6 +570,28 @@ function ChangeSignalsPlugin({
       write(markdown);
     };
 
+    const cancelMentions = () => {
+      if (mentionsTimer) {
+        clearTimeout(mentionsTimer);
+        mentionsTimer = null;
+      }
+    };
+
+    const flushMentions = () => {
+      cancelMentions();
+      const write = callbacks.current.onMentionsChange;
+      if (!write) return;
+      editor.getEditorState().read(() => {
+        const nodes = $nodesOfType(MentionNode);
+        const mentions: DetectedMention[] = nodes.map((node) => ({
+          id: $getChipTarget(node),
+          kind: $getMentionKind(node),
+          displayName: node.getTextContent().replace(/^@/, ''),
+        }));
+        write(mentions);
+      });
+    };
+
     // Seed the empty state so the Send button is right before the first edit
     // (e.g. a restored draft present at mount).
     wasEmpty = readIsEmpty();
@@ -553,6 +617,7 @@ function ChangeSignalsPlugin({
         if (tags.has(SILENT_UPDATE_TAG) || tags.has('history-merge')) {
           stopTyping();
           cancelDraft();
+          cancelMentions();
           return;
         }
 
@@ -560,9 +625,15 @@ function ChangeSignalsPlugin({
 
         if (isEmpty) {
           flushDraft();
+          cancelMentions();
+          callbacks.current.onMentionsChange?.([]);
         } else {
           cancelDraft();
           draftTimer = setTimeout(flushDraft, DRAFT_DEBOUNCE_MS);
+          if (callbacks.current.onMentionsChange) {
+            cancelMentions();
+            mentionsTimer = setTimeout(flushMentions, MENTIONS_DEBOUNCE_MS);
+          }
         }
       },
     );
@@ -570,6 +641,7 @@ function ChangeSignalsPlugin({
     return () => {
       unregister();
       flushDraft();
+      cancelMentions();
       stopTyping();
     };
   }, [editor]);
@@ -763,7 +835,7 @@ function MentionsPlugin({
       candidate.name.toLowerCase().includes(needle) ||
       candidate.subtitle?.toLowerCase().includes(needle);
 
-    const inKind = (kind: 'group' | 'agent' | 'app' | 'user') =>
+    const inKind = (kind: MentionKind) =>
       candidates.filter((candidate) =>
         kind === 'user'
           ? !candidate.kind || candidate.kind === 'user'
@@ -773,6 +845,7 @@ function MentionsPlugin({
     const groups = inKind('group').filter(matches);
     const people = inKind('user').filter(matches);
     const agents = inKind('agent').filter(matches);
+    const coworkers = inKind('coworker').filter(matches);
     const apps = inKind('app').filter(matches);
 
     /*
@@ -788,6 +861,7 @@ function MentionsPlugin({
       ...groups,
       ...people.slice(0, peopleCap),
       ...agents.slice(0, botCap),
+      ...coworkers.slice(0, botCap),
       ...apps.slice(0, botCap),
     ].map((candidate) => new MentionMenuOption(candidate));
   }, [candidates, query]);
@@ -802,6 +876,7 @@ function MentionsPlugin({
         const mention = $createMentionNode(
           option.candidate.name,
           option.candidate.id,
+          option.candidate.kind ?? 'user',
         );
         if (nodeToReplace) {
           nodeToReplace.replace(mention);
@@ -1559,9 +1634,11 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
 export function LexicalComposerInput({
   placeholder = 'Message channel…',
   onSend,
+  enterToSend = true,
   onTyping,
   onEmptyChange,
   onDraftChange,
+  onMentionsChange,
   disabled = false,
   autoFocus = false,
   initialMarkdown,
@@ -1648,6 +1725,7 @@ export function LexicalComposerInput({
           onTyping={onTyping}
           onEmptyChange={onEmptyChange}
           onDraftChange={onDraftChange}
+          onMentionsChange={onMentionsChange}
         />
         <EditablePlugin disabled={disabled} />
         <FormattingShortcutsPlugin />
@@ -1656,7 +1734,9 @@ export function LexicalComposerInput({
           onTyping={onTyping}
           onRegisterRef={onRegisterRef}
           hasPendingAttachments={hasPendingAttachments}
+          enterToSend={enterToSend}
         />
+
 
         {members.length > 0 ? (
           <MentionsPlugin

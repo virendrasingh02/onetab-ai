@@ -23,6 +23,10 @@ export const DEFAULT_CHAT_PREFERENCES: ChatPreferences = {
   messageDensity: 'comfy',
   openPosition: 'last-read',
   readReceipts: true,
+  enterToSend: true,
+  sendTypingNotice: true,
+  mentionWarningsEnabled: true,
+  allowDirectMessagesFrom: 'everyone',
 };
 
 const NOTIFICATION_SOUND_EVENTS: NotificationSoundEvent[] = [
@@ -118,6 +122,16 @@ function sanitizePreferences(raw: unknown): UserPreferences {
     chatObj['openPosition'] === 'newest' ? 'newest' : 'last-read';
   const readReceipts =
     typeof chatObj['readReceipts'] === 'boolean' ? chatObj['readReceipts'] : true;
+  const enterToSend =
+    typeof chatObj['enterToSend'] === 'boolean' ? chatObj['enterToSend'] : true;
+  const sendTypingNotice =
+    typeof chatObj['sendTypingNotice'] === 'boolean' ? chatObj['sendTypingNotice'] : true;
+  const mentionWarningsEnabled =
+    typeof chatObj['mentionWarningsEnabled'] === 'boolean' ? chatObj['mentionWarningsEnabled'] : true;
+  const allowDirectMessagesFrom =
+    ['everyone', 'members', 'admins'].includes(chatObj['allowDirectMessagesFrom'] as string)
+      ? (chatObj['allowDirectMessagesFrom'] as 'everyone' | 'members' | 'admins')
+      : 'everyone';
 
   const showContentPreview =
     typeof notifObj['showContentPreview'] === 'boolean'
@@ -165,6 +179,10 @@ function sanitizePreferences(raw: unknown): UserPreferences {
       messageDensity: density,
       openPosition: openPos,
       readReceipts,
+      enterToSend,
+      sendTypingNotice,
+      mentionWarningsEnabled,
+      allowDirectMessagesFrom,
     },
     notifications: {
       showContentPreview,

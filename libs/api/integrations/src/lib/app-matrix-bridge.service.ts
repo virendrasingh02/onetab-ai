@@ -68,7 +68,7 @@ export class AppMatrixBridgeService implements OnModuleInit {
 
       if (channel) {
         const command = body.trim().slice(1).split(' ')[0].toLowerCase();
-        integration = await this.prisma.externalIntegration.findFirst({
+        const candidate = await this.prisma.externalIntegration.findFirst({
           where: {
             workspaceId: channel.workspaceId,
             status: 'CONNECTED',
@@ -82,8 +82,23 @@ export class AppMatrixBridgeService implements OnModuleInit {
             workspaceId: true,
           },
         });
-        if (integration && !threadRootId) {
-          threadRootId = event.event_id;
+
+        if (candidate) {
+          const channelLink = await this.prisma.channelIntegration.findFirst({
+            where: {
+              channelId: channel.id,
+              integrationId: candidate.id,
+              isEnabled: true,
+            },
+            select: { id: true },
+          });
+
+          if (channelLink) {
+            integration = candidate;
+            if (!threadRootId) {
+              threadRootId = event.event_id;
+            }
+          }
         }
       }
     }

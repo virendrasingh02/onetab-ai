@@ -118,6 +118,24 @@ export function applyRealtimeEvent(
     case RealtimeEventType.ChannelCreated:
     case RealtimeEventType.ChannelUpdated:
     case RealtimeEventType.ChannelDeleted: {
+      const channelId = (event.payload as { channelId?: string } | undefined)
+        ?.channelId;
+      if (channelId) {
+        invalidate(queryKeys.channels.members(ws, channelId));
+        invalidate(queryKeys.channels.agents(ws, channelId));
+        invalidate(queryKeys.channels.coworkers(ws, channelId));
+        invalidate(queryKeys.channels.apps(ws, channelId));
+      }
+      invalidate(queryKeys.channels.all(ws));
+      break;
+    }
+
+    case RealtimeEventType.ChannelMembershipChanged: {
+      const channelId = (event.payload as { channelId?: string } | undefined)
+        ?.channelId;
+      if (channelId) {
+        invalidate(queryKeys.channels.members(ws, channelId));
+      }
       invalidate(queryKeys.channels.all(ws));
       break;
     }
@@ -190,6 +208,7 @@ export const HANDLED_REALTIME_EVENTS: string[] = [
   RealtimeEventType.ChannelCreated,
   RealtimeEventType.ChannelUpdated,
   RealtimeEventType.ChannelDeleted,
+  RealtimeEventType.ChannelMembershipChanged,
   RealtimeEventType.WorkspaceMemberUpdated,
   RealtimeEventType.UserStatusChanged,
   RealtimeEventType.WorkspaceUpdated,

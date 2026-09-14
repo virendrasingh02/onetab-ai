@@ -1,4 +1,8 @@
-import { useMessageDensity, useOpenChatPosition } from '@org/common';
+import {
+  useMessageDensity,
+  useOpenChatPosition,
+  useChatPreferences,
+} from '@org/common';
 import {
   AttachmentGrid,
   AttachmentRenderer,
@@ -19,6 +23,7 @@ import {
   ThreadPanel,
   TypingIndicator,
   UnreadMentionsPill,
+  ComposerWarning,
 } from '@org/chat-ui';
 import type {
   ConnectionState,
@@ -28,6 +33,11 @@ import type {
   StructuredMessageAction,
   SystemEventEntity,
 } from '@org/matrix-client';
+import type { ComposerContext } from '@org/types';
+import { useCurrentWorkspace } from '@org/web-workspace';
+import { useComposerControl } from './use-composer-control.js';
+import { useComposerAddActions } from './use-composer-add-actions.js';
+
 import { attachmentToMediaItem, useMediaPreview } from '@org/media-preview';
 import {
   Badge,
@@ -272,7 +282,9 @@ export interface ChatSurfaceProps {
     allowed: boolean;
     onSendAnonymously: (text: string) => void | Promise<void>;
   };
+  composerContext?: ComposerContext;
 }
+
 
 /**
  * Matrix presence (`online` / `unavailable` / `offline`) narrowed to the
@@ -349,9 +361,13 @@ export function ChatSurface({
   anonymousPosting,
   canManageConversation,
   onViewSystemEventEntity,
+  composerContext,
 }: ChatSurfaceProps) {
+
   const messageDensity = useMessageDensity();
   const openPosition = useOpenChatPosition();
+  const { chat } = useChatPreferences();
+  const effectiveOnTyping = chat?.sendTypingNotice !== false ? onTyping : undefined;
   const { openPreview } = useMediaPreview();
 
   // Tell the notification-sound bridge which room is on screen, so a message
@@ -664,6 +680,33 @@ export function ChatSurface({
   const threadReplies = threadRootId
     ? (repliesByRoot.get(threadRootId) ?? [])
     : [];
+
+  const { slug: workspaceSlug } = useCurrentWorkspace();
+  const effectiveWorkspaceId = composerContext?.workspaceId ?? workspaceId;
+  const effectiveChannelId = composerContext?.channelId;
+  const effectiveRoomId = composerContext?.roomId ?? conversationId;
+  const effectivePeerId = composerContext?.peerId;
+
+  const handleAddAction = useComposerAddActions({
+    workspaceId: effectiveWorkspaceId,
+    channelId: effectiveChannelId,
+    roomId: effectiveRoomId,
+    peerId: effectivePeerId,
+    slug: workspaceSlug,
+  });
+
+  const mainControl = useComposerControl(composerContext, members);
+
+  const threadComposerContext = useMemo<ComposerContext | undefined>(() => {
+    if (!composerContext) return undefined;
+    return {
+      ...composerContext,
+      surfaceKind: 'thread',
+      threadRootId: threadRoot?.id,
+    };
+  }, [composerContext, threadRoot?.id]);
+
+  const threadControl = useComposerControl(threadComposerContext, members);
 
   /* Mark a thread read while its panel is open, and again when a reply lands. */
   useEffect(() => {
@@ -1183,7 +1226,21 @@ export function ChatSurface({
                       showFormatting={false}
                       placeholder="Reply in thread…"
                       onSend={(body) => onSend(body, threadRoot.id)}
-                      onTyping={onTyping}
+                      onTyping={effectiveOnTyping}
+                      enterToSend={chat?.enterToSend ?? true}
+                      onMentionsChange={threadControl.onMentionsChange}
+                      contextSlot={
+                        threadControl.warning ? (
+                          <ComposerWarning
+                            state={threadControl.warning}
+                            onDismiss={threadControl.dismissWarning}
+                            onAdd={handleAddAction}
+                            channelName={title}
+                            peerName={welcome?.peer?.name ?? title}
+                            surfaceKind={threadComposerContext?.surfaceKind}
+                          />
+                        ) : undefined
+                      }
                       onAttach={
                         onAttach
                           ? (files) => void onAttach(files, threadRoot.id)
@@ -1284,13 +1341,15 @@ export function ChatSurface({
             conversationId={conversationId}
             members={members}
             currentUserId={myUserId}
-            onTyping={onTyping}
+            onTyping={effectiveOnTyping}
+            enterToSend={chat?.enterToSend ?? true}
             onAttach={onAttach ? (files) => void onAttach(files) : undefined}
             onSendVoice={onSendVoice}
             placeholder={editing ? 'Edit your message…' : `Message ${title}`}
             readOnlyMessage={editing ? undefined : composerReadOnlyMessage}
             anonymousPosting={editing ? undefined : anonymousPosting}
             onSchedule={onSchedule}
+            onMentionsChange={mainControl.onMentionsChange}
             contextSlot={
               editing ? (
                 <div className="mb-2 gap-2 px-2 py-1 text-xs flex items-center rounded-md bg-muted">
@@ -1305,6 +1364,15 @@ export function ChatSurface({
                     Cancel
                   </Button>
                 </div>
+              ) : mainControl.warning ? (
+                <ComposerWarning
+                  state={mainControl.warning}
+                  onDismiss={mainControl.dismissWarning}
+                  onAdd={handleAddAction}
+                  channelName={title}
+                  peerName={welcome?.peer?.name ?? title}
+                  surfaceKind={composerContext?.surfaceKind}
+                />
               ) : null
             }
             onSend={async (body) => {

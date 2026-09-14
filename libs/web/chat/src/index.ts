@@ -116,4 +116,13 @@ export {
   useBookmarkMutations,
 } from './lib/use-bookmarks.js';
 export { EncryptionSecurityPanel } from './lib/encryption-security-panel.js';
+export {
+  useComposerControl,
+  type ComposerControlResult,
+} from './lib/use-composer-control.js';
+export {
+  useComposerAddActions,
+  type UseComposerAddActionsOptions,
+} from './lib/use-composer-add-actions.js';
+
 

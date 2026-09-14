@@ -18,6 +18,7 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useCurrentUser } from '@org/auth';
+import type { ComposerContext } from '@org/types';
 import {
   ChatPanel,
   ConversationTabsShell,
@@ -474,6 +475,17 @@ function AgentConversationPanel({ agent }: { agent: AgentModelItem }) {
   const currentUser = useCurrentUser();
   const { roomId, error } = useDirectRoom(`agent-${agent.id}`);
 
+  const composerContext = useMemo<ComposerContext>(
+    () => ({
+      surfaceKind: 'agent',
+      workspaceId,
+      roomId,
+      peerId: `agent-${agent.id}`,
+      canManage: false,
+    }),
+    [workspaceId, roomId, agent.id],
+  );
+
   if (!enabled) {
     return (
       <EmptyState
@@ -510,6 +522,7 @@ function AgentConversationPanel({ agent }: { agent: AgentModelItem }) {
         workspaceId={workspaceId}
         showMembers={false}
         showEncryptedBadge={false}
+        composerContext={composerContext}
         welcome={{
           kind: 'direct',
           peer: {

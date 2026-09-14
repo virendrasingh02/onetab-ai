@@ -20,6 +20,7 @@ import {
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useCurrentUser } from '@org/auth';
+import type { ComposerContext } from '@org/types';
 import {
   ChatPanel,
   ConversationTabsShell,
@@ -904,6 +905,17 @@ function AppConversationPanel({
   const currentUser = useCurrentUser();
   const { roomId, error } = useDirectRoom(`app-${integrationId}`);
 
+  const composerContext = useMemo<ComposerContext>(
+    () => ({
+      surfaceKind: 'app',
+      workspaceId,
+      roomId,
+      peerId: `app-${integrationId}`,
+      canManage: false,
+    }),
+    [workspaceId, roomId, integrationId],
+  );
+
   if (!enabled) {
     return (
       <EmptyState
@@ -939,6 +951,7 @@ function AppConversationPanel({
         workspaceId={workspaceId}
         showMembers={false}
         showEncryptedBadge={false}
+        composerContext={composerContext}
         welcome={{
           kind: 'direct',
           peer: {

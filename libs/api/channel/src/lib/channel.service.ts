@@ -20,6 +20,7 @@ import {
   ChannelRole,
   ChannelVisibility,
   WorkspaceRole,
+  canManageChannelMembers,
   canPostInChannel,
   clampTempMembershipHours,
   extendedTemporaryExpiry,
@@ -783,18 +784,16 @@ export class ChannelService {
       }),
     ]);
 
-    const isChannelAdmin = channelMembership?.role === ChannelRole.ADMIN;
-    const isWorkspaceAdmin =
-      !!workspaceMembership &&
-      hasWorkspaceRole(
-        workspaceMembership.role as WorkspaceRole,
-        WorkspaceRole.ADMIN,
-      );
+    const canManage = canManageChannelMembers({
+      channelRole: (channelMembership?.role as ChannelRole) ?? null,
+      workspaceRole: (workspaceMembership?.role as WorkspaceRole) ?? null,
+    });
 
-    if (!isChannelAdmin && !isWorkspaceAdmin) {
+    if (!canManage) {
       throw new ForbiddenException(
         'You do not have permission to manage this channel.',
       );
     }
+
   }
 }

@@ -430,7 +430,24 @@ export interface ProjectCoworkerView {
   };
 }
 
+/** An app/integration added to a channel. */
+export interface ChannelAppView {
+  id: string;
+  channelId: string;
+  integrationId: string;
+  isEnabled: boolean;
+  addedById: string | null;
+  createdAt: IsoDateString;
+  integration: {
+    id: string;
+    provider: string;
+    displayName: string;
+    status: string;
+  };
+}
+
 export interface Invitation {
+
   id: string;
   workspaceId: string;
   email: string | null;

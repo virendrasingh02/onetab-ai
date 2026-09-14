@@ -54,7 +54,7 @@ export interface ChannelWelcomePeer {
    * `'agent'` / `'app'` draw a badge beside the name and suppress the
    * person-only actions (huddle, profile).
    */
-  kind?: 'person' | 'agent' | 'app';
+  kind?: 'person' | 'agent' | 'coworker' | 'app';
   /** A short line under the name — a role, a model, an app category. */
   role?: string | null;
   /** Custom avatar element, for agents / apps that render their own. */
@@ -216,12 +216,12 @@ export function ChannelWelcome({
       );
     }
     if (kind === 'direct') {
-      if (peerKind === 'agent') {
+      if (peerKind === 'agent' || peerKind === 'coworker') {
         return (
           <>
             This is the start of your conversation with{' '}
             <span className="font-semibold text-foreground">{displayName}</span>
-            . It’s an AI agent — it replies here automatically.
+            . It’s an AI {peerKind === 'coworker' ? 'coworker' : 'agent'} — it replies here automatically.
           </>
         );
       }

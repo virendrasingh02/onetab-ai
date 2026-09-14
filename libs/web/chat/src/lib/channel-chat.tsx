@@ -1,5 +1,6 @@
 import { ErrorState } from '@org/ui';
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
+import type { ComposerContext } from '@org/types';
 import { ChatPanel } from './chat-panel.js';
 import type { ChatSurfaceWelcome } from './chat-surface.js';
 import { useMatrix } from './matrix-provider.js';
@@ -82,6 +83,17 @@ export function ChannelChat({
   const { enabled } = useMatrix();
   const { roomId, error } = useChannelRoom(channelId);
 
+  const composerContext = useMemo<ComposerContext>(
+    () => ({
+      surfaceKind: 'channel',
+      workspaceId,
+      roomId,
+      channelId,
+      canManage: canManageConversation,
+    }),
+    [workspaceId, roomId, channelId, canManageConversation],
+  );
+
   // `ChatPanel` renders the "chat is not configured" state itself.
   if (!enabled) {
     return (
@@ -92,6 +104,7 @@ export function ChannelChat({
         workspaceId={workspaceId}
         composerReadOnlyMessage={composerReadOnlyMessage}
         anonymousPosting={anonymousPosting}
+        composerContext={composerContext}
       />
     );
   }
@@ -129,6 +142,7 @@ export function ChannelChat({
       composerReadOnlyMessage={composerReadOnlyMessage}
       anonymousPosting={anonymousPosting}
       canManageConversation={canManageConversation}
+      composerContext={composerContext}
     />
   );
 }

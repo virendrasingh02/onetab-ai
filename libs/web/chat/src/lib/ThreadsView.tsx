@@ -1,8 +1,16 @@
 import { channelApi, queryKeys } from '@org/api-client';
-import { useMessageDensity } from '@org/common';
-import { AttachmentRenderer, Composer, MessageRenderer } from '@org/chat-ui';
+import { useMessageDensity, useChatPreferences } from '@org/common';
+import {
+  AttachmentRenderer,
+  Composer,
+  ComposerWarning,
+  MessageRenderer,
+} from '@org/chat-ui';
+import type { ComposerContext } from '@org/types';
 import type { Message, RoomKind, RoomMember } from '@org/matrix-client';
 import { attachmentToMediaItem, useMediaPreview } from '@org/media-preview';
+import { useComposerControl } from './use-composer-control.js';
+import { useComposerAddActions } from './use-composer-add-actions.js';
 import {
   Badge,
   Button,
@@ -139,6 +147,25 @@ function ThreadDetail({
     thread.id,
   );
 
+  const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
+
+  const composerContext = useMemo<ComposerContext>(
+    () => ({
+      surfaceKind: 'thread',
+      workspaceId,
+      roomId: thread.roomId,
+      threadRootId: thread.id,
+    }),
+    [workspaceId, thread.roomId, thread.id],
+  );
+
+  const composerControl = useComposerControl(composerContext, members);
+  const handleAddAction = useComposerAddActions({
+    workspaceId,
+    roomId: thread.roomId,
+    slug: workspaceSlug,
+  });
+
   // Opening an unread thread catches its read marker up to the latest reply.
   useEffect(() => {
     if (thread.hasUnread) markRead();
@@ -151,6 +178,8 @@ function ThreadDetail({
 
   const roomLabel =
     thread.roomKind === 'channel' ? `#${thread.roomName}` : thread.roomName;
+
+  const { chat } = useChatPreferences();
 
   return (
     <div className="border-t border-border bg-muted/20">
@@ -179,6 +208,7 @@ function ThreadDetail({
                 isOwn={reply.senderId === myUserId}
                 density={density}
                 mentionNames={mentionNames}
+                threadParticipants={[]}
                 onReact={(key) =>
                   void actions.toggleReaction(
                     reply.id,
@@ -229,13 +259,15 @@ function ThreadDetail({
               await send(body);
             }
           }}
-          onTyping={actions.setTyping}
+          onTyping={chat?.sendTypingNotice !== false ? actions.setTyping : undefined}
+          enterToSend={chat?.enterToSend ?? true}
           onAttach={(files) => void actions.attach(files, thread.id)}
           conversationId={`thread:${thread.id}`}
           members={members}
           currentUserId={myUserId}
           placeholder={editing ? 'Edit your message…' : `Reply in ${roomLabel}…`}
           showFormatting={false}
+          onMentionsChange={composerControl.onMentionsChange}
           contextSlot={
             editing ? (
               <div className="mb-2 flex items-center gap-2 rounded-md bg-muted px-2 py-1 text-xs">
@@ -250,6 +282,14 @@ function ThreadDetail({
                   Cancel
                 </Button>
               </div>
+            ) : composerControl.warning ? (
+              <ComposerWarning
+                state={composerControl.warning}
+                onDismiss={composerControl.dismissWarning}
+                onAdd={handleAddAction}
+                channelName={thread.roomName}
+                surfaceKind="thread"
+              />
             ) : null
           }
         />

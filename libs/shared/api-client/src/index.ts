@@ -21,7 +21,9 @@ export {
   authApi,
   automationsApi,
   channelAgentsApi,
+  channelAppsApi,
   channelApi,
+
   channelEmailApi,
   coworkersApi,
   enterpriseApi,

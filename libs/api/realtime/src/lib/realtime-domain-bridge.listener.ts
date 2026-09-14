@@ -239,6 +239,55 @@ export class RealtimeDomainBridgeListener {
     });
   }
 
+  @OnEvent(AppEvent.ChannelMembershipChanged)
+  async onChannelMembershipChanged(e: {
+    workspaceId: string;
+    actorId: string | null;
+    channelId: string;
+    userId: string;
+    action: string;
+    role?: string | null;
+  }): Promise<void> {
+    await this.gateway.broadcastToWorkspace(e.workspaceId, {
+      type: 'channel.membership.changed',
+      actorId: e.actorId,
+      payload: e,
+    });
+  }
+
+  @OnEvent(AppEvent.ChannelAiEntityLinked)
+  @OnEvent(AppEvent.ChannelAiEntityUnlinked)
+  @OnEvent(AppEvent.ChannelAiEntityEnabledChanged)
+  async onChannelAiEntityChanged(e: {
+    workspaceId: string;
+    actorId: string | null;
+    channelId: string;
+    entityId: string;
+    entityType: string;
+  }): Promise<void> {
+    await this.gateway.broadcastToWorkspace(e.workspaceId, {
+      type: 'channel.updated',
+      actorId: e.actorId,
+      payload: e,
+    });
+  }
+
+  @OnEvent(AppEvent.ChannelAppLinked)
+  @OnEvent(AppEvent.ChannelAppUnlinked)
+  @OnEvent(AppEvent.ChannelAppEnabledChanged)
+  async onChannelAppChanged(e: {
+    workspaceId: string;
+    actorId: string | null;
+    channelId: string;
+    integrationId?: string;
+  }): Promise<void> {
+    await this.gateway.broadcastToWorkspace(e.workspaceId, {
+      type: 'channel.updated',
+      actorId: e.actorId,
+      payload: e,
+    });
+  }
+
   @OnEvent(AppEvent.WorkspaceInvited)
   async onWorkspaceInvited(e: {
     workspaceId: string;

@@ -26,6 +26,10 @@ describe('preferences-slice', () => {
     expect(state.preferences.chat.messageDensity).toBe('comfy');
     expect(state.preferences.chat.openPosition).toBe('last-read');
     expect(state.preferences.chat.readReceipts).toBe(true);
+    expect(state.preferences.chat.enterToSend).toBe(true);
+    expect(state.preferences.chat.sendTypingNotice).toBe(true);
+    expect(state.preferences.chat.mentionWarningsEnabled).toBe(true);
+    expect(state.preferences.chat.allowDirectMessagesFrom).toBe('everyone');
     expect(state.preferences.notifications.position).toBe('bottom-right');
     expect(state.preferences.notifications.size).toBe('comfy');
     expect(state.preferences.notifications.dismissDuration).toBe(5000);
@@ -41,17 +45,28 @@ describe('preferences-slice', () => {
 
     const nextState = preferencesReducer(
       initialState,
-      updateChatPreferences({ messageDensity: 'compact' }),
+      updateChatPreferences({
+        messageDensity: 'compact',
+        enterToSend: false,
+        mentionWarningsEnabled: false,
+        allowDirectMessagesFrom: 'members',
+      }),
     );
 
     expect(nextState.preferences.chat.messageDensity).toBe('compact');
     expect(nextState.preferences.chat.openPosition).toBe('last-read');
     expect(nextState.preferences.chat.readReceipts).toBe(true);
+    expect(nextState.preferences.chat.enterToSend).toBe(false);
+    expect(nextState.preferences.chat.mentionWarningsEnabled).toBe(false);
+    expect(nextState.preferences.chat.allowDirectMessagesFrom).toBe('members');
 
     const saved = JSON.parse(
       window.localStorage.getItem(PREFERENCES_STORAGE_KEY) || '{}',
     );
     expect(saved.chat.messageDensity).toBe('compact');
+    expect(saved.chat.enterToSend).toBe(false);
+    expect(saved.chat.mentionWarningsEnabled).toBe(false);
+    expect(saved.chat.allowDirectMessagesFrom).toBe('members');
   });
 
   it('updates notification position, size, and duration', () => {

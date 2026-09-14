@@ -841,20 +841,23 @@ model PushRegistration {
 
 /// Per-user chat presentation preferences.
 model ChatSettings {
-  id               String   @id @default(cuid())
-  userId           String   @unique
+  id                      String   @id @default(cuid())
+  userId                  String   @unique
   /// Compact hides avatars and tightens spacing.
-  density          String   @default("comfortable")
-  showReadReceipts Boolean  @default(true)
-  sendTypingNotice Boolean  @default(true)
-  enterToSend      Boolean  @default(true)
-  playSounds       Boolean  @default(true)
+  density                 String   @default("comfortable")
+  showReadReceipts        Boolean  @default(true)
+  sendTypingNotice        Boolean  @default(true)
+  enterToSend             Boolean  @default(true)
+  mentionWarningsEnabled  Boolean  @default(true)
+  allowDirectMessagesFrom String   @default("everyone")
+  playSounds              Boolean  @default(true)
   /// Load remote images and link previews automatically.
-  autoloadMedia    Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  autoloadMedia           Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("chat_settings")
 }
 

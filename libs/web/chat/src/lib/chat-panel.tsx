@@ -10,6 +10,8 @@ import type {
   StructuredMessageAction,
   SystemEventEntity,
 } from '@org/matrix-client';
+import type { ComposerContext } from '@org/types';
+
 import { useReadReceipts } from '@org/common';
 import {
   Button,
@@ -95,7 +97,9 @@ export interface ChatPanelProps {
   };
   /** Whether the caller may manage this conversation — see `ChatSurface`. */
   canManageConversation?: boolean;
+  composerContext?: ComposerContext;
 }
+
 
 /**
  * The Matrix-backed conversation surface for a channel.
@@ -121,7 +125,9 @@ export function ChatPanel({
   composerReadOnlyMessage,
   anonymousPosting,
   canManageConversation,
+  composerContext,
 }: ChatPanelProps) {
+
   const { client, status, enabled, error } = useMatrix();
   const readReceiptsEnabled = useReadReceipts();
 
@@ -715,6 +721,8 @@ export function ChatPanel({
       anonymousPosting={anonymousPosting}
       canManageConversation={canManageConversation}
       onViewSystemEventEntity={handleViewSystemEventEntity}
+      composerContext={composerContext}
     />
   );
+
 }

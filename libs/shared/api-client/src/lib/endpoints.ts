@@ -90,7 +90,9 @@ import type {
   CalendarEvent,
   Channel,
   ChannelAgentView,
+  ChannelAppView,
   ChannelMember,
+
   ChannelPin,
   ChannelSummary,
   CurrentUser,
@@ -774,6 +776,42 @@ export const channelAgentsApi = {
       ),
     ),
 };
+
+/** Apps added to a channel. */
+export const channelAppsApi = {
+  list: (workspaceId: string, channelId: string) =>
+    request<ChannelAppView[]>(
+      http.get(`/workspaces/${workspaceId}/channels/${channelId}/apps`),
+    ),
+
+  add: (workspaceId: string, channelId: string, integrationId: string) =>
+    request<ChannelAppView[]>(
+      http.post(`/workspaces/${workspaceId}/channels/${channelId}/apps`, {
+        integrationId,
+      }),
+    ),
+
+  setEnabled: (
+    workspaceId: string,
+    channelId: string,
+    integrationId: string,
+    isEnabled: boolean,
+  ) =>
+    request<ChannelAppView[]>(
+      http.patch(
+        `/workspaces/${workspaceId}/channels/${channelId}/apps/${integrationId}`,
+        { isEnabled },
+      ),
+    ),
+
+  remove: (workspaceId: string, channelId: string, integrationId: string) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/channels/${channelId}/apps/${integrationId}`,
+      ),
+    ),
+};
+
 
 export const memberApi = {
   list: (workspaceId: string) =>

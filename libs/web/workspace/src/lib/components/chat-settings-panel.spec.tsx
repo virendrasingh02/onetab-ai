@@ -23,6 +23,9 @@ describe('ChatSettingsPanel', () => {
     expect(screen.getByText('Last Read Message')).toBeDefined();
     expect(screen.getByText('Newest Message')).toBeDefined();
     expect(screen.getByText('Send and view read receipts')).toBeDefined();
+    expect(screen.getByText('Press Enter to send')).toBeDefined();
+    expect(screen.getByText('Mention reachability warnings')).toBeDefined();
+    expect(screen.getByText('Direct Message Privacy')).toBeDefined();
   });
 
   it('switches message density when clicking compact', () => {
@@ -51,5 +54,19 @@ describe('ChatSettingsPanel', () => {
 
     const state = store.getState();
     expect(state.preferences.preferences.chat.openPosition).toBe('newest');
+  });
+
+  it('changes direct message privacy when clicking Members Only', () => {
+    render(
+      <Provider store={store}>
+        <ChatSettingsPanel />
+      </Provider>,
+    );
+
+    const membersOnlyOption = screen.getByText('Members Only');
+    fireEvent.click(membersOnlyOption);
+
+    const state = store.getState();
+    expect(state.preferences.preferences.chat.allowDirectMessagesFrom).toBe('members');
   });
 });

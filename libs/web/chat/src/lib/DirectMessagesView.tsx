@@ -1,7 +1,12 @@
 import { useCurrentUser } from '@org/auth';
 import { AddBookmarkDialog, Composer } from '@org/chat-ui';
 import { useUserPresenceMap } from '@org/realtime';
-import type { ChannelSummary, RoomMember, WorkspaceMember } from '@org/types';
+import type {
+  ChannelSummary,
+  ComposerContext,
+  RoomMember,
+  WorkspaceMember,
+} from '@org/types';
 import {
   Badge,
   Button,
@@ -447,13 +452,31 @@ function DirectRoom({
   avatarUrl?: string | null;
   /** True for the note-to-self conversation. */
   isSelf?: boolean;
-  peerKind?: 'person' | 'agent' | 'app';
+  peerKind?: 'person' | 'agent' | 'coworker' | 'app';
   /** Opens the peer's profile in the right rail. Omitted for note-to-self. */
   onViewProfile?: () => void;
   headerActionsSlot: HTMLElement | null;
 }) {
   const { workspaceId } = useCurrentWorkspace();
   const { roomId, error } = useDirectRoom(peerId);
+
+  const composerContext = useMemo<ComposerContext>(
+    () => ({
+      surfaceKind:
+        peerKind === 'agent'
+          ? 'agent'
+          : peerKind === 'coworker'
+            ? 'coworker'
+            : peerKind === 'app'
+              ? 'app'
+              : 'dm',
+      workspaceId,
+      roomId,
+      peerId,
+      canManage: false,
+    }),
+    [peerKind, workspaceId, roomId, peerId],
+  );
 
   if (error) {
     return (
@@ -485,6 +508,7 @@ function DirectRoom({
       headerActionsSlot={headerActionsSlot}
       showMembers={false}
       showEncryptedBadge={false}
+      composerContext={composerContext}
       welcome={{
         kind: isSelf ? 'self' : 'direct',
         peer: {

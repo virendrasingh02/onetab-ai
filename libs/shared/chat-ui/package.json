@@ -35,8 +35,10 @@
   "dependencies": {
     "@org/hooks": "*",
     "@org/media-preview": "*",
+    "@org/types": "*",
     "@org/ui": "*",
     "@tanstack/react-virtual": "^3.14.9",
     "lucide-react": "^1.28.0"
   }
+
 }

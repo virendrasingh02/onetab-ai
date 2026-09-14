@@ -1,4 +1,4 @@
-import type { AICoworkerDetail } from '@org/types';
+import type { AICoworkerDetail, ComposerContext } from '@org/types';
 import {
   Badge,
   Button,
@@ -831,6 +831,13 @@ function CoworkerConversationContainer({
   // If Matrix is enabled and connected, use the full real-time ChatPanel
   if (enabled && !error && (roomId || coworker.matrixRoomId)) {
     const activeRoomId = roomId || coworker.matrixRoomId || '';
+    const composerContext: ComposerContext = {
+      surfaceKind: 'coworker',
+      workspaceId,
+      roomId: activeRoomId,
+      peerId: coworker.matrixUserId ?? `coworker-${coworker.id}`,
+      canManage: false,
+    };
     return (
       <ConversationTabsShell
         filesContext={{ type: 'AGENT', id: coworker.id }}
@@ -847,12 +854,13 @@ function CoworkerConversationContainer({
           workspaceId={workspaceId}
           showMembers={false}
           showEncryptedBadge={false}
+          composerContext={composerContext}
           welcome={{
             kind: 'direct',
             peer: {
               name: coworker.name,
               userId: coworker.matrixUserId ?? `coworker-${coworker.id}`,
-              kind: 'agent',
+              kind: 'coworker',
               role: `${coworker.model || 'gpt-4o'} · ${coworker.role}`,
               avatarNode: (
                 <CoworkerAvatar

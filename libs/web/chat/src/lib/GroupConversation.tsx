@@ -1,4 +1,4 @@
-import type { WorkspaceMember } from '@org/types';
+import type { ComposerContext, WorkspaceMember } from '@org/types';
 import {
   Button,
   Dialog,
@@ -143,6 +143,16 @@ export function GroupConversation({
   // just without the group-DM-only membership controls.
   const isChannel = room?.kind === 'channel';
 
+  const composerContext = useMemo<ComposerContext>(
+    () => ({
+      surfaceKind: isChannel ? 'channel' : 'group-dm',
+      workspaceId,
+      roomId,
+      canManage: true,
+    }),
+    [isChannel, workspaceId, roomId],
+  );
+
   return (
     <div className="min-h-0 flex flex-1 flex-col">
       <GroupHeader
@@ -174,6 +184,7 @@ export function GroupConversation({
           headerActionsSlot={chatActionsSlot}
           showMembers
           showEncryptedBadge={false}
+          composerContext={composerContext}
           welcome={
             isChannel
               ? undefined

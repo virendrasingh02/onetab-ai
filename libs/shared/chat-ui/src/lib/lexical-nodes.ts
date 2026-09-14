@@ -8,6 +8,7 @@ import {
   type LexicalNode,
   TextNode,
 } from 'lexical';
+import type { MentionKind } from '@org/types';
 
 /**
  * The platform id behind a chip: the user id for `@someone`, the command name
@@ -18,6 +19,16 @@ import {
  */
 const targetIdState = createState('targetId', {
   parse: (value: unknown) => (typeof value === 'string' ? value : ''),
+});
+
+const mentionKindState = createState('mentionKind', {
+  parse: (value: unknown): MentionKind =>
+    value === 'agent' ||
+    value === 'coworker' ||
+    value === 'app' ||
+    value === 'group'
+      ? value
+      : 'user',
 });
 
 /**
@@ -33,7 +44,10 @@ export class MentionNode extends TextNode {
   override $config() {
     return this.config('mention', {
       extends: TextNode,
-      stateConfigs: [{ stateConfig: targetIdState, flat: true }],
+      stateConfigs: [
+        { stateConfig: targetIdState, flat: true },
+        { stateConfig: mentionKindState, flat: true },
+      ],
     });
   }
 
@@ -41,8 +55,10 @@ export class MentionNode extends TextNode {
     const element = super.createDOM(config);
     addClassNamesToElement(element, config.theme.mention);
     element.setAttribute('data-mention-id', $getState(this, targetIdState));
+    element.setAttribute('data-mention-kind', $getState(this, mentionKindState));
     return element;
   }
+
 
   override isTextEntity(): true {
     return true;
@@ -89,10 +105,12 @@ export class CommandNode extends TextNode {
 export function $createMentionNode(
   displayName: string,
   targetId = '',
+  kind: MentionKind = 'user',
 ): MentionNode {
   const node = $applyNodeReplacement(new MentionNode(`@${displayName}`));
   node.setMode('segmented').toggleDirectionless();
-  return $setState(node, targetIdState, targetId);
+  $setState(node, targetIdState, targetId);
+  return $setState(node, mentionKindState, kind);
 }
 
 export function $createCommandNode(name: string): CommandNode {
@@ -118,3 +136,9 @@ export function $isCommandNode(
 export function $getChipTarget(node: MentionNode | CommandNode): string {
   return $getState(node, targetIdState);
 }
+
+/** The kind of entity a mention chip points at ('user' | 'agent' | 'coworker' | 'app' | 'group'). */
+export function $getMentionKind(node: MentionNode): MentionKind {
+  return $getState(node, mentionKindState);
+}
+

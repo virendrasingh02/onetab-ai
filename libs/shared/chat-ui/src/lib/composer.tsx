@@ -1,4 +1,5 @@
-import type { RoomMember } from '@org/types';
+import type { RoomMember, DetectedMention } from '@org/types';
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -273,8 +274,10 @@ export interface ComposerProps {
   };
   contextSlot?: ReactNode;
   enterToSend?: boolean;
+  onMentionsChange?: (mentions: DetectedMention[]) => void;
   /** Off in the thread panel, where the reply box stays out of the way. */
   showFormatting?: boolean;
+
   slashCommands?: SlashCommand[];
   onSchedule?: (body: string, when: string) => void;
   onStartHuddle?: () => void;
@@ -313,8 +316,11 @@ export function Composer({
   readOnlyMessage,
   anonymousPosting,
   contextSlot,
+  enterToSend = true,
+  onMentionsChange,
   showFormatting = true,
   slashCommands = DEFAULT_SLASH_COMMANDS,
+
   onSchedule,
   onStartHuddle,
   onSendVoice,
@@ -628,11 +634,14 @@ export function Composer({
           placeholder={placeholder}
           initialMarkdown={initialDraft}
           onSend={handleComposerSend}
+          enterToSend={enterToSend}
           onTyping={onTyping}
           onEmptyChange={handleEmptyChange}
           onDraftChange={handleDraftChange}
+          onMentionsChange={onMentionsChange}
           disabled={disabled}
           showToolbar={showFormatting && toolbarOpen}
+
           hasPendingAttachments={attachments.length > 0}
           members={mentionCandidates}
           slashCommands={slashCommands}
