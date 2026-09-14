@@ -1,6 +1,7 @@
 import { Button, EmptyState, LoadingState } from '@org/ui';
 import { lazy, Suspense } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
+import { RequirePlatformOperator } from './require-platform-operator';
 
 /**
  * Admin console routes.
@@ -217,8 +218,9 @@ function NotFoundPage() {
 
 export function App() {
   return (
-    <Suspense fallback={<LoadingState fullPage />}>
-      <Routes>
+    <RequirePlatformOperator>
+      <Suspense fallback={<LoadingState fullPage />}>
+        <Routes>
         <Route element={<AdminShell />}>
           {/* Overview & Platform Intelligence Dashboard */}
           <Route path="/" element={<Navigate to="/overview" replace />} />
@@ -328,8 +330,9 @@ export function App() {
 
           <Route path="*" element={<NotFoundPage />} />
         </Route>
-      </Routes>
-    </Suspense>
+        </Routes>
+      </Suspense>
+    </RequirePlatformOperator>
   );
 }
 

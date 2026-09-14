@@ -12,6 +12,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["exec", "nx", "--", "run", "@org/web:serve"],
       "port": 4200
+    },
+    {
+      "name": "admin",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["exec", "nx", "--", "run", "@org/admin:serve"],
+      "port": 4201
     }
   ]
 }
