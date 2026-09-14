@@ -21,13 +21,22 @@ export interface UseComposerAddActionsOptions {
   slug?: string;
 }
 
+/**
+ * Returns the `onAdd` handler `<ComposerWarning>` expects directly (not
+ * wrapped in an object) — every call site plugs this straight into
+ * `onAdd={...}`, and wrapping it invites exactly the "passed the hook's
+ * return value instead of the function" bug this used to have.
+ */
 export function useComposerAddActions({
   workspaceId,
   channelId,
   roomId,
   peerId,
   slug,
-}: UseComposerAddActionsOptions) {
+}: UseComposerAddActionsOptions): (
+  targetId: string,
+  addAction: AddAction,
+) => void {
   const { client } = useMatrix();
   const createConversation = useCreateConversation();
   const navigate = useNavigate();
@@ -143,5 +152,5 @@ export function useComposerAddActions({
     ],
   );
 
-  return { handleAdd };
+  return handleAdd;
 }

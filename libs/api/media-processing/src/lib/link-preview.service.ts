@@ -459,7 +459,7 @@ export class LinkPreviewService {
     const metaTags = new Map<string, string>();
 
     // Extract <title>...</title>
-    let titleMatch = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html);
+    const titleMatch = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html);
     const htmlTitle = titleMatch ? titleMatch[1] : undefined;
 
     const getAttr = (attrs: string, attrName: string): string | undefined => {

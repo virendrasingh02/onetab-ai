@@ -68,7 +68,7 @@ export function normalizeUrl(rawUrl: string): string {
  * respecting markdown link syntax and punctuation boundaries.
  */
 const URL_REGEX =
-  /(?:https?:\/\/)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?::\d{1,5})?(?:[\/?#][^\s<>\"'()]*[^\s<>\"'().,;:!?])?/gi;
+  /(?:https?:\/\/)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?::\d{1,5})?(?:[/?#][^\s<>"'()]*[^\s<>"'().,;:!?])?/gi;
 
 /**
  * Strips unwanted trailing punctuation often caught by greedier matching.

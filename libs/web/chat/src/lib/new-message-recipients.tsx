@@ -25,7 +25,7 @@ export interface RecipientPerson {
   handle: string;
   avatarUrl?: string | null;
   presence?: string | null;
-  kind: 'person' | 'agent' | 'app';
+  kind: 'person' | 'agent' | 'coworker' | 'app';
   /** The viewer's own row — pinned first and tagged "You". */
   isSelf?: boolean;
   statusText?: string | null;
@@ -333,7 +333,9 @@ export function NewMessageRecipients({
                       presence={toPresenceStatus(row.person.presence)}
                       className={cn(
                         'size-6',
-                        row.person.kind === 'agent' && 'ring-2 ring-primary/40',
+                        (row.person.kind === 'agent' ||
+                          row.person.kind === 'coworker') &&
+                          'ring-2 ring-primary/40',
                         row.person.kind === 'app' &&
                           'ring-2 ring-accent-violet/40',
                       )}
@@ -350,6 +352,10 @@ export function NewMessageRecipients({
                         ) : row.person.kind === 'agent' ? (
                           <span className="font-bold tracking-wider text-[9px] text-primary uppercase">
                             AI Agent
+                          </span>
+                        ) : row.person.kind === 'coworker' ? (
+                          <span className="font-bold tracking-wider text-[9px] text-primary uppercase">
+                            AI Coworker
                           </span>
                         ) : row.person.kind === 'app' ? (
                           <span className="font-bold tracking-wider text-[9px] text-accent-violet uppercase">

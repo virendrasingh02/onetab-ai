@@ -1,22 +1,20 @@
-import { linkPreviewApi } from '@org/api-client';
 import type { LinkPreview, WorkspacePolicy } from '@org/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  configureLinkPreviewApi,
   resolvePreviewVisibility,
   useLinkPreviewStore,
 } from './use-link-preview.js';
 
-vi.mock('@org/api-client', () => ({
-  linkPreviewApi: {
-    getPreview: vi.fn(),
-    updateMessageVisibility: vi.fn(),
-    getMessageVisibility: vi.fn(),
-  },
-}));
+const linkPreviewApi = {
+  getPreview: vi.fn(),
+  updateMessageVisibility: vi.fn(),
+};
 
 describe('use-link-preview', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    configureLinkPreviewApi(linkPreviewApi);
     useLinkPreviewStore.setState({
       previews: {},
       loadingUrls: {},

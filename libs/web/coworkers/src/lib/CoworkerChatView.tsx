@@ -836,7 +836,6 @@ function CoworkerConversationContainer({
       workspaceId,
       roomId: activeRoomId,
       peerId: coworker.matrixUserId ?? `coworker-${coworker.id}`,
-      canManage: false,
     };
     return (
       <ConversationTabsShell

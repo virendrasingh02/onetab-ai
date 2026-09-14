@@ -43,7 +43,18 @@ export function useComposerControl(
 
   const workspaceId = context?.workspaceId ?? currentWorkspace.workspaceId;
   const channelId = context?.channelId;
-  const isChannel = context?.surfaceKind === 'channel' && !!workspaceId && !!channelId;
+  /*
+   * A thread reply's `ComposerContext` carries the parent channel's
+   * `channelId` (see `chat-surface.tsx`'s `threadComposerContext`), so a
+   * thread inside a channel should get the exact same reachable-members /
+   * linked-agent / viewer-can-manage data the channel's own composer gets —
+   * gating this on `surfaceKind === 'channel'` alone silently dropped all of
+   * it for threads, so mentioning an unlinked agent in a channel thread never
+   * warned or offered "Add to channel". Cross-room thread contexts (see
+   * `ThreadsView`'s inbox) carry no `channelId`, so they correctly fall
+   * through to the non-channel branch below.
+   */
+  const isChannel = !!workspaceId && !!channelId;
 
   // Channel members query to determine viewer's channelRole
   const channelMembersQuery = useQuery({
@@ -83,7 +94,7 @@ export function useComposerControl(
   const viewerCanManage = useMemo(() => {
     if (!isChannel) return false;
     const member = channelMembersQuery.data?.find(
-      (m) => m.userId === currentUser?.id,
+      (m) => m.user.id === currentUser?.id,
     );
     return canManageChannelMembers({
       channelRole: member?.role ?? null,
@@ -174,7 +185,13 @@ export function useComposerControl(
     }
 
     return list;
-  }, [context, currentMentions, reachable, viewerCanManage]);
+  }, [
+    context,
+    currentMentions,
+    reachable,
+    viewerCanManage,
+    chat?.mentionWarningsEnabled,
+  ]);
 
   const signature = useMemo(
     () => targets.map((t) => t.id).sort().join(','),

@@ -33,7 +33,6 @@
     }
   },
   "dependencies": {
-    "@org/api-client": "*",
     "@org/hooks": "*",
     "@org/media-preview": "*",
     "@org/types": "*",

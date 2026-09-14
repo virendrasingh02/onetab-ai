@@ -17,6 +17,7 @@ import { RealtimeProvider, useUserPresenceMap } from '@org/realtime';
 import {
   AuthenticatedMediaBridge,
   CallOverlayBridge,
+  LinkPreviewBridge,
   MatrixProvider,
 } from '@org/web-chat';
 import { SyncProvider } from '@org/sync';
@@ -226,6 +227,7 @@ export function Providers({ children }: { children: ReactNode }) {
               <MatrixProvider>
                 <AuthenticatedMediaBridge>
                   <CallOverlayBridge />
+                  <LinkPreviewBridge />
                   <RealtimeAppBridge>
                     <TooltipProvider>
                       <MediaPreviewProvider>

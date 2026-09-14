@@ -41,9 +41,6 @@
     },
     {
       "path": "../hooks/tsconfig.lib.json"
-    },
-    {
-      "path": "../api-client/tsconfig.lib.json"
     }
   ]
 }

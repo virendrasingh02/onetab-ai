@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["exec", "nx", "--", "run", "@org/api:serve"],
+      "port": 3000
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["exec", "nx", "--", "run", "@org/web:serve"],
+      "port": 4200
+    }
+  ]
+}

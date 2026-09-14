@@ -1,4 +1,3 @@
-import { linkPreviewApi } from '@org/api-client';
 import type {
   ChatPreferences,
   LinkPreview,
@@ -7,6 +6,29 @@ import type {
 import { useEffect } from 'react';
 import { create } from 'zustand';
 import { normalizeUrl } from './link-detector.js';
+
+/**
+ * `@org/chat-ui` is `type:ui` and may not depend on `@org/api-client`
+ * (`type:data-access`) — the same boundary `@org/hooks`' authenticated-media
+ * fetcher works around. The app wires the real `linkPreviewApi` calls in once,
+ * near the root, via `configureLinkPreviewApi` (see `LinkPreviewBridge` in
+ * `@org/web-chat`); unconfigured, previews simply never load and callers fall
+ * back to their normal loading/absent state.
+ */
+export interface LinkPreviewApi {
+  getPreview: (url: string) => Promise<LinkPreview>;
+  updateMessageVisibility: (
+    messageId: string,
+    visibility: 'visible' | 'hidden',
+  ) => Promise<unknown>;
+}
+
+let linkPreviewApi: LinkPreviewApi | null = null;
+
+/** Wires the real API calls in. Pass `null` to tear it down (e.g. sign-out). */
+export function configureLinkPreviewApi(api: LinkPreviewApi | null): void {
+  linkPreviewApi = api;
+}
 
 interface LinkPreviewState {
   previews: Record<string, LinkPreview>;
@@ -44,19 +66,22 @@ export const useLinkPreviewStore = create<LinkPreviewState>((set, get) => ({
       return inFlight;
     }
 
+    const api = linkPreviewApi;
+    if (!api) return null;
+
     set((state) => ({
       loadingUrls: { ...state.loadingUrls, [normalized]: true },
     }));
 
     const promise = (async () => {
       try {
-        const preview = await linkPreviewApi.getPreview(url);
+        const preview = await api.getPreview(url);
         set((state) => ({
           previews: { ...state.previews, [normalized]: preview },
           loadingUrls: { ...state.loadingUrls, [normalized]: false },
         }));
         return preview;
-      } catch (err) {
+      } catch {
         set((state) => ({
           loadingUrls: { ...state.loadingUrls, [normalized]: false },
         }));
@@ -87,6 +112,7 @@ export const useLinkPreviewStore = create<LinkPreviewState>((set, get) => ({
     // Optimistic local update
     get().setMessageOverride(messageId, nextVisibility);
 
+    if (!linkPreviewApi) return;
     try {
       await linkPreviewApi.updateMessageVisibility(messageId, nextVisibility);
     } catch {

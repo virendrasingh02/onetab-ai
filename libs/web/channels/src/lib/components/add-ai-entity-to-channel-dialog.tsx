@@ -108,10 +108,10 @@ export function AddAiEntityToChannelDialog({
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/^-+|-+$/g, '') || 'coworker'),
         role: c.role || 'AI Coworker',
-        description: c.instructions ?? '',
-        model: c.modelId ?? 'claude-3-5-sonnet',
+        description: c.description ?? '',
+        model: c.model || 'claude-3-5-sonnet',
         avatarSeed: c.id,
-        tags: c.skills ?? [],
+        tags: [],
         entityType: 'coworker',
       })),
     [coworkersQuery.data],
@@ -132,7 +132,7 @@ export function AddAiEntityToChannelDialog({
 
   const linkCoworkerMutation = useMutation({
     mutationFn: (coworkerId: string) =>
-      coworkersApi.linkToChannel(channel.workspaceId, channel.id, coworkerId),
+      coworkersApi.addChannelCoworker(channel.workspaceId, channel.id, coworkerId),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.channels.coworkers(channel.workspaceId, channel.id),
@@ -150,7 +150,7 @@ export function AddAiEntityToChannelDialog({
 
   const linkAgentMutation = useMutation({
     mutationFn: (agentId: string) =>
-      channelAgentsApi.add(channel.workspaceId, channel.id, { agentId }),
+      channelAgentsApi.add(channel.workspaceId, channel.id, agentId),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.channels.agents(channel.workspaceId, channel.id),

@@ -69,6 +69,24 @@ export function formatTargetSentence(
     return `${name} won't see this message here.`;
   }
 
+  if (surfaceKind === 'thread') {
+    if (target.kind === 'user') {
+      return `${name} isn't in ${ch} and won't see this reply.`;
+    }
+    if (target.kind === 'agent' || target.kind === 'coworker') {
+      if (target.addAction === 'channel-agent') {
+        return `${name} isn't connected to ${ch}.`;
+      }
+      return `${name} isn't connected to ${ch} and won't see this reply.`;
+    }
+    if (target.kind === 'app') {
+      if (target.addAction === 'channel-app') {
+        return `${name} isn't connected to ${ch}.`;
+      }
+      return `${name} isn't connected to ${ch} and won't act on this reply.`;
+    }
+  }
+
   if (
     surfaceKind === 'agent' ||
     surfaceKind === 'coworker' ||

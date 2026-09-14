@@ -4,7 +4,8 @@ export type ComposerSurfaceKind =
   | 'group-dm'
   | 'agent'
   | 'coworker'
-  | 'app';
+  | 'app'
+  | 'thread';
 
 export interface ComposerContext {
   surfaceKind: ComposerSurfaceKind;

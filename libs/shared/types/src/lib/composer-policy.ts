@@ -64,6 +64,16 @@ export function evaluateMention(
   const { surfaceKind, reachable, viewerCanManage } = ctx;
 
   switch (surfaceKind) {
+    /*
+     * A thread reply is posted into the same room as its channel, so it
+     * shares the channel's reachability rules exactly — `useComposerControl`
+     * populates `reachable`/`viewerCanManage` for a thread the same way it
+     * does for the channel itself whenever the thread's context carries a
+     * `channelId` (see its `isChannel` gate). A cross-room thread with no
+     * `channelId` gets empty agent/coworker/app sets and `viewerCanManage:
+     * false` from that same gate, so this still degrades safely for it.
+     */
+    case 'thread':
     case 'channel': {
       if (mention.kind === 'user') {
         const isReachable = reachable.userIds.has(mention.id);

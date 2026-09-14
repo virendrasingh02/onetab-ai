@@ -333,6 +333,8 @@ export {
   useLinkPreview,
   useLinkPreviewStore,
   resolvePreviewVisibility,
+  configureLinkPreviewApi,
+  type LinkPreviewApi,
 } from './lib/use-link-preview.js';
 
 

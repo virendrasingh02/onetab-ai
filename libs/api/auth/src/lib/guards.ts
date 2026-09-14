@@ -164,7 +164,8 @@ export class WorkspaceRoleGuard implements CanActivate {
         where: { workspaceId_userId: { workspaceId: workspace.id, userId: user.id } },
         data: { lastActiveAt: new Date() },
       })
-      .catch(() => {});
+      // Best-effort activity timestamp — never worth failing the request over.
+      .catch(() => undefined);
 
     // An archived workspace stays readable so its history is not stranded, but
     // refuses writes. Checked on the HTTP method rather than per route, so a

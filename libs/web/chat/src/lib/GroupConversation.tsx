@@ -94,6 +94,22 @@ export function GroupConversation({
     [membersQuery.data, extraPeers],
   );
 
+  // The picked people may already share a channel — reused, not duplicated
+  // (see `getOrCreateGroupDirectMessage`). It renders here as a conversation,
+  // just without the group-DM-only membership controls. Computed above the
+  // early returns below (Rules of Hooks: `useMemo` cannot follow a
+  // conditional `return` in the same render).
+  const isChannel = room?.kind === 'channel';
+
+  const composerContext = useMemo<ComposerContext>(
+    () => ({
+      surfaceKind: isChannel ? 'channel' : 'group-dm',
+      workspaceId,
+      roomId,
+    }),
+    [isChannel, workspaceId, roomId],
+  );
+
   if (!enabled) {
     return (
       <div className="min-h-0 flex flex-1 flex-col">
@@ -137,21 +153,6 @@ export function GroupConversation({
       </div>
     );
   }
-
-  // The picked people may already share a channel — reused, not duplicated
-  // (see `getOrCreateGroupDirectMessage`). It renders here as a conversation,
-  // just without the group-DM-only membership controls.
-  const isChannel = room?.kind === 'channel';
-
-  const composerContext = useMemo<ComposerContext>(
-    () => ({
-      surfaceKind: isChannel ? 'channel' : 'group-dm',
-      workspaceId,
-      roomId,
-      canManage: true,
-    }),
-    [isChannel, workspaceId, roomId],
-  );
 
   return (
     <div className="min-h-0 flex flex-1 flex-col">

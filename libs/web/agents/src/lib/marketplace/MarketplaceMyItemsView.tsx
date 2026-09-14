@@ -10,7 +10,6 @@ interface MarketplaceMyItemsViewProps {
   onOpenBuilder: (agentId?: string, name?: string) => void;
   onOpenChat: (agentId: string) => void;
   onDeleteAgent?: (agentId: string) => void;
-  onToggleAgentStatus?: (agentId: string, currentStatus: string) => void;
   onOpenDeveloper: () => void;
 }
 
@@ -20,7 +19,6 @@ export const MarketplaceMyItemsView: React.FC<MarketplaceMyItemsViewProps> = ({
   onOpenBuilder,
   onOpenChat,
   onDeleteAgent,
-  onToggleAgentStatus,
   onOpenDeveloper,
 }) => {
   if (type === 'apps') {

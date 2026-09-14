@@ -933,6 +933,8 @@ export function ChatSurface({
       isEncrypted,
       canManageConversation,
       handleViewSystemEventEntity,
+      onViewContext,
+      chat?.linkPreviewsEnabled,
     ],
   );
 
