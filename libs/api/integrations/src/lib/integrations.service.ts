@@ -4,6 +4,8 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AppEvent } from '@org/api-common';
 import { MatrixBotMessagingService } from '@org/api-matrix';
 import { PrismaService } from '@org/database';
 import type {
@@ -35,6 +37,7 @@ export class IntegrationsService {
     private readonly permissions: IntegrationPermissionService,
     private readonly auditLogger: IntegrationLoggerService,
     private readonly botMessaging: MatrixBotMessagingService,
+    private readonly events: EventEmitter2,
   ) {}
 
   /**
@@ -365,6 +368,12 @@ export class IntegrationsService {
       jobType: 'INITIAL_SYNC',
     });
 
+    this.events.emit(AppEvent.IntegrationConnected, {
+      workspaceId: saved.workspaceId,
+      actorId: statePayload.userId,
+      integrationId: saved.id,
+    });
+
     return {
       success: true,
       integration: this.formatSafeIntegration(saved),
@@ -403,6 +412,12 @@ export class IntegrationsService {
       action: 'INTEGRATION_DISCONNECTED',
       status: 'SUCCESS',
       durationMs: Date.now() - startTime,
+    });
+
+    this.events.emit(AppEvent.IntegrationDisconnected, {
+      workspaceId: updated.workspaceId,
+      actorId: userId,
+      integrationId,
     });
 
     return this.formatSafeIntegration(updated);
@@ -786,5 +801,149 @@ export class IntegrationsService {
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Channel ↔ app links — mirrors `ChannelAgentsService`/`CoworkersService`'s
+  // channel-link methods exactly, so "Outlook Calendar APP was added to
+  // #agent45" (brief §4) is a real, first-class installation rather than
+  // decoration: `ChannelIntegration` gates which apps `AppMatrixBridgeService`
+  // lets answer in a channel's room, the same way `ChannelAgent` does for agents.
+  // ---------------------------------------------------------------------------
+
+  async listChannelApps(workspaceId: string, channelId: string) {
+    await this.assertChannel(workspaceId, channelId);
+    const rows = await this.prisma.channelIntegration.findMany({
+      where: { channelId },
+      include: {
+        integration: {
+          select: { id: true, provider: true, displayName: true, status: true },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      channelId: row.channelId,
+      integrationId: row.integrationId,
+      isEnabled: row.isEnabled,
+      addedById: row.addedById,
+      createdAt: row.createdAt.toISOString(),
+      integration: row.integration,
+    }));
+  }
+
+  async addChannelApp(
+    workspaceId: string,
+    channelId: string,
+    integrationId: string,
+    addedById: string,
+  ) {
+    await this.assertChannel(workspaceId, channelId);
+    await this.assertIntegration(workspaceId, integrationId);
+
+    // Checked before the upsert so re-adding an already-enabled link never
+    // posts a duplicate `app_added` system event (brief §30).
+    const existing = await this.prisma.channelIntegration.findUnique({
+      where: { channelId_integrationId: { channelId, integrationId } },
+      select: { isEnabled: true },
+    });
+
+    await this.prisma.channelIntegration.upsert({
+      where: { channelId_integrationId: { channelId, integrationId } },
+      create: { channelId, integrationId, addedById },
+      update: { isEnabled: true },
+    });
+
+    if (!existing) {
+      this.events.emit(AppEvent.ChannelAppLinked, {
+        workspaceId,
+        actorId: addedById,
+        channelId,
+        integrationId,
+      });
+    } else if (!existing.isEnabled) {
+      this.events.emit(AppEvent.ChannelAppEnabledChanged, {
+        workspaceId,
+        actorId: addedById,
+        channelId,
+        integrationId,
+        isEnabled: true,
+      });
+    }
+
+    return this.listChannelApps(workspaceId, channelId);
+  }
+
+  async setChannelAppEnabled(
+    workspaceId: string,
+    channelId: string,
+    integrationId: string,
+    isEnabled: boolean,
+    actorId?: string,
+  ) {
+    await this.assertChannel(workspaceId, channelId);
+    const link = await this.prisma.channelIntegration.findUnique({
+      where: { channelId_integrationId: { channelId, integrationId } },
+      select: { id: true, isEnabled: true },
+    });
+    if (!link) throw new NotFoundException('App is not linked to this channel.');
+
+    await this.prisma.channelIntegration.update({
+      where: { id: link.id },
+      data: { isEnabled },
+    });
+
+    if (link.isEnabled !== isEnabled) {
+      this.events.emit(AppEvent.ChannelAppEnabledChanged, {
+        workspaceId,
+        actorId: actorId ?? null,
+        channelId,
+        integrationId,
+        isEnabled,
+      });
+    }
+
+    return this.listChannelApps(workspaceId, channelId);
+  }
+
+  async removeChannelApp(
+    workspaceId: string,
+    channelId: string,
+    integrationId: string,
+    actorId?: string,
+  ): Promise<void> {
+    await this.assertChannel(workspaceId, channelId);
+    const { count } = await this.prisma.channelIntegration.deleteMany({
+      where: { channelId, integrationId },
+    });
+
+    if (count > 0) {
+      this.events.emit(AppEvent.ChannelAppUnlinked, {
+        workspaceId,
+        actorId: actorId ?? null,
+        channelId,
+        integrationId,
+      });
+    }
+  }
+
+  private async assertChannel(workspaceId: string, channelId: string): Promise<void> {
+    const found = await this.prisma.channel.findFirst({
+      where: { id: channelId, workspaceId },
+      select: { id: true },
+    });
+    if (!found) throw new NotFoundException('Channel not found.');
+  }
+
+  private async assertIntegration(workspaceId: string, integrationId: string): Promise<void> {
+    const found = await this.prisma.externalIntegration.findFirst({
+      where: {
+        id: integrationId,
+        OR: [{ workspaceId }, { workspaceId: null }],
+      },
+      select: { id: true },
+    });
+    if (!found) throw new NotFoundException('App not found.');
   }
 }

@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@org/database';
 import { AIEntitiesService } from '@org/api-agents';
+import { AppEvent } from '@org/api-common';
 import type { CoworkerPermissions, CoworkerStatus } from '@org/types';
 
 @Injectable()
@@ -8,6 +10,7 @@ export class CoworkersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly entitiesService: AIEntitiesService,
+    private readonly events: EventEmitter2,
   ) {}
 
   async getCoworkers(workspaceId: string) {
@@ -143,11 +146,39 @@ export class CoworkersService {
   ) {
     await this.assertChannel(workspaceId, channelId);
     await this.entitiesService.getEntity(workspaceId, coworkerId);
+
+    // Checked before the upsert so a re-add of an already-enabled link never
+    // posts a duplicate `coworker_added` system event (brief §30).
+    const existing = await this.prisma.channelCoworker.findUnique({
+      where: { channelId_coworkerId: { channelId, coworkerId } },
+      select: { isEnabled: true },
+    });
+
     await this.prisma.channelCoworker.upsert({
       where: { channelId_coworkerId: { channelId, coworkerId } },
       create: { channelId, coworkerId, addedById: addedById ?? null },
       update: { isEnabled: true },
     });
+
+    if (!existing) {
+      this.events.emit(AppEvent.ChannelAiEntityLinked, {
+        workspaceId,
+        actorId: addedById ?? null,
+        channelId,
+        entityId: coworkerId,
+        entityType: 'coworker',
+      });
+    } else if (!existing.isEnabled) {
+      this.events.emit(AppEvent.ChannelAiEntityEnabledChanged, {
+        workspaceId,
+        actorId: addedById ?? null,
+        channelId,
+        entityId: coworkerId,
+        entityType: 'coworker',
+        isEnabled: true,
+      });
+    }
+
     const list = await this.listChannelCoworkers(workspaceId, channelId);
     const found = list.find((c) => c.coworkerId === coworkerId);
     if (!found) throw new NotFoundException('Failed to add channel coworker');
@@ -159,17 +190,30 @@ export class CoworkersService {
     channelId: string,
     coworkerId: string,
     isEnabled: boolean,
+    actorId?: string,
   ) {
     await this.assertChannel(workspaceId, channelId);
     const link = await this.prisma.channelCoworker.findUnique({
       where: { channelId_coworkerId: { channelId, coworkerId } },
-      select: { id: true },
+      select: { id: true, isEnabled: true },
     });
     if (!link) throw new NotFoundException('Coworker is not linked to this channel.');
     await this.prisma.channelCoworker.update({
       where: { id: link.id },
       data: { isEnabled },
     });
+
+    if (link.isEnabled !== isEnabled) {
+      this.events.emit(AppEvent.ChannelAiEntityEnabledChanged, {
+        workspaceId,
+        actorId: actorId ?? null,
+        channelId,
+        entityId: coworkerId,
+        entityType: 'coworker',
+        isEnabled,
+      });
+    }
+
     const list = await this.listChannelCoworkers(workspaceId, channelId);
     const found = list.find((c) => c.coworkerId === coworkerId);
     if (!found) throw new NotFoundException('Channel coworker not found');
@@ -180,11 +224,22 @@ export class CoworkersService {
     workspaceId: string,
     channelId: string,
     coworkerId: string,
+    actorId?: string,
   ): Promise<void> {
     await this.assertChannel(workspaceId, channelId);
-    await this.prisma.channelCoworker.deleteMany({
+    const { count } = await this.prisma.channelCoworker.deleteMany({
       where: { channelId, coworkerId },
     });
+
+    if (count > 0) {
+      this.events.emit(AppEvent.ChannelAiEntityUnlinked, {
+        workspaceId,
+        actorId: actorId ?? null,
+        channelId,
+        entityId: coworkerId,
+        entityType: 'coworker',
+      });
+    }
   }
 
   // -------------------------------------------------------------------------

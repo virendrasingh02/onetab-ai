@@ -9,6 +9,13 @@ import type {
   WorkflowMessageContent,
 } from './chat.js';
 import type { CardMessageContent } from './card-schema.js';
+import {
+  getSystemEventCapabilities,
+  type SystemActivityEventContent,
+  type SystemEventConversationType,
+  type SystemEventEntity,
+  type SystemEventType,
+} from './system-event.js';
 
 export interface ValidationResult<T extends StructuredChatMessage = StructuredChatMessage> {
   valid: boolean;
@@ -44,6 +51,8 @@ export function validateStructuredEvent(
     type = 'mie.file';
   } else if (type.startsWith('mie.workflow') || type.startsWith('org.onetab.workflow')) {
     type = 'mie.workflow';
+  } else if (type.startsWith('mie.system_event') || type.startsWith('org.onetab.system_event')) {
+    type = 'mie.system_event';
   } else if (type.startsWith('mie.system') || type.startsWith('org.onetab.system')) {
     type = 'mie.system';
   } else if (type.startsWith('mie.card') || type.startsWith('org.onetab.card')) {
@@ -65,6 +74,8 @@ export function validateStructuredEvent(
       return validateWorkflowEvent(obj);
     case 'mie.system':
       return validateSystemEvent(obj);
+    case 'mie.system_event':
+      return validateSystemActivityEvent(obj);
     case 'mie.card':
       return validateCardEvent(obj);
     default:
@@ -261,6 +272,117 @@ function validateSystemEvent(obj: Record<string, unknown>): ValidationResult<Sys
     code: typeof obj['code'] === 'string' ? obj['code'] : undefined,
     timestamp: typeof obj['timestamp'] === 'number' ? obj['timestamp'] : Date.now(),
     actions: Array.isArray(obj['actions']) ? (obj['actions'] as any) : undefined,
+  };
+
+  return { valid: true, event };
+}
+
+const VALID_SYSTEM_EVENT_TYPES: ReadonlySet<SystemEventType> = new Set([
+  'member_joined',
+  'member_left',
+  'member_added',
+  'member_removed',
+  'member_role_changed',
+  'member_promoted',
+  'member_demoted',
+  'app_added',
+  'app_removed',
+  'app_connected',
+  'app_disconnected',
+  'app_enabled',
+  'app_disabled',
+  'agent_added',
+  'agent_removed',
+  'agent_joined',
+  'agent_left',
+  'agent_enabled',
+  'agent_disabled',
+  'coworker_added',
+  'coworker_removed',
+  'coworker_enabled',
+  'coworker_disabled',
+  'channel_created',
+  'channel_renamed',
+  'channel_archived',
+  'channel_unarchived',
+  'channel_description_updated',
+  'permissions_changed',
+  'conversation_created',
+  'conversation_archived',
+  'conversation_restored',
+  'custom',
+]);
+
+const VALID_CONVERSATION_TYPES: ReadonlySet<SystemEventConversationType> = new Set([
+  'channel',
+  'dm',
+  'group_dm',
+  'ai_agent',
+  'app',
+  'coworker',
+]);
+
+function coerceSystemEventEntity(raw: unknown): SystemEventEntity | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const obj = raw as Record<string, unknown>;
+  const kindCandidates = ['user', 'app', 'agent', 'coworker', 'channel'];
+  const kind = kindCandidates.includes(String(obj['kind'])) ? (obj['kind'] as SystemEventEntity['kind']) : 'user';
+  return {
+    kind,
+    id: typeof obj['id'] === 'string' ? obj['id'] : null,
+    name: typeof obj['name'] === 'string' ? obj['name'] : 'Unknown',
+    avatarUrl: typeof obj['avatarUrl'] === 'string' ? obj['avatarUrl'] : undefined,
+    isDeleted: typeof obj['isDeleted'] === 'boolean' ? obj['isDeleted'] : undefined,
+    provider: typeof obj['provider'] === 'string' ? obj['provider'] : undefined,
+  };
+}
+
+/**
+ * Validates a `mie.system_event` (unified System/Activity Event) payload.
+ * Unknown `eventType`/`conversationType` values fall back to `custom`/`channel`
+ * rather than being rejected — a future event type from a newer server must
+ * still render *something* sane on an older client (brief §1, §20).
+ */
+function validateSystemActivityEvent(
+  obj: Record<string, unknown>,
+): ValidationResult<SystemActivityEventContent> {
+  const rawEventType = String(obj['eventType'] || 'custom');
+  const eventType = (VALID_SYSTEM_EVENT_TYPES.has(rawEventType as SystemEventType)
+    ? rawEventType
+    : 'custom') as SystemEventType;
+
+  const rawConversationType = String(obj['conversationType'] || 'channel');
+  const conversationType = (VALID_CONVERSATION_TYPES.has(
+    rawConversationType as SystemEventConversationType,
+  )
+    ? rawConversationType
+    : 'channel') as SystemEventConversationType;
+
+  const conversationId = String(obj['conversationId'] || '');
+  if (!conversationId) {
+    return { valid: false, error: 'System event requires a conversationId' };
+  }
+
+  const capabilities =
+    obj['capabilities'] && typeof obj['capabilities'] === 'object'
+      ? (obj['capabilities'] as SystemActivityEventContent['capabilities'])
+      : getSystemEventCapabilities(eventType);
+
+  const event: SystemActivityEventContent = {
+    type: 'mie.system_event',
+    version: typeof obj['version'] === 'string' ? obj['version'] : 'v1',
+    eventType,
+    conversationType,
+    conversationId,
+    conversationName: typeof obj['conversationName'] === 'string' ? obj['conversationName'] : undefined,
+    workspaceId: typeof obj['workspaceId'] === 'string' ? obj['workspaceId'] : undefined,
+    actor: coerceSystemEventEntity(obj['actor']),
+    target: coerceSystemEventEntity(obj['target']),
+    secondaryTarget: obj['secondaryTarget'] ? coerceSystemEventEntity(obj['secondaryTarget']) : undefined,
+    metadata: obj['metadata'] && typeof obj['metadata'] === 'object' ? (obj['metadata'] as Record<string, unknown>) : undefined,
+    occurredAt: typeof obj['occurredAt'] === 'number' ? obj['occurredAt'] : Date.now(),
+    idempotencyKey: typeof obj['idempotencyKey'] === 'string' ? obj['idempotencyKey'] : `${conversationId}:${eventType}:${Date.now()}`,
+    capabilities,
   };
 
   return { valid: true, event };

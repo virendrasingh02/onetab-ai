@@ -97,5 +97,11 @@ export type {
   StructuredMessageAction,
   FormFieldDefinition,
   WorkflowStep,
+  SystemActivityEventContent,
+  SystemEventEntity,
+  SystemEventType,
+  SystemEventConversationType,
+  SystemEventCapabilities,
 } from '@org/types';
+export { getSystemEventCapabilities, formatSystemEventFallbackText } from '@org/types';
 

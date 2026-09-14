@@ -8,6 +8,7 @@
  */
 
 import type { CardMessageContent } from './card-schema.js';
+import type { SystemActivityEventContent } from './system-event.js';
 
 export type RoomId = string;
 export type EventId = string;
@@ -449,6 +450,7 @@ export type StructuredChatMessage =
   | FileMessageContent
   | WorkflowMessageContent
   | SystemMessageContent
+  | SystemActivityEventContent
   | CardMessageContent;
 
 export interface Thread {

@@ -10,88 +10,89 @@ datasource db {
 }
 
 model User {
-  id                      String                   @id @default(cuid())
-  email                   String                   @unique
+  id                        String                      @id @default(cuid())
+  email                     String                      @unique
   /// bcrypt digest. Never selected into API responses.
-  passwordHash            String
-  name                    String
-  displayName             String?
-  avatarUrl               String?
-  bio                     String?
-  timezone                String                   @default("UTC")
-  preferredLanguage       String                   @default("en")
-  systemRole              SystemRole               @default(USER)
-  presence                PresenceStatus           @default(OFFLINE)
-  statusText              String?
-  statusEmoji             String?
-  statusExpiresAt         DateTime?
+  passwordHash              String
+  name                      String
+  displayName               String?
+  avatarUrl                 String?
+  bio                       String?
+  timezone                  String                      @default("UTC")
+  preferredLanguage         String                      @default("en")
+  systemRole                SystemRole                  @default(USER)
+  presence                  PresenceStatus              @default(OFFLINE)
+  statusText                String?
+  statusEmoji               String?
+  statusExpiresAt           DateTime?
   /// Which `ScheduledStatus` currently drives `statusText`/`statusEmoji`, if
   /// any. Lets the per-minute applier switch/clear the scheduled status without
   /// stomping a status the user set by hand. Null = the current status (if any)
   /// is manual.
-  scheduledStatusAppliedId String?
-  emailVerifiedAt         DateTime?
-  lastSeenAt              DateTime?
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
+  scheduledStatusAppliedId  String?
+  emailVerifiedAt           DateTime?
+  lastSeenAt                DateTime?
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
   /// Bridged Matrix identity, provisioned lazily on first chat use.
-  matrixUserId            String?                  @unique
-  createdAgents           AIAgent[]
-  channelCoworkersAdded   ChannelCoworker[]        @relation("ChannelCoworkerAddedBy")
-  aiChatSessions          AIChatSession[]
-  createdWorkflows        AutomationWorkflow[]
-  organizedEvents         CalendarEvent[]
-  channelMembers          ChannelMember[]
-  channelAgentsAdded      ChannelAgent[]           @relation("ChannelAgentAddedBy")
-  createdChannels         Channel[]                @relation("ChannelCreator")
-  chatSettings            ChatSettings?
-  sentInvitations         Invitation[]             @relation("InvitationSender")
-  marketplacePublishers   MarketplacePublisher[]
-  notificationPreferences NotificationPreference[]
-  passwordResets          PasswordResetToken[]
-  pushRegistrations       PushRegistration[]
-  recentActivities        RecentActivity[]
-  refreshTokens           RefreshToken[]
-  taskComments            TaskComment[]
-  assignedTasks           Task[]
-  uploads                 Upload[]
-  whiteboards             Whiteboard[]
-  workDocuments           WorkDocument[]
-  workspaceMembers        WorkspaceMember[]
-  ownedWorkspaces         Workspace[]              @relation("WorkspaceOwner")
-  integrations            ExternalIntegration[]
-  leadProjects            Project[]                @relation("ProjectLead")
-  ownedInitiatives        Initiative[]
-  leadModules             Module[]
-  createdUpdates          ProjectUpdate[]
-  reportedTasks           Task[]                   @relation("TaskReporter")
-  workItemActivities      WorkItemActivity[]
-  notifications           Notification[]
-  sidebarPreference       SidebarPreference?
-  themeSetting            ThemeSetting?
-  navigationPreference    NavigationPreference?
-  scheduledStatuses       ScheduledStatus[]
-  anonymousMessages       AnonymousMessage[]        @relation("AnonymousAuthor")
-  anonymousModerationEvents AnonymousModerationEvent[] @relation("AnonymousModerator")
-  startedHuddles          Huddle[]                 @relation("HuddleStarter")
-  huddleParticipations    HuddleParticipant[]      @relation("HuddleParticipant")
+  matrixUserId              String?                     @unique
+  createdAgents             AIAgent[]
+  channelCoworkersAdded     ChannelCoworker[]           @relation("ChannelCoworkerAddedBy")
+  aiChatSessions            AIChatSession[]
+  createdWorkflows          AutomationWorkflow[]
+  organizedEvents           CalendarEvent[]
+  channelMembers            ChannelMember[]
+  channelAgentsAdded        ChannelAgent[]              @relation("ChannelAgentAddedBy")
+  channelIntegrationsAdded  ChannelIntegration[]        @relation("ChannelIntegrationAddedBy")
+  createdChannels           Channel[]                   @relation("ChannelCreator")
+  chatSettings              ChatSettings?
+  sentInvitations           Invitation[]                @relation("InvitationSender")
+  marketplacePublishers     MarketplacePublisher[]
+  notificationPreferences   NotificationPreference[]
+  passwordResets            PasswordResetToken[]
+  pushRegistrations         PushRegistration[]
+  recentActivities          RecentActivity[]
+  refreshTokens             RefreshToken[]
+  taskComments              TaskComment[]
+  assignedTasks             Task[]
+  uploads                   Upload[]
+  whiteboards               Whiteboard[]
+  workDocuments             WorkDocument[]
+  workspaceMembers          WorkspaceMember[]
+  ownedWorkspaces           Workspace[]                 @relation("WorkspaceOwner")
+  integrations              ExternalIntegration[]
+  leadProjects              Project[]                   @relation("ProjectLead")
+  ownedInitiatives          Initiative[]
+  leadModules               Module[]
+  createdUpdates            ProjectUpdate[]
+  reportedTasks             Task[]                      @relation("TaskReporter")
+  workItemActivities        WorkItemActivity[]
+  notifications             Notification[]
+  sidebarPreference         SidebarPreference?
+  themeSetting              ThemeSetting?
+  navigationPreference      NavigationPreference?
+  scheduledStatuses         ScheduledStatus[]
+  anonymousMessages         AnonymousMessage[]          @relation("AnonymousAuthor")
+  anonymousModerationEvents AnonymousModerationEvent[]  @relation("AnonymousModerator")
+  startedHuddles            Huddle[]                    @relation("HuddleStarter")
+  huddleParticipations      HuddleParticipant[]         @relation("HuddleParticipant")
   workspaceThemePreferences WorkspaceThemePreference[]
-  organizedMeetings       Meeting[]                @relation("MeetingOrganizer")
-  meetingParticipations   MeetingParticipant[]
-  meetingNotes            MeetingNote[]
-  meetingDecisions        MeetingDecision[]
-  twoFactorAuth           TwoFactorAuth?
-  webAuthnCredentials     WebAuthnCredential[]
-  complianceReviews       ComplianceReview[]       @relation("ComplianceReviewer")
-  assignedChecklistItems  ComplianceChecklistItem[] @relation("ChecklistAssignee")
-  verifiedChecklistItems  ComplianceChecklistItem[] @relation("ChecklistVerifier")
-  assignedComplianceIssues ComplianceIssue[]       @relation("IssueAssignee")
-  complianceEvidence      ComplianceEvidence[]
-  complianceOverrides     ComplianceReleaseOverride[]
-  createdAppReleases      AppRelease[]             @relation("AppReleaseCreator")
-  updatedAppReleases      AppRelease[]             @relation("AppReleaseUpdater")
-  bookmarks               Bookmark[]
-  attentionItemStates     AttentionItemState[]
+  organizedMeetings         Meeting[]                   @relation("MeetingOrganizer")
+  meetingParticipations     MeetingParticipant[]
+  meetingNotes              MeetingNote[]
+  meetingDecisions          MeetingDecision[]
+  twoFactorAuth             TwoFactorAuth?
+  webAuthnCredentials       WebAuthnCredential[]
+  complianceReviews         ComplianceReview[]          @relation("ComplianceReviewer")
+  assignedChecklistItems    ComplianceChecklistItem[]   @relation("ChecklistAssignee")
+  verifiedChecklistItems    ComplianceChecklistItem[]   @relation("ChecklistVerifier")
+  assignedComplianceIssues  ComplianceIssue[]           @relation("IssueAssignee")
+  complianceEvidence        ComplianceEvidence[]
+  complianceOverrides       ComplianceReleaseOverride[]
+  createdAppReleases        AppRelease[]                @relation("AppReleaseCreator")
+  updatedAppReleases        AppRelease[]                @relation("AppReleaseUpdater")
+  bookmarks                 Bookmark[]
+  attentionItemStates       AttentionItemState[]
 
   @@index([presence, lastSeenAt])
   @@map("users")
@@ -165,7 +166,7 @@ enum ScheduledStatusRecurrence {
 /// it via `User.scheduledStatusAppliedId` so it can switch or clear without
 /// stomping a status the user set by hand.
 model ScheduledStatus {
-  id          String   @id @default(cuid())
+  id          String                    @id @default(cuid())
   userId      String
   /// Human label for the manage list, e.g. "Focus Time".
   label       String
@@ -173,9 +174,9 @@ model ScheduledStatus {
   statusEmoji String?
   /// Also set this presence while the entry is active. Null = leave presence be.
   presence    PresenceStatus?
-  isEnabled   Boolean  @default(true)
+  isEnabled   Boolean                   @default(true)
   /// Higher wins when two enabled entries overlap.
-  priority    Int      @default(0)
+  priority    Int                       @default(0)
   recurrence  ScheduledStatusRecurrence @default(ONE_TIME)
   /// ONE_TIME only — the absolute window.
   startAt     DateTime?
@@ -185,16 +186,16 @@ model ScheduledStatus {
   startMinute Int?
   endMinute   Int?
   /// WEEKLY only — 0 = Sunday … 6 = Saturday.
-  daysOfWeek  Int[]    @default([])
+  daysOfWeek  Int[]                     @default([])
   /// Recurring only — optional inclusive calendar-date bounds ("Sep 20 → Sep 23").
   activeFrom  DateTime?
   activeUntil DateTime?
   /// IANA time zone the minute-of-day / date-bound maths run in. Seeded from
   /// the user's `timezone` at creation.
   timezone    String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+  user        User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([isEnabled])
@@ -202,84 +203,84 @@ model ScheduledStatus {
 }
 
 model Workspace {
-  id                       String                    @id @default(cuid())
-  name                     String
+  id                        String                     @id @default(cuid())
+  name                      String
   /// Used in URLs: /w/:slug. Globally unique.
-  slug                     String                    @unique
-  description              String?
-  avatarUrl                String?
+  slug                      String                     @unique
+  description               String?
+  avatarUrl                 String?
   /// Object-store key behind `avatarUrl` when the logo was uploaded to us.
   /// Null when the avatar is an external URL, or when there is no avatar.
-  avatarKey                String?
+  avatarKey                 String?
   /// A Lucide icon name, an emoji, or an image URL. Independent of the logo:
   /// an uploaded logo wins where both are set, and the icon remains the
   /// fallback if the logo is later removed.
-  icon                     String?
+  icon                      String?
   /// Hex tint for `icon`, and only meaningful when `icon` is a Lucide name.
-  iconColor                String?
-  supportEmail             String?
-  accentColor              String?
-  defaultLandingView       String                    @default("home")
-  allowExternalSharing     Boolean                   @default(true)
-  aiProjectRecaps          Boolean                   @default(true)
-  ownerId                  String
+  iconColor                 String?
+  supportEmail              String?
+  accentColor               String?
+  defaultLandingView        String                     @default("home")
+  allowExternalSharing      Boolean                    @default(true)
+  aiProjectRecaps           Boolean                    @default(true)
+  ownerId                   String
   /// ARCHIVED freezes the workspace: it stays listed and readable, but every
   /// write is refused. Deletion is separate and irreversible.
-  status                   WorkspaceStatus           @default(ACTIVE)
-  archivedAt               DateTime?
-  createdAt                DateTime                  @default(now())
-  updatedAt                DateTime                  @updatedAt
+  status                    WorkspaceStatus            @default(ACTIVE)
+  archivedAt                DateTime?
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
   /// Matrix space (an `m.space` room) backing this workspace. Null until the
   /// first channel in the workspace is linked to a room, then provisioned
   /// lazily. The workspace stays the source of truth for name, membership and
   /// roles; the space mirrors them so the channel rooms nest under one
   /// container on the homeserver.
-  matrixSpaceId            String?                   @unique
-  aiAgents                 AIAgent[]
-  aiChatSessions           AIChatSession[]
-  aiMemories               AIMemory[]
-  analyticsEvents          AnalyticsEvent[]
-  automationWorkflows      AutomationWorkflow[]
-  calendarEvents           CalendarEvent[]
-  channels                 Channel[]
-  anonymousSettings        ChannelAnonymousSetting[]
-  anonymousMessages        AnonymousMessage[]
+  matrixSpaceId             String?                    @unique
+  aiAgents                  AIAgent[]
+  aiChatSessions            AIChatSession[]
+  aiMemories                AIMemory[]
+  analyticsEvents           AnalyticsEvent[]
+  automationWorkflows       AutomationWorkflow[]
+  calendarEvents            CalendarEvent[]
+  channels                  Channel[]
+  anonymousSettings         ChannelAnonymousSetting[]
+  anonymousMessages         AnonymousMessage[]
   anonymousModerationEvents AnonymousModerationEvent[]
-  channelEmailAddresses    ChannelEmailAddress[]
-  huddles                  Huddle[]
-  externalIntegrations     ExternalIntegration[]
-  importJobs               ImportJob[]
-  invitations              Invitation[]
-  marketplaceInstallations MarketplaceInstallation[]
-  notificationPreferences  NotificationPreference[]
-  projects                 Project[]
-  promptTemplates          PromptTemplate[]
-  recentActivities         RecentActivity[]
-  tasks                    Task[]
-  teams                    Team[]
-  initiatives              Initiative[]
-  epics                    Epic[]
-  modules                  Module[]
-  cycles                   Cycle[]
-  workItemRelations        WorkItemRelation[]
-  customFields             WorkItemCustomField[]
-  savedViews               SavedView[]
-  intakeRequests           IntakeRequest[]
-  workItemActivities       WorkItemActivity[]
-  uploads                  Upload[]
-  whiteboards              Whiteboard[]
-  workDocuments            WorkDocument[]
-  members                  WorkspaceMember[]
-  notifications            Notification[]
-  settings                 WorkspaceSettings?
-  themePreferences         WorkspaceThemePreference[]
-  subscription             WorkspaceSubscription?
-  enterpriseInquiries      EnterpriseSalesInquiry[]
-  meetings                 Meeting[]
-  crossObjectLinks         CrossObjectLink[]
-  bookmarks                Bookmark[]
-  attentionItemStates     AttentionItemState[]
-  owner                    User                      @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  channelEmailAddresses     ChannelEmailAddress[]
+  huddles                   Huddle[]
+  externalIntegrations      ExternalIntegration[]
+  importJobs                ImportJob[]
+  invitations               Invitation[]
+  marketplaceInstallations  MarketplaceInstallation[]
+  notificationPreferences   NotificationPreference[]
+  projects                  Project[]
+  promptTemplates           PromptTemplate[]
+  recentActivities          RecentActivity[]
+  tasks                     Task[]
+  teams                     Team[]
+  initiatives               Initiative[]
+  epics                     Epic[]
+  modules                   Module[]
+  cycles                    Cycle[]
+  workItemRelations         WorkItemRelation[]
+  customFields              WorkItemCustomField[]
+  savedViews                SavedView[]
+  intakeRequests            IntakeRequest[]
+  workItemActivities        WorkItemActivity[]
+  uploads                   Upload[]
+  whiteboards               Whiteboard[]
+  workDocuments             WorkDocument[]
+  members                   WorkspaceMember[]
+  notifications             Notification[]
+  settings                  WorkspaceSettings?
+  themePreferences          WorkspaceThemePreference[]
+  subscription              WorkspaceSubscription?
+  enterpriseInquiries       EnterpriseSalesInquiry[]
+  meetings                  Meeting[]
+  crossObjectLinks          CrossObjectLink[]
+  bookmarks                 Bookmark[]
+  attentionItemStates       AttentionItemState[]
+  owner                     User                       @relation("WorkspaceOwner", fields: [ownerId], references: [id])
 
   @@index([ownerId])
   @@map("workspaces")
@@ -349,55 +350,56 @@ model WorkspaceThemePreference {
 }
 
 model Channel {
-  id               String                   @id @default(cuid())
-  workspaceId      String
-  name             String
+  id                    String                   @id @default(cuid())
+  workspaceId           String
+  name                  String
   /// Unique per workspace, not globally.
-  slug             String
-  topic            String?
-  description      String?
-  visibility       ChannelVisibility        @default(PUBLIC)
-  isArchived       Boolean                  @default(false)
-  archivedAt       DateTime?
+  slug                  String
+  topic                 String?
+  description           String?
+  visibility            ChannelVisibility        @default(PUBLIC)
+  isArchived            Boolean                  @default(false)
+  archivedAt            DateTime?
   /// STANDARD — every member may post. ANNOUNCEMENT — only channel admins,
   /// workspace admins and `announcementPosterIds` may post; everyone else
   /// reads. Enforced server-side via the Matrix room's `events_default` power
   /// level, not just the client.
-  mode             ChannelMode              @default(STANDARD)
+  mode                  ChannelMode              @default(STANDARD)
   /// Announcement-mode granular toggles (ignored while mode = STANDARD).
   /// `allowReactions` is enforced on the Matrix room; `allowReplies` /
   /// `allowFileUploads` gate the client affordances (a thread reply / an
   /// upload is still an `m.room.message` and already blocked for non-posters).
-  allowReactions   Boolean                  @default(true)
-  allowReplies     Boolean                  @default(false)
-  allowFileUploads Boolean                  @default(true)
+  allowReactions        Boolean                  @default(true)
+  allowReplies          Boolean                  @default(false)
+  allowFileUploads      Boolean                  @default(true)
   /// Extra user ids allowed to post in an announcement channel, on top of
   /// channel admins + workspace admins + the creator.
-  announcementPosterIds String[]            @default([])
-  createdById      String
-  createdAt        DateTime                 @default(now())
-  updatedAt        DateTime                 @updatedAt
+  announcementPosterIds String[]                 @default([])
+  createdById           String
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
   /// Matrix room backing this channel. Null until chat is first opened.
-  matrixRoomId     String?                  @unique
-  members          ChannelMember[]
-  channelAgents    ChannelAgent[]
-  channelCoworkers ChannelCoworker[]
-  pins             ChannelPin[]
-  invitations      Invitation[]
-  anonymousSetting ChannelAnonymousSetting?
-  anonymousMessages AnonymousMessage[]
-  emailAddress     ChannelEmailAddress?
-  emailMessages    EmailMessage[]
-  huddles          Huddle[]
-  createdBy        User                     @relation("ChannelCreator", fields: [createdById], references: [id])
-  workspace        Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  recentActivities RecentActivity[]
-  uploads          Upload[]
+  matrixRoomId          String?                  @unique
+  members               ChannelMember[]
+  channelAgents         ChannelAgent[]
+  channelCoworkers      ChannelCoworker[]
+  channelIntegrations   ChannelIntegration[]
+  pins                  ChannelPin[]
+  invitations           Invitation[]
+  anonymousSetting      ChannelAnonymousSetting?
+  anonymousMessages     AnonymousMessage[]
+  emailAddress          ChannelEmailAddress?
+  emailMessages         EmailMessage[]
+  huddles               Huddle[]
+  createdBy             User                     @relation("ChannelCreator", fields: [createdById], references: [id])
+  workspace             Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  recentActivities      RecentActivity[]
+  uploads               Upload[]
   /// Postgres full-text index over name/topic/description. Populated by a
   /// `GENERATED ALWAYS AS (...) STORED` expression defined in the migration —
   /// Prisma cannot express the generator, so this is `Unsupported` and the
   /// column is never written from application code.
-  searchVector     Unsupported("tsvector")?
+  searchVector          Unsupported("tsvector")?
 
   @@unique([workspaceId, slug])
   @@index([workspaceId, isArchived])
@@ -444,21 +446,21 @@ model ChannelAnonymousSetting {
 /// the permission-gated moderation path, and every read of it writes an
 /// `AnonymousModerationEvent(REVEAL_AUTHOR)`.
 model AnonymousMessage {
-  id            String     @id @default(cuid())
+  id            String                     @id @default(cuid())
   channelId     String
   workspaceId   String
   /// The Matrix event id of the posted message — the join key into the room.
-  matrixEventId String     @unique
+  matrixEventId String                     @unique
   /// The real sender. Restricted.
   authorId      String
   /// True when the caller reply-threaded onto another message.
-  isReply       Boolean    @default(false)
+  isReply       Boolean                    @default(false)
   removedAt     DateTime?
   removedById   String?
-  createdAt     DateTime   @default(now())
-  channel       Channel    @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  workspace     Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  author        User       @relation("AnonymousAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt     DateTime                   @default(now())
+  channel       Channel                    @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  workspace     Workspace                  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  author        User                       @relation("AnonymousAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   events        AnonymousModerationEvent[]
 
   @@index([channelId, createdAt])
@@ -472,20 +474,20 @@ model AnonymousMessage {
 /// `<localpart>@<INBOUND_EMAIL_DOMAIN>` is posted into the channel's Matrix
 /// room as the `@email-<channelId>` identity.
 model ChannelEmailAddress {
-  id               String   @id @default(cuid())
-  channelId        String   @unique
+  id               String         @id @default(cuid())
+  channelId        String         @unique
   workspaceId      String
   /// Mailbox localpart — unique across the deployment.
-  localpart        String   @unique
-  isEnabled        Boolean  @default(true)
+  localpart        String         @unique
+  isEnabled        Boolean        @default(true)
   /// Group emails that share a subject under one Matrix thread.
-  threadPerSubject Boolean  @default(true)
+  threadPerSubject Boolean        @default(true)
   /// The Matrix identity inbound emails post as. Provisioned lazily.
   matrixUserId     String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  channel          Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  channel          Channel        @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  workspace        Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   messages         EmailMessage[]
 
   @@index([workspaceId])
@@ -496,11 +498,11 @@ model ChannelEmailAddress {
 /// RFC Message-ID — the dedup + loop-guard key; `inReplyTo` / `references`
 /// preserve the email thread so replies land in the same Matrix thread.
 model EmailMessage {
-  id                    String   @id @default(cuid())
+  id                    String              @id @default(cuid())
   channelEmailAddressId String
   channelId             String
   workspaceId           String
-  messageId             String   @unique
+  messageId             String              @unique
   inReplyTo             String?
   references            String?
   fromAddress           String
@@ -511,10 +513,10 @@ model EmailMessage {
   matrixEventId         String?
   /// The Matrix thread root it was filed under, when threaded.
   matrixThreadRootId    String?
-  attachmentCount       Int      @default(0)
-  createdAt             DateTime @default(now())
+  attachmentCount       Int                 @default(0)
+  createdAt             DateTime            @default(now())
   channelEmailAddress   ChannelEmailAddress @relation(fields: [channelEmailAddressId], references: [id], onDelete: Cascade)
-  channel               Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  channel               Channel             @relation(fields: [channelId], references: [id], onDelete: Cascade)
 
   @@index([channelId, createdAt])
   @@index([subject])
@@ -532,20 +534,20 @@ enum HuddleStatus {
 /// huddle is presence-only. `matrixRoomId` is the channel's room (or the DM
 /// room) — that same room *is* the huddle's conversation thread (§7).
 model Huddle {
-  id           String       @id @default(cuid())
+  id           String              @id @default(cuid())
   workspaceId  String
   /// The channel this huddle belongs to, when it is a channel huddle.
   channelId    String?
   /// The Matrix room the media session + thread live in.
   matrixRoomId String
   startedById  String
-  status       HuddleStatus @default(ACTIVE)
-  startedAt    DateTime     @default(now())
+  status       HuddleStatus        @default(ACTIVE)
+  startedAt    DateTime            @default(now())
   endedAt      DateTime?
   participants HuddleParticipant[]
-  channel      Channel?     @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  startedBy    User         @relation("HuddleStarter", fields: [startedById], references: [id], onDelete: Cascade)
+  channel      Channel?            @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  workspace    Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  startedBy    User                @relation("HuddleStarter", fields: [startedById], references: [id], onDelete: Cascade)
 
   @@index([matrixRoomId, status])
   @@index([workspaceId, status])
@@ -588,23 +590,23 @@ model AnonymousModerationEvent {
 }
 
 model ChannelMember {
-  id         String      @id @default(cuid())
-  channelId  String
-  userId     String
-  role       ChannelRole @default(MEMBER)
+  id             String                @id @default(cuid())
+  channelId      String
+  userId         String
+  role           ChannelRole           @default(MEMBER)
   /// Per-user star, drives the "Favorites" sidebar group.
-  isFavorite Boolean     @default(false)
-  isMuted    Boolean     @default(false)
-  lastReadAt DateTime?
-  joinedAt   DateTime    @default(now())
+  isFavorite     Boolean               @default(false)
+  isMuted        Boolean               @default(false)
+  lastReadAt     DateTime?
+  joinedAt       DateTime              @default(now())
   /// PERMANENT — a normal member. TEMPORARY — self-joined a public channel for
   /// a set window; a cron sweep removes the row (and the Matrix membership)
   /// once `expiresAt` passes. Every pre-existing row is PERMANENT.
   membershipType ChannelMembershipType @default(PERMANENT)
   /// When a TEMPORARY membership lapses. Null for PERMANENT members.
-  expiresAt  DateTime?
-  channel    Channel     @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt      DateTime?
+  channel        Channel               @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([channelId, userId])
   @@index([userId, isFavorite])
@@ -1739,6 +1741,30 @@ model ChannelCoworker {
   @@map("channel_coworkers")
 }
 
+/// Which apps/integrations a channel has added — mirrors `ChannelAgent` and
+/// `ChannelCoworker` exactly. An `ExternalIntegration` is otherwise
+/// workspace/user-scoped; this is what lets one be "added to #channel" the
+/// way the reference activity feed (`Outlook Calendar APP was added to
+/// #agent45`) expects, and is what `SystemEventsListener` (`@org/api-matrix`)
+/// reads to post/undo that timeline event.
+model ChannelIntegration {
+  id            String              @id @default(cuid())
+  channelId     String
+  integrationId String
+  addedById     String?
+  isEnabled     Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  channel       Channel             @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  integration   ExternalIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  addedBy       User?               @relation("ChannelIntegrationAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
+
+  @@unique([channelId, integrationId])
+  @@index([channelId])
+  @@index([integrationId])
+  @@map("channel_integrations")
+}
+
 /// Which coworkers a project has added. A project coworker may only use
 /// project-scoped tools/context for projects it has a row here for —
 /// enforced in `AIRuntimeService`, not just by hiding the UI.
@@ -1967,6 +1993,7 @@ model ExternalIntegration {
   user                  User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
   syncJobs              IntegrationSyncJob[]
   coworkerLinks         CoworkerApp[]
+  channelLinks          ChannelIntegration[]
 
   @@index([workspaceId, provider])
   @@index([userId, provider])
@@ -2522,12 +2549,12 @@ enum CompliancePolicyStatus {
 }
 
 model ComplianceRegion {
-  id          String                     @id @default(cuid())
-  code        String                     @unique
+  id          String                       @id @default(cuid())
+  code        String                       @unique
   name        String
   description String?
-  createdAt   DateTime                   @default(now())
-  updatedAt   DateTime                   @updatedAt
+  createdAt   DateTime                     @default(now())
+  updatedAt   DateTime                     @updatedAt
   countries   ComplianceCountry[]
   scopes      ComplianceRequirementScope[]
 
@@ -2535,32 +2562,32 @@ model ComplianceRegion {
 }
 
 model ComplianceCountry {
-  id          String                     @id @default(cuid())
-  code        String                     @unique
-  name        String
-  regionId    String
-  region      ComplianceRegion           @relation(fields: [regionId], references: [id], onDelete: Cascade)
-  createdAt   DateTime                   @default(now())
-  updatedAt   DateTime                   @updatedAt
-  scopes      ComplianceRequirementScope[]
-  reviews     ComplianceReview[]
-  issues      ComplianceIssue[]
-  legalLinks  ComplianceLegalLink[]
+  id         String                       @id @default(cuid())
+  code       String                       @unique
+  name       String
+  regionId   String
+  region     ComplianceRegion             @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  createdAt  DateTime                     @default(now())
+  updatedAt  DateTime                     @updatedAt
+  scopes     ComplianceRequirementScope[]
+  reviews    ComplianceReview[]
+  issues     ComplianceIssue[]
+  legalLinks ComplianceLegalLink[]
 
   @@index([regionId])
   @@map("compliance_countries")
 }
 
 model CompliancePlatform {
-  id                  String                     @id @default(cuid())
-  code                String                     @unique
+  id                  String                       @id @default(cuid())
+  code                String                       @unique
   name                String
-  type                CompliancePlatformType     @default(DESKTOP)
-  currentVersion      String                     @default("1.0.0")
-  minSupportedVersion String                     @default("1.0.0")
-  isActive            Boolean                    @default(true)
-  createdAt           DateTime                   @default(now())
-  updatedAt           DateTime                   @updatedAt
+  type                CompliancePlatformType       @default(DESKTOP)
+  currentVersion      String                       @default("1.0.0")
+  minSupportedVersion String                       @default("1.0.0")
+  isActive            Boolean                      @default(true)
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
   distributions       ComplianceDistribution[]
   versions            ComplianceAppVersion[]
   scopes              ComplianceRequirementScope[]
@@ -2572,16 +2599,16 @@ model CompliancePlatform {
 }
 
 model ComplianceDistribution {
-  id          String                     @id @default(cuid())
-  code        String                     @unique
-  name        String
-  platformId  String
-  platform    CompliancePlatform         @relation(fields: [platformId], references: [id], onDelete: Cascade)
-  isActive    Boolean                    @default(true)
-  createdAt   DateTime                   @default(now())
-  updatedAt   DateTime                   @updatedAt
-  scopes      ComplianceRequirementScope[]
-  reviews     ComplianceReview[]
+  id         String                       @id @default(cuid())
+  code       String                       @unique
+  name       String
+  platformId String
+  platform   CompliancePlatform           @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  isActive   Boolean                      @default(true)
+  createdAt  DateTime                     @default(now())
+  updatedAt  DateTime                     @updatedAt
+  scopes     ComplianceRequirementScope[]
+  reviews    ComplianceReview[]
 
   @@index([platformId])
   @@map("compliance_distributions")
@@ -2608,19 +2635,19 @@ model ComplianceAppVersion {
 }
 
 model CompliancePolicy {
-  id                  String                 @id @default(cuid())
-  code                String                 @unique
-  name                String
-  description         String?
-  version             String                 @default("1.0.0")
-  effectiveDate       DateTime               @default(now())
-  reviewDate          DateTime?
-  status              CompliancePolicyStatus @default(ACTIVE)
+  id                   String                  @id @default(cuid())
+  code                 String                  @unique
+  name                 String
+  description          String?
+  version              String                  @default("1.0.0")
+  effectiveDate        DateTime                @default(now())
+  reviewDate           DateTime?
+  status               CompliancePolicyStatus  @default(ACTIVE)
   externalGuidelineRef String?
   externalGuidelineUrl String?
-  createdAt           DateTime               @default(now())
-  updatedAt           DateTime               @updatedAt
-  requirements        ComplianceRequirement[]
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  requirements         ComplianceRequirement[]
 
   @@map("compliance_policies")
 }
@@ -2651,24 +2678,24 @@ model ComplianceRequirement {
 }
 
 model ComplianceRequirementScope {
-  id               String                 @id @default(cuid())
+  id               String                  @id @default(cuid())
   requirementId    String
-  requirement      ComplianceRequirement  @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  requirement      ComplianceRequirement   @relation(fields: [requirementId], references: [id], onDelete: Cascade)
   countryId        String?
-  country          ComplianceCountry?     @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  country          ComplianceCountry?      @relation(fields: [countryId], references: [id], onDelete: Cascade)
   regionId         String?
-  region           ComplianceRegion?      @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  region           ComplianceRegion?       @relation(fields: [regionId], references: [id], onDelete: Cascade)
   platformId       String?
-  platform         CompliancePlatform?    @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  platform         CompliancePlatform?     @relation(fields: [platformId], references: [id], onDelete: Cascade)
   distributionId   String?
   distribution     ComplianceDistribution? @relation(fields: [distributionId], references: [id], onDelete: Cascade)
   minVersion       String?
   maxVersion       String?
-  isExcluded       Boolean                @default(false)
+  isExcluded       Boolean                 @default(false)
   overrideSeverity ComplianceSeverity?
   overrideNotes    String?
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
 
   @@index([requirementId])
   @@index([countryId])
@@ -2735,30 +2762,30 @@ model ComplianceChecklistItem {
 }
 
 model ComplianceIssue {
-  id            String                @id @default(cuid())
+  id            String                 @id @default(cuid())
   title         String
   description   String
   category      ComplianceCategory
-  severity      ComplianceSeverity    @default(HIGH)
-  status        ComplianceIssueStatus @default(OPEN)
-  source        ComplianceIssueSource @default(INTERNAL_AUDIT)
+  severity      ComplianceSeverity     @default(HIGH)
+  status        ComplianceIssueStatus  @default(OPEN)
+  source        ComplianceIssueSource  @default(INTERNAL_AUDIT)
   reviewerNotes String?
   remediation   String?
   resolution    String?
   appVersionId  String?
-  appVersion    ComplianceAppVersion? @relation(fields: [appVersionId], references: [id], onDelete: SetNull)
+  appVersion    ComplianceAppVersion?  @relation(fields: [appVersionId], references: [id], onDelete: SetNull)
   platformId    String?
-  platform      CompliancePlatform?   @relation(fields: [platformId], references: [id], onDelete: SetNull)
+  platform      CompliancePlatform?    @relation(fields: [platformId], references: [id], onDelete: SetNull)
   countryId     String?
-  country       ComplianceCountry?    @relation(fields: [countryId], references: [id], onDelete: SetNull)
+  country       ComplianceCountry?     @relation(fields: [countryId], references: [id], onDelete: SetNull)
   requirementId String?
   requirement   ComplianceRequirement? @relation(fields: [requirementId], references: [id], onDelete: SetNull)
-  reportedAt    DateTime              @default(now())
+  reportedAt    DateTime               @default(now())
   resolvedAt    DateTime?
   assigneeId    String?
-  assignee      User?                 @relation("IssueAssignee", fields: [assigneeId], references: [id])
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
+  assignee      User?                  @relation("IssueAssignee", fields: [assigneeId], references: [id])
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
   evidence      ComplianceEvidence[]
 
   @@index([status, severity])
@@ -2873,28 +2900,28 @@ enum AppReleaseStatus {
 }
 
 model AppRelease {
-  id                      String              @id @default(cuid())
+  id                      String               @id @default(cuid())
   platform                AppPlatform
   operatingSystem         AppOperatingSystem?
   version                 String
   buildNumber             String
-  releaseChannel          AppReleaseChannel   @default(STABLE)
-  status                  AppReleaseStatus    @default(DRAFT)
-  minimumSupportedVersion String?             @default("1.0.0")
-  releaseDate             DateTime            @default(now())
-  rolloutPercentage       Int                 @default(100)
+  releaseChannel          AppReleaseChannel    @default(STABLE)
+  status                  AppReleaseStatus     @default(DRAFT)
+  minimumSupportedVersion String?              @default("1.0.0")
+  releaseDate             DateTime             @default(now())
+  rolloutPercentage       Int                  @default(100)
   downloadUrl             String?
   releaseNotes            String?
   changelog               String?
-  mandatoryUpdate         Boolean             @default(false)
-  forceUpdate             Boolean             @default(false)
-  isCurrent               Boolean             @default(false)
+  mandatoryUpdate         Boolean              @default(false)
+  forceUpdate             Boolean              @default(false)
+  isCurrent               Boolean              @default(false)
   createdById             String?
-  createdBy               User?               @relation("AppReleaseCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy               User?                @relation("AppReleaseCreator", fields: [createdById], references: [id], onDelete: SetNull)
   updatedById             String?
-  updatedBy               User?               @relation("AppReleaseUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
-  createdAt               DateTime            @default(now())
-  updatedAt               DateTime            @updatedAt
+  updatedBy               User?                @relation("AppReleaseUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
   auditLogs               AppReleaseAuditLog[]
 
   @@unique([platform, operatingSystem, releaseChannel, version])
@@ -2923,4 +2950,3 @@ model AppReleaseAuditLog {
   @@index([platform, createdAt])
   @@map("app_release_audit_logs")
 }
-

@@ -217,6 +217,31 @@ describe('MessageRenderer', () => {
     expect(screen.getByText('Q3_Report.pdf')).toBeInTheDocument();
   });
 
+  it('renders a System/Activity Event as a timeline row, not a chat bubble', () => {
+    const msg = createMockMessage({
+      body: 'Outlook Calendar app was added to #agent45 by VR',
+      structuredEvent: {
+        type: 'mie.system_event',
+        eventType: 'app_added',
+        conversationType: 'channel',
+        conversationId: 'chan-1',
+        conversationName: 'agent45',
+        actor: { kind: 'user', id: 'admin-1', name: 'VR' },
+        target: { kind: 'app', id: 'int-1', name: 'Outlook Calendar' },
+        occurredAt: 1_700_000_000_000,
+        idempotencyKey: 'k1',
+        capabilities: { reactions: true, threading: true, sharing: true, reply: false },
+      },
+    });
+
+    renderWithProviders(<MessageRenderer message={msg} isOwn={false} />);
+
+    expect(screen.getByText('Outlook Calendar')).toBeInTheDocument();
+    expect(screen.getByText('APP')).toBeInTheDocument();
+    expect(screen.getByText(/was added to #agent45 by/)).toBeInTheDocument();
+    expect(screen.getByText('VR')).toBeInTheDocument();
+  });
+
   it('renders System Message Card with severity style', () => {
     const msg = createMockMessage({
       structuredEvent: {

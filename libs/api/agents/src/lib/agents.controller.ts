@@ -164,6 +164,7 @@ export class ChannelAgentsController {
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   setEnabled(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
     @Param('channelId') channelId: string,
     @Param('agentId') agentId: string,
     @Body() body: { isEnabled: boolean },
@@ -173,6 +174,7 @@ export class ChannelAgentsController {
       channelId,
       agentId,
       body.isEnabled,
+      userId,
     );
   }
 
@@ -181,6 +183,7 @@ export class ChannelAgentsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
     @Param('channelId') channelId: string,
     @Param('agentId') agentId: string,
   ): Promise<void> {
@@ -188,6 +191,7 @@ export class ChannelAgentsController {
       workspaceId,
       channelId,
       agentId,
+      userId,
     );
   }
 }

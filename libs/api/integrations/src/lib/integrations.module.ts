@@ -4,6 +4,7 @@ import { AuthModule } from '@org/api-auth';
 import { PrismaModule } from '@org/database';
 import { MatrixModule } from '@org/api-matrix';
 import { AppMatrixBridgeService } from './app-matrix-bridge.service.js';
+import { ChannelAppsController } from './channel-apps.controller.js';
 import { IntegrationEncryptionService } from './core/integration-encryption.service.js';
 import { IntegrationLoggerService } from './core/integration-logger.service.js';
 import { IntegrationManagerService } from './core/integration-manager.service.js';
@@ -32,7 +33,7 @@ import { WebhooksController } from './webhooks.controller.js';
 
 @Module({
   imports: [ConfigModule, PrismaModule, AuthModule, MatrixModule],
-  controllers: [IntegrationsController, WebhooksController],
+  controllers: [IntegrationsController, WebhooksController, ChannelAppsController],
   providers: [
     // Core Services
     IntegrationEncryptionService,

@@ -28,6 +28,16 @@ export {
   type MeetingUpdatedEvent,
   type MeetingCancelledEvent,
   type MeetingEndedEvent,
+  type ChannelArchiveChangedEvent,
+  type ChannelAiEntityType,
+  type ChannelAiEntityLinkedEvent,
+  type ChannelAiEntityUnlinkedEvent,
+  type ChannelAiEntityEnabledChangedEvent,
+  type ChannelAppLinkedEvent,
+  type ChannelAppUnlinkedEvent,
+  type ChannelAppEnabledChangedEvent,
+  type IntegrationConnectedEvent,
+  type IntegrationDisconnectedEvent,
 } from './lib/events.js';
 
 export {

@@ -206,6 +206,20 @@ export {
 } from './lib/cards/universal-card-renderer.js';
 
 export {
+  SystemEventCard,
+  SystemEventIcon,
+  SystemEventEntityAvatar,
+  SystemEventEntityBadge,
+  SystemEventEntityName,
+  SystemEventAction,
+  SystemEventTimestamp,
+  getSystemEventActions,
+  type SystemEventCardProps,
+  type SystemEventActionDescriptor,
+  type SystemEventActionsContext,
+} from './lib/cards/system-event-card.js';
+
+export {
   SendCardDialog,
   type SendCardDialogProps,
 } from './lib/cards/send-card-dialog.js';

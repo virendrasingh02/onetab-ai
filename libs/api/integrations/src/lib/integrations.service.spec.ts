@@ -26,6 +26,7 @@ describe('IntegrationsService', () => {
   let service: IntegrationsService;
   let mockPrisma: any;
   let mockConfig: Record<string, string | undefined>;
+  let mockEvents: { emit: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     mockConfig = {
@@ -68,6 +69,40 @@ describe('IntegrationsService', () => {
         update: vi.fn(),
       },
     };
+    mockPrisma.externalIntegration.findUnique = vi.fn().mockResolvedValue({
+      id: 'int-1',
+      workspaceId: 'ws-1',
+      userId: null,
+      scopeType: 'WORKSPACE',
+      provider: 'SLACK',
+      status: 'CONNECTED',
+      encryptedAccessToken: null,
+    });
+    mockPrisma.externalIntegration.update = vi.fn().mockResolvedValue({
+      id: 'int-1',
+      workspaceId: 'ws-1',
+      status: 'DISCONNECTED',
+      scopes: '[]',
+      metadata: '{}',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    mockPrisma.workspaceMember = {
+      findUnique: vi.fn().mockResolvedValue({ role: 'ADMIN' }),
+    };
+    mockPrisma.channel = {
+      findFirst: vi.fn().mockResolvedValue({ id: 'chan-1' }),
+    };
+    mockPrisma.externalIntegration.findFirst = vi.fn().mockResolvedValue({ id: 'int-1' });
+    mockPrisma.channelIntegration = {
+      findUnique: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue(undefined),
+      update: vi.fn().mockResolvedValue(undefined),
+      deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+      findMany: vi.fn().mockResolvedValue([]),
+    };
+
+    mockEvents = { emit: vi.fn() };
 
     const encryption = new IntegrationEncryptionService(configService);
     const auditLogger = new IntegrationLoggerService(mockPrisma);
@@ -109,6 +144,8 @@ describe('IntegrationsService', () => {
     );
     manager.onModuleInit();
 
+    const botMessaging = { sendStructured: vi.fn() } as any;
+
     service = new IntegrationsService(
       mockPrisma,
       manager,
@@ -117,6 +154,8 @@ describe('IntegrationsService', () => {
       sync,
       permissions,
       auditLogger,
+      botMessaging,
+      mockEvents as any,
     );
   });
 
@@ -141,5 +180,46 @@ describe('IntegrationsService', () => {
 
     expect(res.authUrl).toContain('https://accounts.google.com/o/oauth2/v2/auth');
     expect(res.state).toBeDefined();
+  });
+
+  it('emits IntegrationDisconnected after a successful disconnect (brief §22)', async () => {
+    await service.disconnectIntegration('int-1', 'user-1', 'ws-1');
+
+    expect(mockEvents.emit).toHaveBeenCalledWith(
+      'integration.disconnected',
+      expect.objectContaining({ integrationId: 'int-1', workspaceId: 'ws-1', actorId: 'user-1' }),
+    );
+  });
+
+  describe('channel ↔ app links (brief §4)', () => {
+    it('emits ChannelAppLinked the first time an app is added to a channel', async () => {
+      await service.addChannelApp('ws-1', 'chan-1', 'int-1', 'admin-1');
+
+      expect(mockEvents.emit).toHaveBeenCalledWith(
+        'channel.app.linked',
+        expect.objectContaining({ channelId: 'chan-1', integrationId: 'int-1', actorId: 'admin-1' }),
+      );
+    });
+
+    it('does not re-emit when the app is already linked and enabled (brief §30)', async () => {
+      mockPrisma.channelIntegration.findUnique.mockResolvedValue({ isEnabled: true });
+
+      await service.addChannelApp('ws-1', 'chan-1', 'int-1', 'admin-1');
+
+      expect(mockEvents.emit).not.toHaveBeenCalledWith('channel.app.linked', expect.anything());
+    });
+
+    it('emits ChannelAppUnlinked only when a row was actually removed', async () => {
+      mockPrisma.channelIntegration.deleteMany.mockResolvedValue({ count: 0 });
+      await service.removeChannelApp('ws-1', 'chan-1', 'int-1', 'admin-1');
+      expect(mockEvents.emit).not.toHaveBeenCalledWith('channel.app.unlinked', expect.anything());
+
+      mockPrisma.channelIntegration.deleteMany.mockResolvedValue({ count: 1 });
+      await service.removeChannelApp('ws-1', 'chan-1', 'int-1', 'admin-1');
+      expect(mockEvents.emit).toHaveBeenCalledWith(
+        'channel.app.unlinked',
+        expect.objectContaining({ channelId: 'chan-1', integrationId: 'int-1' }),
+      );
+    });
   });
 });

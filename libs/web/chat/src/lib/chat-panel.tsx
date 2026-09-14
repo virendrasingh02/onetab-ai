@@ -5,7 +5,11 @@ import {
   type ActionExecutionContext,
   type ActionExecutionResult,
 } from '@org/chat-ui';
-import type { Message, StructuredMessageAction } from '@org/matrix-client';
+import type {
+  Message,
+  StructuredMessageAction,
+  SystemEventEntity,
+} from '@org/matrix-client';
 import { useReadReceipts } from '@org/common';
 import {
   Button,
@@ -16,7 +20,7 @@ import {
 } from '@org/ui';
 import { MessageSquareOff } from 'lucide-react';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChatSurface, type ChatSurfaceWelcome } from './chat-surface.js';
 import { useSavedIds, useToggleSaved } from './use-saved-messages.js';
 import { useMatrix } from './matrix-provider.js';
@@ -89,6 +93,8 @@ export interface ChatPanelProps {
     allowed: boolean;
     onSendAnonymously: (text: string) => void | Promise<void>;
   };
+  /** Whether the caller may manage this conversation — see `ChatSurface`. */
+  canManageConversation?: boolean;
 }
 
 /**
@@ -114,6 +120,7 @@ export function ChatPanel({
   onAskAI,
   composerReadOnlyMessage,
   anonymousPosting,
+  canManageConversation,
 }: ChatPanelProps) {
   const { client, status, enabled, error } = useMatrix();
   const readReceiptsEnabled = useReadReceipts();
@@ -416,6 +423,30 @@ export function ChatPanel({
     });
   }, []);
 
+  /**
+   * A system event's app/agent/coworker entity was clicked — opens the same
+   * chat/profile route the DM picker and directory already link to for that
+   * entity kind (brief §3, §4, §10). A `kind: 'user'` click never reaches
+   * here — `ChatSurface` resolves that one to the member profile panel
+   * itself — and `kind: 'channel'` has nowhere better to go than where the
+   * viewer already is.
+   */
+  const navigate = useNavigate();
+  const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
+  const handleViewSystemEventEntity = useCallback(
+    (entity: SystemEventEntity) => {
+      if (!workspaceSlug || !entity.id) return;
+      if (entity.kind === 'agent') {
+        navigate(`/w/${workspaceSlug}/agents/${entity.id}/chat`);
+      } else if (entity.kind === 'coworker') {
+        navigate(`/w/${workspaceSlug}/coworkers/${entity.id}`);
+      } else if (entity.kind === 'app') {
+        navigate(`/w/${workspaceSlug}/apps/${entity.id}/chat`);
+      }
+    },
+    [navigate, workspaceSlug],
+  );
+
   const handleAskAI = useCallback(
     (message: Message) => {
       if (onAskAI) {
@@ -682,6 +713,8 @@ export function ChatPanel({
       onRetryAgent={handleRetryAgent}
       composerReadOnlyMessage={composerReadOnlyMessage}
       anonymousPosting={anonymousPosting}
+      canManageConversation={canManageConversation}
+      onViewSystemEventEntity={handleViewSystemEventEntity}
     />
   );
 }

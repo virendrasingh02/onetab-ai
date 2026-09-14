@@ -70,6 +70,39 @@ export const AppEvent = {
    * deep link, never the text.
    */
   MentionCreated: 'mention.created',
+  /**
+   * A channel's archived state flipped through our own API. Consumed by
+   * `SystemEventsListener` (unified activity feed, brief §2) to post the
+   * `channel_archived`/`channel_unarchived` timeline event.
+   */
+  ChannelArchiveChanged: 'channel.archive.changed',
+  /**
+   * An AI Agent or AI Coworker was linked/unlinked to a channel, or an
+   * existing link's `isEnabled` flipped, through `ChannelAgentsController` /
+   * `ChannelCoworkersController`. One event pair covers both entity kinds —
+   * `entityType` disambiguates — matching how both live in one `AIAgent`
+   * table (brief §5).
+   */
+  ChannelAiEntityLinked: 'channel.ai_entity.linked',
+  ChannelAiEntityUnlinked: 'channel.ai_entity.unlinked',
+  ChannelAiEntityEnabledChanged: 'channel.ai_entity.enabled_changed',
+  /**
+   * An app/integration was linked/unlinked to a channel, or an existing
+   * link's `isEnabled` flipped (brief §4). Consumed the same way as the AI
+   * entity events above.
+   */
+  ChannelAppLinked: 'channel.app.linked',
+  ChannelAppUnlinked: 'channel.app.unlinked',
+  ChannelAppEnabledChanged: 'channel.app.enabled_changed',
+  /**
+   * An `ExternalIntegration` finished OAuth (or was disconnected) — workspace
+   * or personal scope, independent of any one channel. Posted into the app's
+   * own 1:1 room when one already exists; otherwise there is nothing to post
+   * into and the event is a no-op for the timeline (still useful for
+   * notifications/activity).
+   */
+  IntegrationConnected: 'integration.connected',
+  IntegrationDisconnected: 'integration.disconnected',
 } as const;
 
 export type AppEventName = (typeof AppEvent)[keyof typeof AppEvent];
@@ -172,8 +205,14 @@ export interface ChannelCreatedEvent extends BaseEvent {
 
 export interface ChannelUpdatedEvent extends BaseEvent {
   channelId: string;
+  /** The channel's current name/slug — always populated for UI refresh,
+   * regardless of whether this particular update changed them. */
   name?: string;
   slug?: string;
+  /** True only when this update actually renamed the channel — the unified
+   * System/Activity Event listener uses this (not the presence of `name`,
+   * which is always set) to decide whether to post `channel_renamed`. */
+  nameChanged?: boolean;
   /**
    * Present when this update changed the channel's posting policy — the Matrix
    * bridge reconciles the room's power levels off it (brief §3).
@@ -268,6 +307,52 @@ export interface MeetingEndedEvent extends MeetingEventBase {
   actionItemCount: number;
 }
 
+export interface ChannelArchiveChangedEvent extends BaseEvent {
+  channelId: string;
+  channelName: string;
+  channelSlug: string;
+  archived: boolean;
+}
+
+export type ChannelAiEntityType = 'agent' | 'coworker';
+
+export interface ChannelAiEntityLinkedEvent extends BaseEvent {
+  channelId: string;
+  entityId: string;
+  entityType: ChannelAiEntityType;
+}
+
+export type ChannelAiEntityUnlinkedEvent = ChannelAiEntityLinkedEvent;
+
+export interface ChannelAiEntityEnabledChangedEvent extends BaseEvent {
+  channelId: string;
+  entityId: string;
+  entityType: ChannelAiEntityType;
+  isEnabled: boolean;
+}
+
+export interface ChannelAppLinkedEvent extends BaseEvent {
+  channelId: string;
+  integrationId: string;
+}
+
+export type ChannelAppUnlinkedEvent = ChannelAppLinkedEvent;
+
+export interface ChannelAppEnabledChangedEvent extends BaseEvent {
+  channelId: string;
+  integrationId: string;
+  isEnabled: boolean;
+}
+
+export interface IntegrationConnectedEvent {
+  /** Null for a personal (user-scoped, not workspace-scoped) integration. */
+  workspaceId: string | null;
+  actorId: string | null;
+  integrationId: string;
+}
+
+export type IntegrationDisconnectedEvent = IntegrationConnectedEvent;
+
 export interface AppEventPayloads {
   [AppEvent.TaskCreated]: TaskCreatedEvent;
   [AppEvent.TaskAssigned]: TaskAssignedEvent;
@@ -291,4 +376,13 @@ export interface AppEventPayloads {
   [AppEvent.MeetingUpdated]: MeetingUpdatedEvent;
   [AppEvent.MeetingCancelled]: MeetingCancelledEvent;
   [AppEvent.MeetingEnded]: MeetingEndedEvent;
+  [AppEvent.ChannelArchiveChanged]: ChannelArchiveChangedEvent;
+  [AppEvent.ChannelAiEntityLinked]: ChannelAiEntityLinkedEvent;
+  [AppEvent.ChannelAiEntityUnlinked]: ChannelAiEntityUnlinkedEvent;
+  [AppEvent.ChannelAiEntityEnabledChanged]: ChannelAiEntityEnabledChangedEvent;
+  [AppEvent.ChannelAppLinked]: ChannelAppLinkedEvent;
+  [AppEvent.ChannelAppUnlinked]: ChannelAppUnlinkedEvent;
+  [AppEvent.ChannelAppEnabledChanged]: ChannelAppEnabledChangedEvent;
+  [AppEvent.IntegrationConnected]: IntegrationConnectedEvent;
+  [AppEvent.IntegrationDisconnected]: IntegrationDisconnectedEvent;
 }

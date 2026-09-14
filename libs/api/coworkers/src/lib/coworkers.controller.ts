@@ -228,6 +228,7 @@ export class ChannelCoworkersController {
   @RequireWorkspacePermissions(WorkspacePermission.UPDATE)
   setEnabled(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
     @Param('channelId') channelId: string,
     @Param('coworkerId') coworkerId: string,
     @Body() body: { isEnabled: boolean },
@@ -237,6 +238,7 @@ export class ChannelCoworkersController {
       channelId,
       coworkerId,
       body.isEnabled,
+      userId,
     );
   }
 
@@ -245,6 +247,7 @@ export class ChannelCoworkersController {
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
     @Param('channelId') channelId: string,
     @Param('coworkerId') coworkerId: string,
   ): Promise<void> {
@@ -252,6 +255,7 @@ export class ChannelCoworkersController {
       workspaceId,
       channelId,
       coworkerId,
+      userId,
     );
   }
 }

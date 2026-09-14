@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { StructuredChatMessage } from '@org/types';
+import { formatSystemEventFallbackText, type StructuredChatMessage } from '@org/types';
 import { MatrixAdminService } from './matrix-admin.service.js';
 
 /** A human-readable fallback for clients that don't understand a given
@@ -18,6 +18,8 @@ function fallbackBodyFor(event: StructuredChatMessage): string {
       return `Form: ${event.title}`;
     case 'mie.workflow':
       return `Workflow: ${event.title}`;
+    case 'mie.system_event':
+      return formatSystemEventFallbackText(event);
     default:
       return 'Application Message';
   }
@@ -77,7 +79,19 @@ export class MatrixBotMessagingService {
     roomId: string,
     senderMatrixId: string,
     event: StructuredChatMessage,
-    options: { fallbackBody?: string; replyToId?: string; threadRootId?: string } = {},
+    options: {
+      fallbackBody?: string;
+      replyToId?: string;
+      threadRootId?: string;
+      /**
+       * Matrix user ids to highlight — triggers each one's push rules (sound,
+       * badge, unread) via Matrix's own notification pipeline, without a
+       * room-wide ping. Used by `SystemEventPublisherService` so "you were
+       * added to #channel" reaches the person added, respecting their own
+       * notification preferences exactly like an `@mention` would (brief §24).
+       */
+      mentionUserIds?: string[];
+    } = {},
   ): Promise<string> {
     const fallbackBody = options.fallbackBody || fallbackBodyFor(event);
 
@@ -100,6 +114,9 @@ export class MatrixBotMessagingService {
       [event.type]: event,
       'org.onetab.structured_event': event,
       ...(Object.keys(relatesTo).length > 0 ? { 'm.relates_to': relatesTo } : {}),
+      ...(options.mentionUserIds?.length
+        ? { 'm.mentions': { user_ids: options.mentionUserIds } }
+        : {}),
     });
   }
 

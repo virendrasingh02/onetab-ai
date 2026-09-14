@@ -2,6 +2,7 @@ import type {
   Message,
   RoomMember,
   StructuredMessageAction,
+  SystemEventEntity,
 } from '@org/types';
 import { memo, type ReactNode } from 'react';
 import { ChatBubble } from '../chat-bubble.js';
@@ -10,6 +11,7 @@ import { AppResponseCard } from './app-response-card.js';
 import { ApprovalCard } from './approval-card.js';
 import { FileResponseCard } from './file-response-card.js';
 import { FormCard } from './form-card.js';
+import { SystemEventCard } from './system-event-card.js';
 import { SystemMessageCard } from './system-message-card.js';
 import { UniversalCardRenderer } from './universal-card-renderer.js';
 import { WorkflowCard } from './workflow-card.js';
@@ -48,12 +50,30 @@ export interface MessageRendererProps {
   onAction?: (action: StructuredMessageAction) => void | Promise<void>;
   onRetry?: () => void;
   entityKind?: 'app' | 'doc' | 'task' | 'kanban' | 'agent' | 'thread';
+  /** Whether the viewer can manage this conversation — gates a system
+   * event's admin-only actions (delete/hide). */
+  canManageConversation?: boolean;
+  /** A system event's named entity (member/app/agent/coworker/channel) was
+   * clicked — the host resolves it to a profile/details view. */
+  onViewSystemEventEntity?: (entity: SystemEventEntity) => void;
 }
 
 export const MessageRenderer = memo(function MessageRenderer(
   props: MessageRendererProps,
 ) {
-  const { message, isHighlighted, onOpenThread, onToggleSave, isSaved, onAction, onRetry } = props;
+  const {
+    message,
+    isHighlighted,
+    onOpenThread,
+    onToggleSave,
+    isSaved,
+    onAction,
+    onRetry,
+    onReact,
+    onDelete,
+    canManageConversation,
+    onViewSystemEventEntity,
+  } = props;
   const structured = message.structuredEvent;
 
   if (structured) {
@@ -154,6 +174,19 @@ export const MessageRenderer = memo(function MessageRenderer(
               onAction={onAction}
             />
           </div>
+        );
+
+      case 'mie.system_event':
+        return (
+          <SystemEventCard
+            message={message}
+            event={structured}
+            isHighlighted={isHighlighted}
+            canManage={canManageConversation}
+            onReact={onReact}
+            onViewEntity={onViewSystemEventEntity}
+            onDelete={onDelete}
+          />
         );
 
       case 'mie.card':

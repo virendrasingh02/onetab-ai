@@ -1034,6 +1034,7 @@ export function ChannelPage() {
               onEditDescription: () => setDetailsOpen(true),
               onOpenCopilot: openAssistant,
             }}
+            canManageConversation={canManageChannel}
           />
         </TabsContent>
 

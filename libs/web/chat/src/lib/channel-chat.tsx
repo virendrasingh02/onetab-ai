@@ -49,6 +49,8 @@ export interface ChannelChatProps {
     allowed: boolean;
     onSendAnonymously: (text: string) => void | Promise<void>;
   };
+  /** Whether the caller may manage this channel — see `ChatSurface`. */
+  canManageConversation?: boolean;
 }
 
 /**
@@ -75,6 +77,7 @@ export function ChannelChat({
   huddleRequest,
   composerReadOnlyMessage,
   anonymousPosting,
+  canManageConversation,
 }: ChannelChatProps) {
   const { enabled } = useMatrix();
   const { roomId, error } = useChannelRoom(channelId);
@@ -125,6 +128,7 @@ export function ChannelChat({
       huddleRequest={huddleRequest}
       composerReadOnlyMessage={composerReadOnlyMessage}
       anonymousPosting={anonymousPosting}
+      canManageConversation={canManageConversation}
     />
   );
 }

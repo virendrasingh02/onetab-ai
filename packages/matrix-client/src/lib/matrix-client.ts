@@ -64,6 +64,7 @@ import {
   type Timeline,
   type VerificationRequestSummary,
   type StructuredChatMessage,
+  formatSystemEventFallbackText,
 } from './types.js';
 
 export interface MatrixClientOptions {
@@ -952,7 +953,9 @@ export class OneTabMatrixClient {
               ? `Form: ${structuredEvent.title}`
               : structuredEvent.type === 'mie.workflow'
                 ? `Workflow: ${structuredEvent.title}`
-                : 'Application Message');
+                : structuredEvent.type === 'mie.system_event'
+                  ? formatSystemEventFallbackText(structuredEvent)
+                  : 'Application Message');
 
     const content: Record<string, unknown> = {
       msgtype: structuredEvent.type,

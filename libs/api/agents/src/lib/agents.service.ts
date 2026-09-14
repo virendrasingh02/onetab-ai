@@ -1,4 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AppEvent } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import type { AgentToolExecution } from '@org/types';
 import { AIEntitiesService } from './ai-entities.service.js';
@@ -10,6 +12,7 @@ export class AgentsService {
     private readonly prisma: PrismaService,
     private readonly entitiesService: AIEntitiesService,
     private readonly runtimeService: AIRuntimeService,
+    private readonly events: EventEmitter2,
   ) {}
 
   async getAgents(workspaceId: string) {
@@ -137,11 +140,39 @@ export class AgentsService {
   ) {
     await this.assertChannel(workspaceId, channelId);
     await this.assertAgent(workspaceId, agentId);
+
+    // Checked before the upsert so a re-add of an already-enabled link never
+    // posts a duplicate `agent_added` system event (brief §30).
+    const existing = await this.prisma.channelAgent.findUnique({
+      where: { channelId_agentId: { channelId, agentId } },
+      select: { isEnabled: true },
+    });
+
     await this.prisma.channelAgent.upsert({
       where: { channelId_agentId: { channelId, agentId } },
       create: { channelId, agentId, addedById },
       update: { isEnabled: true },
     });
+
+    if (!existing) {
+      this.events.emit(AppEvent.ChannelAiEntityLinked, {
+        workspaceId,
+        actorId: addedById,
+        channelId,
+        entityId: agentId,
+        entityType: 'agent',
+      });
+    } else if (!existing.isEnabled) {
+      this.events.emit(AppEvent.ChannelAiEntityEnabledChanged, {
+        workspaceId,
+        actorId: addedById,
+        channelId,
+        entityId: agentId,
+        entityType: 'agent',
+        isEnabled: true,
+      });
+    }
+
     return this.listChannelAgents(workspaceId, channelId);
   }
 
@@ -150,17 +181,30 @@ export class AgentsService {
     channelId: string,
     agentId: string,
     isEnabled: boolean,
+    actorId?: string,
   ) {
     await this.assertChannel(workspaceId, channelId);
     const link = await this.prisma.channelAgent.findUnique({
       where: { channelId_agentId: { channelId, agentId } },
-      select: { id: true },
+      select: { id: true, isEnabled: true },
     });
     if (!link) throw new NotFoundException('Agent is not linked to this channel.');
     await this.prisma.channelAgent.update({
       where: { id: link.id },
       data: { isEnabled },
     });
+
+    if (link.isEnabled !== isEnabled) {
+      this.events.emit(AppEvent.ChannelAiEntityEnabledChanged, {
+        workspaceId,
+        actorId: actorId ?? null,
+        channelId,
+        entityId: agentId,
+        entityType: 'agent',
+        isEnabled,
+      });
+    }
+
     return this.listChannelAgents(workspaceId, channelId);
   }
 
@@ -168,9 +212,22 @@ export class AgentsService {
     workspaceId: string,
     channelId: string,
     agentId: string,
+    actorId?: string,
   ): Promise<void> {
     await this.assertChannel(workspaceId, channelId);
-    await this.prisma.channelAgent.deleteMany({ where: { channelId, agentId } });
+    const { count } = await this.prisma.channelAgent.deleteMany({
+      where: { channelId, agentId },
+    });
+
+    if (count > 0) {
+      this.events.emit(AppEvent.ChannelAiEntityUnlinked, {
+        workspaceId,
+        actorId: actorId ?? null,
+        channelId,
+        entityId: agentId,
+        entityType: 'agent',
+      });
+    }
   }
 
   private async assertAgent(workspaceId: string, agentId: string) {

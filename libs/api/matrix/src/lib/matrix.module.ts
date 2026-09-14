@@ -23,6 +23,8 @@ import {
   MatrixController,
 } from './matrix.controller.js';
 import { NotificationBridgeService } from './notification-bridge.service.js';
+import { SystemEventPublisherService } from './system-event-publisher.service.js';
+import { SystemEventsListener } from './system-events.listener.js';
 
 /**
  * The Matrix bridge.
@@ -54,6 +56,8 @@ import { NotificationBridgeService } from './notification-bridge.service.js';
     MatrixSpaceService,
     MatrixSyncService,
     NotificationBridgeService,
+    SystemEventPublisherService,
+    SystemEventsListener,
   ],
   exports: [
     MatrixAdminService,
@@ -61,6 +65,7 @@ import { NotificationBridgeService } from './notification-bridge.service.js';
     MatrixBotMessagingService,
     MatrixInboundRouterService,
     MatrixSpaceService,
+    SystemEventPublisherService,
   ],
 })
 export class MatrixModule {}

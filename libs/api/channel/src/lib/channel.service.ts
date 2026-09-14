@@ -304,6 +304,7 @@ export class ChannelService {
       channelId,
       name: result.name,
       slug: result.slug,
+      nameChanged: input.name !== undefined,
       ...(postingChanged
         ? {
             posting: {
@@ -329,7 +330,7 @@ export class ChannelService {
 
     const channel = await this.prisma.channel.findUniqueOrThrow({
       where: { id: channelId },
-      select: { slug: true },
+      select: { slug: true, name: true },
     });
     if (channel.slug === 'general' && archived) {
       throw new ConflictException('The #general channel cannot be archived.');
@@ -342,6 +343,16 @@ export class ChannelService {
         archivedAt: archived ? new Date() : null,
       },
     });
+
+    this.events.emit(AppEvent.ChannelArchiveChanged, {
+      workspaceId,
+      actorId: userId,
+      channelId,
+      channelName: channel.name,
+      channelSlug: channel.slug,
+      archived,
+    });
+
     return toChannel(updated);
   }
 

@@ -13,6 +13,10 @@ export {
 } from './lib/matrix-sync.service.js';
 export { NotificationBridgeService } from './lib/notification-bridge.service.js';
 export {
+  SystemEventPublisherService,
+  type PublishSystemEventInput,
+} from './lib/system-event-publisher.service.js';
+export {
   matrixEnvSchema,
   readMatrixConfig,
   toMatrixLocalpart,

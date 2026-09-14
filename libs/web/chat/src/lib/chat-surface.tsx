@@ -26,6 +26,7 @@ import type {
   PresenceState,
   RoomMember,
   StructuredMessageAction,
+  SystemEventEntity,
 } from '@org/matrix-client';
 import { attachmentToMediaItem, useMediaPreview } from '@org/media-preview';
 import {
@@ -243,6 +244,18 @@ export interface ChatSurfaceProps {
   onCreateDoc?: (message: Message) => void;
   onAskAI?: (message: Message) => void;
   onViewContext?: (message: Message) => void;
+  /**
+   * Whether the caller may manage this conversation (channel admin / workspace
+   * admin) — gates a system/activity event's admin-only actions (delete/hide).
+   */
+  canManageConversation?: boolean;
+  /**
+   * A system/activity event's named entity (app/agent/coworker/channel) was
+   * clicked. A `kind: 'user'` click is handled internally via the existing
+   * member profile panel and never reaches this — only pass a handler for the
+   * entity kinds your page can actually open (brief §10).
+   */
+  onViewSystemEventEntity?: (entity: SystemEventEntity) => void;
   onSchedule?: (body: string, when: string) => void;
   onAction?: (
     message: Message,
@@ -334,6 +347,8 @@ export function ChatSurface({
   onRetryAgent,
   composerReadOnlyMessage,
   anonymousPosting,
+  canManageConversation,
+  onViewSystemEventEntity,
 }: ChatSurfaceProps) {
   const messageDensity = useMessageDensity();
   const openPosition = useOpenChatPosition();
@@ -678,6 +693,24 @@ export function ChatSurface({
     [openProfilePanel],
   );
 
+  /** A system event's entity was clicked. A member opens the existing profile
+   * panel right here (same as a message avatar); an app/agent/coworker/channel
+   * has no in-surface equivalent, so that's the page's own call (brief §10). */
+  const handleViewSystemEventEntity = useCallback(
+    (entity: SystemEventEntity) => {
+      if (entity.kind === 'user' && entity.id) {
+        handleOpenUserProfile({
+          userId: entity.id,
+          name: entity.name,
+          avatarUrl: entity.avatarUrl,
+        });
+        return;
+      }
+      onViewSystemEventEntity?.(entity);
+    },
+    [handleOpenUserProfile, onViewSystemEventEntity],
+  );
+
   const renderMessage = useCallback(
     (message: Message, grouped: boolean) => {
       // Folded into its burst's head bubble as a grid tile — see below.
@@ -739,6 +772,8 @@ export function ChatSurface({
           onViewContext={
             onViewContext ? () => onViewContext(message) : undefined
           }
+          canManageConversation={canManageConversation}
+          onViewSystemEventEntity={handleViewSystemEventEntity}
           onAction={
             onAction
               ? (action: StructuredMessageAction) =>
@@ -852,6 +887,8 @@ export function ChatSurface({
       presenceOf,
       title,
       isEncrypted,
+      canManageConversation,
+      handleViewSystemEventEntity,
     ],
   );
 
