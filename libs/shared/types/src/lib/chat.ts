@@ -118,6 +118,35 @@ export interface Reaction {
 
 export type SendState = 'sending' | 'sent' | 'failed';
 
+// --- link previews ---------------------------------------------------------
+
+export type LinkPreviewStatus =
+  | 'idle'
+  | 'loading'
+  | 'ready'
+  | 'unavailable'
+  | 'blocked'
+  | 'error';
+
+export type LinkPreviewVisibility = 'visible' | 'hidden' | 'removed';
+
+export interface LinkPreview {
+  id: string;
+  url: string;
+  normalizedUrl: string;
+  title?: string;
+  description?: string;
+  image?: string;
+  favicon?: string;
+  domain: string;
+  siteName?: string;
+  mediaType?: 'website' | 'article' | 'video' | 'audio' | 'image' | 'rich';
+  status: LinkPreviewStatus;
+  visibility: LinkPreviewVisibility;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
 export interface Message {
   id: EventId;
   roomId: RoomId;
@@ -156,6 +185,8 @@ export interface Message {
    * client has synced its push rules.
    */
   isMention?: boolean;
+  /** Rich link previews for URLs detected in the message. */
+  linkPreviews?: LinkPreview[];
 }
 
 // --- structured chat events (AI Agents, Apps, Approvals, Forms, Workflows) ---

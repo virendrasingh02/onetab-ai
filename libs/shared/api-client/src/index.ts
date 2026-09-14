@@ -48,6 +48,7 @@ export {
   intelligenceApi,
   contextLinksApi,
   bookmarksApi,
+  linkPreviewApi,
   type AuthResponse,
   type UpdateUploadParams,
   type UploadContextParams,

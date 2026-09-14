@@ -3,6 +3,7 @@ import type {
   RoomMember,
   StructuredMessageAction,
   SystemEventEntity,
+  WorkspacePolicy,
 } from '@org/types';
 import { memo, type ReactNode } from 'react';
 import { ChatBubble } from '../chat-bubble.js';
@@ -56,6 +57,8 @@ export interface MessageRendererProps {
   /** A system event's named entity (member/app/agent/coworker/channel) was
    * clicked — the host resolves it to a profile/details view. */
   onViewSystemEventEntity?: (entity: SystemEventEntity) => void;
+  linkPreviewsEnabled?: boolean;
+  workspacePolicy?: WorkspacePolicy;
 }
 
 export const MessageRenderer = memo(function MessageRenderer(

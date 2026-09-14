@@ -8,6 +8,14 @@ export const PolicySubjectRole = {
 export type PolicySubjectRole =
   (typeof PolicySubjectRole)[keyof typeof PolicySubjectRole];
 
+export const LinkPreviewPolicy = {
+  ENABLED: 'ENABLED',
+  OPTIONAL: 'OPTIONAL',
+  DISABLED: 'DISABLED',
+} as const;
+export type LinkPreviewPolicy =
+  (typeof LinkPreviewPolicy)[keyof typeof LinkPreviewPolicy];
+
 export interface WorkspacePolicy {
   whoCanInvite: PolicySubjectRole;
   whoCanCreateChannels: PolicySubjectRole;
@@ -19,6 +27,7 @@ export interface WorkspacePolicy {
   whoCanCreateMeetings: PolicySubjectRole;
   whoCanManageFiles: PolicySubjectRole;
   whoCanCreateExternalResources: PolicySubjectRole;
+  linkPreviewsPolicy?: LinkPreviewPolicy;
 }
 
 export const DEFAULT_WORKSPACE_POLICY: Readonly<WorkspacePolicy> = {
@@ -32,6 +41,7 @@ export const DEFAULT_WORKSPACE_POLICY: Readonly<WorkspacePolicy> = {
   whoCanCreateMeetings: PolicySubjectRole.MEMBERS,
   whoCanManageFiles: PolicySubjectRole.MEMBERS,
   whoCanCreateExternalResources: PolicySubjectRole.ADMINS,
+  linkPreviewsPolicy: LinkPreviewPolicy.OPTIONAL,
 };
 
 /**
@@ -71,7 +81,9 @@ export function resolveWorkspacePolicy(
   }
 
   const raw = rawJson as Partial<Record<keyof WorkspacePolicy, unknown>>;
-  const resolveSetting = (key: keyof WorkspacePolicy): PolicySubjectRole => {
+  const resolveSetting = (
+    key: Exclude<keyof WorkspacePolicy, 'linkPreviewsPolicy'>,
+  ): PolicySubjectRole => {
     const val = raw[key];
     if (
       val === PolicySubjectRole.OWNER_ONLY ||
@@ -81,6 +93,18 @@ export function resolveWorkspacePolicy(
       return val;
     }
     return DEFAULT_WORKSPACE_POLICY[key];
+  };
+
+  const resolveLinkPreviewsPolicy = (): LinkPreviewPolicy => {
+    const val = raw['linkPreviewsPolicy'];
+    if (
+      val === LinkPreviewPolicy.ENABLED ||
+      val === LinkPreviewPolicy.OPTIONAL ||
+      val === LinkPreviewPolicy.DISABLED
+    ) {
+      return val;
+    }
+    return DEFAULT_WORKSPACE_POLICY.linkPreviewsPolicy ?? LinkPreviewPolicy.OPTIONAL;
   };
 
   return {
@@ -94,5 +118,6 @@ export function resolveWorkspacePolicy(
     whoCanCreateMeetings: resolveSetting('whoCanCreateMeetings'),
     whoCanManageFiles: resolveSetting('whoCanManageFiles'),
     whoCanCreateExternalResources: resolveSetting('whoCanCreateExternalResources'),
+    linkPreviewsPolicy: resolveLinkPreviewsPolicy(),
   };
 }

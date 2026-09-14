@@ -53,6 +53,7 @@ export {
   DEFAULT_WORKSPACE_POLICY,
   isPolicyRoleAllowed,
   resolveWorkspacePolicy,
+  type LinkPreviewPolicy,
   type WorkspacePolicy,
 } from './lib/workspace-policies.js';
 

@@ -48,6 +48,10 @@ import {
   type LexicalEditorRef,
   type MentionCandidate,
 } from './lexical-composer.js';
+import { detectLinks, normalizeUrl } from './link-detector.js';
+import { LinkPreviewCard } from './link-preview-card.js';
+import { LinkPreviewSkeleton } from './link-preview-skeleton.js';
+import { useLinkPreviewStore } from './use-link-preview.js';
 import { DEFAULT_SLASH_COMMANDS, type SlashCommand } from './slash-commands.js';
 import { VoiceRecorderBar } from './voice-recorder-bar.js';
 
@@ -291,6 +295,8 @@ export interface ComposerProps {
     meta: { durationMs: number; waveform: number[]; mimeType: string },
     onProgress?: (percent: number) => void,
   ) => void | Promise<void>;
+  /** When false, disables automatic link preview generation for this composer. Defaults to true. */
+  linkPreviewsEnabled?: boolean;
   className?: string;
 }
 
@@ -324,6 +330,7 @@ export function Composer({
   onSchedule,
   onStartHuddle,
   onSendVoice,
+  linkPreviewsEnabled = true,
   className,
 }: ComposerProps) {
   const [pickerState, setPickerState] = useState<{
@@ -348,6 +355,26 @@ export function Composer({
     [conversationId, getDraft],
   );
 
+  const [detectedUrls, setDetectedUrls] = useState<string[]>(() =>
+    linkPreviewsEnabled && initialDraft
+      ? detectLinks(initialDraft).map((l) => l.url)
+      : [],
+  );
+  const [dismissedUrls, setDismissedUrls] = useState<Set<string>>(new Set());
+
+  const fetchPreview = useLinkPreviewStore((s) => s.fetchPreview);
+  const previews = useLinkPreviewStore((s) => s.previews);
+  const loadingUrls = useLinkPreviewStore((s) => s.loadingUrls);
+
+  useEffect(() => {
+    if (linkPreviewsEnabled && initialDraft) {
+      const links = detectLinks(initialDraft);
+      for (const link of links) {
+        void fetchPreview(link.url);
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const lexicalRef = useRef<LexicalEditorRef | null>(null);
   const fileInputId = useId();
 
@@ -370,7 +397,17 @@ export function Composer({
     const draft = conversationId ? getDraft(conversationId) : '';
     lexicalRef.current?.setMarkdown(draft);
     setHasContent(draft.trim().length > 0);
-  }, [conversationId, getDraft, setDraft]);
+    setDismissedUrls(new Set());
+    if (linkPreviewsEnabled) {
+      const links = detectLinks(draft);
+      setDetectedUrls(links.map((l) => l.url));
+      for (const link of links) {
+        void fetchPreview(link.url);
+      }
+    } else {
+      setDetectedUrls([]);
+    }
+  }, [conversationId, getDraft, setDraft, linkPreviewsEnabled, fetchPreview]);
 
   // Object URLs are only good for as long as the tab is open — revoke each
   // one when its chip goes away, and sweep whatever's left on unmount so a
@@ -431,9 +468,29 @@ export function Composer({
   const handleDraftChange = useCallback(
     (markdown: string) => {
       if (conversationId) setDraft(conversationId, markdown);
+      if (linkPreviewsEnabled) {
+        const links = detectLinks(markdown);
+        setDetectedUrls(links.map((l) => l.url));
+        for (const link of links) {
+          const norm = link.normalizedUrl || normalizeUrl(link.url);
+          if (!dismissedUrls.has(norm)) {
+            void fetchPreview(link.url);
+          }
+        }
+      }
     },
-    [conversationId, setDraft],
+    [conversationId, setDraft, linkPreviewsEnabled, dismissedUrls, fetchPreview],
   );
+
+  const handleDismissPreview = useCallback((url: string) => {
+    const norm = normalizeUrl(url);
+    setDismissedUrls((prev) => new Set(prev).add(norm));
+  }, []);
+
+  const stagedUrls = useMemo(() => {
+    if (!linkPreviewsEnabled) return [];
+    return detectedUrls.filter((url) => !dismissedUrls.has(normalizeUrl(url)));
+  }, [linkPreviewsEnabled, detectedUrls, dismissedUrls]);
 
   /* The editor's own send only fires with text in hand — attachments ride
      along whenever there are any, text or none. */
@@ -449,6 +506,8 @@ export function Composer({
     (body: string) => {
       setHasContent(false);
       flushAttachments();
+      setDismissedUrls(new Set());
+      setDetectedUrls([]);
       if (conversationId) {
         clearDraft(conversationId);
       }
@@ -649,6 +708,43 @@ export function Composer({
             lexicalRef.current = ref;
           }}
         />
+
+        {/* Staged Link Previews */}
+        {stagedUrls.length > 0 ? (
+          <div className="px-3 pb-2 pt-0.5 space-y-2">
+            {stagedUrls.map((url) => {
+              const norm = normalizeUrl(url);
+              const preview = previews[norm];
+              const isLoading = loadingUrls[norm];
+              if (isLoading && !preview) {
+                return (
+                  <div key={url} className="relative">
+                    <LinkPreviewSkeleton compact />
+                    <button
+                      type="button"
+                      onClick={() => handleDismissPreview(url)}
+                      className="absolute right-1.5 top-1.5 size-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                      aria-label="Remove link preview"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
+                );
+              }
+              if (!preview || preview.status === 'error') {
+                return null;
+              }
+              return (
+                <LinkPreviewCard
+                  key={url}
+                  preview={preview}
+                  compact
+                  onRemove={() => handleDismissPreview(url)}
+                />
+              );
+            })}
+          </div>
+        ) : null}
 
         {/* Action bar. On phones the secondary buttons (formatting, @, /, GIF,
             huddle) are hidden — `@` and `/` still open their menus when typed,

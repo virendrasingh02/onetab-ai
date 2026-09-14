@@ -134,6 +134,7 @@ import type {
   ComplianceReadinessScore,
   ComplianceChecklistStatus,
   ComplianceReviewStatus,
+  LinkPreview,
 
   MarketplaceBrowseParams,
   MarketplaceCategoryCount,
@@ -1104,6 +1105,22 @@ export const matrixApi = {
   peerIdentity: (userId: string) =>
     request<{ matrixUserId: string }>(
       http.get(`/matrix/users/${userId}/identity`),
+    ),
+};
+
+/** Universal link preview generation, caching, and per-message visibility overrides. */
+export const linkPreviewApi = {
+  getPreview: (url: string) =>
+    request<LinkPreview>(http.get('/link-preview', { params: { url } })),
+
+  updateMessageVisibility: (messageId: string, visibility: 'visible' | 'hidden') =>
+    request<{ success: boolean; messageId: string; visibility: string }>(
+      http.patch(`/messages/${messageId}/link-preview`, { visibility }),
+    ),
+
+  getMessageVisibility: (messageId: string) =>
+    request<{ messageId: string; visibility: 'visible' | 'hidden' | null }>(
+      http.get(`/link-preview/messages/${messageId}`),
     ),
 };
 

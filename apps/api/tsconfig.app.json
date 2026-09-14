@@ -13,9 +13,11 @@
   "include": ["src/**/*.ts"],
   "exclude": [],
   "references": [
-    { "path": "../../libs/api/mail/tsconfig.lib.json" },
     {
       "path": "../../libs/api/cache/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/api/sync/tsconfig.lib.json"
     },
     {
       "path": "../../libs/api/marketplace/tsconfig.lib.json"
@@ -69,6 +71,12 @@
       "path": "../../libs/api/common/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/api/mail/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/api/media-processing/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/api/storage/tsconfig.lib.json"
     },
     {
@@ -76,9 +84,6 @@
     },
     {
       "path": "../../libs/api/realtime/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/api/sync/tsconfig.lib.json"
     },
     {
       "path": "../../libs/api/notifications/tsconfig.lib.json"
@@ -90,13 +95,13 @@
       "path": "../../libs/api/ai/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/api/coworkers/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/api/compliance/tsconfig.lib.json"
     },
     {
       "path": "../../libs/api/admin/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/api/coworkers/tsconfig.lib.json"
     }
   ]
 }

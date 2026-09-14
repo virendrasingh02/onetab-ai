@@ -768,6 +768,7 @@ export function ChatSurface({
           isOwn={message.senderId === myUserId}
           isGrouped={grouped}
           density={messageDensity}
+          linkPreviewsEnabled={chat?.linkPreviewsEnabled ?? true}
           isHighlighted={message.id === highlightId}
           mentionNames={mentionNames}
           isPinned={pinnedIds.includes(message.id)}
@@ -1223,6 +1224,7 @@ export function ChatSurface({
                       }
                       members={members}
                       currentUserId={myUserId}
+                      linkPreviewsEnabled={chat?.linkPreviewsEnabled ?? true}
                       showFormatting={false}
                       placeholder="Reply in thread…"
                       onSend={(body) => onSend(body, threadRoot.id)}
@@ -1341,6 +1343,7 @@ export function ChatSurface({
             conversationId={conversationId}
             members={members}
             currentUserId={myUserId}
+            linkPreviewsEnabled={chat?.linkPreviewsEnabled ?? true}
             onTyping={effectiveOnTyping}
             enterToSend={chat?.enterToSend ?? true}
             onAttach={onAttach ? (files) => void onAttach(files) : undefined}

@@ -312,4 +312,27 @@ export {
   type ComposerWarningStoreState,
 } from './lib/composer-warning-store.js';
 
+export {
+  detectLinks,
+  normalizeUrl,
+  type DetectedLink,
+  type DetectLinksOptions,
+} from './lib/link-detector.js';
+
+export {
+  LinkPreviewCard,
+  type LinkPreviewCardProps,
+} from './lib/link-preview-card.js';
+
+export {
+  LinkPreviewSkeleton,
+  type LinkPreviewSkeletonProps,
+} from './lib/link-preview-skeleton.js';
+
+export {
+  useLinkPreview,
+  useLinkPreviewStore,
+  resolvePreviewVisibility,
+} from './lib/use-link-preview.js';
+
 

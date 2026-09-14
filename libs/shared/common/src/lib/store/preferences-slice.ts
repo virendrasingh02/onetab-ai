@@ -27,6 +27,7 @@ export const DEFAULT_CHAT_PREFERENCES: ChatPreferences = {
   sendTypingNotice: true,
   mentionWarningsEnabled: true,
   allowDirectMessagesFrom: 'everyone',
+  linkPreviewsEnabled: true,
 };
 
 const NOTIFICATION_SOUND_EVENTS: NotificationSoundEvent[] = [
@@ -132,6 +133,10 @@ function sanitizePreferences(raw: unknown): UserPreferences {
     ['everyone', 'members', 'admins'].includes(chatObj['allowDirectMessagesFrom'] as string)
       ? (chatObj['allowDirectMessagesFrom'] as 'everyone' | 'members' | 'admins')
       : 'everyone';
+  const linkPreviewsEnabled =
+    typeof chatObj['linkPreviewsEnabled'] === 'boolean'
+      ? chatObj['linkPreviewsEnabled']
+      : true;
 
   const showContentPreview =
     typeof notifObj['showContentPreview'] === 'boolean'
@@ -183,6 +188,7 @@ function sanitizePreferences(raw: unknown): UserPreferences {
       sendTypingNotice,
       mentionWarningsEnabled,
       allowDirectMessagesFrom,
+      linkPreviewsEnabled,
     },
     notifications: {
       showContentPreview,

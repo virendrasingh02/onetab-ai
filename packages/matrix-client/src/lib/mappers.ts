@@ -9,6 +9,7 @@ import type {
 import {
   validateStructuredEvent,
   type Attachment,
+  type LinkPreview,
   type Message,
   type MessageKind,
   type Presence,
@@ -66,6 +67,8 @@ interface MessageContentShape {
     'm.in_reply_to'?: { event_id?: string };
   };
   'm.new_content'?: { body?: string; formatted_body?: string };
+  link_previews?: LinkPreview[];
+  linkPreviews?: LinkPreview[];
 }
 
 /**
@@ -317,6 +320,7 @@ export function toMessage(
       : undefined,
     structuredEvent: extractStructuredEvent(event, content),
     isMention,
+    linkPreviews: content.link_previews ?? content.linkPreviews ?? undefined,
   };
 }
 

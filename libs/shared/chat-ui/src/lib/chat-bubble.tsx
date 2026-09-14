@@ -1,4 +1,4 @@
-import type { Message, RoomMember } from '@org/types';
+import type { Message, RoomMember, WorkspacePolicy } from '@org/types';
 import {
   Badge,
   DropdownMenu,
@@ -29,6 +29,7 @@ import {
   FolderKanban,
   Forward,
   Link2,
+  Link2Off,
   Lock,
   MoreHorizontal,
   Pencil,
@@ -55,9 +56,13 @@ import {
   subMonths,
   subYears,
 } from 'date-fns';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLongPress } from '@org/hooks';
+import { detectLinks, normalizeUrl } from './link-detector.js';
+import { LinkPreviewCard } from './link-preview-card.js';
+import { LinkPreviewSkeleton } from './link-preview-skeleton.js';
 import { MarkdownMessage } from './markdown-message.js';
+import { resolvePreviewVisibility, useLinkPreviewStore } from './use-link-preview.js';
 import { UserProfileCard } from './user-profile-card.js';
 
 const QUICK_REACTIONS = ['👍', '❤️', '🔥'];
@@ -100,6 +105,8 @@ export interface ChatBubbleProps {
   mentionNames?: string[];
   entityKind?: 'app' | 'doc' | 'task' | 'kanban' | 'agent' | 'thread';
   onRetry?: () => void;
+  linkPreviewsEnabled?: boolean;
+  workspacePolicy?: WorkspacePolicy;
 }
 
 export function formatShortTimestamp(timestamp: number): string {
@@ -177,9 +184,59 @@ export function ChatBubble({
   mentionNames,
   entityKind,
   onRetry,
+  linkPreviewsEnabled = true,
+  workspacePolicy,
 }: ChatBubbleProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isReactionOpen, setIsReactionOpen] = useState(false);
+
+  const messageOverrides = useLinkPreviewStore((s) => s.messageOverrides);
+  const toggleMessageOverride = useLinkPreviewStore((s) => s.toggleMessageOverride);
+  const previewsMap = useLinkPreviewStore((s) => s.previews);
+  const loadingUrls = useLinkPreviewStore((s) => s.loadingUrls);
+  const fetchPreview = useLinkPreviewStore((s) => s.fetchPreview);
+
+  const detectedLinks = useMemo(() => {
+    if (message.isRedacted || !message.body) return [];
+    return detectLinks(message.body);
+  }, [message.body, message.isRedacted]);
+
+  const hasLinkPreviews = Boolean(
+    (message.linkPreviews && message.linkPreviews.length > 0) ||
+      detectedLinks.length > 0,
+  );
+
+  const isPreviewsVisible = resolvePreviewVisibility({
+    messageId: message.id,
+    messagePreviews: message.linkPreviews,
+    messageOverrides,
+    userChatPreferences:
+      linkPreviewsEnabled !== undefined
+        ? { linkPreviewsEnabled }
+        : undefined,
+    workspacePolicy,
+  });
+
+  useEffect(() => {
+    if (!isPreviewsVisible) return;
+    if (message.linkPreviews && message.linkPreviews.length > 0) return;
+    for (const link of detectedLinks) {
+      const norm = link.normalizedUrl || normalizeUrl(link.url);
+      if (!previewsMap[norm] && !loadingUrls[norm]) {
+        void fetchPreview(link.url);
+      }
+    }
+  }, [isPreviewsVisible, message.linkPreviews, detectedLinks, previewsMap, loadingUrls, fetchPreview]);
+
+  const previewsToRender = useMemo(() => {
+    if (message.linkPreviews && message.linkPreviews.length > 0) {
+      return message.linkPreviews;
+    }
+    return detectedLinks.map((link) => {
+      const norm = link.normalizedUrl || normalizeUrl(link.url);
+      return previewsMap[norm] ?? null;
+    });
+  }, [message.linkPreviews, detectedLinks, previewsMap]);
   /*
    * Touch has no hover, so the floating action toolbar is opened by a
    * long-press on the message instead. It stays up until a tap or scroll
@@ -484,6 +541,20 @@ export function ChatBubble({
                 ) : null}
               </span>
             ) : null}
+
+            {/* Link Previews */}
+            {isPreviewsVisible && hasLinkPreviews ? (
+              <div className="mt-2 space-y-2">
+                {previewsToRender.map((preview, idx) => {
+                  if (!preview) {
+                    return <LinkPreviewSkeleton key={detectedLinks[idx]?.url || idx} />;
+                  }
+                  if (preview.status === 'error') return null;
+                  return <LinkPreviewCard key={preview.url || idx} preview={preview} />;
+                })}
+              </div>
+            ) : null}
+
             {attachmentSlot}
           </>
         )}
@@ -909,6 +980,28 @@ export function ChatBubble({
               >
                 <Link2 className="mr-2 size-4" />
                 Copy link to message
+              </DropdownMenuItem>
+            ) : null}
+
+            {hasLinkPreviews ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  setIsMenuOpen(false);
+                  void toggleMessageOverride(message.id, isPreviewsVisible);
+                }}
+                className="cursor-pointer hover:bg-accent"
+              >
+                {isPreviewsVisible ? (
+                  <>
+                    <Link2Off className="mr-2 size-4 text-muted-foreground" />
+                    Hide link preview
+                  </>
+                ) : (
+                  <>
+                    <Link2 className="mr-2 size-4 text-muted-foreground" />
+                    Show link preview
+                  </>
+                )}
               </DropdownMenuItem>
             ) : null}
 

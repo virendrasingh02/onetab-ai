@@ -24,6 +24,8 @@ export interface ChatPreferences {
   sendTypingNotice?: boolean;
   mentionWarningsEnabled?: boolean;
   allowDirectMessagesFrom?: 'everyone' | 'members' | 'admins';
+  /** Show link previews by default for detected URLs. */
+  linkPreviewsEnabled?: boolean;
 }
 
 /**

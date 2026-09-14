@@ -35,6 +35,7 @@ import { RealtimeModule } from '@org/api-realtime';
 import { SearchModule } from '@org/api-search';
 import { StorageModule } from '@org/api-storage';
 import { SyncModule } from '@org/api-sync';
+import { MediaProcessingModule } from '@org/api-media-processing';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -101,6 +102,7 @@ import { AppService } from './app.service';
     SearchModule,
     GifsModule,
     StorageModule,
+    MediaProcessingModule,
   ],
   controllers: [AppController],
   providers: [

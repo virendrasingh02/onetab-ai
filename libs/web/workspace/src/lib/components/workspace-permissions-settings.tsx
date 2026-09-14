@@ -4,6 +4,7 @@ import {
   PolicySubjectRole,
   WorkspaceRole,
   hasWorkspaceRole,
+  type LinkPreviewPolicy,
   type WorkspacePolicy,
 } from '@org/types';
 import {
@@ -344,6 +345,33 @@ export function WorkspacePermissionsSettings({
                     {opt.label}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </SettingsRow>
+
+          <SettingsRow
+            title="Link Previews Policy"
+            description="Control whether rich URL previews are forced enabled, optional for members, or disabled workspace-wide."
+          >
+            <Select
+              disabled={!isAdmin || saveMutation.isPending}
+              value={form.linkPreviewsPolicy ?? 'OPTIONAL'}
+              onValueChange={(val) => {
+                const next = {
+                  ...form,
+                  linkPreviewsPolicy: val as LinkPreviewPolicy,
+                };
+                setForm(next);
+                saveMutation.mutate(next);
+              }}
+            >
+              <SelectTrigger className="h-8 text-xs w-[220px] bg-surface">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ENABLED">Always Enabled</SelectItem>
+                <SelectItem value="OPTIONAL">Optional (User Preference)</SelectItem>
+                <SelectItem value="DISABLED">Always Disabled</SelectItem>
               </SelectContent>
             </Select>
           </SettingsRow>

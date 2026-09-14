@@ -112,6 +112,7 @@ export const chatPreferencesSchema = z.object({
   messageDensity: z.enum(['comfy', 'compact']).default('comfy'),
   openPosition: z.enum(['last-read', 'newest']).default('last-read'),
   readReceipts: z.boolean().default(true),
+  linkPreviewsEnabled: z.boolean().default(true),
 });
 
 export const notificationSoundEventsSchema = z.object({
@@ -278,6 +279,7 @@ export const userPreferencesSchema = z.object({
     messageDensity: 'comfy',
     openPosition: 'last-read',
     readReceipts: true,
+    linkPreviewsEnabled: true,
   }),
   notifications: notificationDisplayPreferencesSchema.default({
     showContentPreview: true,

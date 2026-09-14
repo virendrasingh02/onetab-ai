@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   CornerDownLeft,
   Eye,
+  Link2,
   MessageSquare,
   RotateCcw,
   Sparkles,
@@ -45,6 +46,10 @@ export function ChatSettingsPanel() {
 
   const handleMentionWarningsToggle = (enabled: boolean) => {
     updateChatPreferences({ mentionWarningsEnabled: enabled });
+  };
+
+  const handleLinkPreviewsToggle = (enabled: boolean) => {
+    updateChatPreferences({ linkPreviewsEnabled: enabled });
   };
 
   const handleAllowDirectMessagesFromChange = (
@@ -411,6 +416,27 @@ export function ChatSettingsPanel() {
             <Switch
               checked={chat.mentionWarningsEnabled ?? true}
               onCheckedChange={handleMentionWarningsToggle}
+            />
+          </div>
+
+          {/* Link Previews */}
+          <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="flex items-start gap-3">
+              <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                <Link2 className="size-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-medium text-foreground">
+                  Show link previews by default
+                </h4>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Display rich preview cards with titles, descriptions, and media for links shared in messages.
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={chat.linkPreviewsEnabled ?? true}
+              onCheckedChange={handleLinkPreviewsToggle}
             />
           </div>
         </div>
