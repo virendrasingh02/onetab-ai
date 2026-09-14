@@ -53,6 +53,8 @@ export type {
   Channel,
   ChannelBookmark,
   ChannelAgentView,
+  ChannelCoworkerView,
+  ProjectCoworkerView,
   ChannelMember,
   ChannelPin,
   ChannelSummary,
@@ -219,15 +221,27 @@ export type {
 } from './lib/admin.js';
 
 
+export { isAIEntityType } from './lib/automation.js';
+
 export type {
+  AIEntity,
+  AIEntityType,
   AgentExecutionLog,
   AgentExecutionLogEntry,
   AgentRunResult,
   AgentSchedule,
   AIAgent,
   AIAgentDetail,
+  AICoworker,
+  AICoworkerDetail,
   AutomationWorkflow,
   AutomationWorkflowDetail,
+  CoworkerAgentLink,
+  CoworkerAppLink,
+  CoworkerExecutionLog,
+  CoworkerPermissions,
+  CoworkerRunResult,
+  CoworkerStatus,
   ExternalIntegration,
   WorkflowExecution,
   WorkflowExecutionEntry,

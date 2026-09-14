@@ -76,6 +76,7 @@ export type SidebarSectionId =
   | 'dms'
   | 'projects'
   | 'docs'
+  | 'coworkers'
   | 'agents'
   | 'apps'
   | 'workflows';
@@ -92,7 +93,7 @@ export const DEFAULT_SIDEBAR_SECTIONS: readonly SidebarSectionConfig[] = [
   {
     id: 'starred',
     label: 'Starred',
-    description: 'Favorited channels, docs, projects, agents & workflows',
+    description: 'Favorited channels, docs, projects, coworkers, agents & workflows',
     visible: true,
     order: 0,
   },
@@ -125,25 +126,32 @@ export const DEFAULT_SIDEBAR_SECTIONS: readonly SidebarSectionConfig[] = [
     order: 4,
   },
   {
+    id: 'coworkers',
+    label: 'AI Coworkers',
+    description: 'Persistent AI teammates, assistants and roles',
+    visible: true,
+    order: 5,
+  },
+  {
     id: 'agents',
     label: 'AI Agents',
     description: 'Custom and built-in AI agents',
     visible: true,
-    order: 5,
+    order: 6,
   },
   {
     id: 'apps',
     label: 'Apps & Integrations',
     description: 'Connected tools and integrations',
     visible: true,
-    order: 6,
+    order: 7,
   },
   {
     id: 'workflows',
     label: 'Workflows',
     description: 'Automations and triggers',
     visible: true,
-    order: 7,
+    order: 8,
   },
 ];
 

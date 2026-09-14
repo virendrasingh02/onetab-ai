@@ -279,7 +279,26 @@ export class MCPToolRegistryService {
    * than needing a richer per-parameter schema on `MCPToolDefinition`.
    */
   getToolSchemas(): Array<Record<string, unknown>> {
-    return Array.from(this.tools.values()).map((tool) => ({
+    return this.getToolSchemasFor();
+  }
+
+  /**
+   * The same OpenAI-style function schemas as {@link getToolSchemas}, optionally
+   * narrowed to a subset of tool names — the seam `CoworkerRuntimeService`
+   * (`@org/api-coworkers`) uses to offer a Coworker only the tools its
+   * `permissions.allowActions` grants, without this registry knowing anything
+   * about Coworkers. Omitting `names` (every existing caller) keeps today's
+   * "every registered tool" behaviour.
+   */
+  getToolSchemasFor(names?: string[]): Array<Record<string, unknown>> {
+    const tools = names
+      ? names.flatMap((name) => {
+          const tool = this.tools.get(name);
+          return tool ? [tool] : [];
+        })
+      : Array.from(this.tools.values());
+
+    return tools.map((tool) => ({
       type: 'function',
       function: {
         name: tool.name,

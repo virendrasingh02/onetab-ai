@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   Paperclip,
   Search,
+  Sparkles,
   Users,
 } from 'lucide-react';
 import {
@@ -40,6 +41,7 @@ const CATEGORY_META: Record<
   projects: { label: 'Projects', icon: FolderKanban },
   files: { label: 'Files', icon: Paperclip },
   agents: { label: 'AI agents', icon: Bot },
+  coworkers: { label: 'AI coworkers', icon: Sparkles },
   canvases: { label: 'Canvases', icon: LayoutDashboard },
 };
 const ALL_CATEGORIES = Object.keys(CATEGORY_META) as SearchCategory[];

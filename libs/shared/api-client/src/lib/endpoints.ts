@@ -53,8 +53,17 @@ import type {
   AgentExecutionLog,
   AgentExecutionLogEntry,
   AgentRunResult,
+  AIEntity,
+  AIEntityType,
   AIAgent,
   AIAgentDetail,
+  AICoworker,
+  AICoworkerDetail,
+  CoworkerExecutionLog,
+  CoworkerPermissions,
+  CoworkerRunResult,
+  ChannelCoworkerView,
+  ProjectCoworkerView,
   AIChatRequest,
   AIChatResponse,
   AIImageResponse,
@@ -1908,6 +1917,94 @@ export const workToolsApi = {
     ),
 };
 
+/** Unified AI Entities (Agents & Coworkers). */
+export const aiEntitiesApi = {
+  list: (workspaceId: string, type?: AIEntityType) =>
+    request<AIEntity[]>(
+      http.get(`/workspaces/${workspaceId}/ai/entities${type ? `?type=${type}` : ''}`),
+    ),
+
+  get: (workspaceId: string, entityId: string) =>
+    request<AIEntity>(http.get(`/workspaces/${workspaceId}/ai/entities/${entityId}`)),
+
+  create: (
+    workspaceId: string,
+    input: {
+      type: AIEntityType;
+      name: string;
+      role?: string;
+      description?: string;
+      avatarUrl?: string | null;
+      personality?: string;
+      systemPrompt?: string;
+      systemInstructions?: string;
+      provider?: string;
+      model?: string;
+      tools?: string[];
+      permissions?: CoworkerPermissions;
+      configuration?: Record<string, unknown>;
+      graphJson?: string;
+      isMarketplace?: boolean;
+      agentIds?: string[];
+      integrationIds?: string[];
+    },
+  ) => request<AIEntity>(http.post(`/workspaces/${workspaceId}/ai/entities`, input)),
+
+  update: (
+    workspaceId: string,
+    entityId: string,
+    input: {
+      name?: string;
+      role?: string;
+      description?: string;
+      avatarUrl?: string | null;
+      personality?: string;
+      systemPrompt?: string;
+      systemInstructions?: string;
+      provider?: string;
+      model?: string;
+      tools?: string[];
+      permissions?: CoworkerPermissions;
+      configuration?: Record<string, unknown>;
+      graphJson?: string;
+      isActive?: boolean;
+    },
+  ) => request<AIEntity>(http.patch(`/workspaces/${workspaceId}/ai/entities/${entityId}`, input)),
+
+  remove: (workspaceId: string, entityId: string) =>
+    request<void>(http.delete(`/workspaces/${workspaceId}/ai/entities/${entityId}`)),
+
+  execute: (
+    workspaceId: string,
+    entityId: string,
+    body: {
+      promptText: string;
+      channelId?: string;
+      channelName?: string;
+      projectId?: string;
+      projectName?: string;
+    },
+  ) =>
+    request<{
+      entityId: string;
+      entityName: string;
+      type: AIEntityType;
+      result: string;
+      logId: string;
+      tools: unknown[];
+    }>(http.post(`/workspaces/${workspaceId}/ai/entities/${entityId}/execute`, body)),
+
+  logs: (workspaceId: string, entityId: string) =>
+    request<AgentExecutionLog[]>(
+      http.get(`/workspaces/${workspaceId}/ai/entities/${entityId}/logs`),
+    ),
+
+  workspaceLogs: (workspaceId: string, type?: AIEntityType) =>
+    request<AgentExecutionLogEntry[]>(
+      http.get(`/workspaces/${workspaceId}/ai/entities/logs${type ? `?type=${type}` : ''}`),
+    ),
+};
+
 /** AI agents. Every route is workspace-scoped. */
 export const agentsApi = {
   list: (workspaceId: string) =>
@@ -1970,6 +2067,182 @@ export const agentsApi = {
   workspaceLogs: (workspaceId: string) =>
     request<AgentExecutionLogEntry[]>(
       http.get(`/workspaces/${workspaceId}/agents/logs`),
+    ),
+};
+
+/** AI Coworkers — persistent teammate layer above agents. */
+export const coworkersApi = {
+  list: (workspaceId: string) =>
+    request<AICoworkerDetail[]>(http.get(`/workspaces/${workspaceId}/coworkers`)),
+
+  get: (workspaceId: string, coworkerId: string) =>
+    request<AICoworkerDetail>(
+      http.get(`/workspaces/${workspaceId}/coworkers/${coworkerId}`),
+    ),
+
+  create: (
+    workspaceId: string,
+    input: {
+      name: string;
+      role?: string;
+      description?: string;
+      avatarUrl?: string | null;
+      personality?: string;
+      systemInstructions?: string;
+      provider?: string;
+      model?: string;
+      permissions?: CoworkerPermissions;
+      configuration?: Record<string, unknown>;
+      agentIds?: string[];
+      integrationIds?: string[];
+    },
+  ) =>
+    request<AICoworker>(
+      http.post(`/workspaces/${workspaceId}/coworkers`, input),
+    ),
+
+  update: (
+    workspaceId: string,
+    coworkerId: string,
+    input: {
+      name?: string;
+      role?: string;
+      description?: string;
+      avatarUrl?: string | null;
+      personality?: string;
+      systemInstructions?: string;
+      provider?: string;
+      model?: string;
+      isActive?: boolean;
+      permissions?: CoworkerPermissions;
+      configuration?: Record<string, unknown>;
+    },
+  ) =>
+    request<AICoworker>(
+      http.patch(`/workspaces/${workspaceId}/coworkers/${coworkerId}`, input),
+    ),
+
+  remove: (workspaceId: string, coworkerId: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/coworkers/${coworkerId}`),
+    ),
+
+  execute: (
+    workspaceId: string,
+    coworkerId: string,
+    body: { promptText: string; channelId?: string; projectId?: string },
+  ) =>
+    request<CoworkerRunResult>(
+      http.post(`/workspaces/${workspaceId}/coworkers/${coworkerId}/execute`, body),
+    ),
+
+  logs: (workspaceId: string, coworkerId: string) =>
+    request<CoworkerExecutionLog[]>(
+      http.get(`/workspaces/${workspaceId}/coworkers/${coworkerId}/logs`),
+    ),
+
+  workspaceLogs: (workspaceId: string) =>
+    request<CoworkerExecutionLog[]>(
+      http.get(`/workspaces/${workspaceId}/coworkers/logs`),
+    ),
+
+  linkAgent: (workspaceId: string, coworkerId: string, agentId: string) =>
+    request<unknown>(
+      http.post(`/workspaces/${workspaceId}/coworkers/${coworkerId}/agents`, {
+        agentId,
+      }),
+    ),
+
+  unlinkAgent: (workspaceId: string, coworkerId: string, agentId: string) =>
+    request<unknown>(
+      http.delete(
+        `/workspaces/${workspaceId}/coworkers/${coworkerId}/agents/${agentId}`,
+      ),
+    ),
+
+  linkApp: (workspaceId: string, coworkerId: string, integrationId: string) =>
+    request<unknown>(
+      http.post(`/workspaces/${workspaceId}/coworkers/${coworkerId}/apps`, {
+        integrationId,
+      }),
+    ),
+
+  unlinkApp: (workspaceId: string, coworkerId: string, integrationId: string) =>
+    request<unknown>(
+      http.delete(
+        `/workspaces/${workspaceId}/coworkers/${coworkerId}/apps/${integrationId}`,
+      ),
+    ),
+
+  // Channels
+  listChannelCoworkers: (workspaceId: string, channelId: string) =>
+    request<ChannelCoworkerView[]>(
+      http.get(`/workspaces/${workspaceId}/channels/${channelId}/coworkers`),
+    ),
+
+  addChannelCoworker: (
+    workspaceId: string,
+    channelId: string,
+    coworkerId: string,
+  ) =>
+    request<ChannelCoworkerView>(
+      http.post(
+        `/workspaces/${workspaceId}/channels/${channelId}/coworkers`,
+        { coworkerId },
+      ),
+    ),
+
+  setChannelCoworkerEnabled: (
+    workspaceId: string,
+    channelId: string,
+    coworkerId: string,
+    isEnabled: boolean,
+  ) =>
+    request<ChannelCoworkerView>(
+      http.patch(
+        `/workspaces/${workspaceId}/channels/${channelId}/coworkers/${coworkerId}`,
+        { isEnabled },
+      ),
+    ),
+
+  removeChannelCoworker: (
+    workspaceId: string,
+    channelId: string,
+    coworkerId: string,
+  ) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/channels/${channelId}/coworkers/${coworkerId}`,
+      ),
+    ),
+
+  // Projects
+  listProjectCoworkers: (workspaceId: string, projectId: string) =>
+    request<ProjectCoworkerView[]>(
+      http.get(`/workspaces/${workspaceId}/projects/${projectId}/coworkers`),
+    ),
+
+  addProjectCoworker: (
+    workspaceId: string,
+    projectId: string,
+    coworkerId: string,
+  ) =>
+    request<ProjectCoworkerView>(
+      http.post(
+        `/workspaces/${workspaceId}/projects/${projectId}/coworkers`,
+        { coworkerId },
+      ),
+    ),
+
+  removeProjectCoworker: (
+    workspaceId: string,
+    projectId: string,
+    coworkerId: string,
+  ) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/projects/${projectId}/coworkers/${coworkerId}`,
+      ),
     ),
 };
 

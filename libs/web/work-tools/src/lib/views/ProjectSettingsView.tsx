@@ -31,9 +31,27 @@ import { formatTicketIdentifier } from '@org/utils';
 import {
   AlertTriangle,
   Hash,
+  Plus,
   RefreshCw,
+  Sparkles,
+  X,
 } from 'lucide-react';
 import { useState } from 'react';
+import {
+  CoworkerAvatar,
+  CoworkerStatusDot,
+  useCoworkerMutations,
+  useCoworkers,
+  useProjectCoworkers,
+} from '@org/web-coworkers';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  EmptyState,
+  SkeletonList,
+} from '@org/ui';
 
 interface ProjectSettingsViewProps {
   project: ProjectDetail;
@@ -288,6 +306,9 @@ export function ProjectSettingsView({
         </CardContent>
       </Card>
 
+      {/* 2b. AI Coworkers */}
+      <ProjectCoworkersCard workspaceId={project.workspaceId} projectId={project.id} />
+
       {/* 3. Danger Zone */}
       <Card className="border border-destructive/30 bg-destructive/5 shadow-xs">
         <CardHeader className="p-5 pb-2">
@@ -378,5 +399,148 @@ export function ProjectSettingsView({
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/**
+ * AI Coworkers added to this project — real, backend-wired (`ProjectCoworker`
+ * rows via `@org/web-coworkers`). A project coworker's tools/knowledge are
+ * additionally scoped to this project inside `AIRuntimeService`, not just
+ * shown here — this card only controls membership.
+ */
+function ProjectCoworkersCard({
+  workspaceId,
+  projectId,
+}: {
+  workspaceId: string;
+  projectId: string;
+}) {
+  const projectCoworkers = useProjectCoworkers(workspaceId, projectId);
+  const allCoworkers = useCoworkers(workspaceId);
+  const mutations = useCoworkerMutations(workspaceId);
+
+  const linkedIds = new Set(
+    (projectCoworkers.data ?? []).map((c) => c.coworkerId),
+  );
+  const availableToAdd = (allCoworkers.data ?? []).filter(
+    (c) => !linkedIds.has(c.id),
+  );
+
+  const handleAdd = (coworkerId: string) => {
+    mutations.addProjectCoworker.mutate(
+      { projectId, coworkerId },
+      {
+        onSuccess: () => toast.success('Coworker added to project'),
+        onError: () => toast.error('Could not add the coworker to this project'),
+      },
+    );
+  };
+
+  const handleRemove = (coworkerId: string) => {
+    mutations.removeProjectCoworker.mutate(
+      { projectId, coworkerId },
+      {
+        onSuccess: () => toast.info('Coworker removed from project'),
+        onError: () => toast.error('Could not remove the coworker'),
+      },
+    );
+  };
+
+  return (
+    <Card className="shadow-xs">
+      <CardHeader className="p-5 pb-2 flex flex-row items-center justify-between space-y-0">
+        <div>
+          <CardTitle className="text-sm font-bold flex items-center gap-1.5">
+            <Sparkles className="size-4 text-primary" />
+            AI Coworkers
+          </CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
+            Persistent AI teammates with access to this project's context and tasks.
+          </CardDescription>
+        </div>
+        {availableToAdd.length > 0 ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1 px-2">
+                <Plus className="size-3" />
+                <span>Add</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              {availableToAdd.map((coworker) => (
+                <DropdownMenuItem
+                  key={coworker.id}
+                  onClick={() => handleAdd(coworker.id)}
+                  className="gap-2"
+                >
+                  <CoworkerAvatar
+                    name={coworker.name}
+                    avatarUrl={coworker.avatarUrl}
+                    size="xs"
+                    showStatusDot={false}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-medium">
+                      {coworker.name}
+                    </span>
+                    <span className="block truncate text-[10px] text-muted-foreground">
+                      {coworker.role}
+                    </span>
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+      </CardHeader>
+      <CardContent className="p-5 pt-2">
+        {projectCoworkers.isLoading ? (
+          <SkeletonList rows={2} withAvatar />
+        ) : (projectCoworkers.data ?? []).length === 0 ? (
+          <EmptyState
+            size="sm"
+            icon={<Sparkles />}
+            title="No coworkers on this project"
+            description="Add an AI coworker so it can read permitted project context and help with tasks."
+          />
+        ) : (
+          <div className="space-y-2">
+            {(projectCoworkers.data ?? []).map((link) => (
+              <div
+                key={link.id}
+                className="p-3 rounded-xl border border-border bg-surface flex items-center gap-2.5"
+              >
+                <CoworkerAvatar
+                  name={link.coworker.name}
+                  avatarUrl={link.coworker.avatarUrl}
+                  status={link.coworker.status}
+                  size="sm"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-foreground truncate">
+                      {link.coworker.name}
+                    </span>
+                    <CoworkerStatusDot status={link.coworker.status} />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground truncate block">
+                    {link.coworker.role}
+                  </span>
+                </div>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  onClick={() => handleRemove(link.coworkerId)}
+                  className="size-6 text-muted-foreground hover:text-destructive shrink-0"
+                  title="Remove coworker from project"
+                >
+                  <X className="size-3.5" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

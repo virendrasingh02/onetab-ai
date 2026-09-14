@@ -43,6 +43,18 @@ export const RealtimeEventType = {
   // Settings & Preferences
   SettingsUpdated: 'settings.updated',
   Heartbeat: 'heartbeat',
+
+  // AI Coworkers — a persistent teammate's identity/config changes, or one
+  // turn of it running (`CoworkerRuntimeService`/`CoworkerMatrixBridgeService`
+  // in `@org/api-coworkers`). Never faked: these fire only around a real
+  // model call, so "Working" in the sidebar/profile reflects an actual turn.
+  CoworkerCreated: 'coworker.created',
+  CoworkerUpdated: 'coworker.updated',
+  CoworkerDeleted: 'coworker.deleted',
+  CoworkerStatusChanged: 'coworker.status_changed',
+  CoworkerExecutionStarted: 'coworker.execution_started',
+  CoworkerExecutionCompleted: 'coworker.execution_completed',
+  CoworkerExecutionFailed: 'coworker.execution_failed',
 } as const;
 
 export type RealtimeEventType =
@@ -272,4 +284,22 @@ export interface SettingsUpdatedPayload {
 export interface HeartbeatPayload {
   timestamp: IsoDateString;
   serverTime: number;
+}
+
+export interface CoworkerChangedPayload {
+  coworkerId: string;
+  workspaceId: string;
+}
+
+export interface CoworkerStatusChangedPayload {
+  coworkerId: string;
+  workspaceId: string;
+  status: 'AVAILABLE' | 'WORKING' | 'IDLE' | 'RUNNING_TASK' | 'ERROR';
+}
+
+export interface CoworkerExecutionPayload {
+  coworkerId: string;
+  workspaceId: string;
+  logId?: string;
+  error?: string;
 }

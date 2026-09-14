@@ -233,6 +233,12 @@
     },
     {
       "path": "./libs/api/media-processing"
+    },
+    {
+      "path": "./libs/api/coworkers"
+    },
+    {
+      "path": "./libs/web/coworkers"
     }
   ],
   "compilerOptions": {}

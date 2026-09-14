@@ -157,6 +157,7 @@ const WORKSPACE_STATIC_TITLES: Record<string, string> = {
   '/dms': 'Direct Messages',
   '/ai-chat': 'AI Assistant',
   '/ai/prompts': 'Prompt Library',
+  '/coworkers': 'AI Coworkers',
   '/agents': 'AI Agents',
   '/agents/chat': 'AI Agents',
   '/agents/builder': 'Agent Builder',

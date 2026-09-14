@@ -58,6 +58,13 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  CoworkerAvatar,
+  CoworkerStatusDot,
+  useChannelCoworkers,
+  useCoworkerMutations,
+  useCoworkers,
+} from '@org/web-coworkers';
+import {
   useArchiveChannel,
   useChannelMemberMutations,
   useChannelMembers,
@@ -73,7 +80,7 @@ export interface ChannelDetailsPanelProps {
   currentUserId: string;
   /** Name of whoever created the channel, when they are still a member. */
   createdByName?: string;
-  initialTab?: 'about' | 'members' | 'apps' | 'automations';
+  initialTab?: 'about' | 'members' | 'coworkers' | 'apps' | 'automations';
   onClose: () => void;
   onEditDetails: () => void;
   onAddPeople: () => void;
@@ -112,9 +119,10 @@ export function ChannelDetailsPanel({
   const members = useChannelMembers(workspaceId, channel.id);
   const memberList = members.data ?? [];
   const channelAgentsApps = useChannelAgentsAndApps(workspaceId, channel.id);
+  const channelCoworkers = useChannelCoworkers(workspaceId, channel.id);
 
   const [activeTab, setActiveTab] = useState<
-    'about' | 'members' | 'apps' | 'automations'
+    'about' | 'members' | 'coworkers' | 'apps' | 'automations'
   >(initialTab);
 
   useEffect(() => {
@@ -176,7 +184,7 @@ export function ChannelDetailsPanel({
         value={activeTab}
         onValueChange={(val) =>
           setActiveTab(
-            val as 'about' | 'members' | 'apps' | 'automations',
+            val as 'about' | 'members' | 'coworkers' | 'apps' | 'automations',
           )
         }
         className="min-h-0 flex flex-1 flex-col"
@@ -189,6 +197,14 @@ export function ChannelDetailsPanel({
               <span className="text-muted-foreground">
                 {memberList.length || channel.memberCount}
               </span>
+            </TabsTrigger>
+            <TabsTrigger value="coworkers" className="gap-1.5">
+              Coworkers
+              {channelCoworkers.data?.length ? (
+                <span className="text-muted-foreground">
+                  {channelCoworkers.data.length}
+                </span>
+              ) : null}
             </TabsTrigger>
             <TabsTrigger value="apps">Agents &amp; apps</TabsTrigger>
             <TabsTrigger value="automations">Automations</TabsTrigger>
@@ -214,6 +230,18 @@ export function ChannelDetailsPanel({
             members={memberList}
             isLoading={members.isLoading}
             onAddPeople={onAddPeople}
+          />
+        </TabsContent>
+
+        <TabsContent
+          value="coworkers"
+          className="min-h-0 flex flex-1 flex-col overflow-y-auto"
+        >
+          <ChannelCoworkersTab
+            channelId={channel.id}
+            channelName={channel.name}
+            workspaceSlug={workspaceSlug}
+            workspaceId={workspaceId}
           />
         </TabsContent>
 
@@ -755,6 +783,173 @@ function LeaveChannelButton({
 }
 
 /* --------------------------------------------------------------- members --- */
+
+/**
+ * AI Coworkers added to this channel — real, backend-wired (`ChannelCoworker`
+ * rows via `@org/web-coworkers`), unlike the "apps" tab next to it which is
+ * still a client-only preview. `AgentMatrixBridgeService` (`@org/api-agents`)
+ * reads these same rows to decide which coworker may answer a `@mention`
+ * here, so adding/removing one here has an immediate effect on the channel's
+ * Matrix room, not just this list.
+ */
+function ChannelCoworkersTab({
+  channelId,
+  channelName,
+  workspaceSlug,
+  workspaceId,
+}: {
+  channelId: string;
+  channelName: string;
+  workspaceSlug: string;
+  workspaceId?: string;
+}) {
+  const channelCoworkers = useChannelCoworkers(workspaceId, channelId);
+  const allCoworkers = useCoworkers(workspaceId);
+  const mutations = useCoworkerMutations(workspaceId);
+
+  const linkedIds = useMemo(
+    () => new Set((channelCoworkers.data ?? []).map((c) => c.coworkerId)),
+    [channelCoworkers.data],
+  );
+  const availableToAdd = (allCoworkers.data ?? []).filter(
+    (c) => !linkedIds.has(c.id),
+  );
+
+  const handleAdd = (coworkerId: string) => {
+    mutations.addChannelCoworker.mutate(
+      { channelId, coworkerId },
+      {
+        onSuccess: () => toast.success('Coworker added to channel'),
+        onError: () => toast.error('Could not add the coworker to this channel'),
+      },
+    );
+  };
+
+  const handleRemove = (coworkerId: string) => {
+    mutations.removeChannelCoworker.mutate(
+      { channelId, coworkerId },
+      {
+        onSuccess: () => toast.info('Coworker removed from channel'),
+        onError: () => toast.error('Could not remove the coworker'),
+      },
+    );
+  };
+
+  const handleToggle = (coworkerId: string, isEnabled: boolean) => {
+    mutations.setChannelCoworkerEnabled.mutate({
+      channelId,
+      coworkerId,
+      isEnabled: !isEnabled,
+    });
+  };
+
+  return (
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <span className="text-xs font-semibold text-foreground block">
+            AI Coworkers in #{channelName}
+          </span>
+          <span className="text-[10px] text-muted-foreground">
+            Persistent teammates that can be @mentioned to respond here.
+          </span>
+        </div>
+        {availableToAdd.length > 0 ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" className="h-7 text-xs gap-1 px-2 shrink-0">
+                <Plus className="size-3" />
+                <span>Add</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              {availableToAdd.map((coworker) => (
+                <DropdownMenuItem
+                  key={coworker.id}
+                  onClick={() => handleAdd(coworker.id)}
+                  className="gap-2"
+                >
+                  <CoworkerAvatar
+                    name={coworker.name}
+                    avatarUrl={coworker.avatarUrl}
+                    size="xs"
+                    showStatusDot={false}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-medium">
+                      {coworker.name}
+                    </span>
+                    <span className="block truncate text-[10px] text-muted-foreground">
+                      {coworker.role}
+                    </span>
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+      </div>
+
+      {channelCoworkers.isLoading ? (
+        <SkeletonList rows={2} withAvatar />
+      ) : (channelCoworkers.data ?? []).length === 0 ? (
+        <EmptyState
+          size="sm"
+          icon={<Bot />}
+          title="No coworkers in this channel yet"
+          description="Add an AI coworker so it can be @mentioned and respond here."
+        />
+      ) : (
+        <div className="space-y-2">
+          {(channelCoworkers.data ?? []).map((link) => (
+            <div
+              key={link.id}
+              className="p-3 rounded-xl border border-border bg-surface flex items-center gap-2.5 transition-colors hover:border-border-strong"
+            >
+              <CoworkerAvatar
+                name={link.coworker.name}
+                avatarUrl={link.coworker.avatarUrl}
+                status={link.coworker.status}
+                size="sm"
+              />
+              <Link
+                to={`/w/${workspaceSlug}/coworkers/${link.coworkerId}`}
+                className="min-w-0 flex-1"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-foreground truncate">
+                    {link.coworker.name}
+                  </span>
+                  <CoworkerStatusDot status={link.coworker.status} />
+                </div>
+                <span className="text-[10px] text-muted-foreground truncate block">
+                  {link.coworker.role}
+                </span>
+              </Link>
+              <Button
+                size="sm"
+                variant={link.isEnabled ? 'outline' : 'secondary'}
+                onClick={() => handleToggle(link.coworkerId, link.isEnabled)}
+                className="h-6 text-[10px] px-2 shrink-0"
+              >
+                {link.isEnabled ? 'Enabled' : 'Disabled'}
+              </Button>
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                onClick={() => handleRemove(link.coworkerId)}
+                className="size-6 text-muted-foreground hover:text-destructive shrink-0"
+                title="Remove coworker from channel"
+              >
+                <X className="size-3.5" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function MembersTab({
   channelId,

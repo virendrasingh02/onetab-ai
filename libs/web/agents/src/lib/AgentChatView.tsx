@@ -506,6 +506,7 @@ function AgentConversationPanel({ agent }: { agent: AgentModelItem }) {
         roomId={roomId}
         title={agent.name}
         subtitle={agent.model ? `${agent.model} · AI Agent` : 'AI Agent'}
+        showHeader={false}
         workspaceId={workspaceId}
         showMembers={false}
         showEncryptedBadge={false}

@@ -9,6 +9,7 @@ export type SearchCategory =
   | 'projects'
   | 'people'
   | 'agents'
+  | 'coworkers'
   | 'canvases';
 
 export interface SearchResultItem {
@@ -42,6 +43,7 @@ const CATEGORIES: SearchCategory[] = [
   'projects',
   'people',
   'agents',
+  'coworkers',
   'canvases',
 ];
 
@@ -342,10 +344,14 @@ export class SearchService {
 
       case 'agents': {
         // Small table, no tsvector — a scoped ILIKE over name/role/description.
+        // `type: 'agent'` matters now that AI Coworkers live in the same
+        // `ai_agents` table (`type` discriminator) — without it this would
+        // also surface coworkers under the Agents category.
         const contains = { contains: query, mode: 'insensitive' as const };
         const rows = await this.prisma.aIAgent.findMany({
           where: {
             workspaceId,
+            type: 'agent',
             OR: [
               { name: contains },
               { role: contains },
@@ -367,6 +373,37 @@ export class SearchService {
           title: row.name,
           snippet: row.role,
           href: `agents?agent=${row.id}`,
+          timestamp: row.updatedAt.toISOString(),
+        }));
+      }
+
+      case 'coworkers': {
+        const contains = { contains: query, mode: 'insensitive' as const };
+        const rows = await this.prisma.aIAgent.findMany({
+          where: {
+            workspaceId,
+            type: 'coworker',
+            OR: [
+              { name: contains },
+              { role: contains },
+              { description: contains },
+            ],
+          },
+          select: {
+            id: true,
+            name: true,
+            role: true,
+            updatedAt: true,
+          },
+          orderBy: { updatedAt: 'desc' },
+          take,
+        });
+        return rows.map((row) => ({
+          id: row.id,
+          category,
+          title: row.name,
+          snippet: row.role,
+          href: `coworkers/${row.id}`,
           timestamp: row.updatedAt.toISOString(),
         }));
       }

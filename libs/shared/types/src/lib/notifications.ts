@@ -238,6 +238,7 @@ export type SearchCategory =
   | 'projects'
   | 'people'
   | 'agents'
+  | 'coworkers'
   | 'canvases';
 
 export interface SearchResultItem {

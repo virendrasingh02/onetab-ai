@@ -129,6 +129,20 @@ export const queryKeys = {
     workspaceLogs: (workspaceId: string) =>
       ['agents', workspaceId, 'logs'] as const,
   },
+  coworkers: {
+    all: (workspaceId: string) => ['coworkers', workspaceId] as const,
+    list: (workspaceId: string) => ['coworkers', workspaceId, 'list'] as const,
+    detail: (workspaceId: string, coworkerId: string) =>
+      ['coworkers', workspaceId, coworkerId] as const,
+    logs: (workspaceId: string, coworkerId: string) =>
+      ['coworkers', workspaceId, coworkerId, 'logs'] as const,
+    workspaceLogs: (workspaceId: string) =>
+      ['coworkers', workspaceId, 'workspace-logs'] as const,
+    channelList: (workspaceId: string, channelId: string) =>
+      ['coworkers', workspaceId, 'channel', channelId] as const,
+    projectList: (workspaceId: string, projectId: string) =>
+      ['coworkers', workspaceId, 'project', projectId] as const,
+  },
   automations: {
     all: (workspaceId: string) => ['automations', workspaceId] as const,
     list: (workspaceId: string) =>

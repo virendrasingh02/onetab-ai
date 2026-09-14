@@ -128,10 +128,16 @@ import {
 import { SmartSectionsDialog } from './navigation/smart-sections-dialog.js';
 import { ProjectNavRow, ProjectsTreeSection } from './projects-section.js';
 import {
+  useCoworkerMutations,
+  useCoworkers,
+} from '@org/web-coworkers';
+import {
   AgentNavRow,
   AgentsSection,
   AppNavRow,
   AppsSection,
+  CoworkerNavRow,
+  CoworkersSection,
   WorkflowNavRow,
   WorkflowsSection,
 } from './resource-sections.js';
@@ -597,6 +603,8 @@ export function ChannelNav({
   const projectsQuery = useProjects(workspaceId);
   const projectMutations = useProjectMutations(workspaceId);
   const docsWorkspace = useDocsWorkspace(workspaceId);
+  const coworkersQuery = useCoworkers(workspaceId);
+  const coworkerMutations = useCoworkerMutations(workspaceId);
   const agentsQuery = useAgents(workspaceId);
   const agentMutations = useAgentMutations(workspaceId);
   const integrationsQuery = useIntegrations(workspaceId);
@@ -608,6 +616,7 @@ export function ChannelNav({
     toggleFavorite: toggleResourceFavorite,
     favoriteProjectIds,
     favoriteDocIds,
+    favoriteCoworkerIds,
     favoriteAgentIds,
     favoriteAppIds,
     favoriteWorkflowIds,
@@ -878,6 +887,14 @@ export function ChannelNav({
     [docsWorkspace.docs, favoriteDocIds],
   );
 
+  const starredCoworkers = useMemo(
+    () =>
+      (coworkersQuery.data ?? []).filter((c) =>
+        favoriteCoworkerIds.includes(c.id),
+      ),
+    [coworkersQuery.data, favoriteCoworkerIds],
+  );
+
   const starredAgents = useMemo(
     () =>
       (agentsQuery.data ?? []).filter((a) => favoriteAgentIds.includes(a.id)),
@@ -994,6 +1011,47 @@ export function ChannelNav({
               docsWorkspace.deleteDoc(doc.id);
             }}
             companies={docsWorkspace.companies}
+            depth={1}
+          />
+        ),
+      });
+    });
+
+    starredCoworkers.forEach((coworker) => {
+      const isSelected =
+        location.pathname.includes(`/coworkers/${coworker.id}`) ||
+        (location.pathname.endsWith('/coworkers') &&
+          location.search.includes(`id=${coworker.id}`));
+      list.push({
+        id: `coworker-${coworker.id}`,
+        render: () => (
+          <CoworkerNavRow
+            key={`starred-cw-${coworker.id}`}
+            coworker={{
+              id: coworker.id,
+              name: coworker.name,
+              icon: 'UserCheck',
+              detail: coworker.role,
+              status: coworker.status,
+              avatarUrl: coworker.avatarUrl,
+            }}
+            workspaceSlug={workspaceSlug}
+            isSelected={isSelected}
+            isFavorite={true}
+            onToggleFavorite={() =>
+              toggleResourceFavorite('coworker', coworker.id)
+            }
+            onDelete={async () => {
+              const confirmed = await prompts.confirmAction({
+                title: `Delete “${coworker.name}”?`,
+                description:
+                  'The AI coworker will be removed from this workspace. This action cannot be undone.',
+                confirmLabel: 'Delete coworker',
+                destructive: true,
+              });
+              if (!confirmed) return;
+              coworkerMutations.remove.mutate(coworker.id);
+            }}
             depth={1}
           />
         ),
@@ -1130,6 +1188,7 @@ export function ChannelNav({
     groups.favorites,
     starredProjects,
     starredDocs,
+    starredCoworkers,
     starredAgents,
     starredApps,
     starredWorkflows,
@@ -1139,6 +1198,7 @@ export function ChannelNav({
     prompts,
     projectMutations,
     docsWorkspace,
+    coworkerMutations,
     agentMutations,
     integrationMutations,
     workflowMutations,
@@ -1518,6 +1578,15 @@ export function ChannelNav({
                   return (
                     <DocsTreeSection
                       key="docs"
+                      workspaceSlug={workspaceSlug}
+                      prompts={prompts}
+                    />
+                  );
+
+                case 'coworkers':
+                  return (
+                    <CoworkersSection
+                      key="coworkers"
                       workspaceSlug={workspaceSlug}
                       prompts={prompts}
                     />

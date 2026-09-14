@@ -94,6 +94,9 @@
     },
     {
       "path": "../../libs/api/admin/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/api/coworkers/tsconfig.lib.json"
     }
   ]
 }

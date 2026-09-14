@@ -34,6 +34,9 @@
       "path": "../integrations/tsconfig.lib.json"
     },
     {
+      "path": "../coworkers/tsconfig.lib.json"
+    },
+    {
       "path": "../chat/tsconfig.lib.json"
     },
     {

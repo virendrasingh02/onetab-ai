@@ -46,6 +46,7 @@ export {
   AppOperatingSystem,
   AppReleaseChannel,
   AppReleaseStatus,
+  CoworkerStatus,
 } from './generated/client.js';
 
 export type {
@@ -120,5 +121,9 @@ export type {
   ComplianceLegalLink,
   AppRelease,
   AppReleaseAuditLog,
+  CoworkerAgent,
+  CoworkerApp,
+  ChannelCoworker,
+  ProjectCoworker,
 } from './generated/client.js';
 

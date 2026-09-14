@@ -59,6 +59,9 @@
       "path": "../notifications/tsconfig.lib.json"
     },
     {
+      "path": "../coworkers/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/chat-ui/tsconfig.lib.json"
     }
   ]

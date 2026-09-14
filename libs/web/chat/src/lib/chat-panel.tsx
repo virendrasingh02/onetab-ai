@@ -57,6 +57,8 @@ export interface ChatPanelProps {
   roomId: string | null;
   title: string;
   subtitle?: string;
+  /** When false, the internal ChatHeader in ChatSurface is omitted. Default true. */
+  showHeader?: boolean;
   workspaceId?: string;
   /** Host-rendered element to portal the header actions into. See `ChatSurface`. */
   headerActionsSlot?: HTMLElement | null;
@@ -99,6 +101,7 @@ export function ChatPanel({
   roomId,
   title,
   subtitle,
+  showHeader = true,
   workspaceId,
   headerActionsSlot,
   headerMenuSlot,
@@ -613,6 +616,7 @@ export function ChatPanel({
     <ChatSurface
       title={title}
       subtitle={subtitle}
+      showHeader={showHeader}
       headerActionsSlot={headerActionsSlot}
       headerMenuSlot={headerMenuSlot}
       showMembers={showMembers}

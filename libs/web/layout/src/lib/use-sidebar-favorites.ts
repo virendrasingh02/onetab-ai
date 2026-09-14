@@ -2,7 +2,13 @@ import { toast } from '@org/ui';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type FavoriteType = 'project' | 'doc' | 'agent' | 'app' | 'workflow';
+export type FavoriteType =
+  | 'project'
+  | 'doc'
+  | 'coworker'
+  | 'agent'
+  | 'app'
+  | 'workflow';
 
 export const DEFAULT_PINNED_NAV_PATHS: string[] = [];
 
@@ -33,6 +39,7 @@ export const useSidebarFavoritesStore = create<SidebarFavoritesState>()(
           const currentWorkspace = state.favoritesByWorkspace[workspaceId] ?? {
             project: [],
             doc: [],
+            coworker: [],
             agent: [],
             app: [],
             workflow: [],
@@ -124,6 +131,7 @@ export function useSidebarFavorites(workspaceId: string | undefined) {
   const workspaceFavs = favoritesByWorkspace[activeWorkspaceId] ?? {
     project: [],
     doc: [],
+    coworker: [],
     agent: [],
     app: [],
     workflow: [],
@@ -139,6 +147,7 @@ export function useSidebarFavorites(workspaceId: string | undefined) {
       toggleFavorite(activeWorkspaceId, type, id),
     favoriteProjectIds: workspaceFavs.project ?? [],
     favoriteDocIds: workspaceFavs.doc ?? [],
+    favoriteCoworkerIds: workspaceFavs.coworker ?? [],
     favoriteAgentIds: workspaceFavs.agent ?? [],
     favoriteAppIds: workspaceFavs.app ?? [],
     favoriteWorkflowIds: workspaceFavs.workflow ?? [],

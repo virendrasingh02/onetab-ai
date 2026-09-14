@@ -108,6 +108,9 @@
     },
     {
       "path": "../../libs/shared/i18n/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/web/coworkers/tsconfig.lib.json"
     }
   ]
 }

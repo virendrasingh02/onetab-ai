@@ -100,6 +100,8 @@ const NO_MENTIONS: ConversationMentions = { ids: [], count: 0, unloadedCount: 0 
 export interface ChatSurfaceProps {
   title: string;
   subtitle?: string;
+  /** When false, the internal ChatHeader is omitted. Default true. */
+  showHeader?: boolean;
   isEncrypted?: boolean;
   banner?: ReactNode;
   /**
@@ -277,6 +279,7 @@ const PRESENCE_FOR_AVATAR: Record<
 export function ChatSurface({
   title,
   subtitle,
+  showHeader = true,
   isEncrypted = false,
   banner,
   connectionState,
@@ -961,65 +964,98 @@ export function ChatSurface({
     <ChatLayout
       banner={banner}
       header={
-        <>
-          {headerMenuSlot
-            ? createPortal(headerMenuItems, headerMenuSlot)
-            : null}
+        showHeader ? (
+          <>
+            {headerMenuSlot
+              ? createPortal(headerMenuItems, headerMenuSlot)
+              : null}
 
-          {headerActionsSlot ? (
-            createPortal(
-              <div className="gap-0.5 flex items-center text-muted-foreground">
-                {isEncrypted ? (
-                  <Hint label="End-to-end encrypted">
-                    <Lock
-                      className="size-3.5 shrink-0"
-                      aria-label="End-to-end encrypted"
-                    />
-                  </Hint>
-                ) : null}
+            {headerActionsSlot ? (
+              createPortal(
+                <div className="gap-0.5 flex items-center text-muted-foreground">
+                  {isEncrypted ? (
+                    <Hint label="End-to-end encrypted">
+                      <Lock
+                        className="size-3.5 shrink-0"
+                        aria-label="End-to-end encrypted"
+                      />
+                    </Hint>
+                  ) : null}
 
-                {headerActions}
+                  {headerActions}
 
-                {/* The member stack and its panel moved to the right rail's
-                    channel details, which lists them with room to search. */}
-                {showMembers ? (
-                  <Hint label="Channel Members">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      aria-label="Channel Members"
-                      aria-pressed={panel === 'members'}
-                      onClick={() => toggle('members')}
-                      leadingIcon={<Users />}
-                    >
-                      {members.length}
-                    </Button>
-                  </Hint>
-                ) : null}
-              </div>,
-              headerActionsSlot,
-            )
-          ) : (
-            <ChatHeader
-              title={title}
-              subtitle={subtitle}
-              isEncrypted={isEncrypted}
-              memberCount={showMembers ? members.length : undefined}
-              onToggleMembers={
-                showMembers ? () => toggle('members') : undefined
-              }
-              actions={headerActions}
-            />
-          )}
+                  {/* The member stack and its panel moved to the right rail's
+                      channel details, which lists them with room to search. */}
+                  {showMembers ? (
+                    <Hint label="Channel Members">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Channel Members"
+                        aria-pressed={panel === 'members'}
+                        onClick={() => toggle('members')}
+                        leadingIcon={<Users />}
+                      >
+                        {members.length}
+                      </Button>
+                    </Hint>
+                  ) : null}
+                </div>,
+                headerActionsSlot,
+              )
+            ) : (
+              <ChatHeader
+                title={title}
+                subtitle={subtitle}
+                isEncrypted={isEncrypted}
+                memberCount={showMembers ? members.length : undefined}
+                onToggleMembers={
+                  showMembers ? () => toggle('members') : undefined
+                }
+                actions={headerActions}
+              />
+            )}
+          </>
+        ) : (
+          <>
+            {headerMenuSlot
+              ? createPortal(headerMenuItems, headerMenuSlot)
+              : null}
 
-          {/*
-            A bookmarks strip used to sit here, under the header. Channels show
-            their bookmarks in a tab of their own — this was the same links a
-            second time, in a horizontal scroller, costing a row of height on
-            every conversation. The huddle bar that sat under it is a floating
-            dock now, so the header is the header alone.
-          */}
-        </>
+            {headerActionsSlot
+              ? createPortal(
+                  <div className="gap-0.5 flex items-center text-muted-foreground">
+                    {isEncrypted ? (
+                      <Hint label="End-to-end encrypted">
+                        <Lock
+                          className="size-3.5 shrink-0"
+                          aria-label="End-to-end encrypted"
+                        />
+                      </Hint>
+                    ) : null}
+
+                    {headerActions}
+
+                    {showMembers ? (
+                      <Hint label="Channel Members">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label="Channel Members"
+                          aria-pressed={panel === 'members'}
+                          onClick={() => toggle('members')}
+                          leadingIcon={<Users />}
+                        >
+                          {members.length}
+                        </Button>
+                      </Hint>
+                    ) : null}
+                  </div>,
+                  headerActionsSlot,
+                )
+              : null}
+          </>
+        )
       }
       sidePanelTitle={sidePanelTitle}
       onCloseSidePanel={() => setPanel('none')}

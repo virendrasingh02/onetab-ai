@@ -19,6 +19,7 @@ import {
 } from '@org/api-infrastructure';
 import { WorkToolsModule } from '@org/api-work-tools';
 import { AgentsModule } from '@org/api-agents';
+import { CoworkersModule } from '@org/api-coworkers';
 import { AutomationsModule } from '@org/api-automations';
 import { EnterpriseModule } from '@org/api-enterprise';
 import { GifsModule } from '@org/api-gifs';
@@ -85,6 +86,7 @@ import { AppService } from './app.service';
     MatrixModule,
     WorkToolsModule,
     AgentsModule,
+    CoworkersModule,
     AutomationsModule,
     EnterpriseModule,
     IntegrationsModule,

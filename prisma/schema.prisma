@@ -37,6 +37,7 @@ model User {
   /// Bridged Matrix identity, provisioned lazily on first chat use.
   matrixUserId            String?                  @unique
   createdAgents           AIAgent[]
+  channelCoworkersAdded   ChannelCoworker[]        @relation("ChannelCoworkerAddedBy")
   aiChatSessions          AIChatSession[]
   createdWorkflows        AutomationWorkflow[]
   organizedEvents         CalendarEvent[]
@@ -380,6 +381,7 @@ model Channel {
   matrixRoomId     String?                  @unique
   members          ChannelMember[]
   channelAgents    ChannelAgent[]
+  channelCoworkers ChannelCoworker[]
   pins             ChannelPin[]
   invitations      Invitation[]
   anonymousSetting ChannelAnonymousSetting?
@@ -1009,6 +1011,7 @@ model Project {
   invitations          Invitation[]
   meetings             Meeting[]
   uploads              Upload[]
+  projectCoworkers     ProjectCoworker[]
   /// Full-text index over name/description. Generated column — see the migration.
   searchVector         Unsupported("tsvector")?
 
@@ -1608,35 +1611,48 @@ model AIChatSession {
 }
 
 model AIAgent {
-  id            String              @id @default(cuid())
-  workspaceId   String
-  creatorId     String?
-  name          String
-  role          String              @default("Assistant")
-  description   String?
-  avatarUrl     String?
-  systemPrompt  String              @default("You are an autonomous AI employee.")
-  provider      String              @default("ollama")
-  model         String              @default("llama3")
-  tools         String              @default("[\"search_docs\",\"create_task\",\"send_channel_message\"]")
+  id                 String              @id @default(cuid())
+  workspaceId        String
+  creatorId          String?
+  type               String              @default("agent")
+  name               String
+  role               String              @default("Assistant")
+  description        String?
+  avatarUrl          String?
+  personality        String?
+  systemPrompt       String              @default("You are an autonomous AI employee.")
+  systemInstructions String              @default("")
+  status             CoworkerStatus      @default(AVAILABLE)
+  provider           String              @default("ollama")
+  model              String              @default("llama3")
+  tools              String              @default("[\"search_docs\",\"create_task\",\"send_channel_message\"]")
+  permissions        Json                @default("{}")
+  configuration      Json                @default("{}")
   /// JSON-encoded React Flow graph authored in the Agent Builder canvas. Null
   /// for agents created outside the builder (marketplace deploys, API).
-  graphJson     String?
-  isActive      Boolean             @default(true)
-  isMarketplace Boolean             @default(false)
+  graphJson          String?
+  isActive           Boolean             @default(true)
+  isMarketplace      Boolean             @default(false)
   /// This agent's provisioned Matrix bot identity (e.g. @onetab_agent-<id>:server), set lazily on first DM open.
-  matrixUserId  String?             @unique
+  matrixUserId       String?             @unique
   /// The agent's shared DM room with whichever human opens it first.
-  matrixRoomId  String?             @unique
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  logs          AgentExecutionLog[]
-  schedules     AgentSchedule[]
-  channelLinks  ChannelAgent[]
-  creator       User?               @relation(fields: [creatorId], references: [id])
-  workspace     Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  matrixRoomId       String?             @unique
+  lastActiveAt       DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  logs               AgentExecutionLog[]
+  schedules          AgentSchedule[]
+  channelLinks       ChannelAgent[]
+  channelCoworkers   ChannelCoworker[]
+  agentLinks         CoworkerAgent[]     @relation("CoworkerDelegates")
+  coworkerLinks      CoworkerAgent[]     @relation("AgentDelegated")
+  appLinks           CoworkerApp[]
+  projectLinks       ProjectCoworker[]
+  creator            User?               @relation(fields: [creatorId], references: [id])
+  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, isActive])
+  @@index([workspaceId, type])
   @@map("ai_agents")
 }
 
@@ -1659,6 +1675,86 @@ model ChannelAgent {
   @@index([channelId])
   @@index([agentId])
   @@map("channel_agents")
+}
+
+enum CoworkerStatus {
+  AVAILABLE
+  WORKING
+  IDLE
+  RUNNING_TASK
+  ERROR
+}
+
+/// An `AIAgent` a Coworker may delegate to — `AIRuntimeService` exposes
+/// each link as a dynamic "consult this specialist" tool call rather than
+/// merging tool lists, so the Coworker/Agent boundary stays a delegation, not
+/// a merge of two capability sets.
+model CoworkerAgent {
+  id         String   @id @default(cuid())
+  coworkerId String
+  agentId    String
+  createdAt  DateTime @default(now())
+  coworker   AIAgent  @relation("CoworkerDelegates", fields: [coworkerId], references: [id], onDelete: Cascade)
+  agent      AIAgent  @relation("AgentDelegated", fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([coworkerId, agentId])
+  @@index([coworkerId])
+  @@index([agentId])
+  @@map("coworker_agents")
+}
+
+/// A connected app/integration a Coworker may use.
+model CoworkerApp {
+  id            String              @id @default(cuid())
+  coworkerId    String
+  integrationId String
+  createdAt     DateTime            @default(now())
+  coworker      AIAgent             @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
+  integration   ExternalIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@unique([coworkerId, integrationId])
+  @@index([coworkerId])
+  @@index([integrationId])
+  @@map("coworker_apps")
+}
+
+/// Which coworkers a channel has added — mirrors `ChannelAgent` exactly.
+/// `AgentMatrixBridgeService` only lets an enabled link's coworker respond
+/// in that channel's room.
+model ChannelCoworker {
+  id         String   @id @default(cuid())
+  channelId  String
+  coworkerId String
+  addedById  String?
+  isEnabled  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  channel    Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  coworker   AIAgent  @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
+  addedBy    User?    @relation("ChannelCoworkerAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
+
+  @@unique([channelId, coworkerId])
+  @@index([channelId])
+  @@index([coworkerId])
+  @@map("channel_coworkers")
+}
+
+/// Which coworkers a project has added. A project coworker may only use
+/// project-scoped tools/context for projects it has a row here for —
+/// enforced in `AIRuntimeService`, not just by hiding the UI.
+model ProjectCoworker {
+  id         String   @id @default(cuid())
+  projectId  String
+  coworkerId String
+  addedById  String?
+  createdAt  DateTime @default(now())
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  coworker   AIAgent  @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, coworkerId])
+  @@index([projectId])
+  @@index([coworkerId])
+  @@map("project_coworkers")
 }
 
 model AgentSchedule {
@@ -1870,6 +1966,7 @@ model ExternalIntegration {
   workspace             Workspace?           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user                  User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
   syncJobs              IntegrationSyncJob[]
+  coworkerLinks         CoworkerApp[]
 
   @@index([workspaceId, provider])
   @@index([userId, provider])

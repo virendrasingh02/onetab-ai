@@ -211,18 +211,19 @@ export class MatrixAuthService {
 
   /**
    * The Matrix identity of a peer the caller may open a direct message with —
-   * a teammate, an AI agent, or a connected app.
+   * a teammate, an AI agent, an AI coworker, or a connected app.
    *
    * The browser needs the peer's Matrix id to open a direct message, and it
    * cannot derive one: the localpart is hashed from our user/agent/integration
    * id and the server name is deployment configuration. Provisioning happens
    * here too, so a DM to a peer who has never been opened in chat before —
-   * human, agent, or app — still lands in a room they can join.
+   * human, agent, coworker, or app — still lands in a room they can join.
    *
-   * `peerId` is dispatched by prefix: `agent-<agentId>` and `app-<integrationId>`
-   * address an `AIAgent`/`ExternalIntegration` row directly (the same prefixes
-   * the sidebar and `DirectMessagesView` already use to badge these peers);
-   * anything else is treated as a human user id.
+   * `peerId` is dispatched by prefix: `coworker-<id>`, `agent-<agentId>` and
+   * `app-<integrationId>` address an `AIAgent` (coworker or agent row) /
+   * `ExternalIntegration` row directly (the same prefixes the sidebar and
+   * `DirectMessagesView` already use to badge these peers); anything else is
+   * treated as a human user id.
    *
    * Returns `null` when the peer cannot be resolved — the caller turns that
    * into a 404 rather than a 403, so this cannot be used to probe whether a
@@ -234,6 +235,9 @@ export class MatrixAuthService {
   ): Promise<string | null> {
     if (!this.admin.isEnabled) return null;
 
+    if (peerId.startsWith('coworker-')) {
+      return this.resolveCoworkerIdentity(callerUserId, peerId.slice(9));
+    }
     if (peerId.startsWith('agent-')) {
       return this.resolveAgentIdentity(callerUserId, peerId.slice(6));
     }
@@ -297,6 +301,47 @@ export class MatrixAuthService {
     });
 
     this.logger.log(`Provisioned Matrix identity for agent ${agent.id}`);
+    return matrixUserId;
+  }
+
+  /**
+   * The Matrix identity of an AI Coworker in one of the caller's workspaces.
+   *
+   * Same lazy-provisioning shape as {@link resolveAgentIdentity} — an AI
+   * Coworker is stored in the same `AIAgent` table (`type: 'coworker'`), but
+   * is kept on its own `coworker-<id>` id prefix/bot-identity namespace so it
+   * can never collide with an Agent's `agent-<id>` identity even though both
+   * rows live in one table.
+   */
+  private async resolveCoworkerIdentity(
+    callerUserId: string,
+    coworkerId: string,
+  ): Promise<string | null> {
+    const coworker = await this.prisma.aIAgent.findFirst({
+      where: {
+        id: coworkerId,
+        type: 'coworker',
+        isActive: true,
+        workspace: {
+          members: { some: { userId: callerUserId, status: 'ACTIVE' } },
+        },
+      },
+      select: { id: true, name: true, matrixUserId: true },
+    });
+    if (!coworker) return null;
+    if (coworker.matrixUserId) return coworker.matrixUserId;
+
+    const { matrixUserId } = await this.admin.provisionUser({
+      userId: `coworker-${coworker.id}`,
+      displayName: coworker.name,
+    });
+
+    await this.prisma.aIAgent.update({
+      where: { id: coworker.id },
+      data: { matrixUserId },
+    });
+
+    this.logger.log(`Provisioned Matrix identity for coworker ${coworker.id}`);
     return matrixUserId;
   }
 

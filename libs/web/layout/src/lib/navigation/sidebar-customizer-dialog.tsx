@@ -47,6 +47,7 @@ import {
   Search,
   SlidersHorizontal,
   Star,
+  UserCheck,
   Workflow,
   Zap,
 } from 'lucide-react';
@@ -71,6 +72,7 @@ const SECTION_ICONS: Record<SidebarSectionId, typeof Star> = {
   dms: MessagesSquare,
   projects: FolderKanban,
   docs: FileText,
+  coworkers: UserCheck,
   agents: Bot,
   apps: Zap,
   workflows: Workflow,

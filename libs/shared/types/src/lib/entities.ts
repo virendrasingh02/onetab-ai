@@ -382,6 +382,54 @@ export interface ChannelAgentView {
   };
 }
 
+/** A coworker's runtime state, kept as a literal union here rather than
+ *  imported from `automation.ts` (the canonical `CoworkerStatus` definition)
+ *  so this file doesn't take on a type-only circular import; the two unions
+ *  are kept in sync by hand. */
+type CoworkerStatusLiteral =
+  | 'AVAILABLE'
+  | 'WORKING'
+  | 'IDLE'
+  | 'RUNNING_TASK'
+  | 'ERROR';
+
+/** An AI coworker added to a channel (drives who may answer in its Matrix room). */
+export interface ChannelCoworkerView {
+  id: string;
+  channelId: string;
+  coworkerId: string;
+  isEnabled: boolean;
+  addedById: string | null;
+  createdAt: IsoDateString;
+  coworker: {
+    id: string;
+    name: string;
+    role: string;
+    description: string | null;
+    avatarUrl: string | null;
+    status: CoworkerStatusLiteral;
+    isActive: boolean;
+  };
+}
+
+/** An AI coworker added to a project. */
+export interface ProjectCoworkerView {
+  id: string;
+  projectId: string;
+  coworkerId: string;
+  addedById: string | null;
+  createdAt: IsoDateString;
+  coworker: {
+    id: string;
+    name: string;
+    role: string;
+    description: string | null;
+    avatarUrl: string | null;
+    status: CoworkerStatusLiteral;
+    isActive: boolean;
+  };
+}
+
 export interface Invitation {
   id: string;
   workspaceId: string;

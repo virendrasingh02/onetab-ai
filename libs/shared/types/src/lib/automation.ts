@@ -1,24 +1,60 @@
 import type { IsoDateString } from './entities.js';
 
-export interface AIAgent {
+export type AIEntityType = 'agent' | 'coworker';
+
+export function isAIEntityType(value: unknown): value is AIEntityType {
+  return value === 'agent' || value === 'coworker';
+}
+
+export type CoworkerStatus =
+  | 'AVAILABLE'
+  | 'WORKING'
+  | 'IDLE'
+  | 'RUNNING_TASK'
+  | 'ERROR';
+
+export interface CoworkerPermissions {
+  /** Whether this entity may query workspace knowledge (RAG) at all. */
+  knowledgeAccess?: boolean;
+  /** Tool names it may call beyond read-only ones — write access is opt-in. */
+  allowActions?: string[];
+  /** Reserved for fine-grained project/channel allow-lists. */
+  projectIds?: string[];
+  channelIds?: string[];
+}
+
+export interface AIEntity {
   id: string;
   workspaceId: string;
   creatorId: string | null;
+  type: AIEntityType;
   name: string;
   role: string;
   description: string | null;
   avatarUrl: string | null;
+  personality: string | null;
   systemPrompt: string;
+  systemInstructions: string;
+  status: CoworkerStatus;
   provider: string;
   model: string;
   /** JSON-encoded array of MCP tool names. */
   tools: string;
+  permissions: CoworkerPermissions;
+  configuration: Record<string, unknown>;
   /** JSON-encoded React Flow graph from the Agent Builder canvas, or null. */
   graphJson: string | null;
   isActive: boolean;
   isMarketplace: boolean;
+  matrixUserId: string | null;
+  matrixRoomId: string | null;
+  lastActiveAt: IsoDateString | null;
   createdAt: IsoDateString;
   updatedAt: IsoDateString;
+}
+
+export interface AIAgent extends AIEntity {
+  type: 'agent';
 }
 
 export interface AgentSchedule {
@@ -92,3 +128,67 @@ export interface WorkflowExecutionEntry extends WorkflowExecution {
 }
 
 export type { ExternalIntegration } from './integrations.js';
+
+// --- AI Coworkers -----------------------------------------------------------
+//
+// A Coworker is the persistent, people-like layer above `AIAgent`: one stable
+// identity (name/avatar/personality/role) with its own DM room, channel/project
+// memberships and permissions, that may delegate to one or more `AIAgent`s
+// rather than duplicating their tool/model plumbing. See `CoworkerRuntimeService`
+// (`@org/api-coworkers`) for how this configuration becomes an actual turn.
+
+export interface AICoworker extends AIEntity {
+  type: 'coworker';
+}
+
+export interface CoworkerAgentLink {
+  id: string;
+  coworkerId: string;
+  agentId: string;
+  createdAt: IsoDateString;
+  agent: {
+    id: string;
+    name: string;
+    role: string;
+    description: string | null;
+    avatarUrl: string | null;
+    isActive: boolean;
+  };
+}
+
+export interface CoworkerAppLink {
+  id: string;
+  coworkerId: string;
+  integrationId: string;
+  createdAt: IsoDateString;
+  integration: {
+    id: string;
+    provider: string;
+    displayName: string | null;
+    status: string;
+  };
+}
+
+/** A coworker as the directory/sidebar receives it. */
+export interface AICoworkerDetail extends AICoworker {
+  agentLinks: CoworkerAgentLink[];
+  appLinks: CoworkerAppLink[];
+  _count: { channelLinks: number; projectLinks: number; executionLogs: number };
+}
+
+export interface CoworkerExecutionLog {
+  id: string;
+  coworkerId: string;
+  status: string;
+  promptText: string;
+  outputResult: string;
+  toolCalls: string;
+  tokensUsed: number;
+  executedAt: IsoDateString;
+}
+
+export interface CoworkerRunResult {
+  coworkerName: string;
+  result: string;
+  logId: string;
+}

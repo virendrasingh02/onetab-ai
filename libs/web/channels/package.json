@@ -37,6 +37,7 @@
     "@org/auth": "*",
     "@org/chat-ui": "*",
     "@org/notifications": "*",
+    "@org/web-coworkers": "*",
     "@tanstack/react-query": "^5.101.4",
     "lucide-react": "^1.28.0",
     "react-hook-form": "^7.84.0",

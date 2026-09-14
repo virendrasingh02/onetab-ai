@@ -10,6 +10,7 @@ import {
   type PromptDialog,
 } from '@org/ui';
 import { cn } from '@org/utils';
+import { useCoworkerMutations, useCoworkers, CoworkerAvatar } from '@org/web-coworkers';
 import { useAgentMutations, useAgents } from '@org/web-agents';
 import { useWorkflowMutations, useWorkflows } from '@org/web-automations';
 import {
@@ -30,6 +31,7 @@ import {
   Shield,
   Star,
   Trash2,
+  UserCheck,
   Wrench,
 } from 'lucide-react';
 import {
@@ -184,6 +186,137 @@ export function AppLogo({
         onError={() => setHasError(true)}
       />
     </span>
+  );
+}
+
+export function CoworkerNavRow({
+  coworker,
+  workspaceSlug,
+  isSelected,
+  isFavorite,
+  onToggleFavorite,
+  onDelete,
+  depth = 1,
+}: {
+  coworker: ResourceItemData & { avatarUrl?: string | null; status?: any };
+  workspaceSlug: string;
+  isSelected: boolean;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+  onDelete?: () => void;
+  depth?: NavDepth;
+}) {
+  const navigate = useNavigate();
+  const { copied, copy } = useCopyLink(
+    `${window.location.origin}/w/${workspaceSlug}/coworkers/${coworker.id}`,
+  );
+
+  return (
+    <li className="group/row relative">
+      <NavLink
+        to={`/w/${workspaceSlug}/coworkers/${coworker.id}`}
+        className={({ isActive }) =>
+          navRowClass(isSelected || isActive, {
+            depth,
+            extra: 'pr-14',
+          })
+        }
+        title={
+          coworker.detail
+            ? `${coworker.name} — ${coworker.detail}`
+            : coworker.name
+        }
+      >
+        <span
+          className={navIconClass(
+            depth,
+            'relative flex items-center justify-center shrink-0',
+          )}
+        >
+          <CoworkerAvatar
+            name={coworker.name}
+            avatarUrl={coworker.avatarUrl}
+            status={coworker.status ?? 'AVAILABLE'}
+            size="xs"
+          />
+        </span>
+        <span className="flex-1 truncate font-medium">{coworker.name}</span>
+      </NavLink>
+
+      <NavRowActions isPinned={isFavorite}>
+        <FavoriteToggle isFavorite={isFavorite} onToggle={onToggleFavorite} />
+
+        <DropdownMenu modal={false}>
+          <NavRowMenuTrigger label={`Options for ${coworker.name}`} />
+          <DropdownMenuContent align="end" side="bottom" className="w-64">
+            <DropdownMenuItem
+              onSelect={() =>
+                navigate(`/w/${workspaceSlug}/coworkers/${coworker.id}`)
+              }
+              className="gap-2.5"
+            >
+              <UserCheck className="size-4" />
+              <span>Chat with Coworker</span>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              onSelect={() =>
+                navigate(
+                  `/w/${workspaceSlug}/coworkers/${coworker.id}?tab=profile`,
+                )
+              }
+              className="gap-2.5"
+            >
+              <Settings className="size-4" />
+              <span>View Profile & Settings</span>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem onSelect={copy} className="justify-between">
+              <div className="gap-2.5 flex items-center">
+                {copied ? (
+                  <Check className="size-4 text-success-text" />
+                ) : (
+                  <Copy className="size-4" />
+                )}
+                <span>{copied ? 'Link copied!' : 'Copy coworker link'}</span>
+              </div>
+              <DropdownMenuShortcut>C</DropdownMenuShortcut>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuItem
+              onSelect={onToggleFavorite}
+              className="justify-between"
+            >
+              <div className="gap-2.5 flex items-center">
+                <Star
+                  className={cn(
+                    'size-4',
+                    isFavorite && 'fill-current text-accent-amber',
+                  )}
+                />
+                <span>{isFavorite ? 'Remove Favorite' : 'Favorite'}</span>
+              </div>
+            </DropdownMenuItem>
+
+            {onDelete ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={onDelete}
+                  className="gap-2.5"
+                >
+                  <Trash2 className="size-4" />
+                  <span>Delete coworker</span>
+                </DropdownMenuItem>
+              </>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </NavRowActions>
+    </li>
   );
 }
 
@@ -681,6 +814,46 @@ export function WorkflowNavRow({
   );
 }
 
+export function SortableCoworkerNavRow(props: {
+  coworker: ResourceItemData & { avatarUrl?: string | null; status?: any };
+  workspaceSlug: string;
+  isSelected: boolean;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+  onDelete: () => void;
+  depth?: NavDepth;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: props.coworker.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'relative',
+        isDragging &&
+          'z-50 rounded-lg bg-surface-raised opacity-80 shadow-sm ring-1 ring-primary/40',
+      )}
+      {...attributes}
+      {...listeners}
+    >
+      <CoworkerNavRow {...props} />
+    </div>
+  );
+}
+
 function SortableAgentNavRow(props: {
   agent: ResourceItemData;
   workspaceSlug: string;
@@ -801,6 +974,168 @@ function SortableWorkflowNavRow(props: {
     >
       <WorkflowNavRow {...props} />
     </div>
+  );
+}
+
+export function CoworkersSection({
+  workspaceSlug,
+  prompts,
+}: {
+  workspaceSlug: string;
+  prompts?: PromptDialog;
+}) {
+  const location = useLocation();
+  const { workspaceId } = useCurrentWorkspace();
+  const coworkers = useCoworkers(workspaceId);
+  const mutations = useCoworkerMutations(workspaceId);
+  const { isFavorite, toggleFavorite } = useSidebarFavorites(workspaceId);
+  const dndId = useId();
+
+  const resourceOrders = useSidebarStore((s) => s.resourceOrders);
+  const moveResourceItem = useSidebarStore((s) => s.moveResourceItem);
+
+  const coworkerList = coworkers.data ?? [];
+
+  const rawItems = coworkerList.map((cw) => ({
+    id: cw.id,
+    name: cw.name,
+    icon: 'UserCheck',
+    detail: cw.role,
+    avatarUrl: cw.avatarUrl,
+    status: cw.status,
+  }));
+
+  const customOrder = workspaceId
+    ? resourceOrders[workspaceId]?.coworkers
+    : undefined;
+
+  const items = useMemo(() => {
+    if (!customOrder || customOrder.length === 0) {
+      return rawItems;
+    }
+    const map = new Map(rawItems.map((c) => [c.id, c]));
+    const result: typeof rawItems = [];
+
+    for (const id of customOrder) {
+      const c = map.get(id);
+      if (c) {
+        result.push(c);
+        map.delete(id);
+      }
+    }
+
+    for (const c of map.values()) {
+      result.push(c);
+    }
+
+    return result;
+  }, [rawItems, customOrder]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !workspaceId) return;
+
+    moveResourceItem(
+      workspaceId,
+      'coworkers',
+      active.id as string,
+      over.id as string,
+      items.map((i) => i.id),
+    );
+  };
+
+  const handleDelete = async (coworker: (typeof rawItems)[0]) => {
+    if (prompts) {
+      const confirmed = await prompts.confirmAction({
+        title: `Delete “${coworker.name}”?`,
+        description:
+          'The AI coworker will be removed from this workspace. This action cannot be undone.',
+        confirmLabel: 'Delete coworker',
+        destructive: true,
+      });
+      if (!confirmed) return;
+    }
+    mutations.remove.mutate(coworker.id);
+  };
+
+  return (
+    <Section
+      title="AI Coworkers"
+      count={items.length}
+      emptyLabel={
+        coworkers.isLoading
+          ? 'Loading coworkers…'
+          : 'No coworkers assembled yet.'
+      }
+      action={
+        <Hint label="Add coworker">
+          <Button
+            asChild
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Add coworker"
+            className="size-5 p-0 opacity-0 transition-opacity duration-150 group-focus-within/section:opacity-100 group-hover/section:opacity-100 focus-visible:opacity-100"
+          >
+            <NavLink to={`/w/${workspaceSlug}/coworkers`}>
+              <Plus className="size-3.5" />
+            </NavLink>
+          </Button>
+        </Hint>
+      }
+    >
+      <DndContext
+        id={dndId}
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={items.map((i) => i.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {items.map((item) => {
+            const isSelected =
+              location.pathname.includes(`/coworkers/${item.id}`) ||
+              (location.pathname.endsWith('/coworkers') &&
+                location.search.includes(`id=${item.id}`));
+
+            return (
+              <SortableCoworkerNavRow
+                key={item.id}
+                coworker={item}
+                workspaceSlug={workspaceSlug}
+                isSelected={isSelected}
+                isFavorite={isFavorite('coworker', item.id)}
+                onToggleFavorite={() => toggleFavorite('coworker', item.id)}
+                onDelete={() => void handleDelete(item)}
+                depth={1}
+              />
+            );
+          })}
+        </SortableContext>
+      </DndContext>
+
+      <li>
+        <NavLink
+          to={`/w/${workspaceSlug}/coworkers`}
+          className={navActionClass({ depth: 1 })}
+        >
+          <Plus className={navIconClass(1)} aria-hidden />
+          <span className="flex-1 truncate">Add coworker</span>
+        </NavLink>
+      </li>
+    </Section>
   );
 }
 

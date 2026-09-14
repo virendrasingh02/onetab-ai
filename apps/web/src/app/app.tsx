@@ -175,6 +175,16 @@ const AgentBuilderView = lazy(() =>
 const AgentMonitoringView = lazy(() =>
   import('@org/web-agents').then((m) => ({ default: m.AgentMonitoringView })),
 );
+const CoworkerDirectoryView = lazy(() =>
+  import('@org/web-coworkers').then((m) => ({
+    default: m.CoworkerDirectoryView,
+  })),
+);
+const CoworkerChatView = lazy(() =>
+  import('@org/web-coworkers').then((m) => ({
+    default: m.CoworkerChatView,
+  })),
+);
 const WorkflowListView = lazy(() =>
   import('@org/web-automations').then((m) => ({ default: m.WorkflowListView })),
 );
@@ -383,6 +393,8 @@ export function App() {
             <Route path="ai-chat" element={<AIChatView />} />
             <Route path="ai/prompts" element={<PromptLibraryView />} />
             <Route path="whiteboards" element={<WhiteboardCanvas />} />
+            <Route path="coworkers" element={<CoworkerDirectoryView />} />
+            <Route path="coworkers/:id" element={<CoworkerChatView />} />
             <Route path="agents" element={<AgentMarketplaceView />} />
             <Route path="marketplace" element={<AgentMarketplaceView />} />
             <Route path="marketplace/apps/:slug" element={<AgentMarketplaceView />} />

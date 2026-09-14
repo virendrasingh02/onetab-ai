@@ -1,0 +1,56 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
+    "jsx": "react-jsx",
+    "lib": ["dom", "esnext"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "rootDir": "src",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["out-tsc", "dist", "src/**/*.spec.ts", "src/**/*.spec.tsx"],
+  "references": [
+    {
+      "path": "../workspace/tsconfig.lib.json"
+    },
+    {
+      "path": "../chat/tsconfig.lib.json"
+    },
+    {
+      "path": "../agents/tsconfig.lib.json"
+    },
+    {
+      "path": "../integrations/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/ui/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/types/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/hooks/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/design-system/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/chat-ui/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/realtime/tsconfig.lib.json"
+    },
+    {
+      "path": "../auth/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/api-client/tsconfig.lib.json"
+    }
+  ]
+}

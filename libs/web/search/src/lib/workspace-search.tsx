@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   Paperclip,
   Search,
+  Sparkles,
   Users,
 } from 'lucide-react';
 import type { ComponentType } from 'react';
@@ -27,6 +28,7 @@ const CATEGORY_ORDER: SearchCategory[] = [
   'projects',
   'files',
   'agents',
+  'coworkers',
   'canvases',
 ];
 
@@ -38,6 +40,7 @@ const CATEGORY_LABEL: Record<SearchCategory, string> = {
   projects: 'Projects',
   files: 'Files',
   agents: 'AI agents',
+  coworkers: 'AI coworkers',
   canvases: 'Canvases',
 };
 
@@ -49,6 +52,7 @@ const CATEGORY_ICON: Record<SearchCategory, ComponentType<{ className?: string }
   projects: FolderKanban,
   files: Paperclip,
   agents: Bot,
+  coworkers: Sparkles,
   canvases: LayoutDashboard,
 };
 

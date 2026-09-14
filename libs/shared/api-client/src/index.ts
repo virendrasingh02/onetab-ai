@@ -13,6 +13,7 @@ export {
 
 export {
   adminApi,
+  aiEntitiesApi,
   agentsApi,
   aiApi,
   analyticsApi,
@@ -22,6 +23,7 @@ export {
   channelAgentsApi,
   channelApi,
   channelEmailApi,
+  coworkersApi,
   enterpriseApi,
   gifsApi,
   huddleApi,

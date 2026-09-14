@@ -38,6 +38,9 @@
       "path": "../automations/tsconfig.lib.json"
     },
     {
+      "path": "../coworkers/tsconfig.lib.json"
+    },
+    {
       "path": "../agents/tsconfig.lib.json"
     },
     {
