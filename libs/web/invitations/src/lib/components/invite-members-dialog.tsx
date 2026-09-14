@@ -12,6 +12,11 @@ import {
   Popover,
   PopoverAnchor,
   PopoverContent,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   toast,
 } from '@org/ui';
 import { parseEmails } from '@org/utils';
@@ -89,6 +94,7 @@ export function InviteMembersDialog({
   const [showChannelDropdown, setShowChannelDropdown] = useState(false);
   const [showGoogleBanner, setShowGoogleBanner] = useState(true);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [role, setRole] = useState<WorkspaceRole>(defaultRole);
   /*
    * The shareable link is minted lazily on first copy (a real `isLink`
    * invitation row) and reused for the life of the dialog, so repeated clicks
@@ -130,13 +136,14 @@ export function InviteMembersDialog({
       setChannelSearch((prev) => (prev ? '' : prev));
       setShowChannelDropdown((prev) => (prev ? false : prev));
       setShareableUrl((prev) => (prev ? null : prev));
+      setRole(defaultRole);
     } else if (defaultScope?.type === 'CHANNEL' && defaultScope.id) {
       const matched = allChannels.find((c) => c.id === defaultScope.id);
       if (matched) {
         setSelectedChannels([matched]);
       }
     }
-  }, [open, defaultScope?.type, defaultScope?.id, allChannels]);
+  }, [open, defaultScope?.type, defaultScope?.id, defaultRole, allChannels]);
 
   const addEmailsFromText = (text: string) => {
     const parsed = parseEmails(text);
@@ -186,7 +193,7 @@ export function InviteMembersDialog({
         // Mint a real shareable invitation link; the backend returns the
         // one-time token as `/invite/<token>`, the route AcceptInvitationPage
         // serves.
-        const res = await createLink.mutateAsync({ role: defaultRole });
+        const res = await createLink.mutateAsync({ role });
         url = `${window.location.origin}${res.url}`;
         setShareableUrl(url);
       }
@@ -218,7 +225,7 @@ export function InviteMembersDialog({
     try {
       await invite.mutateAsync({
         emails: finalEmails,
-        role: defaultRole,
+        role,
         channelId: selectedChannels[0]?.id || undefined,
       });
 
@@ -517,17 +524,33 @@ export function InviteMembersDialog({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button
-            type="button"
-            onClick={handleSend}
-            disabled={
-              (emails.length === 0 && !emailInput.trim()) || invite.isPending
-            }
-            loading={invite.isPending}
-            className="h-8.5 px-5 text-xs font-semibold rounded-lg"
-          >
-            Send
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground">Role:</span>
+              <Select value={role} onValueChange={(r) => setRole(r as WorkspaceRole)}>
+                <SelectTrigger className="h-8 text-xs w-[100px] bg-surface">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={WorkspaceRole.MEMBER}>Member</SelectItem>
+                  <SelectItem value={WorkspaceRole.ADMIN}>Admin</SelectItem>
+                  <SelectItem value={WorkspaceRole.GUEST}>Guest</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button
+              type="button"
+              onClick={handleSend}
+              disabled={
+                (emails.length === 0 && !emailInput.trim()) || invite.isPending
+              }
+              loading={invite.isPending}
+              className="h-8.5 px-5 text-xs font-semibold rounded-lg"
+            >
+              Send
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

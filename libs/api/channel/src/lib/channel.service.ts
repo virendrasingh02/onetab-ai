@@ -20,16 +20,18 @@ import {
   ChannelRole,
   ChannelVisibility,
   WorkspaceRole,
+  can,
   canManageChannelMembers,
   canPostInChannel,
   clampTempMembershipHours,
   extendedTemporaryExpiry,
-  hasWorkspaceRole,
+  resolveWorkspacePolicy,
   temporaryExpiryFrom,
   type Channel,
   type ChannelMember,
   type ChannelPin,
   type ChannelSummary,
+  type MembershipStatus,
   type Upload,
 } from '@org/types';
 import type {
@@ -192,6 +194,45 @@ export class ChannelService {
     userId: string,
     input: CreateChannelInput,
   ): Promise<Channel> {
+    const [member, settings] = await Promise.all([
+      this.prisma.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId, userId } },
+        select: { role: true, status: true },
+      }),
+      this.prisma.workspaceSettings?.findUnique
+        ? this.prisma.workspaceSettings.findUnique({
+            where: { workspaceId },
+            select: { policies: true },
+          })
+        : null,
+    ]);
+
+    const policies = resolveWorkspacePolicy(settings?.policies as any);
+    const action =
+      input.visibility === ChannelVisibility.PRIVATE
+        ? 'channel.create_private'
+        : 'channel.create';
+
+    const allowed = can(
+      {
+        id: userId,
+        workspaceMembership: {
+          role: (member?.role as WorkspaceRole) ?? WorkspaceRole.MEMBER,
+          status: (member?.status as MembershipStatus) ?? 'ACTIVE',
+        },
+      },
+      action,
+      { type: 'workspace', id: workspaceId, policies },
+    );
+
+    if (!allowed) {
+      throw new ForbiddenException(
+        input.visibility === ChannelVisibility.PRIVATE
+          ? 'Workspace policy restricts creating private channels to admins or owners.'
+          : 'Workspace policy restricts creating channels to admins or owners.',
+      );
+    }
+
     const existing = await this.prisma.channel.findUnique({
       where: { workspaceId_slug: { workspaceId, slug: input.name } },
       select: { id: true },

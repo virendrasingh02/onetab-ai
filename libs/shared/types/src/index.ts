@@ -48,6 +48,22 @@ export {
   systemRoleHasAnalyticsPermission,
 } from './lib/permissions.js';
 
+export {
+  PolicySubjectRole,
+  DEFAULT_WORKSPACE_POLICY,
+  isPolicyRoleAllowed,
+  resolveWorkspacePolicy,
+  type WorkspacePolicy,
+} from './lib/workspace-policies.js';
+
+export {
+  can,
+  type PermissionAction,
+  type SubjectContext,
+  type ResourceContext,
+  type AuthorizationOptions,
+} from './lib/authorization-engine.js';
+
 
 export type {
   Channel,
@@ -88,6 +104,7 @@ export type {
   Workspace,
   WorkspaceMember,
   WorkspaceSummary,
+  WorkspaceAuditLogDto,
   UserSessionDto,
   SecurityOverviewDto,
   TotpSetupResponse,

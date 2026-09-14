@@ -124,9 +124,10 @@ export class WorkspaceController {
   @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
   update(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
     @Body(zodBody(updateWorkspaceSchema)) body: UpdateWorkspaceInput,
   ) {
-    return this.workspaces.update(workspaceId, body);
+    return this.workspaces.update(workspaceId, body, userId);
   }
 
   @Delete(':workspaceId')
@@ -150,8 +151,11 @@ export class WorkspaceController {
   @UseGuards(WorkspaceRoleGuard)
   @WorkspaceRoles(WorkspaceRole.OWNER)
   @HttpCode(HttpStatus.NO_CONTENT)
-  archive(@WorkspaceId() workspaceId: string): Promise<void> {
-    return this.workspaces.setArchived(workspaceId, true);
+  archive(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+  ): Promise<void> {
+    return this.workspaces.setArchived(workspaceId, true, userId);
   }
 
   /**
@@ -165,8 +169,11 @@ export class WorkspaceController {
   @WorkspaceRoles(WorkspaceRole.OWNER)
   @AllowArchivedWorkspace()
   @HttpCode(HttpStatus.NO_CONTENT)
-  restore(@WorkspaceId() workspaceId: string): Promise<void> {
-    return this.workspaces.setArchived(workspaceId, false);
+  restore(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+  ): Promise<void> {
+    return this.workspaces.setArchived(workspaceId, false, userId);
   }
 
   @Post(':workspaceId/transfer-ownership')

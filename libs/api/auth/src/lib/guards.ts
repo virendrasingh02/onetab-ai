@@ -29,6 +29,7 @@ import {
   isPlanAtLeast,
   normalizePlanTier,
   permissionsForRole,
+  resolveWorkspacePolicy,
   roleHasPermission,
   type PlanFeature,
   type PlanTier,
@@ -126,6 +127,11 @@ export class WorkspaceRoleGuard implements CanActivate {
             status: true,
           },
         },
+        settings: {
+          select: {
+            policies: true,
+          },
+        },
       },
     });
     if (!workspace) throw new NotFoundException('Workspace not found.');
@@ -138,14 +144,27 @@ export class WorkspaceRoleGuard implements CanActivate {
     });
 
     // Report a missing membership as 404, not 403: confirming that a workspace
-    // exists to a non-member is itself a disclosure. A suspended member is
-    // told the same thing — they are, for now, not a member.
-    if (!membership || membership.status === MembershipStatus.SUSPENDED) {
+    // exists to a non-member is itself a disclosure. A suspended or removed
+    // member is told the same thing — they are, for now, not a member.
+    if (
+      !membership ||
+      membership.status === MembershipStatus.SUSPENDED ||
+      membership.status === MembershipStatus.REMOVED
+    ) {
       throw new NotFoundException('Workspace not found.');
     }
 
     const role = membership.role as WorkspaceRole;
     const plan = normalizePlanTier(workspace.subscription?.planTier ?? 'starter');
+    const policies = resolveWorkspacePolicy(workspace.settings?.policies);
+
+    // Update lastActiveAt asynchronously
+    void this.prisma.workspaceMember
+      .update({
+        where: { workspaceId_userId: { workspaceId: workspace.id, userId: user.id } },
+        data: { lastActiveAt: new Date() },
+      })
+      .catch(() => {});
 
     // An archived workspace stays readable so its history is not stranded, but
     // refuses writes. Checked on the HTTP method rather than per route, so a
@@ -170,6 +189,7 @@ export class WorkspaceRoleGuard implements CanActivate {
     request.workspaceId = workspace.id;
     request.workspaceRole = role;
     request.workspacePermissions = permissionsForRole(role);
+    request.workspacePolicies = policies;
     request.workspacePlan = plan;
     return true;
   }

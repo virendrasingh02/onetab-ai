@@ -216,6 +216,9 @@ import type {
   TestCustomLLMResponse,
   UpgradePlanInput,
   WorkspaceBillingSummary,
+  WorkspacePolicy,
+  WorkspaceAuditLogDto,
+  WorkspaceRole,
 } from '@org/types';
 
 import type {
@@ -548,9 +551,33 @@ export const workspaceApi = {
     ),
 
   /** Clears the caller's override so they follow the workspace default again. */
-  resetMyWorkspaceAppearance: (workspaceId: string) =>
+  clearMyWorkspaceAppearance: (workspaceId: string) =>
     request<void>(
       http.delete(`/workspaces/${workspaceId}/settings/appearance/me`),
+    ),
+
+  getPolicies: (workspaceId: string) =>
+    request<WorkspacePolicy>(
+      http.get(`/workspaces/${workspaceId}/settings/policies`),
+    ),
+
+  savePolicies: (workspaceId: string, policies: Partial<WorkspacePolicy>) =>
+    request<WorkspacePolicy>(
+      http.put(`/workspaces/${workspaceId}/settings/policies`, policies),
+    ),
+
+  auditLogs: (
+    workspaceId: string,
+    params?: {
+      action?: string;
+      actorId?: string;
+      targetType?: string;
+      limit?: number;
+      offset?: number;
+    },
+  ) =>
+    request<{ items: WorkspaceAuditLogDto[]; total: number }>(
+      http.get(`/workspaces/${workspaceId}/audit-logs`, { params }),
     ),
 };
 
@@ -832,6 +859,16 @@ export const memberApi = {
   leave: (workspaceId: string) =>
     request<void>(http.post(`/workspaces/${workspaceId}/members/leave`)),
 
+  suspend: (workspaceId: string, userId: string) =>
+    request<void>(
+      http.post(`/workspaces/${workspaceId}/members/${userId}/suspend`),
+    ),
+
+  reactivate: (workspaceId: string, userId: string) =>
+    request<void>(
+      http.post(`/workspaces/${workspaceId}/members/${userId}/reactivate`),
+    ),
+
   search: (workspaceId: string, query: string) =>
     request<PublicUser[]>(
       http.get(`/workspaces/${workspaceId}/users/search`, {
@@ -852,6 +889,18 @@ export const invitationApi = {
   create: (workspaceId: string, input: InviteMembersInput) =>
     request<InviteBatchResult>(
       http.post(`/workspaces/${workspaceId}/invitations`, input),
+    ),
+
+  updateRole: (
+    workspaceId: string,
+    invitationId: string,
+    role: WorkspaceRole,
+  ) =>
+    request<void>(
+      http.patch(
+        `/workspaces/${workspaceId}/invitations/${invitationId}/role`,
+        { role },
+      ),
     ),
 
   preview: (token: string) =>

@@ -19,12 +19,16 @@ import {
 } from '@org/api-common';
 import { MailService, workspaceInviteEmail } from '@org/api-mail';
 import { PrismaService } from '@org/database';
+import { WorkspaceAuditService } from '@org/api-workspace';
 import {
   InvitationStatus,
   WorkspaceRole,
+  can,
   getPlanLimit,
   hasWorkspaceRole,
+  isPolicyRoleAllowed,
   normalizePlanTier,
+  resolveWorkspacePolicy,
   type Invitation,
   type InvitationPublicPreview,
   type InviteBatchResult,
@@ -43,6 +47,7 @@ const INVITATION_TTL = '14d';
 
 const INVITATION_INCLUDE = {
   invitedBy: { select: PUBLIC_USER_SELECT },
+  invitedUser: { select: PUBLIC_USER_SELECT },
   workspace: {
     select: {
       id: true,
@@ -67,13 +72,17 @@ export class MemberService {
     private readonly events: EventEmitter2,
     private readonly mail: MailService,
     private readonly config: ConfigService,
+    private readonly audit?: WorkspaceAuditService,
   ) {}
 
   async list(workspaceId: string): Promise<WorkspaceMember[]> {
     const members = await this.prisma.workspaceMember.findMany({
       where: { workspaceId },
       orderBy: [{ joinedAt: 'asc' }],
-      include: { user: { select: { ...PUBLIC_USER_SELECT, email: true } } },
+      include: {
+        user: { select: { ...PUBLIC_USER_SELECT, email: true } },
+        invitedBy: { select: PUBLIC_USER_SELECT },
+      },
     });
 
     return members.map((member) => ({
@@ -84,6 +93,10 @@ export class MemberService {
       joinedAt: member.joinedAt.toISOString(),
       user: toPublicUser(member.user),
       email: member.email ?? member.user?.email ?? null,
+      lastActiveAt: (member.lastActiveAt ?? member.lastSeenAt)?.toISOString() ?? null,
+      lastSeenAt: member.lastSeenAt?.toISOString() ?? null,
+      invitedAt: member.invitedAt?.toISOString() ?? null,
+      invitedBy: member.invitedBy ? toPublicUser(member.invitedBy) : null,
     }));
   }
 
@@ -95,6 +108,7 @@ export class MemberService {
    */
   async updateRole(
     workspaceId: string,
+    actorId: string,
     actorRole: WorkspaceRole,
     targetUserId: string,
     input: UpdateMemberRoleInput,
@@ -105,17 +119,25 @@ export class MemberService {
     });
     if (!target) throw new NotFoundException('Member not found.');
 
-    if (target.role === WorkspaceRole.OWNER) {
-      throw new ForbiddenException(
-        'The owner role can only change through an ownership transfer.',
-      );
-    }
-
     const targetRole = target.role as WorkspaceRole;
-    if (
-      hasWorkspaceRole(targetRole, actorRole) ||
-      hasWorkspaceRole(input.role, actorRole)
-    ) {
+    const isAllowed = can(
+      { id: actorId, workspaceMembership: { role: actorRole, status: 'ACTIVE' } },
+      'member.change_role',
+      {
+        type: 'member',
+        workspaceId,
+        targetUserId,
+        targetRole,
+        desiredRole: input.role,
+      },
+    );
+
+    if (!isAllowed) {
+      if (targetRole === WorkspaceRole.OWNER) {
+        throw new ForbiddenException(
+          'The owner role can only change through an ownership transfer.',
+        );
+      }
       throw new ForbiddenException(
         'You cannot assign a role at or above your own.',
       );
@@ -126,17 +148,135 @@ export class MemberService {
       data: { role: input.role },
     });
 
+    await this.audit?.log({
+      workspaceId,
+      actorId,
+      action: 'member.role_changed',
+      targetType: 'MEMBER',
+      targetId: targetUserId,
+      metadata: { previousRole: targetRole, newRole: input.role },
+    });
+
     this.events.emit(AppEvent.WorkspaceMembershipChanged, {
       workspaceId,
-      actorId: null,
+      actorId,
       userId: targetUserId,
       action: 'role',
       role: input.role,
     });
   }
 
+  async suspend(
+    workspaceId: string,
+    actorId: string,
+    actorRole: WorkspaceRole,
+    targetUserId: string,
+  ): Promise<void> {
+    if (actorId === targetUserId) {
+      throw new ForbiddenException('You cannot suspend yourself.');
+    }
+    const target = await this.prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
+      select: { role: true, status: true },
+    });
+    if (!target) throw new NotFoundException('Member not found.');
+
+    const isAllowed = can(
+      { id: actorId, workspaceMembership: { role: actorRole, status: 'ACTIVE' } },
+      'member.suspend',
+      {
+        type: 'member',
+        workspaceId,
+        targetUserId,
+        targetRole: target.role as WorkspaceRole,
+      },
+    );
+
+    if (!isAllowed) {
+      if (target.role === WorkspaceRole.OWNER) {
+        throw new ForbiddenException('The owner cannot be suspended.');
+      }
+      throw new ForbiddenException(
+        'You cannot suspend someone at or above your own role.',
+      );
+    }
+
+    await this.prisma.workspaceMember.update({
+      where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
+      data: { status: 'SUSPENDED' },
+    });
+
+    await this.audit?.log({
+      workspaceId,
+      actorId,
+      action: 'member.suspended',
+      targetType: 'MEMBER',
+      targetId: targetUserId,
+    });
+
+    this.events.emit(AppEvent.WorkspaceMembershipChanged, {
+      workspaceId,
+      actorId,
+      userId: targetUserId,
+      action: 'suspend',
+      role: target.role as WorkspaceRole,
+    });
+  }
+
+  async reactivate(
+    workspaceId: string,
+    actorId: string,
+    actorRole: WorkspaceRole,
+    targetUserId: string,
+  ): Promise<void> {
+    const target = await this.prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
+      select: { role: true, status: true },
+    });
+    if (!target) throw new NotFoundException('Member not found.');
+
+    const isAllowed = can(
+      { id: actorId, workspaceMembership: { role: actorRole, status: 'ACTIVE' } },
+      'member.reactivate',
+      {
+        type: 'member',
+        workspaceId,
+        targetUserId,
+        targetRole: target.role as WorkspaceRole,
+      },
+    );
+
+    if (!isAllowed) {
+      throw new ForbiddenException(
+        'You cannot reactivate someone at or above your own role.',
+      );
+    }
+
+    await this.prisma.workspaceMember.update({
+      where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
+      data: { status: 'ACTIVE' },
+    });
+
+    await this.audit?.log({
+      workspaceId,
+      actorId,
+      action: 'member.reactivated',
+      targetType: 'MEMBER',
+      targetId: targetUserId,
+    });
+
+    this.events.emit(AppEvent.WorkspaceMembershipChanged, {
+      workspaceId,
+      actorId,
+      userId: targetUserId,
+      action: 'reactivate',
+      role: target.role as WorkspaceRole,
+    });
+  }
+
   async remove(
     workspaceId: string,
+    actorId: string,
     actorRole: WorkspaceRole,
     targetUserId: string,
   ): Promise<void> {
@@ -146,16 +286,27 @@ export class MemberService {
     });
     if (!target) throw new NotFoundException('Member not found.');
 
-    if (target.role === WorkspaceRole.OWNER) {
-      throw new ForbiddenException('The owner cannot be removed.');
-    }
-    if (hasWorkspaceRole(target.role as WorkspaceRole, actorRole)) {
+    const isAllowed = can(
+      { id: actorId, workspaceMembership: { role: actorRole, status: 'ACTIVE' } },
+      'member.remove',
+      {
+        type: 'member',
+        workspaceId,
+        targetUserId,
+        targetRole: target.role as WorkspaceRole,
+      },
+    );
+
+    if (!isAllowed) {
+      if (target.role === WorkspaceRole.OWNER) {
+        throw new ForbiddenException('The owner cannot be removed.');
+      }
       throw new ForbiddenException(
         'You cannot remove someone at or above your own role.',
       );
     }
 
-    await this.detach(workspaceId, targetUserId);
+    await this.detach(workspaceId, targetUserId, actorId);
   }
 
   /** Voluntary exit. The owner must transfer ownership first. */
@@ -172,13 +323,14 @@ export class MemberService {
       );
     }
 
-    await this.detach(workspaceId, userId);
+    await this.detach(workspaceId, userId, userId);
   }
 
   /**
-   * Drops every trace of a user's membership in one transaction.
+   * Drops a user's channel memberships and marks membership as REMOVED or detaches,
+   * while preserving all historical messages, files, and audit history.
    */
-  private async detach(workspaceId: string, userId: string): Promise<void> {
+  private async detach(workspaceId: string, userId: string, actorId: string | null = null): Promise<void> {
     await this.prisma.$transaction([
       this.prisma.channelMember.deleteMany({
         where: { userId, channel: { workspaceId } },
@@ -188,12 +340,20 @@ export class MemberService {
       }),
     ]);
 
+    await this.audit?.log({
+      workspaceId,
+      actorId,
+      action: 'member.removed',
+      targetType: 'MEMBER',
+      targetId: userId,
+    });
+
     // The Matrix bridge kicks the user from the workspace's space room (and,
     // via the reconciler, from every channel room). Roles/permissions were
     // already ours; this only mirrors the exit.
     this.events.emit(AppEvent.WorkspaceMembershipChanged, {
       workspaceId,
-      actorId: null,
+      actorId,
       userId,
       action: 'leave',
       role: null,
@@ -275,6 +435,20 @@ export class MemberService {
       );
     }
 
+    // Check workspace policies
+    const settings = this.prisma.workspaceSettings?.findUnique
+      ? await this.prisma.workspaceSettings.findUnique({
+          where: { workspaceId },
+          select: { policies: true },
+        })
+      : null;
+    const policy = resolveWorkspacePolicy(settings?.policies as any);
+    if (!isPolicyRoleAllowed(actorRole, policy.whoCanInvite)) {
+      throw new ForbiddenException(
+        'Workspace policy restricts inviting members to administrators or owners.',
+      );
+    }
+
     // Validate scopes if provided
     if (input.channelId) {
       const channel = await this.prisma.channel.findFirst({
@@ -315,6 +489,17 @@ export class MemberService {
       return { invited: [], alreadyMembers };
     }
 
+    // Map existing user accounts for targeted invitations
+    const existingUsers = this.prisma.user?.findMany
+      ? await this.prisma.user.findMany({
+          where: { email: { in: pendingEmails } },
+          select: { id: true, email: true },
+        })
+      : [];
+    const userIdByEmail = new Map(
+      existingUsers.map((u) => [u.email.toLowerCase(), u.id]),
+    );
+
     // Enforce workspace subscription member limit
     const sub = await this.prisma.workspaceSubscription.findUnique({
       where: { workspaceId },
@@ -335,7 +520,6 @@ export class MemberService {
     const tokens: Record<string, string> = {};
     const invited: Invitation[] = [];
 
-
     for (const email of pendingEmails) {
       const token = generateToken(32);
       tokens[email] = token;
@@ -345,6 +529,8 @@ export class MemberService {
         where: { workspaceId, email, isLink: false },
         select: { id: true },
       });
+
+      const targetUserId = userIdByEmail.get(email.toLowerCase()) ?? null;
 
       let invitation;
       if (existingInvitation) {
@@ -356,6 +542,7 @@ export class MemberService {
             expiresAt: expiresAt(INVITATION_TTL),
             status: InvitationStatus.PENDING,
             invitedById,
+            invitedUserId: targetUserId,
             channelId: input.channelId ?? null,
             teamId: input.teamId ?? null,
             projectId: input.projectId ?? null,
@@ -376,6 +563,7 @@ export class MemberService {
             expiresAt: expiresAt(INVITATION_TTL),
             status: InvitationStatus.PENDING,
             invitedById,
+            invitedUserId: targetUserId,
             channelId: input.channelId ?? null,
             teamId: input.teamId ?? null,
             projectId: input.projectId ?? null,
@@ -388,6 +576,18 @@ export class MemberService {
 
       invited.push(toInvitation(invitation));
     }
+
+    await this.audit?.log({
+      workspaceId,
+      actorId: invitedById,
+      action: 'member.invited',
+      targetType: 'INVITATION',
+      metadata: {
+        emails: pendingEmails,
+        role: input.role,
+        channelId: input.channelId ?? null,
+      },
+    });
 
     this.events.emit(AppEvent.WorkspaceInvited, {
       workspaceId,
@@ -462,10 +662,30 @@ export class MemberService {
 
   async resendInvitation(
     workspaceId: string,
-    actorRole: WorkspaceRole,
-    invitationId: string,
-    includeTokens: boolean,
+    actorIdOrRole: string | WorkspaceRole,
+    actorRoleOrInvitationId: WorkspaceRole | string,
+    invitationIdOrIncludeTokens?: string | boolean,
+    maybeIncludeTokens?: boolean,
   ): Promise<{ invitation: Invitation; token?: string }> {
+    let actorId: string | null = null;
+    let actorRole: WorkspaceRole;
+    let invitationId: string;
+    let includeTokens: boolean;
+
+    if (
+      typeof invitationIdOrIncludeTokens === 'boolean' ||
+      invitationIdOrIncludeTokens === undefined
+    ) {
+      actorRole = actorIdOrRole as WorkspaceRole;
+      invitationId = actorRoleOrInvitationId as string;
+      includeTokens = Boolean(invitationIdOrIncludeTokens);
+    } else {
+      actorId = actorIdOrRole as string;
+      actorRole = actorRoleOrInvitationId as WorkspaceRole;
+      invitationId = invitationIdOrIncludeTokens;
+      includeTokens = Boolean(maybeIncludeTokens);
+    }
+
     const existing = await this.prisma.invitation.findFirst({
       where: { id: invitationId, workspaceId, isLink: false },
       include: INVITATION_INCLUDE,
@@ -495,17 +715,80 @@ export class MemberService {
       include: INVITATION_INCLUDE,
     });
 
+    await this.audit?.log({
+      workspaceId,
+      actorId,
+      action: 'invitation.resent',
+      targetType: 'INVITATION',
+      targetId: invitationId,
+    });
+
     return {
       invitation: toInvitation(updated),
       ...(includeTokens ? { token } : {}),
     };
   }
 
-  async revokeInvitation(
+  async updateInvitationRole(
     workspaceId: string,
+    actorId: string,
     actorRole: WorkspaceRole,
     invitationId: string,
+    role: WorkspaceRole,
   ): Promise<void> {
+    const existing = await this.prisma.invitation.findFirst({
+      where: { id: invitationId, workspaceId },
+      select: { id: true, role: true, status: true },
+    });
+    if (!existing) throw new NotFoundException('Invitation not found.');
+
+    if (existing.status !== InvitationStatus.PENDING) {
+      throw new BadRequestException('Only pending invitations can be updated.');
+    }
+    if (role === WorkspaceRole.OWNER) {
+      throw new ForbiddenException('Cannot invite an owner.');
+    }
+    if (
+      !hasWorkspaceRole(actorRole, role) ||
+      !hasWorkspaceRole(actorRole, existing.role as WorkspaceRole)
+    ) {
+      throw new ForbiddenException('Insufficient permissions.');
+    }
+
+    await this.prisma.invitation.update({
+      where: { id: invitationId },
+      data: { role },
+    });
+
+    await this.audit?.log({
+      workspaceId,
+      actorId,
+      action: 'invitation.role_changed',
+      targetType: 'INVITATION',
+      targetId: invitationId,
+      metadata: { previousRole: existing.role, newRole: role },
+    });
+  }
+
+  async revokeInvitation(
+    workspaceId: string,
+    actorIdOrRole: string | WorkspaceRole,
+    actorRoleOrInvitationId: WorkspaceRole | string,
+    maybeInvitationId?: string,
+  ): Promise<void> {
+    let actorId: string | null = null;
+    let actorRole: WorkspaceRole;
+    let invitationId: string;
+
+    if (maybeInvitationId === undefined) {
+      actorRole = actorIdOrRole as WorkspaceRole;
+      invitationId = actorRoleOrInvitationId as string;
+    } else {
+      actorId = actorIdOrRole as string;
+      actorRole = actorRoleOrInvitationId as WorkspaceRole;
+      invitationId = maybeInvitationId;
+    }
+
     const invitation = await this.prisma.invitation.findFirst({
       where: { id: invitationId, workspaceId },
       select: { id: true, role: true },
@@ -519,6 +802,14 @@ export class MemberService {
     await this.prisma.invitation.update({
       where: { id: invitationId },
       data: { status: InvitationStatus.REVOKED, revokedAt: new Date() },
+    });
+
+    await this.audit?.log({
+      workspaceId,
+      actorId,
+      action: 'invitation.revoked',
+      targetType: 'INVITATION',
+      targetId: invitationId,
     });
   }
 
@@ -700,6 +991,8 @@ export class MemberService {
           userId,
           role: invitation.role,
           email: invitation.email ?? user.email,
+          ...(invitation.createdAt ? { invitedAt: invitation.createdAt } : {}),
+          ...(invitation.invitedById ? { invitedById: invitation.invitedById } : {}),
         },
         update: {
           email: invitation.email ?? user.email,
@@ -734,6 +1027,15 @@ export class MemberService {
             : {}),
         },
       });
+    });
+
+    await this.audit?.log({
+      workspaceId: invitation.workspaceId,
+      actorId: userId,
+      action: 'invitation.accepted',
+      targetType: 'INVITATION',
+      targetId: invitation.id,
+      metadata: { email: invitation.email, role: invitation.role },
     });
 
     this.events.emit(AppEvent.MemberJoined, {

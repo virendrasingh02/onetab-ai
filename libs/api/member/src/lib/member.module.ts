@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '@org/api-auth';
+import { WorkspaceModule } from '@org/api-workspace';
 import {
   InvitationAcceptController,
   InvitationController,
@@ -9,7 +10,7 @@ import {
 import { MemberService } from './member.service.js';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, WorkspaceModule],
   controllers: [
     MemberController,
     InvitationController,

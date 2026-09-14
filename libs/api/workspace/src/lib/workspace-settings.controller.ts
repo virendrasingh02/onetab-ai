@@ -81,4 +81,21 @@ export class WorkspaceSettingsController {
   ) {
     return this.settings.resetMemberOverride(workspaceId, userId);
   }
+
+  /** Authorization policies for this workspace. Any member can read. */
+  @Get('policies')
+  getPolicies(@WorkspaceId() workspaceId: string) {
+    return this.settings.getPolicies(workspaceId);
+  }
+
+  /** Update workspace authorization policies. Admins and Owners only. */
+  @Put('policies')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_POLICIES)
+  savePolicies(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.settings.savePolicies(workspaceId, body as any, userId);
+  }
 }

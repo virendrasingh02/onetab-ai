@@ -26,6 +26,8 @@ import {
   type WorkspaceLogoMimeType,
 } from '@org/validation';
 
+import { WorkspaceAuditService } from './workspace-audit.service.js';
+
 /** Extension per accepted logo type, so the stored key carries its own format. */
 const LOGO_EXTENSIONS: Record<WorkspaceLogoMimeType, string> = {
   'image/png': 'png',
@@ -47,6 +49,7 @@ export class WorkspaceService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly imageProcessing: ImageProcessingService,
+    private readonly auditService: WorkspaceAuditService,
   ) {}
 
   /** Every workspace the user belongs to, for the switcher. */
@@ -172,6 +175,7 @@ export class WorkspaceService {
   async update(
     workspaceId: string,
     input: UpdateWorkspaceInput,
+    actorId?: string,
   ): Promise<Workspace> {
     if (input.slug !== undefined) {
       const existingSlug = await this.prisma.workspace.findUnique({
@@ -216,6 +220,18 @@ export class WorkspaceService {
           : {}),
       },
     });
+
+    if (actorId) {
+      await this.auditService.log({
+        workspaceId,
+        actorId,
+        action: 'workspace.settings_changed',
+        targetType: 'workspace',
+        targetId: workspaceId,
+        metadata: { changedKeys: Object.keys(input) },
+      });
+    }
+
     return toWorkspace(workspace);
   }
 
@@ -226,7 +242,7 @@ export class WorkspaceService {
    * `status` on every request and refuses writes while it is ARCHIVED, so this
    * one column is the whole mechanism and it is entirely reversible.
    */
-  async setArchived(workspaceId: string, archived: boolean): Promise<void> {
+  async setArchived(workspaceId: string, archived: boolean, actorId?: string): Promise<void> {
     await this.prisma.workspace.update({
       where: { id: workspaceId },
       data: {
@@ -234,6 +250,16 @@ export class WorkspaceService {
         archivedAt: archived ? new Date() : null,
       },
     });
+
+    if (actorId) {
+      await this.auditService.log({
+        workspaceId,
+        actorId,
+        action: archived ? 'workspace.archived' : 'workspace.restored',
+        targetType: 'workspace',
+        targetId: workspaceId,
+      });
+    }
   }
 
   /** Hard delete. Channels, members and invitations cascade from the schema. */
@@ -295,6 +321,15 @@ export class WorkspaceService {
         data: { role: WorkspaceRole.ADMIN },
       }),
     ]);
+
+    await this.auditService.log({
+      workspaceId,
+      actorId: currentOwnerId,
+      action: 'ownership.transferred',
+      targetType: 'user',
+      targetId: newOwnerUserId,
+      metadata: { previousOwnerId: currentOwnerId, newOwnerId: newOwnerUserId },
+    });
   }
 
   /**

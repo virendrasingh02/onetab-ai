@@ -286,6 +286,10 @@ export interface WorkspaceMember {
   user: PublicUser;
   /** The workspace-specific email address for this member, if configured. */
   email?: string | null;
+  lastActiveAt?: IsoDateString | null;
+  lastSeenAt?: IsoDateString | null;
+  invitedAt?: IsoDateString | null;
+  invitedBy?: PublicUser | null;
 }
 
 export interface Channel {
@@ -460,6 +464,8 @@ export interface Invitation {
   createdAt: IsoDateString;
   updatedAt?: IsoDateString;
   invitedBy: PublicUser;
+  invitedUserId?: string | null;
+  invitedUser?: PublicUser | null;
   workspace?: {
     id: string;
     name: string;
@@ -479,6 +485,18 @@ export interface Invitation {
   useCount?: number;
   isLink?: boolean;
   token?: string;
+}
+
+export interface WorkspaceAuditLogDto {
+  id: string;
+  workspaceId: string;
+  actorId: string | null;
+  actor?: PublicUser | null;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  metadata?: Record<string, unknown> | null;
+  createdAt: IsoDateString;
 }
 
 export interface InvitationPublicPreview {

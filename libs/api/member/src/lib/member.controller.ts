@@ -54,11 +54,36 @@ export class MemberController {
   @HttpCode(HttpStatus.NO_CONTENT)
   updateRole(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') actorId: string,
     @WorkspaceMemberRole() actorRole: WorkspaceRole,
     @Param('userId') targetUserId: string,
     @Body(zodBody(updateMemberRoleSchema)) body: UpdateMemberRoleInput,
   ): Promise<void> {
-    return this.members.updateRole(workspaceId, actorRole, targetUserId, body);
+    return this.members.updateRole(workspaceId, actorId, actorRole, targetUserId, body);
+  }
+
+  @Post(':userId/suspend')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_MEMBERS)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  suspend(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') actorId: string,
+    @WorkspaceMemberRole() actorRole: WorkspaceRole,
+    @Param('userId') targetUserId: string,
+  ): Promise<void> {
+    return this.members.suspend(workspaceId, actorId, actorRole, targetUserId);
+  }
+
+  @Post(':userId/reactivate')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_MEMBERS)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  reactivate(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') actorId: string,
+    @WorkspaceMemberRole() actorRole: WorkspaceRole,
+    @Param('userId') targetUserId: string,
+  ): Promise<void> {
+    return this.members.reactivate(workspaceId, actorId, actorRole, targetUserId);
   }
 
   @Delete(':userId')
@@ -66,10 +91,11 @@ export class MemberController {
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') actorId: string,
     @WorkspaceMemberRole() actorRole: WorkspaceRole,
     @Param('userId') targetUserId: string,
   ): Promise<void> {
-    return this.members.remove(workspaceId, actorRole, targetUserId);
+    return this.members.remove(workspaceId, actorId, actorRole, targetUserId);
   }
 
   @Post('leave')
@@ -120,16 +146,37 @@ export class InvitationController {
     );
   }
 
+  @Patch(':invitationId/role')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_MEMBERS)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  updateRole(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') actorId: string,
+    @WorkspaceMemberRole() actorRole: WorkspaceRole,
+    @Param('invitationId') invitationId: string,
+    @Body('role') role: WorkspaceRole,
+  ): Promise<void> {
+    return this.members.updateInvitationRole(
+      workspaceId,
+      actorId,
+      actorRole,
+      invitationId,
+      role,
+    );
+  }
+
   @Post(':invitationId/resend')
   @RequireWorkspacePermissions(WorkspacePermission.MANAGE_MEMBERS)
   resend(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') actorId: string,
     @WorkspaceMemberRole() actorRole: WorkspaceRole,
     @Param('invitationId') invitationId: string,
   ) {
     const includeTokens = this.config.get('NODE_ENV') !== 'production';
     return this.members.resendInvitation(
       workspaceId,
+      actorId,
       actorRole,
       invitationId,
       includeTokens,
@@ -141,10 +188,11 @@ export class InvitationController {
   @HttpCode(HttpStatus.NO_CONTENT)
   revoke(
     @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') actorId: string,
     @WorkspaceMemberRole() actorRole: WorkspaceRole,
     @Param('invitationId') invitationId: string,
   ): Promise<void> {
-    return this.members.revokeInvitation(workspaceId, actorRole, invitationId);
+    return this.members.revokeInvitation(workspaceId, actorId, actorRole, invitationId);
   }
 }
 

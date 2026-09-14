@@ -7,6 +7,8 @@ import { WorkspaceController } from './workspace.controller.js';
 import { WorkspaceService } from './workspace.service.js';
 import { WorkspaceSettingsController } from './workspace-settings.controller.js';
 import { WorkspaceSettingsService } from './workspace-settings.service.js';
+import { WorkspaceAuditController } from './workspace-audit.controller.js';
+import { WorkspaceAuditService } from './workspace-audit.service.js';
 
 @Module({
   // AuthModule supplies WorkspaceRoleGuard, which this module's routes use.
@@ -15,10 +17,21 @@ import { WorkspaceSettingsService } from './workspace-settings.service.js';
   controllers: [
     WorkspaceController,
     WorkspaceSettingsController,
+    WorkspaceAuditController,
     BillingController,
   ],
-  providers: [WorkspaceService, WorkspaceSettingsService, BillingService],
-  exports: [WorkspaceService, WorkspaceSettingsService, BillingService],
+  providers: [
+    WorkspaceService,
+    WorkspaceSettingsService,
+    WorkspaceAuditService,
+    BillingService,
+  ],
+  exports: [
+    WorkspaceService,
+    WorkspaceSettingsService,
+    WorkspaceAuditService,
+    BillingService,
+  ],
 })
 export class WorkspaceModule {}
 

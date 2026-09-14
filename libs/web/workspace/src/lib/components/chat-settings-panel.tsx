@@ -14,12 +14,9 @@ import {
   CheckCircle2,
   CornerDownLeft,
   Eye,
-  Keyboard,
   MessageSquare,
   RotateCcw,
-  Shield,
   Sparkles,
-  Users,
 } from 'lucide-react';
 
 export function ChatSettingsPanel() {

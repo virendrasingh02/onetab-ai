@@ -3,6 +3,8 @@ export { WorkspaceService } from './lib/workspace.service.js';
 export { WorkspaceController } from './lib/workspace.controller.js';
 export { WorkspaceSettingsService } from './lib/workspace-settings.service.js';
 export { WorkspaceSettingsController } from './lib/workspace-settings.controller.js';
+export { WorkspaceAuditService } from './lib/workspace-audit.service.js';
+export { WorkspaceAuditController } from './lib/workspace-audit.controller.js';
 export { BillingService } from './lib/billing/billing.service.js';
 export { BillingController } from './lib/billing/billing.controller.js';
 

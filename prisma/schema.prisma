@@ -93,6 +93,9 @@ model User {
   updatedAppReleases        AppRelease[]                @relation("AppReleaseUpdater")
   bookmarks                 Bookmark[]
   attentionItemStates       AttentionItemState[]
+  invitedWorkspaceMembers   WorkspaceMember[]           @relation("WorkspaceMemberInvitedBy")
+  targetedInvitations       Invitation[]                @relation("InvitationTargetUser")
+  workspaceAuditLogs        WorkspaceAuditLog[]         @relation("WorkspaceAuditActor")
 
   @@index([presence, lastSeenAt])
   @@map("users")
@@ -280,6 +283,7 @@ model Workspace {
   crossObjectLinks          CrossObjectLink[]
   bookmarks                 Bookmark[]
   attentionItemStates       AttentionItemState[]
+  auditLogs                 WorkspaceAuditLog[]
   owner                     User                       @relation("WorkspaceOwner", fields: [ownerId], references: [id])
 
   @@index([ownerId])
@@ -287,25 +291,30 @@ model Workspace {
 }
 
 model WorkspaceMember {
-  id          String           @id @default(cuid())
-  workspaceId String
-  userId      String
-  role        WorkspaceRole    @default(MEMBER)
+  id           String           @id @default(cuid())
+  workspaceId  String
+  userId       String
+  role         WorkspaceRole    @default(MEMBER)
   /// Optional workspace-specific email address. Falls back to user.email when null.
-  email       String?
+  email        String?
   /// SUSPENDED keeps the row — and so the role and history — while refusing
   /// access, which is what letting someone back in later needs.
-  status      MembershipStatus @default(ACTIVE)
-  joinedAt    DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  lastSeenAt  DateTime?
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  status       MembershipStatus @default(ACTIVE)
+  joinedAt     DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  lastSeenAt   DateTime?
+  lastActiveAt DateTime?
+  invitedAt    DateTime?
+  invitedById  String?
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace    Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy    User?            @relation("WorkspaceMemberInvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
 
   @@unique([workspaceId, userId])
   @@index([userId])
   @@index([workspaceId, role])
   @@index([workspaceId, status])
+  @@index([invitedById])
   @@map("workspace_members")
 }
 
@@ -321,6 +330,7 @@ model WorkspaceSettings {
   id          String    @id @default(cuid())
   workspaceId String    @unique
   theme       Json      @default("{}")
+  policies    Json      @default("{}")
   updatedAt   DateTime  @updatedAt
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
@@ -641,27 +651,30 @@ model Invitation {
   tokenHash   String           @unique
   status      InvitationStatus @default(PENDING)
   expiresAt   DateTime
-  acceptedAt  DateTime?
-  declinedAt  DateTime?
-  revokedAt   DateTime?
-  invitedById String
-  channelId   String?
-  teamId      String?
-  projectId   String?
-  message     String?
-  maxUses     Int?
-  useCount    Int              @default(0)
-  isLink      Boolean          @default(false)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @default(now()) @updatedAt
-  invitedBy   User             @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
-  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  channel     Channel?         @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  team        Team?            @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  project     Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  acceptedAt    DateTime?
+  declinedAt    DateTime?
+  revokedAt     DateTime?
+  invitedById   String
+  invitedUserId String?
+  channelId     String?
+  teamId        String?
+  projectId     String?
+  message       String?
+  maxUses       Int?
+  useCount      Int              @default(0)
+  isLink        Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @default(now()) @updatedAt
+  invitedBy     User             @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
+  invitedUser   User?            @relation("InvitationTargetUser", fields: [invitedUserId], references: [id], onDelete: SetNull)
+  workspace     Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  channel       Channel?         @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  team          Team?            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  project       Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, email])
   @@index([workspaceId, status])
+  @@index([invitedUserId])
   @@index([channelId])
   @@index([teamId])
   @@index([projectId])
@@ -2233,6 +2246,7 @@ enum WorkspaceStatus {
 enum MembershipStatus {
   ACTIVE
   SUSPENDED
+  REMOVED
 }
 
 enum ChannelRole {
@@ -2952,4 +2966,21 @@ model AppReleaseAuditLog {
   @@index([releaseId])
   @@index([platform, createdAt])
   @@map("app_release_audit_logs")
+}
+
+model WorkspaceAuditLog {
+  id          String    @id @default(cuid())
+  workspaceId String
+  actorId     String?
+  action      String
+  targetType  String
+  targetId    String?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor       User?     @relation("WorkspaceAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, action])
+  @@map("workspace_audit_logs")
 }

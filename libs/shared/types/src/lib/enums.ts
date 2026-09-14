@@ -37,6 +37,7 @@ export type WorkspaceStatus =
 export const MembershipStatus = {
   ACTIVE: 'ACTIVE',
   SUSPENDED: 'SUSPENDED',
+  REMOVED: 'REMOVED',
 } as const;
 export type MembershipStatus =
   (typeof MembershipStatus)[keyof typeof MembershipStatus];

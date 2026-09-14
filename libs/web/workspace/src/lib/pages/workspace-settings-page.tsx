@@ -139,6 +139,8 @@ import { SettingsLayout } from '../settings-layout.js';
 import { useRegisterSettingsDirty } from '../settings-dirty.store.js';
 import { useWorkspacePreference } from '../settings-preferences.store.js';
 import { WorkspaceMembersSettings } from '../components/workspace-members-settings.js';
+import { WorkspacePermissionsSettings } from '../components/workspace-permissions-settings.js';
+import { WorkspaceAuditSettings } from '../components/workspace-audit-settings.js';
 import { WorkspaceBillingSettings } from '../components/workspace-billing-settings.js';
 import { WorkspaceCompanyAnalytics } from '../components/workspace-company-analytics.js';
 import { UpgradePlanBanner } from '../components/upgrade-plan-banner.js';
@@ -3139,6 +3141,20 @@ export function WorkspaceSettingsPage({
           />
           {invitationsPanel}
         </div>
+      )}
+
+      {currentTab === 'permissions' && (
+        <WorkspacePermissionsSettings
+          workspaceId={workspaceId}
+          workspaceRole={workspace?.role}
+        />
+      )}
+
+      {currentTab === 'audit-log' && (
+        <WorkspaceAuditSettings
+          workspaceId={workspaceId}
+          workspaceRole={workspace?.role}
+        />
       )}
 
       {(currentTab === 'billing' || currentTab === 'plans') && (

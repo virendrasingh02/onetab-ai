@@ -2,13 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@org/database';
 import {
   resolveWorkspaceAppearance,
+  resolveWorkspacePolicy,
   roleHasPermission,
   WorkspacePermission,
   type ThemeAppearance,
   type WorkspaceAppearanceResponse,
+  type WorkspacePolicy,
   type WorkspaceRole,
 } from '@org/types';
 import type { ThemeSettingInput } from '@org/validation';
+import { WorkspaceAuditService } from './workspace-audit.service.js';
 
 /**
  * Workspace-scoped configuration.
@@ -28,7 +31,10 @@ import type { ThemeSettingInput } from '@org/validation';
  */
 @Injectable()
 export class WorkspaceSettingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: WorkspaceAuditService,
+  ) {}
 
   private asBlob(value: unknown): ThemeAppearance {
     return (value as ThemeAppearance | null | undefined) ?? {};
@@ -137,5 +143,45 @@ export class WorkspaceSettingsService {
     await this.prisma.workspaceThemePreference.deleteMany({
       where: { workspaceId, userId },
     });
+  }
+
+  /**
+   * Retrieves the workspace authorization policy.
+   */
+  async getPolicies(workspaceId: string): Promise<WorkspacePolicy> {
+    const row = await this.prisma.workspaceSettings.findUnique({
+      where: { workspaceId },
+      select: { policies: true },
+    });
+    return resolveWorkspacePolicy(row?.policies);
+  }
+
+  /**
+   * Updates workspace authorization policies and logs an audit entry.
+   */
+  async savePolicies(
+    workspaceId: string,
+    input: Partial<WorkspacePolicy>,
+    actorId: string,
+  ): Promise<WorkspacePolicy> {
+    const current = await this.getPolicies(workspaceId);
+    const updated = resolveWorkspacePolicy({ ...current, ...input });
+
+    await this.prisma.workspaceSettings.upsert({
+      where: { workspaceId },
+      create: { workspaceId, policies: updated as any },
+      update: { policies: updated as any },
+    });
+
+    await this.audit.record({
+      workspaceId,
+      actorId,
+      action: 'policy.changed',
+      targetType: 'POLICY',
+      targetId: workspaceId,
+      metadata: { previous: current, updated },
+    });
+
+    return updated;
   }
 }

@@ -54,6 +54,9 @@ import {
   UserMinus,
   UserPlus,
   Users,
+  Ban,
+  RotateCcw,
+  RefreshCw,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTransferOwnership } from '../use-workspaces.js';
@@ -132,6 +135,55 @@ export function WorkspaceMembersSettings({
     },
   });
 
+  const suspendMemberMutation = useMutation({
+    mutationFn: (userId: string) =>
+      memberApi.suspend(workspaceId as string, userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.members.all(workspaceId ?? ''),
+      });
+      setMemberToSuspend(null);
+    },
+  });
+
+  const reactivateMemberMutation = useMutation({
+    mutationFn: (userId: string) =>
+      memberApi.reactivate(workspaceId as string, userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.members.all(workspaceId ?? ''),
+      });
+    },
+  });
+
+  const resendInvitationMutation = useMutation({
+    mutationFn: (invitationId: string) =>
+      invitationApi.resend(workspaceId as string, invitationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.invitations.all(workspaceId ?? ''),
+      });
+      setInviteSuccessMessage('Invitation resent successfully.');
+      setTimeout(() => setInviteSuccessMessage(null), 3000);
+    },
+  });
+
+  const updateInvitationRoleMutation = useMutation({
+    mutationFn: ({
+      invitationId,
+      role,
+    }: {
+      invitationId: string;
+      role: WorkspaceRole;
+    }) =>
+      invitationApi.updateRole(workspaceId as string, invitationId, role),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.invitations.all(workspaceId ?? ''),
+      });
+    },
+  });
+
   const revokeInvitationMutation = useMutation({
     mutationFn: (invitationId: string) =>
       invitationApi.revoke(workspaceId as string, invitationId),
@@ -159,6 +211,8 @@ export function WorkspaceMembersSettings({
   const [memberToRemove, setMemberToRemove] = useState<WorkspaceMember | null>(
     null,
   );
+  const [memberToSuspend, setMemberToSuspend] =
+    useState<WorkspaceMember | null>(null);
   const [memberToTransfer, setMemberToTransfer] =
     useState<WorkspaceMember | null>(null);
 
@@ -437,8 +491,20 @@ export function WorkspaceMembersSettings({
                         </div>
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground mt-0.5">
                           <span>@{member.user.name}</span>
+                          {member.email ? (
+                            <>
+                              <span>·</span>
+                              <span className="truncate">{member.email}</span>
+                            </>
+                          ) : null}
                           <span>·</span>
                           <span>Joined {formatRelative(member.joinedAt)}</span>
+                          {member.lastActiveAt ? (
+                            <>
+                              <span>·</span>
+                              <span>Active {formatRelative(member.lastActiveAt)}</span>
+                            </>
+                          ) : null}
                           <span>·</span>
                           <LocalTime
                             timezone={member.user.timezone}
@@ -453,6 +519,14 @@ export function WorkspaceMembersSettings({
                     </div>
 
                     <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
+                      {member.status && member.status !== 'ACTIVE' ? (
+                        <Badge
+                          variant={member.status === 'SUSPENDED' ? 'destructive' : 'neutral'}
+                          className="text-[10px] font-semibold px-2 py-0.5 capitalize"
+                        >
+                          {member.status === 'SUSPENDED' ? 'Suspended' : 'Removed'}
+                        </Badge>
+                      ) : null}
                       <Badge
                         variant={badgeConfig.variant}
                         className="text-[11px] font-semibold px-2 py-0.5 capitalize"
@@ -509,6 +583,25 @@ export function WorkspaceMembersSettings({
                                 <span>Make {role.toLowerCase()}</span>
                               </DropdownMenuItem>
                             ))}
+
+                            <DropdownMenuSeparator />
+                            {member.status === 'SUSPENDED' ? (
+                              <DropdownMenuItem
+                                onClick={() => reactivateMemberMutation.mutate(member.user.id)}
+                                className="text-success-text"
+                              >
+                                <RotateCcw className="size-3.5 mr-2 text-success-text" />
+                                <span>Reactivate member</span>
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                onClick={() => setMemberToSuspend(member)}
+                                className="text-warning-text"
+                              >
+                                <Ban className="size-3.5 mr-2 text-warning-text" />
+                                <span>Suspend member</span>
+                              </DropdownMenuItem>
+                            )}
 
                             {isOwner ? (
                               <>
@@ -587,12 +680,33 @@ export function WorkspaceMembersSettings({
                         <span className="font-semibold text-xs text-foreground truncate">
                           {invitation.email}
                         </span>
-                        <Badge
-                          variant="neutral"
-                          className="text-[10px] px-1.5 py-0 font-medium capitalize"
-                        >
-                          {invitation.role.toLowerCase()}
-                        </Badge>
+                        {isAdmin ? (
+                          <Select
+                            value={invitation.role}
+                            onValueChange={(newRole) =>
+                              updateInvitationRoleMutation.mutate({
+                                invitationId: invitation.id,
+                                role: newRole as WorkspaceRole,
+                              })
+                            }
+                          >
+                            <SelectTrigger className="h-6 text-[10px] w-[88px] px-1.5 py-0 bg-surface">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={WorkspaceRole.ADMIN}>Admin</SelectItem>
+                              <SelectItem value={WorkspaceRole.MEMBER}>Member</SelectItem>
+                              <SelectItem value={WorkspaceRole.GUEST}>Guest</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge
+                            variant="neutral"
+                            className="text-[10px] px-1.5 py-0 font-medium capitalize"
+                          >
+                            {invitation.role.toLowerCase()}
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
                         Sent {formatRelative(invitation.createdAt)}
@@ -602,6 +716,16 @@ export function WorkspaceMembersSettings({
 
                   {isAdmin ? (
                     <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => resendInvitationMutation.mutate(invitation.id)}
+                        disabled={resendInvitationMutation.isPending}
+                        className="text-xs h-7.5 px-2.5"
+                      >
+                        <RefreshCw className="size-3 mr-1" />
+                        Resend
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
@@ -688,6 +812,51 @@ export function WorkspaceMembersSettings({
               disabled={removeMemberMutation.isPending}
             >
               {removeMemberMutation.isPending ? 'Removing...' : 'Remove Member'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Suspend Member Confirmation Dialog */}
+      <Dialog
+        open={memberToSuspend !== null}
+        onOpenChange={(open) => {
+          if (!open) setMemberToSuspend(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-warning-text">
+              <Ban className="size-5" />
+              Suspend Member
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to suspend{' '}
+              <strong>
+                {memberToSuspend?.user.displayName ?? memberToSuspend?.user.name}
+              </strong>{' '}
+              from {workspaceName}? While suspended, they will be prevented from accessing
+              workspace channels, documents, or data. Their messages and history remain preserved,
+              and you can reactivate them at any time.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <DialogClose asChild>
+              <Button variant="ghost" size="sm">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                if (memberToSuspend) {
+                  suspendMemberMutation.mutate(memberToSuspend.user.id);
+                }
+              }}
+              disabled={suspendMemberMutation.isPending}
+            >
+              {suspendMemberMutation.isPending ? 'Suspending...' : 'Suspend Member'}
             </Button>
           </DialogFooter>
         </DialogContent>
