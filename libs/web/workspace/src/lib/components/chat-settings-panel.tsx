@@ -44,6 +44,10 @@ export function ChatSettingsPanel() {
     updateChatPreferences({ sendTypingNotice: enabled });
   };
 
+  const handleShowTypingIndicatorsToggle = (enabled: boolean) => {
+    updateChatPreferences({ showTypingIndicators: enabled });
+  };
+
   const handleMentionWarningsToggle = (enabled: boolean) => {
     updateChatPreferences({ mentionWarningsEnabled: enabled });
   };
@@ -366,6 +370,27 @@ export function ChatSettingsPanel() {
             <Switch
               checked={chat.sendTypingNotice ?? true}
               onCheckedChange={handleSendTypingNoticeToggle}
+            />
+          </div>
+
+          {/* Show others' typing indicators */}
+          <div className="p-4 flex items-center justify-between gap-4 hover:bg-accent/40 transition-colors">
+            <div className="flex items-start gap-3">
+              <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+                <Activity className="size-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-medium text-foreground">
+                  Show typing indicators
+                </h4>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  See when someone else is actively composing a reply.
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={chat.showTypingIndicators ?? true}
+              onCheckedChange={handleShowTypingIndicatorsToggle}
             />
           </div>
         </div>

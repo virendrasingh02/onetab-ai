@@ -30,7 +30,12 @@ import {
   Zap,
 } from 'lucide-react';
 import { useState } from 'react';
-import type { ExternalIntegration } from '@org/types';
+import {
+  isPolicyRoleAllowed,
+  PolicySubjectRole,
+  type ExternalIntegration,
+} from '@org/types';
+import { useCurrentWorkspace, useWorkspacePolicies } from '@org/web-workspace';
 import { CustomApiModal } from './CustomApiModal.js';
 import { GmailInboxModal } from './GmailInboxModal.js';
 import { GoogleCalendarModal } from './GoogleCalendarModal.js';
@@ -533,6 +538,16 @@ export function IntegrationHubView() {
   const { connect, disconnect, sync } = useIntegrationMutations(workspaceId);
   const providersQuery = useIntegrationProviders(workspaceId);
 
+  // Settings → Permissions & Policies → "Who can install Marketplace apps".
+  // Presentation only — `POST .../integrations/:provider/connect` re-checks
+  // this server-side regardless of what the button below shows.
+  const { workspace } = useCurrentWorkspace();
+  const policiesQuery = useWorkspacePolicies(workspaceId);
+  const canInstallApps = isPolicyRoleAllowed(
+    workspace?.role,
+    policiesQuery.data?.whoCanInstallApps ?? PolicySubjectRole.ADMINS,
+  );
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'All' | AppCategory>(
     'All',
@@ -897,14 +912,26 @@ export function IntegrationHubView() {
                           Disconnect
                         </button>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => toggleConnection(card)}
-                          className="px-3.5 py-1.5 text-xs font-semibold gap-1.5 flex items-center rounded-lg bg-primary text-primary-foreground shadow-xs transition-colors hover:bg-primary/90"
-                        >
-                          <Zap className="size-3" />
-                          <span>Connect</span>
-                        </button>
+                        (() => {
+                          const connectButton = (
+                            <button
+                              type="button"
+                              disabled={!canInstallApps}
+                              onClick={() => toggleConnection(card)}
+                              className="px-3.5 py-1.5 text-xs font-semibold gap-1.5 flex items-center rounded-lg bg-primary text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-primary"
+                            >
+                              <Zap className="size-3" />
+                              <span>Connect</span>
+                            </button>
+                          );
+                          return canInstallApps ? (
+                            connectButton
+                          ) : (
+                            <Hint label="Only admins can install apps in this workspace.">
+                              {connectButton}
+                            </Hint>
+                          );
+                        })()
                       )}
 
                       {/* Pill Switch matching reference design */}

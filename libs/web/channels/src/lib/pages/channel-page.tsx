@@ -1015,6 +1015,16 @@ export function ChannelPage() {
                   : 'You don’t have permission to post in this channel.'
                 : undefined
             }
+            threadComposerReadOnlyMessage={
+              /* Distinct from the main composer: an announcement channel can
+                 allow top-level posts while replies are switched off
+                 (`allowReplies`), which `canPost` alone would miss. */
+              channel.membership && channel.canReply === false
+                ? channel.canPost === false
+                  ? 'Only admins and designated members can post in this announcement channel.'
+                  : 'Replies are turned off in this announcement channel.'
+                : undefined
+            }
             anonymousPosting={
               anonSettings.data?.canPostAnonymously
                 ? {

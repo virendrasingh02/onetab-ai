@@ -8,6 +8,7 @@ export {
   useTransferOwnership,
   useUpdateWorkspace,
   useWorkspace,
+  useWorkspacePolicies,
   useWorkspaces,
   type CreateWorkspaceFlowInput,
   type CreateWorkspaceFlowResult,

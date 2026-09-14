@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { PUBLIC_USER_SELECT, toPublicUser } from '@org/api-common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AppEvent, PUBLIC_USER_SELECT, toPublicUser } from '@org/api-common';
 import { MatrixAdminService } from '@org/api-matrix';
 import { ImageProcessingService } from '@org/api-media-processing';
 import { StorageService } from '@org/api-storage';
@@ -26,7 +27,22 @@ export class UserService {
     private readonly matrix: MatrixAdminService,
     private readonly storage: StorageService,
     private readonly imageProcessing: ImageProcessingService,
+    private readonly events: EventEmitter2,
   ) {}
+
+  /** Every personal-settings write reaches the user's other open sessions/tabs this way — see `AppEvent.SettingsUpdated`. */
+  private emitOwnSettingsUpdated(
+    userId: string,
+    category: 'chat' | 'sidebar' | 'navigation' | 'appearance',
+  ): void {
+    this.events.emit(AppEvent.SettingsUpdated, {
+      scope: 'user',
+      workspaceId: null,
+      userId,
+      actorId: userId,
+      category,
+    });
+  }
 
   async uploadAvatar(
     userId: string,
@@ -345,6 +361,7 @@ export class UserService {
       update: { data: data as object },
       select: { data: true },
     });
+    this.emitOwnSettingsUpdated(userId, 'sidebar');
     return row.data as Record<string, unknown>;
   }
 
@@ -392,6 +409,7 @@ export class UserService {
       update: { data: merged as object },
       select: { data: true },
     });
+    this.emitOwnSettingsUpdated(userId, 'navigation');
     return row.data as Record<string, unknown>;
   }
 
@@ -426,6 +444,7 @@ export class UserService {
       update: { data: merged as object },
       select: { data: true },
     });
+    this.emitOwnSettingsUpdated(userId, 'appearance');
     return row.data as Record<string, unknown>;
   }
 
@@ -445,9 +464,17 @@ export class UserService {
     const readReceipts = settings?.showReadReceipts ?? true;
     const enterToSend = settings?.enterToSend ?? true;
     const sendTypingNotice = settings?.sendTypingNotice ?? true;
+    const showTypingIndicators = settings?.showTypingIndicators ?? true;
     const mentionWarningsEnabled = settings?.mentionWarningsEnabled ?? true;
     const allowDirectMessagesFrom =
       (settings?.allowDirectMessagesFrom as 'everyone' | 'members' | 'admins') ?? 'everyone';
+    const linkPreviewsEnabled = settings?.autoloadMedia ?? true;
+
+    const storedNotifications =
+      (settings?.notificationDisplayPrefs as
+        | UserPreferences['notifications']
+        | null
+        | undefined) ?? undefined;
 
     return {
       chat: {
@@ -456,8 +483,10 @@ export class UserService {
         readReceipts,
         enterToSend,
         sendTypingNotice,
+        showTypingIndicators,
         mentionWarningsEnabled,
         allowDirectMessagesFrom,
+        linkPreviewsEnabled,
       },
       notifications: {
         showContentPreview: true,
@@ -467,6 +496,10 @@ export class UserService {
         position: 'bottom-right',
         size: 'comfy',
         sound: DEFAULT_NOTIFICATION_SOUND_PREFERENCES,
+        // Shallow-merge the persisted blob over these defaults so a schema
+        // change (a newly added field) never leaves an old saved row missing
+        // it — the same forward-compatibility rule `ChatSettings` follows.
+        ...storedNotifications,
       },
       language: user?.preferredLanguage ?? 'en',
     };
@@ -502,16 +535,22 @@ export class UserService {
           showReadReceipts: updated.chat.readReceipts,
           enterToSend: updated.chat.enterToSend ?? true,
           sendTypingNotice: updated.chat.sendTypingNotice ?? true,
+          showTypingIndicators: updated.chat.showTypingIndicators ?? true,
           mentionWarningsEnabled: updated.chat.mentionWarningsEnabled ?? true,
           allowDirectMessagesFrom: updated.chat.allowDirectMessagesFrom ?? 'everyone',
+          autoloadMedia: updated.chat.linkPreviewsEnabled ?? true,
+          notificationDisplayPrefs: updated.notifications as object,
         },
         update: {
           density: densityForDb,
           showReadReceipts: updated.chat.readReceipts,
           enterToSend: updated.chat.enterToSend ?? true,
           sendTypingNotice: updated.chat.sendTypingNotice ?? true,
+          showTypingIndicators: updated.chat.showTypingIndicators ?? true,
           mentionWarningsEnabled: updated.chat.mentionWarningsEnabled ?? true,
           allowDirectMessagesFrom: updated.chat.allowDirectMessagesFrom ?? 'everyone',
+          autoloadMedia: updated.chat.linkPreviewsEnabled ?? true,
+          notificationDisplayPrefs: updated.notifications as object,
         },
       }),
     ];
@@ -526,6 +565,7 @@ export class UserService {
     }
 
     await Promise.all(updates);
+    this.emitOwnSettingsUpdated(userId, 'chat');
 
     return updated;
   }

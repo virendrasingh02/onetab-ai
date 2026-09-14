@@ -567,6 +567,17 @@ export const workspaceApi = {
       http.put(`/workspaces/${workspaceId}/settings/policies`, policies),
     ),
 
+  /** The channel new members are auto-added to on joining. `channelId: null` means none. */
+  getDefaultChannel: (workspaceId: string) =>
+    request<{ channelId: string | null }>(
+      http.get(`/workspaces/${workspaceId}/settings/default-channel`),
+    ),
+
+  saveDefaultChannel: (workspaceId: string, channelId: string | null) =>
+    request<{ channelId: string | null }>(
+      http.put(`/workspaces/${workspaceId}/settings/default-channel`, { channelId }),
+    ),
+
   auditLogs: (
     workspaceId: string,
     params?: {

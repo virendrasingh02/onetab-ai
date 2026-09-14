@@ -21,7 +21,9 @@ describe('WorkspaceSettingsService', () => {
         findUnique: vi.fn().mockResolvedValue(null),
       },
     };
-    service = new WorkspaceSettingsService(prisma);
+    const audit = { record: vi.fn().mockResolvedValue(undefined) };
+    const events = { emit: vi.fn() };
+    service = new WorkspaceSettingsService(prisma, audit as any, events as any);
   });
 
   describe('getAppearance', () => {

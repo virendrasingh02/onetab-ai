@@ -77,6 +77,10 @@ export interface ChatBubbleProps {
   onReply?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  /** Holds `WorkspacePermission.MODERATE_MESSAGES` — may delete this message even when it is not theirs. */
+  canModerateMessages?: boolean;
+  /** `WorkspacePolicy.messageEditWindowMinutes` — null/unset means unlimited (default). Only ever narrows when the message is own; never grants edit on someone else's. */
+  editWindowMinutes?: number | null;
   onOpenThread?: () => void;
   threadReplyCount?: number;
   /** True when the thread has replies the reader has not caught up to. */
@@ -161,6 +165,8 @@ export function ChatBubble({
   onReply,
   onEdit,
   onDelete,
+  canModerateMessages = false,
+  editWindowMinutes = null,
   onOpenThread,
   threadReplyCount,
   threadHasUnread = false,
@@ -1005,19 +1011,23 @@ export function ChatBubble({
               </DropdownMenuItem>
             ) : null}
 
-            {isOwn ? (
+            {isOwn || canModerateMessages ? (
               <>
                 <DropdownMenuSeparator className="bg-border" />
-                <DropdownMenuItem
-                  onSelect={() => {
-                    setIsMenuOpen(false);
-                    onEdit?.();
-                  }}
-                  className="hover:bg-accent"
-                >
-                  <Pencil className="mr-2 size-4" />
-                  Edit message
-                </DropdownMenuItem>
+                {isOwn &&
+                (editWindowMinutes == null ||
+                  Date.now() - message.timestamp < editWindowMinutes * 60_000) ? (
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setIsMenuOpen(false);
+                      onEdit?.();
+                    }}
+                    className="hover:bg-accent"
+                  >
+                    <Pencil className="mr-2 size-4" />
+                    Edit message
+                  </DropdownMenuItem>
+                ) : null}
                 <DropdownMenuItem
                   variant="destructive"
                   onSelect={() => {
@@ -1028,6 +1038,11 @@ export function ChatBubble({
                 >
                   <Trash2 className="mr-2 size-4" />
                   Delete message
+                  {!isOwn ? (
+                    <span className="ml-auto text-[10px] text-muted-foreground">
+                      Moderator
+                    </span>
+                  ) : null}
                 </DropdownMenuItem>
               </>
             ) : null}

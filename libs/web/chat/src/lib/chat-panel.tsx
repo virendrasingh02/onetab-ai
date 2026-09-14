@@ -14,12 +14,19 @@ import type { ComposerContext } from '@org/types';
 
 import { useReadReceipts } from '@org/common';
 import {
+  isPolicyRoleAllowed,
+  PolicySubjectRole,
+  roleHasPermission,
+  WorkspacePermission,
+} from '@org/types';
+import {
   Button,
   confirm,
   EmptyState,
   toast,
   useRightPanelStore,
 } from '@org/ui';
+import { useCurrentWorkspace, useWorkspacePolicies } from '@org/web-workspace';
 import { MessageSquareOff } from 'lucide-react';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -90,6 +97,8 @@ export interface ChatPanelProps {
   onAskAI?: (message: Message) => void;
   /** Replaces the composer with a read-only notice — see `ChatSurface`. */
   composerReadOnlyMessage?: ReactNode;
+  /** Same, for the thread reply composer specifically — see `ChatSurface`. */
+  threadComposerReadOnlyMessage?: ReactNode;
   /** Anonymous-posting toggle for the composer (brief §2). */
   anonymousPosting?: {
     allowed: boolean;
@@ -123,6 +132,7 @@ export function ChatPanel({
   onCreateDoc,
   onAskAI,
   composerReadOnlyMessage,
+  threadComposerReadOnlyMessage,
   anonymousPosting,
   canManageConversation,
   composerContext,
@@ -130,6 +140,22 @@ export function ChatPanel({
 
   const { client, status, enabled, error } = useMatrix();
   const readReceiptsEnabled = useReadReceipts();
+
+  // Workspace policy gates for message actions — one fetch behind every
+  // conversation surface (channels, DMs, group DMs, apps, agents,
+  // coworkers), rather than each having its own copy. `workspace` is the
+  // active-route workspace, which always matches `workspaceId` here in
+  // practice since chat only ever renders inside a workspace route.
+  const { workspace } = useCurrentWorkspace();
+  const policiesQuery = useWorkspacePolicies(workspaceId);
+  const canReact = isPolicyRoleAllowed(
+    workspace?.role,
+    policiesQuery.data?.whoCanReact ?? PolicySubjectRole.MEMBERS,
+  );
+  const canModerateMessages = roleHasPermission(
+    workspace?.role,
+    WorkspacePermission.MODERATE_MESSAGES,
+  );
 
   /*
    * `following` — whether the reader is at the live bottom of the timeline.
@@ -703,7 +729,9 @@ export function ChatPanel({
       onSend={actions.send}
       onEdit={actions.edit}
       onDelete={handleDeleteMessage}
-      onReact={actions.toggleReaction}
+      onReact={canReact ? actions.toggleReaction : undefined}
+      canModerateMessages={canModerateMessages}
+      editWindowMinutes={policiesQuery.data?.messageEditWindowMinutes}
       onTyping={actions.setTyping}
       onAttach={actions.attach}
       onSendVoice={actions.sendVoice}
@@ -718,6 +746,7 @@ export function ChatPanel({
       onAction={handleAction}
       onRetryAgent={handleRetryAgent}
       composerReadOnlyMessage={composerReadOnlyMessage}
+      threadComposerReadOnlyMessage={threadComposerReadOnlyMessage}
       anonymousPosting={anonymousPosting}
       canManageConversation={canManageConversation}
       onViewSystemEventEntity={handleViewSystemEventEntity}

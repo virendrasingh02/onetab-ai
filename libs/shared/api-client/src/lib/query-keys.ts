@@ -25,6 +25,12 @@ export const queryKeys = {
      */
     appearance: (workspaceId: string) =>
       ['workspaces', workspaceId, 'appearance'] as const,
+    /** `WorkspacePolicy` — who-can-do-what for this workspace. */
+    policies: (workspaceId: string) =>
+      ['workspaces', workspaceId, 'policies'] as const,
+    /** The channel new members are auto-added to on joining. */
+    defaultChannel: (workspaceId: string) =>
+      ['workspaces', workspaceId, 'default-channel'] as const,
   },
   billing: {
     all: (workspaceId: string) => ['billing', workspaceId] as const,

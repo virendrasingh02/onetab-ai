@@ -1,4 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AppEvent } from '@org/api-common';
 import { PrismaService } from '@org/database';
 import {
   resolveWorkspaceAppearance,
@@ -34,7 +36,23 @@ export class WorkspaceSettingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: WorkspaceAuditService,
+    private readonly events: EventEmitter2,
   ) {}
+
+  private emitSettingsUpdated(params: {
+    workspaceId: string;
+    userId: string | null;
+    category: 'policies' | 'appearance';
+    scope: 'workspace' | 'user';
+  }): void {
+    this.events.emit(AppEvent.SettingsUpdated, {
+      scope: params.scope,
+      workspaceId: params.workspaceId,
+      userId: params.userId,
+      actorId: params.userId,
+      category: params.category,
+    });
+  }
 
   private asBlob(value: unknown): ThemeAppearance {
     return (value as ThemeAppearance | null | undefined) ?? {};
@@ -109,6 +127,12 @@ export class WorkspaceSettingsService {
       update: { theme: merged as object },
       select: { theme: true },
     });
+    this.emitSettingsUpdated({
+      workspaceId,
+      userId: null,
+      category: 'appearance',
+      scope: 'workspace',
+    });
     return this.asBlob(row.theme);
   }
 
@@ -131,6 +155,12 @@ export class WorkspaceSettingsService {
       create: { workspaceId, userId, data: merged as object },
       update: { data: merged as object },
       select: { data: true },
+    });
+    this.emitSettingsUpdated({
+      workspaceId,
+      userId,
+      category: 'appearance',
+      scope: 'user',
     });
     return this.asBlob(row.data);
   }
@@ -182,6 +212,68 @@ export class WorkspaceSettingsService {
       metadata: { previous: current, updated },
     });
 
+    this.emitSettingsUpdated({
+      workspaceId,
+      userId: actorId,
+      category: 'policies',
+      scope: 'workspace',
+    });
+
     return updated;
+  }
+
+  /**
+   * The channel a new member is auto-added to on joining (Settings →
+   * Channels & DMs). A soft reference — `defaultChannelId` carries no DB
+   * foreign key, so this validates it against `Channel` itself and reports
+   * `null` if the saved id no longer resolves to a real, unarchived channel
+   * in this workspace (deleted/archived since it was set).
+   */
+  async getDefaultChannel(workspaceId: string): Promise<{ channelId: string | null }> {
+    const row = await this.prisma.workspaceSettings.findUnique({
+      where: { workspaceId },
+      select: { defaultChannelId: true },
+    });
+    if (!row?.defaultChannelId) return { channelId: null };
+
+    const channel = await this.prisma.channel.findFirst({
+      where: { id: row.defaultChannelId, workspaceId, isArchived: false },
+      select: { id: true },
+    });
+    return { channelId: channel?.id ?? null };
+  }
+
+  /** `channelId: null` clears it — new members are simply not auto-added anywhere. */
+  async saveDefaultChannel(
+    workspaceId: string,
+    channelId: string | null,
+    actorId: string,
+  ): Promise<{ channelId: string | null }> {
+    if (channelId) {
+      const channel = await this.prisma.channel.findFirst({
+        where: { id: channelId, workspaceId, isArchived: false },
+        select: { id: true },
+      });
+      if (!channel) {
+        throw new BadRequestException(
+          'That channel does not exist in this workspace, or is archived.',
+        );
+      }
+    }
+
+    await this.prisma.workspaceSettings.upsert({
+      where: { workspaceId },
+      create: { workspaceId, defaultChannelId: channelId },
+      update: { defaultChannelId: channelId },
+    });
+
+    this.emitSettingsUpdated({
+      workspaceId,
+      userId: actorId,
+      category: 'policies',
+      scope: 'workspace',
+    });
+
+    return { channelId };
   }
 }

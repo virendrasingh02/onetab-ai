@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PUBLIC_USER_SELECT } from '@org/api-common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AppEvent, PUBLIC_USER_SELECT } from '@org/api-common';
 import { PrismaService } from '@org/database';
 
 export interface NotificationPreferenceInput {
@@ -50,7 +51,10 @@ export interface ActivityFeedItem {
 
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly events: EventEmitter2,
+  ) {}
 
   // --- preferences ----------------------------------------------------------
 
@@ -117,11 +121,21 @@ export class NotificationsService {
         : {}),
     };
 
-    return this.prisma.notificationPreference.upsert({
+    const saved = await this.prisma.notificationPreference.upsert({
       where: { userId_workspaceId: { userId, workspaceId } },
       create: { userId, workspaceId, ...data },
       update: data,
     });
+
+    this.events.emit(AppEvent.SettingsUpdated, {
+      scope: 'user',
+      workspaceId,
+      userId,
+      actorId: userId,
+      category: 'notifications',
+    });
+
+    return saved;
   }
 
   // --- push registrations ---------------------------------------------------

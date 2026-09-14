@@ -1,4 +1,5 @@
-import { workspaceApi } from '@org/api-client';
+import { queryKeys, workspaceApi } from '@org/api-client';
+import { useWorkspacePolicies } from '../use-workspaces.js';
 import {
   DEFAULT_WORKSPACE_POLICY,
   PolicySubjectRole,
@@ -15,8 +16,8 @@ import {
   SelectValue,
   SkeletonList,
 } from '@org/ui';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, Users, Lock, Bot, AppWindow } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { CheckCircle2, Users, Lock, Bot, AppWindow, MessageSquare } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
   SettingsCard,
@@ -43,11 +44,7 @@ export function WorkspacePermissionsSettings({
   const isAdmin =
     workspaceRole && hasWorkspaceRole(workspaceRole, WorkspaceRole.ADMIN);
 
-  const { data: policies, isLoading } = useQuery({
-    queryKey: ['workspace-policies', workspaceId],
-    queryFn: () => workspaceApi.getPolicies(workspaceId as string),
-    enabled: !!workspaceId,
-  });
+  const { data: policies, isLoading } = useWorkspacePolicies(workspaceId);
 
   const [form, setForm] = useState<WorkspacePolicy>(DEFAULT_WORKSPACE_POLICY);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -63,7 +60,10 @@ export function WorkspacePermissionsSettings({
       workspaceApi.savePolicies(workspaceId as string, updated),
     onSuccess: (saved) => {
       setForm(saved);
-      queryClient.setQueryData(['workspace-policies', workspaceId], saved);
+      queryClient.setQueryData(
+        queryKeys.workspaces.policies(workspaceId ?? ''),
+        saved,
+      );
       setSuccessMessage('Workspace permissions updated successfully.');
       setTimeout(() => setSuccessMessage(null), 3500);
     },
@@ -372,6 +372,159 @@ export function WorkspacePermissionsSettings({
                 <SelectItem value="ENABLED">Always Enabled</SelectItem>
                 <SelectItem value="OPTIONAL">Optional (User Preference)</SelectItem>
                 <SelectItem value="DISABLED">Always Disabled</SelectItem>
+              </SelectContent>
+            </Select>
+          </SettingsRow>
+
+          <SettingsRow
+            title="Max attachment size"
+            description="Per-file upload ceiling. Cannot exceed the platform limit; the security file-type blocklist always applies regardless of this setting."
+          >
+            <Select
+              disabled={!isAdmin || saveMutation.isPending}
+              value={form.maxUploadSizeMb == null ? 'default' : String(form.maxUploadSizeMb)}
+              onValueChange={(val) => {
+                const next = {
+                  ...form,
+                  maxUploadSizeMb: val === 'default' ? null : Number(val),
+                };
+                setForm(next);
+                saveMutation.mutate(next);
+              }}
+            >
+              <SelectTrigger className="h-8 text-xs w-[220px] bg-surface">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Default (25 MB)</SelectItem>
+                <SelectItem value="5">5 MB</SelectItem>
+                <SelectItem value="10">10 MB</SelectItem>
+                <SelectItem value="15">15 MB</SelectItem>
+                <SelectItem value="25">25 MB (max)</SelectItem>
+              </SelectContent>
+            </Select>
+          </SettingsRow>
+        </SettingsCard>
+      </div>
+
+      {/* Messaging & Moderation */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <MessageSquare className="size-4 text-primary" />
+          Messaging & Moderation
+        </h3>
+        <SettingsCard divided>
+          <SettingsRow
+            title="Who can react to messages"
+            description="Control which members may add emoji reactions to messages."
+          >
+            <Select
+              disabled={!isAdmin || saveMutation.isPending}
+              value={form.whoCanReact}
+              onValueChange={(val) =>
+                updateField('whoCanReact', val as PolicySubjectRole)
+              }
+            >
+              <SelectTrigger className="h-8 text-xs w-[220px] bg-surface">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {POLICY_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </SettingsRow>
+
+          <SettingsRow
+            title="Read Receipts Policy"
+            description="Force read receipts on or off for every member, or leave it as each member's own preference."
+          >
+            <Select
+              disabled={!isAdmin || saveMutation.isPending}
+              value={form.readReceiptsPolicy ?? 'OPTIONAL'}
+              onValueChange={(val) => {
+                const next = {
+                  ...form,
+                  readReceiptsPolicy: val as LinkPreviewPolicy,
+                };
+                setForm(next);
+                saveMutation.mutate(next);
+              }}
+            >
+              <SelectTrigger className="h-8 text-xs w-[220px] bg-surface">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ENABLED">Always On</SelectItem>
+                <SelectItem value="OPTIONAL">Optional (Member Preference)</SelectItem>
+                <SelectItem value="DISABLED">Always Off</SelectItem>
+              </SelectContent>
+            </Select>
+          </SettingsRow>
+
+          <SettingsRow
+            title="Message edit window"
+            description="How long members may edit their own messages after sending. Admins and owners can always delete another member's message."
+          >
+            <Select
+              disabled={!isAdmin || saveMutation.isPending}
+              value={
+                form.messageEditWindowMinutes == null
+                  ? 'unlimited'
+                  : String(form.messageEditWindowMinutes)
+              }
+              onValueChange={(val) => {
+                const next = {
+                  ...form,
+                  messageEditWindowMinutes: val === 'unlimited' ? null : Number(val),
+                };
+                setForm(next);
+                saveMutation.mutate(next);
+              }}
+            >
+              <SelectTrigger className="h-8 text-xs w-[220px] bg-surface">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unlimited">Unlimited (Default)</SelectItem>
+                <SelectItem value="15">15 minutes</SelectItem>
+                <SelectItem value="60">1 hour</SelectItem>
+                <SelectItem value="1440">24 hours</SelectItem>
+              </SelectContent>
+            </Select>
+          </SettingsRow>
+
+          <SettingsRow
+            title="Auto-archive inactive channels"
+            description="Archive a channel automatically after this many days with no new messages."
+          >
+            <Select
+              disabled={!isAdmin || saveMutation.isPending}
+              value={
+                form.autoArchiveInactiveDays == null
+                  ? 'never'
+                  : String(form.autoArchiveInactiveDays)
+              }
+              onValueChange={(val) => {
+                const next = {
+                  ...form,
+                  autoArchiveInactiveDays: val === 'never' ? null : Number(val),
+                };
+                setForm(next);
+                saveMutation.mutate(next);
+              }}
+            >
+              <SelectTrigger className="h-8 text-xs w-[220px] bg-surface">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="never">Never (Default)</SelectItem>
+                <SelectItem value="30">30 days</SelectItem>
+                <SelectItem value="90">90 days</SelectItem>
+                <SelectItem value="365">365 days</SelectItem>
               </SelectContent>
             </Select>
           </SettingsRow>

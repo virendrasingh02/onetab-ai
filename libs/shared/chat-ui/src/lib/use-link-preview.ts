@@ -1,3 +1,4 @@
+import { resolvePolicyGatedSetting } from '@org/types';
 import type {
   ChatPreferences,
   LinkPreview,
@@ -127,6 +128,10 @@ export const useLinkPreviewStore = create<LinkPreviewState>((set, get) => ({
  * 2. User global preference (chat.linkPreviewsEnabled, default: true)
  * 3. Workspace policy (linkPreviewsPolicy: ENABLED, OPTIONAL, DISABLED)
  * 4. System default: true
+ *
+ * Delegates to the shared `resolvePolicyGatedSetting` (`@org/types`) — the
+ * same precedence, generalized so other ENABLED/OPTIONAL/DISABLED workspace
+ * policies (read receipts, reactions, …) don't need their own copy.
  */
 export function resolvePreviewVisibility(params: {
   messageId: string;
@@ -142,28 +147,19 @@ export function resolvePreviewVisibility(params: {
     workspacePolicy,
   } = params;
 
-  // Level 1: Explicit per-message override takes top precedence
   const explicitOverride = messageOverrides[messageId];
-  if (explicitOverride === 'visible') return true;
-  if (explicitOverride === 'hidden') return false;
 
-  // Level 3 Check: If workspace policy strictly disables link previews
-  if (workspacePolicy?.linkPreviewsPolicy === 'DISABLED') {
-    return false;
-  }
-
-  // If workspace policy forces link previews to be enabled
-  if (workspacePolicy?.linkPreviewsPolicy === 'ENABLED') {
-    return true;
-  }
-
-  // Level 2: User global preference (defaults to true)
-  if (typeof userChatPreferences?.linkPreviewsEnabled === 'boolean') {
-    return userChatPreferences.linkPreviewsEnabled;
-  }
-
-  // Level 4: System default
-  return true;
+  return resolvePolicyGatedSetting({
+    contextOverride:
+      explicitOverride === 'visible'
+        ? true
+        : explicitOverride === 'hidden'
+          ? false
+          : undefined,
+    policy: workspacePolicy?.linkPreviewsPolicy,
+    userPreference: userChatPreferences?.linkPreviewsEnabled,
+    systemDefault: true,
+  });
 }
 
 /**

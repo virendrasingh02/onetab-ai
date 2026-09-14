@@ -113,6 +113,12 @@ export const chatPreferencesSchema = z.object({
   openPosition: z.enum(['last-read', 'newest']).default('last-read'),
   readReceipts: z.boolean().default(true),
   linkPreviewsEnabled: z.boolean().default(true),
+  enterToSend: z.boolean().default(true),
+  sendTypingNotice: z.boolean().default(true),
+  /** Show *other* people's typing indicators. Independent of `sendTypingNotice`. */
+  showTypingIndicators: z.boolean().default(true),
+  mentionWarningsEnabled: z.boolean().default(true),
+  allowDirectMessagesFrom: z.enum(['everyone', 'members', 'admins']).default('everyone'),
 });
 
 export const notificationSoundEventsSchema = z.object({
@@ -280,6 +286,11 @@ export const userPreferencesSchema = z.object({
     openPosition: 'last-read',
     readReceipts: true,
     linkPreviewsEnabled: true,
+    enterToSend: true,
+    sendTypingNotice: true,
+    showTypingIndicators: true,
+    mentionWarningsEnabled: true,
+    allowDirectMessagesFrom: 'everyone',
   }),
   notifications: notificationDisplayPreferencesSchema.default({
     showContentPreview: true,

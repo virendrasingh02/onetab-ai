@@ -980,6 +980,11 @@ export class MemberService {
         invitation.maxUses !== undefined &&
         newUseCount >= invitation.maxUses);
 
+    // Default Join Channel (Settings → Channels & DMs): only when the invite
+    // itself wasn't already scoped to a specific channel — that's the more
+    // specific instruction and wins.
+    let defaultChannelJoined: string | null = null;
+
     await this.prisma.$transaction(async (tx) => {
       // Upsert workspace membership
       await tx.workspaceMember.upsert({
@@ -1015,6 +1020,35 @@ export class MemberService {
           },
           update: {},
         });
+      } else {
+        const settings = await tx.workspaceSettings.findUnique({
+          where: { workspaceId: invitation.workspaceId },
+          select: { defaultChannelId: true },
+        });
+        if (settings?.defaultChannelId) {
+          const defaultChannel = await tx.channel.findFirst({
+            where: {
+              id: settings.defaultChannelId,
+              workspaceId: invitation.workspaceId,
+              isArchived: false,
+            },
+            select: { id: true },
+          });
+          if (defaultChannel) {
+            await tx.channelMember.upsert({
+              where: {
+                channelId_userId: { channelId: defaultChannel.id, userId },
+              },
+              create: {
+                channelId: defaultChannel.id,
+                userId,
+                role: 'MEMBER',
+              },
+              update: {},
+            });
+            defaultChannelJoined = defaultChannel.id;
+          }
+        }
       }
 
       // Update invitation usage/status
@@ -1060,6 +1094,15 @@ export class MemberService {
         workspaceId: invitation.workspaceId,
         actorId: userId,
         channelId: invitation.channelId,
+        userId,
+        action: 'join',
+        role: 'MEMBER',
+      });
+    } else if (defaultChannelJoined) {
+      this.events.emit(AppEvent.ChannelMembershipChanged, {
+        workspaceId: invitation.workspaceId,
+        actorId: userId,
+        channelId: defaultChannelJoined,
         userId,
         action: 'join',
         role: 'MEMBER',

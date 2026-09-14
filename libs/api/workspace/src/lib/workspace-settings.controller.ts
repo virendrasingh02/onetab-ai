@@ -98,4 +98,21 @@ export class WorkspaceSettingsController {
   ) {
     return this.settings.savePolicies(workspaceId, body as any, userId);
   }
+
+  /** The channel new members are auto-added to on joining. Any member can read. */
+  @Get('default-channel')
+  getDefaultChannel(@WorkspaceId() workspaceId: string) {
+    return this.settings.getDefaultChannel(workspaceId);
+  }
+
+  /** Admins and Owners only. */
+  @Put('default-channel')
+  @RequireWorkspacePermissions(WorkspacePermission.MANAGE_SETTINGS)
+  saveDefaultChannel(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @Body('channelId') channelId: string | null,
+  ) {
+    return this.settings.saveDefaultChannel(workspaceId, channelId ?? null, userId);
+  }
 }

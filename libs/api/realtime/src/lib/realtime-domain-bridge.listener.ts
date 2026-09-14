@@ -362,4 +362,42 @@ export class RealtimeDomainBridgeListener {
       });
     }
   }
+
+  /**
+   * A settings/preference write landed. `scope: 'workspace'` fans to every
+   * connected member (policy/appearance-default/channel changes);
+   * `scope: 'user'` reaches only the acting user's own connections (their
+   * own preferences), scoped to the workspace they were viewing when known
+   * so `applyRealtimeEvent`'s workspace-safety check does not drop it.
+   */
+  @OnEvent(AppEvent.SettingsUpdated)
+  async onSettingsUpdated(e: {
+    scope: 'workspace' | 'user';
+    workspaceId: string | null;
+    userId: string | null;
+    actorId: string | null;
+    category: string;
+    data?: Record<string, unknown>;
+  }): Promise<void> {
+    const payload = {
+      category: e.category,
+      data: e.data,
+      workspaceId: e.workspaceId ?? undefined,
+    };
+    if (e.scope === 'workspace' && e.workspaceId) {
+      await this.gateway.broadcastToWorkspace(e.workspaceId, {
+        type: 'settings.updated',
+        actorId: e.actorId,
+        payload,
+      });
+      return;
+    }
+    if (e.userId) {
+      this.gateway.broadcastToUser(e.userId, {
+        type: 'settings.updated',
+        workspaceId: e.workspaceId ?? undefined,
+        payload,
+      });
+    }
+  }
 }

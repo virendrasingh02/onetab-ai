@@ -25,6 +25,7 @@ export const DEFAULT_CHAT_PREFERENCES: ChatPreferences = {
   readReceipts: true,
   enterToSend: true,
   sendTypingNotice: true,
+  showTypingIndicators: true,
   mentionWarningsEnabled: true,
   allowDirectMessagesFrom: 'everyone',
   linkPreviewsEnabled: true,
@@ -127,6 +128,10 @@ function sanitizePreferences(raw: unknown): UserPreferences {
     typeof chatObj['enterToSend'] === 'boolean' ? chatObj['enterToSend'] : true;
   const sendTypingNotice =
     typeof chatObj['sendTypingNotice'] === 'boolean' ? chatObj['sendTypingNotice'] : true;
+  const showTypingIndicators =
+    typeof chatObj['showTypingIndicators'] === 'boolean'
+      ? chatObj['showTypingIndicators']
+      : true;
   const mentionWarningsEnabled =
     typeof chatObj['mentionWarningsEnabled'] === 'boolean' ? chatObj['mentionWarningsEnabled'] : true;
   const allowDirectMessagesFrom =
@@ -186,6 +191,7 @@ function sanitizePreferences(raw: unknown): UserPreferences {
       readReceipts,
       enterToSend,
       sendTypingNotice,
+      showTypingIndicators,
       mentionWarningsEnabled,
       allowDirectMessagesFrom,
       linkPreviewsEnabled,

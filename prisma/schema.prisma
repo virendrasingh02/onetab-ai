@@ -331,6 +331,11 @@ model WorkspaceSettings {
   workspaceId String    @unique
   theme       Json      @default("{}")
   policies    Json      @default("{}")
+  /// Channel a new member is auto-added to on joining. A soft reference (no
+  /// FK/relation) — validated at the application layer against `Channel`, the
+  /// same pattern `matrixRoomId`-style ids use elsewhere in this schema. Null
+  /// until an admin picks one; join behavior is unchanged (no auto-add).
+  defaultChannelId String?
   updatedAt   DateTime  @updatedAt
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
@@ -860,12 +865,20 @@ model ChatSettings {
   density                 String   @default("comfortable")
   showReadReceipts        Boolean  @default(true)
   sendTypingNotice        Boolean  @default(true)
+  /// Show other people's typing indicators. Independent of `sendTypingNotice`,
+  /// which controls whether *this* user's own typing is broadcast.
+  showTypingIndicators    Boolean  @default(true)
   enterToSend             Boolean  @default(true)
   mentionWarningsEnabled  Boolean  @default(true)
   allowDirectMessagesFrom String   @default("everyone")
   playSounds              Boolean  @default(true)
   /// Load remote images and link previews automatically.
   autoloadMedia           Boolean  @default(true)
+  /// `NotificationDisplayPreferences` (toast position/size/duration/privacy +
+  /// nested sound profile) — the "notifications" half of `UserPreferences`.
+  /// Was hardcoded server-side; this closes that round-trip gap so it
+  /// persists like `chat.*` already does. Null until the user first saves.
+  notificationDisplayPrefs Json?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
   user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)

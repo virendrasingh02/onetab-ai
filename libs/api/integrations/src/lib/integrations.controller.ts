@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -11,12 +12,21 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { WorkspaceRoleGuard } from '@org/api-auth';
-import { CurrentUser, Public, WorkspaceId, WorkspaceRoles } from '@org/api-common';
 import {
+  CurrentUser,
+  Public,
+  WorkspaceId,
+  WorkspaceMemberRole,
+  WorkspacePolicies,
+  WorkspaceRoles,
+} from '@org/api-common';
+import {
+  isPolicyRoleAllowed,
   WorkspaceRole,
   type IntegrationExecuteRequestInput,
   type ReplyMessageInput,
   type SendMessageInput,
+  type WorkspacePolicy,
 } from '@org/types';
 import type { Response } from 'express';
 import { IntegrationsService } from './integrations.service.js';
@@ -105,6 +115,8 @@ export class IntegrationsController {
   connectProvider(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
+    @WorkspaceMemberRole() role: WorkspaceRole | undefined,
+    @WorkspacePolicies() policies: WorkspacePolicy | undefined,
     @Param('provider') provider: string,
     @Body()
     body: {
@@ -114,6 +126,20 @@ export class IntegrationsController {
       redirectUri?: string;
     },
   ) {
+    // `whoCanInstallApps` (Settings → Permissions & Policies) only governs a
+    // *workspace*-scoped connection — a member connecting their own personal
+    // integration needs no special policy, same as `IntegrationPermissionService`
+    // already treats `scopeType: 'USER'` as the member's own business.
+    if (
+      (body.scopeType ?? 'WORKSPACE') === 'WORKSPACE' &&
+      policies &&
+      !isPolicyRoleAllowed(role, policies.whoCanInstallApps)
+    ) {
+      throw new ForbiddenException(
+        'You do not have permission to install apps in this workspace.',
+      );
+    }
+
     return this.integrationsService.initiateConnect({
       provider,
       workspaceId,

@@ -233,6 +233,10 @@ export interface ChatSurfaceProps {
   onSend: (body: string, threadRootId?: string) => void | Promise<void>;
   onEdit?: (eventId: string, body: string) => void | Promise<void>;
   onDelete?: (eventId: string) => void | Promise<void>;
+  /** Holds `WorkspacePermission.MODERATE_MESSAGES` — may delete another member's message. */
+  canModerateMessages?: boolean;
+  /** `WorkspacePolicy.messageEditWindowMinutes` — null/unset means unlimited. */
+  editWindowMinutes?: number | null;
   onReact?: (
     eventId: string,
     key: string,
@@ -266,7 +270,6 @@ export interface ChatSurfaceProps {
    * entity kinds your page can actually open (brief §10).
    */
   onViewSystemEventEntity?: (entity: SystemEventEntity) => void;
-  onSchedule?: (body: string, when: string) => void;
   onAction?: (
     message: Message,
     action: StructuredMessageAction,
@@ -277,6 +280,8 @@ export interface ChatSurfaceProps {
    * cannot post here (an announcement channel, brief §3).
    */
   composerReadOnlyMessage?: ReactNode;
+  /** Overrides `composerReadOnlyMessage` for the thread reply composer specifically — e.g. an announcement channel that allows posting but has replies switched off. Falls back to `composerReadOnlyMessage` when unset. */
+  threadComposerReadOnlyMessage?: ReactNode;
   /** Anonymous-posting toggle for the composer (brief §2). */
   anonymousPosting?: {
     allowed: boolean;
@@ -342,6 +347,8 @@ export function ChatSurface({
   onSend,
   onEdit,
   onDelete,
+  canModerateMessages,
+  editWindowMinutes,
   onReact,
   onTyping,
   onAttach,
@@ -354,10 +361,10 @@ export function ChatSurface({
   onCreateDoc,
   onAskAI,
   onViewContext,
-  onSchedule,
   onAction,
   onRetryAgent,
   composerReadOnlyMessage,
+  threadComposerReadOnlyMessage,
   anonymousPosting,
   canManageConversation,
   onViewSystemEventEntity,
@@ -802,6 +809,8 @@ export function ChatSurface({
           }
           onEdit={onEdit ? () => setEditing(message) : undefined}
           onDelete={onDelete ? () => void onDelete(message.id) : undefined}
+          canModerateMessages={canModerateMessages}
+          editWindowMinutes={editWindowMinutes}
           onOpenThread={() =>
             openThreadPanel(message.threadRootId ?? message.id)
           }
@@ -918,6 +927,8 @@ export function ChatSurface({
       onReact,
       onEdit,
       onDelete,
+      canModerateMessages,
+      editWindowMinutes,
       onTogglePin,
       onToggleSave,
       onAssignToMe,
@@ -1229,6 +1240,9 @@ export function ChatSurface({
                       linkPreviewsEnabled={chat?.linkPreviewsEnabled ?? true}
                       showFormatting={false}
                       placeholder="Reply in thread…"
+                      readOnlyMessage={
+                        threadComposerReadOnlyMessage ?? composerReadOnlyMessage
+                      }
                       onSend={(body) => onSend(body, threadRoot.id)}
                       onTyping={effectiveOnTyping}
                       enterToSend={chat?.enterToSend ?? true}
@@ -1340,7 +1354,9 @@ export function ChatSurface({
         </div>
 
         <div className="bottom-0 sticky z-20 w-full shrink-0 bg-background">
-          <TypingIndicator names={typingNames} />
+          {chat?.showTypingIndicators !== false ? (
+            <TypingIndicator names={typingNames} />
+          ) : null}
           <Composer
             conversationId={conversationId}
             members={members}
@@ -1353,7 +1369,6 @@ export function ChatSurface({
             placeholder={editing ? 'Edit your message…' : `Message ${title}`}
             readOnlyMessage={editing ? undefined : composerReadOnlyMessage}
             anonymousPosting={editing ? undefined : anonymousPosting}
-            onSchedule={onSchedule}
             onMentionsChange={mainControl.onMentionsChange}
             contextSlot={
               editing ? (

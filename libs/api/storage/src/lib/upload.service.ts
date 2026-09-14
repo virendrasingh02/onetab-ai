@@ -31,7 +31,13 @@ import type {
   UploadPage,
   UploadStorageUsage,
 } from '@org/types';
-import { getPlanLimit, isLimitReached, isNearLimit, normalizePlanTier } from '@org/types';
+import {
+  getPlanLimit,
+  isLimitReached,
+  isNearLimit,
+  normalizePlanTier,
+  resolveWorkspacePolicy,
+} from '@org/types';
 import type { UpdateUploadInput } from '@org/validation';
 import { StorageService } from './storage.service.js';
 
@@ -448,7 +454,7 @@ export class UploadService implements OnModuleInit {
     file: IncomingFile,
     contextInput: UploadContextInput = {},
   ): Promise<Upload> {
-    this.assertUploadable(file);
+    this.assertUploadable(file, await this.resolveMaxUploadBytes(workspaceId));
 
     const usage = await this.storageUsage(workspaceId);
     if (isLimitReached(usage.usedBytes + file.size, usage.limitBytes)) {
@@ -502,7 +508,7 @@ export class UploadService implements OnModuleInit {
     uploaderId: string,
     file: IncomingFile,
   ): Promise<Upload> {
-    this.assertUploadable(file);
+    this.assertUploadable(file, await this.resolveMaxUploadBytes(workspaceId));
 
     const current = await this.prisma.upload.findFirst({
       where: { id: uploadId, workspaceId, isCurrent: true },
@@ -799,13 +805,32 @@ export class UploadService implements OnModuleInit {
     );
   }
 
-  private assertUploadable(file: IncomingFile): void {
+  /**
+   * `WorkspacePolicy.maxUploadSizeMb` (Settings → Permissions & Policies) —
+   * an admin-set ceiling *within* `MAX_UPLOAD_BYTES`, never above it. Never
+   * loosens the security blocklist in `isAllowedUpload`, which stays
+   * hardcoded on purpose (a security control, not a preference).
+   */
+  private async resolveMaxUploadBytes(workspaceId: string): Promise<number> {
+    const row = await this.prisma.workspaceSettings.findUnique({
+      where: { workspaceId },
+      select: { policies: true },
+    });
+    const mb = resolveWorkspacePolicy(row?.policies).maxUploadSizeMb;
+    if (!mb) return MAX_UPLOAD_BYTES;
+    return Math.min(mb * 1024 * 1024, MAX_UPLOAD_BYTES);
+  }
+
+  private assertUploadable(
+    file: IncomingFile,
+    maxBytes: number = MAX_UPLOAD_BYTES,
+  ): void {
     if (!file?.buffer?.byteLength) {
       throw new BadRequestException('The uploaded file is empty.');
     }
-    if (file.size > MAX_UPLOAD_BYTES) {
+    if (file.size > maxBytes) {
       throw new BadRequestException(
-        `Files must be ${MAX_UPLOAD_BYTES / (1024 * 1024)} MB or smaller.`,
+        `Files must be ${Math.round(maxBytes / (1024 * 1024))} MB or smaller in this workspace.`,
       );
     }
     if (!isAllowedUpload(file.originalname, file.mimetype)) {

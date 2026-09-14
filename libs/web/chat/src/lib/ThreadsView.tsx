@@ -22,7 +22,13 @@ import {
   TabsTrigger,
 } from '@org/ui';
 import { formatRelative } from '@org/utils';
-import { useCurrentWorkspace } from '@org/web-workspace';
+import {
+  isPolicyRoleAllowed,
+  PolicySubjectRole,
+  roleHasPermission,
+  WorkspacePermission,
+} from '@org/types';
+import { useCurrentWorkspace, useWorkspacePolicies } from '@org/web-workspace';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowUpRight, Hash, MessagesSquare } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -147,7 +153,16 @@ function ThreadDetail({
     thread.id,
   );
 
-  const { workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
+  const { workspace, workspaceId, slug: workspaceSlug } = useCurrentWorkspace();
+  const policiesQuery = useWorkspacePolicies(workspaceId);
+  const canReact = isPolicyRoleAllowed(
+    workspace?.role,
+    policiesQuery.data?.whoCanReact ?? PolicySubjectRole.MEMBERS,
+  );
+  const canModerateMessages = roleHasPermission(
+    workspace?.role,
+    WorkspacePermission.MODERATE_MESSAGES,
+  );
 
   const composerContext = useMemo<ComposerContext>(
     () => ({
@@ -209,15 +224,18 @@ function ThreadDetail({
                 density={density}
                 mentionNames={mentionNames}
                 threadParticipants={[]}
-                onReact={(key) =>
-                  void actions.toggleReaction(
-                    reply.id,
-                    key,
-                    reply.reactions.some(
-                      (reaction) =>
-                        reaction.key === key && reaction.reactedByMe,
-                    ),
-                  )
+                onReact={
+                  canReact
+                    ? (key) =>
+                        void actions.toggleReaction(
+                          reply.id,
+                          key,
+                          reply.reactions.some(
+                            (reaction) =>
+                              reaction.key === key && reaction.reactedByMe,
+                          ),
+                        )
+                    : undefined
                 }
                 onEdit={
                   reply.senderId === myUserId
@@ -225,10 +243,12 @@ function ThreadDetail({
                     : undefined
                 }
                 onDelete={
-                  reply.senderId === myUserId
+                  reply.senderId === myUserId || canModerateMessages
                     ? () => void actions.remove(reply.id)
                     : undefined
                 }
+                canModerateMessages={canModerateMessages}
+                editWindowMinutes={policiesQuery.data?.messageEditWindowMinutes}
                 onRetry={
                   reply.sendState === 'failed'
                     ? () => void actions.retry(reply.id)

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -15,8 +16,15 @@ import {
   CurrentUser,
   RequireWorkspacePermissions,
   WorkspaceId,
+  WorkspaceMemberRole,
+  WorkspacePolicies,
 } from '@org/api-common';
-import { WorkspacePermission } from '@org/types';
+import {
+  isPolicyRoleAllowed,
+  WorkspacePermission,
+  type WorkspacePolicy,
+  type WorkspaceRole,
+} from '@org/types';
 import { AgentsService } from './agents.service.js';
 
 /**
@@ -54,6 +62,8 @@ export class AgentsController {
   createAgent(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
+    @WorkspaceMemberRole() role: WorkspaceRole | undefined,
+    @WorkspacePolicies() policies: WorkspacePolicy | undefined,
     @Body()
     body: {
       name: string;
@@ -68,6 +78,12 @@ export class AgentsController {
       graphJson?: string;
     },
   ) {
+    // Settings → Permissions & Policies → "Who can create AI Agents".
+    if (policies && !isPolicyRoleAllowed(role, policies.whoCanCreateAgents)) {
+      throw new ForbiddenException(
+        'You do not have permission to create AI agents in this workspace.',
+      );
+    }
     return this.agentsService.createAgent(workspaceId, userId, body);
   }
 

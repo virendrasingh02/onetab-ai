@@ -165,8 +165,38 @@ export function applyRealtimeEvent(
     case RealtimeEventType.SettingsUpdated: {
       const category = (event.payload as { category?: string } | undefined)
         ?.category;
-      if (category === 'notifications') {
-        invalidate(queryKeys.notifications.preferences(ws));
+      switch (category) {
+        case 'notifications':
+          invalidate(queryKeys.notifications.preferences(ws));
+          break;
+        case 'policies':
+          // Every screen that gates on workspace policy (permissions tab,
+          // composer capability checks, channel/reaction/upload gating)
+          // reads through this one key.
+          invalidate(queryKeys.workspaces.policies(ws));
+          break;
+        case 'appearance':
+          invalidate(queryKeys.workspaces.appearance(ws));
+          break;
+        case 'chat':
+          invalidate(queryKeys.user.preferences());
+          break;
+        case 'sidebar':
+          invalidate(queryKeys.user.sidebarPreferences());
+          break;
+        case 'navigation':
+          invalidate(queryKeys.user.navigationPreferences());
+          break;
+        case 'channel': {
+          const channelId = (
+            event.payload as { data?: { channelId?: string } } | undefined
+          )?.data?.channelId;
+          if (channelId) invalidate(queryKeys.channels.members(ws, channelId));
+          invalidate(queryKeys.channels.all(ws));
+          break;
+        }
+        default:
+          break;
       }
       break;
     }

@@ -6,6 +6,7 @@ import {
 import type {
   SystemRole,
   WorkspacePermission,
+  WorkspacePolicy,
   WorkspaceRole,
 } from '@org/types';
 
@@ -109,6 +110,20 @@ export const WorkspacePermissions = createParamDecorator(
     return request.workspacePermissions as
       | readonly WorkspacePermission[]
       | undefined;
+  },
+);
+
+/**
+ * Injects the resolved `WorkspacePolicy` for the request's workspace —
+ * `WorkspaceRoleGuard` already resolves and attaches it. For handlers that
+ * gate on a specific policy field (`whoCanInstallApps`, `whoCanCreateAgents`,
+ * …) via `isPolicyRoleAllowed`, rather than the coarser RBAC permission
+ * table `@RequireWorkspacePermissions` checks.
+ */
+export const WorkspacePolicies = createParamDecorator(
+  (_data: unknown, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest();
+    return request.workspacePolicies as WorkspacePolicy | undefined;
   },
 );
 

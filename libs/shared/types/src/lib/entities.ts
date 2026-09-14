@@ -335,6 +335,12 @@ export interface ChannelSummary extends Channel {
    * A hint for the UI; the Matrix room's power levels are the real gate.
    */
   canPost: boolean;
+  /**
+   * Whether the viewer may add a thread reply here right now — `canPost`
+   * plus `allowReplies` in announcement mode. Same caveat: a hint for the
+   * UI, the Matrix room's power levels are the real gate.
+   */
+  canReply: boolean;
 }
 
 export interface ChannelMember {

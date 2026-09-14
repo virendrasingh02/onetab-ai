@@ -22,6 +22,8 @@ export interface ChatPreferences {
   readReceipts: boolean;
   enterToSend?: boolean;
   sendTypingNotice?: boolean;
+  /** Show *other* people's typing indicators. Independent of `sendTypingNotice`, which gates broadcasting your own. */
+  showTypingIndicators?: boolean;
   mentionWarningsEnabled?: boolean;
   allowDirectMessagesFrom?: 'everyone' | 'members' | 'admins';
   /** Show link previews by default for detected URLs. */

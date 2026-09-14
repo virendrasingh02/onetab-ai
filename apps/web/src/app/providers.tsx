@@ -32,6 +32,7 @@ import { useI18nStore } from '@org/i18n';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Provider } from 'react-redux';
 import { useActiveWorkspaceId } from './use-active-workspace-id';
+import { usePreferencesSync } from './preferences-sync';
 import { useWorkspaceAppearanceSync } from './workspace-appearance-sync';
 
 function AppToaster() {
@@ -69,6 +70,16 @@ function WorkspaceThemeScope({ children }: { children: ReactNode }) {
       {children}
     </ThemeProvider>
   );
+}
+
+/**
+ * Keeps the Redux `preferences` slice (chat behavior + notification
+ * display/sound settings) in sync with the server. See `usePreferencesSync`.
+ */
+function PreferencesSync() {
+  const user = useCurrentUser();
+  usePreferencesSync(!!user);
+  return null;
 }
 
 /**
@@ -217,6 +228,7 @@ export function Providers({ children }: { children: ReactNode }) {
         <QueryClientProvider client={queryClient}>
           <WorkspaceThemeScope>
             <ThemeSync />
+            <PreferencesSync />
             <LanguageSync />
             {/*
               Inside ThemeProvider (it pushes the resolved theme to native

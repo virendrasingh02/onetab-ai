@@ -23,6 +23,7 @@ import {
   can,
   canManageChannelMembers,
   canPostInChannel,
+  canReplyInChannel,
   clampTempMembershipHours,
   extendedTemporaryExpiry,
   resolveWorkspacePolicy,
@@ -183,6 +184,15 @@ export class ChannelService {
           mode: base.mode,
           createdById: base.createdById,
           announcementPosterIds: base.announcementPosterIds,
+        },
+        { userId, channelRole, workspaceRole },
+      ),
+      canReply: canReplyInChannel(
+        {
+          mode: base.mode,
+          createdById: base.createdById,
+          announcementPosterIds: base.announcementPosterIds,
+          allowReplies: base.allowReplies,
         },
         { userId, channelRole, workspaceRole },
       ),

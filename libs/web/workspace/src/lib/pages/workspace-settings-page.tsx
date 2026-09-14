@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { http, userApi } from '@org/api-client';
+import { channelApi, http, queryKeys, userApi, workspaceApi } from '@org/api-client';
 import { formErrorMessage, useAuthStore, useCurrentUser } from '@org/auth';
 import { useTheme } from '@org/design-system';
 import {
@@ -54,6 +54,7 @@ import {
   type RegionInfo,
 } from '@org/utils';
 import {
+  PolicySubjectRole,
   WorkspaceRole,
   WorkspaceStatus,
   hasWorkspaceRole,
@@ -75,7 +76,7 @@ import {
   type SupportedLanguageCode,
 } from '@org/i18n';
 
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Bell,
   Moon,
@@ -123,6 +124,7 @@ import {
   useUpdateWorkspace,
   useUploadWorkspaceLogo,
   useRemoveWorkspaceLogo,
+  useWorkspacePolicies,
   useActiveSessions,
   useRevokeSession,
   useRevokeOtherSessions,
@@ -177,6 +179,20 @@ export interface WorkspaceSettingsPageProps {
   encryptionSecurityPanel?: ReactNode;
 }
 
+/** Short badge label for a `WorkspacePolicy` subject-role value. Mirrors `POLICY_OPTIONS` in `workspace-permissions-settings.tsx`. */
+function policySubjectLabel(role: PolicySubjectRole | undefined): string {
+  switch (role) {
+    case PolicySubjectRole.OWNER_ONLY:
+      return 'Owner only';
+    case PolicySubjectRole.ADMINS:
+      return 'Admins & Owner';
+    case PolicySubjectRole.MEMBERS:
+      return 'Everyone';
+    default:
+      return 'Loading…';
+  }
+}
+
 export function WorkspaceSettingsPage({
   importPanel,
   kanbanPanel,
@@ -191,6 +207,37 @@ export function WorkspaceSettingsPage({
   const removeLogo = useRemoveWorkspaceLogo(workspaceId);
   const deleteWorkspace = useDeleteWorkspace();
   const setArchived = useSetWorkspaceArchived(workspaceId);
+  const queryClient = useQueryClient();
+
+  // Real workspace policy — read here (rather than only inside
+  // <WorkspacePermissionsSettings>) so the Channels & AI tabs can show the
+  // actual current value instead of re-declaring their own fetch, and so a
+  // save from the Permissions tab is instantly reflected everywhere on this
+  // page via the shared `queryKeys.workspaces.policies` cache entry.
+  const policiesQuery = useWorkspacePolicies(workspaceId);
+
+  const defaultChannelQuery = useQuery({
+    queryKey: queryKeys.workspaces.defaultChannel(workspaceId ?? ''),
+    queryFn: () => workspaceApi.getDefaultChannel(workspaceId as string),
+    enabled: !!workspaceId,
+  });
+  const channelsListQuery = useQuery({
+    queryKey: queryKeys.channels.list(workspaceId ?? '', false),
+    queryFn: () => channelApi.list(workspaceId as string, false),
+    enabled: !!workspaceId,
+  });
+  const saveDefaultChannelMutation = useMutation({
+    mutationFn: (channelId: string | null) =>
+      workspaceApi.saveDefaultChannel(workspaceId as string, channelId),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(
+        queryKeys.workspaces.defaultChannel(workspaceId ?? ''),
+        saved,
+      );
+      toast.success('Default join channel updated.');
+    },
+    meta: { errorMessage: 'Could not update the default join channel.' },
+  });
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const { workspaceSlug, section: routeSection } = useParams<{
@@ -338,47 +385,6 @@ export function WorkspaceSettingsPage({
   );
 
   // AI & Persona Settings
-  const [defaultModel, setDefaultModel] = useWorkspacePreference(
-    workspaceId,
-    'defaultModel',
-    'gpt-4o',
-  );
-  const [tempSetting, setTempSetting] = useWorkspacePreference(
-    workspaceId,
-    'tempSetting',
-    'balanced',
-  );
-  const [contextWindow, setContextWindow] = useWorkspacePreference(
-    workspaceId,
-    'contextWindow',
-    '128k',
-  );
-  const [agentAutoApprove, setAgentAutoApprove] = useWorkspacePreference(
-    workspaceId,
-    'agentAutoApprove',
-    true,
-  );
-  const [allowWebSearch, setAllowWebSearch] = useWorkspacePreference(
-    workspaceId,
-    'allowWebSearch',
-    true,
-  );
-  const [allowFileSystem, setAllowFileSystem] = useWorkspacePreference(
-    workspaceId,
-    'allowFileSystem',
-    true,
-  );
-  const [maxTurns, setMaxTurns] = useWorkspacePreference(
-    workspaceId,
-    'maxTurns',
-    '25',
-  );
-  const [systemPrompt, setSystemPrompt] = useWorkspacePreference(
-    workspaceId,
-    'systemPrompt',
-    'You are Antigravity AI, an intelligent collaborative assistant designed for software development and workspace productivity.',
-  );
-
   // Notifications. Per-category toggles (mentions / invites / agent alerts) now
   // live in <NotificationDisplaySettingsPanel>, which is backed by the
   // notification-preferences API.
@@ -401,37 +407,6 @@ export function WorkspaceSettingsPage({
   const [testNotifSent, setTestNotifSent] = useState(false);
   const notifBarState = useNotificationPermissionBar();
 
-  // Work Tools Feature preferences
-  const [defaultChannel, setDefaultChannel] = useWorkspacePreference(
-    workspaceId,
-    'defaultChannel',
-    'general',
-  );
-  const [allowPublicCreation, setAllowPublicCreation] = useWorkspacePreference(
-    workspaceId,
-    'allowPublicCreation',
-    true,
-  );
-  const [allowPrivateCreation, setAllowPrivateCreation] = useWorkspacePreference(
-    workspaceId,
-    'allowPrivateCreation',
-    true,
-  );
-  const [archiveInactiveDays, setArchiveInactiveDays] = useWorkspacePreference(
-    workspaceId,
-    'archiveInactiveDays',
-    '90',
-  );
-  const [encryptedDM, setEncryptedDM] = useWorkspacePreference(
-    workspaceId,
-    'encryptedDM',
-    true,
-  );
-  const [readReceipts, setReadReceipts] = useWorkspacePreference(
-    workspaceId,
-    'readReceipts',
-    true,
-  );
 
   const [docAutoSave, setDocAutoSave] = useWorkspacePreference(
     workspaceId,
@@ -510,8 +485,6 @@ export function WorkspaceSettingsPage({
   );
 
   // Dialog & transient UI state (not persisted).
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmText, setConfirmText] = useState('');
   const openStatusModal = useFocusStore((s) => s.openStatusModal);
   const openFocusModal = useFocusStore((s) => s.openFocusModal);
   const focusStore = useFocusStore();
@@ -2329,180 +2302,112 @@ export function WorkspaceSettingsPage({
             title={<>AI Models & Persona</>}
             description={
               <>
-                Configure primary LLM engines, agent execution permissions, and
-                workspace prompts.
+                Model, temperature, tools, and system prompt are configured
+                per Agent or Coworker — there is no single workspace-wide
+                default. This page covers who may create them and where your
+                provider keys live.
               </>
             }
           />
 
           <div className="space-y-3">
             <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
-              Model & Reasoning
+              Creation Policy
             </h3>
             <SettingsCard divided>
               <SettingsRow
-                title={<>Primary AI Model</>}
-                description={
-                  <>
-                    Select the main LLM powering chat, code assistance, and
-                    agent workflows
-                  </>
-                }
+                title={<>Who can create AI Agents</>}
+                description={<>Managed in Permissions & Policies.</>}
               >
-                <Select value={defaultModel} onValueChange={setDefaultModel}>
-                  <SelectTrigger className="w-56 h-8 text-xs border-border bg-surface">
-                    <SelectValue placeholder="Select model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gpt-4o" className="text-xs">
-                      GPT-4o (Default Recommended)
-                    </SelectItem>
-                    <SelectItem value="claude-3-5-sonnet" className="text-xs">
-                      Claude 3.5 Sonnet
-                    </SelectItem>
-                    <SelectItem value="gemini-1-5-pro" className="text-xs">
-                      Gemini 1.5 Pro
-                    </SelectItem>
-                    <SelectItem value="deepseek-r1" className="text-xs">
-                      DeepSeek R1
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="gap-2 flex items-center">
+                  <Badge variant="neutral" className="text-[10px]">
+                    {policySubjectLabel(policiesQuery.data?.whoCanCreateAgents)}
+                  </Badge>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2.5 text-[11px]"
+                    onClick={() => handleTabChange('permissions')}
+                  >
+                    Manage
+                  </Button>
+                </div>
               </SettingsRow>
 
               <SettingsRow
-                title={<>Creativity / Temperature</>}
-                description={<>Control LLM randomness and precision</>}
+                title={<>Who can create AI Coworkers</>}
+                description={<>Managed in Permissions & Policies.</>}
               >
-                <Select value={tempSetting} onValueChange={setTempSetting}>
-                  <SelectTrigger className="w-40 h-8 text-xs border-border bg-surface">
-                    <SelectValue placeholder="Balanced" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="balanced" className="text-xs">
-                      Balanced (0.7)
-                    </SelectItem>
-                    <SelectItem value="precise" className="text-xs">
-                      Precise (0.2)
-                    </SelectItem>
-                    <SelectItem value="creative" className="text-xs">
-                      Creative (1.0)
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </SettingsRow>
-
-              <SettingsRow
-                title={<>Context Window Size</>}
-                description={
-                  <>Maximum token length retained during conversations</>
-                }
-              >
-                <Select value={contextWindow} onValueChange={setContextWindow}>
-                  <SelectTrigger className="w-40 h-8 text-xs border-border bg-surface">
-                    <SelectValue placeholder="128k Tokens" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="128k" className="text-xs">
-                      128k Tokens (Default)
-                    </SelectItem>
-                    <SelectItem value="200k" className="text-xs">
-                      200k Tokens
-                    </SelectItem>
-                    <SelectItem value="32k" className="text-xs">
-                      32k Tokens
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="gap-2 flex items-center">
+                  <Badge variant="neutral" className="text-[10px]">
+                    {policySubjectLabel(policiesQuery.data?.whoCanCreateCoworkers)}
+                  </Badge>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2.5 text-[11px]"
+                    onClick={() => handleTabChange('permissions')}
+                  >
+                    Manage
+                  </Button>
+                </div>
               </SettingsRow>
             </SettingsCard>
           </div>
 
           <div className="space-y-3">
             <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
-              Autonomous Agent Permissions
+              Model, Persona & Provider Keys
             </h3>
             <SettingsCard divided>
               <SettingsRow
-                title={<>Auto-approve Agent Code Execution</>}
+                title={<>Per-agent model, temperature & system prompt</>}
                 description={
-                  <>Allow agents to run shell and code commands automatically</>
+                  <>Each Agent has its own model, tools, and instructions.</>
                 }
               >
-                <Switch
-                  checked={agentAutoApprove}
-                  onCheckedChange={setAgentAutoApprove}
-                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2.5 text-[11px]"
+                  onClick={() => workspaceSlug && navigate(`/w/${workspaceSlug}/agents`)}
+                >
+                  Open Agent Builder
+                </Button>
               </SettingsRow>
 
               <SettingsRow
-                title={<>Web Search & Browsing Access</>}
+                title={<>Per-coworker persona & tools</>}
                 description={
-                  <>
-                    Enable subagents to fetch live web content and documentation
-                  </>
+                  <>Role, personality, allowed actions, and delegate agents.</>
                 }
               >
-                <Switch
-                  checked={allowWebSearch}
-                  onCheckedChange={setAllowWebSearch}
-                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2.5 text-[11px]"
+                  onClick={() => workspaceSlug && navigate(`/w/${workspaceSlug}/coworkers`)}
+                >
+                  Open Coworkers
+                </Button>
               </SettingsRow>
 
               <SettingsRow
-                title={<>Workspace File Modification</>}
+                title={<>Provider API keys</>}
                 description={
-                  <>Permit AI agents to edit codebase files directly</>
+                  <>The LLM providers this workspace has connected.</>
                 }
               >
-                <Switch
-                  checked={allowFileSystem}
-                  onCheckedChange={setAllowFileSystem}
-                />
-              </SettingsRow>
-
-              <SettingsRow
-                title={<>Max Agent Loop Turn Limit</>}
-                description={
-                  <>Maximum iteration steps per single task prompt</>
-                }
-              >
-                <Select value={maxTurns} onValueChange={setMaxTurns}>
-                  <SelectTrigger className="w-32 h-8 text-xs border-border bg-surface">
-                    <SelectValue placeholder="25 turns" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="25" className="text-xs">
-                      25 turns
-                    </SelectItem>
-                    <SelectItem value="50" className="text-xs">
-                      50 turns
-                    </SelectItem>
-                    <SelectItem value="10" className="text-xs">
-                      10 turns
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2.5 text-[11px]"
+                  onClick={() => handleTabChange('ai-providers')}
+                >
+                  Open AI Providers
+                </Button>
               </SettingsRow>
             </SettingsCard>
-          </div>
-
-          <div className="space-y-3">
-            <h3 className="text-xs font-semibold tracking-wide px-1 text-muted-foreground uppercase">
-              Workspace System Persona
-            </h3>
-            <div className="p-4 space-y-3 rounded-2xl border border-border bg-surface-inset shadow-xs">
-              <Textarea
-                value={systemPrompt}
-                onChange={(e) => setSystemPrompt(e.target.value)}
-                rows={3}
-                className="text-xs font-mono"
-              />
-              <p className="text-[11px] text-muted-foreground">
-                This system prompt is injected into all AI chat sessions within
-                this workspace.
-              </p>
-            </div>
           </div>
         </div>
       )}
@@ -2511,95 +2416,59 @@ export function WorkspaceSettingsPage({
       {currentTab === 'agent-marketplace' && (
         <div className="space-y-8">
           <SettingsSectionHeader
-            title={<>Agent Marketplace & Tools</>}
+            title={<>Agent Marketplace</>}
             description={
               <>
-                Manage active AI agents, custom MCP tools, and external API
-                keys.
+                Browse and install pre-built Agents and Coworkers from the
+                marketplace.
               </>
             }
           />
 
           <SettingsCard divided>
-            {[
-              {
-                id: 'code-reviewer',
-                name: 'Code Reviewer Agent',
-                desc: 'Analyzes pull requests and identifies lint or security defects',
-                active: true,
-              },
-              {
-                id: 'support-bot',
-                name: 'Customer Support Bot',
-                desc: 'Answers member questions using documentation context',
-                active: true,
-              },
-              {
-                id: 'doc-summarizer',
-                name: 'Doc Summarizer Agent',
-                desc: 'Generates daily summaries of channel messages and notes',
-                active: false,
-              },
-            ].map((agent) => (
-              <SettingsRow
-                key={agent.id}
-                title={agent.name}
-                description={agent.desc}
+            <SettingsRow
+              title={<>Marketplace catalog</>}
+              description={
+                <>
+                  Publicly listed Agents, Coworkers, workflows, and themes
+                  available to install into this workspace.
+                </>
+              }
+            >
+              <Button
+                variant="primary"
+                size="sm"
+                className="h-7 px-2.5 text-[11px]"
+                onClick={() => workspaceSlug && navigate(`/w/${workspaceSlug}/marketplace`)}
               >
-                <div className="gap-3 flex items-center">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 px-2.5 text-[11px]"
-                  >
-                    Configure
-                  </Button>
-                  <Switch defaultChecked={agent.active} />
-                </div>
-              </SettingsRow>
-            ))}
-          </SettingsCard>
+                Browse Marketplace
+              </Button>
+            </SettingsRow>
 
-          <div className="p-6 space-y-4 rounded-2xl border border-border bg-surface-inset shadow-xs">
-            <h3 className="text-xs font-semibold tracking-wide text-foreground uppercase">
-              Custom API Keys
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-medium text-foreground">
-                  NVIDIA API Key (Default Provider)
-                </label>
-                <Input
-                  type="password"
-                  value="nvapi-••••••••••••••••"
-                  readOnly
-                  className="h-8 text-xs mt-1 font-mono"
-                />
+            <SettingsRow
+              title={<>Your Agents & Coworkers</>}
+              description={<>Everything already installed in this workspace.</>}
+            >
+              <div className="gap-2 flex items-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2.5 text-[11px]"
+                  onClick={() => workspaceSlug && navigate(`/w/${workspaceSlug}/agents`)}
+                >
+                  Agents
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2.5 text-[11px]"
+                  onClick={() => workspaceSlug && navigate(`/w/${workspaceSlug}/coworkers`)}
+                >
+                  Coworkers
+                </Button>
               </div>
-              <div>
-                <label className="text-xs font-medium text-foreground">
-                  OpenAI API Key
-                </label>
-                <Input
-                  type="password"
-                  value="sk-proj-••••••••••••••••"
-                  readOnly
-                  className="h-8 text-xs mt-1 font-mono"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-foreground">
-                  Anthropic API Key
-                </label>
-                <Input
-                  type="password"
-                  value="sk-ant-••••••••••••••••"
-                  readOnly
-                  className="h-8 text-xs mt-1 font-mono"
-                />
-              </div>
-            </div>
-          </div>
+            </SettingsRow>
+          </SettingsCard>
         </div>
       )}
 
@@ -2689,8 +2558,9 @@ export function WorkspaceSettingsPage({
             title={<>Channels & DMs</>}
             description={
               <>
-                Configure default channels, member creation rules, and message
-                privacy.
+                Default channel for new members and channel lifecycle. Who
+                may create channels, react, edit or read-receipt policy live
+                in Permissions & Policies.
               </>
             }
           />
@@ -2699,91 +2569,74 @@ export function WorkspaceSettingsPage({
             <SettingsRow
               title={<>Default Join Channel</>}
               description={
-                <>Channel automatically joined by new workspace members</>
-              }
-            >
-              <Select value={defaultChannel} onValueChange={setDefaultChannel}>
-                <SelectTrigger className="w-36 h-8 text-xs border-border bg-surface">
-                  <SelectValue placeholder="#general" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="general" className="text-xs">
-                    #general
-                  </SelectItem>
-                  <SelectItem value="announcements" className="text-xs">
-                    #announcements
-                  </SelectItem>
-                  <SelectItem value="random" className="text-xs">
-                    #random
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </SettingsRow>
-
-            <SettingsRow
-              title={<>Allow Public Channel Creation</>}
-              description={<>Regular members can create public channels</>}
-            >
-              <Switch
-                checked={allowPublicCreation}
-                onCheckedChange={setAllowPublicCreation}
-              />
-            </SettingsRow>
-
-            <SettingsRow
-              title={<>Allow Private Channel Creation</>}
-              description={
-                <>Regular members can create private invite-only channels</>
-              }
-            >
-              <Switch
-                checked={allowPrivateCreation}
-                onCheckedChange={setAllowPrivateCreation}
-              />
-            </SettingsRow>
-
-            <SettingsRow
-              title={<>Auto-archive Inactive Channels</>}
-              description={
-                <>Archive channels after a period of zero activity</>
+                <>Channel automatically joined by new workspace members. Off means new members join no channel automatically.</>
               }
             >
               <Select
-                value={archiveInactiveDays}
-                onValueChange={setArchiveInactiveDays}
+                value={defaultChannelQuery.data?.channelId ?? 'none'}
+                disabled={!isAdmin || saveDefaultChannelMutation.isPending}
+                onValueChange={(val) =>
+                  saveDefaultChannelMutation.mutate(val === 'none' ? null : val)
+                }
               >
-                <SelectTrigger className="w-32 h-8 text-xs border-border bg-surface">
-                  <SelectValue placeholder="90 days" />
+                <SelectTrigger className="w-48 h-8 text-xs border-border bg-surface">
+                  <SelectValue placeholder="None" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="90" className="text-xs">
-                    90 days
+                  <SelectItem value="none" className="text-xs">
+                    None
                   </SelectItem>
-                  <SelectItem value="30" className="text-xs">
-                    30 days
-                  </SelectItem>
-                  <SelectItem value="never" className="text-xs">
-                    Never
-                  </SelectItem>
+                  {(channelsListQuery.data ?? []).map((c) => (
+                    <SelectItem key={c.id} value={c.id} className="text-xs">
+                      #{c.slug ?? c.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+            </SettingsRow>
+
+            <SettingsRow
+              title={<>Auto-archive inactive channels</>}
+              description={<>Configured in Permissions & Policies.</>}
+            >
+              <div className="gap-2 flex items-center">
+                <Badge variant="neutral" className="text-[10px]">
+                  {policiesQuery.data?.autoArchiveInactiveDays == null
+                    ? 'Never'
+                    : `${policiesQuery.data.autoArchiveInactiveDays} days`}
+                </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2.5 text-[11px]"
+                  onClick={() => handleTabChange('permissions')}
+                >
+                  Manage
+                </Button>
+              </div>
+            </SettingsRow>
+
+            <SettingsRow
+              title={<>Who can create channels, react & read receipts</>}
+              description={<>Configured in Permissions & Policies.</>}
+            >
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2.5 text-[11px]"
+                onClick={() => handleTabChange('permissions')}
+              >
+                Open Permissions & Policies
+              </Button>
             </SettingsRow>
 
             <SettingsRow
               title={<>Direct Message End-to-End Encryption</>}
-              description={<>Encrypt DM content between 1-on-1 team members</>}
+              description={
+                <>Coming soon — not yet available for this workspace.</>
+              }
             >
-              <Switch checked={encryptedDM} onCheckedChange={setEncryptedDM} />
-            </SettingsRow>
-
-            <SettingsRow
-              title={<>Direct Message Read Receipts</>}
-              description={<>Show when messages have been seen by recipient</>}
-            >
-              <Switch
-                checked={readReceipts}
-                onCheckedChange={setReadReceipts}
-              />
+              <Switch checked={false} disabled />
             </SettingsRow>
           </SettingsCard>
         </div>
@@ -3043,59 +2896,50 @@ export function WorkspaceSettingsPage({
             title={<>Integration Hub</>}
             description={
               <>
-                Connect external web services, OAuth providers, and dev tools.
+                Connect external web services, OAuth providers, and dev
+                tools. Managed in the full Integration Hub.
               </>
             }
           />
 
           <SettingsCard divided>
-            {[
-              {
-                id: 'slack',
-                name: 'Slack Integration',
-                desc: 'Sync channel messages and notifications',
-                connected: true,
-              },
-              {
-                id: 'notion',
-                name: 'Notion Workspace',
-                desc: 'Import and sync Notion documents',
-                connected: true,
-              },
-              {
-                id: 'github',
-                name: 'GitHub OAuth',
-                desc: 'Pull request reviews and commit triggers',
-                connected: true,
-              },
-              {
-                id: 'google',
-                name: 'Google Workspace',
-                desc: 'Calendar sync and Drive attachment previews',
-                connected: false,
-              },
-            ].map((item) => (
-              <SettingsRow
-                key={item.id}
-                title={item.name}
-                description={item.desc}
+            <SettingsRow
+              title={<>Connected apps & providers</>}
+              description={
+                <>
+                  Slack, Google, GitHub, custom APIs and more — connect,
+                  configure, and view sync logs.
+                </>
+              }
+            >
+              <Button
+                variant="primary"
+                size="sm"
+                className="h-7 px-2.5 text-[11px]"
+                onClick={() => workspaceSlug && navigate(`/w/${workspaceSlug}/integrations`)}
               >
-                {item.connected ? (
-                  <span className="gap-1 px-2 py-0.5 rounded font-medium inline-flex items-center bg-success/10 text-[11px] text-success-text">
-                    <CheckCircle2 className="size-3" />
-                    Connected
-                  </span>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs px-2.5"
-                  >
-                    Connect
-                  </Button>
-                )}
-              </SettingsRow>
-            ))}
+                Open Integration Hub
+              </Button>
+            </SettingsRow>
+
+            <SettingsRow
+              title={<>Who can install & manage apps</>}
+              description={<>Configured in Permissions & Policies.</>}
+            >
+              <div className="gap-2 flex items-center">
+                <Badge variant="neutral" className="text-[10px]">
+                  {policySubjectLabel(policiesQuery.data?.whoCanInstallApps)}
+                </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2.5 text-[11px]"
+                  onClick={() => handleTabChange('permissions')}
+                >
+                  Manage
+                </Button>
+              </div>
+            </SettingsRow>
           </SettingsCard>
         </div>
       )}
@@ -3159,7 +3003,7 @@ export function WorkspaceSettingsPage({
 
       {(currentTab === 'billing' || currentTab === 'plans') && (
         <WorkspaceBillingSettings
-          totalMembers={1}
+          totalMembers={workspace?.memberCount ?? 1}
           workspaceName={workspace?.name}
           isOwner={isOwner}
         />
@@ -4075,7 +3919,17 @@ export function WorkspaceSettingsPage({
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => setConfirmOpen(true)}
+              loading={deleteWorkspace.isPending}
+              onClick={async () => {
+                const ok = await confirm({
+                  title: `Delete ${workspace.name}?`,
+                  description: `This permanently deletes ${workspace.channelCount} channels and removes ${workspace.memberCount} members.`,
+                  destructive: true,
+                  requireText: workspace.slug,
+                  confirmLabel: 'Delete forever',
+                });
+                if (ok) deleteWorkspace.mutate(workspace.id);
+              }}
               className="text-xs"
             >
               Delete workspace
@@ -4083,48 +3937,6 @@ export function WorkspaceSettingsPage({
           </div>
         </div>
       )}
-
-      {/* Delete Workspace Confirmation Dialog */}
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete {workspace.name}?</DialogTitle>
-            <DialogDescription>
-              This permanently deletes {workspace.channelCount} channels and
-              removes {workspace.memberCount} members. Type the workspace slug
-              to confirm.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="px-6 py-2">
-            <Input
-              value={confirmText}
-              onChange={(event) => setConfirmText(event.target.value)}
-              placeholder={workspace.slug}
-              aria-label={`Type ${workspace.slug} to confirm`}
-              className="h-9 text-xs"
-            />
-          </div>
-
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="ghost" size="sm" className="text-xs">
-                Cancel
-              </Button>
-            </DialogClose>
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={confirmText !== workspace.slug}
-              loading={deleteWorkspace.isPending}
-              onClick={() => deleteWorkspace.mutate(workspace.id)}
-              className="text-xs"
-            >
-              Delete forever
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* 1. Change Password Dialog */}
       <Dialog

@@ -1,15 +1,6 @@
 import type { RoomMember, DetectedMention } from '@org/types';
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  EmojiGifPickerPopover,
-  Hint,
-} from '@org/ui';
+import { EmojiGifPickerPopover, Hint } from '@org/ui';
 import {
   isVoiceRecordingSupported,
   useKeyboardInset,
@@ -18,8 +9,6 @@ import {
 import { cn, formatBytes } from '@org/utils';
 import {
   AtSign,
-  ChevronDown,
-  Clock,
   File as FileIcon,
   Film,
   Lock,
@@ -283,12 +272,11 @@ export interface ComposerProps {
   showFormatting?: boolean;
 
   slashCommands?: SlashCommand[];
-  onSchedule?: (body: string, when: string) => void;
   onStartHuddle?: () => void;
   /**
    * Presence of this prop is what shows the mic button (in addition to the
    * browser actually supporting recording) — the same "no prop, no control"
-   * convention `onSchedule`/`onStartHuddle` already use.
+   * convention `onStartHuddle` already uses.
    */
   onSendVoice?: (
     blob: Blob,
@@ -327,7 +315,6 @@ export function Composer({
   showFormatting = true,
   slashCommands = DEFAULT_SLASH_COMMANDS,
 
-  onSchedule,
   onStartHuddle,
   onSendVoice,
   linkPreviewsEnabled = true,
@@ -950,47 +937,14 @@ export function Composer({
                 </button>
               </Hint>
             ) : null}
-            {onSchedule ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label="Schedule message"
-                    className="size-7 touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  >
-                    <ChevronDown className="size-3.5" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-52 border-border bg-surface text-foreground"
-                >
-                  <DropdownMenuLabel className="text-xs text-muted-foreground">
-                    Schedule message
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator className="bg-border" />
-                  {[
-                    'In 30 minutes',
-                    'Tomorrow at 9:00 AM',
-                    'Monday at 9:00 AM',
-                  ].map((when) => (
-                    <DropdownMenuItem
-                      key={when}
-                      onSelect={() => {
-                        const body = lexicalRef.current?.getMarkdown().trim();
-                        if (!body) return;
-                        onSchedule(body, when);
-                        lexicalRef.current?.clear();
-                      }}
-                      className="hover:bg-accent focus:bg-accent"
-                    >
-                      <Clock className="mr-2 size-3.5" />
-                      {when}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
+            {/*
+              Scheduled send was a UI stub with three hardcoded time options
+              and no backend (no DB model, no delivery worker) — it never
+              rendered anywhere in the running app since no caller passed
+              `onSchedule`. Removed per the settings-unification audit rather
+              than left as dead, unreachable code; see
+              SETTINGS_UNIFICATION_FOLLOWUPS.md for the real feature.
+            */}
 
             <Hint label="Send message">
               <button

@@ -25,6 +25,8 @@ export const WorkspacePermission = {
   MANAGE_POLICIES: 'manage_policies',
   /** Read who sent an anonymous message, and remove one (brief §2 / §13). */
   MODERATE_ANONYMOUS: 'moderate_anonymous',
+  /** Delete another member's message outside the normal own-message-only rule. Mirrors MODERATE_ANONYMOUS. */
+  MODERATE_MESSAGES: 'moderate_messages',
 } as const;
 export type WorkspacePermission =
   (typeof WorkspacePermission)[keyof typeof WorkspacePermission];
@@ -53,6 +55,7 @@ export const ROLE_PERMISSIONS: Readonly<
     WorkspacePermission.MANAGE_SETTINGS,
     WorkspacePermission.MANAGE_POLICIES,
     WorkspacePermission.MODERATE_ANONYMOUS,
+    WorkspacePermission.MODERATE_MESSAGES,
   ],
   [WorkspaceRole.MEMBER]: [
     WorkspacePermission.VIEW,

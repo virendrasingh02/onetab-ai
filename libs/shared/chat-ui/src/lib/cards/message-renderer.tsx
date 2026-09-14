@@ -54,6 +54,11 @@ export interface MessageRendererProps {
   /** Whether the viewer can manage this conversation — gates a system
    * event's admin-only actions (delete/hide). */
   canManageConversation?: boolean;
+  /** Holds `WorkspacePermission.MODERATE_MESSAGES` — may delete another
+   * member's message, not just their own. */
+  canModerateMessages?: boolean;
+  /** `WorkspacePolicy.messageEditWindowMinutes` — null/unset means unlimited. */
+  editWindowMinutes?: number | null;
   /** A system event's named entity (member/app/agent/coworker/channel) was
    * clicked — the host resolves it to a profile/details view. */
   onViewSystemEventEntity?: (entity: SystemEventEntity) => void;

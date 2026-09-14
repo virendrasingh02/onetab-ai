@@ -45,6 +45,8 @@ export interface ChannelChatProps {
    * here — e.g. an announcement-only channel (brief §3).
    */
   composerReadOnlyMessage?: ReactNode;
+  /** Same, for the thread reply composer specifically — see `ChatSurface`. */
+  threadComposerReadOnlyMessage?: ReactNode;
   /** Anonymous-posting toggle for the composer (brief §2). */
   anonymousPosting?: {
     allowed: boolean;
@@ -77,6 +79,7 @@ export function ChannelChat({
   welcome,
   huddleRequest,
   composerReadOnlyMessage,
+  threadComposerReadOnlyMessage,
   anonymousPosting,
   canManageConversation,
 }: ChannelChatProps) {
@@ -103,6 +106,7 @@ export function ChannelChat({
         subtitle={subtitle}
         workspaceId={workspaceId}
         composerReadOnlyMessage={composerReadOnlyMessage}
+        threadComposerReadOnlyMessage={threadComposerReadOnlyMessage}
         anonymousPosting={anonymousPosting}
         composerContext={composerContext}
       />
@@ -140,6 +144,7 @@ export function ChannelChat({
       welcome={welcome}
       huddleRequest={huddleRequest}
       composerReadOnlyMessage={composerReadOnlyMessage}
+      threadComposerReadOnlyMessage={threadComposerReadOnlyMessage}
       anonymousPosting={anonymousPosting}
       canManageConversation={canManageConversation}
       composerContext={composerContext}

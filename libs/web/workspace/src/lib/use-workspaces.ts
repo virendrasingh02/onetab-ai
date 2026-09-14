@@ -1,5 +1,9 @@
 import { authApi, invitationApi, queryKeys, workspaceApi } from '@org/api-client';
-import { WorkspaceRole, type WorkspacePermission, type WorkspaceSummary } from '@org/types';
+import {
+  WorkspaceRole,
+  type WorkspacePermission,
+  type WorkspaceSummary,
+} from '@org/types';
 import type {
   CreateWorkspaceInput,
   UpdateWorkspaceInput,
@@ -44,6 +48,24 @@ export function useWorkspace(slug: string | undefined) {
     // Keep the current workspace on screen across a slug change or a refetch,
     // so switching pages never blanks the shell to "Loading your workspace…".
     placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * `WorkspacePolicy` for one workspace — who may create channels, react,
+ * install apps, create agents/coworkers, and the other tiered feature
+ * policies (link previews, read receipts, message edit window, upload size,
+ * auto-archive). The single fetch behind every screen that needs to read or
+ * gate on workspace policy, so a save from Permissions & Policies is
+ * reflected everywhere via one shared cache entry
+ * (`queryKeys.workspaces.policies`) instead of each caller re-fetching.
+ */
+export function useWorkspacePolicies(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.workspaces.policies(workspaceId ?? ''),
+    queryFn: () => workspaceApi.getPolicies(workspaceId as string),
+    enabled: !!workspaceId,
+    staleTime: 30_000,
   });
 }
 

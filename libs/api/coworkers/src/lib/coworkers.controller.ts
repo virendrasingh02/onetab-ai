@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -15,9 +16,11 @@ import {
   CurrentUser,
   RequireWorkspacePermissions,
   WorkspaceId,
+  WorkspaceMemberRole,
+  WorkspacePolicies,
 } from '@org/api-common';
-import type { CoworkerPermissions } from '@org/types';
-import { WorkspacePermission } from '@org/types';
+import type { CoworkerPermissions, WorkspacePolicy, WorkspaceRole } from '@org/types';
+import { isPolicyRoleAllowed, WorkspacePermission } from '@org/types';
 import { CoworkerRuntimeService } from './coworker-runtime.service.js';
 import { CoworkersService } from './coworkers.service.js';
 
@@ -61,6 +64,8 @@ export class CoworkersController {
   createCoworker(
     @WorkspaceId() workspaceId: string,
     @CurrentUser('id') userId: string,
+    @WorkspaceMemberRole() role: WorkspaceRole | undefined,
+    @WorkspacePolicies() policies: WorkspacePolicy | undefined,
     @Body()
     body: {
       name: string;
@@ -77,6 +82,12 @@ export class CoworkersController {
       integrationIds?: string[];
     },
   ) {
+    // Settings → Permissions & Policies → "Who can create AI Coworkers".
+    if (policies && !isPolicyRoleAllowed(role, policies.whoCanCreateCoworkers)) {
+      throw new ForbiddenException(
+        'You do not have permission to create AI coworkers in this workspace.',
+      );
+    }
     return this.coworkersService.createCoworker(workspaceId, userId, body);
   }
 

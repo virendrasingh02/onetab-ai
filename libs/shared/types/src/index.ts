@@ -65,6 +65,13 @@ export {
   type AuthorizationOptions,
 } from './lib/authorization-engine.js';
 
+export {
+  resolvePolicyGatedSetting,
+  isPolicyOverridable,
+  type TieredFeaturePolicy,
+  type ResolvePolicyGatedSettingParams,
+} from './lib/feature-settings.js';
+
 
 export type {
   Channel,

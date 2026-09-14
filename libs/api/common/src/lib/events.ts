@@ -103,6 +103,15 @@ export const AppEvent = {
    */
   IntegrationConnected: 'integration.connected',
   IntegrationDisconnected: 'integration.disconnected',
+  /**
+   * A settings/preference write landed — workspace policy, workspace or
+   * member appearance, a user's chat/notification preferences, sidebar,
+   * navigation, or a channel's settings. `category` disambiguates for the
+   * realtime invalidation map (`@org/sync`); `scope` decides whether the
+   * bridge fans it to the whole workspace or just the acting user. One event
+   * covers every settings surface rather than one per category.
+   */
+  SettingsUpdated: 'settings.updated',
 } as const;
 
 export type AppEventName = (typeof AppEvent)[keyof typeof AppEvent];
@@ -353,6 +362,31 @@ export interface IntegrationConnectedEvent {
 
 export type IntegrationDisconnectedEvent = IntegrationConnectedEvent;
 
+/**
+ * `scope: 'workspace'` fans out to every connected member of `workspaceId`
+ * (a policy, workspace appearance default, or channel-settings change);
+ * `scope: 'user'` reaches only `userId`'s own connections across whichever
+ * workspaces they have open (a personal preference, theme override, sidebar
+ * or navigation change). `data` is the settings category's own shape —
+ * intentionally untyped here so this one event never needs a payload change
+ * when a settings category's fields evolve.
+ */
+export interface SettingsUpdatedEvent {
+  scope: 'workspace' | 'user';
+  workspaceId: string | null;
+  userId: string | null;
+  actorId: string | null;
+  category:
+    | 'policies'
+    | 'appearance'
+    | 'chat'
+    | 'notifications'
+    | 'sidebar'
+    | 'navigation'
+    | 'channel';
+  data?: Record<string, unknown>;
+}
+
 export interface AppEventPayloads {
   [AppEvent.TaskCreated]: TaskCreatedEvent;
   [AppEvent.TaskAssigned]: TaskAssignedEvent;
@@ -385,4 +419,5 @@ export interface AppEventPayloads {
   [AppEvent.ChannelAppEnabledChanged]: ChannelAppEnabledChangedEvent;
   [AppEvent.IntegrationConnected]: IntegrationConnectedEvent;
   [AppEvent.IntegrationDisconnected]: IntegrationDisconnectedEvent;
+  [AppEvent.SettingsUpdated]: SettingsUpdatedEvent;
 }

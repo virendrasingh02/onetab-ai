@@ -64,6 +64,7 @@ export {
   WorkspaceId,
   WorkspaceMemberRole,
   WorkspacePermissions,
+  WorkspacePolicies,
   WorkspaceRoles,
   type AuthenticatedUser,
 } from './lib/decorators.js';
