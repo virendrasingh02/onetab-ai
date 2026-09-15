@@ -96,6 +96,26 @@ export const AI_COMMANDS: readonly AICommand[] = [
     hint: 'Start a message or announcement',
     prompt: 'Draft a short, friendly message about: ',
   },
+  {
+    name: 'workflow',
+    hint: 'Execute automation workflow with payload',
+    prompt: 'Execute workflow with input parameters:\n\n',
+  },
+  {
+    name: 'knowledge',
+    hint: 'Search workspace knowledge base and cite sources',
+    prompt: 'Search knowledge base and cite sources for:\n\n',
+  },
+  {
+    name: 'agent',
+    hint: 'Dispatch task to autonomous agent',
+    prompt: 'Delegate task to autonomous agent:\n\n',
+  },
+  {
+    name: 'coworker',
+    hint: 'Ask AI coworker colleague for input',
+    prompt: 'Collaborate with AI coworker on:\n\n',
+  },
 ];
 
 /* -------------------------------------------------------------- parsing --- */

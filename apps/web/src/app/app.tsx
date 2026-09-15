@@ -163,6 +163,9 @@ const AIChatView = lazy(() =>
 const PromptLibraryView = lazy(() =>
   import('@org/web-ai').then((m) => ({ default: m.PromptLibraryView })),
 );
+const AIStudioView = lazy(() =>
+  import('@org/web-ai').then((m) => ({ default: m.AIStudioView })),
+);
 const AgentMarketplaceView = lazy(() =>
   import('@org/web-agents').then((m) => ({ default: m.AgentMarketplaceView })),
 );
@@ -392,6 +395,8 @@ export function App() {
             <Route path="saved" element={<SavedView />} />
             <Route path="ai-chat" element={<AIChatView />} />
             <Route path="ai/prompts" element={<PromptLibraryView />} />
+            <Route path="studio" element={<AIStudioView />} />
+            <Route path="studio/:tab" element={<AIStudioView />} />
             <Route path="whiteboards" element={<WhiteboardCanvas />} />
             <Route path="coworkers" element={<CoworkerDirectoryView />} />
             <Route path="coworkers/:id" element={<CoworkerChatView />} />

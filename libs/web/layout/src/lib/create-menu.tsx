@@ -13,6 +13,8 @@ import {
 import { cn } from '@org/utils';
 import {
   Bot,
+  Cpu,
+  Database,
   FileText,
   FolderKanban,
   Hash,
@@ -21,6 +23,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   SquarePen,
+  UserCheck,
   UserPlus,
   Workflow,
   type LucideIcon,
@@ -93,6 +96,14 @@ const CREATE_ACTIONS: readonly CreateAction[] = [
     path: 'docs',
   },
   {
+    label: 'AI Studio',
+    description: 'Unified studio for agents, models & tools',
+    icon: Cpu,
+    tone: 'bg-primary/15 border-primary/30 text-primary',
+    category: 'work',
+    path: 'studio',
+  },
+  {
     label: 'AI Agent',
     description: 'Build a custom autonomous agent',
     icon: Bot,
@@ -101,12 +112,28 @@ const CREATE_ACTIONS: readonly CreateAction[] = [
     path: 'agents',
   },
   {
+    label: 'AI Coworker',
+    description: 'Assemble persistent AI colleague',
+    icon: UserCheck,
+    tone: 'bg-accent-violet/15 border-accent-violet/30 text-accent-violet',
+    category: 'work',
+    path: 'coworkers',
+  },
+  {
     label: 'Workflow',
-    description: 'Automate tasks with the visual builder',
+    description: 'Automate tasks with visual builder',
     icon: Workflow,
     tone: 'bg-accent-rose/15 border-accent-rose/30 text-accent-rose',
     category: 'work',
     path: 'automations',
+  },
+  {
+    label: 'Knowledge Base',
+    description: 'Ingest docs and create RAG indices',
+    icon: Database,
+    tone: 'bg-accent-blue/15 border-accent-blue/30 text-accent-blue',
+    category: 'work',
+    path: 'studio/knowledge',
   },
 ];
 

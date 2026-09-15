@@ -2,6 +2,7 @@ export { AISidebar, type AISidebarProps } from './lib/AISidebar.js';
 export { AIChatView } from './lib/AIChatView.js';
 export { PromptLibraryView } from './lib/PromptLibraryView.js';
 export { AIImageGeneratorView } from './lib/AIImageGeneratorView.js';
+export { AIStudioView } from './lib/studio/AIStudioView.js';
 
 export { AIComposer, type AIComposerProps } from './lib/ai-composer.js';
 

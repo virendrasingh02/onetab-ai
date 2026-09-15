@@ -398,6 +398,43 @@ export const queryKeys = {
     list: (workspaceId: string, targetType?: string) =>
       ['bookmarks', workspaceId, { targetType }] as const,
   },
+  aiStudio: {
+    overview: (workspaceId: string) => ['ai-studio', workspaceId, 'overview'] as const,
+  },
+  knowledge: {
+    all: (workspaceId: string) => ['knowledge', workspaceId] as const,
+    list: (workspaceId: string) => ['knowledge', workspaceId, 'list'] as const,
+    detail: (workspaceId: string, id: string) => ['knowledge', workspaceId, 'detail', id] as const,
+    documents: (workspaceId: string, knowledgeBaseId: string) =>
+      ['knowledge', workspaceId, knowledgeBaseId, 'documents'] as const,
+    chunks: (workspaceId: string, knowledgeBaseId: string, documentId: string) =>
+      ['knowledge', workspaceId, knowledgeBaseId, 'documents', documentId, 'chunks'] as const,
+  },
+  aiApps: {
+    all: (workspaceId: string) => ['ai-apps', workspaceId] as const,
+    list: (workspaceId: string) => ['ai-apps', workspaceId, 'list'] as const,
+    detail: (workspaceId: string, id: string) => ['ai-apps', workspaceId, 'detail', id] as const,
+  },
+  approvals: {
+    all: (workspaceId: string) => ['approvals', workspaceId] as const,
+    list: (workspaceId: string, state?: string) =>
+      ['approvals', workspaceId, 'list', { state }] as const,
+    detail: (workspaceId: string, id: string) => ['approvals', workspaceId, 'detail', id] as const,
+  },
+  aiExecutions: {
+    all: (workspaceId: string) => ['ai-executions', workspaceId] as const,
+    list: (workspaceId: string, filters?: Record<string, unknown>) =>
+      ['ai-executions', workspaceId, 'list', filters ?? {}] as const,
+    detail: (workspaceId: string, id: string) => ['ai-executions', workspaceId, 'detail', id] as const,
+  },
+  aiSecrets: {
+    all: (workspaceId: string) => ['ai-secrets', workspaceId] as const,
+    list: (workspaceId: string) => ['ai-secrets', workspaceId, 'list'] as const,
+  },
+  mcp: {
+    all: (workspaceId: string) => ['mcp', workspaceId] as const,
+    connections: (workspaceId: string) => ['mcp', workspaceId, 'connections'] as const,
+  },
 } as const;
 
 

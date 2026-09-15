@@ -220,6 +220,25 @@ import type {
   WorkspacePolicy,
   WorkspaceAuditLogDto,
   WorkspaceRole,
+  KnowledgeBase,
+  KnowledgeDocument,
+  KnowledgeChunk,
+  CreateKnowledgeBaseInput,
+  IngestDocumentInput,
+  KnowledgeRetrievalQuery,
+  KnowledgeRetrievalResult,
+  AIApp,
+  CreateAIAppInput,
+  AIApprovalRequest,
+  ApprovalDecisionInput,
+  AIExecution,
+  AIExecutionFilter,
+  AISecret,
+  CreateAISecretInput,
+  MCPConnection,
+  CreateMCPConnectionInput,
+  AIStudioOverview,
+  AIFeedbackPayload,
 } from '@org/types';
 
 import type {
@@ -3825,6 +3844,170 @@ export const syncApi = {
 
   state: (workspaceId: string) =>
     request<SyncState>(http.get(`/workspaces/${workspaceId}/sync/state`)),
+};
+
+// ==========================================
+// UNIFIED AI PLATFORM APIS
+// ==========================================
+
+export const aiStudioApi = {
+  getOverview: (workspaceId: string) =>
+    request<AIStudioOverview>(http.get(`/workspaces/${workspaceId}/ai-studio/overview`)),
+
+  quickCreate: (workspaceId: string, data: { name: string; type: string; description?: string }) =>
+    request<{ id: string; type: string }>(
+      http.post(`/workspaces/${workspaceId}/ai-studio/quick-create`, data),
+    ),
+};
+
+export const knowledgeApi = {
+  list: (workspaceId: string) =>
+    request<KnowledgeBase[]>(http.get(`/workspaces/${workspaceId}/knowledge`)),
+
+  get: (workspaceId: string, id: string) =>
+    request<KnowledgeBase>(http.get(`/workspaces/${workspaceId}/knowledge/${id}`)),
+
+  create: (workspaceId: string, data: CreateKnowledgeBaseInput) =>
+    request<KnowledgeBase>(http.post(`/workspaces/${workspaceId}/knowledge`, data)),
+
+  update: (workspaceId: string, id: string, data: Partial<CreateKnowledgeBaseInput>) =>
+    request<KnowledgeBase>(http.patch(`/workspaces/${workspaceId}/knowledge/${id}`, data)),
+
+  delete: (workspaceId: string, id: string) =>
+    request<void>(http.delete(`/workspaces/${workspaceId}/knowledge/${id}`)),
+
+  listDocuments: (workspaceId: string, knowledgeBaseId: string) =>
+    request<KnowledgeDocument[]>(
+      http.get(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents`),
+    ),
+
+  ingestDocument: (workspaceId: string, knowledgeBaseId: string, data: IngestDocumentInput) =>
+    request<KnowledgeDocument>(
+      http.post(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents`, data),
+    ),
+
+  deleteDocument: (workspaceId: string, knowledgeBaseId: string, documentId: string) =>
+    request<void>(
+      http.delete(
+        `/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents/${documentId}`,
+      ),
+    ),
+
+  listChunks: (workspaceId: string, knowledgeBaseId: string, documentId: string) =>
+    request<KnowledgeChunk[]>(
+      http.get(
+        `/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents/${documentId}/chunks`,
+      ),
+    ),
+
+  updateChunk: (
+    workspaceId: string,
+    knowledgeBaseId: string,
+    documentId: string,
+    chunkId: string,
+    data: { content: string },
+  ) =>
+    request<KnowledgeChunk>(
+      http.patch(
+        `/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/documents/${documentId}/chunks/${chunkId}`,
+        data,
+      ),
+    ),
+
+  testRetrieval: (workspaceId: string, knowledgeBaseId: string, query: KnowledgeRetrievalQuery) =>
+    request<KnowledgeRetrievalResult[]>(
+      http.post(`/workspaces/${workspaceId}/knowledge/${knowledgeBaseId}/retrieve`, query),
+    ),
+};
+
+export const aiAppsApi = {
+  list: (workspaceId: string) =>
+    request<AIApp[]>(http.get(`/workspaces/${workspaceId}/ai-apps`)),
+
+  get: (workspaceId: string, id: string) =>
+    request<AIApp>(http.get(`/workspaces/${workspaceId}/ai-apps/${id}`)),
+
+  create: (workspaceId: string, data: CreateAIAppInput) =>
+    request<AIApp>(http.post(`/workspaces/${workspaceId}/ai-apps`, data)),
+
+  update: (workspaceId: string, id: string, data: Partial<CreateAIAppInput>) =>
+    request<AIApp>(http.patch(`/workspaces/${workspaceId}/ai-apps/${id}`, data)),
+
+  delete: (workspaceId: string, id: string) =>
+    request<void>(http.delete(`/workspaces/${workspaceId}/ai-apps/${id}`)),
+
+  publish: (workspaceId: string, id: string, isPublished: boolean) =>
+    request<AIApp>(
+      http.post(`/workspaces/${workspaceId}/ai-apps/${id}/publish`, { isPublished }),
+    ),
+
+  execute: (workspaceId: string, id: string, payload: Record<string, unknown>) =>
+    request<{ executionId: string; result: unknown }>(
+      http.post(`/workspaces/${workspaceId}/ai-apps/${id}/execute`, payload),
+    ),
+};
+
+export const approvalsApi = {
+  list: (workspaceId: string, state?: string) =>
+    request<AIApprovalRequest[]>(
+      http.get(`/workspaces/${workspaceId}/approvals`, {
+        params: state ? { state } : undefined,
+      }),
+    ),
+
+  get: (workspaceId: string, id: string) =>
+    request<AIApprovalRequest>(http.get(`/workspaces/${workspaceId}/approvals/${id}`)),
+
+  decide: (workspaceId: string, id: string, data: ApprovalDecisionInput) =>
+    request<AIApprovalRequest>(http.post(`/workspaces/${workspaceId}/approvals/${id}/decide`, data)),
+};
+
+export const aiExecutionsApi = {
+  list: (workspaceId: string, filters?: AIExecutionFilter) =>
+    request<AIExecution[]>(
+      http.get(`/workspaces/${workspaceId}/ai-executions`, {
+        params: filters,
+      }),
+    ),
+
+  get: (workspaceId: string, id: string) =>
+    request<AIExecution>(http.get(`/workspaces/${workspaceId}/ai-executions/${id}`)),
+
+  cancel: (workspaceId: string, id: string) =>
+    request<void>(http.post(`/workspaces/${workspaceId}/ai-executions/${id}/cancel`)),
+
+  retry: (workspaceId: string, id: string) =>
+    request<AIExecution>(http.post(`/workspaces/${workspaceId}/ai-executions/${id}/retry`)),
+};
+
+export const aiSecretsApi = {
+  list: (workspaceId: string) =>
+    request<AISecret[]>(http.get(`/workspaces/${workspaceId}/ai-secrets`)),
+
+  create: (workspaceId: string, data: CreateAISecretInput) =>
+    request<AISecret>(http.post(`/workspaces/${workspaceId}/ai-secrets`, data)),
+
+  delete: (workspaceId: string, key: string) =>
+    request<void>(http.delete(`/workspaces/${workspaceId}/ai-secrets/${key}`)),
+};
+
+export const mcpApi = {
+  listConnections: (workspaceId: string) =>
+    request<MCPConnection[]>(http.get(`/workspaces/${workspaceId}/mcp-connections`)),
+
+  createConnection: (workspaceId: string, data: CreateMCPConnectionInput) =>
+    request<MCPConnection>(http.post(`/workspaces/${workspaceId}/mcp-connections`, data)),
+
+  deleteConnection: (workspaceId: string, id: string) =>
+    request<void>(http.delete(`/workspaces/${workspaceId}/mcp-connections/${id}`)),
+
+  syncTools: (workspaceId: string, id: string) =>
+    request<MCPConnection>(http.post(`/workspaces/${workspaceId}/mcp-connections/${id}/sync`)),
+};
+
+export const aiFeedbackApi = {
+  submit: (workspaceId: string, data: AIFeedbackPayload) =>
+    request<{ id: string }>(http.post(`/workspaces/${workspaceId}/ai-feedback`, data)),
 };
 
 

@@ -403,3 +403,5 @@ export type {
   SyncState,
 } from './lib/sync.js';
 
+export * from './lib/ai-studio.js';
+

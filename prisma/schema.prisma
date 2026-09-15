@@ -96,6 +96,14 @@ model User {
   invitedWorkspaceMembers   WorkspaceMember[]           @relation("WorkspaceMemberInvitedBy")
   targetedInvitations       Invitation[]                @relation("InvitationTargetUser")
   workspaceAuditLogs        WorkspaceAuditLog[]         @relation("WorkspaceAuditActor")
+  knowledgeBases            KnowledgeBase[]
+  aiApps                    AIApp[]
+  approvalRequests          ApprovalRequest[]           @relation("ApprovalRequester")
+  approvalDecisions         ApprovalRequest[]           @relation("ApprovalResponder")
+  aiExecutions              AIExecution[]
+  aiFeedbacks               AIFeedback[]
+  aiSecrets                 AISecret[]
+  mcpConnections            MCPConnection[]
 
   @@index([presence, lastSeenAt])
   @@map("users")
@@ -284,6 +292,13 @@ model Workspace {
   bookmarks                 Bookmark[]
   attentionItemStates       AttentionItemState[]
   auditLogs                 WorkspaceAuditLog[]
+  knowledgeBases            KnowledgeBase[]
+  aiApps                    AIApp[]
+  approvalRequests          ApprovalRequest[]
+  aiExecutions              AIExecution[]
+  aiSecrets                 AISecret[]
+  mcpConnections            MCPConnection[]
+  aiFeedbacks               AIFeedback[]
   owner                     User                       @relation("WorkspaceOwner", fields: [ownerId], references: [id])
 
   @@index([ownerId])
@@ -1679,6 +1694,8 @@ model AIAgent {
   coworkerLinks      CoworkerAgent[]     @relation("AgentDelegated")
   appLinks           CoworkerApp[]
   projectLinks       ProjectCoworker[]
+  aiExecutions       AIExecution[]
+  aiApps             AIApp[]
   creator            User?               @relation(fields: [creatorId], references: [id])
   workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
@@ -1856,6 +1873,8 @@ model AutomationWorkflow {
   creator     User?               @relation(fields: [creatorId], references: [id])
   workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   executions  WorkflowExecution[]
+  versions    AIWorkflowVersion[]
+  aiExecutions AIExecution[]
 
   @@index([workspaceId, isActive])
   @@map("automation_workflows")
@@ -2997,3 +3016,240 @@ model WorkspaceAuditLog {
   @@index([workspaceId, action])
   @@map("workspace_audit_logs")
 }
+
+model KnowledgeBase {
+  id               String              @id @default(cuid())
+  workspaceId      String
+  createdById      String?
+  name             String
+  description      String?
+  icon             String?             @default("BookOpen")
+  embeddingModel   String              @default("text-embedding-3-small")
+  vectorCollection String              @default("workspace_docs")
+  settings         Json                @default("{}")
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  workspace        Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy        User?               @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  documents        KnowledgeDocument[]
+
+  @@index([workspaceId])
+  @@map("knowledge_bases")
+}
+
+model KnowledgeDocument {
+  id              String           @id @default(cuid())
+  knowledgeBaseId String
+  name            String
+  sourceUri       String?
+  sourceType      String           @default("FILE")
+  status          String           @default("QUEUED")
+  mimeType        String?
+  tokenCount      Int              @default(0)
+  chunkCount      Int              @default(0)
+  rawText         String?
+  errorMessage    String?
+  metadata        Json             @default("{}")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  knowledgeBase   KnowledgeBase    @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  chunks          KnowledgeChunk[]
+
+  @@index([knowledgeBaseId, status])
+  @@map("knowledge_documents")
+}
+
+model KnowledgeChunk {
+  id          String            @id @default(cuid())
+  documentId  String
+  chunkIndex  Int
+  content     String
+  tokenCount  Int               @default(0)
+  embeddingId String?
+  metadata    Json              @default("{}")
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  document    KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, chunkIndex])
+  @@map("knowledge_chunks")
+}
+
+model AIApp {
+  id               String        @id @default(cuid())
+  workspaceId      String
+  creatorId        String?
+  name             String
+  slug             String
+  description      String?
+  icon             String?       @default("Sparkles")
+  appType          String        @default("CHAT_APP")
+  visibility       String        @default("WORKSPACE")
+  isPublished      Boolean       @default(false)
+  config           Json          @default("{}")
+  agentId          String?
+  workflowId       String?
+  promptTemplateId String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  workspace        Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator          User?         @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  agent            AIAgent?      @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  aiExecutions     AIExecution[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId, isPublished])
+  @@map("ai_apps")
+}
+
+model AIWorkflowVersion {
+  id            String             @id @default(cuid())
+  workflowId    String
+  versionNumber Int
+  name          String
+  description   String?
+  nodesJson     String             @default("[]")
+  edgesJson     String             @default("[]")
+  changeSummary String?
+  isPublished   Boolean            @default(false)
+  createdAt     DateTime           @default(now())
+  workflow      AutomationWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, versionNumber])
+  @@index([workflowId])
+  @@map("ai_workflow_versions")
+}
+
+model ApprovalRequest {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  requesterId     String?
+  approverId      String?
+  entityType      String
+  entityId        String
+  executionId     String?
+  stepId          String?
+  actionType      String
+  proposedPayload Json      @default("{}")
+  state           String    @default("PENDING")
+  comment         String?
+  createdAt       DateTime  @default(now())
+  respondedAt     DateTime?
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  requester       User?     @relation("ApprovalRequester", fields: [requesterId], references: [id], onDelete: SetNull)
+  approver        User?     @relation("ApprovalResponder", fields: [approverId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, state])
+  @@index([executionId])
+  @@map("approval_requests")
+}
+
+model AIExecution {
+  id          String              @id @default(cuid())
+  workspaceId String
+  userId      String?
+  entityType  String
+  entityId    String
+  version     Int                 @default(1)
+  status      String              @default("RUNNING")
+  startedAt   DateTime            @default(now())
+  finishedAt  DateTime?
+  latencyMs   Int                 @default(0)
+  tokensUsed  Int                 @default(0)
+  totalCost   Float               @default(0.0)
+  model       String?
+  toolCalls   Json                @default("[]")
+  errorsJson  Json?
+  stateJson   Json                @default("{}")
+  workflowId  String?
+  agentId     String?
+  appId       String?
+  workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  workflow    AutomationWorkflow? @relation(fields: [workflowId], references: [id], onDelete: SetNull)
+  agent       AIAgent?            @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  app         AIApp?              @relation(fields: [appId], references: [id], onDelete: SetNull)
+  steps       AIExecutionStep[]
+  feedbacks   AIFeedback[]
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, entityType, startedAt])
+  @@map("ai_executions")
+}
+
+model AIExecutionStep {
+  id           String      @id @default(cuid())
+  executionId  String
+  stepId       String
+  nodeType     String
+  status       String      @default("SUCCESS")
+  inputJson    Json        @default("{}")
+  outputJson   Json        @default("{}")
+  latencyMs    Int         @default(0)
+  tokensUsed   Int         @default(0)
+  errorMessage String?
+  startedAt    DateTime    @default(now())
+  finishedAt   DateTime?
+  execution    AIExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([executionId, stepId])
+  @@map("ai_execution_steps")
+}
+
+model AISecret {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  createdById    String?
+  key            String
+  encryptedValue String
+  maskedValue    String
+  description    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy      User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, key])
+  @@index([workspaceId])
+  @@map("ai_secrets")
+}
+
+model MCPConnection {
+  id                  String    @id @default(cuid())
+  workspaceId         String
+  createdById         String?
+  name                String
+  serverUrl           String
+  transport           String    @default("HTTP")
+  status              String    @default("CONNECTED")
+  authConfig          Json      @default("{}")
+  discoveredToolsJson Json      @default("[]")
+  isEnabled           Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  workspace           Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy           User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@map("mcp_connections")
+}
+
+model AIFeedback {
+  id            String       @id @default(cuid())
+  workspaceId   String
+  userId        String?
+  executionId   String?
+  agentId       String?
+  workflowId    String?
+  rating        Int
+  comment       String?
+  issueCategory String?
+  createdAt     DateTime     @default(now())
+  workspace     Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user          User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  execution     AIExecution? @relation(fields: [executionId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@map("ai_feedbacks")
+}
+
