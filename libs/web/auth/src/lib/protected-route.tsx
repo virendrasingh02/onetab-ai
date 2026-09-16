@@ -1,3 +1,4 @@
+import { getAccessToken } from '@org/api-client';
 import { LoadingState } from '@org/ui';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from './auth.store.js';
@@ -25,21 +26,45 @@ export function ProtectedRoute() {
   }
 
   if (status !== 'authenticated' && !hasUser) {
-    // `state.from` lets the login page return the user where they meant to go.
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   return <Outlet />;
 }
 
-/** Inverse gate: keeps signed-in users off /login and /register, unless performing a desktop handoff. */
+/** Inverse gate: keeps signed-in users off /login and /register, unless performing a desktop handoff or returnTo redirect. */
 export function PublicOnlyRoute() {
   const status = useAuthStore((state) => state.status);
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const isDesktopHandoff = searchParams.get('desktop') === 'true';
+  const returnTo = searchParams.get('returnTo');
 
   if (status === 'authenticated' && !isDesktopHandoff) {
+    if (returnTo) {
+      try {
+        const targetUrl = new URL(returnTo, window.location.origin);
+        const isAllowed =
+          targetUrl.origin === window.location.origin ||
+          targetUrl.hostname === 'localhost' ||
+          targetUrl.hostname === '127.0.0.1' ||
+          (window.location.hostname.includes('.') &&
+            targetUrl.hostname.endsWith(
+              window.location.hostname.split('.').slice(-2).join('.'),
+            ));
+
+        if (isAllowed) {
+          const currentToken = getAccessToken();
+          if (currentToken && targetUrl.origin !== window.location.origin) {
+            targetUrl.searchParams.set('token', currentToken);
+          }
+          window.location.href = targetUrl.toString();
+          return null;
+        }
+      } catch {
+        // Fall back to default navigate
+      }
+    }
     return <Navigate to="/" replace />;
   }
 

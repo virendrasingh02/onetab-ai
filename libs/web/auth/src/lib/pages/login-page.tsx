@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { authApi, setAccessToken } from '@org/api-client';
+import { authApi, getAccessToken, setAccessToken } from '@org/api-client';
 import {
   Button,
   Card,
@@ -38,7 +38,7 @@ import {
   Smartphone,
   Sparkles,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import {
   Link,
@@ -87,12 +87,41 @@ export function LoginPage() {
 
   const authStatus = useAuthStore((s) => s.status);
 
-  // If already authenticated and not in a browser handoff flow, redirect immediately to app root
+  const completeNavigation = useCallback(() => {
+    const returnTo = searchParams.get('returnTo');
+    if (returnTo) {
+      try {
+        const targetUrl = new URL(returnTo, window.location.origin);
+        const isAllowed =
+          targetUrl.origin === window.location.origin ||
+          targetUrl.hostname === 'localhost' ||
+          targetUrl.hostname === '127.0.0.1' ||
+          (window.location.hostname.includes('.') &&
+            targetUrl.hostname.endsWith(
+              window.location.hostname.split('.').slice(-2).join('.'),
+            ));
+
+        if (isAllowed) {
+          const currentToken = getAccessToken();
+          if (currentToken && targetUrl.origin !== window.location.origin) {
+            targetUrl.searchParams.set('token', currentToken);
+          }
+          window.location.href = targetUrl.toString();
+          return;
+        }
+      } catch {
+        // Fall back to navigate
+      }
+    }
+    navigate(redirectPathFromAuthState(location.state), { replace: true });
+  }, [location.state, navigate, searchParams]);
+
+  // If already authenticated and not in a browser handoff flow, redirect immediately to app root or returnTo destination
   useEffect(() => {
     if (authStatus === 'authenticated' && !isDesktopHandoff) {
-      navigate(redirectPathFromAuthState(location.state), { replace: true });
+      completeNavigation();
     }
-  }, [authStatus, isDesktopHandoff, location.state, navigate]);
+  }, [authStatus, completeNavigation, isDesktopHandoff]);
 
   // If already logged in and desktop handoff query params are present, authorize immediately
   useEffect(() => {
@@ -188,7 +217,7 @@ export function LoginPage() {
           setAccessToken(exchangeRes.accessToken);
           setSession(exchangeRes.user, exchangeRes.accessToken);
 
-          navigate('/', { replace: true });
+          completeNavigation();
         } else if (statusRes.status === 'rejected') {
           if (pollTimerRef.current) clearInterval(pollTimerRef.current);
           setDeviceAuthError(
@@ -212,7 +241,7 @@ export function LoginPage() {
         pollTimerRef.current = null;
       }
     };
-  }, [isMobileQRMode, deviceAuthData, setSession, navigate]);
+  }, [isMobileQRMode, deviceAuthData, setSession, completeNavigation]);
 
   const handleMagicLinkSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -243,7 +272,7 @@ export function LoginPage() {
         return;
       }
 
-      navigate(redirectPathFromAuthState(location.state), { replace: true });
+      completeNavigation();
     } catch {
       // Rendered by <FormError>
     }
