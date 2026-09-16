@@ -40,6 +40,7 @@ import {
   RefreshCw,
   Settings,
   Star,
+  Unplug,
   UserRound,
   X,
 } from 'lucide-react';
@@ -533,6 +534,7 @@ function AppMessageHeader({ app }: { app: AppModelItem }) {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const [synced, setSynced] = useState(false);
+  const { disconnect } = useIntegrationMutations(workspaceId);
 
   const name = app.name;
   const slug = workspaceSlug || 'default';
@@ -542,6 +544,9 @@ function AppMessageHeader({ app }: { app: AppModelItem }) {
 
   const handleOpenProfile = () => {
     openProfilePanel({
+      entityKind: 'app',
+      entityId: app.id,
+      raw: app,
       userId: `app-${app.id}`,
       name: app.name,
       avatarUrl: APP_LOGOS[app.provider.toLowerCase()],
@@ -747,6 +752,33 @@ function AppMessageHeader({ app }: { app: AppModelItem }) {
                   </span>
                 </DropdownMenuItem>
 
+                {app.isConnected ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        void confirm({
+                          title: `Disconnect ${app.name}?`,
+                          description:
+                            'This app is removed from your workspace and its webhooks stop firing. You can reconnect it later.',
+                          confirmLabel: 'Disconnect',
+                          destructive: true,
+                        }).then((ok) => {
+                          if (ok)
+                            disconnect.mutate(app.integrationId ?? app.provider, {
+                              onSuccess: () =>
+                                toast.success(`${app.name} disconnected`),
+                            });
+                        });
+                      }}
+                      className="gap-2.5 text-destructive focus:text-destructive cursor-pointer"
+                    >
+                      <Unplug className="size-4" />
+                      <span>Disconnect app</span>
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
+
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem
@@ -776,11 +808,11 @@ function AppMessageHeader({ app }: { app: AppModelItem }) {
  */
 function AppDetailPanel({ app }: { app: AppModelItem }) {
   const { workspaceId } = useCurrentWorkspace();
-  const { connect, disconnect } = useIntegrationMutations(workspaceId);
+  const { connect } = useIntegrationMutations(workspaceId);
   const providersQuery = useIntegrationProviders(workspaceId);
 
-  const isBusy = connect.isPending || disconnect.isPending;
-  const failure = connect.error ?? disconnect.error;
+  const isBusy = connect.isPending;
+  const failure = connect.error;
 
   /**
    * Mirrors `IntegrationHubView.startConnect`: any OAuth2 provider needs its
@@ -812,77 +844,32 @@ function AppDetailPanel({ app }: { app: AppModelItem }) {
     }
   };
 
+  if (app.isConnected && app.integrationId) {
+    return <AppConversationPanel app={app} integrationId={app.integrationId} />;
+  }
+
   return (
-    <div className="min-h-0 flex flex-1 flex-col overflow-hidden">
-      <div className="max-w-2xl px-6 py-4 w-full mx-auto">
-        <section className="p-5 space-y-3 rounded-card border border-border bg-surface-raised">
-          <div className="gap-3 flex items-start justify-between">
-            <div className="space-y-1">
-              <h2 className="text-sm font-medium">Connection</h2>
-              <p className="text-sm text-muted-foreground">{app.description}</p>
-            </div>
-            <Badge variant={app.isConnected ? 'success' : 'outline'}>
-              {app.isConnected ? 'Connected' : 'Not connected'}
-            </Badge>
-          </div>
-
-          <div className="gap-2 flex items-center">
-            {app.isConnected ? (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isBusy}
-                onClick={() => {
-                  void confirm({
-                    title: `Disconnect ${app.name}?`,
-                    description:
-                      'This app is removed from your workspace and its webhooks stop firing. You can reconnect it later.',
-                    confirmLabel: 'Disconnect',
-                    destructive: true,
-                  }).then((ok) => {
-                    if (ok)
-                      disconnect.mutate(app.integrationId ?? app.provider, {
-                        onSuccess: () =>
-                          toast.success(`${app.name} disconnected`),
-                      });
-                  });
-                }}
-              >
-                Disconnect
-              </Button>
-            ) : (
-              <Button size="sm" disabled={isBusy} onClick={() => void handleConnect()}>
-                Connect {app.name}
-              </Button>
-            )}
-            {isBusy ? <Spinner /> : null}
-          </div>
-
-          {failure ? (
-            <p role="alert" className="text-sm text-destructive">
-              {failure instanceof Error
-                ? failure.message
-                : `Could not update the ${app.name} connection.`}
-            </p>
-          ) : null}
-        </section>
-      </div>
-
-      <div className="min-h-0 flex flex-1 flex-col overflow-hidden">
-        {app.isConnected && app.integrationId ? (
-          <AppConversationPanel app={app} integrationId={app.integrationId} />
-        ) : (
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="max-w-2xl px-6 pb-8 mx-auto">
-              <EmptyState
-                size="sm"
-                icon={<Blocks />}
-                title="Connect to start a conversation"
-                description={`Once ${app.name} is connected it gets its own chat, the same as any teammate or AI agent — ask it to run its available actions, or wait for it to post activity.`}
-              />
-            </div>
-          </div>
-        )}
+    <div className="min-h-0 flex flex-1 flex-col items-center justify-center p-8 overflow-y-auto">
+      <div className="max-w-md w-full text-center space-y-4">
+        <EmptyState
+          size="lg"
+          icon={<Blocks />}
+          title={`Connect ${app.name} to start a conversation`}
+          description={`Once ${app.name} is connected it gets its own chat, the same as any teammate or AI agent — ask it to run its available actions, or wait for it to post activity.`}
+          action={
+            <Button size="sm" disabled={isBusy} onClick={() => void handleConnect()}>
+              {isBusy ? <Spinner className="mr-2 size-4" /> : null}
+              Connect {app.name}
+            </Button>
+          }
+        />
+        {failure ? (
+          <p role="alert" className="text-sm text-destructive">
+            {failure instanceof Error
+              ? failure.message
+              : `Could not update the ${app.name} connection.`}
+          </p>
+        ) : null}
       </div>
     </div>
   );
@@ -948,6 +935,7 @@ function AppConversationPanel({
         roomId={roomId}
         title={app.name}
         subtitle={app.category}
+        showHeader={false}
         workspaceId={workspaceId}
         showMembers={false}
         showEncryptedBadge={false}

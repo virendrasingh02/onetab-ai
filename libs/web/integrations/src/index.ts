@@ -32,3 +32,4 @@ export {
   AppAvatar,
   type AppModelItem,
 } from './lib/AppChatView.js';
+export { AppProfileRightPanel } from './lib/AppProfileRightPanel.js';

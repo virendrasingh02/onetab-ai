@@ -9,6 +9,9 @@ import {
 } from 'lucide-react';
 import { useCallback, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AgentProfileRightPanel } from '@org/web-agents';
+import { CoworkerProfileRightPanel } from '@org/web-coworkers';
+import { AppProfileRightPanel } from '@org/web-integrations';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { AssistantPanel } from './assistant-panel.js';
 import { UniversalContextPanel } from './context-panel/universal-context-panel.js';
@@ -46,7 +49,7 @@ export function RightPanel({
   onClose,
 }: RightPanelProps) {
   const navigate = useNavigate();
-  const { workspaceId } = useCurrentWorkspace();
+  const { workspaceId = '' } = useCurrentWorkspace();
 
   const view = useRightPanelStore((s) => s.view);
   const profile = useRightPanelStore((s) => s.profile);
@@ -121,6 +124,49 @@ export function RightPanel({
 
   if (view === 'profile') {
     const person = profile;
+    const kind =
+      person?.entityKind ||
+      (person?.userId?.startsWith('coworker-')
+        ? 'coworker'
+        : person?.userId?.startsWith('agent-')
+        ? 'agent'
+        : person?.userId?.startsWith('app-')
+        ? 'app'
+        : 'user');
+
+    if (kind === 'coworker' && person) {
+      return (
+        <CoworkerProfileRightPanel
+          profile={person}
+          workspaceId={workspaceId}
+          workspaceSlug={workspaceSlug}
+          onClose={onClose}
+        />
+      );
+    }
+
+    if (kind === 'agent' && person) {
+      return (
+        <AgentProfileRightPanel
+          profile={person}
+          workspaceId={workspaceId}
+          workspaceSlug={workspaceSlug}
+          onClose={onClose}
+        />
+      );
+    }
+
+    if (kind === 'app' && person) {
+      return (
+        <AppProfileRightPanel
+          profile={person}
+          workspaceId={workspaceId}
+          workspaceSlug={workspaceSlug}
+          onClose={onClose}
+        />
+      );
+    }
+
     return (
       <PanelFrame
         icon={UserIcon}

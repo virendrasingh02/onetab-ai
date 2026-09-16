@@ -31,6 +31,8 @@ import {
 import { useMemo, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
+import { BookmarkFavicon } from './bookmark-favicon.js';
+
 /* --- channel bookmarks ---------------------------------------------------- */
 
 export interface ChannelBookmark {
@@ -39,6 +41,8 @@ export interface ChannelBookmark {
   href: string;
   /** Shown before the label; a channel's own shorthand for the link. */
   emoji?: string;
+  /** Auto-fetched favicon or icon URL for the bookmark. */
+  iconUrl?: string;
 }
 
 export interface BookmarksBarProps {
@@ -84,13 +88,13 @@ export function BookmarksBar({
             rel="noopener noreferrer"
             className="gap-1.5 flex items-center outline-none"
           >
-            {bookmark.emoji ? (
-              <span aria-hidden className="text-xs">
-                {bookmark.emoji}
-              </span>
-            ) : (
-              <Bookmark className="size-3 text-muted-foreground" />
-            )}
+            <BookmarkFavicon
+              href={bookmark.href}
+              iconUrl={bookmark.iconUrl}
+              emoji={bookmark.emoji}
+              className="size-3.5"
+              fallbackIconClassName="size-3 text-muted-foreground"
+            />
             <span className="max-w-44 font-medium truncate">
               {bookmark.label}
             </span>

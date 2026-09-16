@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useRoom } from './use-chat.js';
+import { useRoom, useRoomSummary } from './use-chat.js';
 
 export interface ConversationFilesPanelProps {
   /** Where files uploaded here are filed — DIRECT / AGENT / APP with its id. */
@@ -76,6 +76,7 @@ export function ConversationFilesPanel({
   const { openPreview } = useMediaPreview();
 
   const room = useRoom(roomId ?? undefined);
+  const { room: matrixRoom } = useRoomSummary(roomId ?? undefined);
   const [filter, setFilter] = useState<'all' | 'files' | 'media'>('all');
 
   const chatAttachments = useMemo(
@@ -86,7 +87,10 @@ export function ConversationFilesPanel({
           const file = message.attachment as Attachment;
           return {
             id: message.id,
+            senderId: message.senderId,
             senderName: message.senderName,
+            senderAvatarUrl: message.senderAvatarUrl,
+            timestamp: message.timestamp,
             name: file.name,
             mimeType: file.mimeType,
             size: file.size,
@@ -178,7 +182,13 @@ export function ConversationFilesPanel({
                   onClick={() =>
                     openPreview(
                       mediaFiles.map((f) =>
-                        attachmentToMediaItem(f.attachment, 'image', f.id),
+                        attachmentToMediaItem(f.attachment, 'image', f.id, {
+                          senderId: f.senderId,
+                          senderName: f.senderName,
+                          senderAvatarUrl: f.senderAvatarUrl,
+                          timestamp: f.timestamp,
+                          channelName: matrixRoom?.name,
+                        }),
                       ),
                       index,
                     )

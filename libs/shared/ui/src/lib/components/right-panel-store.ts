@@ -62,6 +62,9 @@ export interface RightPanelProfile {
   status?: 'online' | 'unavailable' | 'offline';
   statusEmoji?: string | null;
   statusText?: string | null;
+  entityKind?: 'user' | 'agent' | 'app' | 'coworker';
+  entityId?: string;
+  raw?: any;
 }
 
 export interface RightPanelContextTarget {

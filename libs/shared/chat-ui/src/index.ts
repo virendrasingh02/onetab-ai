@@ -67,6 +67,12 @@ export {
 
 
 export {
+  BookmarkFavicon,
+  getFaviconUrl,
+  type BookmarkFaviconProps,
+} from './lib/bookmark-favicon.js';
+
+export {
   AddBookmarkDialog,
   type AddBookmarkDialogProps,
 } from './lib/add-bookmark-dialog.js';

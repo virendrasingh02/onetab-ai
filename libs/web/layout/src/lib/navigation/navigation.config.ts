@@ -264,7 +264,7 @@ export const DEFAULT_NAV_ITEMS: readonly NavItemConfig[] = [
     label: 'AI Coworkers',
     icon: UserCheck,
     href: 'coworkers',
-    visible: true,
+    visible: false,
     order: 3,
     group: 'ai',
     description: 'Assemble and chat with persistent autonomous AI colleagues',

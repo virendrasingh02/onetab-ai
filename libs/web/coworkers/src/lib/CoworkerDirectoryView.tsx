@@ -476,6 +476,7 @@ export const CoworkerDirectoryView: FC = () => {
           onClose={() => setSelectedCoworker(null)}
           onEdit={handleOpenEdit}
           onStartChat={handleStartChat}
+          className="w-80 lg:w-96 border-l border-border shrink-0 shadow-lg"
         />
       )}
 

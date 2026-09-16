@@ -300,21 +300,22 @@ export function UserProfileRightPanel({
 
   return (
     <div className="flex h-full flex-col bg-surface text-foreground">
-      {/* Cover Header Banner */}
-      <div
-        style={{
-          background: `linear-gradient(135deg, ${userColor} 0%, var(--surface-inset) 100%)`,
-        }}
-        className="h-24 relative w-full"
-      />
-
       {/* Profile Details Content Body */}
       <ScrollArea
-        className="min-h-0 px-4 relative flex-1"
-        contentClassName="space-y-4 p-4"
+        className="min-h-0 relative flex-1"
+        contentClassName="pb-6"
       >
-        {/* Avatar & Presence */}
-        <div className="-mt-12 flex items-end justify-between">
+        {/* Cover Header Banner */}
+        <div
+          style={{
+            background: `linear-gradient(135deg, ${userColor} 0%, var(--surface-inset) 100%)`,
+          }}
+          className="h-24 relative w-full shrink-0"
+        />
+
+        <div className="space-y-4 px-4">
+          {/* Avatar & Presence */}
+          <div className="-mt-12 flex items-end justify-between relative z-10">
           <UserAvatar
             name={name}
             src={avatarUrl}
@@ -463,6 +464,7 @@ export function UserProfileRightPanel({
               </p>
             </div>
           </div>
+        </div>
         </div>
       </ScrollArea>
     </div>

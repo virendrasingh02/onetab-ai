@@ -8,7 +8,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   ScrollArea,
+  Spinner,
   toast,
+  type RightPanelProfile,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import {
@@ -35,12 +37,19 @@ import {
   Zap,
 } from 'lucide-react';
 import { type FC, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { CoworkerAvatar } from './CoworkerAvatar.js';
+import { CoworkerCreateDialog } from './CoworkerCreateDialog.js';
 import { CoworkerStatusDot } from './CoworkerStatusDot.js';
-import { useCoworkerLogs, useCoworkerMutations } from './use-coworkers.js';
+import {
+  useCoworker,
+  useCoworkerLogs,
+  useCoworkerMutations,
+} from './use-coworkers.js';
 
 export interface CoworkerProfilePanelProps {
-  coworker: AICoworkerDetail;
+  coworker?: AICoworkerDetail;
+  coworkerId?: string;
   workspaceId: string;
   onClose?: () => void;
   onEdit?: (coworker: AICoworkerDetail) => void;
@@ -52,20 +61,59 @@ export interface CoworkerProfilePanelProps {
  * CoworkerProfilePanel — The right-drawer summary card matching ProfileSummaryCard style.
  */
 export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
-  coworker,
+  coworker: propCoworker,
+  coworkerId: propCoworkerId,
   workspaceId,
   onClose,
   onEdit,
   onStartChat,
   className,
 }) => {
+  const effectiveId = propCoworker?.id || propCoworkerId || '';
+  const { data: fetchedCoworker, isLoading: coworkerLoading } = useCoworker(
+    workspaceId,
+    effectiveId,
+  );
+  const coworker = propCoworker || fetchedCoworker;
+
   const { data: logs, isLoading: logsLoading } = useCoworkerLogs(
     workspaceId,
-    coworker.id,
+    effectiveId,
   );
   const mutations = useCoworkerMutations(workspaceId);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [copiedHandle, setCopiedHandle] = useState(false);
+
+  if (coworkerLoading && !coworker) {
+    return (
+      <aside
+        className={cn(
+          'flex h-full w-full flex-col items-center justify-center p-8 bg-surface text-foreground',
+          className,
+        )}
+      >
+        <Spinner className="size-6 text-primary" />
+      </aside>
+    );
+  }
+
+  if (!coworker) {
+    return (
+      <aside
+        className={cn(
+          'flex h-full w-full flex-col items-center justify-center p-8 bg-surface text-foreground text-center space-y-2',
+          className,
+        )}
+      >
+        <p className="text-xs text-muted-foreground">Coworker not found.</p>
+        {onClose && (
+          <Button variant="outline" size="sm" onClick={onClose} className="text-xs">
+            Close
+          </Button>
+        )}
+      </aside>
+    );
+  }
 
   const handle = `@${coworker.name.toLowerCase().replace(/\s+/g, '')}`;
   const formattedJoinedDate = coworker.createdAt
@@ -117,7 +165,7 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
   return (
     <aside
       className={cn(
-        'flex h-full w-80 lg:w-96 flex-col border-l border-border bg-surface text-foreground shrink-0 shadow-lg overflow-hidden',
+        'flex h-full w-full flex-col bg-surface text-foreground overflow-hidden',
         className,
       )}
     >
@@ -210,7 +258,7 @@ export const CoworkerProfilePanel: FC<CoworkerProfilePanelProps> = ({
                 {coworker.name}
               </h3>
               <Badge variant="primary" className="text-[9px] uppercase font-bold px-1.5 py-0">
-                APP
+                AI COWORKER
               </Badge>
             </div>
             <button
@@ -775,4 +823,48 @@ export const CoworkerProfileDetails: FC<CoworkerProfileDetailsProps> = ({
     </div>
   );
 };
+
+export interface CoworkerProfileRightPanelProps {
+  profile: RightPanelProfile;
+  workspaceId: string;
+  workspaceSlug: string;
+  onClose: () => void;
+}
+
+export const CoworkerProfileRightPanel: FC<CoworkerProfileRightPanelProps> = ({
+  profile,
+  workspaceId,
+  workspaceSlug,
+  onClose,
+}) => {
+  const navigate = useNavigate();
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const effectiveId = profile.entityId || profile.userId.replace(/^coworker-/, '');
+  const coworker = profile.raw as AICoworkerDetail | undefined;
+
+  return (
+    <>
+      <CoworkerProfilePanel
+        coworker={coworker}
+        coworkerId={effectiveId}
+        workspaceId={workspaceId}
+        onClose={onClose}
+        onEdit={() => setEditDialogOpen(true)}
+        onStartChat={() => {
+          navigate(`/w/${workspaceSlug}/coworkers/${effectiveId}`);
+        }}
+        className="w-full border-l-0 shadow-none"
+      />
+      {coworker && (
+        <CoworkerCreateDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          workspaceId={workspaceId}
+          coworker={coworker}
+        />
+      )}
+    </>
+  );
+};
+
 

@@ -29,13 +29,55 @@ import {
 } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+const CHANNELS_BOOTSTRAP_KEY_PREFIX = 'channels_bootstrap:';
+
+function getCachedChannels(
+  workspaceId: string | undefined,
+  includeArchived = false,
+): ChannelSummary[] | undefined {
+  if (!workspaceId || typeof window === 'undefined') return undefined;
+  try {
+    const raw = window.localStorage.getItem(
+      `${CHANNELS_BOOTSTRAP_KEY_PREFIX}${workspaceId}:${includeArchived}`,
+    );
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function setCachedChannels(
+  workspaceId: string | undefined,
+  includeArchived: boolean,
+  channels: ChannelSummary[],
+): void {
+  if (!workspaceId || typeof window === 'undefined' || !Array.isArray(channels))
+    return;
+  try {
+    window.localStorage.setItem(
+      `${CHANNELS_BOOTSTRAP_KEY_PREFIX}${workspaceId}:${includeArchived}`,
+      JSON.stringify(channels),
+    );
+  } catch {}
+}
+
 export function useChannels(
   workspaceId: string | undefined,
   includeArchived = false,
 ) {
   return useQuery({
     queryKey: queryKeys.channels.list(workspaceId ?? '', includeArchived),
-    queryFn: () => channelApi.list(workspaceId as string, includeArchived),
+    queryFn: async () => {
+      const data = await channelApi.list(workspaceId as string, includeArchived);
+      if (Array.isArray(data)) {
+        setCachedChannels(workspaceId, includeArchived, data);
+      }
+      return data;
+    },
+    initialData: () => getCachedChannels(workspaceId, includeArchived),
+    placeholderData: keepPreviousData,
     enabled: !!workspaceId,
     staleTime: 30_000,
   });

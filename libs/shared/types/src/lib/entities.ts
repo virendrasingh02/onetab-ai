@@ -360,6 +360,7 @@ export interface ChannelBookmark {
   label: string;
   href: string;
   emoji?: string;
+  iconUrl?: string;
 }
 
 export interface ChannelPin {

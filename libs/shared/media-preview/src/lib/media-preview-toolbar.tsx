@@ -97,86 +97,73 @@ export function MediaPreviewToolbar({
         className,
       )}
     >
-      {uploaderName ? (
-        /* Uploader profile & file context */
-        <div className="flex min-w-0 flex-1 items-center gap-2.5">
-          <UserAvatar
-            name={uploaderName}
-            src={uploaderAvatar}
-            seed={uploaderId}
-            presence={item.senderPresence}
-            statusEmoji={item.senderStatusEmoji}
-            statusText={item.senderStatusText}
-            size="sm"
-            className="size-7 shrink-0 ring-1 ring-border/50"
-          />
+      {/* Always show uploader profile & file context, matching channels */}
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
+        <UserAvatar
+          name={uploaderName || 'Workspace Member'}
+          src={uploaderAvatar}
+          seed={uploaderId || item.id}
+          presence={item.senderPresence}
+          statusEmoji={item.senderStatusEmoji}
+          statusText={item.senderStatusText}
+          size="sm"
+          className="size-7 shrink-0 ring-1 ring-border/50"
+        />
 
-          <div className="flex min-w-0 flex-1 flex-col justify-center">
-            <div className="flex min-w-0 items-center gap-2">
-              <span className="truncate text-[13px] font-semibold leading-tight text-foreground">
-                {uploaderName}
+        <div className="flex min-w-0 flex-1 flex-col justify-center">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-[13px] font-semibold leading-tight text-foreground">
+              {uploaderName || item.name}
+            </span>
+            {count > 1 ? (
+              <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                {index + 1} / {count}
               </span>
-              {count > 1 ? (
-                <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-                  {index + 1} / {count}
-                </span>
-              ) : null}
-            </div>
+            ) : null}
+          </div>
 
-            <div className="flex min-w-0 items-center gap-1.5 text-[11px] leading-none text-muted-foreground">
-              {relativeTime ? <span className="shrink-0">{relativeTime}</span> : null}
+          <div className="flex min-w-0 items-center gap-1.5 text-[11px] leading-none text-muted-foreground">
+            {relativeTime ? <span className="shrink-0">{relativeTime}</span> : null}
 
-              {channelName ? (
-                <span className="flex shrink-0 items-center gap-1">
-                  <span>in</span>
-                  {item.isEncrypted ? (
-                    <Lock
-                      className="size-2.5 text-muted-foreground/80"
-                      aria-label="Encrypted"
-                    />
-                  ) : null}
-                  <span className="font-medium text-foreground/90">{channelName}</span>
-                </span>
-              ) : null}
+            {channelName ? (
+              <span className="flex shrink-0 items-center gap-1">
+                <span>in</span>
+                {item.isEncrypted ? (
+                  <Lock
+                    className="size-2.5 text-muted-foreground/80"
+                    aria-label="Encrypted"
+                  />
+                ) : null}
+                <span className="font-medium text-foreground/90">{channelName}</span>
+              </span>
+            ) : null}
 
-              {relativeTime || channelName ? (
-                <span aria-hidden className="text-muted-foreground/40">
+            {relativeTime || channelName ? (
+              <span aria-hidden className="text-muted-foreground/40">
+                •
+              </span>
+            ) : null}
+
+            <span className="truncate font-medium text-foreground/90">{item.name}</span>
+
+            {item.size ? (
+              <>
+                <span aria-hidden className="hidden text-muted-foreground/40 sm:inline">
                   •
                 </span>
-              ) : null}
-
-              <span className="truncate font-medium text-foreground/90">{item.name}</span>
-
-              {item.size ? (
-                <>
-                  <span aria-hidden className="hidden text-muted-foreground/40 sm:inline">
-                    •
-                  </span>
-                  <span className="hidden shrink-0 sm:inline">{formatBytes(item.size)}</span>
-                </>
-              ) : null}
-            </div>
+                <span className="hidden shrink-0 sm:inline">{formatBytes(item.size)}</span>
+              </>
+            ) : (
+              <>
+                <span aria-hidden className="hidden text-muted-foreground/40 sm:inline">
+                  •
+                </span>
+                <span className="hidden shrink-0 sm:inline">{describeItem(item)}</span>
+              </>
+            )}
           </div>
         </div>
-      ) : (
-        <>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-medium leading-tight text-foreground">
-              {item.name}
-            </p>
-            <p className="hidden text-[11px] leading-none text-muted-foreground sm:block">
-              {describeItem(item)}
-              {count > 1 ? ` • ${index + 1} / ${count}` : ''}
-            </p>
-          </div>
-
-          {count > 1 ? (
-            <span className="shrink-0 text-xs text-muted-foreground sm:hidden">
-              {index + 1} / {count}
-            </span>
-          ) : null}
-        </>
-      )}
+      </div>
 
       <div className="gap-1 flex shrink-0 items-center">
         {extraActions}

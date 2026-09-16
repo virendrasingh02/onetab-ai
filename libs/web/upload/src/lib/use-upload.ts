@@ -11,6 +11,7 @@ import {
   uploadRequestSchema,
 } from '@org/validation';
 import {
+  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -263,6 +264,38 @@ export function useUploads(
   });
 }
 
+const UPLOADS_BOOTSTRAP_KEY_PREFIX = 'uploads_bootstrap:';
+
+function getCachedUploads(workspaceId: string | undefined):
+  | { pages: Array<{ items: Upload[]; nextCursor?: string | null }>; pageParams: Array<unknown> }
+  | undefined {
+  if (!workspaceId || typeof window === 'undefined') return undefined;
+  try {
+    const raw = window.localStorage.getItem(`${UPLOADS_BOOTSTRAP_KEY_PREFIX}${workspaceId}`);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return {
+        pages: [{ items: parsed, nextCursor: null }],
+        pageParams: [undefined],
+      };
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function setCachedUploads(workspaceId: string | undefined, items: Upload[]): void {
+  if (!workspaceId || typeof window === 'undefined' || !Array.isArray(items)) return;
+  try {
+    window.localStorage.setItem(
+      `${UPLOADS_BOOTSTRAP_KEY_PREFIX}${workspaceId}`,
+      JSON.stringify(items.slice(0, 50)),
+    );
+  } catch {}
+}
+
 /** Keyset-paginated files for the Files hub — one page per scroll. */
 export function useInfiniteUploads(
   workspaceId: string | undefined,
@@ -274,15 +307,22 @@ export function useInfiniteUploads(
       workspaceId ?? '',
       uploadTargetKey(target),
     ),
-    queryFn: ({ pageParam }) =>
-      uploadApi.list(workspaceId as string, targetParams(target), {
+    queryFn: async ({ pageParam }) => {
+      const result = await uploadApi.list(workspaceId as string, targetParams(target), {
         cursor: pageParam as string | undefined,
         limit: pageSize,
-      }),
+      });
+      if (!target && !pageParam && Array.isArray(result?.items)) {
+        setCachedUploads(workspaceId, result.items);
+      }
+      return result;
+    },
     enabled: !!workspaceId,
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
+    initialData: !target ? () => getCachedUploads(workspaceId) : undefined,
   });
 
   const items = useMemo(

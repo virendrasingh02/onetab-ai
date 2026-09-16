@@ -25,7 +25,7 @@ import {
   useRightPanelStore,
 } from '@org/ui';
 import { cn, formatBytes, formatRelative } from '@org/utils';
-import { AddBookmarkDialog } from '@org/chat-ui';
+import { AddBookmarkDialog, BookmarkFavicon } from '@org/chat-ui';
 import { useMarkChannelSeen } from '@org/notifications';
 import { ChannelChat } from '@org/web-chat';
 import { useCurrentWorkspace } from '@org/web-workspace';
@@ -1257,7 +1257,13 @@ export function ChannelPage() {
                       className="min-w-0 gap-2.5 flex flex-1 items-start outline-none"
                     >
                       <div className="size-8 text-base flex shrink-0 items-center justify-center rounded-md border border-border bg-surface-raised">
-                        {bm.emoji || '🔗'}
+                        <BookmarkFavicon
+                          href={bm.href}
+                          iconUrl={bm.iconUrl}
+                          emoji={bm.emoji}
+                          className="size-4"
+                          fallbackIconClassName="size-4 text-muted-foreground"
+                        />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium truncate text-foreground transition-colors group-hover:text-primary">

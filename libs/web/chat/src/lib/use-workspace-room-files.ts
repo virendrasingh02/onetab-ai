@@ -35,10 +35,46 @@ export interface RoomFile {
  * in-memory timelines and re-reads on every timeline change, so the list fills
  * in as sync catches up rather than arriving complete.
  */
+function collectRoomFiles(client: any): RoomFile[] {
+  if (!client) return [];
+  const myUserId = client.getSession()?.userId ?? null;
+  const rooms: Room[] = client.getRooms?.() ?? [];
+  const collected: RoomFile[] = [];
+
+  for (const room of rooms) {
+    const timeline = client.getTimeline?.(room.id);
+    for (const message of timeline?.messages ?? []) {
+      if (!message.attachment || message.isRedacted) continue;
+      collected.push({
+        id: message.id,
+        roomId: room.id,
+        roomName: room.name,
+        roomKind: room.kind,
+        senderId: message.senderId,
+        senderName: message.senderName,
+        senderAvatarUrl: message.senderAvatarUrl,
+        isMine: !!myUserId && message.senderId === myUserId,
+        name: message.attachment.name,
+        mimeType: message.attachment.mimeType,
+        size: message.attachment.size ?? 0,
+        url: message.attachment.url,
+        thumbnailUrl: message.attachment.thumbnailUrl,
+        timestamp: message.timestamp,
+      });
+    }
+  }
+
+  collected.sort((a, b) => b.timestamp - a.timestamp);
+  return collected;
+}
+
 export function useWorkspaceRoomFiles() {
   const { client, enabled } = useMatrix();
-  const [files, setFiles] = useState<RoomFile[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [files, setFiles] = useState<RoomFile[]>(() => collectRoomFiles(client));
+  const [isLoading, setIsLoading] = useState(() => {
+    if (!enabled) return false;
+    return !client;
+  });
 
   const collect = useCallback(() => {
     if (!client) return;

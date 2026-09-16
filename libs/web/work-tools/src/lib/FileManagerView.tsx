@@ -2,7 +2,6 @@ import { resolveMediaUrl } from '@org/api-client';
 import { useCurrentUser } from '@org/auth';
 import { getMediaType, useMediaPreview, type MediaItem } from '@org/media-preview';
 import type { Upload, UploadContextType } from '@org/types';
-import { getUsagePercentage } from '@org/types';
 import {
   AppSelect,
   Badge,
@@ -19,14 +18,12 @@ import {
   DropdownMenuTrigger,
   EmptyState,
   Field,
-  Progress,
   SearchInput,
   SegmentedControl,
   SkeletonList,
   usePromptDialog,
   type SegmentedOption,
 } from '@org/ui';
-import { formatBytes } from '@org/utils';
 import {
   AssetDetailsDialog,
   FileDropzone,
@@ -39,7 +36,6 @@ import {
   useInfiniteUploads,
   useUploadMediaAdapter,
   useUploadMutations,
-  useUploadStorageUsage,
   type FileKind,
   type UploadListItem,
   type UploadTarget,
@@ -50,7 +46,6 @@ import {
   ChevronDown,
   FolderOpen,
   HardDrive,
-  Plus,
   SlidersHorizontal,
   TriangleAlert,
 } from 'lucide-react';
@@ -105,7 +100,6 @@ export function FileManagerView() {
 
   const uploads = useInfiniteUploads(workspaceId);
   const roomFiles = useWorkspaceRoomFiles();
-  const usage = useUploadStorageUsage(workspaceId);
   const { groups: destinationGroups, isLoading: destsLoading } =
     useDestinationOptions(workspaceId);
   const { remove, download } = useUploadMutations(workspaceId);
@@ -214,6 +208,11 @@ export function FileManagerView() {
           category: getMediaType(f.mimeType, f.name),
           url: f.url,
           thumbnailUrl: f.thumbnailUrl,
+          senderId: f.senderId,
+          senderName: f.senderName,
+          senderAvatarUrl: f.senderAvatarUrl ?? undefined,
+          channelName: f.roomName,
+          timestamp: f.timestamp,
         },
         upload: null,
         directUrl: f.url,
@@ -261,10 +260,6 @@ export function FileManagerView() {
   const detailsUpload =
     (detailsId && uploads.items.find((u) => u.id === detailsId)) || null;
 
-  const usagePct = usage.data
-    ? getUsagePercentage(usage.data.usedBytes, usage.data.limitBytes)
-    : 0;
-
   return (
     <div className="min-h-0 flex flex-1 flex-col">
       {/* Channel-style Header */}
@@ -284,21 +279,6 @@ export function FileManagerView() {
               </Badge>
             </div>
 
-            {usage.data && usage.data.limitBytes > 0 ? (
-              <div
-                className="hidden sm:flex items-center gap-2 text-[11px] text-muted-foreground"
-                title={`${formatBytes(usage.data.usedBytes)} of ${formatBytes(
-                  usage.data.limitBytes,
-                )} used`}
-              >
-                <span className="h-4 w-px bg-border" />
-                <Progress value={usagePct} className="h-1.5 w-24" />
-                <span className={usage.data.nearLimit ? 'text-warning' : undefined}>
-                  {formatBytes(usage.data.usedBytes)} /{' '}
-                  {formatBytes(usage.data.limitBytes)}
-                </span>
-              </div>
-            ) : null}
           </div>
 
           <div className="gap-2 flex items-center">
@@ -309,14 +289,6 @@ export function FileManagerView() {
               className="h-7 text-xs"
               wrapperClassName="w-36 sm:w-48"
             />
-            <Button
-              onClick={() => setIsUploadOpen(true)}
-              size="sm"
-              className="h-7 text-xs gap-1"
-              leadingIcon={<Plus className="size-3.5" />}
-            >
-              Upload
-            </Button>
           </div>
         </div>
       </div>
@@ -439,11 +411,11 @@ export function FileManagerView() {
             </div>
           </div>
 
-          {isLoading ? (
+          {isLoading && allRows.length === 0 ? (
             <div className="shadow-2xs overflow-hidden rounded-card border border-border bg-surface/60 p-4">
               <SkeletonList rows={6} withAvatar />
             </div>
-          ) : uploads.isError ? (
+          ) : uploads.isError && allRows.length === 0 ? (
             <div className="rounded-card border border-border bg-surface/60 p-8 text-center">
               <EmptyState
                 size="sm"

@@ -1248,13 +1248,7 @@ export function ChannelNav({
 
   const totalStarredCount = orderedStarredItems.length;
 
-  if (isLoading) {
-    return (
-      <div className="px-3 py-2">
-        <SkeletonList rows={6} className="gap-2" />
-      </div>
-    );
-  }
+  const showChannelsSkeleton = isLoading && (!channels || channels.length === 0);
 
   // --- Collapsed Sidebar View (Icon rail with tooltips) ---
   if (isCollapsed) {
@@ -1442,6 +1436,13 @@ export function ChannelNav({
                   );
 
                 case 'channels':
+                  if (showChannelsSkeleton) {
+                    return (
+                      <Section key="channels" title="Channels" count={0}>
+                        <SkeletonList rows={5} className="gap-1.5 px-1 py-1" />
+                      </Section>
+                    );
+                  }
                   return (
                     <div key="channels" className="space-y-4">
                       {/* Custom + smart channel sections (brief §1.1) */}

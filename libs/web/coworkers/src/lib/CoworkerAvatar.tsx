@@ -33,8 +33,8 @@ const SIZE_MAP = {
     dotOffset: '-bottom-0.5 -right-0.5',
   },
   sm: {
-    container: 'h-8 w-8 text-xs rounded-lg',
-    icon: 'h-4 w-4',
+    container: 'h-7 w-7 text-xs rounded-lg',
+    icon: 'h-3.5 w-3.5',
     dotSize: 'xs' as const,
     dotOffset: '-bottom-0.5 -right-0.5',
   },

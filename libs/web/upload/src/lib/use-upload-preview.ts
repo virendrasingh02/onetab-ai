@@ -14,7 +14,7 @@ type UploadPreviewInput = Pick<
   Upload,
   'id' | 'filename' | 'mimeType' | 'size'
 > &
-  Partial<Pick<Upload, 'uploader' | 'createdAt' | 'contentUrl' | 'downloadUrl'>>;
+  Partial<Pick<Upload, 'uploader' | 'createdAt' | 'contentUrl' | 'downloadUrl' | 'context'>>;
 
 /**
  * Adapts an `Upload` entity (file manager, file search) into a `MediaItem`
@@ -45,6 +45,7 @@ export function useUploadMediaAdapter(workspaceId: string | undefined) {
         senderStatusEmoji: uploader?.statusEmoji ?? undefined,
         senderStatusText: uploader?.statusText ?? undefined,
         timestamp: upload.createdAt,
+        channelName: upload.context?.label ?? undefined,
         // Prefer the signed URL when the full row carries it — no auth fetch,
         // and `<img>` works directly. Fall back to the authenticated blob
         // download for lean rows (workspace search) that don't include it.

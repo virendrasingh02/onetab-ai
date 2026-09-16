@@ -8,15 +8,14 @@ import {
   DialogTitle,
   Input,
 } from '@org/ui';
-import { Bookmark, Link2 } from 'lucide-react';
+import { Bookmark } from 'lucide-react';
 import { useCallback, useState, type FormEvent, type ReactNode } from 'react';
-
-const EMOJI_PRESETS = ['📌', '🔗', '📄', '🎨', '📊', '🚀', '💡', '📁', '✨', '⚡'];
+import { BookmarkFavicon, getFaviconUrl } from './bookmark-favicon.js';
 
 export interface AddBookmarkDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAdd: (bookmark: { label: string; href: string; emoji?: string }) => void;
+  onAdd: (bookmark: { label: string; href: string; emoji?: string; iconUrl?: string }) => void;
   channelName?: string;
   /**
    * Overrides the default channel-scoped description. Supplied by direct
@@ -34,7 +33,6 @@ export function AddBookmarkDialog({
 }: AddBookmarkDialogProps) {
   const [label, setLabel] = useState('');
   const [href, setHref] = useState('');
-  const [emoji, setEmoji] = useState('🔗');
 
   const handleSubmit = useCallback(
     (e: FormEvent) => {
@@ -49,18 +47,19 @@ export function AddBookmarkDialog({
         trimmedHref = `https://${trimmedHref}`;
       }
 
+      const faviconUrl = getFaviconUrl(trimmedHref);
+
       onAdd({
         label: trimmedLabel,
         href: trimmedHref,
-        emoji: emoji.trim() || undefined,
+        iconUrl: faviconUrl ?? undefined,
       });
 
       setLabel('');
       setHref('');
-      setEmoji('🔗');
       onOpenChange(false);
     },
-    [label, href, emoji, onAdd, onOpenChange],
+    [label, href, onAdd, onOpenChange],
   );
 
   return (
@@ -121,30 +120,13 @@ export function AddBookmarkDialog({
                   className="pl-8"
                   required
                 />
-                <Link2 className="absolute top-2.5 left-2.5 size-3.5 text-muted-foreground" />
-              </div>
-            </div>
-
-            {/* Icon / Emoji Preset */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground">
-                Icon
-              </label>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {EMOJI_PRESETS.map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => setEmoji(preset)}
-                    className={`flex size-8 items-center justify-center rounded-md border text-sm transition-all duration-fast ${
-                      emoji === preset
-                        ? 'border-primary bg-primary/10 text-primary-foreground font-semibold shadow-xs ring-1 ring-primary'
-                        : 'border-border bg-surface hover:bg-surface-raised hover:border-border-strong text-foreground'
-                    }`}
-                  >
-                    {preset}
-                  </button>
-                ))}
+                <div className="absolute top-2.5 left-2.5 flex items-center justify-center size-3.5 pointer-events-none">
+                  <BookmarkFavicon
+                    href={href}
+                    className="size-3.5"
+                    fallbackIconClassName="size-3.5 text-muted-foreground"
+                  />
+                </div>
               </div>
             </div>
           </div>

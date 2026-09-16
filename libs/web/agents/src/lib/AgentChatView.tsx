@@ -229,6 +229,9 @@ function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
 
   const handleOpenProfile = () => {
     openProfilePanel({
+      entityKind: 'agent',
+      entityId: agent.id,
+      raw: agent,
       userId: agent.id,
       name: agent.name,
       avatarUrl: agent.avatarUrl ?? undefined,
@@ -287,15 +290,22 @@ function AgentMessageHeader({ agent }: { agent: AgentModelItem }) {
       <div className="gap-2.5 px-3 sm:px-6 py-1.5 min-h-12 flex flex-wrap items-center justify-between">
         <div className="min-w-0 gap-2 flex items-center">
           <div className="min-w-0 gap-2 flex items-center">
-            <AgentAvatar
-              name={agent.name}
-              avatarUrl={agent.avatarUrl}
-              size="sm"
-              className="size-7"
-            />
-            <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
-              {agent.name}
-            </h2>
+            <button
+              type="button"
+              onClick={handleOpenProfile}
+              className="gap-2 p-1 -m-1 flex cursor-pointer items-center rounded-md text-left transition-colors hover:bg-accent/60 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+              aria-label={`View ${name}'s details`}
+            >
+              <AgentAvatar
+                name={agent.name}
+                avatarUrl={agent.avatarUrl}
+                size="sm"
+                className="size-7"
+              />
+              <h2 className="text-base font-semibold tracking-tight truncate text-foreground">
+                {agent.name}
+              </h2>
+            </button>
 
             <Badge
               variant="primary"
