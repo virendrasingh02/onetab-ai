@@ -235,6 +235,21 @@ function LegacySettingsRedirect({ section }: { section: string }) {
   return <Navigate to={`/w/${workspaceSlug}/settings/${section}`} replace />;
 }
 
+function LegacyStudioRedirect() {
+  const { workspaceSlug } = useParams<{ workspaceSlug: string }>();
+  return <Navigate to={`/w/${workspaceSlug}/studio`} replace />;
+}
+
+function LegacyStudioTabRedirect() {
+  const { workspaceSlug, tab } = useParams<{
+    workspaceSlug: string;
+    tab?: string;
+  }>();
+  return (
+    <Navigate to={`/w/${workspaceSlug}/studio/${tab ?? 'overview'}`} replace />
+  );
+}
+
 function NotFoundPage() {
   return (
     <div className="p-6 grid min-h-full place-items-center">
@@ -351,6 +366,28 @@ export function App() {
             element={<LegacySettingsRedirect section="analytics" />}
           />
 
+          {/*
+            --- AI Studio ---
+            Dedicated standalone surface outside AppShell (mirrors Settings layout).
+            /w/:slug/studio lands on overview; /w/:slug/studio/:tab opens the tab.
+          */}
+          <Route
+            path="/w/:workspaceSlug/studio"
+            element={<Navigate to="overview" replace />}
+          />
+          <Route
+            path="/w/:workspaceSlug/studio/:tab"
+            element={<AIStudioView />}
+          />
+          <Route
+            path="/w/:workspaceSlug/ai-studio"
+            element={<LegacyStudioRedirect />}
+          />
+          <Route
+            path="/w/:workspaceSlug/ai-studio/:tab"
+            element={<LegacyStudioTabRedirect />}
+          />
+
           {/* --- Main Workspace Shell with Navigation & Tools --- */}
           <Route path="/w/:workspaceSlug" element={<AppShell />}>
             <Route index element={<AIChatView />} />
@@ -395,8 +432,6 @@ export function App() {
             <Route path="saved" element={<SavedView />} />
             <Route path="ai-chat" element={<AIChatView />} />
             <Route path="ai/prompts" element={<PromptLibraryView />} />
-            <Route path="studio" element={<AIStudioView />} />
-            <Route path="studio/:tab" element={<AIStudioView />} />
             <Route path="whiteboards" element={<WhiteboardCanvas />} />
             <Route path="coworkers" element={<CoworkerDirectoryView />} />
             <Route path="coworkers/:id" element={<CoworkerChatView />} />

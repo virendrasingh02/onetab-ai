@@ -29,6 +29,47 @@
 -- here entirely since the columns already are what schema.prisma wants; this
 -- migration only needs to fix the actually-missing compliance tables.
 
+-- CreateEnum
+DO $$ BEGIN
+  CREATE TYPE "CompliancePlatformType" AS ENUM ('WEB', 'DESKTOP', 'MOBILE');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "ComplianceSeverity" AS ENUM ('CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFORMATIONAL');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "ComplianceCategory" AS ENUM ('PRIVACY', 'DATA_COLLECTION', 'USER_CONSENT', 'ACCOUNT_DELETION', 'AUTHENTICATION', 'PAYMENTS', 'CONTENT_MODERATION', 'SECURITY', 'PERMISSIONS', 'NOTIFICATIONS', 'TRACKING_ADVERTISING', 'AGE_RATING', 'METADATA_ASSETS', 'LEGAL_TERMS', 'REGIONAL_LEGAL', 'EXPORT_COMPLIANCE');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "ComplianceChecklistStatus" AS ENUM ('PASSED', 'FAILED', 'WARNING', 'SKIPPED', 'NOT_APPLICABLE');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "ComplianceReviewStatus" AS ENUM ('IN_PROGRESS', 'READY_FOR_SUBMISSION', 'BLOCKED', 'APPROVED', 'RELEASED');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "ComplianceIssueStatus" AS ENUM ('OPEN', 'INVESTIGATING', 'FIX_REQUIRED', 'IN_PROGRESS', 'READY_FOR_RESUBMISSION', 'SUBMITTED', 'RESOLVED', 'ACCEPTED', 'WONT_FIX');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "ComplianceIssueSource" AS ENUM ('STORE_REVIEW', 'INTERNAL_AUDIT', 'AUTOMATED_SCAN', 'REGULATORY_NOTICE');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "CompliancePolicyStatus" AS ENUM ('DRAFT', 'ACTIVE', 'UNDER_REVIEW', 'DEPRECATED');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
 -- CreateTable
 CREATE TABLE IF NOT EXISTS "compliance_regions" (
     "id" TEXT NOT NULL,

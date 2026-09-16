@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   aiStudioApi,
@@ -11,7 +11,7 @@ import {
   queryKeys,
 } from '@org/api-client';
 import { AI_MODELS } from '../ai-models.js';
-import { useCurrentWorkspace } from '@org/web-workspace';
+import { useCurrentWorkspace, WorkspacePreferencesEffects } from '@org/web-workspace';
 import {
   Badge,
   Button,
@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
   Input,
+  KbdShortcut,
   LoadingState,
   Select,
   SelectContent,
@@ -35,8 +36,10 @@ import {
 import { cn } from '@org/utils';
 import {
   Activity,
+  ArrowLeft,
   BookOpen,
   Bot,
+  ChevronDown,
   ChevronRight,
   Clock,
   Cpu,
@@ -57,6 +60,7 @@ import {
   TrendingUp,
   UserCheck,
   Workflow,
+  X,
 } from 'lucide-react';
 import type {
   AIApp,
@@ -66,116 +70,378 @@ import type {
   KnowledgeRetrievalResult,
 } from '@org/types';
 
+export interface StudioNavItem {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+  badge?: string;
+  keywords?: string;
+}
+
+export interface StudioNavGroup {
+  id: string;
+  title: string;
+  items: StudioNavItem[];
+}
+
+export const STUDIO_NAV_GROUPS: StudioNavGroup[] = [
+  {
+    id: 'core',
+    title: 'Core & Overview',
+    items: [
+      { id: 'overview', label: 'Overview & Status', icon: LayoutGrid, badge: 'CORE', keywords: 'home dashboard summary stats welcome quick create' },
+      { id: 'analytics', label: 'Analytics & Usage', icon: TrendingUp, keywords: 'metrics performance tokens costs graphs feedback satisfaction latency' },
+      { id: 'executions', label: 'Execution Center', icon: Clock, keywords: 'runs logs execution history tracing latency status events' },
+    ],
+  },
+  {
+    id: 'entities',
+    title: 'Intelligent Entities',
+    items: [
+      { id: 'agents', label: 'Autonomous Agents', icon: Bot, badge: 'AGENTS', keywords: 'agents autonomous bots multi-agent tasks' },
+      { id: 'coworkers', label: 'AI Coworkers', icon: UserCheck, badge: 'TEAM', keywords: 'colleagues persona memory team teammates persistent' },
+      { id: 'apps', label: 'AI Applications', icon: Sparkles, badge: 'APPS', keywords: 'apps chat search extraction summarizer assistants tools' },
+    ],
+  },
+  {
+    id: 'automations',
+    title: 'Automations & Pipelines',
+    items: [
+      { id: 'workflows', label: 'Visual Workflows', icon: Workflow, badge: 'FLOW', keywords: 'canvas pipelines dag automation steps nodes execution' },
+    ],
+  },
+  {
+    id: 'knowledge',
+    title: 'Knowledge & Prompts',
+    items: [
+      { id: 'knowledge', label: 'Knowledge / RAG', icon: BookOpen, badge: 'RAG', keywords: 'knowledge embeddings vector rag documents search chunks' },
+      { id: 'prompts', label: 'Prompt Library', icon: Library, keywords: 'system prompts templates instructions reusable' },
+    ],
+  },
+  {
+    id: 'ecosystem',
+    title: 'Ecosystem & Tools',
+    items: [
+      { id: 'tools', label: 'Tool Registry', icon: Terminal, keywords: 'functions tools schema web search calculator bash code execution' },
+      { id: 'models', label: 'Model Hub', icon: Cpu, badge: 'LLM', keywords: 'models providers openai anthropic gemini llama deepseek mistral' },
+      { id: 'mcp', label: 'Model Context Protocol', icon: Plug, badge: 'MCP', keywords: 'mcp protocol servers integrations stdio sse clients' },
+    ],
+  },
+];
+
+const COLLAPSE_STORAGE_KEY = 'onetab_ai_studio_nav_collapsed';
+
+function readCollapsed(): Record<string, boolean> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(COLLAPSE_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
 export function AIStudioView() {
   const currentWorkspace = useCurrentWorkspace();
   const workspaceId = currentWorkspace.workspaceId;
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'overview';
+  const { tab: routeTab } = useParams<{ tab?: string }>();
+  const [searchParams] = useSearchParams();
+  const activeTab = routeTab || searchParams.get('tab') || 'overview';
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(readCollapsed);
+
+  const backUrl = `/w/${currentWorkspace.slug}`;
 
   const setTab = (tab: string) => {
-    setSearchParams({ tab });
+    navigate(`/w/${currentWorkspace.slug}/studio/${tab}`);
   };
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        COLLAPSE_STORAGE_KEY,
+        JSON.stringify(collapsed),
+      );
+    } catch {
+      // storage unavailable
+    }
+  }, [collapsed]);
+
+  // Keep active section un-collapsed
+  const activeGroupId = useMemo(
+    () =>
+      STUDIO_NAV_GROUPS.find((group) =>
+        group.items.some((item) => item.id === activeTab),
+      )?.id,
+    [activeTab],
+  );
+
+  useEffect(() => {
+    if (!activeGroupId) return;
+    setCollapsed((current) =>
+      current[activeGroupId] ? { ...current, [activeGroupId]: false } : current,
+    );
+  }, [activeGroupId]);
+
+  // Handle Escape to exit AI Studio back to workspace
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (document.querySelector('[role="dialog"], [data-state="open"]')) return;
+      navigate(backUrl);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate, backUrl]);
+
+  const needle = searchQuery.trim().toLowerCase();
+  const isSearching = needle.length > 0;
+
+  const matches = (item: StudioNavItem) =>
+    !needle ||
+    item.label.toLowerCase().includes(needle) ||
+    (item.keywords ?? '').toLowerCase().includes(needle);
+
+  const groupsToRender = STUDIO_NAV_GROUPS.map((group) => ({
+    group,
+    items: group.items.filter(matches),
+  })).filter(({ items }) => items.length > 0);
+
+  const toggleGroup = (id: string) =>
+    setCollapsed((current) => ({ ...current, [id]: !current[id] }));
+
+  const activeItem = useMemo(() => {
+    for (const group of STUDIO_NAV_GROUPS) {
+      const match = group.items.find((item) => item.id === activeTab);
+      if (match) return match;
+    }
+    return null;
+  }, [activeTab]);
+
   if (!workspaceId) {
-    return <LoadingState label="Loading workspace..." />;
+    return <LoadingState label="Loading AI Studio..." fullPage />;
   }
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-background">
-      {/* Header */}
-      <header className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Sparkles className="size-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight text-foreground">
-                AI Studio
-              </h1>
-              <Badge variant="primary" className="text-[10px] font-semibold uppercase">
-                Unified Runtime
-              </Badge>
+    <div className="gap-1.5 p-1.5 flex h-screen w-screen flex-col overflow-hidden bg-background font-sans text-foreground">
+      {/* Live-apply preferences so theme & font size preview */}
+      <WorkspacePreferencesEffects workspaceId={workspaceId} />
+
+      {/* Main Studio Card Box */}
+      <div className="min-h-0 flex h-full w-full flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xs">
+        {/* Top Header Bar */}
+        <header className="h-12 backdrop-blur-md px-4 sm:px-6 flex shrink-0 items-center justify-between border-b border-border/70 bg-surface/60">
+          <div className="gap-2.5 text-xs flex items-center">
+            <button
+              type="button"
+              onClick={() => navigate(backUrl)}
+              className="gap-1.5 font-medium px-2 py-1 inline-flex items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+            >
+              <ArrowLeft className="size-3.5" />
+              <span>Back</span>
+            </button>
+            <span className="text-muted-foreground/50">/</span>
+            <div className="gap-2 flex items-center">
+              <span className="font-semibold text-foreground">AI Studio</span>
+              <span className="text-muted-foreground/50">/</span>
+              <span className="font-medium px-2 py-0.5 rounded-md bg-primary/10 text-primary capitalize">
+                {activeItem?.label || activeTab.replace(/-/g, ' ')}
+              </span>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Design, automate, and orchestrate autonomous AI agents, coworkers, workflows, knowledge & apps
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/w/${currentWorkspace.slug}/automations/builder`)}
-            leadingIcon={<Workflow className="size-4" />}
-          >
-            Workflow Builder
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/w/${currentWorkspace.slug}/agents/builder`)}
-            leadingIcon={<Bot className="size-4" />}
-          >
-            Agent Builder
-          </Button>
-        </div>
-      </header>
-
-      {/* Tabs Navigation */}
-      <div className="border-b border-border bg-surface/50 px-6">
-        <div className="flex items-center gap-1 overflow-x-auto py-2 no-scrollbar">
-          {[
-            { id: 'overview', label: 'Overview', icon: LayoutGrid },
-            { id: 'agents', label: 'Agents', icon: Bot },
-            { id: 'coworkers', label: 'Coworkers', icon: UserCheck },
-            { id: 'workflows', label: 'Workflows', icon: Workflow },
-            { id: 'apps', label: 'AI Apps', icon: Sparkles },
-            { id: 'knowledge', label: 'Knowledge / RAG', icon: BookOpen },
-            { id: 'tools', label: 'Tool Registry', icon: Terminal },
-            { id: 'models', label: 'Model Hub', icon: Cpu },
-            { id: 'prompts', label: 'Prompts', icon: Library },
-            { id: 'mcp', label: 'MCP', icon: Plug },
-            { id: 'executions', label: 'Executions', icon: Clock },
-            { id: 'analytics', label: 'Analytics', icon: TrendingUp },
-          ].map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setTab(item.id)}
-                className={cn(
-                  'flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap',
-                  isActive
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                )}
+            {currentWorkspace.workspace?.name ? (
+              <Badge
+                variant="neutral"
+                className="sm:inline-flex font-medium hidden text-xs text-foreground/80"
               >
-                <Icon className="size-3.5" />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+                {currentWorkspace.workspace.name}
+              </Badge>
+            ) : null}
+          </div>
 
-      {/* Tab Contents */}
-      <div className="flex-1 overflow-y-auto p-6">
-        {activeTab === 'overview' && <OverviewTab workspaceId={workspaceId} onSelectTab={setTab} />}
-        {activeTab === 'agents' && <AgentsTab workspaceId={workspaceId} />}
-        {activeTab === 'coworkers' && <CoworkersTab workspaceId={workspaceId} />}
-        {activeTab === 'workflows' && <WorkflowsTab workspaceId={workspaceId} />}
-        {activeTab === 'apps' && <AppsTab workspaceId={workspaceId} />}
-        {activeTab === 'knowledge' && <KnowledgeTab workspaceId={workspaceId} />}
-        {activeTab === 'tools' && <ToolsTab workspaceId={workspaceId} />}
-        {activeTab === 'models' && <ModelsTab workspaceId={workspaceId} />}
-        {activeTab === 'prompts' && <PromptsTab workspaceId={workspaceId} />}
-        {activeTab === 'mcp' && <MCPTab workspaceId={workspaceId} />}
-        {activeTab === 'executions' && <ExecutionsTab workspaceId={workspaceId} />}
-        {activeTab === 'analytics' && <AnalyticsTab workspaceId={workspaceId} />}
+          <div className="gap-2 flex items-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/w/${currentWorkspace.slug}/automations/builder`)}
+              leadingIcon={<Workflow className="size-3.5" />}
+              className="h-8 text-xs hidden sm:inline-flex"
+            >
+              Workflow Builder
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/w/${currentWorkspace.slug}/agents/builder`)}
+              leadingIcon={<Bot className="size-3.5" />}
+              className="h-8 text-xs hidden sm:inline-flex"
+            >
+              Agent Builder
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Close AI Studio"
+              onClick={() => navigate(backUrl)}
+              className="h-8 gap-1.5 px-2.5 text-xs rounded-lg text-muted-foreground hover:text-foreground"
+            >
+              <span>Close</span>
+              <KbdShortcut
+                keys={['Escape']}
+                size="xs"
+                variant="muted"
+                responsive
+              />
+              <X className="size-3.5" />
+            </Button>
+          </div>
+        </header>
+
+        {/* Inner Content Area: Dedicated Sidebar + Main Scrollable Area */}
+        <div className="min-h-0 flex flex-1 overflow-hidden">
+          {/* Left Dedicated Studio Sidebar */}
+          <aside className="w-64 sm:w-72 flex h-full shrink-0 flex-col border-r border-border bg-surface-muted/50 select-none">
+            {/* Search Input */}
+            <div className="p-3">
+              <div className="relative">
+                <Input
+                  type="text"
+                  placeholder="Search AI Studio..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  leadingIcon={<Search className="size-3.5 text-muted-foreground" />}
+                  className="h-8 text-xs rounded-lg border-border bg-surface-inset placeholder:text-muted-foreground pr-7"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    aria-label="Clear search"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Scrollable Nav Items */}
+            <div className="min-h-0 py-1 px-3 flex-1 overflow-y-auto overflow-x-hidden space-y-3 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
+              {groupsToRender.length === 0 ? (
+                <div className="px-2.5 py-10 text-center">
+                  <Search className="size-5 mx-auto mb-2 text-muted-foreground/60" />
+                  <p className="text-xs text-muted-foreground">
+                    No sections match “{searchQuery}”.
+                  </p>
+                </div>
+              ) : (
+                groupsToRender.map(({ group, items }) => {
+                  const isCollapsed = !isSearching && collapsed[group.id];
+
+                  return (
+                    <div key={group.id} className="space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => toggleGroup(group.id)}
+                        aria-expanded={!isCollapsed}
+                        className="group/hdr px-2.5 py-1 flex w-full items-center justify-between rounded-md text-left transition-colors hover:bg-accent/40"
+                      >
+                        <span className="gap-1.5 flex items-center font-bold tracking-wider text-[10.5px] text-muted-foreground uppercase">
+                          {group.title}
+                          <span className="font-semibold tabular-nums text-[10px] text-muted-foreground/60 normal-case">
+                            {items.length}
+                          </span>
+                        </span>
+                        {!isSearching ? (
+                          <ChevronDown
+                            className={cn(
+                              'size-3.5 text-muted-foreground/60 transition-transform group-hover/hdr:text-muted-foreground',
+                              isCollapsed && '-rotate-90',
+                            )}
+                          />
+                        ) : null}
+                      </button>
+
+                      {!isCollapsed ? (
+                        <div className="space-y-0.5">
+                          {items.map((item) => {
+                            const Icon = item.icon;
+                            const isActive = activeTab === item.id;
+
+                            return (
+                              <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => setTab(item.id)}
+                                aria-current={isActive ? 'page' : undefined}
+                                className={cn(
+                                  'px-2.5 py-1.5 font-medium flex w-full items-center justify-between rounded-xl text-left text-[13px] transition-all cursor-pointer',
+                                  isActive
+                                    ? 'font-semibold shadow-2xs bg-accent text-foreground'
+                                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                                )}
+                              >
+                                <div className="gap-2.5 min-w-0 flex items-center">
+                                  <Icon
+                                    className={cn(
+                                      'size-4 shrink-0',
+                                      isActive
+                                        ? 'text-primary'
+                                        : 'text-muted-foreground',
+                                    )}
+                                  />
+                                  <span className="truncate">{item.label}</span>
+                                </div>
+                                {item.badge ? (
+                                  <Badge
+                                    variant="neutral"
+                                    className="px-1.5 py-0 font-semibold text-[10px]"
+                                  >
+                                    {item.badge}
+                                  </Badge>
+                                ) : null}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Sidebar Footer Status */}
+            <div className="p-3 border-t border-border/70 bg-surface/30">
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <div className="flex items-center gap-1.5">
+                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="font-medium text-foreground">AI Engine Online</span>
+                </div>
+                <span className="text-[10px] text-muted-foreground/70">v2.0</span>
+              </div>
+            </div>
+          </aside>
+
+          {/* Main Studio Content Area */}
+          <main className="min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-hidden bg-surface-inset/20 p-6 md:p-8 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
+            <div className="w-full max-w-6xl mx-auto space-y-6">
+              {activeTab === 'overview' && <OverviewTab workspaceId={workspaceId} onSelectTab={setTab} />}
+              {activeTab === 'agents' && <AgentsTab workspaceId={workspaceId} />}
+              {activeTab === 'coworkers' && <CoworkersTab workspaceId={workspaceId} />}
+              {activeTab === 'workflows' && <WorkflowsTab workspaceId={workspaceId} />}
+              {activeTab === 'apps' && <AppsTab workspaceId={workspaceId} />}
+              {activeTab === 'knowledge' && <KnowledgeTab workspaceId={workspaceId} />}
+              {activeTab === 'tools' && <ToolsTab workspaceId={workspaceId} />}
+              {activeTab === 'models' && <ModelsTab workspaceId={workspaceId} />}
+              {activeTab === 'prompts' && <PromptsTab workspaceId={workspaceId} />}
+              {activeTab === 'mcp' && <MCPTab workspaceId={workspaceId} />}
+              {activeTab === 'executions' && <ExecutionsTab workspaceId={workspaceId} />}
+              {activeTab === 'analytics' && <AnalyticsTab workspaceId={workspaceId} />}
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );
