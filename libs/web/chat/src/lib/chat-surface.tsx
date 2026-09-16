@@ -46,7 +46,7 @@ import {
   Hint,
   useRightPanelStore,
 } from '@org/ui';
-import { Headphones, Lock, Pin, Search, Users } from 'lucide-react';
+import { Hash, Headphones, Lock, Pin, Search, Users } from 'lucide-react';
 import {
   useCallback,
   useEffect,
@@ -954,7 +954,7 @@ export function ChatSurface({
       ? 'Members'
       : panel === 'search'
         ? 'Search'
-        : `Pinned${pinnedMessages.length ? ` — ${pinnedMessages.length}` : ''}`;
+        : 'Pinned messages';
 
   const toggle = (next: SidePanel) =>
     setPanel((current) => {
@@ -989,12 +989,34 @@ export function ChatSurface({
 
   useEffect(() => {
     if (!inThreads) return;
+    const isPrivate = welcome?.isPrivate ?? isEncrypted;
+    const isChannel = !welcome?.kind || welcome.kind === 'channel';
+    const ChannelIcon = isChannel ? (isPrivate ? Lock : Hash) : undefined;
+
     openHosted('threads', {
       title: panel === 'thread' ? 'Thread' : 'Threads',
+      subtitle: (
+        <span className="flex items-center gap-1">
+          {ChannelIcon ? (
+            <ChannelIcon className="size-3 shrink-0 text-muted-foreground" aria-hidden />
+          ) : null}
+          <span className="truncate">{title}</span>
+        </span>
+      ),
       onClose: closeThreads,
     });
     return () => closeHosted('threads');
-  }, [inThreads, panel, closeThreads, openHosted, closeHosted]);
+  }, [
+    inThreads,
+    panel,
+    closeThreads,
+    openHosted,
+    closeHosted,
+    welcome?.isPrivate,
+    welcome?.kind,
+    isEncrypted,
+    title,
+  ]);
 
   const headerActions = (
     <>
@@ -1166,6 +1188,15 @@ export function ChatSurface({
             messages={pinnedMessages}
             onJump={jumpTo}
             onUnpin={onTogglePin}
+            onReact={
+              onReact
+                ? (messageId, key, reactedByMe) =>
+                    void onReact(messageId, key, reactedByMe)
+                : undefined
+            }
+            onOpenThread={(messageId) => openThreadPanel(messageId)}
+            onToggleSave={onToggleSave}
+            isSaved={(messageId) => savedIds?.includes(messageId) ?? false}
           />
         ) : panel === 'members' ? (
           <MemberList
@@ -1235,6 +1266,8 @@ export function ChatSurface({
                           ? `${conversationId}-thread-${threadRoot.id}`
                           : null
                       }
+                      targetName={`${title} (thread)`}
+                      workspaceId={composerContext?.workspaceId}
                       members={members}
                       currentUserId={myUserId}
                       linkPreviewsEnabled={chat?.linkPreviewsEnabled ?? true}
@@ -1359,6 +1392,8 @@ export function ChatSurface({
           ) : null}
           <Composer
             conversationId={conversationId}
+            targetName={title}
+            workspaceId={composerContext?.workspaceId}
             members={members}
             currentUserId={myUserId}
             linkPreviewsEnabled={chat?.linkPreviewsEnabled ?? true}

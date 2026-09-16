@@ -105,6 +105,7 @@ export {
 } from './lib/use-dm-preferences.js';
 export { useDirectMessageBookmarks } from './lib/use-dm-bookmarks.js';
 export { ThreadsView } from './lib/ThreadsView.js';
+export { formatRoomMemberSummary } from './lib/thread-roster.js';
 export { SavedView } from './lib/SavedView.js';
 export {
   useSavedIds,
@@ -125,5 +126,10 @@ export {
   useComposerAddActions,
   type UseComposerAddActionsOptions,
 } from './lib/use-composer-add-actions.js';
+export {
+  useScheduledMessagesStore,
+  type ScheduledMessage,
+} from '@org/chat-ui';
+
 
 

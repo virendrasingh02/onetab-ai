@@ -1,9 +1,22 @@
 import { useAuthenticatedMediaSrc } from '@org/hooks';
 import { downloadMediaItem } from '@org/media-preview';
 import type { Attachment } from '@org/types';
-import { Button, Hint, Skeleton, toast } from '@org/ui';
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Hint,
+  Skeleton,
+  toast,
+} from '@org/ui';
 import { cn, formatBytes } from '@org/utils';
 import {
+  ChevronDown,
+  CloudDownload,
+  Copy,
   Download,
   ExternalLink,
   File as FileIcon,
@@ -15,8 +28,88 @@ import {
   Pause,
   Play,
 } from 'lucide-react';
-import { useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import {
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type MouseEvent,
+} from 'react';
 import { WaveformBars } from './waveform-bars.js';
+
+export interface AttachmentFileHeaderProps {
+  attachment: Attachment;
+  onOpen?: () => void;
+  onDownload?: () => void;
+  className?: string;
+}
+
+/** Slack-style single-attachment filename header with dropdown actions */
+export function AttachmentFileHeader({
+  attachment,
+  onOpen,
+  onDownload,
+  className,
+}: AttachmentFileHeaderProps) {
+  const handleDownload = async () => {
+    if (onDownload) {
+      onDownload();
+    } else {
+      await downloadAttachment(attachment);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!attachment.url) return;
+    try {
+      await navigator.clipboard.writeText(attachment.url);
+      toast.success('Link copied to clipboard');
+    } catch {
+      toast.error('Failed to copy link');
+    }
+  };
+
+  return (
+    <div className={cn('flex items-center gap-1.5 text-xs', className)}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="group/file-hdr inline-flex items-center gap-1 py-0.5 px-1 -ml-1 text-xs font-semibold text-foreground/90 hover:text-foreground transition-colors rounded hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <span className="truncate max-w-[240px] sm:max-w-xs text-[13px] font-semibold text-foreground/95">
+              {attachment.name}
+            </span>
+            {attachment.size ? (
+              <span className="text-[11px] text-muted-foreground font-normal ml-0.5">
+                {formatBytes(attachment.size)}
+              </span>
+            ) : null}
+            <ChevronDown className="size-3 text-muted-foreground transition-transform duration-150 group-data-[state=open]/file-hdr:rotate-180 shrink-0" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-48">
+          {onOpen ? (
+            <DropdownMenuItem onClick={onOpen} className="gap-2 text-xs cursor-pointer">
+              <ExternalLink className="size-3.5" />
+              <span>Open preview</span>
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuItem onClick={handleDownload} className="gap-2 text-xs cursor-pointer">
+            <Download className="size-3.5" />
+            <span>Download</span>
+          </DropdownMenuItem>
+          {attachment.url ? (
+            <DropdownMenuItem onClick={handleCopyLink} className="gap-2 text-xs cursor-pointer">
+              <Copy className="size-3.5" />
+              <span>Copy link</span>
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
 
 /** Enter/Space activates a `div[role=button]` the way a native `<button>`
  *  would — shared by every tile below that can't be a real `<button>`
@@ -187,6 +280,8 @@ export function AttachmentCard({
 export interface ImagePreviewProps {
   attachment: Attachment;
   onOpen?: () => void;
+  className?: string;
+  showHeader?: boolean;
 }
 
 /**
@@ -196,7 +291,12 @@ export interface ImagePreviewProps {
  * does not reflow when the image loads — the single biggest cause of a jumping
  * scroll position in a message list.
  */
-export function ImagePreview({ attachment, onOpen }: ImagePreviewProps) {
+export function ImagePreview({
+  attachment,
+  onOpen,
+  className,
+  showHeader = true,
+}: ImagePreviewProps) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -230,113 +330,117 @@ export function ImagePreview({ attachment, onOpen }: ImagePreviewProps) {
   };
 
   return (
-    // A `div`, not a `<button>` — it hosts a real download `<button>`, and
-    // nested buttons are invalid HTML (and silently break the browser's
-    // click handling for one of them).
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={handleOpenKeyDown(onOpen)}
-      className="mt-1 max-w-sm block overflow-hidden rounded-lg border border-border bg-surface focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none cursor-pointer group"
-      aria-label={`Open image ${attachment.name}`}
-    >
-      <span className="relative block overflow-hidden" style={{ aspectRatio: ratio }}>
-        {!loaded ? (
-          <Skeleton className="inset-0 absolute size-full rounded-none" />
-        ) : null}
-        <img
-          src={imageSrc ?? undefined}
-          alt={attachment.name}
-          loading="lazy"
-          decoding="async"
-          onLoad={() => setLoaded(true)}
-          onError={() => setFailed(true)}
-          className={cn(
-            'size-full object-cover transition-transform group-hover:scale-102 duration-200',
-            loaded ? 'opacity-100' : 'opacity-0',
-          )}
+    <div className={cn('mt-1 max-w-sm space-y-1', className)}>
+      {showHeader ? (
+        <AttachmentFileHeader
+          attachment={attachment}
+          onOpen={onOpen}
+          onDownload={() => downloadAttachment(attachment)}
         />
-
-        {/* Filename + size, revealed on hover/focus — same info the
-            lightbox toolbar shows, just without opening it. */}
-        <span
-          className={cn(
-            'absolute inset-x-0 bottom-0 flex flex-col gap-0 px-2.5 py-1.5',
-            'bg-gradient-to-t from-black/70 to-transparent text-white',
-            'opacity-0 transition-opacity duration-150 pointer-events-none',
-            'group-hover:opacity-100 group-focus-visible:opacity-100',
-          )}
-        >
-          <span className="truncate text-xs font-medium leading-tight">
-            {attachment.name}
-          </span>
-          {attachment.size ? (
-            <span className="text-[10px] leading-tight text-white/80">
-              {formatBytes(attachment.size)}
-            </span>
+      ) : null}
+      {/* A `div`, not a `<button>` — it hosts a real download `<button>`, and
+          nested buttons are invalid HTML (and silently break the browser's
+          click handling for one of them). */}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onOpen}
+        onKeyDown={handleOpenKeyDown(onOpen)}
+        className="block overflow-hidden rounded-xl border border-border bg-surface focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none cursor-pointer group shadow-xs"
+        aria-label={`Open image ${attachment.name}`}
+      >
+        <span className="relative block overflow-hidden" style={{ aspectRatio: ratio }}>
+          {!loaded ? (
+            <Skeleton className="inset-0 absolute size-full rounded-none" />
           ) : null}
-        </span>
-
-        <Hint label="Download">
-          <button
-            type="button"
-            onClick={handleDownload}
-            disabled={downloading}
-            aria-label={`Download ${attachment.name}`}
+          <img
+            src={imageSrc ?? undefined}
+            alt={attachment.name}
+            loading="lazy"
+            decoding="async"
+            onLoad={() => setLoaded(true)}
+            onError={() => setFailed(true)}
             className={cn(
-              'absolute top-2 right-2 size-7 flex items-center justify-center rounded-md bg-black/50 text-white transition-opacity hover:bg-black/70',
-              'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 focus-visible:opacity-100',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70',
+              'size-full object-cover transition-transform group-hover:scale-102 duration-200',
+              loaded ? 'opacity-100' : 'opacity-0',
             )}
-          >
-            {downloading ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Download className="size-3.5" />
-            )}
-          </button>
-        </Hint>
-      </span>
+          />
+
+          <Hint label="Download">
+            <button
+              type="button"
+              onClick={handleDownload}
+              disabled={downloading}
+              aria-label={`Download ${attachment.name}`}
+              className={cn(
+                'absolute top-2 right-2 size-7 flex items-center justify-center rounded-md bg-black/50 text-white transition-opacity hover:bg-black/70',
+                'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 focus-visible:opacity-100',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70',
+              )}
+            >
+              {downloading ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Download className="size-3.5" />
+              )}
+            </button>
+          </Hint>
+        </span>
+      </div>
     </div>
   );
+}
+
+export interface VideoPreviewProps {
+  attachment: Attachment;
+  onOpen?: () => void;
+  className?: string;
+  showHeader?: boolean;
 }
 
 export function VideoPreview({
   attachment,
   onOpen,
-}: {
-  attachment: Attachment;
-  onOpen?: () => void;
-}) {
+  className,
+  showHeader = true,
+}: VideoPreviewProps) {
   // Same authenticated-media problem as images: a <video>/poster can't
   // attach the header Matrix's media repo requires either.
   const poster = useAuthenticatedMediaSrc(attachment.thumbnailUrl);
   const videoSrc = useAuthenticatedMediaSrc(attachment.url);
 
   return (
-    <div className="relative mt-1 max-w-sm rounded-lg border border-border bg-surface overflow-hidden">
-      <video
-        controls
-        preload="metadata"
-        poster={poster ?? undefined}
-        className="w-full max-h-64 object-contain bg-surface-inset"
-        aria-label={attachment.name}
-      >
-        {videoSrc ? <source src={videoSrc} type={attachment.mimeType} /> : null}
-        Your browser cannot play this video.
-      </video>
-      {onOpen ? (
-        <button
-          type="button"
-          onClick={onOpen}
-          className="absolute top-2 right-2 size-7 flex items-center justify-center rounded-md bg-black/50 text-white hover:bg-black/70 transition-colors"
-          aria-label={`Open ${attachment.name}`}
-          title="Open in full view"
-        >
-          <Maximize2 className="size-3.5" />
-        </button>
+    <div className={cn('mt-1 max-w-sm space-y-1', className)}>
+      {showHeader ? (
+        <AttachmentFileHeader
+          attachment={attachment}
+          onOpen={onOpen}
+          onDownload={() => downloadAttachment(attachment)}
+        />
       ) : null}
+      <div className="relative rounded-xl border border-border bg-surface overflow-hidden shadow-xs">
+        <video
+          controls
+          preload="metadata"
+          poster={poster ?? undefined}
+          className="w-full max-h-64 object-contain bg-surface-inset"
+          aria-label={attachment.name}
+        >
+          {videoSrc ? <source src={videoSrc} type={attachment.mimeType} /> : null}
+          Your browser cannot play this video.
+        </video>
+        {onOpen ? (
+          <button
+            type="button"
+            onClick={onOpen}
+            className="absolute top-2 right-2 size-7 flex items-center justify-center rounded-md bg-black/50 text-white hover:bg-black/70 transition-colors"
+            aria-label={`Open ${attachment.name}`}
+            title="Open in full view"
+          >
+            <Maximize2 className="size-3.5" />
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -451,6 +555,7 @@ export interface MediaPreviewProps {
   kind?: string;
   onOpen?: () => void;
   className?: string;
+  showHeader?: boolean;
 }
 
 /** Unified Slack-style media preview component handling images, videos, audio, PDFs, and files. */
@@ -459,16 +564,31 @@ export function MediaPreview({
   kind,
   onOpen,
   className,
+  showHeader = true,
 }: MediaPreviewProps) {
   const isPdf =
     attachment.mimeType?.includes('pdf') ||
     attachment.name?.toLowerCase().endsWith('.pdf');
 
   if (kind === 'image' || attachment.mimeType?.startsWith('image/')) {
-    return <ImagePreview attachment={attachment} onOpen={onOpen} />;
+    return (
+      <ImagePreview
+        attachment={attachment}
+        onOpen={onOpen}
+        className={className}
+        showHeader={showHeader}
+      />
+    );
   }
   if (kind === 'video' || attachment.mimeType?.startsWith('video/')) {
-    return <VideoPreview attachment={attachment} onOpen={onOpen} />;
+    return (
+      <VideoPreview
+        attachment={attachment}
+        onOpen={onOpen}
+        className={className}
+        showHeader={showHeader}
+      />
+    );
   }
   if (kind === 'voice' || attachment.mimeType?.startsWith('audio/')) {
     return <VoiceMessage attachment={attachment} />;
@@ -509,13 +629,17 @@ function isMediaItem(item: AttachmentGridItem) {
   );
 }
 
-/** One square tile inside an {@link AttachmentGrid}. */
+/** One tile inside an {@link AttachmentGrid}. */
 function AttachmentGridTile({
   item,
   overflowCount,
+  className,
+  style,
 }: {
   item: AttachmentGridItem;
   overflowCount: number;
+  className?: string;
+  style?: CSSProperties;
 }) {
   const { attachment, kind, onOpen } = item;
   const [loaded, setLoaded] = useState(false);
@@ -534,7 +658,11 @@ function AttachmentGridTile({
       <button
         type="button"
         onClick={onOpen}
-        className="aspect-square flex flex-col items-center justify-center gap-1 bg-surface-inset text-muted-foreground"
+        style={style}
+        className={cn(
+          'flex flex-col items-center justify-center gap-1 bg-surface-inset text-muted-foreground',
+          className ?? 'aspect-square',
+        )}
         aria-label={`Open ${attachment.name}`}
       >
         <FileIcon className="size-5" />
@@ -563,7 +691,11 @@ function AttachmentGridTile({
       tabIndex={0}
       onClick={onOpen}
       onKeyDown={handleOpenKeyDown(onOpen)}
-      className="relative aspect-square block overflow-hidden bg-surface-inset focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none cursor-pointer group"
+      style={style}
+      className={cn(
+        'relative block overflow-hidden bg-surface-inset focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:outline-none cursor-pointer group',
+        className ?? 'aspect-square',
+      )}
       aria-label={`Open ${attachment.name}`}
     >
       {!loaded ? (
@@ -617,7 +749,7 @@ function AttachmentGridTile({
               disabled={downloading}
               aria-label={`Download ${attachment.name}`}
               className={cn(
-                'absolute top-1 right-1 size-6 flex items-center justify-center rounded-md bg-black/50 text-white transition-opacity hover:bg-black/70',
+                'absolute top-1.5 right-1.5 size-6 flex items-center justify-center rounded-md bg-black/50 text-white transition-opacity hover:bg-black/70',
                 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 focus-visible:opacity-100',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70',
               )}
@@ -676,13 +808,10 @@ export function AttachmentGrid({ items }: AttachmentGridProps) {
   const visibleMedia = media.slice(0, GRID_MEDIA_LIMIT);
   const overflow = media.length - visibleMedia.length;
 
-  // A 2-up grid reads as cramped at the same width a 3-up (or 2x2) one uses
-  // comfortably — one extra column eats the width a second tile would
-  // otherwise get. Widening the container for exactly the 2-tile case (a
-  // wide single row, same as a 1-tile preview one size up) keeps every tile
-  // count feeling proportionate instead of the 2-tile grid being the
-  // smallest-looking one of the bunch.
-  const gridWidthClass = visibleMedia.length === 2 ? 'max-w-md' : 'max-w-sm';
+  // A 2-up grid uses a wide flex container so the natural aspect ratios
+  // of both files (e.g. desktop widescreen + mobile portrait) are preserved
+  // side-by-side with full fidelity, matching modern chat designs.
+  const gridWidthClass = visibleMedia.length === 2 ? 'max-w-2xl' : 'max-w-lg';
 
   const downloadAll = async () => {
     if (downloadingAll) return;
@@ -711,38 +840,104 @@ export function AttachmentGrid({ items }: AttachmentGridProps) {
         gridWidthClass,
       )}
     >
-      <Hint label={`Download all ${items.length} files`}>
-        <button
-          type="button"
-          onClick={downloadAll}
-          disabled={downloadingAll}
-          aria-label={`Download all ${items.length} files`}
-          className={cn(
-            'absolute top-1.5 left-1.5 z-10 gap-1 px-2 py-1 flex items-center rounded-md bg-black/55 text-[11px] font-semibold text-white transition-opacity hover:bg-black/70',
-            'opacity-0 group-hover/attachments:opacity-100 focus-visible:opacity-100',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-wait',
-          )}
-        >
-          {downloadingAll ? (
-            <Loader2 className="size-3 animate-spin" />
-          ) : (
-            <Download className="size-3" />
-          )}
-          <span>{items.length}</span>
-        </button>
-      </Hint>
+      {/* Slack-style multi-attachment header: "N files ▼ | ☁ Download all" */}
+      <div className="flex items-center gap-2 pb-0.5 text-xs">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="group/grid-hdr inline-flex items-center gap-1 py-0.5 px-1 -ml-1 text-xs font-semibold text-foreground/90 hover:text-foreground transition-colors rounded hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <span>{items.length} files</span>
+              <ChevronDown className="size-3 text-muted-foreground transition-transform duration-150 group-data-[state=open]/grid-hdr:rotate-180 shrink-0" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-64">
+            {items.map((it, idx) => {
+              const Icon = iconFor(it.attachment.mimeType ?? '');
+              return (
+                <DropdownMenuItem
+                  key={`${it.attachment.url}-${idx}`}
+                  onClick={it.onOpen ?? (() => downloadAttachment(it.attachment))}
+                  className="flex items-center justify-between gap-2 text-xs py-1.5 cursor-pointer"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Icon className="size-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate">{it.attachment.name}</span>
+                  </div>
+                  {it.attachment.size ? (
+                    <span className="text-[10px] text-muted-foreground shrink-0">
+                      {formatBytes(it.attachment.size)}
+                    </span>
+                  ) : null}
+                </DropdownMenuItem>
+              );
+            })}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={downloadAll} className="gap-2 text-xs cursor-pointer">
+              <CloudDownload className="size-3.5" />
+              <span>Download all</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <span className="text-border text-xs select-none">|</span>
+
+        <Hint label={`Download all ${items.length} files`}>
+          <button
+            type="button"
+            onClick={downloadAll}
+            disabled={downloadingAll}
+            aria-label={`Download all ${items.length} files`}
+            className={cn(
+              'inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors',
+              'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded py-0.5 px-1',
+              'disabled:opacity-50 disabled:cursor-wait',
+            )}
+          >
+            {downloadingAll ? (
+              <Loader2 className="size-3.5 animate-spin text-primary" />
+            ) : (
+              <CloudDownload className="size-3.5" />
+            )}
+            <span>Download all</span>
+          </button>
+        </Hint>
+      </div>
 
       {media.length === 1 ? (
         <MediaPreview
           attachment={media[0].attachment}
           kind={media[0].kind}
           onOpen={media[0].onOpen}
+          showHeader={false}
         />
+      ) : visibleMedia.length === 2 ? (
+        <div className="flex items-stretch gap-1.5 overflow-hidden rounded-xl border border-border/80 bg-surface-inset/30 h-[260px] sm:h-[320px] shadow-xs">
+          {visibleMedia.map((item, index) => {
+            const ratio =
+              item.attachment.width && item.attachment.height
+                ? item.attachment.width / item.attachment.height
+                : index === 0
+                ? 1.4
+                : 0.9;
+            return (
+              <AttachmentGridTile
+                key={`${item.attachment.url}-${index}`}
+                item={item}
+                overflowCount={
+                  index === visibleMedia.length - 1 ? overflow : 0
+                }
+                className="h-full min-w-0"
+                style={{ flex: `${ratio} ${ratio} 0px` }}
+              />
+            );
+          })}
+        </div>
       ) : media.length > 1 ? (
         <div
           className={cn(
-            'grid gap-0.5 overflow-hidden rounded-lg border border-border',
-            visibleMedia.length === 2 && 'grid-cols-2',
+            'grid gap-1 overflow-hidden rounded-xl border border-border/80 shadow-xs',
             visibleMedia.length === 3 && 'grid-cols-3',
             visibleMedia.length >= 4 && 'grid-cols-2',
           )}
@@ -765,7 +960,8 @@ export function AttachmentGrid({ items }: AttachmentGridProps) {
           attachment={item.attachment}
           kind={item.kind}
           onOpen={item.onOpen}
-          className="mt-0"
+          className="mt-1"
+          showHeader={false}
         />
       ))}
     </div>

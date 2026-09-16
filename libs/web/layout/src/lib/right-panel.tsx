@@ -115,6 +115,7 @@ export function RightPanel({
       <PanelFrame
         icon={MessagesSquare}
         title={hosted.threads.title}
+        subtitle={hosted.threads.subtitle}
         onClose={onClose}
       >
         <HostedSlot slotRef={setThreadsSlot} />
@@ -240,21 +241,30 @@ function HostedSlot({
 function PanelFrame({
   icon: Icon,
   title,
+  subtitle,
   onClose,
   children,
 }: {
   icon: LucideIcon;
   title: string;
+  subtitle?: ReactNode;
   onClose: () => void;
   children: ReactNode;
 }) {
   return (
     <div className="min-h-0 flex h-full flex-col">
       <div className="h-12 px-3 flex shrink-0 items-center justify-between border-b border-border">
-        <span className="min-w-0 gap-1.5 font-semibold text-sm flex items-center text-foreground">
+        <div className="min-w-0 gap-2 flex items-center text-foreground">
           <Icon className="size-4 shrink-0 text-primary" aria-hidden />
-          <span className="truncate">{title}</span>
-        </span>
+          <div className="min-w-0">
+            <span className="truncate font-semibold text-sm block leading-tight">{title}</span>
+            {subtitle ? (
+              <div className="text-[11px] font-normal text-muted-foreground truncate leading-tight">
+                {subtitle}
+              </div>
+            ) : null}
+          </div>
+        </div>
 
         <Hint label="Close panel">
           <Button

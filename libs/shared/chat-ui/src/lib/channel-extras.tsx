@@ -2,36 +2,52 @@ import type { HuddleConnectionState, Message, RoomMember } from '@org/types';
 import {
   Badge,
   Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
   EmptyState,
   Hint,
   Input,
   ScrollArea,
+  toast,
   UserAvatar,
   useHuddleDockStore,
 } from '@org/ui';
 import { cn, formatListTimestamp, formatRelative } from '@org/utils';
+import { format } from 'date-fns';
 import {
+  ArrowUpRight,
   Bookmark,
-  BookmarkX,
+  Copy,
+  Forward,
   Headphones,
+  Link2,
   Loader2,
+  MessageSquare,
+  MessagesSquare,
   Mic,
   MicOff,
   MonitorUp,
-  MessagesSquare,
+  MoreHorizontal,
   PhoneOff,
   Pin,
   PinOff,
   Plus,
   RotateCw,
   Search,
+  Smile,
   Video,
   X,
 } from 'lucide-react';
 import { useMemo, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
+import { AttachmentRenderer } from './attachments.js';
 import { BookmarkFavicon } from './bookmark-favicon.js';
+import { ReactionPicker } from './chat-bubble.js';
+import { MarkdownMessage } from './markdown-message.js';
 
 /* --- channel bookmarks ---------------------------------------------------- */
 
@@ -499,13 +515,322 @@ function MessagePreview({
 
 /* --- pinned & saved panels ------------------------------------------------ */
 
+function formatPinnedTimestamp(timestamp: number): string {
+  try {
+    const date = new Date(timestamp);
+    return format(date, "MMM do 'at' h:mm a");
+  } catch {
+    return formatListTimestamp(timestamp);
+  }
+}
+
+export interface PinnedMessageCardProps {
+  message: Message;
+  onJump?: (messageId: string) => void;
+  onUnpin?: (messageId: string) => void;
+  onReact?: (messageId: string, emoji: string, reactedByMe: boolean) => void;
+  onOpenThread?: (messageId: string) => void;
+  onForward?: (message: Message) => void;
+  onToggleSave?: (messageId: string) => void;
+  isSaved?: boolean;
+  onCopyLink?: (message: Message) => void;
+}
+
+export function PinnedMessageCard({
+  message,
+  onJump,
+  onUnpin,
+  onReact,
+  onOpenThread,
+  onForward,
+  onToggleSave,
+  isSaved = false,
+  onCopyLink,
+}: PinnedMessageCardProps) {
+  const handleCopyText = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(message.body);
+      toast.success('Message text copied');
+    } catch {
+      toast.error('Failed to copy text');
+    }
+  };
+
+  const handleCopyLink = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      if (onCopyLink) {
+        onCopyLink(message);
+      } else {
+        const url = `${window.location.origin}${window.location.pathname}?msg=${message.id}`;
+        await navigator.clipboard.writeText(url);
+        toast.success('Link copied to clipboard');
+      }
+    } catch {
+      toast.error('Failed to copy link');
+    }
+  };
+
+  return (
+    <div
+      role="article"
+      aria-label={`Pinned message from ${message.senderName}`}
+      className={cn(
+        'group/pinned-card relative rounded-xl border border-border/80 bg-surface p-3.5 sm:p-4 shadow-xs transition-all duration-150',
+        'hover:border-border hover:shadow-sm focus-within:border-border',
+      )}
+    >
+      {/* Top author row */}
+      <div className="flex items-start gap-2.5">
+        <UserAvatar
+          name={message.senderName}
+          src={message.senderAvatarUrl}
+          seed={message.senderId}
+          size="sm"
+          className="size-8.5 rounded-lg shrink-0 mt-0.5"
+        />
+
+        <div className="min-w-0 flex-1 pr-24">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <span
+              onClick={() => onJump?.(message.id)}
+              className="text-xs sm:text-sm font-semibold text-foreground truncate cursor-pointer hover:underline"
+            >
+              {message.senderName}
+            </span>
+            <span className="text-[11px] text-muted-foreground font-normal shrink-0">
+              {formatPinnedTimestamp(message.timestamp)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Floating action toolbar (top-right) */}
+      <div
+        className={cn(
+          'absolute top-2.5 right-2.5 flex items-center rounded-lg border border-border bg-surface-raised/95 backdrop-blur-xs shadow-xs px-1 py-0.5 gap-0.5 z-10',
+          'opacity-0 group-hover/pinned-card:opacity-100 group-focus-within/pinned-card:opacity-100 transition-opacity duration-150',
+        )}
+      >
+        {onReact ? (
+          <ReactionPicker
+            onSelect={(emoji) =>
+              onReact(
+                message.id,
+                emoji,
+                message.reactions?.some(
+                  (r) => r.key === emoji && r.reactedByMe,
+                ) ?? false,
+              )
+            }
+          >
+            <button
+              type="button"
+              aria-label="Add reaction"
+              className="size-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              <Smile className="size-3.5" />
+            </button>
+          </ReactionPicker>
+        ) : null}
+
+        {onOpenThread ? (
+          <Hint label="Reply in thread">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenThread(message.threadRootId ?? message.id);
+              }}
+              aria-label="Reply in thread"
+              className="size-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              <MessageSquare className="size-3.5" />
+            </button>
+          </Hint>
+        ) : null}
+
+        {onForward ? (
+          <Hint label="Forward message">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onForward(message);
+              }}
+              aria-label="Forward message"
+              className="size-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              <Forward className="size-3.5" />
+            </button>
+          </Hint>
+        ) : null}
+
+        {onToggleSave ? (
+          <Hint label={isSaved ? 'Remove from saved' : 'Save message'}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleSave(message.id);
+              }}
+              aria-label={isSaved ? 'Remove from saved' : 'Save message'}
+              className={cn(
+                'size-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors',
+                isSaved
+                  ? 'text-primary fill-current'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Bookmark className={cn('size-3.5', isSaved && 'fill-current')} />
+            </button>
+          </Hint>
+        ) : null}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label="More options"
+              className="size-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              <MoreHorizontal className="size-3.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            {onJump ? (
+              <DropdownMenuItem
+                onClick={() => onJump(message.id)}
+                className="gap-2 text-xs cursor-pointer"
+              >
+                <ArrowUpRight className="size-3.5" />
+                <span>Jump to message</span>
+              </DropdownMenuItem>
+            ) : null}
+            <DropdownMenuItem
+              onClick={handleCopyText}
+              className="gap-2 text-xs cursor-pointer"
+            >
+              <Copy className="size-3.5" />
+              <span>Copy text</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={handleCopyLink}
+              className="gap-2 text-xs cursor-pointer"
+            >
+              <Link2 className="size-3.5" />
+              <span>Copy link to message</span>
+            </DropdownMenuItem>
+            {onUnpin ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => onUnpin(message.id)}
+                  className="gap-2 text-xs text-destructive hover:bg-destructive/10 cursor-pointer"
+                >
+                  <PinOff className="size-3.5" />
+                  <span>Unpin from channel</span>
+                </DropdownMenuItem>
+              </>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Message content */}
+      <div
+        className="mt-2 text-sm leading-relaxed text-foreground/95 cursor-pointer"
+        onClick={() => onJump?.(message.id)}
+      >
+        {message.isRedacted ? (
+          <p className="italic text-xs text-muted-foreground">
+            This message was deleted.
+          </p>
+        ) : (
+          <MarkdownMessage text={message.body} />
+        )}
+      </div>
+
+      {/* Attachment preview if any */}
+      {message.attachment ? (
+        <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+          <AttachmentRenderer
+            attachment={message.attachment}
+            kind={message.attachment.mimeType ?? 'file'}
+            onOpen={() => onJump?.(message.id)}
+          />
+        </div>
+      ) : null}
+
+      {/* Reactions row */}
+      {message.reactions && message.reactions.length > 0 ? (
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5 pt-0.5">
+          {message.reactions.map((reaction) => (
+            <button
+              key={reaction.key}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onReact?.(message.id, reaction.key, reaction.reactedByMe);
+              }}
+              aria-pressed={reaction.reactedByMe}
+              className={cn(
+                'gap-1.5 px-2 py-0.5 text-xs font-medium flex items-center rounded-md border transition-colors',
+                reaction.reactedByMe
+                  ? 'border-primary/50 bg-primary/15 text-primary'
+                  : 'border-border/80 bg-surface-raised/70 text-muted-foreground hover:border-border hover:bg-surface-raised hover:text-foreground',
+              )}
+            >
+              <span aria-hidden>{reaction.key}</span>
+              <span className="tabular-nums text-[11px] font-semibold">
+                {reaction.count}
+              </span>
+            </button>
+          ))}
+          {onReact ? (
+            <ReactionPicker
+              onSelect={(emoji) => onReact(message.id, emoji, false)}
+            >
+              <button
+                type="button"
+                aria-label="Add reaction"
+                onClick={(e) => e.stopPropagation()}
+                className="size-6 flex items-center justify-center rounded-md border border-border/80 bg-surface-raised/60 text-muted-foreground transition-colors hover:border-border hover:bg-surface-raised hover:text-foreground"
+              >
+                <Smile className="size-3" />
+              </button>
+            </ReactionPicker>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export interface PinnedPanelProps {
   messages: Message[];
   onJump?: (messageId: string) => void;
   onUnpin?: (messageId: string) => void;
+  onReact?: (messageId: string, emoji: string, reactedByMe: boolean) => void;
+  onOpenThread?: (messageId: string) => void;
+  onForward?: (message: Message) => void;
+  onToggleSave?: (messageId: string) => void;
+  isSaved?: (messageId: string) => boolean;
+  onCopyLink?: (message: Message) => void;
 }
 
-export function PinnedPanel({ messages, onJump, onUnpin }: PinnedPanelProps) {
+export function PinnedPanel({
+  messages,
+  onJump,
+  onUnpin,
+  onReact,
+  onOpenThread,
+  onForward,
+  onToggleSave,
+  isSaved,
+  onCopyLink,
+}: PinnedPanelProps) {
   if (messages.length === 0) {
     return (
       <EmptyState
@@ -518,29 +843,22 @@ export function PinnedPanel({ messages, onJump, onUnpin }: PinnedPanelProps) {
   }
 
   return (
-    <ul>
+    <ScrollArea className="h-full min-h-0 flex-1" contentClassName="p-3.5 sm:p-4 space-y-3">
       {messages.map((message) => (
-        <MessagePreview
+        <PinnedMessageCard
           key={message.id}
           message={message}
-          onJump={() => onJump?.(message.id)}
-          action={
-            onUnpin ? (
-              <Hint label="Unpin">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`Unpin message from ${message.senderName}`}
-                  onClick={() => onUnpin(message.id)}
-                >
-                  <PinOff />
-                </Button>
-              </Hint>
-            ) : null
-          }
+          onJump={onJump}
+          onUnpin={onUnpin}
+          onReact={onReact}
+          onOpenThread={onOpenThread}
+          onForward={onForward}
+          onToggleSave={onToggleSave}
+          isSaved={isSaved?.(message.id) ?? false}
+          onCopyLink={onCopyLink}
         />
       ))}
-    </ul>
+    </ScrollArea>
   );
 }
 
@@ -548,10 +866,22 @@ export interface SavedPanelProps {
   messages: Message[];
   onJump?: (messageId: string) => void;
   onRemove?: (messageId: string) => void;
+  onReact?: (messageId: string, emoji: string, reactedByMe: boolean) => void;
+  onOpenThread?: (messageId: string) => void;
+  onForward?: (message: Message) => void;
+  onCopyLink?: (message: Message) => void;
 }
 
 /** "Saved for later" — the reader's private shortlist, not a channel-wide pin. */
-export function SavedPanel({ messages, onJump, onRemove }: SavedPanelProps) {
+export function SavedPanel({
+  messages,
+  onJump,
+  onRemove,
+  onReact,
+  onOpenThread,
+  onForward,
+  onCopyLink,
+}: SavedPanelProps) {
   if (messages.length === 0) {
     return (
       <EmptyState
@@ -564,29 +894,21 @@ export function SavedPanel({ messages, onJump, onRemove }: SavedPanelProps) {
   }
 
   return (
-    <ul>
+    <ScrollArea className="h-full min-h-0 flex-1" contentClassName="p-3.5 sm:p-4 space-y-3">
       {messages.map((message) => (
-        <MessagePreview
+        <PinnedMessageCard
           key={message.id}
           message={message}
-          onJump={() => onJump?.(message.id)}
-          action={
-            onRemove ? (
-              <Hint label="Remove from saved">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`Remove message from ${message.senderName} from saved`}
-                  onClick={() => onRemove(message.id)}
-                >
-                  <BookmarkX />
-                </Button>
-              </Hint>
-            ) : null
-          }
+          onJump={onJump}
+          onReact={onReact}
+          onOpenThread={onOpenThread}
+          onForward={onForward}
+          onToggleSave={onRemove}
+          isSaved={true}
+          onCopyLink={onCopyLink}
         />
       ))}
-    </ul>
+    </ScrollArea>
   );
 }
 

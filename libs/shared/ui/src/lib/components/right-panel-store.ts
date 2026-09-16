@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -38,6 +39,8 @@ const HOSTED_VIEWS: RightPanelHostedView[] = ['card', 'threads', 'details'];
 export interface HostedPanel {
   /** Shown in the rail's header. Hosted views that draw their own pass ''. */
   title: string;
+  /** Optional subtitle, e.g. source channel name or room roster. */
+  subtitle?: ReactNode;
   /**
    * Run when the rail is dismissed from its own close button.
    *

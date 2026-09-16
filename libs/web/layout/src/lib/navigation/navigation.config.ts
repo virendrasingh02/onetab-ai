@@ -193,14 +193,14 @@ export const DEFAULT_NAV_ITEMS: readonly NavItemConfig[] = [
   },
   {
     id: 'schedule',
-    label: 'Schedule & Calendar',
+    label: 'Schedule',
     icon: Calendar,
     href: 'schedule',
     visible: true,
     order: 4,
     group: 'work',
-    description: 'Team events, milestones and time management',
-    keywords: ['schedule', 'calendar', 'events', 'timeline'],
+    description: 'Scheduled messages, events, and timeline',
+    keywords: ['schedule', 'calendar', 'events', 'timeline', 'messages'],
   },
   {
     id: 'pulse',
@@ -215,7 +215,7 @@ export const DEFAULT_NAV_ITEMS: readonly NavItemConfig[] = [
   },
   {
     id: 'files',
-    label: 'File Manager',
+    label: 'Files',
     icon: HardDrive,
     href: 'files',
     visible: true,

@@ -26,6 +26,10 @@ export {
   useDraftsStore,
   type ConversationDraft,
 } from './lib/drafts-store.js';
+export {
+  useScheduledMessagesStore,
+  type ScheduledMessage,
+} from './lib/scheduled-messages-store.js';
 
 export {
   DEFAULT_SLASH_COMMANDS,
@@ -81,6 +85,7 @@ export {
   BookmarksBar,
   ConversationSearch,
   HuddleBar,
+  PinnedMessageCard,
   PinnedPanel,
   SavedPanel,
   ThreadListPanel,
@@ -89,6 +94,7 @@ export {
   type ChannelBookmark,
   type ConversationSearchProps,
   type HuddleBarProps,
+  type PinnedMessageCardProps,
   type PinnedPanelProps,
   type SavedPanelProps,
   type ThreadListPanelProps,

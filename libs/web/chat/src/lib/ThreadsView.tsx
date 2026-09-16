@@ -27,16 +27,20 @@ import {
   PolicySubjectRole,
   roleHasPermission,
   WorkspacePermission,
+  type ChannelSummary,
 } from '@org/types';
 import { useCurrentWorkspace, useWorkspacePolicies } from '@org/web-workspace';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowUpRight, Hash, MessagesSquare } from 'lucide-react';
+import { ArrowUpRight, Hash, Lock, MessagesSquare, User, Users } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useMatrix } from './matrix-provider.js';
 import { useAllThreads, type CrossRoomThread } from './use-all-threads.js';
 import { useRoomActions, useRoomSummary } from './use-chat.js';
 import { useThreadConversation } from './use-thread-conversation.js';
+import { formatRoomMemberSummary } from './thread-roster.js';
+
+export { formatRoomMemberSummary };
 
 /** The route that opens this thread in its own conversation. */
 function useChannelLink(
@@ -128,6 +132,7 @@ function useAttachmentSlot() {
 function ThreadDetail({
   thread,
   channelLink,
+  isPrivate,
   members,
   mentionNames,
   actions,
@@ -139,6 +144,7 @@ function ThreadDetail({
 }: {
   thread: CrossRoomThread;
   channelLink: string;
+  isPrivate?: boolean;
   members: RoomMember[];
   mentionNames: string[];
   actions: ReturnType<typeof useRoomActions>;
@@ -191,8 +197,13 @@ function ThreadDetail({
     [messages, thread.id],
   );
 
+  const isChannel = thread.roomKind === 'channel';
   const roomLabel =
-    thread.roomKind === 'channel' ? `#${thread.roomName}` : thread.roomName;
+    isChannel
+      ? isPrivate
+        ? thread.roomName
+        : `#${thread.roomName}`
+      : thread.roomName;
 
   const { chat } = useChatPreferences();
 
@@ -318,9 +329,16 @@ function ThreadDetail({
             asChild
             variant="ghost"
             size="sm"
-            className="h-7 gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+            className="h-7 gap-1.5 text-[11px] text-muted-foreground hover:text-foreground"
           >
             <Link to={channelLink}>
+              {isChannel ? (
+                isPrivate ? (
+                  <Lock className="size-3 shrink-0" aria-hidden />
+                ) : (
+                  <Hash className="size-3 shrink-0" aria-hidden />
+                )
+              ) : null}
               <span>Open in {roomLabel}</span>
               <ArrowUpRight className="size-3.5" aria-hidden />
             </Link>
@@ -339,6 +357,7 @@ function ThreadRow({
   onToggle,
   workspaceSlug,
   channelSlugByName,
+  isPrivate,
   myUserId,
   density,
 }: {
@@ -347,6 +366,7 @@ function ThreadRow({
   onToggle: (id: string) => void;
   workspaceSlug?: string;
   channelSlugByName?: Map<string, string>;
+  isPrivate?: boolean;
   myUserId?: string;
   density: 'comfy' | 'compact';
 }) {
@@ -436,6 +456,7 @@ function ThreadRow({
         <ThreadDetail
           thread={thread}
           channelLink={channelLink}
+          isPrivate={isPrivate}
           members={members}
           mentionNames={mentionNames}
           actions={actions}
@@ -458,6 +479,8 @@ function RoomThreadSection({
   onToggle,
   workspaceSlug,
   channelSlugByName,
+  channelByName,
+  channelBySlug,
   myUserId,
   density,
 }: {
@@ -466,35 +489,96 @@ function RoomThreadSection({
   onToggle: (id: string) => void;
   workspaceSlug?: string;
   channelSlugByName?: Map<string, string>;
+  channelByName?: Map<string, ChannelSummary>;
+  channelBySlug?: Map<string, ChannelSummary>;
   myUserId?: string;
   density: 'comfy' | 'compact';
 }) {
   const isChannel = group.roomKind === 'channel';
+  const channel = isChannel
+    ? channelByName?.get(group.roomName.toLowerCase()) ??
+      channelBySlug?.get(group.roomName.toLowerCase())
+    : undefined;
+  const isPrivate = channel ? channel.visibility === 'PRIVATE' : false;
+
+  const Icon = isChannel
+    ? isPrivate
+      ? Lock
+      : Hash
+    : group.roomKind === 'group'
+      ? Users
+      : group.roomKind === 'direct'
+        ? User
+        : MessagesSquare;
+
+  const { members } = useRoomSummary(group.roomId);
+  const memberSubtitle = useMemo(() => {
+    const fallback =
+      channel?.description ||
+      channel?.topic ||
+      (channel?.memberCount
+        ? `${channel.memberCount} ${channel.memberCount === 1 ? 'member' : 'members'}`
+        : null);
+    return formatRoomMemberSummary(members, myUserId, fallback);
+  }, [members, myUserId, channel]);
+
+  const roomLink = useMemo(() => {
+    if (isChannel) {
+      const slug =
+        channel?.slug ||
+        channelSlugByName?.get(group.roomName.toLowerCase()) ||
+        group.roomName.toLowerCase().replace(/[^a-z0-9-_]/g, '-') ||
+        'general';
+      return `/w/${workspaceSlug}/c/${slug}`;
+    }
+    if (group.roomKind === 'group' || group.roomKind === 'direct') {
+      return `/w/${workspaceSlug}/dms?room=${group.roomId}`;
+    }
+    return `/w/${workspaceSlug}/dms`;
+  }, [
+    isChannel,
+    channel,
+    channelSlugByName,
+    group.roomName,
+    group.roomKind,
+    group.roomId,
+    workspaceSlug,
+  ]);
 
   return (
     <section>
-      <div className="mb-2 flex items-center gap-1.5 px-1">
-        {isChannel ? (
-          <Hash className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-        ) : (
-          <MessagesSquare
-            className="size-3.5 shrink-0 text-muted-foreground"
-            aria-hidden
-          />
-        )}
-        <h3 className="truncate text-[13px] font-semibold text-foreground">
-          {group.roomName}
-        </h3>
-        <Badge variant="neutral" className="h-4 px-1.5 py-0 text-[10px]">
-          {group.threads.length}
-        </Badge>
-        {group.unreadCount > 0 ? (
-          <Badge variant="primary" className="h-4 px-1.5 py-0 text-[10px]">
-            {group.unreadCount} unread
-          </Badge>
-        ) : null}
+      <div className="mb-2.5 flex items-start justify-between gap-3 px-1">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Link
+              to={roomLink}
+              className="group inline-flex min-w-0 items-center gap-1.5 transition-colors"
+            >
+              <Icon
+                className="size-3.5 shrink-0 text-muted-foreground group-hover:text-foreground transition-colors"
+                aria-hidden
+              />
+              <h3 className="truncate text-[13px] font-semibold text-foreground group-hover:underline">
+                {group.roomName}
+              </h3>
+            </Link>
+            <Badge variant="neutral" className="h-4 px-1.5 py-0 text-[10px]">
+              {group.threads.length}
+            </Badge>
+            {group.unreadCount > 0 ? (
+              <Badge variant="primary" className="h-4 px-1.5 py-0 text-[10px]">
+                {group.unreadCount} unread
+              </Badge>
+            ) : null}
+          </div>
+          {memberSubtitle ? (
+            <p className="mt-0.5 pl-5 truncate text-[11px] text-muted-foreground">
+              {memberSubtitle}
+            </p>
+          ) : null}
+        </div>
         {group.lastActivity ? (
-          <span className="ml-auto shrink-0 font-mono text-[11px] text-subtle">
+          <span className="shrink-0 font-mono text-[11px] text-subtle pt-0.5">
             {formatRelative(new Date(group.lastActivity).toISOString())}
           </span>
         ) : null}
@@ -510,6 +594,7 @@ function RoomThreadSection({
               onToggle={onToggle}
               workspaceSlug={workspaceSlug}
               channelSlugByName={channelSlugByName}
+              isPrivate={isPrivate}
               myUserId={myUserId}
               density={density}
             />
@@ -529,6 +614,8 @@ function ThreadList({
   workspaceSlug,
   firstChannelSlug,
   channelSlugByName,
+  channelByName,
+  channelBySlug,
   myUserId,
   density,
 }: {
@@ -540,6 +627,8 @@ function ThreadList({
   workspaceSlug?: string;
   firstChannelSlug?: string;
   channelSlugByName?: Map<string, string>;
+  channelByName?: Map<string, ChannelSummary>;
+  channelBySlug?: Map<string, ChannelSummary>;
   myUserId?: string;
   density: 'comfy' | 'compact';
 }) {
@@ -580,6 +669,8 @@ function ThreadList({
           onToggle={onToggle}
           workspaceSlug={workspaceSlug}
           channelSlugByName={channelSlugByName}
+          channelByName={channelByName}
+          channelBySlug={channelBySlug}
           myUserId={myUserId}
           density={density}
         />
@@ -637,6 +728,28 @@ export function ThreadsView() {
         (channelsQuery.data ?? []).map((channel) => [
           channel.name.toLowerCase(),
           channel.slug,
+        ]),
+      ),
+    [channelsQuery.data],
+  );
+
+  const channelByName = useMemo(
+    () =>
+      new Map<string, ChannelSummary>(
+        (channelsQuery.data ?? []).map((channel) => [
+          channel.name.toLowerCase(),
+          channel,
+        ]),
+      ),
+    [channelsQuery.data],
+  );
+
+  const channelBySlug = useMemo(
+    () =>
+      new Map<string, ChannelSummary>(
+        (channelsQuery.data ?? []).map((channel) => [
+          channel.slug.toLowerCase(),
+          channel,
         ]),
       ),
     [channelsQuery.data],
@@ -700,6 +813,8 @@ export function ThreadsView() {
           workspaceSlug={slug}
           firstChannelSlug={firstChannel}
           channelSlugByName={channelSlugByName}
+          channelByName={channelByName}
+          channelBySlug={channelBySlug}
           myUserId={myUserId}
           density={density}
         />

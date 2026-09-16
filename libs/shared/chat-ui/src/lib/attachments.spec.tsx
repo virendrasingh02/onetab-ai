@@ -2,7 +2,12 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Attachment } from '@org/types';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AttachmentGrid, ImagePreview, VoiceMessage } from './attachments.js';
+import {
+  AttachmentFileHeader,
+  AttachmentGrid,
+  ImagePreview,
+  VoiceMessage,
+} from './attachments.js';
 
 const { downloadMediaItem } = vi.hoisted(() => ({
   downloadMediaItem: vi.fn(async () => undefined),
@@ -147,6 +152,50 @@ describe('ImagePreview', () => {
   });
 });
 
+describe('AttachmentFileHeader', () => {
+  beforeEach(() => {
+    downloadMediaItem.mockClear();
+  });
+
+  it('renders filename and size, and provides actions in dropdown', async () => {
+    const user = userEvent.setup();
+    const onOpen = vi.fn();
+    const onDownload = vi.fn();
+
+    render(
+      <AttachmentFileHeader
+        attachment={baseAttachment({
+          name: 'presentation.pdf',
+          size: 1_500_000,
+          url: 'https://cdn.example.com/presentation.pdf',
+        })}
+        onOpen={onOpen}
+        onDownload={onDownload}
+      />,
+    );
+
+    expect(screen.getByText('presentation.pdf')).toBeInTheDocument();
+    expect(screen.getByText('1.4 MB')).toBeInTheDocument();
+
+    // Trigger dropdown
+    const trigger = screen.getByRole('button');
+    await user.click(trigger);
+
+    // Open preview action
+    const openItem = await screen.findByRole('menuitem', { name: /Open preview/i });
+    expect(openItem).toBeInTheDocument();
+    await user.click(openItem);
+    expect(onOpen).toHaveBeenCalledTimes(1);
+
+    // Open dropdown again and click Download
+    await user.click(trigger);
+    const downloadItem = await screen.findByRole('menuitem', { name: /Download/i });
+    expect(downloadItem).toBeInTheDocument();
+    await user.click(downloadItem);
+    expect(onDownload).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('AttachmentGrid', () => {
   beforeEach(() => {
     downloadMediaItem.mockClear();
@@ -254,11 +303,53 @@ describe('AttachmentGrid', () => {
       'src',
       'https://cdn.example.com/a-original.png',
     );
-    // A video tile can't play back the raw file as an <img> — it has to stay
-    // on the sender's poster.
     expect(screen.getByAltText('b.mp4')).toHaveAttribute(
       'src',
       'https://cdn.example.com/b-poster.png',
     );
   });
+
+  it('renders Slack-style 2 files header with dropdown and proportional side-by-side flex layout', () => {
+    const { container } = render(
+      <AttachmentGrid
+        items={[
+          {
+            attachment: baseAttachment({
+              name: 'desktop-shot.png',
+              mimeType: 'image/png',
+              url: 'https://cdn.example.com/desktop.png',
+              width: 1920,
+              height: 1080,
+            }),
+            kind: 'image',
+          },
+          {
+            attachment: baseAttachment({
+              name: 'mobile-shot.png',
+              mimeType: 'image/png',
+              url: 'https://cdn.example.com/mobile.png',
+              width: 390,
+              height: 844,
+            }),
+            kind: 'image',
+          },
+        ]}
+      />,
+    );
+
+    // Header shows 2 files and Download all
+    expect(screen.getByText('2 files')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Download all 2 files' }),
+    ).toBeInTheDocument();
+
+    // Side-by-side flex container has proportional flex ratios
+    const tiles = container.querySelectorAll('[role="button"][aria-label^="Open "]');
+    expect(tiles).toHaveLength(2);
+    // Desktop 16:9 ratio (~1.777)
+    expect((tiles[0] as HTMLElement).style.flex).toContain('1.777');
+    // Mobile ~9:19.5 ratio (~0.462)
+    expect((tiles[1] as HTMLElement).style.flex).toContain('0.462');
+  });
 });
+

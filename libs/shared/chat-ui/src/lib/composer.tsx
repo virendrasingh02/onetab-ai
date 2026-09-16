@@ -1,6 +1,13 @@
 import type { RoomMember, DetectedMention } from '@org/types';
 
-import { EmojiGifPickerPopover, Hint } from '@org/ui';
+import {
+  EmojiGifPickerPopover,
+  Hint,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  toast,
+} from '@org/ui';
 import {
   isVoiceRecordingSupported,
   useKeyboardInset,
@@ -9,6 +16,7 @@ import {
 import { cn, formatBytes } from '@org/utils';
 import {
   AtSign,
+  CalendarClock,
   File as FileIcon,
   Film,
   Lock,
@@ -32,6 +40,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useDraftsStore } from './drafts-store.js';
+import { useScheduledMessagesStore } from './scheduled-messages-store.js';
 import {
   LexicalComposerInput,
   type LexicalEditorRef,
@@ -234,6 +243,9 @@ function StagedAttachmentChip({
 
 export interface ComposerProps {
   onSend: (body: string) => void | Promise<void>;
+  onSchedule?: (body: string, scheduledFor: string) => void | Promise<void>;
+  targetName?: string;
+  workspaceId?: string;
   onTyping?: (isTyping: boolean) => void;
   onAttach?: (files: FileList) => void;
   conversationId?: string | null;
@@ -298,6 +310,9 @@ export interface ComposerProps {
  */
 export function Composer({
   onSend,
+  onSchedule,
+  targetName,
+  workspaceId,
   onTyping,
   onAttach,
   conversationId,
@@ -488,6 +503,93 @@ export function Composer({
   useEffect(() => {
     if (!anonAllowed && anon) setAnon(false);
   }, [anonAllowed, anon]);
+
+  const scheduleMessage = useScheduledMessagesStore((s) => s.scheduleMessage);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [customDatetime, setCustomDatetime] = useState(() => {
+    const d = new Date(Date.now() + 60 * 60 * 1000);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 16);
+  });
+
+  const schedulePresets = useMemo(() => {
+    const now = new Date();
+    const in30m = new Date(now.getTime() + 30 * 60 * 1000);
+    const in1h = new Date(now.getTime() + 60 * 60 * 1000);
+
+    const tomorrow9am = new Date(now);
+    tomorrow9am.setDate(tomorrow9am.getDate() + 1);
+    tomorrow9am.setHours(9, 0, 0, 0);
+
+    const tomorrow1pm = new Date(now);
+    tomorrow1pm.setDate(tomorrow1pm.getDate() + 1);
+    tomorrow1pm.setHours(13, 0, 0, 0);
+
+    const nextMonday = new Date(now);
+    const day = nextMonday.getDay();
+    const daysUntilMon = ((1 + 7 - day) % 7) || 7;
+    nextMonday.setDate(nextMonday.getDate() + daysUntilMon);
+    nextMonday.setHours(9, 0, 0, 0);
+
+    return [
+      { label: 'In 30 minutes', time: in30m },
+      { label: 'In 1 hour', time: in1h },
+      { label: 'Tomorrow at 9:00 AM', time: tomorrow9am },
+      { label: 'Tomorrow at 1:00 PM', time: tomorrow1pm },
+      { label: 'Next Monday at 9:00 AM', time: nextMonday },
+    ];
+  }, [scheduleOpen]);
+
+  const handleSchedule = useCallback(
+    async (scheduledForIso: string) => {
+      const content = lexicalRef.current?.getMarkdown().trim();
+      if (!content) {
+        toast.error('Please enter a message to schedule.');
+        return;
+      }
+
+      const destName =
+        targetName ||
+        (placeholder?.startsWith('Message ')
+          ? placeholder.replace('Message ', '')
+          : undefined);
+
+      scheduleMessage({
+        conversationId: conversationId || 'general',
+        workspaceId,
+        channelName: destName,
+        body: content,
+        scheduledFor: scheduledForIso,
+      });
+
+      if (onSchedule) {
+        void onSchedule(content, scheduledForIso);
+      }
+
+      lexicalRef.current?.clear();
+      if (conversationId) clearDraft(conversationId);
+      setHasContent(false);
+      flushAttachments();
+      setScheduleOpen(false);
+
+      const formatted = new Date(scheduledForIso).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
+      toast.success(`Message scheduled for ${formatted}`);
+    },
+    [
+      conversationId,
+      workspaceId,
+      targetName,
+      placeholder,
+      scheduleMessage,
+      onSchedule,
+      clearDraft,
+      flushAttachments,
+    ],
+  );
 
   const handleComposerSend = useCallback(
     (body: string) => {
@@ -841,28 +943,6 @@ export function Composer({
               </Hint>
             ) : null}
 
-            {speech.supported ? (
-              <Hint
-                label={speech.listening ? 'Stop dictating' : 'Dictate (speech to text)'}
-              >
-                <button
-                  type="button"
-                  onClick={toggleDictate}
-                  disabled={!speech.listening && !canStartVoiceAction}
-                  aria-label={speech.listening ? 'Stop dictating' : 'Dictate speech to text'}
-                  aria-pressed={speech.listening}
-                  className={cn(
-                    'size-7 shrink-0 touch-target flex items-center justify-center rounded-md transition-colors disabled:pointer-events-none disabled:opacity-40',
-                    speech.listening
-                      ? 'bg-primary text-primary-foreground motion-safe:animate-pulse'
-                      : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-                  )}
-                >
-                  <Speech className="size-4" />
-                </button>
-              </Hint>
-            ) : null}
-
             <Hint label="Open GIF picker">
               <button
                 type="button"
@@ -937,14 +1017,116 @@ export function Composer({
                 </button>
               </Hint>
             ) : null}
-            {/*
-              Scheduled send was a UI stub with three hardcoded time options
-              and no backend (no DB model, no delivery worker) — it never
-              rendered anywhere in the running app since no caller passed
-              `onSchedule`. Removed per the settings-unification audit rather
-              than left as dead, unreachable code; see
-              SETTINGS_UNIFICATION_FOLLOWUPS.md for the real feature.
-            */}
+
+            {/* Dictate moved to right side */}
+            {speech.supported ? (
+              <Hint
+                label={speech.listening ? 'Stop dictating' : 'Dictate (speech to text)'}
+              >
+                <button
+                  type="button"
+                  onClick={toggleDictate}
+                  disabled={!speech.listening && !canStartVoiceAction}
+                  aria-label={speech.listening ? 'Stop dictating' : 'Dictate speech to text'}
+                  aria-pressed={speech.listening}
+                  className={cn(
+                    'size-7 shrink-0 touch-target flex items-center justify-center rounded-md transition-colors disabled:pointer-events-none disabled:opacity-40',
+                    speech.listening
+                      ? 'bg-primary text-primary-foreground motion-safe:animate-pulse'
+                      : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                  )}
+                >
+                  <Speech className="size-4" />
+                </button>
+              </Hint>
+            ) : null}
+
+            {/* Schedule message button & popover */}
+            <Popover open={scheduleOpen} onOpenChange={setScheduleOpen}>
+              <PopoverTrigger asChild>
+                <div>
+                  <Hint label="Schedule message">
+                    <button
+                      type="button"
+                      aria-label="Schedule message"
+                      disabled={disabled}
+                      className={cn(
+                        'size-7 shrink-0 touch-target flex items-center justify-center rounded-md transition-colors disabled:pointer-events-none disabled:opacity-40',
+                        scheduleOpen
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                      )}
+                    >
+                      <CalendarClock className="size-4" />
+                    </button>
+                  </Hint>
+                </div>
+              </PopoverTrigger>
+              <PopoverContent
+                side="top"
+                align="end"
+                className="w-72 p-3 space-y-3 bg-popover text-popover-foreground border border-border shadow-md rounded-lg z-50"
+              >
+                <div className="font-semibold text-xs text-foreground flex items-center gap-1.5 pb-1 border-b border-border">
+                  <CalendarClock className="size-3.5 text-primary" />
+                  <span>Schedule message</span>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-[11px] font-medium text-muted-foreground mb-1">
+                    Quick options
+                  </div>
+                  {schedulePresets.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => void handleSchedule(preset.time.toISOString())}
+                      className="w-full text-left px-2 py-1.5 rounded hover:bg-accent text-xs flex justify-between items-center text-foreground transition-colors"
+                    >
+                      <span>{preset.label}</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {preset.time.toLocaleTimeString([], {
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-border">
+                  <label className="text-[11px] font-medium text-muted-foreground block">
+                    Custom date & time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={customDatetime}
+                    min={new Date().toISOString().slice(0, 16)}
+                    onChange={(e) => setCustomDatetime(e.target.value)}
+                    className="w-full px-2 py-1 text-xs rounded border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  <button
+                    type="button"
+                    disabled={!customDatetime}
+                    onClick={() => {
+                      if (!customDatetime) return;
+                      const targetDate = new Date(customDatetime);
+                      if (
+                        isNaN(targetDate.getTime()) ||
+                        targetDate.getTime() <= Date.now()
+                      ) {
+                        toast.error('Please select a future date and time');
+                        return;
+                      }
+                      void handleSchedule(targetDate.toISOString());
+                    }}
+                    className="w-full py-1.5 px-3 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium rounded transition-colors"
+                  >
+                    Schedule Send
+                  </button>
+                </div>
+              </PopoverContent>
+            </Popover>
 
             <Hint label="Send message">
               <button
