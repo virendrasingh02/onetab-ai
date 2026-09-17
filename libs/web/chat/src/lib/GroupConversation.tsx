@@ -1,4 +1,13 @@
-import type { ComposerContext, WorkspaceMember } from '@org/types';
+import { useCurrentUser } from '@org/auth';
+import type {
+  ComposerContext,
+  PublicUser,
+  SystemActivityEventContent,
+  SystemEventEntity,
+  SystemEventType,
+  WorkspaceMember,
+} from '@org/types';
+import { getSystemEventCapabilities } from '@org/types';
 import {
   Button,
   Dialog,
@@ -44,6 +53,44 @@ import { useMatrix } from './matrix-provider.js';
 import { useRoomSummary } from './use-chat.js';
 import { useDirectMessagePreferences } from './use-dm-preferences.js';
 import { PeoplePicker } from './people-picker.js';
+
+function toSystemEventEntity(user: PublicUser): SystemEventEntity {
+  return {
+    kind: 'user',
+    id: user.id,
+    name: user.displayName || user.name,
+    avatarUrl: user.avatarUrl ?? undefined,
+  };
+}
+
+/**
+ * Group DMs are managed entirely client-side (no backend row to hang an
+ * `AppEvent` off), so a membership-change system event is posted here,
+ * directly by the current user's own Matrix session — the same
+ * `mie.system_event` shape `SystemEventPublisherService` posts server-side
+ * for channels, just without that service's bot identity or dedupe store
+ * (there is nothing to retry client-side that would double-post).
+ */
+function buildGroupDmMemberEvent(
+  eventType: Extract<SystemEventType, 'member_added' | 'member_left'>,
+  roomId: string,
+  workspaceId: string | undefined,
+  actor: PublicUser,
+  target: PublicUser,
+): SystemActivityEventContent {
+  return {
+    type: 'mie.system_event',
+    eventType,
+    conversationType: 'group_dm',
+    conversationId: roomId,
+    workspaceId,
+    actor: toSystemEventEntity(actor),
+    target: toSystemEventEntity(target),
+    occurredAt: Date.now(),
+    idempotencyKey: `group-dm-member:${roomId}:${target.id}:${eventType}:${Date.now()}`,
+    capabilities: getSystemEventCapabilities(eventType),
+  };
+}
 
 /** Comma-joined member names, minus the reader — the fallback title for an unnamed group. */
 function membersTitle(names: string[]): string {
@@ -242,6 +289,7 @@ function GroupHeader({
 }) {
   const { client } = useMatrix();
   const { workspaceId, slug } = useCurrentWorkspace();
+  const currentUser = useCurrentUser();
   const preferences = useDirectMessagePreferences(workspaceId);
   const prompts = usePromptDialog();
   const navigate = useNavigate();
@@ -290,13 +338,31 @@ function GroupHeader({
     });
     if (!confirmed) return;
     try {
+      // Posted before leaving — once the room membership is gone, this
+      // session can no longer send into it.
+      if (currentUser) {
+        await client
+          .sendStructuredMessage(
+            roomId,
+            buildGroupDmMemberEvent(
+              'member_left',
+              roomId,
+              workspaceId,
+              currentUser,
+              currentUser,
+            ),
+          )
+          .catch(() => {
+            // Best-effort — a missing activity line never blocks leaving.
+          });
+      }
       await client.leaveRoom(roomId);
       toast.success('You left the group');
       navigate(`/w/${workspaceSlug}/dms`);
     } catch {
       toast.error('Could not leave the group');
     }
-  }, [client, prompts, roomId, title, navigate, workspaceSlug]);
+  }, [client, prompts, roomId, title, navigate, workspaceSlug, currentUser, workspaceId]);
 
   return (
     <div className="top-0 backdrop-blur-md sticky z-20 shrink-0 border-b border-border bg-background/95">
@@ -457,6 +523,8 @@ function AddPeopleDialog({
   workspacePeople: WorkspaceMember[];
 }) {
   const { client } = useMatrix();
+  const { workspaceId } = useCurrentWorkspace();
+  const currentUser = useCurrentUser();
   const [selected, setSelected] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -477,21 +545,53 @@ function AddPeopleDialog({
     setBusy(true);
     try {
       const identities = await Promise.all(
-        selected.map((id) => matrixApi.peerIdentity(id)),
+        selected.map(async (id) => ({
+          id,
+          matrixUserId: (await matrixApi.peerIdentity(id)).matrixUserId,
+        })),
       );
-      const toInvite = identities
-        .map((identity) => identity.matrixUserId)
-        .filter((matrixId) => !currentSet.has(matrixId));
+      const toInvite = identities.filter(
+        (identity) => !currentSet.has(identity.matrixUserId),
+      );
 
       if (toInvite.length === 0) {
         toast.info('Everyone selected is already in this group.');
       } else {
-        await client.addToGroupDirectMessage(roomId, toInvite);
+        await client.addToGroupDirectMessage(
+          roomId,
+          toInvite.map((identity) => identity.matrixUserId),
+        );
         toast.success(
           toInvite.length === 1
             ? 'Added 1 person to the group'
             : `Added ${toInvite.length} people to the group`,
         );
+
+        if (currentUser) {
+          const membersById = new Map(
+            workspacePeople.map((member) => [member.user.id, member.user]),
+          );
+          await Promise.all(
+            toInvite.map((identity) => {
+              const target = membersById.get(identity.id);
+              if (!target) return Promise.resolve();
+              return client
+                .sendStructuredMessage(
+                  roomId,
+                  buildGroupDmMemberEvent(
+                    'member_added',
+                    roomId,
+                    workspaceId,
+                    currentUser,
+                    target,
+                  ),
+                )
+                .catch(() => {
+                  // Best-effort — the invite itself already succeeded.
+                });
+            }),
+          );
+        }
       }
       setSelected([]);
       onOpenChange(false);

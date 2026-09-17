@@ -40,6 +40,10 @@ export {
 } from './lib/use-auth.js';
 
 export { ProtectedRoute, PublicOnlyRoute } from './lib/protected-route.js';
+export {
+  resolveSafeHandoff,
+  withHandoffToken,
+} from './lib/safe-handoff-redirect.js';
 export { AuthLayout, type AuthLayoutProps } from './lib/auth-layout.js';
 
 export { LoginPage } from './lib/pages/login-page.js';

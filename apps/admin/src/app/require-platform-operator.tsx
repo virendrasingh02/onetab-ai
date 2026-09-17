@@ -34,7 +34,9 @@ const WEB_APP_URL =
  * Matches the exact minimalist design system and styling of the OneTab AI auth layout.
  *
  * Checks:
- * 1. URL search params for handoff tokens (?token= or ?accessToken=)
+ * 1. URL fragment for a handoff token (#token=…) — the fragment never
+ *    leaves the browser, so unlike a query string it can't leak into
+ *    server/proxy/CDN access logs on the handoff navigation.
  * 2. Active access token from storage / memory
  * 3. httpOnly refresh cookie
  *
@@ -62,20 +64,25 @@ export function RequirePlatformOperator({
     }
 
     try {
-      // 1. Ingest access token if passed in query string (e.g. from web app returnTo handoff)
+      // 1. Ingest access token if passed via the URL fragment (e.g. from web
+      //    app returnTo handoff). Stripped immediately so it never lingers
+      //    in browser history.
       if (typeof window !== 'undefined') {
         try {
-          const params = new URLSearchParams(window.location.search);
-          const queryToken = params.get('token') || params.get('accessToken');
-          if (queryToken) {
-            setAccessToken(queryToken);
-            params.delete('token');
-            params.delete('accessToken');
-            const cleanSearch = params.toString();
-            const cleanUrl = `${window.location.pathname}${
-              cleanSearch ? `?${cleanSearch}` : ''
-            }${window.location.hash}`;
-            window.history.replaceState({}, document.title, cleanUrl);
+          if (window.location.hash) {
+            const hashParams = new URLSearchParams(
+              window.location.hash.replace(/^#/, ''),
+            );
+            const hashToken =
+              hashParams.get('token') || hashParams.get('accessToken');
+            if (hashToken) {
+              setAccessToken(hashToken);
+              window.history.replaceState(
+                {},
+                document.title,
+                `${window.location.pathname}${window.location.search}`,
+              );
+            }
           }
         } catch {
           // Ignore URL cleanup error

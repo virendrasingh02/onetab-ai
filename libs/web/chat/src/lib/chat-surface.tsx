@@ -37,6 +37,10 @@ import type { ComposerContext } from '@org/types';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import { useComposerControl } from './use-composer-control.js';
 import { useComposerAddActions } from './use-composer-add-actions.js';
+import {
+  useScheduledMessages,
+  useScheduledMessageMutations,
+} from './use-scheduled-messages.js';
 
 import { attachmentToMediaItem, useMediaPreview } from '@org/media-preview';
 import {
@@ -701,6 +705,34 @@ export function ChatSurface({
     peerId: effectivePeerId,
     slug: workspaceSlug,
   });
+
+  const scheduledMessagesQuery = useScheduledMessages(effectiveWorkspaceId);
+  const scheduledMessageMutations = useScheduledMessageMutations(effectiveWorkspaceId);
+  const pendingScheduledHere = useMemo(
+    () =>
+      (scheduledMessagesQuery.data ?? [])
+        .filter(
+          (m) => m.status === 'PENDING' && m.conversationId === effectiveRoomId,
+        )
+        .map((m) => ({ id: m.id, body: m.body, scheduledFor: m.scheduledFor })),
+    [scheduledMessagesQuery.data, effectiveRoomId],
+  );
+  const handleScheduleMessage = useCallback(
+    async (body: string, scheduledFor: string): Promise<void> => {
+      if (!effectiveRoomId) throw new Error('No conversation.');
+      await scheduledMessageMutations.create.mutateAsync({
+        conversationId: effectiveRoomId,
+        channelName: title,
+        body,
+        scheduledFor,
+      });
+    },
+    [effectiveRoomId, title, scheduledMessageMutations.create],
+  );
+  const handleCancelScheduled = useCallback(
+    (id: string) => scheduledMessageMutations.cancel.mutate(id),
+    [scheduledMessageMutations.cancel],
+  );
 
   const mainControl = useComposerControl(composerContext, members);
 
@@ -1397,6 +1429,9 @@ export function ChatSurface({
             members={members}
             currentUserId={myUserId}
             linkPreviewsEnabled={chat?.linkPreviewsEnabled ?? true}
+            onSchedule={handleScheduleMessage}
+            pendingScheduled={pendingScheduledHere}
+            onCancelScheduled={handleCancelScheduled}
             onTyping={effectiveOnTyping}
             enterToSend={chat?.enterToSend ?? true}
             onAttach={onAttach ? (files) => void onAttach(files) : undefined}

@@ -2,6 +2,7 @@ import { getAccessToken } from '@org/api-client';
 import { LoadingState } from '@org/ui';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from './auth.store.js';
+import { resolveSafeHandoff, withHandoffToken } from './safe-handoff-redirect.js';
 
 /**
  * Gate for authenticated areas.
@@ -42,27 +43,18 @@ export function PublicOnlyRoute() {
 
   if (status === 'authenticated' && !isDesktopHandoff) {
     if (returnTo) {
-      try {
-        const targetUrl = new URL(returnTo, window.location.origin);
-        const isAllowed =
-          targetUrl.origin === window.location.origin ||
-          targetUrl.hostname === 'localhost' ||
-          targetUrl.hostname === '127.0.0.1' ||
-          (window.location.hostname.includes('.') &&
-            targetUrl.hostname.endsWith(
-              window.location.hostname.split('.').slice(-2).join('.'),
-            ));
-
-        if (isAllowed) {
-          const currentToken = getAccessToken();
-          if (currentToken && targetUrl.origin !== window.location.origin) {
-            targetUrl.searchParams.set('token', currentToken);
-          }
-          window.location.href = targetUrl.toString();
-          return null;
-        }
-      } catch {
-        // Fall back to default navigate
+      const handoff = resolveSafeHandoff(
+        returnTo,
+        window.location.origin,
+        window.location.hostname,
+      );
+      if (handoff) {
+        const currentToken = getAccessToken();
+        window.location.href =
+          handoff.crossOrigin && currentToken
+            ? withHandoffToken(handoff.url, currentToken)
+            : handoff.url.toString();
+        return null;
       }
     }
     return <Navigate to="/" replace />;

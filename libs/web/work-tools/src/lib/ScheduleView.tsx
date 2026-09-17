@@ -1,4 +1,4 @@
-import type { CalendarEvent } from '@org/types';
+import type { CalendarEvent, ScheduledMessageView } from '@org/types';
 import {
   Badge,
   Button,
@@ -24,13 +24,15 @@ import {
   MapPin,
   MessageSquare,
   Plus,
-  Send,
   Trash2,
   TriangleAlert,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useScheduledMessagesStore, type ScheduledMessage } from '@org/chat-ui';
+import {
+  useScheduledMessages,
+  useScheduledMessageMutations,
+} from '@org/web-chat';
 import {
   useCalendarEvents,
   useCalendarMutations,
@@ -65,31 +67,23 @@ export function ScheduleView() {
   const { remove } = useCalendarMutations(workspaceId);
   const prompts = usePromptDialog();
 
-  const {
-    messages: allScheduledMessages,
-    rescheduleMessage,
-    markAsSent,
-    deleteScheduledMessage,
-  } = useScheduledMessagesStore();
+  const scheduledMessagesQuery = useScheduledMessages(workspaceId);
+  const scheduledMessageMutations = useScheduledMessageMutations(workspaceId);
 
   const [activeTab, setActiveTab] = useState<'messages' | 'events'>('messages');
   const [reschedulingMessage, setReschedulingMessage] =
-    useState<ScheduledMessage | null>(null);
+    useState<ScheduledMessageView | null>(null);
   const [newScheduleDatetime, setNewScheduleDatetime] = useState('');
 
   const scheduledMessages = useMemo(() => {
-    return allScheduledMessages
-      .filter(
-        (m) => !m.workspaceId || !workspaceId || m.workspaceId === workspaceId,
-      )
-      .sort(
-        (a, b) =>
-          new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime(),
-      );
-  }, [allScheduledMessages, workspaceId]);
+    return [...(scheduledMessagesQuery.data ?? [])].sort(
+      (a, b) =>
+        new Date(a.scheduledFor).getTime() - new Date(b.scheduledFor).getTime(),
+    );
+  }, [scheduledMessagesQuery.data]);
 
   const pendingCount = useMemo(
-    () => scheduledMessages.filter((m) => m.status === 'pending').length,
+    () => scheduledMessages.filter((m) => m.status === 'PENDING').length,
     [scheduledMessages],
   );
 
@@ -201,7 +195,9 @@ export function ScheduleView() {
         <div className="max-w-5xl mx-auto">
           {activeTab === 'messages' ? (
             <Panel>
-              {scheduledMessages.length === 0 ? (
+              {scheduledMessagesQuery.isLoading ? (
+                <SkeletonList rows={3} />
+              ) : scheduledMessages.length === 0 ? (
                 <EmptyState
                   icon={<CalendarClock className="size-6" />}
                   title="No scheduled messages"
@@ -230,11 +226,11 @@ export function ScheduleView() {
                           <span
                             className={cn(
                               'p-2 mt-0.5 shrink-0 rounded-lg',
-                              msg.status === 'sent'
+                              msg.status === 'SENT'
                                 ? 'bg-success/10 text-success'
-                                : msg.status === 'cancelled'
-                                ? 'bg-muted text-muted-foreground'
-                                : 'bg-primary/10 text-primary',
+                                : msg.status === 'FAILED'
+                                  ? 'bg-destructive/10 text-destructive'
+                                  : 'bg-primary/10 text-primary',
                             )}
                           >
                             <MessageSquare className="size-4" aria-hidden />
@@ -247,17 +243,17 @@ export function ScheduleView() {
                                   ? `#${msg.channelName}`
                                   : 'Conversation'}
                               </h3>
-                              {msg.status === 'pending' ? (
+                              {msg.status === 'PENDING' ? (
                                 <Badge variant="primary" className="text-[10px]">
                                   Scheduled
                                 </Badge>
-                              ) : msg.status === 'sent' ? (
+                              ) : msg.status === 'SENT' ? (
                                 <Badge variant="success" className="text-[10px]">
                                   Sent
                                 </Badge>
                               ) : (
-                                <Badge variant="neutral" className="text-[10px]">
-                                  Cancelled
+                                <Badge variant="destructive" className="text-[10px]">
+                                  Failed
                                 </Badge>
                               )}
                             </div>
@@ -282,25 +278,18 @@ export function ScheduleView() {
                                   Delivered {formatDateTime(msg.sentAt)}
                                 </span>
                               ) : null}
+                              {msg.status === 'FAILED' && msg.errorMessage ? (
+                                <span className="text-destructive">
+                                  {msg.errorMessage}
+                                </span>
+                              ) : null}
                             </div>
                           </div>
                         </div>
 
                         <div className="gap-1.5 flex shrink-0 items-center self-end sm:self-center">
-                          {msg.status === 'pending' ? (
+                          {msg.status === 'PENDING' ? (
                             <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 text-xs gap-1"
-                                onClick={() => {
-                                  markAsSent(msg.id);
-                                  toast.success('Message sent!');
-                                }}
-                              >
-                                <Send className="size-3" />
-                                <span>Send now</span>
-                              </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -320,31 +309,27 @@ export function ScheduleView() {
                                 <Edit3 className="size-3" />
                                 <span>Reschedule</span>
                               </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Cancel scheduled message"
+                                onClick={async () => {
+                                  const confirmed = await prompts.confirmAction({
+                                    title: 'Cancel scheduled message?',
+                                    description:
+                                      'It will not be sent, and is removed from this list.',
+                                    confirmLabel: 'Cancel message',
+                                    destructive: true,
+                                  });
+                                  if (confirmed) {
+                                    scheduledMessageMutations.cancel.mutate(msg.id);
+                                  }
+                                }}
+                              >
+                                <Trash2 className="size-4 text-subtle hover:text-destructive" />
+                              </Button>
                             </>
                           ) : null}
-
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label="Delete scheduled message"
-                            onClick={async () => {
-                              const confirmed = await prompts.confirmAction({
-                                title: 'Delete scheduled message?',
-                                description:
-                                  msg.status === 'pending'
-                                    ? 'This scheduled message will be cancelled and removed from the schedule.'
-                                    : 'This message entry will be removed.',
-                                confirmLabel: 'Delete',
-                                destructive: true,
-                              });
-                              if (confirmed) {
-                                deleteScheduledMessage(msg.id);
-                                toast.success('Scheduled message removed');
-                              }
-                            }}
-                          >
-                            <Trash2 className="size-4 text-subtle hover:text-destructive" />
-                          </Button>
                         </div>
                       </li>
                     ))}
@@ -506,24 +491,31 @@ export function ScheduleView() {
                   </Button>
                   <Button
                     size="sm"
+                    loading={scheduledMessageMutations.update?.isPending}
                     onClick={() => {
-                      if (!newScheduleDatetime) return;
+                      if (!newScheduleDatetime || !reschedulingMessage) return;
                       const date = new Date(newScheduleDatetime);
                       if (isNaN(date.getTime()) || date.getTime() <= Date.now()) {
                         toast.error('Please pick a future date and time');
                         return;
                       }
-                      rescheduleMessage(
-                        reschedulingMessage.id,
-                        date.toISOString(),
+                      scheduledMessageMutations.update.mutate(
+                        {
+                          id: reschedulingMessage.id,
+                          input: { scheduledFor: date.toISOString() },
+                        },
+                        {
+                          onSuccess: () => {
+                            toast.success(
+                              `Rescheduled for ${date.toLocaleString([], {
+                                dateStyle: 'medium',
+                                timeStyle: 'short',
+                              })}`,
+                            );
+                            setReschedulingMessage(null);
+                          },
+                        },
                       );
-                      toast.success(
-                        `Rescheduled for ${date.toLocaleString([], {
-                          dateStyle: 'medium',
-                          timeStyle: 'short',
-                        })}`,
-                      );
-                      setReschedulingMessage(null);
                     }}
                   >
                     Save Schedule

@@ -70,7 +70,8 @@ import {
   useChannelMembers,
   useChannelPreferences,
 } from '../use-channels.js';
-import { useChannelAgentsAndApps } from '../use-channel-agents-apps.js';
+import { useChannelAgents, useChannelAgentMutations } from '../use-channel-agents.js';
+import { useChannelApps, useChannelAppMutations } from '../use-channel-apps.js';
 
 export interface ChannelDetailsPanelProps {
   channel: ChannelSummary;
@@ -86,7 +87,6 @@ export interface ChannelDetailsPanelProps {
   onAddPeople: () => void;
   onAddAgent?: () => void;
   onAddApp?: () => void;
-  onOpenAgentsAppsTab?: () => void;
   onOpenWorkflows?: () => void;
   onStartHuddle: () => void;
 }
@@ -112,13 +112,15 @@ export function ChannelDetailsPanel({
   onAddPeople,
   onAddAgent,
   onAddApp,
-  onOpenAgentsAppsTab,
   onOpenWorkflows,
   onStartHuddle,
 }: ChannelDetailsPanelProps) {
   const members = useChannelMembers(workspaceId, channel.id);
   const memberList = members.data ?? [];
-  const channelAgentsApps = useChannelAgentsAndApps(workspaceId, channel.id);
+  const channelAgents = useChannelAgents(workspaceId, channel.id);
+  const channelAgentMutations = useChannelAgentMutations(workspaceId, channel.id);
+  const channelApps = useChannelApps(workspaceId, channel.id);
+  const channelAppMutations = useChannelAppMutations(workspaceId, channel.id);
   const channelCoworkers = useChannelCoworkers(workspaceId, channel.id);
 
   const [activeTab, setActiveTab] = useState<
@@ -255,7 +257,7 @@ export function ChannelDetailsPanel({
                 Channel AI Agents &amp; Apps
               </span>
               <span className="text-[10px] text-muted-foreground">
-                {channelAgentsApps.agents.length} agents · {channelAgentsApps.apps.length} apps
+                {(channelAgents.data ?? []).length} agents · {(channelApps.data ?? []).length} apps
               </span>
             </div>
             <div className="flex items-center gap-1.5">
@@ -286,111 +288,136 @@ export function ChannelDetailsPanel({
           {/* List of active AI agents */}
           <div className="space-y-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-              Active AI Agents ({channelAgentsApps.agents.length})
+              Active AI Agents ({(channelAgents.data ?? []).length})
             </span>
-            {channelAgentsApps.agents.map((agent) => (
-              <div
-                key={agent.id}
-                className="p-3 rounded-xl border border-border bg-surface flex items-start gap-2.5 transition-colors hover:border-border-strong"
-              >
-                <UserAvatar name={agent.name} seed={agent.avatarSeed} size="sm" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-1">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-xs font-bold text-foreground truncate">
-                        {agent.name}
-                      </span>
-                      <span className="text-[10px] font-mono text-primary truncate">
-                        {agent.handle}
-                      </span>
+            {channelAgents.isLoading ? (
+              <SkeletonList rows={1} withAvatar />
+            ) : (
+              (channelAgents.data ?? []).map((link) => (
+                <div
+                  key={link.id}
+                  className="p-3 rounded-xl border border-border bg-surface flex items-start gap-2.5 transition-colors hover:border-border-strong"
+                >
+                  <UserAvatar
+                    name={link.agent.name}
+                    seed={link.agentId}
+                    size="sm"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-xs font-bold text-foreground truncate">
+                          {link.agent.name}
+                        </span>
+                      </div>
+                      <Badge
+                        variant={link.isEnabled ? 'primary' : 'neutral'}
+                        className="text-[10px] py-0 h-4"
+                      >
+                        {link.isEnabled ? 'Active' : 'Paused'}
+                      </Badge>
                     </div>
-                    <Badge
-                      variant={agent.enabled ? 'primary' : 'neutral'}
-                      className="text-[10px] py-0 h-4"
-                    >
-                      {agent.enabled ? 'Active' : 'Paused'}
-                    </Badge>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
-                    {agent.description}
-                  </p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-[10px] font-mono text-muted-foreground">
-                      {agent.model}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => channelAgentsApps.toggleAgent(agent.id)}
-                      className="text-[10px] font-semibold text-primary hover:underline cursor-pointer"
-                    >
-                      {agent.enabled ? 'Pause' : 'Enable'}
-                    </button>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
+                      {link.agent.description}
+                    </p>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-muted-foreground">
+                        {link.agent.model}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            channelAgentMutations.setEnabled.mutate({
+                              agentId: link.agentId,
+                              isEnabled: !link.isEnabled,
+                            })
+                          }
+                          className="text-[10px] font-semibold text-primary hover:underline cursor-pointer"
+                        >
+                          {link.isEnabled ? 'Pause' : 'Enable'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            channelAgentMutations.remove.mutate(link.agentId)
+                          }
+                          className="text-[10px] font-semibold text-muted-foreground hover:text-destructive hover:underline cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
 
             {/* List of connected apps */}
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block pt-2">
-              Connected Apps ({channelAgentsApps.apps.length})
+              Connected Apps ({(channelApps.data ?? []).length})
             </span>
-            {channelAgentsApps.apps.map((app) => (
-              <div
-                key={app.id}
-                className="p-3 rounded-xl border border-border bg-surface flex items-start gap-2.5 transition-colors hover:border-border-strong"
-              >
-                <UserAvatar name={app.name} seed={app.icon} size="sm" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-1">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-xs font-bold text-foreground truncate">
-                        {app.name}
-                      </span>
-                      <span className="text-[10px] font-mono text-accent-violet truncate">
-                        {app.botHandle}
-                      </span>
+            {channelApps.isLoading ? (
+              <SkeletonList rows={1} withAvatar />
+            ) : (
+              (channelApps.data ?? []).map((link) => (
+                <div
+                  key={link.id}
+                  className="p-3 rounded-xl border border-border bg-surface flex items-start gap-2.5 transition-colors hover:border-border-strong"
+                >
+                  <UserAvatar
+                    name={link.integration.displayName ?? link.integration.provider}
+                    seed={link.integrationId}
+                    size="sm"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-xs font-bold text-foreground truncate">
+                          {link.integration.displayName ?? link.integration.provider}
+                        </span>
+                        <span className="text-[10px] font-mono text-accent-violet truncate">
+                          {link.integration.provider}
+                        </span>
+                      </div>
+                      <Badge
+                        variant={link.isEnabled ? 'primary' : 'neutral'}
+                        className={cn(
+                          'text-[10px] py-0 h-4',
+                          link.isEnabled && 'bg-accent-violet-soft text-accent-violet border-accent-violet/20',
+                        )}
+                      >
+                        {link.isEnabled ? 'Connected' : 'Muted'}
+                      </Badge>
                     </div>
-                    <Badge
-                      variant={app.enabled ? 'primary' : 'neutral'}
-                      className={cn(
-                        'text-[10px] py-0 h-4',
-                        app.enabled && 'bg-accent-violet-soft text-accent-violet border-accent-violet/20',
-                      )}
-                    >
-                      {app.enabled ? 'Connected' : 'Muted'}
-                    </Badge>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
-                    {app.description}
-                  </p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-[10px] text-muted-foreground">
-                      {app.events.length} event triggers
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => channelAgentsApps.toggleApp(app.id)}
-                      className="text-[10px] font-semibold text-accent-violet hover:underline cursor-pointer"
-                    >
-                      {app.enabled ? 'Mute' : 'Enable'}
-                    </button>
+                    <div className="mt-2 flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          channelAppMutations.setEnabled.mutate({
+                            integrationId: link.integrationId,
+                            isEnabled: !link.isEnabled,
+                          })
+                        }
+                        className="text-[10px] font-semibold text-accent-violet hover:underline cursor-pointer"
+                      >
+                        {link.isEnabled ? 'Mute' : 'Enable'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          channelAppMutations.remove.mutate(link.integrationId)
+                        }
+                        className="text-[10px] font-semibold text-muted-foreground hover:text-destructive hover:underline cursor-pointer"
+                      >
+                        Disconnect
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
-
-          {onOpenAgentsAppsTab ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onOpenAgentsAppsTab}
-              className="w-full text-xs h-8 gap-1.5"
-            >
-              <Bot className="size-3.5 text-primary" />
-              <span>Open Full AI Agents &amp; Apps Tab</span>
-            </Button>
-          ) : null}
 
           <div className="pt-2 border-t border-border">
             <LinkOutTab

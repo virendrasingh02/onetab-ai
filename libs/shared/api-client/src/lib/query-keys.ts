@@ -132,6 +132,11 @@ export const queryKeys = {
     peerIdentity: (userId: string) =>
       ['matrix', 'peer-identity', userId] as const,
   },
+  scheduledMessages: {
+    all: (workspaceId: string) => ['scheduledMessages', workspaceId] as const,
+    list: (workspaceId: string) =>
+      ['scheduledMessages', workspaceId, 'list'] as const,
+  },
   agents: {
     all: (workspaceId: string) => ['agents', workspaceId] as const,
     list: (workspaceId: string) => ['agents', workspaceId, 'list'] as const,

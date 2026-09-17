@@ -40,7 +40,6 @@ import {
   type ReactNode,
 } from 'react';
 import { useDraftsStore } from './drafts-store.js';
-import { useScheduledMessagesStore } from './scheduled-messages-store.js';
 import {
   LexicalComposerInput,
   type LexicalEditorRef,
@@ -244,6 +243,10 @@ function StagedAttachmentChip({
 export interface ComposerProps {
   onSend: (body: string) => void | Promise<void>;
   onSchedule?: (body: string, scheduledFor: string) => void | Promise<void>;
+  /** This conversation's still-pending scheduled sends, newest-first, so the
+   *  schedule popover can show and cancel them instead of being a one-way trip. */
+  pendingScheduled?: { id: string; body: string; scheduledFor: string }[];
+  onCancelScheduled?: (id: string) => void;
   targetName?: string;
   workspaceId?: string;
   onTyping?: (isTyping: boolean) => void;
@@ -311,8 +314,8 @@ export interface ComposerProps {
 export function Composer({
   onSend,
   onSchedule,
-  targetName,
-  workspaceId,
+  pendingScheduled = [],
+  onCancelScheduled,
   onTyping,
   onAttach,
   conversationId,
@@ -504,7 +507,6 @@ export function Composer({
     if (!anonAllowed && anon) setAnon(false);
   }, [anonAllowed, anon]);
 
-  const scheduleMessage = useScheduledMessagesStore((s) => s.scheduleMessage);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [customDatetime, setCustomDatetime] = useState(() => {
     const d = new Date(Date.now() + 60 * 60 * 1000);
@@ -548,23 +550,13 @@ export function Composer({
         toast.error('Please enter a message to schedule.');
         return;
       }
+      if (!onSchedule) return;
 
-      const destName =
-        targetName ||
-        (placeholder?.startsWith('Message ')
-          ? placeholder.replace('Message ', '')
-          : undefined);
-
-      scheduleMessage({
-        conversationId: conversationId || 'general',
-        workspaceId,
-        channelName: destName,
-        body: content,
-        scheduledFor: scheduledForIso,
-      });
-
-      if (onSchedule) {
-        void onSchedule(content, scheduledForIso);
+      try {
+        await onSchedule(content, scheduledForIso);
+      } catch {
+        // The caller's mutation already surfaces its own error toast.
+        return;
       }
 
       lexicalRef.current?.clear();
@@ -579,16 +571,7 @@ export function Composer({
       });
       toast.success(`Message scheduled for ${formatted}`);
     },
-    [
-      conversationId,
-      workspaceId,
-      targetName,
-      placeholder,
-      scheduleMessage,
-      onSchedule,
-      clearDraft,
-      flushAttachments,
-    ],
+    [conversationId, onSchedule, clearDraft, flushAttachments],
   );
 
   const handleComposerSend = useCallback(
@@ -1041,7 +1024,9 @@ export function Composer({
               </Hint>
             ) : null}
 
-            {/* Schedule message button & popover */}
+            {/* Schedule message button & popover — same "no prop, no control"
+                convention as onStartHuddle/onSendVoice below. */}
+            {onSchedule ? (
             <Popover open={scheduleOpen} onOpenChange={setScheduleOpen}>
               <PopoverTrigger asChild>
                 <div>
@@ -1071,6 +1056,40 @@ export function Composer({
                   <CalendarClock className="size-3.5 text-primary" />
                   <span>Schedule message</span>
                 </div>
+
+                {pendingScheduled.length > 0 ? (
+                  <div className="space-y-1 pb-2 border-b border-border">
+                    <div className="text-[11px] font-medium text-muted-foreground mb-1">
+                      Pending in this conversation
+                    </div>
+                    {pendingScheduled.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-start justify-between gap-2 px-2 py-1.5 rounded bg-accent/40 text-xs"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-foreground">{item.body}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {new Date(item.scheduledFor).toLocaleString(undefined, {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })}
+                          </p>
+                        </div>
+                        {onCancelScheduled ? (
+                          <button
+                            type="button"
+                            onClick={() => onCancelScheduled(item.id)}
+                            className="shrink-0 text-muted-foreground hover:text-destructive"
+                            aria-label="Cancel scheduled message"
+                          >
+                            <X className="size-3.5" />
+                          </button>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
 
                 <div className="space-y-1">
                   <div className="text-[11px] font-medium text-muted-foreground mb-1">
@@ -1127,6 +1146,7 @@ export function Composer({
                 </div>
               </PopoverContent>
             </Popover>
+            ) : null}
 
             <Hint label="Send message">
               <button

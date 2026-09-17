@@ -23,6 +23,8 @@ import {
   MatrixController,
 } from './matrix.controller.js';
 import { NotificationBridgeService } from './notification-bridge.service.js';
+import { ScheduledMessagesController } from './scheduled-messages.controller.js';
+import { ScheduledMessagesService } from './scheduled-messages.service.js';
 import { SystemEventPublisherService } from './system-event-publisher.service.js';
 import { SystemEventsListener } from './system-events.listener.js';
 
@@ -42,6 +44,7 @@ import { SystemEventsListener } from './system-events.listener.js';
     ChannelEmailController,
     InboundEmailController,
     HuddleController,
+    ScheduledMessagesController,
   ],
   providers: [
     MatrixAdminService,
@@ -56,6 +59,7 @@ import { SystemEventsListener } from './system-events.listener.js';
     MatrixSpaceService,
     MatrixSyncService,
     NotificationBridgeService,
+    ScheduledMessagesService,
     SystemEventPublisherService,
     SystemEventsListener,
   ],

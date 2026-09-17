@@ -80,6 +80,8 @@ export type {
   ChannelAppView,
   ChannelCoworkerView,
   ProjectCoworkerView,
+  ScheduledMessageView,
+  ScheduledMessageStatus,
 
   ChannelMember,
   ChannelPin,

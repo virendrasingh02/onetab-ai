@@ -154,6 +154,9 @@ export class WorkflowEngineService {
         const stepLatency = Date.now() - stepStart;
         results.push(step);
 
+        const stepTokensUsed = (step.output as any)?.tokensUsed ?? 0;
+        totalTokens += stepTokensUsed;
+
         // Record step in AIExecutionStep
         await this.prisma.aIExecutionStep.create({
           data: {
@@ -164,7 +167,7 @@ export class WorkflowEngineService {
             inputJson: (node.config ?? {}) as any,
             outputJson: (step.output as any) ?? {},
             latencyMs: stepLatency,
-            tokensUsed: (step.output as any)?.tokensUsed ?? 0,
+            tokensUsed: stepTokensUsed,
             errorMessage: (step.output as any)?.error,
           },
         });

@@ -94,7 +94,6 @@ import {
   useChannelPreferences,
   useJoinChannel,
 } from '../use-channels.js';
-import { useChannelAgentsAndApps } from '../use-channel-agents-apps.js';
 
 /**
  * Where an upload's bytes live.
@@ -582,7 +581,6 @@ export function ChannelPage() {
     channel?.id,
   );
   const members = useChannelMembers(workspaceId, channel?.id);
-  const channelAgentsApps = useChannelAgentsAndApps(workspaceId, channel?.id);
   const anonSettings = useChannelAnonymousSettings(workspaceId, channel?.id);
   const anonMutations = useAnonymousMessagingMutations(
     workspaceId,
@@ -735,10 +733,6 @@ export function ChannelPage() {
               onAddPeople={() => setAddPeopleOpen(true)}
               onAddAgent={() => setAddAgentOpen(true)}
               onAddApp={() => setAddAppOpen(true)}
-              onOpenAgentsAppsTab={() => {
-                setDetailsPanelOpen(false);
-                setActiveTab('agents-apps');
-              }}
               onOpenWorkflows={() => setWorkflowsOpen(true)}
               onStartHuddle={() => {
                 setActiveTab('chat');
@@ -789,30 +783,14 @@ export function ChannelPage() {
         open={addAgentOpen}
         onOpenChange={setAddAgentOpen}
         channel={channel}
-        onAgentAdded={(agent) =>
-          channelAgentsApps.addAgent({
-            id: agent.id,
-            name: agent.name,
-            handle: agent.handle,
-            role: agent.role,
-            description: agent.description,
-            model: agent.model,
-            avatarSeed: agent.avatarSeed,
-            tags: agent.tags,
-            status: 'active',
-            enabled: true,
-            triggers: [agent.handle, `/${agent.handle.replace('@', '')}`],
-            capabilities: agent.tags,
-          })
-        }
       />
 
       <AddAppDialog
         open={addAppOpen}
         onOpenChange={setAddAppOpen}
         channel={channel}
-        existingAppSlugs={channelAgentsApps.apps.map((a) => a.slug)}
-        onAddApp={(app) => channelAgentsApps.addApp(app)}
+        workspaceId={workspaceId}
+        workspaceSlug={workspaceSlug ?? ''}
       />
 
       <ChannelTemplatesDialog

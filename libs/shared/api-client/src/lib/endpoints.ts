@@ -92,6 +92,7 @@ import type {
   ChannelAgentView,
   ChannelAppView,
   ChannelMember,
+  ScheduledMessageView,
 
   ChannelPin,
   ChannelSummary,
@@ -244,6 +245,8 @@ import type {
 import type {
   AddChannelMembersInput,
   ChannelPreferencesInput,
+  CreateScheduledMessageInput,
+  UpdateScheduledMessageInput,
   PostAnonymousMessageInput,
   RemoveAnonymousMessageInput,
   ReportAnonymousMessageInput,
@@ -870,6 +873,32 @@ export const channelAppsApi = {
     ),
 };
 
+/** A member's own scheduled sends — delivered server-side even if the browser is closed. */
+export const scheduledMessagesApi = {
+  list: (workspaceId: string) =>
+    request<ScheduledMessageView[]>(
+      http.get(`/workspaces/${workspaceId}/scheduled-messages`),
+    ),
+
+  create: (workspaceId: string, input: CreateScheduledMessageInput) =>
+    request<ScheduledMessageView>(
+      http.post(`/workspaces/${workspaceId}/scheduled-messages`, input),
+    ),
+
+  update: (
+    workspaceId: string,
+    id: string,
+    input: UpdateScheduledMessageInput,
+  ) =>
+    request<ScheduledMessageView>(
+      http.patch(`/workspaces/${workspaceId}/scheduled-messages/${id}`, input),
+    ),
+
+  cancel: (workspaceId: string, id: string) =>
+    request<void>(
+      http.delete(`/workspaces/${workspaceId}/scheduled-messages/${id}`),
+    ),
+};
 
 export const memberApi = {
   list: (workspaceId: string) =>

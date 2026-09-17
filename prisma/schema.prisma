@@ -104,6 +104,7 @@ model User {
   aiFeedbacks               AIFeedback[]
   aiSecrets                 AISecret[]
   mcpConnections            MCPConnection[]
+  scheduledMessages         ScheduledMessage[]
 
   @@index([presence, lastSeenAt])
   @@map("users")
@@ -213,6 +214,45 @@ model ScheduledStatus {
   @@map("scheduled_statuses")
 }
 
+enum ScheduledMessageStatus {
+  PENDING
+  SENT
+  CANCELLED
+  FAILED
+}
+
+/// A chat message the author asked to be posted later. Delivered server-side
+/// by `ScheduledMessageDeliveryService`'s per-minute sweep, which sends it
+/// into the Matrix room as the author via the appservice's `user_id=`
+/// impersonation (`MatrixAdminService.sendEventAs`) — the same mechanism the
+/// bridge uses to post on behalf of a bot identity, here posting on behalf of
+/// the human who scheduled it, exactly as if they had sent it live at that
+/// moment. There is no bearing on their session: it fires whether or not the
+/// browser is open.
+model ScheduledMessage {
+  id             String                 @id @default(cuid())
+  workspaceId    String
+  authorId       String
+  /// The Matrix room to post into — resolved once at schedule time.
+  conversationId String
+  /// Display snapshot only ("Message #general") — never re-resolved.
+  channelName    String?
+  body           String
+  scheduledFor   DateTime
+  status         ScheduledMessageStatus @default(PENDING)
+  sentAt         DateTime?
+  /// Set on a delivery failure so the sweep does not retry indefinitely.
+  errorMessage   String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  workspace      Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  author         User                   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([status, scheduledFor])
+  @@index([workspaceId, authorId])
+  @@map("scheduled_messages")
+}
+
 model Workspace {
   id                        String                     @id @default(cuid())
   name                      String
@@ -299,6 +339,7 @@ model Workspace {
   aiSecrets                 AISecret[]
   mcpConnections            MCPConnection[]
   aiFeedbacks               AIFeedback[]
+  scheduledMessages         ScheduledMessage[]
   owner                     User                       @relation("WorkspaceOwner", fields: [ownerId], references: [id])
 
   @@index([ownerId])

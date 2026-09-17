@@ -293,7 +293,9 @@ function setCachedUploads(workspaceId: string | undefined, items: Upload[]): voi
       `${UPLOADS_BOOTSTRAP_KEY_PREFIX}${workspaceId}`,
       JSON.stringify(items.slice(0, 50)),
     );
-  } catch {}
+  } catch {
+    // Ignore quota errors
+  }
 }
 
 /** Keyset-paginated files for the Files hub — one page per scroll. */

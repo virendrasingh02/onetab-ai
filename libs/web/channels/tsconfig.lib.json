@@ -41,9 +41,6 @@
       "path": "../workspace/tsconfig.lib.json"
     },
     {
-      "path": "../auth/tsconfig.lib.json"
-    },
-    {
       "path": "../../shared/utils/tsconfig.lib.json"
     },
     {
@@ -56,13 +53,19 @@
       "path": "../../shared/api-client/tsconfig.lib.json"
     },
     {
-      "path": "../notifications/tsconfig.lib.json"
+      "path": "../integrations/tsconfig.lib.json"
     },
     {
       "path": "../coworkers/tsconfig.lib.json"
     },
     {
+      "path": "../notifications/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/chat-ui/tsconfig.lib.json"
+    },
+    {
+      "path": "../auth/tsconfig.lib.json"
     }
   ]
 }

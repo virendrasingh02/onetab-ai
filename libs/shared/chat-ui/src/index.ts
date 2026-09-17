@@ -26,10 +26,6 @@ export {
   useDraftsStore,
   type ConversationDraft,
 } from './lib/drafts-store.js';
-export {
-  useScheduledMessagesStore,
-  type ScheduledMessage,
-} from './lib/scheduled-messages-store.js';
 
 export {
   DEFAULT_SLASH_COMMANDS,

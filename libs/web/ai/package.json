@@ -21,6 +21,7 @@
     "@org/ui": "*",
     "@org/utils": "*",
     "@org/validation": "*",
+    "@org/web-analytics": "*",
     "@org/web-workspace": "*",
     "@tanstack/react-query": "^5.101.4",
     "lucide-react": "^1.28.0",

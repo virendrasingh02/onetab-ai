@@ -127,9 +127,8 @@ export {
   type UseComposerAddActionsOptions,
 } from './lib/use-composer-add-actions.js';
 export {
-  useScheduledMessagesStore,
-  type ScheduledMessage,
-} from '@org/chat-ui';
-
+  useScheduledMessages,
+  useScheduledMessageMutations,
+} from './lib/use-scheduled-messages.js';
 
 

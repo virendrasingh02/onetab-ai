@@ -457,6 +457,24 @@ export interface ChannelAppView {
   };
 }
 
+export type ScheduledMessageStatus = 'PENDING' | 'SENT' | 'CANCELLED' | 'FAILED';
+
+/** A chat message scheduled for later delivery — see `ScheduledMessage`. */
+export interface ScheduledMessageView {
+  id: string;
+  workspaceId: string;
+  authorId: string;
+  conversationId: string;
+  channelName: string | null;
+  body: string;
+  scheduledFor: IsoDateString;
+  status: ScheduledMessageStatus;
+  sentAt: IsoDateString | null;
+  errorMessage: string | null;
+  createdAt: IsoDateString;
+  updatedAt: IsoDateString;
+}
+
 export interface Invitation {
 
   id: string;

@@ -12,6 +12,7 @@ import {
 } from '@org/api-client';
 import { AI_MODELS } from '../ai-models.js';
 import { useCurrentWorkspace, WorkspacePreferencesEffects } from '@org/web-workspace';
+import { useAIUsageAnalytics } from '@org/web-analytics';
 import {
   Badge,
   Button,
@@ -428,17 +429,17 @@ export function AIStudioView() {
           <main className="min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-hidden bg-surface-inset/20 p-6 md:p-8 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent]">
             <div className="w-full max-w-6xl mx-auto space-y-6">
               {activeTab === 'overview' && <OverviewTab workspaceId={workspaceId} onSelectTab={setTab} />}
-              {activeTab === 'agents' && <AgentsTab workspaceId={workspaceId} />}
-              {activeTab === 'coworkers' && <CoworkersTab workspaceId={workspaceId} />}
-              {activeTab === 'workflows' && <WorkflowsTab workspaceId={workspaceId} />}
+              {activeTab === 'agents' && <AgentsTab />}
+              {activeTab === 'coworkers' && <CoworkersTab />}
+              {activeTab === 'workflows' && <WorkflowsTab />}
               {activeTab === 'apps' && <AppsTab workspaceId={workspaceId} />}
               {activeTab === 'knowledge' && <KnowledgeTab workspaceId={workspaceId} />}
-              {activeTab === 'tools' && <ToolsTab workspaceId={workspaceId} />}
-              {activeTab === 'models' && <ModelsTab workspaceId={workspaceId} />}
-              {activeTab === 'prompts' && <PromptsTab workspaceId={workspaceId} />}
+              {activeTab === 'tools' && <ToolsTab />}
+              {activeTab === 'models' && <ModelsTab />}
+              {activeTab === 'prompts' && <PromptsTab />}
               {activeTab === 'mcp' && <MCPTab workspaceId={workspaceId} />}
               {activeTab === 'executions' && <ExecutionsTab workspaceId={workspaceId} />}
-              {activeTab === 'analytics' && <AnalyticsTab workspaceId={workspaceId} />}
+              {activeTab === 'analytics' && <AnalyticsTab />}
             </div>
           </main>
         </div>
@@ -1498,7 +1499,7 @@ function MCPTab({ workspaceId }: { workspaceId: string }) {
 // ==========================================
 // 6. MODELS TAB (MODEL HUB)
 // ==========================================
-function ModelsTab({ workspaceId }: { workspaceId: string }) {
+function ModelsTab() {
   return (
     <div className="space-y-6">
       <div>
@@ -1533,7 +1534,7 @@ function ModelsTab({ workspaceId }: { workspaceId: string }) {
 // ==========================================
 // PLACEHOLDER WRAPPERS ROUTING TO EXISTING VIEWS
 // ==========================================
-function AgentsTab({ workspaceId }: { workspaceId: string }) {
+function AgentsTab() {
   const currentWorkspace = useCurrentWorkspace();
   const navigate = useNavigate();
   return (
@@ -1566,7 +1567,7 @@ function AgentsTab({ workspaceId }: { workspaceId: string }) {
   );
 }
 
-function CoworkersTab({ workspaceId }: { workspaceId: string }) {
+function CoworkersTab() {
   const currentWorkspace = useCurrentWorkspace();
   const navigate = useNavigate();
   return (
@@ -1591,7 +1592,7 @@ function CoworkersTab({ workspaceId }: { workspaceId: string }) {
   );
 }
 
-function WorkflowsTab({ workspaceId }: { workspaceId: string }) {
+function WorkflowsTab() {
   const currentWorkspace = useCurrentWorkspace();
   const navigate = useNavigate();
   return (
@@ -1617,7 +1618,7 @@ function WorkflowsTab({ workspaceId }: { workspaceId: string }) {
   );
 }
 
-function ToolsTab({ workspaceId }: { workspaceId: string }) {
+function ToolsTab() {
   const defaultTools = [
     { name: 'search_docs', desc: 'Search workspace documentation and knowledge base', type: 'Platform' },
     { name: 'create_doc', desc: 'Create a new document, note or specification', type: 'Platform' },
@@ -1649,7 +1650,7 @@ function ToolsTab({ workspaceId }: { workspaceId: string }) {
   );
 }
 
-function PromptsTab({ workspaceId }: { workspaceId: string }) {
+function PromptsTab() {
   const currentWorkspace = useCurrentWorkspace();
   const navigate = useNavigate();
   return (
@@ -1674,9 +1675,11 @@ function PromptsTab({ workspaceId }: { workspaceId: string }) {
   );
 }
 
-function AnalyticsTab({ workspaceId }: { workspaceId: string }) {
+function AnalyticsTab() {
   const currentWorkspace = useCurrentWorkspace();
   const navigate = useNavigate();
+  const { data, isLoading, error } = useAIUsageAnalytics(1);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -1688,20 +1691,34 @@ function AnalyticsTab({ workspaceId }: { workspaceId: string }) {
           Full Analytics
         </Button>
       </div>
-      <div className="grid grid-cols-3 gap-4">
-        <Card className="p-4 bg-surface">
-          <span className="text-xs text-muted-foreground">Tokens / 24h</span>
-          <div className="text-xl font-bold text-foreground mt-1">24,850</div>
+      {isLoading ? (
+        <LoadingState label="Loading AI usage…" />
+      ) : error || !data ? (
+        <Card className="p-6 text-center bg-surface">
+          <p className="text-sm text-muted-foreground">Couldn't load AI usage data.</p>
         </Card>
-        <Card className="p-4 bg-surface">
-          <span className="text-xs text-muted-foreground">Average Latency</span>
-          <div className="text-xl font-bold text-foreground mt-1">840 ms</div>
-        </Card>
-        <Card className="p-4 bg-surface">
-          <span className="text-xs text-muted-foreground">Estimated Cost</span>
-          <div className="text-xl font-bold text-foreground mt-1">$0.049</div>
-        </Card>
-      </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-4">
+          <Card className="p-4 bg-surface">
+            <span className="text-xs text-muted-foreground">Estimated tokens / 24h</span>
+            <div className="text-xl font-bold text-foreground mt-1">
+              {data.estimatedTokens.toLocaleString()}
+            </div>
+          </Card>
+          <Card className="p-4 bg-surface">
+            <span className="text-xs text-muted-foreground">Avg workflow duration</span>
+            <div className="text-xl font-bold text-foreground mt-1">
+              {Math.round(data.avgWorkflowDurationMs)} ms
+            </div>
+          </Card>
+          <Card className="p-4 bg-surface">
+            <span className="text-xs text-muted-foreground">Agent success rate</span>
+            <div className="text-xl font-bold text-foreground mt-1">
+              {data.agentSuccessRate}%
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

@@ -22,6 +22,7 @@ export {
   automationsApi,
   channelAgentsApi,
   channelAppsApi,
+  scheduledMessagesApi,
   channelApi,
 
   channelEmailApi,

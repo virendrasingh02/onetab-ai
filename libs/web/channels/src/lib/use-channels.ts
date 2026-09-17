@@ -60,7 +60,9 @@ function setCachedChannels(
       `${CHANNELS_BOOTSTRAP_KEY_PREFIX}${workspaceId}:${includeArchived}`,
       JSON.stringify(channels),
     );
-  } catch {}
+  } catch {
+    // Ignore quota errors
+  }
 }
 
 export function useChannels(

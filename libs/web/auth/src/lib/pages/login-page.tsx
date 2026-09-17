@@ -53,6 +53,7 @@ import {
   useLogin,
 } from '../use-auth.js';
 import { useAuthStore } from '../auth.store.js';
+import { resolveSafeHandoff, withHandoffToken } from '../safe-handoff-redirect.js';
 
 export function LoginPage() {
   const login = useLogin();
@@ -90,27 +91,18 @@ export function LoginPage() {
   const completeNavigation = useCallback(() => {
     const returnTo = searchParams.get('returnTo');
     if (returnTo) {
-      try {
-        const targetUrl = new URL(returnTo, window.location.origin);
-        const isAllowed =
-          targetUrl.origin === window.location.origin ||
-          targetUrl.hostname === 'localhost' ||
-          targetUrl.hostname === '127.0.0.1' ||
-          (window.location.hostname.includes('.') &&
-            targetUrl.hostname.endsWith(
-              window.location.hostname.split('.').slice(-2).join('.'),
-            ));
-
-        if (isAllowed) {
-          const currentToken = getAccessToken();
-          if (currentToken && targetUrl.origin !== window.location.origin) {
-            targetUrl.searchParams.set('token', currentToken);
-          }
-          window.location.href = targetUrl.toString();
-          return;
-        }
-      } catch {
-        // Fall back to navigate
+      const handoff = resolveSafeHandoff(
+        returnTo,
+        window.location.origin,
+        window.location.hostname,
+      );
+      if (handoff) {
+        const currentToken = getAccessToken();
+        window.location.href =
+          handoff.crossOrigin && currentToken
+            ? withHandoffToken(handoff.url, currentToken)
+            : handoff.url.toString();
+        return;
       }
     }
     navigate(redirectPathFromAuthState(location.state), { replace: true });

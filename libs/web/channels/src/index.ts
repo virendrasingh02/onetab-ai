@@ -38,22 +38,15 @@ export {
   type AnonymousModerationDialogProps,
 } from './lib/components/anonymous-moderation-dialog.js';
 
-export { useChannelAgentsAndApps } from './lib/use-channel-agents-apps.js';
-
 export {
   useChannelAgents,
   useChannelAgentMutations,
 } from './lib/use-channel-agents.js';
 
 export {
-  type AIAgentCapability,
-  type ChannelAIAgent,
-  type ChannelConnectedApp,
-  type ChannelBotMessage,
-  type MessageActionOption,
-  PRESET_AI_AGENTS,
-  PRESET_CHANNEL_APPS,
-} from './lib/types/channel-agents-apps.js';
+  useChannelApps,
+  useChannelAppMutations,
+} from './lib/use-channel-apps.js';
 
 export {
   CreateChannelDialog,
@@ -87,11 +80,6 @@ export {
   AddAppDialog,
   type AddAppDialogProps,
 } from './lib/components/add-app-dialog.js';
-
-export {
-  ChannelAgentsAndAppsView,
-  type ChannelAgentsAndAppsViewProps,
-} from './lib/components/channel-agents-and-apps-view.js';
 
 export {
   ChannelDetailsPanel,
