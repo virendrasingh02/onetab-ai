@@ -4,6 +4,11 @@ import { join, resolve } from 'node:path';
 import { IPC_EVENT, type DesktopCommand } from './shared/ipc.js';
 import { loadSecureSession, setApiUrlForAuth } from './main/auth.js';
 import {
+  setApiUrlForBackgroundSync,
+  startBackgroundSync,
+  stopBackgroundSync,
+} from './main/background-sync.js';
+import {
   deepLinkFromArgv,
   dispatchDeepLink,
   flushPendingDeepLink,
@@ -148,6 +153,7 @@ async function bootstrap(): Promise<void> {
   const apiUrl = process.env['VITE_API_URL'] || 'http://localhost:3000/api/v1';
   setApiUrlForDeepLinks(apiUrl);
   setApiUrlForAuth(apiUrl);
+  setApiUrlForBackgroundSync(apiUrl);
 
   const preloadPath = join(here, 'preload.js');
 
@@ -187,6 +193,7 @@ async function bootstrap(): Promise<void> {
   createTray(join(resolveResourcesDir(), 'tray-icon.png'));
   registerGlobalShortcuts();
   scheduleUpdateChecks(isDev);
+  startBackgroundSync();
 
   nativeTheme.on('updated', () => {
     window.webContents.send(IPC_EVENT.themeChanged, {
@@ -232,5 +239,6 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   destroyTray();
+  stopBackgroundSync();
   void staticServer?.close();
 });

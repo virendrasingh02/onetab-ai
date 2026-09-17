@@ -5,6 +5,7 @@ import {
   type DesktopDeepLink,
 } from '../shared/ipc.js';
 import { handleAuthCallback } from './auth.js';
+import { triggerBackgroundSyncNow } from './background-sync.js';
 import { logger } from './logger.js';
 import { getMainWindow, showMainWindow } from './window.js';
 
@@ -89,6 +90,7 @@ export async function dispatchDeepLink(raw: string | undefined | null): Promise<
       configuredApiUrl,
     );
     if (handled) {
+      triggerBackgroundSyncNow();
       // Do not navigate renderer to raw auth callback query; the auth session change event will route to workspace
       return;
     }

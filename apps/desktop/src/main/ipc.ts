@@ -32,6 +32,7 @@ import {
   refreshSecureSession,
   startBrowserLogin,
 } from './auth.js';
+import { resetBadgeOnSignOut } from './background-sync.js';
 import { detectDesktopCapabilities, detectDistribution, isMasBuild } from './capabilities.js';
 import { logger } from './logger.js';
 import { checkForUpdates, downloadUpdate, installUpdate } from './updater.js';
@@ -157,6 +158,7 @@ export function registerIpcHandlers(isDev: boolean, webAppUrl: string): void {
     IPC.authClearSession,
     guard(() => {
       clearSecureSession();
+      resetBadgeOnSignOut();
     }),
   );
 
