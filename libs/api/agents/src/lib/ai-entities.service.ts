@@ -24,6 +24,8 @@ export interface CreateEntityDto {
   description?: string;
   avatarUrl?: string | null;
   personality?: string;
+  /** Shown as the first message in this entity's DM when it has no history yet. */
+  welcomeMessage?: string;
   systemPrompt?: string;
   systemInstructions?: string;
   provider?: string;
@@ -43,6 +45,8 @@ export interface UpdateEntityDto {
   description?: string;
   avatarUrl?: string | null;
   personality?: string;
+  /** Shown as the first message in this entity's DM when it has no history yet. */
+  welcomeMessage?: string;
   systemPrompt?: string;
   systemInstructions?: string;
   provider?: string;
@@ -197,6 +201,7 @@ export class AIEntitiesService {
         description: dto.description,
         avatarUrl: dto.avatarUrl,
         personality: dto.personality,
+        welcomeMessage: dto.welcomeMessage,
         systemPrompt:
           dto.systemPrompt ??
           (dto.type === 'coworker'
@@ -261,6 +266,9 @@ export class AIEntitiesService {
         ...(dto.avatarUrl !== undefined ? { avatarUrl: dto.avatarUrl } : {}),
         ...(dto.personality !== undefined
           ? { personality: dto.personality }
+          : {}),
+        ...(dto.welcomeMessage !== undefined
+          ? { welcomeMessage: dto.welcomeMessage }
           : {}),
         ...(dto.systemPrompt !== undefined
           ? { systemPrompt: dto.systemPrompt }

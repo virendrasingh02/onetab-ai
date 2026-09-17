@@ -76,6 +76,12 @@ export interface ChannelWelcomeProps {
   createdByName?: string;
   /** The channel's description or topic, shown when one is set. */
   description?: string | null;
+  /**
+   * A configured first message for this conversation — overrides the
+   * generated opening sentence below when set. Falls back to the per-kind
+   * default copy when absent.
+   */
+  welcomeMessage?: string | null;
   members?: RoomMember[];
   memberCount?: number;
 
@@ -114,6 +120,7 @@ export function ChannelWelcome({
   createdAt,
   createdByName,
   description,
+  welcomeMessage,
   members = [],
   memberCount,
   peer,
@@ -203,6 +210,9 @@ export function ChannelWelcome({
   );
 
   const intro: ReactNode = (() => {
+    if (welcomeMessage?.trim()) {
+      return welcomeMessage.trim();
+    }
     if (kind === 'self') {
       return 'This is your space. Draft messages, keep notes, and save links where only you can find them.';
     }

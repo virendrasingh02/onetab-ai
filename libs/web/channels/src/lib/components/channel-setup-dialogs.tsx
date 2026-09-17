@@ -464,6 +464,9 @@ export function EditChannelDetailsDialog({
 }: EditChannelDetailsDialogProps) {
   const [topic, setTopic] = useState(channel.topic ?? '');
   const [description, setDescription] = useState(channel.description ?? '');
+  const [welcomeMessage, setWelcomeMessage] = useState(
+    channel.welcomeMessage ?? '',
+  );
   const update = useUpdateChannel(workspaceId);
 
   // Reopening after someone else edited the channel should show their text,
@@ -472,8 +475,9 @@ export function EditChannelDetailsDialog({
     if (open) {
       setTopic(channel.topic ?? '');
       setDescription(channel.description ?? '');
+      setWelcomeMessage(channel.welcomeMessage ?? '');
     }
-  }, [open, channel.topic, channel.description]);
+  }, [open, channel.topic, channel.description, channel.welcomeMessage]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -484,6 +488,7 @@ export function EditChannelDetailsDialog({
         input: {
           topic: topic.trim() || null,
           description: description.trim() || null,
+          welcomeMessage: welcomeMessage.trim() || null,
         },
       },
       {
@@ -549,6 +554,26 @@ export function EditChannelDetailsDialog({
               />
               <p className="text-[11px] text-muted-foreground">
                 {description.length}/500
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label
+                htmlFor="channel-welcome-message"
+                className="text-xs font-medium text-foreground"
+              >
+                Welcome message
+              </label>
+              <Textarea
+                id="channel-welcome-message"
+                value={welcomeMessage}
+                onChange={(event) => setWelcomeMessage(event.target.value)}
+                placeholder="Shown as the first message when someone opens this channel."
+                maxLength={300}
+                rows={2}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                {welcomeMessage.length}/300
               </p>
             </div>
           </div>

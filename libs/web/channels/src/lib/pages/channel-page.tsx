@@ -1017,6 +1017,7 @@ export function ChannelPage() {
               createdAt: channel.createdAt,
               createdByName: creatorName,
               description: channel.description ?? channel.topic,
+              welcomeMessage: channel.welcomeMessage,
               isPrivate: channel.visibility === 'PRIVATE',
               onAddPeople: () => setAddPeopleOpen(true),
               onEditDescription: () => setDetailsOpen(true),

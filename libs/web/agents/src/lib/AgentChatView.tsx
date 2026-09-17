@@ -138,6 +138,8 @@ export interface AgentModelItem {
   tools?: string | null;
   systemPrompt?: string | null;
   avatarUrl?: string | null;
+  /** Shown as the first message in this agent's DM when it has no history yet. */
+  welcomeMessage?: string | null;
 }
 
 /**
@@ -161,7 +163,14 @@ export function AgentChatView() {
 
 /**
  * One AI Agent conversation.
- * Keyed on agentId in the URL so switching agents remounts the component cleanly.
+ *
+ * Not remounted when the agent changes — `AgentConversationPanel` has no
+ * state that depends on it, and `useDirectRoom`/`ChatPanel`/`ChatSurface`
+ * already reset cleanly on a `roomId`/`conversationId` change (the same
+ * non-remounting path `DirectConversation` and `GroupConversation` use).
+ * Forcing a remount here only tore down and rebuilt the whole chat surface —
+ * scroll position, composer, everything — for no correctness reason, which
+ * is exactly the flicker switching agents used to cause.
  */
 function AgentConversation({ agentId }: { agentId: string }) {
   const { workspaceId } = useCurrentWorkspace();
@@ -205,7 +214,7 @@ function AgentConversation({ agentId }: { agentId: string }) {
     <div className="min-h-0 flex flex-1 flex-col overflow-hidden bg-background text-foreground">
       <AgentMessageHeader agent={agent} />
 
-      <AgentConversationPanel key={agent.id} agent={agent} />
+      <AgentConversationPanel agent={agent} />
     </div>
   );
 }
@@ -535,6 +544,7 @@ function AgentConversationPanel({ agent }: { agent: AgentModelItem }) {
         composerContext={composerContext}
         welcome={{
           kind: 'direct',
+          welcomeMessage: agent.welcomeMessage,
           peer: {
             name: agent.name,
             userId: `agent-${agent.id}`,

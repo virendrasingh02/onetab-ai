@@ -83,6 +83,8 @@ export interface ChatSurfaceWelcome {
   createdAt?: Date | string | number;
   createdByName?: string;
   description?: string | null;
+  /** A configured first message — overrides the generated opening sentence. */
+  welcomeMessage?: string | null;
   isPrivate?: boolean;
   /** The other party, for a `direct` / `self` conversation. */
   peer?: ChannelWelcomePeer;
@@ -1393,6 +1395,7 @@ export function ChatSurface({
                       ? subtitle
                       : undefined)
                   }
+                  welcomeMessage={welcome.welcomeMessage}
                   members={members}
                   memberCount={members.length}
                   peer={welcome.peer}

@@ -33,6 +33,8 @@ export interface AIEntity {
   description: string | null;
   avatarUrl: string | null;
   personality: string | null;
+  /** Shown as the first message in this entity's DM when it has no history yet. */
+  welcomeMessage: string | null;
   systemPrompt: string;
   systemInstructions: string;
   status: CoworkerStatus;

@@ -36,7 +36,7 @@ import {
   Trash2,
   UserRound,
 } from 'lucide-react';
-import { type FC, useMemo, useState } from 'react';
+import { type FC, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { CoworkerAvatar } from './CoworkerAvatar.js';
 import { CoworkerCreateDialog } from './CoworkerCreateDialog.js';
@@ -308,6 +308,7 @@ function CoworkerConversationPanel({
         composerContext={composerContext}
         welcome={{
           kind: 'direct',
+          welcomeMessage: coworker.welcomeMessage,
           peer: {
             name: coworker.name,
             userId: peerId,
@@ -340,7 +341,19 @@ export const CoworkerChatView: FC<CoworkerChatViewProps> = ({
   const { data: coworker, isLoading, error } = useCoworker(workspaceId, coworkerId);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
-  if (isLoading) {
+  /*
+   * Keep the previously-resolved coworker on screen while the next one loads,
+   * so switching coworkers swaps the panel contents in place instead of
+   * blanking the header and chat surface to a full spinner for the round
+   * trip — same pattern as `ChannelPage`'s `lastChannel` ref.
+   */
+  const lastCoworker = useRef<AICoworkerDetail | undefined>(undefined);
+  if (coworker) lastCoworker.current = coworker;
+  const displayCoworker = error ? undefined : (coworker ?? lastCoworker.current);
+
+  // Only the very first coworker opened this session — nothing to keep on
+  // screen — gets the full-page spinner; every later switch renders in place.
+  if (!displayCoworker && isLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-background">
         <Spinner className="h-8 w-8" />
@@ -348,7 +361,7 @@ export const CoworkerChatView: FC<CoworkerChatViewProps> = ({
     );
   }
 
-  if (error || !coworker) {
+  if (error || !displayCoworker) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center p-6 bg-background">
         <ErrorState
@@ -371,12 +384,12 @@ export const CoworkerChatView: FC<CoworkerChatViewProps> = ({
   return (
     <div className="min-h-0 flex flex-1 flex-col overflow-hidden bg-background text-foreground">
       <CoworkerMessageHeader
-        coworker={coworker}
+        coworker={displayCoworker}
         onEdit={() => setEditDialogOpen(true)}
       />
 
       <CoworkerConversationPanel
-        coworker={coworker}
+        coworker={displayCoworker}
         workspaceId={workspaceId}
       />
 
@@ -385,7 +398,7 @@ export const CoworkerChatView: FC<CoworkerChatViewProps> = ({
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         workspaceId={workspaceId}
-        coworker={coworker}
+        coworker={displayCoworker}
       />
     </div>
   );

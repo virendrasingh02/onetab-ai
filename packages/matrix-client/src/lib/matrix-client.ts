@@ -849,9 +849,9 @@ export class OneTabMatrixClient {
     if (!room) return { messages: [], paginationToken: null, hasMore: false };
 
     const timeline = room.getUnfilteredTimelineSet().getLiveTimeline();
+    const rawEvents = timeline.getEvents();
 
-    const messages = timeline
-      .getEvents()
+    const messages = rawEvents
       .filter((event) => {
         const type = event.getType();
         return (
@@ -877,11 +877,24 @@ export class OneTabMatrixClient {
       }
     }
 
-    return {
-      messages,
-      paginationToken: timeline.getPaginationToken(Direction.Backward),
-      hasMore: !!timeline.getPaginationToken(Direction.Backward),
-    };
+    /*
+     * The homeserver hands back a backward `prev_batch` token on almost every
+     * synced timeline, including a room's very first page — it is a stream
+     * position, not a promise that paginating it yields more events. Trusting
+     * its mere presence made a brand-new room's welcome block flicker away
+     * the instant its first real message arrived (see `ChannelWelcome`):
+     * `messages.length` went from 0 to 1, which switches the caller from an
+     * unconditional "empty conversation" render to one gated on `hasMore`, and
+     * the stale token made that gate say "more history" when there was none.
+     * If this page holds fewer raw events than a full initial sync fetches,
+     * the sync was never truncated — there is nothing left for the token to
+     * point at, whatever it claims.
+     */
+    const paginationToken = timeline.getPaginationToken(Direction.Backward);
+    const hasMore =
+      rawEvents.length >= this.options.initialSyncLimit && !!paginationToken;
+
+    return { messages, paginationToken, hasMore };
   }
 
   /**

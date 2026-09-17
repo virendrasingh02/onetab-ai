@@ -62,6 +62,7 @@ export function CreateChannelDialog({
       name: '',
       topic: '',
       description: '',
+      welcomeMessage: '',
       visibility: ChannelVisibility.PUBLIC,
     },
   });
@@ -175,6 +176,25 @@ export function CreateChannelDialog({
                         value={field.value ?? ''}
                         rows={3}
                         placeholder="What this channel is for, who belongs here, and what to post."
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="welcomeMessage"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Welcome message (optional)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        value={field.value ?? ''}
+                        rows={2}
+                        placeholder="Shown as the first message when someone opens this channel."
                       />
                     </FormControl>
                     <FormMessage />

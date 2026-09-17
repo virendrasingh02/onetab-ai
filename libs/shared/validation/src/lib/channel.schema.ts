@@ -16,6 +16,8 @@ export const createChannelSchema = z.object({
   name: channelNameSchema,
   topic: z.string().trim().max(120).optional().or(z.literal('')),
   description: z.string().trim().max(500).optional().or(z.literal('')),
+  /** Shown as the channel's first message when it has no history yet. */
+  welcomeMessage: z.string().trim().max(300).optional().or(z.literal('')),
   // Required rather than `.default()`: a Zod default makes the schema's input
   // and output types diverge, which React Hook Form surfaces as an
   // unassignable `control`. Forms supply the value via `defaultValues`.
@@ -28,6 +30,8 @@ export const updateChannelSchema = z.object({
   name: channelNameSchema.optional(),
   topic: z.string().trim().max(120).nullable().optional(),
   description: z.string().trim().max(500).nullable().optional(),
+  /** Shown as the channel's first message when it has no history yet. */
+  welcomeMessage: z.string().trim().max(300).nullable().optional(),
   /** Announcement / broadcast mode and its granular toggles (brief §3). */
   mode: z.enum([ChannelMode.STANDARD, ChannelMode.ANNOUNCEMENT]).optional(),
   allowReactions: z.boolean().optional(),

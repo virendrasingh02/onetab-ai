@@ -428,6 +428,10 @@ model Channel {
   slug                  String
   topic                 String?
   description           String?
+  /// Shown as the first message in the channel's timeline when it has no
+  /// history yet. Null falls back to the generic system default rendered by
+  /// `ChannelWelcome`.
+  welcomeMessage        String?
   visibility            ChannelVisibility        @default(PUBLIC)
   isArchived            Boolean                  @default(false)
   archivedAt            DateTime?
@@ -1707,6 +1711,10 @@ model AIAgent {
   description        String?
   avatarUrl          String?
   personality        String?
+  /// Shown as the first message in this agent's/coworker's DM when it has no
+  /// history yet. Null falls back to the generic system default rendered by
+  /// `ChannelWelcome`.
+  welcomeMessage     String?
   systemPrompt       String              @default("You are an autonomous AI employee.")
   systemInstructions String              @default("")
   status             CoworkerStatus      @default(AVAILABLE)

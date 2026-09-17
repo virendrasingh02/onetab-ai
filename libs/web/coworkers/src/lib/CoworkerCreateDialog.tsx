@@ -77,6 +77,7 @@ export const CoworkerCreateDialog: FC<CoworkerCreateDialogProps> = ({
   const [description, setDescription] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('icon:bot');
   const [personality, setPersonality] = useState('');
+  const [welcomeMessage, setWelcomeMessage] = useState('');
   const [systemInstructions, setSystemInstructions] = useState('');
   const [provider, setProvider] = useState('openai');
   const [model, setModel] = useState('gpt-4o');
@@ -97,6 +98,7 @@ export const CoworkerCreateDialog: FC<CoworkerCreateDialogProps> = ({
       setDescription(coworker.description || '');
       setAvatarUrl(coworker.avatarUrl || 'icon:bot');
       setPersonality(coworker.personality || '');
+      setWelcomeMessage(coworker.welcomeMessage || '');
       setSystemInstructions(coworker.systemInstructions || '');
       setProvider(coworker.provider || 'openai');
       setModel(coworker.model || 'gpt-4o');
@@ -118,6 +120,7 @@ export const CoworkerCreateDialog: FC<CoworkerCreateDialogProps> = ({
       setDescription('');
       setAvatarUrl('icon:bot');
       setPersonality('Collaborative, analytical, proactive, and clear.');
+      setWelcomeMessage('');
       setSystemInstructions(
         'You are a persistent AI coworker in the workspace. You assist team members across channels, review project deliverables, suggest workflow improvements, and consult specialized agents when deep domain knowledge is needed.',
       );
@@ -168,6 +171,7 @@ export const CoworkerCreateDialog: FC<CoworkerCreateDialogProps> = ({
             description: description.trim() || undefined,
             avatarUrl,
             personality: personality.trim() || undefined,
+            welcomeMessage: welcomeMessage.trim() || undefined,
             systemInstructions: systemInstructions.trim(),
             provider,
             model,
@@ -201,6 +205,7 @@ export const CoworkerCreateDialog: FC<CoworkerCreateDialogProps> = ({
           description: description.trim() || undefined,
           avatarUrl,
           personality: personality.trim() || undefined,
+          welcomeMessage: welcomeMessage.trim() || undefined,
           systemInstructions: systemInstructions.trim(),
           provider,
           model,
@@ -329,6 +334,19 @@ export const CoworkerCreateDialog: FC<CoworkerCreateDialogProps> = ({
                   value={personality}
                   onChange={(e) => setPersonality(e.target.value)}
                   className="h-9 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  Welcome Message (optional)
+                </label>
+                <textarea
+                  className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs shadow-xs focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring min-h-[60px] leading-relaxed resize-y"
+                  placeholder="Shown as the first message when someone opens a DM with this coworker, e.g. &quot;Hi, I'm your AI coworker — tell me what you're working on.&quot;"
+                  value={welcomeMessage}
+                  onChange={(e) => setWelcomeMessage(e.target.value)}
+                  rows={2}
                 />
               </div>
 

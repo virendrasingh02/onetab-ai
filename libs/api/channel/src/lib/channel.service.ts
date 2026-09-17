@@ -275,6 +275,7 @@ export class ChannelService {
         slug: input.name,
         topic: input.topic || null,
         description: input.description || null,
+        welcomeMessage: input.welcomeMessage || null,
         visibility: input.visibility,
         createdById: userId,
         members: {
@@ -331,6 +332,9 @@ export class ChannelService {
         ...(input.topic !== undefined ? { topic: input.topic } : {}),
         ...(input.description !== undefined
           ? { description: input.description }
+          : {}),
+        ...(input.welcomeMessage !== undefined
+          ? { welcomeMessage: input.welcomeMessage }
           : {}),
         ...(input.mode !== undefined ? { mode: input.mode } : {}),
         ...(input.allowReactions !== undefined

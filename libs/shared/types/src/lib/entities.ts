@@ -299,6 +299,8 @@ export interface Channel {
   slug: string;
   topic: string | null;
   description: string | null;
+  /** Shown as the channel's first message when it has no history yet. */
+  welcomeMessage: string | null;
   visibility: ChannelVisibility;
   isArchived: boolean;
   archivedAt: IsoDateString | null;

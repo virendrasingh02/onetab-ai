@@ -99,6 +99,7 @@ export class AgentsController {
       description?: string;
       avatarUrl?: string | null;
       systemPrompt?: string;
+      welcomeMessage?: string;
       provider?: string;
       model?: string;
       tools?: string[];

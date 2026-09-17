@@ -73,6 +73,7 @@ export class CoworkersController {
       description?: string;
       avatarUrl?: string | null;
       personality?: string;
+      welcomeMessage?: string;
       systemInstructions?: string;
       provider?: string;
       model?: string;
@@ -103,6 +104,7 @@ export class CoworkersController {
       description?: string;
       avatarUrl?: string | null;
       personality?: string;
+      welcomeMessage?: string;
       systemInstructions?: string;
       provider?: string;
       model?: string;

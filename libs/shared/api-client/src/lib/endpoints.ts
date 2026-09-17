@@ -2199,6 +2199,7 @@ export const agentsApi = {
       description?: string;
       avatarUrl?: string | null;
       systemPrompt?: string;
+      welcomeMessage?: string;
       provider?: string;
       model?: string;
       tools?: string[];
@@ -2251,6 +2252,7 @@ export const coworkersApi = {
       description?: string;
       avatarUrl?: string | null;
       personality?: string;
+      welcomeMessage?: string;
       systemInstructions?: string;
       provider?: string;
       model?: string;
@@ -2273,6 +2275,7 @@ export const coworkersApi = {
       description?: string;
       avatarUrl?: string | null;
       personality?: string;
+      welcomeMessage?: string;
       systemInstructions?: string;
       provider?: string;
       model?: string;

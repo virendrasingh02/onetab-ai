@@ -103,6 +103,7 @@ interface ChannelRow {
   slug: string;
   topic: string | null;
   description: string | null;
+  welcomeMessage: string | null;
   visibility: string;
   isArchived: boolean;
   archivedAt: Date | null;
@@ -124,6 +125,7 @@ export function toChannel(channel: ChannelRow): Channel {
     slug: channel.slug,
     topic: channel.topic,
     description: channel.description,
+    welcomeMessage: channel.welcomeMessage,
     visibility: channel.visibility as Channel['visibility'],
     isArchived: channel.isArchived,
     archivedAt: channel.archivedAt?.toISOString() ?? null,
