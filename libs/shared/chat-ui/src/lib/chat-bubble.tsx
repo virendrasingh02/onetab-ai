@@ -198,6 +198,7 @@ export function ChatBubble({
 
   const messageOverrides = useLinkPreviewStore((s) => s.messageOverrides);
   const toggleMessageOverride = useLinkPreviewStore((s) => s.toggleMessageOverride);
+  const fetchMessageVisibility = useLinkPreviewStore((s) => s.fetchMessageVisibility);
   const previewsMap = useLinkPreviewStore((s) => s.previews);
   const loadingUrls = useLinkPreviewStore((s) => s.loadingUrls);
   const fetchPreview = useLinkPreviewStore((s) => s.fetchPreview);
@@ -211,6 +212,12 @@ export function ChatBubble({
     (message.linkPreviews && message.linkPreviews.length > 0) ||
       detectedLinks.length > 0,
   );
+
+  useEffect(() => {
+    if (!messageOverrides[message.id] && hasLinkPreviews) {
+      void fetchMessageVisibility(message.id);
+    }
+  }, [message.id, hasLinkPreviews, messageOverrides, fetchMessageVisibility]);
 
   const isPreviewsVisible = resolvePreviewVisibility({
     messageId: message.id,
@@ -556,7 +563,15 @@ export function ChatBubble({
                     return <LinkPreviewSkeleton key={detectedLinks[idx]?.url || idx} />;
                   }
                   if (preview.status === 'error') return null;
-                  return <LinkPreviewCard key={preview.url || idx} preview={preview} />;
+                  return (
+                    <LinkPreviewCard
+                      key={preview.url || idx}
+                      preview={preview}
+                      onRemove={() => {
+                        void toggleMessageOverride(message.id, true);
+                      }}
+                    />
+                  );
                 })}
               </div>
             ) : null}

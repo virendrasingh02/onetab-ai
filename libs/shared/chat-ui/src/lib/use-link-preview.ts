@@ -22,6 +22,14 @@ export interface LinkPreviewApi {
     messageId: string,
     visibility: 'visible' | 'hidden',
   ) => Promise<unknown>;
+  getMessageVisibility?: (
+    messageId: string,
+  ) => Promise<
+    | { messageId: string; visibility: 'visible' | 'hidden' | null }
+    | 'visible'
+    | 'hidden'
+    | null
+  >;
 }
 
 let linkPreviewApi: LinkPreviewApi | null = null;
@@ -29,6 +37,28 @@ let linkPreviewApi: LinkPreviewApi | null = null;
 /** Wires the real API calls in. Pass `null` to tear it down (e.g. sign-out). */
 export function configureLinkPreviewApi(api: LinkPreviewApi | null): void {
   linkPreviewApi = api;
+}
+
+const OVERRIDES_STORAGE_KEY = 'onetab_link_preview_overrides';
+
+function loadInitialOverrides(): Record<string, 'visible' | 'hidden'> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(OVERRIDES_STORAGE_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+function persistOverrides(overrides: Record<string, 'visible' | 'hidden'>) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(OVERRIDES_STORAGE_KEY, JSON.stringify(overrides));
+  } catch {
+    // Ignore storage quota errors
+  }
 }
 
 interface LinkPreviewState {
@@ -41,6 +71,9 @@ interface LinkPreviewState {
     messageId: string,
     currentVisibility: boolean,
   ) => Promise<void>;
+  fetchMessageVisibility: (
+    messageId: string,
+  ) => Promise<'visible' | 'hidden' | null>;
 }
 
 // In-flight promise cache for browser request deduplication
@@ -49,7 +82,7 @@ const inFlightRequests = new Map<string, Promise<LinkPreview | null>>();
 export const useLinkPreviewStore = create<LinkPreviewState>((set, get) => ({
   previews: {},
   loadingUrls: {},
-  messageOverrides: {},
+  messageOverrides: loadInitialOverrides(),
 
   fetchPreview: async (url: string): Promise<LinkPreview | null> => {
     if (!url) return null;
@@ -97,12 +130,16 @@ export const useLinkPreviewStore = create<LinkPreviewState>((set, get) => ({
   },
 
   setMessageOverride: (messageId: string, visibility: 'visible' | 'hidden') => {
-    set((state) => ({
-      messageOverrides: {
+    set((state) => {
+      const nextOverrides = {
         ...state.messageOverrides,
         [messageId]: visibility,
-      },
-    }));
+      };
+      persistOverrides(nextOverrides);
+      return {
+        messageOverrides: nextOverrides,
+      };
+    });
   },
 
   toggleMessageOverride: async (
@@ -118,6 +155,30 @@ export const useLinkPreviewStore = create<LinkPreviewState>((set, get) => ({
       await linkPreviewApi.updateMessageVisibility(messageId, nextVisibility);
     } catch {
       // Best effort remote sync; local override remains intact
+    }
+  },
+
+  fetchMessageVisibility: async (messageId: string) => {
+    const existing = get().messageOverrides[messageId];
+    if (existing) return existing;
+
+    const api = linkPreviewApi;
+    if (!api?.getMessageVisibility) return null;
+
+    try {
+      const res = await api.getMessageVisibility(messageId);
+      const visibility =
+        typeof res === 'object' && res !== null && 'visibility' in res
+          ? (res as { visibility: 'visible' | 'hidden' | null }).visibility
+          : (res as 'visible' | 'hidden' | null);
+
+      if (visibility === 'visible' || visibility === 'hidden') {
+        get().setMessageOverride(messageId, visibility);
+        return visibility;
+      }
+      return null;
+    } catch {
+      return null;
     }
   },
 }));

@@ -46,7 +46,7 @@ export function LinkPreviewCard({
         className,
       )}
     >
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <div className={cn('flex min-w-0 flex-1 flex-col gap-1', onRemove && 'pr-6')}>
         {/* Header: Favicon & Domain */}
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           {showFavicon ? (
@@ -126,9 +126,9 @@ export function LinkPreviewCard({
         </div>
       ) : null}
 
-      {/* Remove/Dismiss button for Composer */}
+      {/* Remove/Dismiss button */}
       {onRemove ? (
-        <div className="absolute right-1.5 top-1.5">
+        <div className="absolute right-1.5 top-1.5 z-10">
           <Hint label="Remove link preview">
             <button
               type="button"
@@ -137,7 +137,7 @@ export function LinkPreviewCard({
                 onRemove();
               }}
               aria-label="Remove link preview"
-              className="size-6 flex items-center justify-center rounded-md text-muted-foreground opacity-60 transition-all hover:bg-accent hover:text-foreground hover:opacity-100 focus-visible:opacity-100"
+              className="size-6 flex items-center justify-center rounded-md bg-surface/80 text-muted-foreground backdrop-blur-xs opacity-70 transition-all hover:bg-accent hover:text-foreground hover:opacity-100 focus-visible:opacity-100 shadow-xs cursor-pointer"
             >
               <X className="size-3.5" />
             </button>

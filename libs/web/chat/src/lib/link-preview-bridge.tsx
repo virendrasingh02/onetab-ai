@@ -15,6 +15,7 @@ export function LinkPreviewBridge() {
     configureLinkPreviewApi({
       getPreview: linkPreviewApi.getPreview,
       updateMessageVisibility: linkPreviewApi.updateMessageVisibility,
+      getMessageVisibility: linkPreviewApi.getMessageVisibility,
     });
     return () => configureLinkPreviewApi(null);
   }, []);

@@ -9,6 +9,7 @@ import {
 const linkPreviewApi = {
   getPreview: vi.fn(),
   updateMessageVisibility: vi.fn(),
+  getMessageVisibility: vi.fn(),
 };
 
 describe('use-link-preview', () => {
@@ -160,6 +161,34 @@ describe('use-link-preview', () => {
 
       expect(useLinkPreviewStore.getState().messageOverrides['msg-99']).toBe('visible');
       expect(linkPreviewApi.updateMessageVisibility).toHaveBeenCalledWith('msg-99', 'visible');
+    });
+
+    it('fetches remote message visibility and caches it in messageOverrides', async () => {
+      vi.mocked(linkPreviewApi.getMessageVisibility).mockResolvedValueOnce({
+        messageId: 'msg-remote-1',
+        visibility: 'hidden',
+      });
+
+      const store = useLinkPreviewStore.getState();
+      const res = await store.fetchMessageVisibility('msg-remote-1');
+
+      expect(res).toBe('hidden');
+      expect(useLinkPreviewStore.getState().messageOverrides['msg-remote-1']).toBe('hidden');
+      expect(linkPreviewApi.getMessageVisibility).toHaveBeenCalledWith('msg-remote-1');
+
+      // Subsequent call returns cached override without querying API again
+      const cached = await store.fetchMessageVisibility('msg-remote-1');
+      expect(cached).toBe('hidden');
+      expect(linkPreviewApi.getMessageVisibility).toHaveBeenCalledTimes(1);
+    });
+
+    it('persists messageOverrides to localStorage on update', () => {
+      const store = useLinkPreviewStore.getState();
+      store.setMessageOverride('msg-persist-1', 'hidden');
+
+      expect(useLinkPreviewStore.getState().messageOverrides['msg-persist-1']).toBe('hidden');
+      const stored = JSON.parse(localStorage.getItem('onetab_link_preview_overrides') || '{}');
+      expect(stored['msg-persist-1']).toBe('hidden');
     });
   });
 });
