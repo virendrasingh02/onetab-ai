@@ -3,26 +3,33 @@ import { useQuery } from '@tanstack/react-query';
 import { useCurrentUser } from '@org/auth';
 import { useChatPreferences } from '@org/common';
 import {
+  agentsApi,
   channelAgentsApi,
   channelAppsApi,
   channelApi,
   coworkersApi,
+  integrationsApi,
+  memberApi,
   queryKeys,
 } from '@org/api-client';
 import { useCurrentWorkspace } from '@org/web-workspace';
 import {
   canManageChannelMembers,
+  canMentionGroups,
   evaluateMention,
+  WorkspaceRole,
   type ComposerContext,
   type ComposerReachability,
   type DetectedMention,
   type RoomMember,
-  type WorkspaceRole,
 } from '@org/types';
 import {
+  getContextualSlashCommands,
   useComposerWarningStore,
   type ComposerWarningState,
   type ComposerWarningTarget,
+  type MentionCandidate,
+  type SlashCommand,
 } from '@org/chat-ui';
 
 export interface ComposerControlResult {
@@ -30,6 +37,13 @@ export interface ComposerControlResult {
   dismissWarning: () => void;
   onMentionsChange: (mentions: DetectedMention[]) => void;
   viewerCanManage: boolean;
+  isGuest: boolean;
+  canMentionGroups: boolean;
+  workspaceMembers: RoomMember[];
+  agentMentions?: MentionCandidate[];
+  coworkerMentions?: MentionCandidate[];
+  appMentions?: MentionCandidate[];
+  slashCommands: SlashCommand[];
 }
 
 export function useComposerControl(
@@ -220,10 +234,118 @@ export function useComposerControl(
     setCurrentMentions(mentions);
   }, []);
 
+  // ── Workspace-level queries ────────────────────────────────────────────────
+  const hasWorkspace = !!workspaceId;
+
+  const workspaceMembersQuery = useQuery({
+    queryKey: queryKeys.members.list(workspaceId ?? ''),
+    queryFn: () => memberApi.list(workspaceId as string),
+    enabled: hasWorkspace,
+    staleTime: 60_000,
+  });
+
+  const workspaceAgentsQuery = useQuery({
+    queryKey: queryKeys.agents.list(workspaceId ?? ''),
+    queryFn: () => agentsApi.list(workspaceId as string),
+    enabled: hasWorkspace,
+    staleTime: 60_000,
+  });
+
+  const workspaceCoworkersQuery = useQuery({
+    queryKey: queryKeys.coworkers.list(workspaceId ?? ''),
+    queryFn: () => coworkersApi.list(workspaceId as string),
+    enabled: hasWorkspace,
+    staleTime: 60_000,
+  });
+
+  const workspaceIntegrationsQuery = useQuery({
+    queryKey: queryKeys.integrations.list(workspaceId ?? ''),
+    queryFn: () => integrationsApi.list(workspaceId as string),
+    enabled: hasWorkspace,
+    staleTime: 60_000,
+  });
+
+  // ── Derived guest / group-mention flags ───────────────────────────────────
+  const isGuest =
+    (currentWorkspace.role as WorkspaceRole) === WorkspaceRole.GUEST;
+
+  const canMentionGroupsValue = canMentionGroups(
+    context?.surfaceKind,
+    (currentWorkspace.role as WorkspaceRole) ?? null,
+  );
+
+  // ── Workspace member list (RoomMember shape) ──────────────────────────────
+  const workspaceMembers = useMemo<RoomMember[]>(
+    () =>
+      (workspaceMembersQuery.data ?? []).map((m) => ({
+        userId: m.user.id,
+        displayName: m.user.displayName ?? m.user.name,
+        avatarUrl: m.user.avatarUrl ?? undefined,
+      })),
+    [workspaceMembersQuery.data],
+  );
+
+  // ── Mention candidate arrays ───────────────────────────────────────────────
+  const agentMentions = useMemo<MentionCandidate[]>(
+    () =>
+      (workspaceAgentsQuery.data ?? [])
+        .filter((a) => a.isActive)
+        .map((a) => ({
+          id: a.id,
+          name: a.name,
+          avatarUrl: a.avatarUrl ?? undefined,
+          kind: 'agent' as const,
+        })),
+    [workspaceAgentsQuery.data],
+  );
+
+  const coworkerMentions = useMemo<MentionCandidate[]>(
+    () =>
+      (workspaceCoworkersQuery.data ?? [])
+        .filter((c) => c.isActive)
+        .map((c) => ({
+          id: c.id,
+          name: c.name,
+          avatarUrl: c.avatarUrl ?? undefined,
+          kind: 'coworker' as const,
+        })),
+    [workspaceCoworkersQuery.data],
+  );
+
+  const appMentions = useMemo<MentionCandidate[]>(
+    () =>
+      (workspaceIntegrationsQuery.data ?? [])
+        .filter((app) => app.status === 'CONNECTED')
+        .map((app) => ({
+          id: app.id,
+          name: app.displayName ?? app.provider,
+          kind: 'app' as const,
+        })),
+    [workspaceIntegrationsQuery.data],
+  );
+
+  // ── Contextual slash commands ──────────────────────────────────────────────
+  const slashCommands = useMemo<SlashCommand[]>(
+    () =>
+      getContextualSlashCommands({
+        surfaceKind: context?.surfaceKind,
+        viewerCanManage,
+        isGuest,
+      }),
+    [context?.surfaceKind, viewerCanManage, isGuest],
+  );
+
   return {
     warning,
     dismissWarning,
     onMentionsChange,
     viewerCanManage,
+    isGuest,
+    canMentionGroups: canMentionGroupsValue,
+    workspaceMembers,
+    agentMentions,
+    coworkerMentions,
+    appMentions,
+    slashCommands,
   };
 }

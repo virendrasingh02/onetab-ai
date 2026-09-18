@@ -80,21 +80,39 @@ import {
 } from 'lexical';
 import {
   AtSign,
+  BarChart2,
   Blocks,
   Bold,
   Bot,
+  Briefcase,
   Check,
+  CheckSquare,
+  Clock,
   Code,
+  FileText,
+  GitPullRequest,
+  Hash,
+  HelpCircle,
   Italic,
   Link2,
   Link2Off,
   List,
   ListOrdered,
+  Megaphone,
+  MessageSquare,
+  Moon,
   Quote,
+  Search,
+  Settings,
   Slash,
   Smile,
+  Sparkles,
   SquareCode,
   Strikethrough,
+  UserCheck,
+  UserPlus,
+  Users,
+  Video,
 } from 'lucide-react';
 import { Badge, UserAvatar } from '@org/ui';
 import {
@@ -739,19 +757,90 @@ const MENU_CLASS =
  * It anchors *upwards*: the composer sits at the bottom of the viewport, where
  * Lexical's own downward placement would push the list off-screen.
  */
+function renderCommandIcon(iconName?: string) {
+  const className = 'size-3.5 shrink-0';
+  switch (iconName) {
+    case 'help':
+      return <HelpCircle className={className} />;
+    case 'users':
+      return <Users className={className} />;
+    case 'megaphone':
+      return <Megaphone className={className} />;
+    case 'video':
+      return <Video className={className} />;
+    case 'clock':
+      return <Clock className={className} />;
+    case 'hash':
+      return <Hash className={className} />;
+    case 'user-plus':
+      return <UserPlus className={className} />;
+    case 'message-square':
+      return <MessageSquare className={className} />;
+    case 'bar-chart':
+      return <BarChart2 className={className} />;
+    case 'moon':
+      return <Moon className={className} />;
+    case 'smile':
+      return <Smile className={className} />;
+    case 'search':
+      return <Search className={className} />;
+    case 'settings':
+      return <Settings className={className} />;
+    case 'check-square':
+      return <CheckSquare className={className} />;
+    case 'user-check':
+      return <UserCheck className={className} />;
+    case 'git-pull-request':
+      return <GitPullRequest className={className} />;
+    case 'file-text':
+      return <FileText className={className} />;
+    case 'bot':
+      return <Bot className={className} />;
+    default:
+      return <Slash className={className} />;
+  }
+}
+
+/**
+ * Shell every typeahead menu renders into.
+ *
+ * It anchors *upwards*: the composer sits at the bottom of the viewport, where
+ * Lexical's own downward placement would push the list off-screen.
+ */
 function MenuShell({
   label,
   icon,
   hint,
+  id,
   children,
 }: {
   label: string;
   icon: ReactNode;
   hint?: string;
+  id?: string;
   children: ReactNode;
 }) {
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = menuRef.current;
+    if (!el || typeof window === 'undefined') return;
+    const rect = el.getBoundingClientRect();
+    if (rect.right > window.innerWidth - 8) {
+      const shift = rect.right - (window.innerWidth - 8);
+      el.style.left = `-${shift}px`;
+    } else if (rect.left < 8) {
+      el.style.left = `${8 - rect.left}px`;
+    }
+  }, []);
+
   return (
-    <div className={`left-0 mb-2 absolute bottom-full z-120 ${MENU_CLASS}`}>
+    <div
+      ref={menuRef}
+      role="region"
+      aria-label={`${label} suggestions`}
+      className={`left-0 mb-2 absolute bottom-full z-120 ${MENU_CLASS}`}
+    >
       <div className="px-3 py-1.5 font-bold tracking-wider flex items-center justify-between border-b border-border text-[10px] uppercase">
         <span className="gap-1.5 flex items-center text-primary-text">
           {icon}
@@ -759,29 +848,50 @@ function MenuShell({
         </span>
         {hint ? <span className="text-subtle">{hint}</span> : null}
       </div>
-      <ul className="max-h-64 p-1 overflow-y-auto">{children}</ul>
+      <ul
+        id={id}
+        role="listbox"
+        aria-label={label}
+        className="max-h-64 p-1 overflow-y-auto overscroll-contain"
+      >
+        {children}
+      </ul>
     </div>
   );
 }
 
 function MenuItem({
+  id,
   option,
   isSelected,
   onSelect,
   onHighlight,
   children,
 }: {
+  id?: string;
   option: MenuOption;
   isSelected: boolean;
   onSelect: () => void;
   onHighlight: () => void;
   children: ReactNode;
 }) {
+  const itemRef = useRef<HTMLLIElement | null>(null);
+
+  useEffect(() => {
+    if (isSelected && itemRef.current) {
+      itemRef.current.scrollIntoView({ block: 'nearest' });
+    }
+  }, [isSelected]);
+
   return (
     <li
+      id={id}
       role="option"
       aria-selected={isSelected}
-      ref={option.setRefElement.bind(option)}
+      ref={(el) => {
+        itemRef.current = el;
+        option.setRefElement(el);
+      }}
     >
       <button
         type="button"
@@ -908,10 +1018,11 @@ function MentionsPlugin({
         anchorRef,
         { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex },
       ) => {
-        if (!anchorRef.current || options.length === 0) return null;
+        if (!anchorRef.current) return null;
 
         const groups = options.filter((o) => o.candidate.kind === 'group');
         const agents = options.filter((o) => o.candidate.kind === 'agent');
+        const coworkers = options.filter((o) => o.candidate.kind === 'coworker');
         const apps = options.filter((o) => o.candidate.kind === 'app');
         const people = options.filter(
           (o) => !o.candidate.kind || o.candidate.kind === 'user',
@@ -920,12 +1031,14 @@ function MentionsPlugin({
         const renderOption = (option: MentionMenuOption) => {
           const index = options.indexOf(option);
           const isAgent = option.candidate.kind === 'agent';
+          const isCoworker = option.candidate.kind === 'coworker';
           const isApp = option.candidate.kind === 'app';
           const isGroup = option.candidate.kind === 'group';
 
           return (
             <MenuItem
               key={option.key}
+              id={`mention-option-${index}`}
               option={option}
               isSelected={selectedIndex === index}
               onHighlight={() => setHighlightedIndex(index)}
@@ -938,6 +1051,10 @@ function MentionsPlugin({
               ) : isAgent ? (
                 <span className="size-6 flex shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary">
                   <Bot className="size-3.5" />
+                </span>
+              ) : isCoworker ? (
+                <span className="size-6 flex shrink-0 items-center justify-center rounded-full border border-purple-500/20 bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                  <Sparkles className="size-3.5" />
                 </span>
               ) : isApp ? (
                 <span className="size-6 flex shrink-0 items-center justify-center rounded-full border border-accent-violet/20 bg-accent-violet-soft text-accent-violet">
@@ -968,6 +1085,13 @@ function MentionsPlugin({
                     >
                       AI AGENT
                     </Badge>
+                  ) : isCoworker ? (
+                    <Badge
+                      variant="neutral"
+                      className="py-0 h-3.5 font-bold tracking-wider border-purple-500/20 bg-purple-500/10 text-[9px] text-purple-600 dark:text-purple-400 uppercase"
+                    >
+                      COWORKER
+                    </Badge>
                   ) : isApp ? (
                     <Badge
                       variant="neutral"
@@ -990,36 +1114,51 @@ function MentionsPlugin({
         return createPortal(
           <MenuShell
             label="Mention"
-            hint="↑↓ to browse · ↵ to insert"
+            hint="↑↓ to browse · ↵ or Tab to insert"
             icon={<AtSign className="size-3.5" />}
           >
-            {groups.length > 0 ? (
-              <li className="px-2 py-1 font-bold text-[10px] text-subtle uppercase">
-                Group mentions
+            {options.length === 0 ? (
+              <li className="px-3 py-4 text-center text-xs text-muted-foreground">
+                No matching members found
               </li>
-            ) : null}
-            {groups.map(renderOption)}
+            ) : (
+              <>
+                {groups.length > 0 ? (
+                  <li className="px-2 py-1 font-bold text-[10px] text-subtle uppercase">
+                    Group mentions
+                  </li>
+                ) : null}
+                {groups.map(renderOption)}
 
-            {people.length > 0 ? (
-              <li className="mt-1 px-2 py-1 font-bold text-[10px] text-subtle uppercase">
-                People — {people.length}
-              </li>
-            ) : null}
-            {people.map(renderOption)}
+                {people.length > 0 ? (
+                  <li className="mt-1 px-2 py-1 font-bold text-[10px] text-subtle uppercase">
+                    People — {people.length}
+                  </li>
+                ) : null}
+                {people.map(renderOption)}
 
-            {agents.length > 0 ? (
-              <li className="mt-1 px-2 py-1 font-bold text-[10px] text-primary uppercase">
-                AI Agents — {agents.length}
-              </li>
-            ) : null}
-            {agents.map(renderOption)}
+                {agents.length > 0 ? (
+                  <li className="mt-1 px-2 py-1 font-bold text-[10px] text-primary uppercase">
+                    AI Agents — {agents.length}
+                  </li>
+                ) : null}
+                {agents.map(renderOption)}
 
-            {apps.length > 0 ? (
-              <li className="mt-1 px-2 py-1 font-bold text-[10px] text-accent-violet uppercase">
-                Connected Apps — {apps.length}
-              </li>
-            ) : null}
-            {apps.map(renderOption)}
+                {coworkers.length > 0 ? (
+                  <li className="mt-1 px-2 py-1 font-bold text-[10px] text-purple-600 dark:text-purple-400 uppercase">
+                    AI Coworkers — {coworkers.length}
+                  </li>
+                ) : null}
+                {coworkers.map(renderOption)}
+
+                {apps.length > 0 ? (
+                  <li className="mt-1 px-2 py-1 font-bold text-[10px] text-accent-violet uppercase">
+                    Connected Apps — {apps.length}
+                  </li>
+                ) : null}
+                {apps.map(renderOption)}
+              </>
+            )}
           </MenuShell>,
           anchorRef.current,
         );
@@ -1107,37 +1246,47 @@ function SlashCommandsPlugin({
         anchorRef,
         { selectedIndex, selectOptionAndCleanUp, setHighlightedIndex },
       ) => {
-        if (!anchorRef.current || options.length === 0) return null;
+        if (!anchorRef.current) return null;
 
         return createPortal(
           <MenuShell
             label="Commands"
-            hint="↵ to pick"
+            hint="↑↓ to browse · ↵ or Tab to pick"
             icon={<Slash className="size-3.5" />}
           >
-            {options.map((option, index) => (
-              <MenuItem
-                key={option.key}
-                option={option}
-                isSelected={selectedIndex === index}
-                onHighlight={() => setHighlightedIndex(index)}
-                onSelect={() => selectOptionAndCleanUp(option)}
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="font-semibold block truncate text-info-text">
-                    {option.command.name}
-                    {option.command.args ? (
-                      <span className="ml-1 font-normal text-muted-foreground">
-                        {option.command.args}
-                      </span>
-                    ) : null}
+            {options.length === 0 ? (
+              <li className="px-3 py-4 text-center text-xs text-muted-foreground">
+                No matching commands found
+              </li>
+            ) : (
+              options.map((option, index) => (
+                <MenuItem
+                  key={option.key}
+                  id={`command-option-${index}`}
+                  option={option}
+                  isSelected={selectedIndex === index}
+                  onHighlight={() => setHighlightedIndex(index)}
+                  onSelect={() => selectOptionAndCleanUp(option)}
+                >
+                  <span className="size-6 flex shrink-0 items-center justify-center rounded-md border border-info/20 bg-info/10 text-info-text">
+                    {renderCommandIcon(option.command.icon)}
                   </span>
-                  <span className="block truncate text-[10px] text-muted-foreground">
-                    {option.command.description}
+                  <span className="min-w-0 flex-1">
+                    <span className="font-semibold block truncate text-info-text">
+                      {option.command.name}
+                      {option.command.args ? (
+                        <span className="ml-1 font-normal text-muted-foreground">
+                          {option.command.args}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="block truncate text-[10px] text-muted-foreground">
+                      {option.command.description}
+                    </span>
                   </span>
-                </span>
-              </MenuItem>
-            ))}
+                </MenuItem>
+              ))
+            )}
           </MenuShell>,
           anchorRef.current,
         );
@@ -1683,12 +1832,21 @@ export function LexicalComposerInput({
     [],
   );
 
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const isMenuOpen = mentionOpen || commandOpen;
+
   const handleMentionOpenChange = useCallback(
     (open: boolean) => {
+      setMentionOpen(open);
       if (!open) onMentionClose?.();
     },
     [onMentionClose],
   );
+
+  const handleCommandOpenChange = useCallback((open: boolean) => {
+    setCommandOpen(open);
+  }, []);
 
   return (
     <LexicalComposer initialConfig={initialConfig}>
@@ -1699,6 +1857,10 @@ export function LexicalComposerInput({
           <RichTextPlugin
             contentEditable={
               <ContentEditable
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={isMenuOpen}
+                aria-haspopup="listbox"
                 aria-label="Message composer input"
                 aria-placeholder={placeholder}
                 placeholder={
@@ -1741,7 +1903,6 @@ export function LexicalComposerInput({
           enterToSend={enterToSend}
         />
 
-
         {members.length > 0 ? (
           <MentionsPlugin
             candidates={members}
@@ -1752,7 +1913,7 @@ export function LexicalComposerInput({
         {slashCommands.length > 0 ? (
           <SlashCommandsPlugin
             commands={slashCommands}
-            onOpenChange={() => undefined}
+            onOpenChange={handleCommandOpenChange}
           />
         ) : null}
         <EmojiPickerPlugin onOpenChange={() => undefined} />

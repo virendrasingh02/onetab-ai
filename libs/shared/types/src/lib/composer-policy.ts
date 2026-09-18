@@ -158,3 +158,26 @@ export function evaluateMention(
       return { reachable: true, addAction: 'none' };
   }
 }
+
+/**
+ * Evaluates whether group mentions (@here, @channel, @everyone) are permitted.
+ * Group mentions are restricted in 1:1 contexts (DMs, AI agents, coworkers, apps)
+ * and for workspace guests.
+ */
+export function canMentionGroups(
+  surfaceKind?: ComposerSurfaceKind,
+  workspaceRole?: WorkspaceRole | null,
+): boolean {
+  if (
+    !surfaceKind ||
+    (surfaceKind !== 'channel' &&
+      surfaceKind !== 'group-dm' &&
+      surfaceKind !== 'thread')
+  ) {
+    return false;
+  }
+  if (workspaceRole === WorkspaceRole.GUEST) {
+    return false;
+  }
+  return true;
+}

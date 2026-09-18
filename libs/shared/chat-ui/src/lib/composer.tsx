@@ -1,4 +1,12 @@
-import type { RoomMember, DetectedMention } from '@org/types';
+import {
+  canMentionGroups as canMentionGroupsHelper,
+  getComposerPlaceholder,
+  WorkspaceRole,
+  type RoomMember,
+  type DetectedMention,
+  type ComposerSurfaceKind,
+  type ComposerMessageMeta,
+} from '@org/types';
 
 import {
   EmojiGifPickerPopover,
@@ -49,10 +57,19 @@ import { detectLinks, normalizeUrl } from './link-detector.js';
 import { LinkPreviewCard } from './link-preview-card.js';
 import { LinkPreviewSkeleton } from './link-preview-skeleton.js';
 import { useLinkPreviewStore } from './use-link-preview.js';
-import { DEFAULT_SLASH_COMMANDS, type SlashCommand } from './slash-commands.js';
+import {
+  DEFAULT_SLASH_COMMANDS,
+  getContextualSlashCommands,
+  type SlashCommand,
+} from './slash-commands.js';
 import { VoiceRecorderBar } from './voice-recorder-bar.js';
 
-export { DEFAULT_SLASH_COMMANDS, type SlashCommand };
+export {
+  DEFAULT_SLASH_COMMANDS,
+  getContextualSlashCommands,
+  type SlashCommand,
+  type ComposerMessageMeta,
+};
 
 /**
  * Mentions that address a group rather than a person. They lead the `@` menu
@@ -70,6 +87,12 @@ const GROUP_MENTIONS: MentionCandidate[] = [
     name: 'channel',
     kind: 'group',
     subtitle: 'Notify every member of this channel',
+  },
+  {
+    id: 'everyone',
+    name: 'everyone',
+    kind: 'group',
+    subtitle: 'Notify everyone in this workspace',
   },
 ];
 
@@ -115,6 +138,30 @@ const DEFAULT_AI_AGENT_MENTIONS: MentionCandidate[] = [
     subtitle: 'SQL & Data Analyst — Metric queries & visualizations',
     kind: 'agent',
     badge: 'AI AGENT',
+  },
+];
+
+const DEFAULT_COWORKER_MENTIONS: MentionCandidate[] = [
+  {
+    id: 'coworker-alex',
+    name: 'alex',
+    subtitle: 'AI Coworker — Technical Project Manager',
+    kind: 'coworker',
+    badge: 'COWORKER',
+  },
+  {
+    id: 'coworker-sarah',
+    name: 'sarah',
+    subtitle: 'AI Coworker — Product & UX Designer',
+    kind: 'coworker',
+    badge: 'COWORKER',
+  },
+  {
+    id: 'coworker-marcus',
+    name: 'marcus',
+    subtitle: 'AI Coworker — Engineering Lead & Architect',
+    kind: 'coworker',
+    badge: 'COWORKER',
   },
 ];
 
@@ -241,7 +288,7 @@ function StagedAttachmentChip({
 }
 
 export interface ComposerProps {
-  onSend: (body: string) => void | Promise<void>;
+  onSend: (body: string, meta?: ComposerMessageMeta) => void | Promise<void>;
   onSchedule?: (body: string, scheduledFor: string) => void | Promise<void>;
   /** This conversation's still-pending scheduled sends, newest-first, so the
    *  schedule popover can show and cancel them instead of being a one-way trip. */
@@ -253,6 +300,7 @@ export interface ComposerProps {
   onAttach?: (files: FileList) => void;
   conversationId?: string | null;
   members?: RoomMember[];
+  workspaceMembers?: RoomMember[];
   /**
    * The signed-in user's id. When it matches one of `members`, that entry is
    * tagged "you" and floated to the top of the `@` menu's people list so
@@ -260,8 +308,13 @@ export interface ComposerProps {
    */
   currentUserId?: string;
   agentMentions?: MentionCandidate[];
+  coworkerMentions?: MentionCandidate[];
   appMentions?: MentionCandidate[];
   placeholder?: string;
+  surfaceKind?: ComposerSurfaceKind;
+  canMentionGroups?: boolean;
+  viewerCanManage?: boolean;
+  isGuest?: boolean;
   disabled?: boolean;
   /**
    * When set, the input is replaced entirely by a read-only notice carrying
@@ -320,10 +373,18 @@ export function Composer({
   onAttach,
   conversationId,
   members = [],
+  workspaceMembers,
   currentUserId,
   agentMentions,
+  coworkerMentions,
   appMentions,
-  placeholder = 'Message channel…',
+  placeholder,
+  targetName,
+  surfaceKind = 'channel',
+  canMentionGroups,
+  viewerCanManage = false,
+  isGuest = false,
+  workspaceId,
   disabled = false,
   readOnlyMessage,
   anonymousPosting,
@@ -574,6 +635,15 @@ export function Composer({
     [conversationId, onSchedule, clearDraft, flushAttachments],
   );
 
+  const currentMentionsRef = useRef<DetectedMention[]>([]);
+  const handleMentionsChange = useCallback(
+    (mentions: DetectedMention[]) => {
+      currentMentionsRef.current = mentions;
+      onMentionsChange?.(mentions);
+    },
+    [onMentionsChange],
+  );
+
   const handleComposerSend = useCallback(
     (body: string) => {
       setHasContent(false);
@@ -584,12 +654,77 @@ export function Composer({
         clearDraft(conversationId);
       }
       if (!body) return;
-      if (anon && anonymousPosting?.allowed) {
-        return anonymousPosting.onSendAnonymously(body);
+
+      let finalBody = body;
+      let detectedCommand: string | undefined;
+      let commandArgs: string | undefined;
+
+      if (finalBody.startsWith('/shrug')) {
+        const after = finalBody.slice(6).trim();
+        finalBody = after ? `${after} ¯\\_(ツ)_/¯` : '¯\\_(ツ)_/¯';
+        detectedCommand = 'shrug';
+        commandArgs = after;
+      } else if (finalBody.startsWith('/away')) {
+        toast.info('Status updated to away');
+        detectedCommand = 'away';
+        finalBody = '';
+      } else if (finalBody.startsWith('/huddle')) {
+        if (onStartHuddle) {
+          onStartHuddle();
+          toast.info('Starting voice huddle…');
+        }
+        detectedCommand = 'huddle';
+        finalBody = '';
+      } else if (finalBody.startsWith('/help')) {
+        toast.info('Commands: /remind, /poll, /shrug, /away, /huddle, /topic, /invite');
+        detectedCommand = 'help';
+        finalBody = '';
+      } else if (finalBody.startsWith('/')) {
+        const spaceIdx = finalBody.indexOf(' ');
+        if (spaceIdx === -1) {
+          detectedCommand = finalBody.slice(1);
+        } else {
+          detectedCommand = finalBody.slice(1, spaceIdx);
+          commandArgs = finalBody.slice(spaceIdx + 1).trim();
+        }
       }
-      return onSend(body);
+
+      const meta: ComposerMessageMeta = {
+        mentions: currentMentionsRef.current,
+        command: detectedCommand,
+        commandArguments: commandArgs,
+        targetType: surfaceKind,
+        targetId: conversationId ?? undefined,
+        workspaceId,
+        channelId: surfaceKind === 'channel' ? conversationId ?? undefined : undefined,
+      };
+
+      if (
+        !finalBody &&
+        detectedCommand &&
+        (detectedCommand === 'away' ||
+          detectedCommand === 'huddle' ||
+          detectedCommand === 'help')
+      ) {
+        return;
+      }
+
+      if (anon && anonymousPosting?.allowed) {
+        return anonymousPosting.onSendAnonymously(finalBody);
+      }
+      return onSend(finalBody, meta);
     },
-    [flushAttachments, onSend, conversationId, clearDraft, anon, anonymousPosting],
+    [
+      flushAttachments,
+      onSend,
+      conversationId,
+      clearDraft,
+      anon,
+      anonymousPosting,
+      onStartHuddle,
+      surfaceKind,
+      workspaceId,
+    ],
   );
 
   const canSend = hasContent || attachments.length > 0;
@@ -653,7 +788,40 @@ export function Composer({
     ? `${keyboard.height}px`
     : 'max(1rem, env(safe-area-inset-bottom))';
 
+  const effectivePlaceholder = useMemo(() => {
+    if (placeholder && placeholder !== 'Message channel…') {
+      return placeholder;
+    }
+    return getComposerPlaceholder({
+      surfaceKind,
+      targetName,
+      isEditing: false,
+    });
+  }, [placeholder, surfaceKind, targetName]);
+
+  const effectiveSlashCommands = useMemo(() => {
+    return getContextualSlashCommands({
+      commands: slashCommands,
+      surfaceKind,
+      viewerCanManage,
+      isGuest,
+    });
+  }, [slashCommands, surfaceKind, viewerCanManage, isGuest]);
+
   const mentionCandidates = useMemo<MentionCandidate[]>(() => {
+    const allowGroups =
+      canMentionGroups !== undefined
+        ? canMentionGroups
+        : surfaceKind
+          ? canMentionGroupsHelper(
+              surfaceKind,
+              isGuest ? WorkspaceRole.GUEST : null,
+            )
+          : true;
+
+    const groups = allowGroups ? GROUP_MENTIONS : [];
+
+    const roomUserIds = new Set(members.map((m) => m.userId));
     const people: MentionCandidate[] = members.map((member) => ({
       id: member.userId,
       name: member.displayName,
@@ -661,17 +829,39 @@ export function Composer({
       kind: 'user' as const,
       isSelf: !!currentUserId && member.userId === currentUserId,
     }));
-    // "You" leads the roster — mentioning yourself (a note, a task you're
-    // claiming) shouldn't mean scrolling the whole member list to find it.
+
+    const otherWorkspacePeople: MentionCandidate[] = (workspaceMembers ?? [])
+      .filter((wm) => !roomUserIds.has(wm.userId))
+      .map((wm) => ({
+        id: wm.userId,
+        name: wm.displayName,
+        avatarUrl: wm.avatarUrl,
+        subtitle: 'Not in this channel',
+        kind: 'user' as const,
+        isSelf: !!currentUserId && wm.userId === currentUserId,
+      }));
+
     people.sort((a, b) => Number(b.isSelf ?? false) - Number(a.isSelf ?? false));
 
     return [
-      ...GROUP_MENTIONS,
+      ...groups,
       ...people,
+      ...otherWorkspacePeople,
       ...(agentMentions ?? DEFAULT_AI_AGENT_MENTIONS),
+      ...(coworkerMentions ?? DEFAULT_COWORKER_MENTIONS),
       ...(appMentions ?? DEFAULT_APP_MENTIONS),
     ];
-  }, [members, currentUserId, agentMentions, appMentions]);
+  }, [
+    members,
+    workspaceMembers,
+    currentUserId,
+    agentMentions,
+    coworkerMentions,
+    appMentions,
+    canMentionGroups,
+    surfaceKind,
+    isGuest,
+  ]);
 
   const handleSelectGif = (gif: { url: string; title: string }) => {
     void onSend(`![${gif.title || 'GIF'}](${gif.url})`);
@@ -762,20 +952,20 @@ export function Composer({
         ) : null}
 
         <LexicalComposerInput
-          placeholder={placeholder}
+          placeholder={effectivePlaceholder}
           initialMarkdown={initialDraft}
           onSend={handleComposerSend}
           enterToSend={enterToSend}
           onTyping={onTyping}
           onEmptyChange={handleEmptyChange}
           onDraftChange={handleDraftChange}
-          onMentionsChange={onMentionsChange}
+          onMentionsChange={handleMentionsChange}
           disabled={disabled}
           showToolbar={showFormatting && toolbarOpen}
 
           hasPendingAttachments={attachments.length > 0}
           members={mentionCandidates}
-          slashCommands={slashCommands}
+          slashCommands={effectiveSlashCommands}
           onRegisterRef={(ref) => {
             lexicalRef.current = ref;
           }}

@@ -1314,6 +1314,13 @@ export function ChatSurface({
                       onTyping={effectiveOnTyping}
                       enterToSend={chat?.enterToSend ?? true}
                       onMentionsChange={threadControl.onMentionsChange}
+                      surfaceKind={threadComposerContext?.surfaceKind}
+                      viewerCanManage={threadControl.viewerCanManage}
+                      isGuest={threadControl.isGuest}
+                      canMentionGroups={threadControl.canMentionGroups}
+                      workspaceMembers={threadControl.workspaceMembers}
+                      agentMentions={threadControl.agentMentions}
+                      coworkerMentions={threadControl.coworkerMentions}
                       contextSlot={
                         threadControl.warning ? (
                           <ComposerWarning
@@ -1439,10 +1446,16 @@ export function ChatSurface({
             enterToSend={chat?.enterToSend ?? true}
             onAttach={onAttach ? (files) => void onAttach(files) : undefined}
             onSendVoice={onSendVoice}
-            placeholder={editing ? 'Edit your message…' : `Message ${title}`}
             readOnlyMessage={editing ? undefined : composerReadOnlyMessage}
             anonymousPosting={editing ? undefined : anonymousPosting}
             onMentionsChange={mainControl.onMentionsChange}
+            surfaceKind={composerContext?.surfaceKind}
+            viewerCanManage={mainControl.viewerCanManage}
+            isGuest={mainControl.isGuest}
+            canMentionGroups={mainControl.canMentionGroups}
+            workspaceMembers={mainControl.workspaceMembers}
+            agentMentions={mainControl.agentMentions}
+            coworkerMentions={mainControl.coworkerMentions}
             contextSlot={
               editing ? (
                 <div className="mb-2 gap-2 px-2 py-1 text-xs flex items-center rounded-md bg-muted">
