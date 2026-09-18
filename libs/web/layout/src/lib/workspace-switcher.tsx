@@ -19,6 +19,7 @@ import {
   SearchInput,
   WorkspaceActivityIndicator,
   WorkspaceAvatar,
+  WorkspaceMenuSkeleton,
   type ActivityLevel,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -69,14 +70,15 @@ type SwitcherGroup =
     };
 
 export interface WorkspaceMenuProps {
-  workspaces: WorkspaceSummary[];
-  current: WorkspaceSummary;
+  workspaces?: WorkspaceSummary[];
+  current?: WorkspaceSummary | null;
   /** Current user's fallback email if workspace membership email is unset */
   userEmail?: string;
   /** Unread state per workspace id. Absent ids simply show no dot. */
   workspaceActivity?: Record<string, ActivityIndicator>;
   onToggleSidebar?: () => void;
   onAddAccount?: () => void;
+  isLoading?: boolean;
   className?: string;
 }
 
@@ -101,12 +103,13 @@ function summariseOthers(
 }
 
 export function WorkspaceMenu({
-  workspaces,
+  workspaces = [],
   current,
   userEmail,
   workspaceActivity,
   onToggleSidebar,
   onAddAccount,
+  isLoading = false,
   className,
 }: WorkspaceMenuProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -126,13 +129,15 @@ export function WorkspaceMenu({
   // show every account's workspaces, not just the active one's.
   useLinkedAccountWorkspaces();
 
-  const othersLevel = summariseOthers(
-    workspaces,
-    current.id,
-    workspaceActivity,
-  );
+  const othersLevel = current
+    ? summariseOthers(
+        workspaces,
+        current.id,
+        workspaceActivity,
+      )
+    : 'none';
 
-  const currentEmail = current.email || userEmail;
+  const currentEmail = current?.email || userEmail;
 
   /*
    * The switcher is account-centric: one section per signed-in account, keyed by
@@ -240,6 +245,10 @@ export function WorkspaceMenu({
       setAddAccountOpen(true);
     }
   };
+
+  if (isLoading || !current) {
+    return <WorkspaceMenuSkeleton className={className} />;
+  }
 
   return (
     <div

@@ -21,7 +21,7 @@ import {
   Field,
   Hint,
   Input,
-  LoadingState,
+  ChatConversationSkeleton,
   ScrollArea,
   Tabs,
   TabsContent,
@@ -205,8 +205,9 @@ function DirectConversation({
 
   const member = allMembers.find((entry) => entry.user.id === peerId);
 
-  if (!resolvedMembers && members.isLoading)
-    return <LoadingState fullPage label="Opening conversation…" />;
+  if (!resolvedMembers && members.isLoading) {
+    return <ChatConversationSkeleton avatarShape="circle" avatarSize="sm" hasTabs />;
+  }
 
   if (members.isError && !resolvedMembers) {
     return (

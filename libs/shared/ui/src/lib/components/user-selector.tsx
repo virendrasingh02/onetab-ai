@@ -4,6 +4,7 @@ import { Check, Search, Send, UserX, X } from 'lucide-react';
 import React, { useId, useMemo, useRef, useState } from 'react';
 import { UserAvatarGroup } from './avatar-group.js';
 import { UserAvatar } from './avatar.js';
+import { SkeletonAvatar, SkeletonText } from './skeleton.js';
 
 export interface UserSelectorMember {
   id: string;
@@ -47,6 +48,8 @@ export interface UserSelectorProps {
   disabled?: boolean;
   /** Maximum chips to show before "+N more" badge. */
   maxSelectedChips?: number;
+  /** Show skeleton rows while member data is loading. */
+  isLoading?: boolean;
   className?: string;
   popoverClassName?: string;
 }
@@ -70,6 +73,7 @@ export function UserSelector({
   label = 'Change assignees',
   onInvite,
   disabled = false,
+  isLoading = false,
   maxSelectedChips,
   className,
   popoverClassName,
@@ -309,7 +313,26 @@ export function UserSelector({
 
           {/* Member Options List matching reference image */}
           <div className="max-h-64 overflow-y-auto space-y-0.5 py-0.5 scrollbar-subtle">
-            {filteredMembers.length === 0 ? (
+            {isLoading ? (
+              <div
+                role="status"
+                aria-busy="true"
+                className="space-y-1 p-1"
+              >
+                <span className="sr-only">Loading members…</span>
+                {Array.from({ length: 4 }, (_, i) => (
+                  <div key={i} className="w-full flex items-center justify-between px-3 py-2 rounded-xl">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <SkeletonAvatar size="sm" shape="circle" />
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <SkeletonText size="xs" className="w-28" />
+                        <SkeletonText size="xs" className="w-20 opacity-70" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredMembers.length === 0 ? (
               <div className="px-3 py-4 text-center text-xs text-muted-foreground">
                 No users found
               </div>

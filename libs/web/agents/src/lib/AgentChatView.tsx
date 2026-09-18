@@ -12,7 +12,10 @@ import {
   Hint,
   Panel,
   SearchInput,
-  Spinner,
+  Skeleton,
+  SkeletonAvatar,
+  SkeletonText,
+  ChatConversationSkeleton,
   toast,
   useRightPanelStore,
 } from '@org/ui';
@@ -178,12 +181,8 @@ function AgentConversation({ agentId }: { agentId: string }) {
 
   const agent = agentsQuery.data?.find((a) => a.id === agentId);
 
-  if (agentsQuery.isLoading) {
-    return (
-      <div className="p-8">
-        <Spinner label="Opening agent conversation…" />
-      </div>
-    );
+  if (agentsQuery.isLoading && !agent) {
+    return <ChatConversationSkeleton avatarShape="rounded" avatarSize="sm" hasTabs />;
   }
 
   if (agentsQuery.error) {
@@ -614,9 +613,28 @@ function NewAgentMessage() {
             />
           </div>
 
-          {agentsQuery.isLoading ? (
-            <div className="p-8 flex justify-center">
-              <Spinner label="Loading agents…" />
+          {agentsQuery.isLoading && agents.length === 0 ? (
+            <div
+              className="p-2 space-y-2"
+              role="status"
+              aria-busy="true"
+              aria-label="Loading agents..."
+            >
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="gap-2.5 p-2.5 flex w-full items-center rounded-md"
+                >
+                  <SkeletonAvatar size="md" shape="rounded" />
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <SkeletonText width={idx % 2 === 0 ? 'w-28' : 'w-36'} size="sm" />
+                      <Skeleton className="h-3.5 w-12 rounded" />
+                    </div>
+                    <SkeletonText width="w-44" size="xs" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : agents.length === 0 ? (
             <EmptyState

@@ -12,7 +12,7 @@ import {
   EmptyState,
   ErrorState,
   Hint,
-  Spinner,
+  ChatConversationSkeleton,
   toast,
   useRightPanelStore,
 } from '@org/ui';
@@ -352,13 +352,9 @@ export const CoworkerChatView: FC<CoworkerChatViewProps> = ({
   const displayCoworker = error ? undefined : (coworker ?? lastCoworker.current);
 
   // Only the very first coworker opened this session — nothing to keep on
-  // screen — gets the full-page spinner; every later switch renders in place.
+  // screen — gets the skeleton loader; every later switch renders in place.
   if (!displayCoworker && isLoading) {
-    return (
-      <div className="flex h-full w-full items-center justify-center bg-background">
-        <Spinner className="h-8 w-8" />
-      </div>
-    );
+    return <ChatConversationSkeleton avatarShape="rounded" avatarSize="sm" hasTabs />;
   }
 
   if (error || !displayCoworker) {

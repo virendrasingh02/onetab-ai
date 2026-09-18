@@ -14,6 +14,7 @@ import {
   Hint,
   SidebarActivityIndicator,
   SkeletonList,
+  ChannelNavSkeleton,
   usePromptDialog,
   useSidebarCustomizerStore,
   type PromptDialog,
@@ -1510,7 +1511,9 @@ export function ChannelNav({
                           </div>
                         }
                       >
-                        {isManualSort ? (
+                        {showChannelsSkeleton ? (
+                          <ChannelNavSkeleton rows={4} />
+                        ) : isManualSort ? (
                           <DndContext
                             id={channelDndId}
                             sensors={channelSensors}

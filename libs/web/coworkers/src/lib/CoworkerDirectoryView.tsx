@@ -9,7 +9,9 @@ import {
   CardTitle,
   Input,
   ScrollArea,
-  Spinner,
+  Skeleton,
+  SkeletonAvatar,
+  SkeletonText,
 } from '@org/ui';
 import { cn } from '@org/utils';
 import { useCurrentWorkspace } from '@org/web-workspace';
@@ -206,10 +208,69 @@ export const CoworkerDirectoryView: FC = () => {
 
         {/* Body View */}
         <ScrollArea className="flex-1 p-6">
-          {isLoading ? (
-            <div className="flex h-64 items-center justify-center">
-              <Spinner className="h-8 w-8" />
-            </div>
+          {isLoading && (!coworkers || coworkers.length === 0) ? (
+            viewMode === 'grid' ? (
+              <div
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-7xl mx-auto"
+                role="status"
+                aria-busy="true"
+                aria-label="Loading coworkers..."
+              >
+                {Array.from({ length: 6 }).map((_, idx) => (
+                  <div
+                    key={idx}
+                    className="flex flex-col justify-between overflow-hidden rounded-xl border border-border bg-surface p-4 space-y-4"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <SkeletonAvatar size="md" shape="rounded" />
+                          <div className="space-y-1">
+                            <SkeletonText width="w-28" size="sm" />
+                            <SkeletonText width="w-16" size="xs" />
+                          </div>
+                        </div>
+                        <Skeleton className="h-4 w-12 rounded-full" />
+                      </div>
+                      <div className="space-y-1.5 pt-1">
+                        <SkeletonText width="w-full" size="xs" />
+                        <SkeletonText width="w-4/5" size="xs" />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between border-t border-border pt-3">
+                      <Skeleton className="h-5 w-20 rounded-full" />
+                      <Skeleton className="h-7 w-16 rounded-md" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div
+                className="space-y-2 max-w-6xl mx-auto"
+                role="status"
+                aria-busy="true"
+                aria-label="Loading coworkers..."
+              >
+                {Array.from({ length: 6 }).map((_, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between rounded-xl border border-border bg-surface p-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <SkeletonAvatar size="md" shape="rounded" />
+                      <div className="space-y-1">
+                        <SkeletonText width="w-32" size="sm" />
+                        <SkeletonText width="w-48" size="xs" />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Skeleton className="h-5 w-16 rounded-full" />
+                      <Skeleton className="h-7 w-16 rounded-md" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
           ) : error ? (
             <div className="flex h-64 items-center justify-center text-xs text-destructive">
               Failed to load AI coworkers. Please try again.

@@ -14,7 +14,9 @@ import {
   EmptyState,
   LocalTime,
   SearchInput,
-  SkeletonList,
+  Skeleton,
+  SkeletonAvatar,
+  SkeletonText,
   UserAvatar,
   useRightPanelStore,
 } from '@org/ui';
@@ -78,12 +80,16 @@ export function MembersPage() {
               <h2 className="text-sm font-semibold tracking-tight truncate text-foreground">
                 Members
               </h2>
-              <Badge
-                variant="neutral"
-                className="px-1.5 py-0 h-4.5 text-[11px]"
-              >
-                {members.data?.length ?? 0} people
-              </Badge>
+              {members.isLoading && !members.data ? (
+                <Skeleton className="h-4.5 w-16 rounded-full" />
+              ) : (
+                <Badge
+                  variant="neutral"
+                  className="px-1.5 py-0 h-4.5 text-[11px]"
+                >
+                  {members.data?.length ?? 0} people
+                </Badge>
+              )}
             </div>
           </div>
 
@@ -111,8 +117,32 @@ export function MembersPage() {
 
       <div className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto">
-          {members.isLoading ? (
-            <SkeletonList rows={6} withAvatar />
+          {members.isLoading && (!members.data || members.data.length === 0) ? (
+            <div
+              className="divide-y rounded-lg border bg-card"
+              role="status"
+              aria-busy="true"
+              aria-label="Loading members..."
+            >
+              {Array.from({ length: 6 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="gap-3 px-4 py-3 flex items-center justify-between"
+                >
+                  <div className="gap-3 min-w-0 flex flex-1 items-center">
+                    <SkeletonAvatar size="md" shape="circle" />
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <SkeletonText width={idx % 2 === 0 ? 'w-36' : 'w-44'} size="sm" />
+                      <SkeletonText width="w-24" size="xs" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-5 w-14 rounded-full" />
+                    <Skeleton className="h-7 w-7 rounded-md" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : filtered.length === 0 ? (
             <EmptyState
               icon={<Users />}

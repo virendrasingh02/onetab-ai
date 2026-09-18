@@ -13,6 +13,7 @@ import {
   UserAvatar,
   useFocusStore,
   useRightPanelStore,
+  WorkspaceMenuSkeleton,
 } from '@org/ui';
 import type { ActivityIndicator } from '@org/notifications';
 import { useAccounts, useLogout, useRemoveAccount } from '@org/auth';
@@ -149,7 +150,14 @@ export function AppHeader({
                 workspaceActivity={workspaceActivity}
               />
             </div>
-          ) : null}
+          ) : (
+            <div
+              style={NO_DRAG}
+              className="max-w-52 sm:max-w-64 min-w-0 flex items-center"
+            >
+              <WorkspaceMenuSkeleton />
+            </div>
+          )}
 
           {onToggleSidebar ? (
             <Hint label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}>

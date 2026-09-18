@@ -11,10 +11,12 @@ import {
   EmptyState,
   ErrorState,
   Hint,
-  LoadingState,
+  Skeleton,
+  SkeletonAvatar,
+  SkeletonText,
+  ChatConversationSkeleton,
   Panel,
   SearchInput,
-  Spinner,
   toast,
   useRightPanelStore,
 } from '@org/ui';
@@ -498,11 +500,7 @@ function AppConversation({ appId }: { appId: string }) {
   );
 
   if (integrationsQuery.isLoading && allApps.length === 0) {
-    return (
-      <div className="p-8">
-        <Spinner label="Opening app conversation…" />
-      </div>
-    );
+    return <ChatConversationSkeleton avatarShape="rounded" avatarSize="sm" hasTabs />;
   }
 
   if (!app) {
@@ -1068,7 +1066,26 @@ function NewAppMessage() {
           </div>
 
           {integrationsQuery.isLoading && allApps.length === 0 ? (
-            <LoadingState label="Loading workspace apps…" />
+            <div
+              className="p-2 space-y-1"
+              role="status"
+              aria-busy="true"
+              aria-label="Loading workspace apps..."
+            >
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <div key={idx} className="gap-3 p-2.5 flex w-full items-center rounded-xl">
+                  <SkeletonAvatar size="md" shape="rounded" />
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <SkeletonText width={idx % 2 === 0 ? 'w-24' : 'w-32'} size="sm" />
+                      <Skeleton className="h-3.5 w-10 rounded" />
+                      <Skeleton className="h-3.5 w-14 rounded" />
+                    </div>
+                    <SkeletonText width="w-3/4" size="xs" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : integrationsQuery.isError ? (
             <ErrorState
               title="Could not load apps"

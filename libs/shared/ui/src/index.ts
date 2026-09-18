@@ -97,8 +97,21 @@ export {
 
 export {
   Skeleton,
+  SkeletonAvatar,
+  SkeletonText,
+  SkeletonRow,
   SkeletonList,
+  WorkspaceMenuSkeleton,
+  ChannelNavSkeleton,
+  DirectMessagesNavSkeleton,
+  ResourceNavSkeleton,
+  ChatHeaderSkeleton,
+  ChatConversationSkeleton,
+  type SkeletonAvatarProps,
+  type SkeletonTextProps,
+  type SkeletonRowProps,
   type SkeletonListProps,
+  type ChatHeaderSkeletonProps,
 } from './lib/components/skeleton.js';
 
 export {

@@ -7,15 +7,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  ChatConversationSkeleton,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
   EmptyState,
   ErrorState,
   Hint,
-  LoadingState,
   ScrollArea,
-  SkeletonList,
   Tabs,
   TabsContent,
   TabsList,
@@ -662,8 +661,10 @@ export function ChannelPage() {
   }, [channel?.id, markChannelSeen]);
 
   // Only the very first channel of the session — nothing to keep on screen —
-  // gets the full-page loader; every later switch renders through in place.
-  if (!channel && channelQuery.isLoading) return <LoadingState fullPage />;
+  // gets the skeleton loader; every later switch renders through in place.
+  if (!channel && channelQuery.isLoading) {
+    return <ChatConversationSkeleton avatarShape="rounded" avatarSize="xs" hasTabs />;
+  }
   if (channelQuery.isError || !channel) {
     return (
       <ErrorState

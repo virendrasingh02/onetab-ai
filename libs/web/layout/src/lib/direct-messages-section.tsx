@@ -30,6 +30,7 @@ import {
   SidebarActivityIndicator,
   toPresenceStatus,
   UserAvatar,
+  DirectMessagesNavSkeleton,
   type PresenceStatus,
 } from '@org/ui';
 import {
@@ -609,6 +610,9 @@ export function DirectMessagesSection({
     );
   };
 
+  const showDmsSkeleton =
+    members.isLoading && (!members.data || members.data.length === 0);
+
   return (
     <Section
       title="Direct Messages"
@@ -629,48 +633,54 @@ export function DirectMessagesSection({
         </Hint>
       }
     >
-      {selfMember ? (
-        <SelfDmRow member={selfMember} workspaceSlug={workspaceSlug} />
-      ) : null}
+      {showDmsSkeleton ? (
+        <DirectMessagesNavSkeleton rows={4} />
+      ) : (
+        <>
+          {selfMember ? (
+            <SelfDmRow member={selfMember} workspaceSlug={workspaceSlug} />
+          ) : null}
 
-      {filteredGroups.map((group) => (
-        <GroupDmRow
-          key={group.roomId}
-          group={group}
-          workspaceSlug={workspaceSlug}
-          isFavorite={favoriteIds.includes(group.roomId)}
-          isMuted={mutedIds.includes(group.roomId)}
-          onToggleFavorite={() => preferences.toggleFavorite(group.roomId)}
-          onToggleMuted={() => preferences.toggleMuted(group.roomId)}
-        />
-      ))}
-
-      <DndContext
-        id={dndId}
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={people.map((p) => p.user.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          {people.map((member) => (
-            <SortableDirectMessageRow
-              key={member.user.id}
-              member={member}
+          {filteredGroups.map((group) => (
+            <GroupDmRow
+              key={group.roomId}
+              group={group}
               workspaceSlug={workspaceSlug}
-              isFavorite={favoriteIds.includes(member.user.id)}
-              isMuted={mutedIds.includes(member.user.id)}
-              activity={dmActivity[member.user.id]}
-              onToggleFavorite={() =>
-                preferences.toggleFavorite(member.user.id)
-              }
-              onToggleMuted={() => preferences.toggleMuted(member.user.id)}
+              isFavorite={favoriteIds.includes(group.roomId)}
+              isMuted={mutedIds.includes(group.roomId)}
+              onToggleFavorite={() => preferences.toggleFavorite(group.roomId)}
+              onToggleMuted={() => preferences.toggleMuted(group.roomId)}
             />
           ))}
-        </SortableContext>
-      </DndContext>
+
+          <DndContext
+            id={dndId}
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={people.map((p) => p.user.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {people.map((member) => (
+                <SortableDirectMessageRow
+                  key={member.user.id}
+                  member={member}
+                  workspaceSlug={workspaceSlug}
+                  isFavorite={favoriteIds.includes(member.user.id)}
+                  isMuted={mutedIds.includes(member.user.id)}
+                  activity={dmActivity[member.user.id]}
+                  onToggleFavorite={() =>
+                    preferences.toggleFavorite(member.user.id)
+                  }
+                  onToggleMuted={() => preferences.toggleMuted(member.user.id)}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+        </>
+      )}
 
       <li>
         <NavLink

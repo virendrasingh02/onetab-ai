@@ -7,6 +7,7 @@ import {
   DropdownMenuShortcut,
   Hint,
   IconRenderer,
+  ResourceNavSkeleton,
   type PromptDialog,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -1069,15 +1070,14 @@ export function CoworkersSection({
     mutations.remove.mutate(coworker.id);
   };
 
+  const showCoworkersSkeleton =
+    coworkers.isLoading && (!coworkers.data || coworkers.data.length === 0);
+
   return (
     <Section
       title="AI Coworkers"
       count={items.length}
-      emptyLabel={
-        coworkers.isLoading
-          ? 'Loading coworkers…'
-          : 'No coworkers assembled yet.'
-      }
+      emptyLabel="No coworkers active yet."
       action={
         <Hint label="Add coworker">
           <Button
@@ -1094,37 +1094,41 @@ export function CoworkersSection({
         </Hint>
       }
     >
-      <DndContext
-        id={dndId}
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={items.map((i) => i.id)}
-          strategy={verticalListSortingStrategy}
+      {showCoworkersSkeleton ? (
+        <ResourceNavSkeleton rows={3} shape="circle" />
+      ) : (
+        <DndContext
+          id={dndId}
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
         >
-          {items.map((item) => {
-            const isSelected =
-              location.pathname.includes(`/coworkers/${item.id}`) ||
-              (location.pathname.endsWith('/coworkers') &&
-                location.search.includes(`id=${item.id}`));
+          <SortableContext
+            items={items.map((i) => i.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {items.map((item) => {
+              const isSelected =
+                location.pathname.includes(`/coworkers/${item.id}`) ||
+                (location.pathname.endsWith('/coworkers') &&
+                  location.search.includes(`id=${item.id}`));
 
-            return (
-              <SortableCoworkerNavRow
-                key={item.id}
-                coworker={item}
-                workspaceSlug={workspaceSlug}
-                isSelected={isSelected}
-                isFavorite={isFavorite('coworker', item.id)}
-                onToggleFavorite={() => toggleFavorite('coworker', item.id)}
-                onDelete={() => void handleDelete(item)}
-                depth={1}
-              />
-            );
-          })}
-        </SortableContext>
-      </DndContext>
+              return (
+                <SortableCoworkerNavRow
+                  key={item.id}
+                  coworker={item}
+                  workspaceSlug={workspaceSlug}
+                  isSelected={isSelected}
+                  isFavorite={isFavorite('coworker', item.id)}
+                  onToggleFavorite={() => toggleFavorite('coworker', item.id)}
+                  onDelete={() => void handleDelete(item)}
+                  depth={1}
+                />
+              );
+            })}
+          </SortableContext>
+        </DndContext>
+      )}
 
       <li>
         <NavLink
@@ -1229,13 +1233,14 @@ export function AgentsSection({
     mutations.remove.mutate(agent.id);
   };
 
+  const showAgentsSkeleton =
+    agents.isLoading && (!agents.data || agents.data.length === 0);
+
   return (
     <Section
       title="AI Agents"
       count={items.length}
-      emptyLabel={
-        agents.isLoading ? 'Loading agents…' : 'No agents deployed yet.'
-      }
+      emptyLabel="No agents deployed yet."
       action={
         <Hint label="Add agent">
           <Button
@@ -1252,39 +1257,43 @@ export function AgentsSection({
         </Hint>
       }
     >
-      <DndContext
-        id={dndId}
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={items.map((i) => i.id)}
-          strategy={verticalListSortingStrategy}
+      {showAgentsSkeleton ? (
+        <ResourceNavSkeleton rows={3} shape="rounded" />
+      ) : (
+        <DndContext
+          id={dndId}
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
         >
-          {items.map((item, index) => {
-            const isSelected =
-              (location.pathname.includes('/agents/chat') &&
-                (location.search.includes(`id=${item.id}`) ||
-                  (!location.search.includes('id=') && index === 0))) ||
-              (location.pathname.endsWith('/agents') &&
-                location.search.includes(`agent=${item.id}`));
+          <SortableContext
+            items={items.map((i) => i.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {items.map((item, index) => {
+              const isSelected =
+                (location.pathname.includes('/agents/chat') &&
+                  (location.search.includes(`id=${item.id}`) ||
+                    (!location.search.includes('id=') && index === 0))) ||
+                (location.pathname.endsWith('/agents') &&
+                  location.search.includes(`agent=${item.id}`));
 
-            return (
-              <SortableAgentNavRow
-                key={item.id}
-                agent={item}
-                workspaceSlug={workspaceSlug}
-                isSelected={isSelected}
-                isFavorite={isFavorite('agent', item.id)}
-                onToggleFavorite={() => toggleFavorite('agent', item.id)}
-                onDelete={() => void handleDelete(item)}
-                depth={1}
-              />
-            );
-          })}
-        </SortableContext>
-      </DndContext>
+              return (
+                <SortableAgentNavRow
+                  key={item.id}
+                  agent={item}
+                  workspaceSlug={workspaceSlug}
+                  isSelected={isSelected}
+                  isFavorite={isFavorite('agent', item.id)}
+                  onToggleFavorite={() => toggleFavorite('agent', item.id)}
+                  onDelete={() => void handleDelete(item)}
+                  depth={1}
+                />
+              );
+            })}
+          </SortableContext>
+        </DndContext>
+      )}
 
       <li>
         <NavLink
@@ -1392,13 +1401,15 @@ export function AppsSection({
     mutations.disconnect.mutate(app.resourceId ?? app.id);
   };
 
+  const showAppsSkeleton =
+    integrations.isLoading &&
+    (!integrations.data || integrations.data.length === 0);
+
   return (
     <Section
       title="Apps"
       count={items.length}
-      emptyLabel={
-        integrations.isLoading ? 'Loading apps…' : 'No apps connected yet.'
-      }
+      emptyLabel="No apps connected yet."
       action={
         <Hint label="Add app">
           <Button
@@ -1415,44 +1426,48 @@ export function AppsSection({
         </Hint>
       }
     >
-      <DndContext
-        id={dndId}
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={items.map((i) => i.id)}
-          strategy={verticalListSortingStrategy}
+      {showAppsSkeleton ? (
+        <ResourceNavSkeleton rows={3} shape="rounded" />
+      ) : (
+        <DndContext
+          id={dndId}
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
         >
-          {items.map((item, index) => {
-            const isSelected =
-              (location.pathname.includes('/apps/chat') &&
-                (location.search.includes(`app=${item.id}`) ||
-                  (!location.search.includes('app=') && index === 0))) ||
-              (location.pathname.endsWith('/apps') &&
-                location.search.includes(`app=${item.id}`)) ||
-              (location.pathname.endsWith('/integrations') &&
-                location.search.includes(`app=${item.id}`));
+          <SortableContext
+            items={items.map((i) => i.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {items.map((item, index) => {
+              const isSelected =
+                (location.pathname.includes('/apps/chat') &&
+                  (location.search.includes(`app=${item.id}`) ||
+                    (!location.search.includes('app=') && index === 0))) ||
+                (location.pathname.endsWith('/apps') &&
+                  location.search.includes(`app=${item.id}`)) ||
+                (location.pathname.endsWith('/integrations') &&
+                  location.search.includes(`app=${item.id}`));
 
-            return (
-              <SortableAppNavRow
-                key={item.id}
-                app={item}
-                workspaceSlug={workspaceSlug}
-                isSelected={isSelected}
-                isFavorite={isFavorite('app', item.id)}
-                onToggleFavorite={() => toggleFavorite('app', item.id)}
-                onDisconnect={() => void handleDisconnect(item)}
-                onSync={() =>
-                  mutations.sync.mutateAsync(item.resourceId ?? item.id)
-                }
-                depth={1}
-              />
-            );
-          })}
-        </SortableContext>
-      </DndContext>
+              return (
+                <SortableAppNavRow
+                  key={item.id}
+                  app={item}
+                  workspaceSlug={workspaceSlug}
+                  isSelected={isSelected}
+                  isFavorite={isFavorite('app', item.id)}
+                  onToggleFavorite={() => toggleFavorite('app', item.id)}
+                  onDisconnect={() => void handleDisconnect(item)}
+                  onSync={() =>
+                    mutations.sync.mutateAsync(item.resourceId ?? item.id)
+                  }
+                  depth={1}
+                />
+              );
+            })}
+          </SortableContext>
+        </DndContext>
+      )}
 
       <li>
         <NavLink

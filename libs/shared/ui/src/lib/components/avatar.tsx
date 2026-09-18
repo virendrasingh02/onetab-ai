@@ -9,12 +9,16 @@ import * as AvatarPrimitive from '@radix-ui/react-avatar';
 import { cva, type VariantProps } from 'class-variance-authority';
 import {
   createContext,
+  useCallback,
   useContext,
+  useEffect,
+  useState,
   type ComponentProps,
   type CSSProperties,
   type ReactNode,
 } from 'react';
 import { IconRenderer } from './icon-picker-popover.js';
+import { Skeleton, SkeletonAvatar } from './skeleton.js';
 import { Hint } from './tooltip.js';
 
 const avatarVariants = cva(
@@ -41,9 +45,20 @@ const avatarVariants = cva(
 export interface AvatarProps
   extends
     ComponentProps<typeof AvatarPrimitive.Root>,
-    VariantProps<typeof avatarVariants> {}
+    VariantProps<typeof avatarVariants> {
+  isLoading?: boolean;
+}
 
-export function Avatar({ className, size, shape, ...props }: AvatarProps) {
+export function Avatar({ className, size, shape, isLoading, ...props }: AvatarProps) {
+  if (isLoading) {
+    return (
+      <SkeletonAvatar
+        size={size ?? 'md'}
+        shape={shape ?? 'circle'}
+        className={className}
+      />
+    );
+  }
   return (
     <AvatarPrimitive.Root
       data-slot="avatar"
@@ -65,18 +80,54 @@ export function Avatar({ className, size, shape, ...props }: AvatarProps) {
 export function AvatarImage({
   className,
   src,
+  onLoadingStatusChange,
   ...props
 }: ComponentProps<typeof AvatarPrimitive.Image>) {
   const resolvedSrc = useAuthenticatedMediaSrc(
     typeof src === 'string' ? src : undefined,
   );
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isError, setIsError] = useState(false);
+
+  useEffect(() => {
+    setIsLoaded(false);
+    setIsError(false);
+  }, [resolvedSrc]);
+
+  const handleStatusChange = useCallback(
+    (status: 'idle' | 'loading' | 'loaded' | 'error') => {
+      if (status === 'loaded') {
+        setIsLoaded(true);
+        setIsError(false);
+      } else if (status === 'error') {
+        setIsLoaded(false);
+        setIsError(true);
+      }
+      onLoadingStatusChange?.(status);
+    },
+    [onLoadingStatusChange],
+  );
+
   return (
-    <AvatarPrimitive.Image
-      data-slot="avatar-image"
-      src={resolvedSrc ?? undefined}
-      className={cn('aspect-square size-full object-cover', className)}
-      {...props}
-    />
+    <>
+      {resolvedSrc && !isLoaded && !isError ? (
+        <Skeleton
+          data-slot="avatar-skeleton"
+          className="absolute inset-0 size-full rounded-[inherit] z-1"
+        />
+      ) : null}
+      <AvatarPrimitive.Image
+        data-slot="avatar-image"
+        src={resolvedSrc ?? undefined}
+        onLoadingStatusChange={handleStatusChange}
+        className={cn(
+          'aspect-square size-full object-cover transition-opacity duration-150',
+          !isLoaded && 'opacity-0',
+          className,
+        )}
+        {...props}
+      />
+    </>
   );
 }
 
@@ -376,8 +427,20 @@ export function UserAvatar({
   size,
   className,
   style,
+  isLoading,
   ...props
 }: UserAvatarProps) {
+  if (isLoading) {
+    return (
+      <span className="relative inline-flex shrink-0" style={style}>
+        <SkeletonAvatar
+          size={size}
+          shape="circle"
+          className={cn('rounded-full', className)}
+        />
+      </span>
+    );
+  }
   // Prefer the caller's stable seed (a user id), but never let an empty string
   // through — `'' ?? name` keeps `''`, which would paint every seedless avatar
   // the same colour. Fall back to the name only when there is genuinely no seed.
