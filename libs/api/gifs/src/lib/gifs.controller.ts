@@ -2,7 +2,7 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { GifsService } from './gifs.service.js';
 
 /**
- * GIF search, proxied through Tenor.
+ * GIF search, proxied through GIPHY.
  *
  * Not workspace-scoped — GIF results are the same for everyone and carry no
  * tenant data. The global `JwtAuthGuard` and `ThrottlerGuard` still apply, so
@@ -33,7 +33,7 @@ export class GifsController {
   }
 }
 
-/** Tenor caps `limit` at 50; keep our own ceiling in step. */
+/** GIPHY caps `limit` at 50; keep our own ceiling in step. */
 function clampLimit(raw?: string): number {
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) return 24;

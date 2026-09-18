@@ -113,7 +113,7 @@ export function GroupConversation({
   roomId,
   extraPeers,
 }: GroupConversationProps) {
-  const { enabled, client } = useMatrix();
+  const { enabled, configStatus, client } = useMatrix();
   const { workspaceId } = useCurrentWorkspace();
   const membersQuery = useMembers(workspaceId);
   const { room, members } = useRoomSummary(roomId);
@@ -157,7 +157,7 @@ export function GroupConversation({
     [isChannel, workspaceId, roomId],
   );
 
-  if (!enabled) {
+  if (configStatus === 'disabled') {
     return (
       <div className="min-h-0 flex flex-1 flex-col">
         <GroupHeader

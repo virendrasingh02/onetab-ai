@@ -111,9 +111,8 @@ export const apiEnvSchema = z.object({
   AI_DEFAULT_MODEL: z.string().default('nvidia/nemotron-3-super-120b-a12b'),
 
   // GIF picker proxy. Optional: without a key the /gifs endpoints serve a
-  // small bundled fallback set. Free key: https://developers.google.com/tenor
-  TENOR_API_KEY: z.string().optional(),
-  TENOR_CLIENT_KEY: z.string().default('onetab-ai'),
+  // small bundled fallback set. Free key: https://developers.giphy.com
+  GIPHY_API_KEY: z.string().optional(),
 
   // Transactional email. `log` (default) renders every message to the logger —
   // no external service, safe everywhere. `http` POSTs to `MAIL_API_URL` with a

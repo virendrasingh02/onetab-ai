@@ -15,11 +15,20 @@ import {
   type ReactNode,
 } from 'react';
 
+/**
+ * 'checking' is the async gap between mount and the homeserver config coming
+ * back — distinct from 'disabled' so a caller rendering a terminal "chat is
+ * not configured" empty state can tell "confirmed off" from "not sure yet"
+ * and wait through the latter instead of flashing the former on every load.
+ */
+export type MatrixConfigStatus = 'checking' | 'enabled' | 'disabled';
+
 interface MatrixContextValue {
   client: OneTabMatrixClient | null;
   status: ConnectionStatus;
-  /** False when this deployment has no homeserver configured. */
+  /** Shorthand for `configStatus === 'enabled'`. */
   enabled: boolean;
+  configStatus: MatrixConfigStatus;
   error: string | null;
 }
 
@@ -38,7 +47,9 @@ export function MatrixProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<ConnectionStatus>({
     state: 'disconnected',
   });
-  const [enabled, setEnabled] = useState(false);
+  const [configStatus, setConfigStatus] = useState<MatrixConfigStatus>(
+    'checking',
+  );
   const [error, setError] = useState<string | null>(null);
   const connectingForToken = useRef<string | null>(null);
 
@@ -78,7 +89,8 @@ export function MatrixProvider({ children }: { children: ReactNode }) {
           setStatus({ state: 'disconnected' });
         }
         connectingForToken.current = null;
-        setEnabled(false);
+        setConfigStatus('disabled');
+        setError(null);
         return;
       }
 
@@ -91,11 +103,12 @@ export function MatrixProvider({ children }: { children: ReactNode }) {
         const config = await matrixApi.config();
 
         if (!config.enabled || !config.homeserverUrl || disposed) {
-          setEnabled(false);
+          setConfigStatus('disabled');
+          setError(null);
           failureCount = 0;
           return;
         }
-        setEnabled(true);
+        setConfigStatus('enabled');
 
         instance = createMatrixClient({
           homeserverUrl: config.homeserverUrl,
@@ -134,7 +147,7 @@ export function MatrixProvider({ children }: { children: ReactNode }) {
         }
       } catch (caught) {
         if (!disposed) {
-          setEnabled(false);
+          setConfigStatus('disabled');
           setError(
             caught instanceof Error
               ? caught.message
@@ -165,8 +178,14 @@ export function MatrixProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ client, status, enabled, error }),
-    [client, status, enabled, error],
+    () => ({
+      client,
+      status,
+      enabled: configStatus === 'enabled',
+      configStatus,
+      error,
+    }),
+    [client, status, configStatus, error],
   );
 
   return <MatrixContext value={value}>{children}</MatrixContext>;

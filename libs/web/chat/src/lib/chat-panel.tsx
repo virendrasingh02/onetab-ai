@@ -138,7 +138,7 @@ export function ChatPanel({
   composerContext,
 }: ChatPanelProps) {
 
-  const { client, status, enabled, error } = useMatrix();
+  const { client, status, configStatus, error } = useMatrix();
   const readReceiptsEnabled = useReadReceipts();
 
   // Workspace policy gates for message actions — one fetch behind every
@@ -636,7 +636,7 @@ export function ChatPanel({
     if (last) void client.markRead(roomId, last.id);
   }, [client, roomId, room.messages]);
 
-  if (!enabled) {
+  if (configStatus === 'disabled') {
     return (
       <EmptyState
         size="lg"

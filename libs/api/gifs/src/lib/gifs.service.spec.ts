@@ -9,16 +9,21 @@ function makeService(env: Record<string, string | undefined>): GifsService {
   return new GifsService(config as never);
 }
 
-const TENOR_OK = {
-  next: 'cursor-2',
-  results: [
+
+const GIPHY_OK = {
+  pagination: {
+    total_count: 50,
+    count: 1,
+    offset: 0,
+  },
+  data: [
     {
       id: 'abc123',
-      content_description: 'a cat waving hello',
-      media_formats: {
-        tinygif: { url: 'https://media.tenor.com/abc/tiny.gif', dims: [220, 176] },
-        nanogif: { url: 'https://media.tenor.com/abc/nano.gif', dims: [90, 72] },
-        gif: { url: 'https://media.tenor.com/abc/full.gif', dims: [498, 398] },
+      title: 'a cat waving hello',
+      images: {
+        fixed_height: { url: 'https://media.giphy.com/media/abc/200.gif', width: '220', height: '176' },
+        fixed_height_small: { url: 'https://media.giphy.com/media/abc/100.gif', width: '90', height: '72' },
+        original: { url: 'https://media.giphy.com/media/abc/giphy.gif', width: '498', height: '398' },
       },
     },
   ],
@@ -30,10 +35,10 @@ describe('GifsService', () => {
     vi.unstubAllGlobals();
   });
 
-  describe('without TENOR_API_KEY', () => {
+  describe('without GIPHY_API_KEY', () => {
     let service: GifsService;
     beforeEach(() => {
-      service = makeService({ TENOR_CLIENT_KEY: 'test' });
+      service = makeService({});
     });
 
     it('serves the curated set for trending without calling the network', async () => {
@@ -61,18 +66,18 @@ describe('GifsService', () => {
     });
   });
 
-  describe('with TENOR_API_KEY', () => {
+  describe('with GIPHY_API_KEY', () => {
     let service: GifsService;
     beforeEach(() => {
-      service = makeService({ TENOR_API_KEY: 'key-123', TENOR_CLIENT_KEY: 'test' });
+      service = makeService({ GIPHY_API_KEY: 'key-123' });
     });
 
-    it('maps a Tenor result to the GifItem shape (tinygif as url, nanogif as preview)', async () => {
+    it('maps a GIPHY result to the GifItem shape (fixed_height as url, fixed_height_small as preview)', async () => {
       vi.stubGlobal(
         'fetch',
         vi.fn().mockResolvedValue({
           ok: true,
-          json: async () => TENOR_OK,
+          json: async () => GIPHY_OK,
         }),
       );
 
@@ -83,30 +88,30 @@ describe('GifsService', () => {
           {
             id: 'abc123',
             title: 'a cat waving hello',
-            url: 'https://media.tenor.com/abc/tiny.gif',
-            previewUrl: 'https://media.tenor.com/abc/nano.gif',
+            url: 'https://media.giphy.com/media/abc/200.gif',
+            previewUrl: 'https://media.giphy.com/media/abc/100.gif',
             width: 220,
             height: 176,
           },
         ],
-        next: 'cursor-2',
+        next: '1',
       });
     });
 
-    it('sends key and client_key on the request', async () => {
-      const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: async () => TENOR_OK });
+    it('sends api_key and params on the request', async () => {
+      const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: async () => GIPHY_OK });
       vi.stubGlobal('fetch', fetchSpy);
 
       await service.search('dogs');
 
       const calledUrl = String(fetchSpy.mock.calls[0][0]);
-      expect(calledUrl).toContain('key=key-123');
-      expect(calledUrl).toContain('client_key=test');
-      expect(calledUrl).toContain('/v2/search');
+      expect(calledUrl).toContain('api_key=key-123');
+      expect(calledUrl).toContain('/v1/gifs/search');
       expect(calledUrl).toContain('q=dogs');
+      expect(calledUrl).toContain('rating=g');
     });
 
-    it('falls back to the curated set when Tenor errors', async () => {
+    it('falls back to the curated set when GIPHY errors', async () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
 
       const page = await service.trending(3);
@@ -115,7 +120,7 @@ describe('GifsService', () => {
     });
 
     it('caches trending between calls', async () => {
-      const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: async () => TENOR_OK });
+      const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: async () => GIPHY_OK });
       vi.stubGlobal('fetch', fetchSpy);
 
       await service.trending(10);

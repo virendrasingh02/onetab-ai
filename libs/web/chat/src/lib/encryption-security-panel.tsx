@@ -35,7 +35,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useMatrix } from './matrix-provider.js';
 
 export function EncryptionSecurityPanel() {
-  const { client, enabled } = useMatrix();
+  const { client, configStatus } = useMatrix();
 
   const [encryptionStatus, setEncryptionStatus] =
     useState<EncryptionStatus | null>(null);
@@ -231,7 +231,7 @@ export function EncryptionSecurityPanel() {
     }
   };
 
-  if (!enabled) {
+  if (configStatus === 'disabled') {
     return (
       <div className="p-6 rounded-2xl border border-border bg-surface-inset shadow-xs space-y-3">
         <div className="flex items-center gap-2 text-muted-foreground">

@@ -26,7 +26,7 @@ export interface ChannelActivityProps {
  * be recognised in those terms.
  */
 function useChannelTimeline(channelId: string) {
-  const { client, enabled } = useMatrix();
+  const { client, configStatus } = useMatrix();
   const { roomId } = useChannelRoom(channelId);
   const live = useRoom(roomId ?? undefined);
 
@@ -34,9 +34,12 @@ function useChannelTimeline(channelId: string) {
     messages: live.messages,
     members: live.members,
     myUserId: client?.getSession()?.userId,
-    // Without a homeserver there is no timeline to wait for.
-    isLoading: enabled && live.isLoading,
-    isConfigured: enabled,
+    // 'checking' still counts as loading — only a confirmed absence of a
+    // homeserver means there is no timeline to ever wait for.
+    isLoading:
+      configStatus === 'checking' ||
+      (configStatus === 'enabled' && live.isLoading),
+    isConfigured: configStatus !== 'disabled',
   };
 }
 

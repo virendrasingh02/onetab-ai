@@ -157,7 +157,7 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
               setQuery(event.target.value);
               setCategory(null);
             }}
-            placeholder="Search Tenor…"
+            placeholder="Search GIPHY…"
             className="h-8 w-full rounded-input border border-border/60 bg-surface-inset pl-8 pr-8 text-xs text-foreground outline-none transition-colors placeholder:text-subtle focus:border-primary"
           />
           {query ? (
@@ -240,7 +240,7 @@ export function GifPicker({ onGifSelect, className, autoFocus }: GifPickerProps)
 
       {source ? (
         <div className="flex h-8 shrink-0 items-center justify-end border-t border-border bg-surface-inset/50 px-3 text-[10px] text-subtle">
-          Powered by Tenor
+          Powered by GIPHY
         </div>
       ) : null}
     </div>

@@ -62,7 +62,7 @@ import {
   Video,
   X,
 } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChatPanel } from './chat-panel.js';
 import { ConversationFilesPanel } from './conversation-files-panel.js';
@@ -154,7 +154,7 @@ function DirectConversation({
 }) {
   const { workspaceId } = useCurrentWorkspace();
   const members = useMembers(workspaceId);
-  const { enabled } = useMatrix();
+  const { enabled, configStatus } = useMatrix();
   const currentUser = useCurrentUser();
   const openProfile = useRightPanelStore((s) => s.openProfile);
 
@@ -185,17 +185,30 @@ function DirectConversation({
   );
   const [addBookmarkOpen, setAddBookmarkOpen] = useState(false);
 
+  /*
+   * Keep the last-resolved directory on screen while a newer fetch is in
+   * flight, so switching to a DM whose member cache entry has expired (or is
+   * simply cold on a fresh session) swaps the pane in place instead of
+   * blanking to a full-page spinner — the same idiom `ChannelPage` and
+   * `CoworkerChatView` use for their own switch-in-place. Without it, this
+   * one query — shared with `AppShell`'s sidebar — could re-show the spinner
+   * mid-session even after the first successful load.
+   */
+  const lastMembers = useRef<WorkspaceMember[] | undefined>(undefined);
+  if (members.data) lastMembers.current = members.data;
+  const resolvedMembers = members.data ?? lastMembers.current;
+
   const allMembers = useMemo(
-    () => [...(members.data ?? []), ...(extraPeers ?? [])],
-    [members.data, extraPeers],
+    () => [...(resolvedMembers ?? []), ...(extraPeers ?? [])],
+    [resolvedMembers, extraPeers],
   );
 
   const member = allMembers.find((entry) => entry.user.id === peerId);
 
-  if (members.isLoading)
+  if (!resolvedMembers && members.isLoading)
     return <LoadingState fullPage label="Opening conversation…" />;
 
-  if (members.isError) {
+  if (members.isError && !resolvedMembers) {
     return (
       <ErrorState
         fullPage
@@ -275,7 +288,7 @@ function DirectConversation({
           value="chat"
           className="min-h-0 flex flex-1 flex-col overflow-hidden"
         >
-          {!enabled ? (
+          {configStatus === 'disabled' ? (
             <EmptyState
               size="lg"
               icon={<MessageSquareOff />}
@@ -971,7 +984,7 @@ function NewDirectMessage({
   const currentUser = useCurrentUser();
   const members = useMembers(workspaceId);
   const createConversation = useCreateConversation();
-  const { client, enabled } = useMatrix();
+  const { client, configStatus } = useMatrix();
   const navigate = useNavigate();
 
   const [selectedPeople, setSelectedPeople] = useState<string[]>([]);
@@ -1266,7 +1279,7 @@ function NewDirectMessage({
             description="The member list for this workspace is unavailable."
           />
         </div>
-      ) : !enabled ? (
+      ) : configStatus === 'disabled' ? (
         <div className="flex flex-1 items-center justify-center p-6">
           <EmptyState
             size="lg"

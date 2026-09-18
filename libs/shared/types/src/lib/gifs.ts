@@ -1,7 +1,7 @@
 /**
  * GIF search DTOs.
  *
- * The API proxies a provider (Tenor) so the key stays server-side and the
+ * The API proxies a provider (GIPHY) so the key stays server-side and the
  * client sees one stable shape regardless of provider. When no key is
  * configured the API serves {@link CURATED_GIFS} through the same contract, so
  * the picker's GIF tab works with zero configuration.
@@ -12,9 +12,9 @@ export interface GifItem {
   id: string;
   /** Human title, used as the alt text and the message caption. */
   title: string;
-  /** The GIF to send — a reasonably sized `.gif` (Tenor `tinygif`). */
+  /** The GIF to send — a reasonably sized `.gif` (GIPHY `fixed_height` / `downsized`). */
   url: string;
-  /** A smaller still/loop for the grid thumbnail (Tenor `nanogif`). */
+  /** A smaller still/loop for the grid thumbnail (GIPHY `fixed_height_small`). */
   previewUrl: string;
   width: number;
   height: number;
@@ -28,104 +28,104 @@ export interface GifPage {
 
 /**
  * Offline fallback. Small, broadly useful reactions — enough for the GIF tab
- * to be worth opening before anyone configures `TENOR_API_KEY`. Shared by the
+ * to be worth opening before anyone configures `GIPHY_API_KEY`. Shared by the
  * API (no-key path) and `@org/ui` (no provider path).
  */
 export const CURATED_GIFS: GifItem[] = [
   {
     id: 'curated-tada',
     title: 'Celebration confetti',
-    url: 'https://media.tenor.com/EW4t0xjw7UwAAAAC/celebrate-celebration.gif',
-    previewUrl: 'https://media.tenor.com/EW4t0xjw7UwAAAAM/celebrate-celebration.gif',
-    width: 220,
-    height: 220,
+    url: 'https://media.giphy.com/media/ePaw7nwYmSI1t389Sy/giphy.gif',
+    previewUrl: 'https://media.giphy.com/media/ePaw7nwYmSI1t389Sy/200.gif',
+    width: 200,
+    height: 200,
   },
   {
     id: 'curated-thumbsup',
     title: 'Thumbs up',
-    url: 'https://media.tenor.com/8ISvR0aDVVIAAAAC/thumbs-up-thumbs-up-gif.gif',
-    previewUrl: 'https://media.tenor.com/8ISvR0aDVVIAAAAM/thumbs-up-thumbs-up-gif.gif',
-    width: 220,
-    height: 220,
+    url: 'https://media.giphy.com/media/111ebonMs90YLu/giphy.gif',
+    previewUrl: 'https://media.giphy.com/media/111ebonMs90YLu/200.gif',
+    width: 268,
+    height: 200,
   },
   {
     id: 'curated-clap',
     title: 'Applause',
-    url: 'https://media.tenor.com/0KMrEg5NLmcAAAAC/clapping-applause.gif',
-    previewUrl: 'https://media.tenor.com/0KMrEg5NLmcAAAAM/clapping-applause.gif',
-    width: 220,
-    height: 165,
+    url: 'https://media.giphy.com/media/2xIOiAPXonois/giphy.gif',
+    previewUrl: 'https://media.giphy.com/media/2xIOiAPXonois/200.gif',
+    width: 228,
+    height: 200,
   },
   {
     id: 'curated-mindblown',
     title: 'Mind blown',
-    url: 'https://media.tenor.com/1Iae2wZ8mVYAAAAC/mind-blown-explosion.gif',
-    previewUrl: 'https://media.tenor.com/1Iae2wZ8mVYAAAAM/mind-blown-explosion.gif',
-    width: 220,
-    height: 124,
+    url: 'https://media.giphy.com/media/5aLrlDiJPMPFS/giphy.gif',
+    previewUrl: 'https://media.giphy.com/media/5aLrlDiJPMPFS/200.gif',
+    width: 172,
+    height: 200,
   },
   {
     id: 'curated-facepalm',
     title: 'Facepalm',
-    url: 'https://media.tenor.com/mfEt6QVQ2GsAAAAC/facepalm-really.gif',
-    previewUrl: 'https://media.tenor.com/mfEt6QVQ2GsAAAAM/facepalm-really.gif',
-    width: 220,
-    height: 165,
+    url: 'https://media.giphy.com/media/XD4qHZpkyUFfq/giphy.gif',
+    previewUrl: 'https://media.giphy.com/media/XD4qHZpkyUFfq/200.gif',
+    width: 280,
+    height: 200,
   },
   {
     id: 'curated-shrug',
     title: 'Shrug',
-    url: 'https://media.tenor.com/xnHZ1IVN6pIAAAAC/shrug-i-dont-know.gif',
-    previewUrl: 'https://media.tenor.com/xnHZ1IVN6pIAAAAM/shrug-i-dont-know.gif',
-    width: 220,
-    height: 124,
+    url: 'https://media.giphy.com/media/jPAdK8Nfzzwt2/giphy.gif',
+    previewUrl: 'https://media.giphy.com/media/jPAdK8Nfzzwt2/200.gif',
+    width: 352,
+    height: 200,
   },
   {
     id: 'curated-eyeroll',
     title: 'Eye roll',
-    url: 'https://media.tenor.com/Sm5W3gZzY3kAAAAC/eye-roll-annoyed.gif',
-    previewUrl: 'https://media.tenor.com/Sm5W3gZzY3kAAAAM/eye-roll-annoyed.gif',
-    width: 220,
-    height: 165,
+    url: 'https://media.giphy.com/media/dEdmW17JnZhiU/giphy.gif',
+    previewUrl: 'https://media.giphy.com/media/dEdmW17JnZhiU/200.gif',
+    width: 356,
+    height: 200,
   },
   {
     id: 'curated-typing',
     title: 'Typing furiously',
-    url: 'https://media.tenor.com/Hrf1DUj6-b0AAAAC/typing-fast-typing.gif',
-    previewUrl: 'https://media.tenor.com/Hrf1DUj6-b0AAAAM/typing-fast-typing.gif',
-    width: 220,
-    height: 124,
+    url: 'https://media.giphy.com/media/7NoNw4pMNTvgc/giphy.gif',
+    previewUrl: 'https://media.giphy.com/media/7NoNw4pMNTvgc/200.gif',
+    width: 200,
+    height: 200,
   },
   {
     id: 'curated-facepalm-picard',
     title: 'Picard facepalm',
-    url: 'https://media.tenor.com/0nWyEwyEwZgAAAAC/picard-facepalm.gif',
-    previewUrl: 'https://media.tenor.com/0nWyEwyEwZgAAAAM/picard-facepalm.gif',
-    width: 220,
-    height: 168,
+    url: 'https://media.giphy.com/media/o14YPU6vooy0o/giphy.gif',
+    previewUrl: 'https://media.giphy.com/media/o14YPU6vooy0o/200.gif',
+    width: 262,
+    height: 200,
   },
   {
     id: 'curated-dance',
     title: 'Happy dance',
-    url: 'https://media.tenor.com/dSEQF7DCS1kAAAAC/dancing-happy.gif',
-    previewUrl: 'https://media.tenor.com/dSEQF7DCS1kAAAAM/dancing-happy.gif',
-    width: 220,
-    height: 220,
+    url: 'https://media.giphy.com/media/Xw6yFn7frR3Y4/giphy.gif',
+    previewUrl: 'https://media.giphy.com/media/Xw6yFn7frR3Y4/200.gif',
+    width: 164,
+    height: 200,
   },
   {
     id: 'curated-thisisfine',
     title: 'This is fine',
-    url: 'https://media.tenor.com/Gg7Yr8Bg2iEAAAAC/this-is-fine-fire.gif',
-    previewUrl: 'https://media.tenor.com/Gg7Yr8Bg2iEAAAAM/this-is-fine-fire.gif',
-    width: 220,
-    height: 124,
+    url: 'https://media.giphy.com/media/QMHoU66sBXqqLqYvGO/giphy.gif',
+    previewUrl: 'https://media.giphy.com/media/QMHoU66sBXqqLqYvGO/200.gif',
+    width: 356,
+    height: 200,
   },
   {
     id: 'curated-nod',
     title: 'Agreeing nod',
-    url: 'https://media.tenor.com/8w1nigncEHkAAAAC/nod-yes.gif',
-    previewUrl: 'https://media.tenor.com/8w1nigncEHkAAAAM/nod-yes.gif',
-    width: 220,
-    height: 165,
+    url: 'https://media.giphy.com/media/10Jpr9KSaXLchW/giphy.gif',
+    previewUrl: 'https://media.giphy.com/media/10Jpr9KSaXLchW/200.gif',
+    width: 262,
+    height: 200,
   },
 ];

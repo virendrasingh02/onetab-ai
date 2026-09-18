@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * Resolves Matrix's *authenticated* media URLs into something a plain
@@ -115,26 +115,41 @@ export function useAuthenticatedMediaSrc(
   src: string | null | undefined,
 ): string | null | undefined {
   const needsAuth = !!src && isAuthenticatedMediaUrl(src);
-  const [resolved, setResolved] = useState<string | null | undefined>(() =>
-    needsAuth ? blobCache.get(src as string) : src,
-  );
+
+  /*
+   * Reset in render, not in an effect. `src` changing on an already-mounted
+   * element (a header avatar whose backing user changes, a message's image
+   * swapped by an edit) used to hold the *previous* value in `useState` for
+   * one committed paint — the effect that clears it only runs after that
+   * commit — so the browser flashed the old avatar before blanking to the
+   * loading state and only then showing the new one. Computing the value for
+   * the new `src` synchronously here means the very first render to see a
+   * changed `src` already shows its correct starting point (a cache hit, or
+   * `undefined` while a fetch is needed), so the stale blob for the old `src`
+   * is never painted.
+   */
+  const bound = useRef<{
+    src: string | null | undefined;
+    resolved: string | null | undefined;
+  }>({ src: undefined, resolved: undefined });
+
+  if (bound.current.src !== src) {
+    bound.current = {
+      src,
+      resolved: needsAuth ? blobCache.get(src as string) : src,
+    };
+  }
+
+  const [, forceRender] = useState(0);
 
   useEffect(() => {
-    if (!needsAuth) {
-      setResolved(src);
-      return;
-    }
-
-    const cached = blobCache.get(src as string);
-    if (cached) {
-      setResolved(cached);
-      return;
-    }
+    if (!needsAuth || blobCache.get(src as string)) return;
 
     let cancelled = false;
-    setResolved(undefined);
     void resolve(src as string).then((blobUrl) => {
-      if (!cancelled) setResolved(blobUrl ?? undefined);
+      if (cancelled) return;
+      bound.current = { src, resolved: blobUrl ?? undefined };
+      forceRender((n) => n + 1);
     });
     return () => {
       cancelled = true;
@@ -143,7 +158,7 @@ export function useAuthenticatedMediaSrc(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src]);
 
-  return resolved;
+  return bound.current.resolved;
 }
 
 /**

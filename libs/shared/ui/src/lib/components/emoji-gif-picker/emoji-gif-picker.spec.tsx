@@ -90,7 +90,7 @@ describe('GifPicker', () => {
       </GifSourceProvider>,
     );
 
-    fireEvent.change(screen.getByPlaceholderText('Search Tenor…'), {
+    fireEvent.change(screen.getByPlaceholderText('Search GIPHY…'), {
       target: { value: 'cat' },
     });
 
@@ -102,7 +102,7 @@ describe('GifPicker', () => {
     render(<GifPicker onGifSelect={vi.fn()} />);
     // CURATED_GIFS titles include "Thumbs up"
     expect(await screen.findByTitle('Thumbs up')).toBeInTheDocument();
-    expect(screen.queryByText('Powered by Tenor')).not.toBeInTheDocument();
+    expect(screen.queryByText('Powered by GIPHY')).not.toBeInTheDocument();
   });
 });
 
