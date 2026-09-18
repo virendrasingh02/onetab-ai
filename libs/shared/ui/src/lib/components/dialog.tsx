@@ -105,6 +105,7 @@ export function DialogContent({
         <ScrollArea className="min-h-0 flex-1">{children}</ScrollArea>
         {hideCloseButton ? null : (
           <DialogPrimitive.Close
+            aria-label="Close dialog"
             className={cn(
               'top-3.5 right-3.5 p-1 absolute rounded-btn text-muted-foreground',
               'transition-colors duration-(--duration-fast) hover:bg-accent hover:text-foreground',
@@ -112,8 +113,8 @@ export function DialogContent({
               'disabled:pointer-events-none',
             )}
           >
-            <X className="size-4" />
-            <span className="sr-only">Close</span>
+            <X className="size-4" aria-hidden="true" />
+            <span className="sr-only">Close dialog</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>

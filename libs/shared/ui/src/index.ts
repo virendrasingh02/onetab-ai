@@ -785,5 +785,24 @@ export {
   type ObjectActionMenuTarget,
 } from './lib/components/object-action-menu.js';
 
+export {
+  runAccessibilityAudit,
+  formatAxeViolations,
+  expectNoAxeViolations,
+  DEFAULT_AXE_OPTIONS,
+} from './lib/test-utils/axe-test-utils.js';
 
+export {
+  AccessibilityDevAuditor,
+} from './lib/components/accessibility-dev-auditor.js';
 
+export {
+  announceToScreenReader,
+  useAccessibleId,
+  usePrefersReducedMotion,
+  useFocusManagement,
+  useKeyboardNavigation,
+  type AnnouncePriority,
+  type FocusManagementOptions,
+  type KeyboardNavigationOptions,
+} from './lib/utils/a11y.js';

@@ -2,6 +2,8 @@ import { cn } from '@org/utils';
 import { X } from 'lucide-react';
 import {
   useEffect,
+  useId,
+  useRef,
   type ComponentProps,
   type ReactNode,
 } from 'react';
@@ -27,6 +29,12 @@ export function Drawer({
   className,
   showCloseButton = true,
 }: DrawerProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const reactTitleId = useId();
+  const reactDescId = useId();
+  const titleId = `drawer-title-${reactTitleId.replace(/:/g, '')}`;
+  const descId = `drawer-desc-${reactDescId.replace(/:/g, '')}`;
+
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -35,6 +43,20 @@ export function Drawer({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open, onOpenChange]);
+
+  useEffect(() => {
+    if (!open || !containerRef.current) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const focusable = containerRef.current.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    if (focusable.length > 0) {
+      focusable[0].focus();
+    }
+    return () => {
+      previouslyFocused?.focus();
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -51,36 +73,52 @@ export function Drawer({
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity animate-in fade-in-50"
+        aria-hidden="true"
+        className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity animate-in fade-in-50 cursor-pointer"
         onClick={() => onOpenChange(false)}
       />
 
       {/* Drawer content */}
       <div
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        aria-describedby={description ? descId : undefined}
+        tabIndex={-1}
         className={cn(
-          'fixed z-50 flex flex-col border-border bg-popover p-6 shadow-overlay text-popover-foreground overflow-hidden',
+          'fixed z-50 flex flex-col border-border bg-popover p-6 shadow-overlay text-popover-foreground overflow-hidden outline-none',
           positionClasses,
           className,
         )}
       >
         {position === 'bottom' && (
-          <div className="mx-auto -mt-3 mb-4 h-1.5 w-12 rounded-full bg-border-strong" />
+          <div aria-hidden="true" className="mx-auto -mt-3 mb-4 h-1.5 w-12 rounded-full bg-border-strong" />
         )}
 
         {(title || description || showCloseButton) && (
           <div className="flex items-start justify-between pb-4 border-b border-border">
             <div className="space-y-1">
-              {title && <h2 className="text-base font-semibold tracking-tight text-foreground">{title}</h2>}
-              {description && <p className="text-xs text-muted-foreground">{description}</p>}
+              {title && (
+                <h2 id={titleId} className="text-base font-semibold tracking-tight text-foreground">
+                  {title}
+                </h2>
+              )}
+              {description && (
+                <p id={descId} className="text-xs text-muted-foreground">
+                  {description}
+                </p>
+              )}
             </div>
             {showCloseButton && (
               <button
                 type="button"
+                aria-label="Close drawer"
                 onClick={() => onOpenChange(false)}
                 className="size-7 rounded-btn inline-flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
               >
-                <X className="size-4" />
-                <span className="sr-only">Close</span>
+                <X className="size-4" aria-hidden="true" />
+                <span className="sr-only">Close drawer</span>
               </button>
             )}
           </div>

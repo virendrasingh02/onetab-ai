@@ -392,6 +392,7 @@ export function ChatBubble({
   return (
     <article
       data-message-id={message.id}
+      aria-label={`Message from ${message.senderName}, ${formatFullTimestamp(message.timestamp)}`}
       ref={articleRef}
       {...longPress}
       className={cn(
@@ -683,8 +684,10 @@ export function ChatBubble({
             {message.reactions.map((reaction) => (
               <li key={reaction.key}>
                 <button
+                  type="button"
                   onClick={() => onReact?.(reaction.key)}
                   aria-pressed={reaction.reactedByMe}
+                  aria-label={`${reaction.count} reaction${reaction.count === 1 ? '' : 's'} with ${reaction.key}${reaction.reactedByMe ? ' (you reacted)' : ''}`}
                   className={cn(
                     'gap-1.5 px-2 py-0.5 text-xs font-semibold flex items-center rounded-md border transition-colors',
                     reaction.reactedByMe
@@ -692,7 +695,7 @@ export function ChatBubble({
                       : 'border-border bg-surface text-muted-foreground hover:bg-accent hover:text-foreground',
                   )}
                 >
-                  <span aria-hidden>{reaction.key}</span>
+                  <span aria-hidden="true">{reaction.key}</span>
                   <span className="tabular-nums">{reaction.count}</span>
                 </button>
               </li>
@@ -702,10 +705,11 @@ export function ChatBubble({
               <li>
                 <ReactionPicker onSelect={onReact}>
                   <button
+                    type="button"
                     aria-label="Add a reaction"
                     className="px-1.5 py-0.5 flex items-center rounded-md border border-border bg-surface text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
-                    <Smile className="size-3.5" aria-hidden />
+                    <Smile className="size-3.5" aria-hidden="true" />
                   </button>
                 </ReactionPicker>
               </li>
@@ -716,6 +720,7 @@ export function ChatBubble({
         {/* Thread replies summary */}
         {threadReplyCount && threadReplyCount > 0 ? (
           <button
+            type="button"
             onClick={onOpenThread}
             className={cn(
               'mt-1.5 gap-2 px-2.5 py-1 text-xs font-semibold flex items-center rounded-md bg-surface text-info-text transition-colors hover:bg-accent hover:underline',
@@ -765,6 +770,8 @@ export function ChatBubble({
       {/* Floating action toolbar — revealed on hover/focus (pointer), or
           long-press (touch, via `actionsPinned`). */}
       <div
+        role="toolbar"
+        aria-label="Message actions"
         className={cn(
           '-top-3.5 right-4 p-0.5 absolute z-20 items-center rounded-lg border border-border bg-surface-raised shadow-lg',
           isMenuOpen || isReactionOpen || actionsPinned

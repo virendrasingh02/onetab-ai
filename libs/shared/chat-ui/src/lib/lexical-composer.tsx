@@ -1435,7 +1435,11 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
 
   return (
     <div className="bg-surface-removed">
-      <div className="gap-0.5 px-2 py-1 flex scrollbar-none items-center overflow-x-auto rounded-[inherit]">
+      <div
+        role="toolbar"
+        aria-label="Formatting tools"
+        className="gap-0.5 px-2 py-1 flex scrollbar-none items-center overflow-x-auto rounded-[inherit]"
+      >
         <ToolButton
           label="Bold (Ctrl+B)"
           isActive={formats.bold}
@@ -1584,9 +1588,11 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
 
       {linkDraft !== null ? (
         <div className="gap-1.5 px-2 py-1.5 flex items-center border-t border-border bg-surface-raised">
-          <Link2 className="size-3.5 shrink-0 text-muted-foreground" />
+          <Link2 className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
           <input
             ref={linkInputRef}
+            aria-label="Link URL"
+            placeholder="Paste or type URL…"
             value={linkDraft}
             onChange={(event) => setLinkDraft(event.target.value)}
             onKeyDown={(event) => {
@@ -1599,8 +1605,6 @@ export function LexicalToolbar({ toolbarSlot }: { toolbarSlot?: ReactNode }) {
                 editor.focus();
               }
             }}
-            placeholder="Paste or type a link, then press Enter"
-            aria-label="Link URL"
             className="min-w-0 text-xs flex-1 bg-transparent text-foreground outline-none placeholder:text-subtle"
           />
           <button

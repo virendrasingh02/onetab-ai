@@ -19,7 +19,7 @@ export function Checkbox({
       <CheckboxPrimitive.Indicator
         className={cn('flex items-center justify-center text-current')}
       >
-        <Check className="size-3.5 stroke-[3]" />
+        <Check className="size-3.5 stroke-[3]" aria-hidden="true" />
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   );

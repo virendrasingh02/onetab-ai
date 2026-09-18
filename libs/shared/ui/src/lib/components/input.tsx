@@ -41,13 +41,15 @@ export function Input({
     lg: 'h-9 px-3.5 text-sm',
   }[inputSize];
 
+  const isInvalid = invalid ?? props['aria-invalid'] ?? undefined;
+
   // Inline text affixes render inside a shared bordered box so `@` / `@gmail.com`
   // sit flush with the value, matching the platform field spec.
   if (prefix != null || suffix != null) {
     return (
       <div
         data-slot="input-affix"
-        aria-invalid={invalid || undefined}
+        aria-invalid={isInvalid}
         className={cn(
           'flex w-full items-center gap-1.5 rounded-input border border-input bg-surface text-foreground',
           sizeClasses,
@@ -57,7 +59,7 @@ export function Input({
           'transition-[color,background-color,border-color,box-shadow] duration-(--duration-fast)',
           'focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25',
           'has-[input:disabled]:cursor-not-allowed has-[input:disabled]:bg-surface-muted has-[input:disabled]:text-disabled has-[input:disabled]:opacity-100',
-          invalid && 'border-destructive ring-2 ring-destructive/20',
+          (invalid || isInvalid === true || isInvalid === 'true') && 'border-destructive ring-2 ring-destructive/20',
           wrapperClassName,
         )}
       >
@@ -69,7 +71,7 @@ export function Input({
         <input
           type={type}
           data-slot="input"
-          aria-invalid={invalid || undefined}
+          aria-invalid={isInvalid}
           className={cn(
             'min-w-0 flex-1 border-0 bg-transparent p-0 text-inherit outline-none',
             'placeholder:text-subtle disabled:cursor-not-allowed',
@@ -90,7 +92,7 @@ export function Input({
     <input
       type={type}
       data-slot="input"
-      aria-invalid={invalid || undefined}
+      aria-invalid={isInvalid}
       className={cn(
         'min-w-0 flex w-full rounded-input border border-input bg-surface text-foreground',
         sizeClasses,
@@ -183,10 +185,12 @@ export function Textarea({
   minRows,
   ...props
 }: TextareaProps) {
+  const isInvalid = invalid !== undefined ? invalid : props['aria-invalid'];
+
   return (
     <TextareaAutosize
       data-slot="textarea"
-      aria-invalid={invalid || undefined}
+      aria-invalid={isInvalid}
       minRows={minRows ?? rows ?? 2}
       className={cn(
         'min-h-16 px-3 py-2 text-xs flex w-full rounded-input border border-input bg-surface text-foreground',

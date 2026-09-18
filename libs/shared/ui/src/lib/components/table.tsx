@@ -73,9 +73,10 @@ export function TableRow({ className, ...props }: ComponentProps<'tr'>) {
   );
 }
 
-export function TableHead({ className, ...props }: ComponentProps<'th'>) {
+export function TableHead({ className, scope = 'col', ...props }: ComponentProps<'th'>) {
   return (
     <th
+      scope={scope}
       data-slot="table-head"
       className={cn(
         'h-10 px-3 text-xs font-medium text-left align-middle whitespace-nowrap text-muted-foreground',

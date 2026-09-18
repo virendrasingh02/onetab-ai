@@ -9,6 +9,7 @@ import {
   ScrollArea,
   Spinner,
   UserAvatarGroup,
+  announceToScreenReader,
   type AvatarGroupUser,
 } from '@org/ui';
 import { cn } from '@org/utils';
@@ -833,6 +834,10 @@ export function MessageList({
         pinBottom();
       } else {
         setNewMessagesCount((previous) => previous + diff);
+      }
+      const latest = messages[messages.length - 1];
+      if (latest && previousCount.current > 0) {
+        announceToScreenReader(`New message from ${latest.senderName}`);
       }
     }
   }, [messages.length, rows, conversationId, startSettle, pinBottom]);

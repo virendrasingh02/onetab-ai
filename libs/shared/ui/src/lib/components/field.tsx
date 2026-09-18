@@ -64,6 +64,10 @@ export function Field({
           'aria-invalid': error
             ? true
             : (children.props as Record<string, unknown>)['aria-invalid'],
+          'aria-required': required
+            ? true
+            : (children.props as Record<string, unknown>)['aria-required'],
+          required: required || (children.props as Record<string, unknown>).required,
           'aria-describedby':
             [
               (children.props as Record<string, unknown>)['aria-describedby'],
@@ -89,9 +93,12 @@ export function Field({
             >
               {label}
               {required ? (
-                <span className="text-destructive" aria-hidden>
-                  *
-                </span>
+                <>
+                  <span className="text-destructive" aria-hidden="true">
+                    *
+                  </span>
+                  <span className="sr-only"> (required)</span>
+                </>
               ) : optional ? (
                 <span className="font-normal text-subtle">(optional)</span>
               ) : null}

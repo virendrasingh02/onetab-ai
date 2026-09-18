@@ -11,6 +11,7 @@ import {
   Toaster,
   TooltipProvider,
   toast,
+  AccessibilityDevAuditor,
   type GifSource,
 } from '@org/ui';
 import { RealtimeProvider, useUserPresenceMap } from '@org/realtime';
@@ -249,6 +250,7 @@ export function Providers({ children }: { children: ReactNode }) {
                       </MediaPreviewProvider>
                       <AppToaster />
                       <ConfirmRoot />
+                      {import.meta.env.DEV ? <AccessibilityDevAuditor /> : null}
                     </TooltipProvider>
                   </RealtimeAppBridge>
                 </AuthenticatedMediaBridge>

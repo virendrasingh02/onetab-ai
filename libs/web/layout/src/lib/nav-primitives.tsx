@@ -328,9 +328,10 @@ export function Section({
       className="mt-2.5 mb-1"
       asChild
     >
-      <section>
+      <section aria-label={title}>
         <div className="group/section gap-1.5 px-2.5 py-1 flex items-center justify-between select-none">
           <CollapsibleTrigger
+            aria-label={`Toggle ${title} section`}
             className={cn(
               'group/trigger gap-1 flex items-center rounded-md',
               'font-semibold tracking-wide text-[11px] text-foreground/75 uppercase',

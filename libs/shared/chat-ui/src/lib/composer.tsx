@@ -828,10 +828,11 @@ export function Composer({
             <Hint label="Attach file or media">
               <button
                 type="button"
+                aria-label="Attach file or media"
                 onClick={() => document.getElementById(fileInputId)?.click()}
                 className="size-7 shrink-0 touch-target flex items-center justify-center rounded-full bg-accent text-foreground transition-colors hover:bg-selected"
               >
-                <Plus className="size-4" />
+                <Plus className="size-4" aria-hidden="true" />
               </button>
             </Hint>
             <input
@@ -872,13 +873,14 @@ export function Composer({
             <Hint label="Mention someone (@)">
               <button
                 type="button"
+                aria-label="Mention someone (@)"
                 onClick={() => {
                   lexicalRef.current?.focus();
                   lexicalRef.current?.insertText('@');
                 }}
                 className="max-sm:hidden size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
-                <AtSign className="size-4" />
+                <AtSign className="size-4" aria-hidden="true" />
               </button>
             </Hint>
 
@@ -905,7 +907,7 @@ export function Composer({
                   pickerState.open && 'bg-primary text-primary-foreground',
                 )}
               >
-                <Smile className="size-4" />
+                <Smile className="size-4" aria-hidden="true" />
               </button>
             </EmojiGifPickerPopover>
 
@@ -918,10 +920,10 @@ export function Composer({
                   type="button"
                   onClick={startRecording}
                   disabled={!canStartVoiceAction}
-                  aria-label="Start voice recording"
+                  aria-label="Record voice message"
                   className="size-7 shrink-0 touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
                 >
-                  <Mic className="size-4" />
+                  <Mic className="size-4" aria-hidden="true" />
                 </button>
               </Hint>
             ) : null}
@@ -929,6 +931,7 @@ export function Composer({
             <Hint label="Open GIF picker">
               <button
                 type="button"
+                aria-label="Open GIF picker"
                 onClick={() =>
                   setPickerState((current) => ({
                     open: !current.open || current.tab !== 'gif',
@@ -942,7 +945,7 @@ export function Composer({
                     'bg-primary text-primary-foreground',
                 )}
               >
-                <Film className="size-3.5" />
+                <Film className="size-3.5" aria-hidden="true" />
                 <span className="tracking-wider text-[10px] uppercase">
                   GIF
                 </span>
@@ -952,13 +955,14 @@ export function Composer({
             <Hint label="Slash commands (/)">
               <button
                 type="button"
+                aria-label="Slash commands (/)"
                 onClick={() => {
                   lexicalRef.current?.focus();
                   lexicalRef.current?.insertText('/');
                 }}
                 className="max-sm:hidden size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
-                <Slash className="size-3.5" />
+                <Slash className="size-3.5" aria-hidden="true" />
               </button>
             </Hint>
 
@@ -966,10 +970,11 @@ export function Composer({
               <Hint label="Start voice huddle">
                 <button
                   type="button"
+                  aria-label="Start voice huddle"
                   onClick={onStartHuddle}
                   className="max-sm:hidden size-7 flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 >
-                  <Video className="size-4" />
+                  <Video className="size-4" aria-hidden="true" />
                 </button>
               </Hint>
             ) : null}

@@ -25,12 +25,19 @@ const alertVariants = cva(
 
 export function Alert({
   className,
-  variant,
+  variant = 'default',
+  role,
+  'aria-live': ariaLive,
   ...props
 }: ComponentProps<'div'> & VariantProps<typeof alertVariants>) {
+  const isDestructive = variant === 'destructive';
+  const computedRole = role ?? (isDestructive ? 'alert' : 'status');
+  const computedLive = ariaLive ?? (isDestructive ? 'assertive' : 'polite');
+
   return (
     <div
-      role="alert"
+      role={computedRole}
+      aria-live={computedLive}
       data-slot="alert"
       className={cn(alertVariants({ variant }), className)}
       {...props}

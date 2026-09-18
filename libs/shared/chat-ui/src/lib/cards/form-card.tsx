@@ -150,7 +150,7 @@ export function FormCard({
           </div>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="mt-3.5 space-y-3.5 text-xs">
+        <form noValidate onSubmit={handleSubmit} className="mt-3.5 space-y-3.5 text-xs">
           {event.fields.map((field) => {
             const error = errors[field.name];
 

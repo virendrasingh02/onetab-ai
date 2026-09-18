@@ -248,7 +248,7 @@ export const TabsContent = forwardRef<
       ref={ref}
       data-slot="tabs-content"
       className={cn(
-        'flex-1 outline-none mt-2',
+        'flex-1 outline-none mt-2 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none rounded-md',
         'data-[state=inactive]:hidden',
         'data-[state=active]:animate-in data-[state=active]:fade-in-50 duration-150',
         className,

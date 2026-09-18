@@ -95,10 +95,17 @@ export function Button({
     <button
       className={cn(buttonVariants({ variant, size }), className)}
       disabled={disabled || loading}
-      aria-busy={loading || undefined}
+      aria-busy={loading ? 'true' : undefined}
       {...props}
     >
-      {loading ? <Loader2 className="animate-spin" aria-hidden /> : leadingIcon}
+      {loading ? (
+        <>
+          <Loader2 className="animate-spin" aria-hidden="true" />
+          <span className="sr-only">Loading…</span>
+        </>
+      ) : (
+        leadingIcon
+      )}
       {children}
       {!loading && trailingIcon}
     </button>

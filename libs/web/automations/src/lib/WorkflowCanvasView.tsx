@@ -728,7 +728,7 @@ export function WorkflowCanvasView() {
       {/* Main Canvas + Inspector */}
       <div className="relative flex flex-1 min-h-0 overflow-hidden">
         {/* ReactFlow Interactive Canvas */}
-        <div className="relative flex-1 h-full">
+        <div role="region" aria-label="Workflow canvas builder" className="relative flex-1 h-full">
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -785,6 +785,7 @@ export function WorkflowCanvasView() {
                     type="text"
                     value={paletteSearch}
                     onChange={(e) => setPaletteSearch(e.target.value)}
+                    aria-label="Search 35+ node types"
                     placeholder="Search 35+ node types..."
                     className="w-full text-xs pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-foreground outline-none focus:border-primary"
                     autoFocus
@@ -792,10 +793,12 @@ export function WorkflowCanvasView() {
                 </div>
 
                 {/* Categories */}
-                <div className="flex items-center gap-1 overflow-x-auto py-2 no-scrollbar border-b border-border/60">
+                <div role="tablist" aria-label="Node categories" className="flex items-center gap-1 overflow-x-auto py-2 no-scrollbar border-b border-border/60">
                   {(['all', 'triggers', 'ai', 'knowledge', 'logic', 'tools'] as const).map((cat) => (
                     <button
                       key={cat}
+                      role="tab"
+                      aria-selected={paletteCategory === cat}
                       onClick={() => setPaletteCategory(cat)}
                       className={cn(
                         'px-2 py-0.5 rounded text-[10px] font-medium whitespace-nowrap transition-colors',
@@ -874,15 +877,18 @@ export function WorkflowCanvasView() {
                   variant="ghost"
                   size="icon-xs"
                   onClick={deleteSelectedNode}
+                  aria-label="Delete selected node"
                   className="text-destructive hover:bg-destructive/10 shrink-0"
                 >
-                  <Trash2 className="size-3.5" />
+                  <Trash2 className="size-3.5" aria-hidden="true" />
                 </Button>
               </div>
 
               {/* Tabs: Config / Variables / Test */}
-              <div className="flex border-b border-border text-xs shrink-0">
+              <div role="tablist" aria-label="Inspector tabs" className="flex border-b border-border text-xs shrink-0">
                 <button
+                  role="tab"
+                  aria-selected={inspectorTab === 'config'}
                   onClick={() => setInspectorTab('config')}
                   className={cn(
                     'flex-1 py-2 font-medium text-center border-b-2 transition-colors',
@@ -894,6 +900,8 @@ export function WorkflowCanvasView() {
                   Config
                 </button>
                 <button
+                  role="tab"
+                  aria-selected={inspectorTab === 'variables'}
                   onClick={() => setInspectorTab('variables')}
                   className={cn(
                     'flex-1 py-2 font-medium text-center border-b-2 transition-colors',
@@ -905,6 +913,8 @@ export function WorkflowCanvasView() {
                   Variables
                 </button>
                 <button
+                  role="tab"
+                  aria-selected={inspectorTab === 'test'}
                   onClick={() => setInspectorTab('test')}
                   className={cn(
                     'flex-1 py-2 font-medium text-center border-b-2 transition-colors',

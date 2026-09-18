@@ -81,6 +81,8 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div
+      role="region"
+      aria-label={title}
       className={cn(emptyStateVariants({ size }), className)}
       {...props}
     >

@@ -3,7 +3,9 @@ import { Slot } from '@radix-ui/react-slot';
 import {
   createContext,
   use,
+  useEffect,
   useId,
+  useState,
   type ComponentProps,
   type ReactNode,
 } from 'react';
@@ -34,6 +36,8 @@ const FormFieldContext = createContext<FormFieldContextValue | null>(null);
 
 interface FormItemContextValue {
   id: string;
+  hasDescription: boolean;
+  setHasDescription: (v: boolean) => void;
 }
 const FormItemContext = createContext<FormItemContextValue | null>(null);
 
@@ -79,8 +83,10 @@ export function useFormField() {
 
 export function FormItem({ className, ...props }: ComponentProps<'div'>) {
   const id = useId();
+  const [hasDescription, setHasDescription] = useState(false);
+
   return (
-    <FormItemContext value={{ id }}>
+    <FormItemContext value={{ id, hasDescription, setHasDescription }}>
       <div
         data-slot="form-item"
         className={cn('gap-2 grid', className)}
@@ -111,12 +117,20 @@ export function FormLabel({
 export function FormControl(props: ComponentProps<typeof Slot>) {
   const { error, formItemId, formDescriptionId, formMessageId } =
     useFormField();
+  const itemContext = use(FormItemContext);
+
+  const describedBy = [
+    (props as Record<string, unknown>)['aria-describedby'],
+    itemContext?.hasDescription ? formDescriptionId : undefined,
+    error ? formMessageId : undefined,
+  ]
+    .filter(Boolean)
+    .join(' ') || undefined;
+
   return (
     <Slot
       id={formItemId}
-      aria-describedby={
-        error ? `${formDescriptionId} ${formMessageId}` : formDescriptionId
-      }
+      aria-describedby={describedBy}
       aria-invalid={!!error}
       {...props}
     />
@@ -125,6 +139,13 @@ export function FormControl(props: ComponentProps<typeof Slot>) {
 
 export function FormDescription({ className, ...props }: ComponentProps<'p'>) {
   const { formDescriptionId } = useFormField();
+  const itemContext = use(FormItemContext);
+
+  useEffect(() => {
+    itemContext?.setHasDescription(true);
+    return () => itemContext?.setHasDescription(false);
+  }, [itemContext]);
+
   return (
     <p
       id={formDescriptionId}
