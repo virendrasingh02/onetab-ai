@@ -430,11 +430,21 @@ export function UserAvatar({
   isLoading,
   ...props
 }: UserAvatarProps) {
+  // Live presence wins over the (usually snapshot) `presence` prop. The seed is
+  // normally the user id; `normalizeAvatarSeed` also turns a chat Matrix id into
+  // the same id the presence map is keyed by. Resolved unconditionally — before
+  // the `isLoading` early return below — because hooks can't be called
+  // conditionally: a caller flipping `isLoading` from true to false on the same
+  // instance (exactly what the skeleton-loading callers below do) would
+  // otherwise change the number of hooks between renders and crash React.
+  const presenceKey = seed?.trim() ? normalizeAvatarSeed(seed) : undefined;
+  const resolvedPresence = useResolvedPresence(presenceKey, presence);
+
   if (isLoading) {
     return (
       <span className="relative inline-flex shrink-0" style={style}>
         <SkeletonAvatar
-          size={size}
+          size={size ?? 'md'}
           shape="circle"
           className={cn('rounded-full', className)}
         />
@@ -445,12 +455,6 @@ export function UserAvatar({
   // through — `'' ?? name` keeps `''`, which would paint every seedless avatar
   // the same colour. Fall back to the name only when there is genuinely no seed.
   const tintSeed = seed?.trim() ? seed : name;
-
-  // Live presence wins over the (usually snapshot) `presence` prop. The seed is
-  // normally the user id; `normalizeAvatarSeed` also turns a chat Matrix id into
-  // the same id the presence map is keyed by.
-  const presenceKey = seed?.trim() ? normalizeAvatarSeed(seed) : undefined;
-  const resolvedPresence = useResolvedPresence(presenceKey, presence);
 
   const geometry = INDICATOR_SIZES[size ?? 'md'];
   const showEmoji = indicator && Boolean(statusEmoji);

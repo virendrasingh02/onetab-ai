@@ -29,6 +29,7 @@ export {
 
 export {
   DEFAULT_SLASH_COMMANDS,
+  getContextualSlashCommands,
   type SlashCommand,
 } from './lib/slash-commands.js';
 

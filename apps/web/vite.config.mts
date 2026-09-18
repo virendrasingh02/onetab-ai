@@ -251,6 +251,13 @@ export default defineConfig(() => ({
       'debug',
       'prismjs',
       'use-sync-external-store/shim/with-selector.js',
+      // `axe-core` is CJS-only (`main: "axe.js"`, `module.exports = axe`), and
+      // the dev-only `AccessibilityDevAuditor` (mounted unconditionally in
+      // `apps/web/src/app/providers.tsx` behind `import.meta.env.DEV`) reaches
+      // it via a default import. Same failure mode as the matrix-js-sdk deps
+      // above: served raw, the browser's native ESM loader finds no `default`
+      // export and throws a SyntaxError that blanks the whole app in dev.
+      'axe-core',
     ],
     // See ORG_WORKSPACE_PACKAGES above: keeps every @org/* lib off the
     // pre-bundle path so edits to their source show up without a restart.

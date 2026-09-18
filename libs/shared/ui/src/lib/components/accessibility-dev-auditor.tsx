@@ -5,11 +5,6 @@ import { CheckCircle2, ShieldAlert, X, RefreshCw, Eye } from 'lucide-react';
 import { cn } from '@org/utils';
 
 export function AccessibilityDevAuditor() {
-  // Completely inactive if not in development
-  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') {
-    return null;
-  }
-
   const [isOpen, setIsOpen] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [violations, setViolations] = useState<Result[] | null>(null);
@@ -53,6 +48,11 @@ export function AccessibilityDevAuditor() {
       console.warn('Could not highlight selector:', selector, e);
     }
   }, [activeHighlightSelector]);
+
+  // Completely inactive if not in development
+  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') {
+    return null;
+  }
 
   const counts = {
     critical: violations?.filter((v) => v.impact === 'critical').length ?? 0,

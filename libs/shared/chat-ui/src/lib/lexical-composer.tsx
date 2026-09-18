@@ -84,7 +84,6 @@ import {
   Blocks,
   Bold,
   Bot,
-  Briefcase,
   Check,
   CheckSquare,
   Clock,

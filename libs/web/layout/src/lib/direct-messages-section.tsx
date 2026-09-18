@@ -611,7 +611,7 @@ export function DirectMessagesSection({
   };
 
   const showDmsSkeleton =
-    members.isLoading && (!members.data || members.data.length === 0);
+    (!members.data || members.data.length === 0) && members.isLoading;
 
   return (
     <Section

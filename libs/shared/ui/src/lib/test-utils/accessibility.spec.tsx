@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
-import { useState } from 'react';
 import {
   Alert,
   AlertTitle,
@@ -28,7 +27,7 @@ import {
   announceToScreenReader,
 } from '../../index.js';
 import { expectNoAxeViolations } from './axe-test-utils.js';
-import { Settings, Plus } from 'lucide-react';
+import { Settings } from 'lucide-react';
 
 describe('Accessibility Test Suite (WCAG 2.2 AA / axe-core)', () => {
   describe('Button & IconButton', () => {

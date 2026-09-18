@@ -1071,7 +1071,7 @@ export function CoworkersSection({
   };
 
   const showCoworkersSkeleton =
-    coworkers.isLoading && (!coworkers.data || coworkers.data.length === 0);
+    (!coworkers.data || coworkers.data.length === 0) && coworkers.isLoading;
 
   return (
     <Section
@@ -1234,7 +1234,7 @@ export function AgentsSection({
   };
 
   const showAgentsSkeleton =
-    agents.isLoading && (!agents.data || agents.data.length === 0);
+    (!agents.data || agents.data.length === 0) && agents.isLoading;
 
   return (
     <Section
@@ -1402,8 +1402,8 @@ export function AppsSection({
   };
 
   const showAppsSkeleton =
-    integrations.isLoading &&
-    (!integrations.data || integrations.data.length === 0);
+    (!integrations.data || integrations.data.length === 0) &&
+    integrations.isLoading;
 
   return (
     <Section

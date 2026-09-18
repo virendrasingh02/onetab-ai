@@ -281,6 +281,8 @@ export function useComposerControl(
         userId: m.user.id,
         displayName: m.user.displayName ?? m.user.name,
         avatarUrl: m.user.avatarUrl ?? undefined,
+        powerLevel: 0,
+        membership: 'join' as const,
       })),
     [workspaceMembersQuery.data],
   );

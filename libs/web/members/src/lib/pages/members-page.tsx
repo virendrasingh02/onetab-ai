@@ -117,7 +117,7 @@ export function MembersPage() {
 
       <div className="min-h-0 p-4 sm:p-6 flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto">
-          {members.isLoading && (!members.data || members.data.length === 0) ? (
+          {(!members.data || members.data.length === 0) && members.isLoading ? (
             <div
               className="divide-y rounded-lg border bg-card"
               role="status"
