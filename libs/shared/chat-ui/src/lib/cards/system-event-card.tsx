@@ -96,9 +96,9 @@ export function SystemEventIcon({
   return (
     <span
       aria-hidden
-      className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+      className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
     >
-      <Icon className="size-3.5" />
+      <Icon className="size-5" />
     </span>
   );
 }
@@ -124,6 +124,12 @@ export function SystemEventEntityBadge({ kind }: { kind: SystemEventEntity['kind
 /** One named entity (a user, app, agent, coworker or channel), clickable when
  * the host can open something for it and not a deleted/unknown row (brief
  * §10, §20). Shared by the actor and the target — an "entity" either way. */
+const ENTITY_NAME_WEIGHT_CLASS: Record<'medium' | 'semibold' | 'bold', string> = {
+  medium: 'font-medium',
+  semibold: 'font-semibold',
+  bold: 'font-bold',
+};
+
 export function SystemEventEntityName({
   entity,
   onClick,
@@ -133,17 +139,14 @@ export function SystemEventEntityName({
   entity: SystemEventEntity;
   onClick?: (entity: SystemEventEntity) => void;
   className?: string;
-  weight?: 'medium' | 'semibold';
+  weight?: 'medium' | 'semibold' | 'bold';
 }) {
   const clickable = !!onClick && !entity.isDeleted && entity.id;
   const label = entity.isDeleted ? `Deleted ${entityKindLabel(entity.kind)}` : entity.name;
+  const weightClass = ENTITY_NAME_WEIGHT_CLASS[weight];
 
   if (!clickable) {
-    return (
-      <span className={cn(weight === 'semibold' ? 'font-semibold' : 'font-medium', className)}>
-        {label}
-      </span>
-    );
+    return <span className={cn(weightClass, className)}>{label}</span>;
   }
 
   return (
@@ -152,7 +155,7 @@ export function SystemEventEntityName({
       onClick={() => onClick(entity)}
       className={cn(
         'rounded-sm text-left hover:underline focus-visible:underline focus-visible:outline-none',
-        weight === 'semibold' ? 'font-semibold' : 'font-medium',
+        weightClass,
         className,
       )}
     >
@@ -182,7 +185,7 @@ function entityKindLabel(kind: SystemEventEntity['kind']): string {
 export function SystemEventEntityAvatar({ entity }: { entity: SystemEventEntity }) {
   if (entity.kind === 'channel') {
     return (
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
         <Hash className="size-4" />
       </span>
     );
@@ -192,7 +195,8 @@ export function SystemEventEntityAvatar({ entity }: { entity: SystemEventEntity 
       name={entity.name}
       src={entity.avatarUrl}
       seed={entity.id ?? entity.name}
-      size="sm"
+      size="md"
+      className="size-10"
       indicator={false}
     />
   );
@@ -510,43 +514,62 @@ export function SystemEventCard({
       data-message-id={message.id}
       aria-label={message.body}
       className={cn(
-        'group/message relative mx-4 my-1 flex items-start gap-2.5 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-accent/40',
-        isHighlighted && 'ring-2 ring-primary/60',
+        'group/message relative flex gap-4 px-4 pt-2.5 pb-0.5 text-sm transition-colors hover:bg-accent',
+        isHighlighted && 'border-l-2 border-l-primary',
       )}
     >
-      {primaryEntity ? (
-        <SystemEventEntityAvatar entity={primaryEntity} />
-      ) : (
-        <SystemEventIcon eventType={event.eventType} />
-      )}
-
-      <div className="min-w-0 flex-1">
+      <div className="w-10 shrink-0">
         {primaryEntity ? (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <SystemEventEntityName entity={primaryEntity} onClick={onViewEntity} weight="semibold" />
-            <SystemEventEntityBadge kind={primaryEntity.kind} />
-          </div>
-        ) : null}
-        <SystemEventAction event={event} onViewEntity={onViewEntity} />
+          <SystemEventEntityAvatar entity={primaryEntity} />
+        ) : (
+          <SystemEventIcon eventType={event.eventType} />
+        )}
       </div>
 
-      <SystemEventTimestamp timestamp={event.occurredAt || message.timestamp} />
+      <div className="min-w-0 flex-1">
+        <header className="flex flex-wrap items-baseline gap-2">
+          {primaryEntity ? (
+            <>
+              <SystemEventEntityName
+                entity={primaryEntity}
+                onClick={onViewEntity}
+                weight="bold"
+                className="text-sm tracking-wide text-foreground"
+              />
+              <SystemEventEntityBadge kind={primaryEntity.kind} />
+            </>
+          ) : null}
+          <SystemEventTimestamp timestamp={event.occurredAt || message.timestamp} />
+        </header>
+
+        <SystemEventAction event={event} onViewEntity={onViewEntity} />
+
+        {message.reactions.length > 0 ? (
+          <ul className="mt-1.5 flex flex-wrap gap-1">
+            {message.reactions.map((reaction) => (
+              <li key={reaction.key}>
+                <button
+                  type="button"
+                  onClick={() => onReact?.(reaction.key)}
+                  aria-pressed={reaction.reactedByMe}
+                  aria-label={`${reaction.count} reaction${reaction.count === 1 ? '' : 's'} with ${reaction.key}${reaction.reactedByMe ? ' (you reacted)' : ''}`}
+                  className={cn(
+                    'flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-semibold transition-colors',
+                    reaction.reactedByMe
+                      ? 'border-primary bg-primary/15 text-foreground shadow-xs'
+                      : 'border-border bg-surface text-muted-foreground hover:bg-accent hover:text-foreground',
+                  )}
+                >
+                  <span aria-hidden="true">{reaction.key}</span>
+                  <span className="tabular-nums">{reaction.count}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
 
       <SystemEventActions event={event} onReact={onReact} actions={actions} />
-
-      {message.reactions.length > 0 ? (
-        <ul className="pointer-events-none absolute -bottom-2 left-10 flex list-none gap-1">
-          {message.reactions.map((reaction) => (
-            <li
-              key={reaction.key}
-              className="pointer-events-auto flex items-center gap-1 rounded-full border border-border bg-surface-raised px-1.5 py-0.5 text-[11px]"
-            >
-              <span aria-hidden>{reaction.key}</span>
-              <span className="tabular-nums">{reaction.count}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
     </article>
   );
 }

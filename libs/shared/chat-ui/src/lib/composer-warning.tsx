@@ -133,86 +133,96 @@ export function ComposerWarning({
       role="status"
       aria-live="polite"
       className={cn(
-        'mb-1.5 flex flex-col gap-1.5 rounded-lg border border-border bg-surface-muted/90 px-3 py-2 text-xs text-foreground shadow-xs animate-in fade-in slide-in-from-bottom-1 duration-150 motion-reduce:animate-none',
+        'group/message relative mb-1.5 flex gap-4 px-4 pt-2.5 pb-1.5 text-sm animate-in fade-in slide-in-from-bottom-1 duration-150 motion-reduce:animate-none',
         className,
       )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 font-medium text-muted-foreground text-[11px]">
-          <EyeOff className="size-3.5 shrink-0" aria-hidden />
-          <span>Only visible to you</span>
-        </div>
-        <button
-          type="button"
-          onClick={onDismiss}
-          aria-label="Dismiss"
-          className="size-5 shrink-0 flex items-center justify-center rounded-md text-muted-foreground hover:bg-surface-raised hover:text-foreground transition-colors"
+      <div className="w-10 shrink-0">
+        <span
+          aria-hidden
+          className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
         >
-          <X className="size-3.5" />
-        </button>
+          <EyeOff className="size-4" />
+        </span>
       </div>
 
-      <div className="flex flex-col gap-2">
-        {state.targets.map((target) => {
-          const sentence = formatTargetSentence(
-            target,
-            surfaceKind,
-            channelName,
-            peerName,
-          );
-          const actionLabel = formatActionLabel(target.addAction);
+      <div className="min-w-0 flex-1">
+        <header className="flex items-baseline justify-between gap-2">
+          <span className="text-sm font-bold tracking-wide text-foreground">
+            Only visible to you
+          </span>
+          <button
+            type="button"
+            onClick={onDismiss}
+            aria-label="Dismiss"
+            className="size-5 shrink-0 flex items-center justify-center rounded-md text-muted-foreground hover:bg-surface-raised hover:text-foreground transition-colors"
+          >
+            <X className="size-3.5" />
+          </button>
+        </header>
 
-          return (
-            <div
-              key={target.id}
-              className={cn(
-                'flex items-center justify-between gap-2',
-                isMobile ? 'flex-col items-start gap-2 pt-1' : 'flex-row',
-              )}
-            >
-              <div className="flex items-center gap-1.5 min-w-0 flex-1 flex-wrap">
-                <span>{sentence}</span>
-                {target.kind === 'agent' ? (
-                  <Badge
+        <div className="mt-0.5 flex flex-col gap-2">
+          {state.targets.map((target) => {
+            const sentence = formatTargetSentence(
+              target,
+              surfaceKind,
+              channelName,
+              peerName,
+            );
+            const actionLabel = formatActionLabel(target.addAction);
+
+            return (
+              <div
+                key={target.id}
+                className={cn(
+                  'flex items-center justify-between gap-2',
+                  isMobile ? 'flex-col items-start gap-2 pt-1' : 'flex-row',
+                )}
+              >
+                <p className="flex items-center gap-1.5 min-w-0 flex-1 flex-wrap text-sm text-muted-foreground">
+                  <span>{sentence}</span>
+                  {target.kind === 'agent' ? (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-1 py-0 uppercase"
+                    >
+                      AI Agent
+                    </Badge>
+                  ) : target.kind === 'coworker' ? (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-1 py-0 uppercase"
+                    >
+                      AI Coworker
+                    </Badge>
+                  ) : target.kind === 'app' ? (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-1 py-0 uppercase"
+                    >
+                      App
+                    </Badge>
+                  ) : null}
+                </p>
+
+                {actionLabel ? (
+                  <Button
+                    type="button"
                     variant="outline"
-                    className="text-[10px] px-1 py-0 uppercase"
+                    size="sm"
+                    className={cn(
+                      'h-6 px-2 text-xs shrink-0',
+                      isMobile && 'w-full',
+                    )}
+                    onClick={() => onAdd(target.id, target.addAction)}
                   >
-                    AI Agent
-                  </Badge>
-                ) : target.kind === 'coworker' ? (
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] px-1 py-0 uppercase"
-                  >
-                    AI Coworker
-                  </Badge>
-                ) : target.kind === 'app' ? (
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] px-1 py-0 uppercase"
-                  >
-                    App
-                  </Badge>
+                    {actionLabel}
+                  </Button>
                 ) : null}
               </div>
-
-              {actionLabel ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className={cn(
-                    'h-6 px-2 text-xs shrink-0',
-                    isMobile && 'w-full',
-                  )}
-                  onClick={() => onAdd(target.id, target.addAction)}
-                >
-                  {actionLabel}
-                </Button>
-              ) : null}
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
