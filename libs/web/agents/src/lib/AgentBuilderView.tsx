@@ -26,7 +26,7 @@ import {
   toast,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { useCurrentWorkspace } from '@org/web-workspace';
+import { useCreationPolicies, useCurrentWorkspace } from '@org/web-workspace';
 import {
   Background,
   BackgroundVariant,
@@ -100,6 +100,7 @@ function AgentBuilderCanvas() {
   const { workspaceId, slug } = useCurrentWorkspace();
   const agents = useAgents(workspaceId);
   const { create, update, remove } = useAgentMutations(workspaceId);
+  const { canCreateAgents } = useCreationPolicies(workspaceId);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -108,6 +109,14 @@ function AgentBuilderCanvas() {
   const editAgentRole = searchParams.get('role');
   const editAgentModel = searchParams.get('model');
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
+  // The builder doubles as both the create and the edit flow (it's the same
+  // route/component either way — see the module doc comment). Only a blank
+  // "new agent" session (no id/name carried in via the URL) is gated on
+  // `whoCanCreateAgents`; editing an agent that already exists is not a
+  // creation and stays allowed regardless of this policy.
+  const isNewAgentSession = !editAgentId && !editAgentName;
+  const blockedByPermission = isNewAgentSession && !canCreateAgents;
 
   const targetAgent = useMemo(() => {
     if (!agents.data) return null;
@@ -293,6 +302,13 @@ function AgentBuilderCanvas() {
       return;
     }
 
+    if (blockedByPermission) {
+      toast.error('Cannot create agent', {
+        description: 'Only admins can create agents in this workspace.',
+      });
+      return;
+    }
+
     const core = nodes.find((node) => node.data.kind === 'agent');
     if (!core || !workspaceId) return;
 
@@ -345,6 +361,7 @@ function AgentBuilderCanvas() {
   }, [
     agents.data,
     blocked,
+    blockedByPermission,
     create,
     editAgentId,
     errorCount,
@@ -516,11 +533,13 @@ function AgentBuilderCanvas() {
               size="sm"
               leadingIcon={<Save className="size-3.5" />}
               onClick={handleSave}
-              disabled={blocked}
+              disabled={blocked || blockedByPermission}
               title={
                 blocked
                   ? 'Fix the errors in the Issues tab before saving.'
-                  : undefined
+                  : blockedByPermission
+                    ? 'Only admins can create agents in this workspace.'
+                    : undefined
               }
             >
               {dirty ? 'Save agent' : 'Saved'}

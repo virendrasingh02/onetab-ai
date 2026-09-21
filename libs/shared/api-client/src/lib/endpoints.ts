@@ -600,6 +600,22 @@ export const workspaceApi = {
       http.put(`/workspaces/${workspaceId}/settings/default-channel`, { channelId }),
     ),
 
+  /**
+   * The caller's own settings-page preferences for this workspace — an
+   * opaque blob (automations/schedule/pulse/documents/files/general-tab
+   * fields), server-persisted so it follows the member across devices.
+   */
+  getMemberPreferences: (workspaceId: string) =>
+    request<Record<string, unknown>>(
+      http.get(`/workspaces/${workspaceId}/settings/member-preferences`),
+    ),
+
+  /** Shallow-merged over what's already stored — a partial update never drops unrelated fields. */
+  saveMemberPreferences: (workspaceId: string, input: Record<string, unknown>) =>
+    request<Record<string, unknown>>(
+      http.put(`/workspaces/${workspaceId}/settings/member-preferences`, input),
+    ),
+
   auditLogs: (
     workspaceId: string,
     params?: {

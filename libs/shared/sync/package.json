@@ -17,6 +17,7 @@
     "@org/api-client": "*",
     "@org/realtime": "*",
     "@org/types": "*",
+    "@org/validation": "*",
     "@tanstack/react-query": "^5.101.4",
     "react": "^19.0.0",
     "zustand": "^5.0.14"

@@ -1,6 +1,6 @@
 import React from 'react';
 import type { AIAgentDetail } from '@org/types';
-import { Button, Card, EmptyState } from '@org/ui';
+import { Button, Card, EmptyState, Hint } from '@org/ui';
 import { Code2, Edit3, MessageSquare, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { renderEntityIcon } from './MarketplaceCard';
 
@@ -11,6 +11,8 @@ interface MarketplaceMyItemsViewProps {
   onOpenChat: (agentId: string) => void;
   onDeleteAgent?: (agentId: string) => void;
   onOpenDeveloper: () => void;
+  /** `whoCanCreateAgents` resolved for the current member. Defaults to allowed for callers that don't pass it. */
+  canCreateAgents?: boolean;
 }
 
 export const MarketplaceMyItemsView: React.FC<MarketplaceMyItemsViewProps> = ({
@@ -20,6 +22,7 @@ export const MarketplaceMyItemsView: React.FC<MarketplaceMyItemsViewProps> = ({
   onOpenChat,
   onDeleteAgent,
   onOpenDeveloper,
+  canCreateAgents = true,
 }) => {
   if (type === 'apps') {
     return (
@@ -69,15 +72,24 @@ export const MarketplaceMyItemsView: React.FC<MarketplaceMyItemsViewProps> = ({
             Custom agents created within this workspace using the visual Agent Builder.
           </p>
         </div>
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => onOpenBuilder()}
-          className="text-xs font-semibold"
+        <Hint
+          label={
+            canCreateAgents
+              ? 'Create a new agent'
+              : 'Only admins can create agents in this workspace.'
+          }
         >
-          <Plus className="size-3.5 mr-1" />
-          Create New Agent
-        </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => onOpenBuilder()}
+            disabled={!canCreateAgents}
+            className="text-xs font-semibold"
+          >
+            <Plus className="size-3.5 mr-1" />
+            Create New Agent
+          </Button>
+        </Hint>
       </div>
 
       {agents.length === 0 ? (
@@ -85,10 +97,23 @@ export const MarketplaceMyItemsView: React.FC<MarketplaceMyItemsViewProps> = ({
           title="No custom agents yet"
           description="Build tailored AI agents configured with your prompts, knowledge bases, and team tools."
           action={
-            <Button variant="primary" size="sm" onClick={() => onOpenBuilder()}>
-              <Sparkles className="size-3.5 mr-1" />
-              Build Your First Agent
-            </Button>
+            <Hint
+              label={
+                canCreateAgents
+                  ? 'Build your first agent'
+                  : 'Only admins can create agents in this workspace.'
+              }
+            >
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => onOpenBuilder()}
+                disabled={!canCreateAgents}
+              >
+                <Sparkles className="size-3.5 mr-1" />
+                Build Your First Agent
+              </Button>
+            </Hint>
           }
         />
       ) : (

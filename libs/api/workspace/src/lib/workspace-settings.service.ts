@@ -42,7 +42,7 @@ export class WorkspaceSettingsService {
   private emitSettingsUpdated(params: {
     workspaceId: string;
     userId: string | null;
-    category: 'policies' | 'appearance';
+    category: 'policies' | 'appearance' | 'memberPreferences';
     scope: 'workspace' | 'user';
   }): void {
     this.events.emit(AppEvent.SettingsUpdated, {
@@ -173,6 +173,49 @@ export class WorkspaceSettingsService {
     await this.prisma.workspaceThemePreference.deleteMany({
       where: { workspaceId, userId },
     });
+  }
+
+  /**
+   * The caller's own settings-page preferences for this workspace — the
+   * automations/schedule/pulse/documents/files/general-tab fields that used
+   * to be `localStorage`-only. An opaque blob: this layer does not know or
+   * validate individual field names, exactly like `WorkspacePolicy`'s
+   * predecessor before it grew a typed schema — these fields don't have one
+   * yet, and inventing one here would duplicate the frontend's definition of
+   * what they mean.
+   */
+  async getMemberPreferences(
+    workspaceId: string,
+    userId: string,
+  ): Promise<Record<string, unknown>> {
+    const row = await this.prisma.workspaceMemberPreference.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      select: { data: true },
+    });
+    return (row?.data as Record<string, unknown> | null) ?? {};
+  }
+
+  /** Shallow-merges `input` over the caller's stored preferences for this workspace. */
+  async saveMemberPreferences(
+    workspaceId: string,
+    userId: string,
+    input: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    const current = await this.getMemberPreferences(workspaceId, userId);
+    const merged = { ...current, ...input };
+    const row = await this.prisma.workspaceMemberPreference.upsert({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      create: { workspaceId, userId, data: merged as object },
+      update: { data: merged as object },
+      select: { data: true },
+    });
+    this.emitSettingsUpdated({
+      workspaceId,
+      userId,
+      category: 'memberPreferences',
+      scope: 'user',
+    });
+    return (row.data as Record<string, unknown> | null) ?? {};
   }
 
   /**

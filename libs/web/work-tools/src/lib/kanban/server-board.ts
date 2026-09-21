@@ -428,7 +428,10 @@ export function useServerBoard({
             mutations.create
               .mutateAsync(input)
               .then((task) =>
-                orderIndex === undefined
+                // `task` is null when the create was queued for offline replay
+                // (no id exists yet to reorder) — it lands in the column's
+                // default position once the queue applies it.
+                !task || orderIndex === undefined
                   ? undefined
                   : mutations.move.mutateAsync({
                       taskId: task.id,

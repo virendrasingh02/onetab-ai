@@ -4,7 +4,7 @@ import type { Accent } from '@org/design-system';
 import type { MarketplaceListing, MarketplaceListingDetail, MarketplaceInstallation } from '@org/types';
 import { accentClasses, toast } from '@org/ui';
 import { cn } from '@org/utils';
-import { useCurrentWorkspace } from '@org/web-workspace';
+import { useCreationPolicies, useCurrentWorkspace } from '@org/web-workspace';
 import { useAgents, useAgentMutations } from './use-agents';
 import {
   useMarketplaceBrowse,
@@ -129,6 +129,7 @@ export function AgentMarketplaceView() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { workspace, workspaceId, slug } = useCurrentWorkspace();
+  const { canCreateAgents } = useCreationPolicies(workspaceId);
 
   const activeWorkspaceId = workspaceId || '';
   const activeWorkspaceSlug = slug || 'default';
@@ -354,6 +355,7 @@ export function AgentMarketplaceView() {
             onOpenApprovals={() => handleTabChange('installed')}
             onOpenAgentBuilder={() => handleOpenBuilder()}
             onOpenDeveloper={() => handleTabChange('developer')}
+            canCreateAgents={canCreateAgents}
           />
 
           <MarketplaceTabs
@@ -442,6 +444,7 @@ export function AgentMarketplaceView() {
               onOpenChat={handleOpenChat}
               onDeleteAgent={(id) => removeCustomAgent.mutate(id)}
               onOpenDeveloper={() => handleTabChange('developer')}
+              canCreateAgents={canCreateAgents}
             />
           )}
 

@@ -77,6 +77,7 @@ model User {
   startedHuddles            Huddle[]                    @relation("HuddleStarter")
   huddleParticipations      HuddleParticipant[]         @relation("HuddleParticipant")
   workspaceThemePreferences WorkspaceThemePreference[]
+  workspaceMemberPrefs      WorkspaceMemberPreference[]
   organizedMeetings         Meeting[]                   @relation("MeetingOrganizer")
   meetingParticipations     MeetingParticipant[]
   meetingNotes              MeetingNote[]
@@ -325,6 +326,7 @@ model Workspace {
   notifications             Notification[]
   settings                  WorkspaceSettings?
   themePreferences          WorkspaceThemePreference[]
+  memberPreferences         WorkspaceMemberPreference[]
   subscription              WorkspaceSubscription?
   enterpriseInquiries       EnterpriseSalesInquiry[]
   meetings                  Meeting[]
@@ -418,6 +420,28 @@ model WorkspaceThemePreference {
   @@unique([workspaceId, userId])
   @@index([userId])
   @@map("workspace_theme_preferences")
+}
+
+/// A member's personal settings-page preferences *for one workspace* — the
+/// automations/schedule/pulse/documents/files/general-tab fields that used to
+/// be `useWorkspacePreference`, `localStorage`-only and per-device. One row
+/// per (workspace, user), the same shape as `WorkspaceThemePreference`: an
+/// opaque `data` blob (loosely keyed by field name, validated/defaulted at
+/// the application layer, not the schema) rather than one column per field,
+/// so adding another preference never needs another migration. Server-
+/// persisted so it follows the member to another device.
+model WorkspaceMemberPreference {
+  id          String    @id @default(cuid())
+  workspaceId String
+  userId      String
+  data        Json      @default("{}")
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+  @@map("workspace_member_preferences")
 }
 
 model Channel {

@@ -52,7 +52,10 @@ import {
   getDirtySettingsEntries,
   useSettingsDirty,
 } from './settings-dirty.store.js';
-import { WorkspacePreferencesEffects } from './settings-preferences.store.js';
+import {
+  WorkspaceMemberPreferencesSync,
+  WorkspacePreferencesEffects,
+} from './settings-preferences.store.js';
 import { useCurrentWorkspace } from './use-workspaces.js';
 
 export interface NavItem {
@@ -296,6 +299,9 @@ export function SettingsLayout({
     <div className="gap-1.5 p-1.5 flex h-screen w-screen flex-col overflow-hidden bg-background font-sans text-foreground">
       {/* Live-apply preferences (font size, …) so a change previews here. */}
       <WorkspacePreferencesEffects workspaceId={workspaceId} />
+      {/* Rounds trips the automations/schedule/pulse/documents/files/general
+          tab fields to the server instead of leaving them localStorage-only. */}
+      <WorkspaceMemberPreferencesSync workspaceId={workspaceId} />
 
       {/* Main Settings Card Box */}
       <div className="min-h-0 flex h-full w-full flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xs">

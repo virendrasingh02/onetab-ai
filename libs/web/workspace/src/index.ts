@@ -1,6 +1,7 @@
 export {
   useCreateWorkspace,
   useCreateWorkspaceFlow,
+  useCreationPolicies,
   useCurrentWorkspace,
   useDeleteWorkspace,
   useSetWorkspaceArchived,
@@ -38,7 +39,9 @@ export {
   useWorkspacePreferenceValue,
   useApplyWorkspacePreferences,
   useSettingsPreferencesStore,
+  useWorkspaceMemberPreferencesSync,
   WorkspacePreferencesEffects,
+  WorkspaceMemberPreferencesSync,
 } from './lib/settings-preferences.store.js';
 
 export {

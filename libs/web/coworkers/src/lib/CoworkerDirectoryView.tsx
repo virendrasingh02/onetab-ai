@@ -7,6 +7,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Hint,
   Input,
   ScrollArea,
   Skeleton,
@@ -14,7 +15,7 @@ import {
   SkeletonText,
 } from '@org/ui';
 import { cn } from '@org/utils';
-import { useCurrentWorkspace } from '@org/web-workspace';
+import { useCreationPolicies, useCurrentWorkspace } from '@org/web-workspace';
 import {
   Activity,
   Bot,
@@ -39,6 +40,7 @@ import { useCoworkers, useWorkspaceCoworkerLogs } from './use-coworkers.js';
 export const CoworkerDirectoryView: FC = () => {
   const navigate = useNavigate();
   const { workspaceId = '', slug: workspaceSlug = '' } = useCurrentWorkspace();
+  const { canCreateCoworkers } = useCreationPolicies(workspaceId);
 
   const { data: coworkers, isLoading, error } = useCoworkers(workspaceId);
   const { data: workspaceLogs } = useWorkspaceCoworkerLogs(workspaceId);
@@ -132,17 +134,29 @@ export const CoworkerDirectoryView: FC = () => {
                 </Button>
               </div>
 
-              <Button
-                size="sm"
-                className="h-8 gap-1.5 font-medium shadow-xs"
-                onClick={() => {
-                  setEditingCoworker(null);
-                  setCreateDialogOpen(true);
-                }}
-              >
-                <Plus className="h-4 w-4" />
-                Add Coworker
-              </Button>
+              {(() => {
+                const addCoworkerButton = (
+                  <Button
+                    size="sm"
+                    className="h-8 gap-1.5 font-medium shadow-xs"
+                    disabled={!canCreateCoworkers}
+                    onClick={() => {
+                      setEditingCoworker(null);
+                      setCreateDialogOpen(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Coworker
+                  </Button>
+                );
+                return canCreateCoworkers ? (
+                  addCoworkerButton
+                ) : (
+                  <Hint label="Only admins can create coworkers in this workspace.">
+                    {addCoworkerButton}
+                  </Hint>
+                );
+              })()}
             </div>
           </div>
 
@@ -347,16 +361,27 @@ export const CoworkerDirectoryView: FC = () => {
                   ? 'Try adjusting your search terms or filter settings.'
                   : 'Assemble your team of autonomous AI colleagues. Give them roles, tools, and delegate sub-agents.'}
               </p>
-              {!searchQuery && (
-                <Button
-                  size="sm"
-                  className="mt-4 gap-1.5"
-                  onClick={() => setCreateDialogOpen(true)}
-                >
-                  <Plus className="h-4 w-4" />
-                  Create Your First Coworker
-                </Button>
-              )}
+              {!searchQuery &&
+                (() => {
+                  const firstCoworkerButton = (
+                    <Button
+                      size="sm"
+                      className="mt-4 gap-1.5"
+                      disabled={!canCreateCoworkers}
+                      onClick={() => setCreateDialogOpen(true)}
+                    >
+                      <Plus className="h-4 w-4" />
+                      Create Your First Coworker
+                    </Button>
+                  );
+                  return canCreateCoworkers ? (
+                    firstCoworkerButton
+                  ) : (
+                    <Hint label="Only admins can create coworkers in this workspace.">
+                      {firstCoworkerButton}
+                    </Hint>
+                  );
+                })()}
             </div>
           ) : viewMode === 'grid' ? (
             /* Grid View */

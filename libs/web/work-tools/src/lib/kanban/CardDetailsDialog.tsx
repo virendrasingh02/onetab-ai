@@ -1614,8 +1614,13 @@ function CardDetailsBody({
               event.preventDefault();
               const content = commentDraft.trim();
               if (!content) return;
-              addComment.mutate({ content });
-              setCommentDraft('');
+              // Only clear the draft once the comment was actually sent or
+              // durably queued — a failed attempt (a real error, not just
+              // being offline) leaves the typed text in place to retry.
+              addComment.mutate(
+                { content },
+                { onSuccess: () => setCommentDraft('') },
+              );
             }}
             className="p-3 border-t border-border/60 bg-surface/50 space-y-2 shrink-0"
           >

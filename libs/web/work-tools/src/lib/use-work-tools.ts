@@ -63,8 +63,21 @@ import type {
   UpdateTeamInput,
   UpdateWhiteboardInput,
 } from '@org/validation';
+import {
+  OFFLINE_ACTION,
+  useEnqueueOfflineAction,
+  useSyncStatus,
+} from '@org/sync';
+import { toast } from '@org/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
+
+/** A per-call id for queue entries that must never collapse into each other (distinct creates), unlike idempotent read-state actions keyed by target id. */
+function offlineActionId(): string {
+  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 /**
  * Data access for the work-tools screens.
@@ -451,15 +464,36 @@ export function useTaskDetail(
 
 export function useTaskMutations(workspaceId: string | undefined) {
   const queryClient = useQueryClient();
+  const enqueueOfflineAction = useEnqueueOfflineAction();
+  const { phase } = useSyncStatus();
   const invalidate = () =>
     queryClient.invalidateQueries({
       queryKey: queryKeys.workTools.all(workspaceId ?? ''),
     });
 
   const create = useMutation({
-    mutationFn: (input: CreateTaskInput) =>
-      workToolsApi.createTask(workspaceId as string, input),
-    onSuccess: invalidate,
+    mutationFn: async (input: CreateTaskInput): Promise<Task | null> => {
+      if (phase === 'offline') {
+        // No network to create it now — queue it durably (survives a reload)
+        // instead of letting the request fail and losing what was typed. It
+        // replays automatically as soon as this tab is back online.
+        await enqueueOfflineAction({
+          kind: OFFLINE_ACTION.TaskCreate,
+          dedupeKey: `${OFFLINE_ACTION.TaskCreate}:${workspaceId}:${offlineActionId()}`,
+          payload: { input },
+        });
+        return null;
+      }
+      return workToolsApi.createTask(workspaceId as string, input);
+    },
+    onSuccess: (task) => {
+      invalidate();
+      if (!task) {
+        toast.info("You're offline", {
+          description: 'This task will be created once your connection returns.',
+        });
+      }
+    },
   });
 
   const update = useMutation({
@@ -664,20 +698,43 @@ export function useAddTaskComment(
   taskId: string | null | undefined,
 ) {
   const queryClient = useQueryClient();
+  const enqueueOfflineAction = useEnqueueOfflineAction();
+  const { phase } = useSyncStatus();
+
   return useMutation({
-    mutationFn: (input: CreateTaskCommentInput) =>
-      workToolsApi.addTaskComment(
+    mutationFn: async (
+      input: CreateTaskCommentInput,
+    ): Promise<'sent' | 'queued'> => {
+      if (phase === 'offline') {
+        // Queue it durably instead of letting the request fail — the caller
+        // uses the 'queued' vs 'sent' result to decide whether it's safe to
+        // clear the comment draft.
+        await enqueueOfflineAction({
+          kind: OFFLINE_ACTION.TaskCommentCreate,
+          dedupeKey: `${OFFLINE_ACTION.TaskCommentCreate}:${workspaceId}:${offlineActionId()}`,
+          payload: { taskId, input },
+        });
+        return 'queued';
+      }
+      await workToolsApi.addTaskComment(
         workspaceId as string,
         taskId as string,
         input,
-      ),
-    onSuccess: () => {
+      );
+      return 'sent';
+    },
+    onSuccess: (result) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.workTools.taskComments(
           workspaceId ?? '',
           taskId ?? '',
         ),
       });
+      if (result === 'queued') {
+        toast.info("You're offline", {
+          description: 'This comment will be posted once your connection returns.',
+        });
+      }
     },
   });
 }

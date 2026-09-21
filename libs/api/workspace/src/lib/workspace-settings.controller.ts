@@ -115,4 +115,29 @@ export class WorkspaceSettingsController {
   ) {
     return this.settings.saveDefaultChannel(workspaceId, channelId ?? null, userId);
   }
+
+  /**
+   * The caller's own settings-page preferences for this workspace. Any
+   * member; allowed even when the workspace is archived — it is the
+   * member's own view preference, not workspace data (same treatment as
+   * `appearance/me`).
+   */
+  @Get('member-preferences')
+  @AllowArchivedWorkspace()
+  getMemberPreferences(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.settings.getMemberPreferences(workspaceId, userId);
+  }
+
+  @Put('member-preferences')
+  @AllowArchivedWorkspace()
+  saveMemberPreferences(
+    @WorkspaceId() workspaceId: string,
+    @CurrentUser('id') userId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.settings.saveMemberPreferences(workspaceId, userId, body);
+  }
 }

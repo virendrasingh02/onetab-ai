@@ -31,6 +31,14 @@ export const queryKeys = {
     /** The channel new members are auto-added to on joining. */
     defaultChannel: (workspaceId: string) =>
       ['workspaces', workspaceId, 'default-channel'] as const,
+    /**
+     * The caller's own settings-page preferences for this workspace
+     * (automations/schedule/pulse/documents/files/general-tab fields) — an
+     * opaque, loosely-typed blob. Keyed by workspace id so switching
+     * workspace never blends one member's preference blob into another.
+     */
+    memberPreferences: (workspaceId: string) =>
+      ['workspaces', workspaceId, 'member-preferences'] as const,
   },
   billing: {
     all: (workspaceId: string) => ['billing', workspaceId] as const,

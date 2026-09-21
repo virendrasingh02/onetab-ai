@@ -22,12 +22,6 @@
   ],
   "references": [
     {
-      "path": "../../shared/chat-ui/tsconfig.lib.json"
-    },
-    {
-      "path": "../../shared/icons/tsconfig.lib.json"
-    },
-    {
       "path": "../upload/tsconfig.lib.json"
     },
     {
@@ -52,6 +46,9 @@
       "path": "../../shared/types/tsconfig.lib.json"
     },
     {
+      "path": "../../shared/sync/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/realtime/tsconfig.lib.json"
     },
     {
@@ -61,7 +58,13 @@
       "path": "../../shared/media-preview/tsconfig.lib.json"
     },
     {
+      "path": "../../shared/icons/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/design-system/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/chat-ui/tsconfig.lib.json"
     },
     {
       "path": "../auth/tsconfig.lib.json"

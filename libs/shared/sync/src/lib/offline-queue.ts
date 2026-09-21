@@ -1,4 +1,4 @@
-import { classifyError } from './retry-policy.js';
+import { classifyError, type ErrorClass } from './retry-policy.js';
 import { syncMetrics } from './sync-metrics.js';
 
 /**
@@ -74,6 +74,19 @@ export class OfflineActionQueue {
     private readonly persistence: Persistence = localStoragePersistence,
     private readonly onChange: (workspaceId: string, pending: number) => void = () =>
       undefined,
+    /**
+     * Fired when a queued action is dropped without ever applying — a
+     * terminal failure (permission/validation/conflict) or an unknown kind.
+     * `errorClass` is omitted for the unknown-kind case. This is the surfacing
+     * hook a caller uses to tell the user "some changes couldn't be saved"
+     * instead of the action silently vanishing, which matters once the queue
+     * carries real content mutations (not just idempotent read-state ones).
+     */
+    private readonly onDropped: (
+      workspaceId: string,
+      action: QueuedAction,
+      errorClass?: ErrorClass,
+    ) => void = () => undefined,
   ) {}
 
   registerExecutor(kind: string, executor: ActionExecutor): void {
@@ -143,6 +156,7 @@ export class OfflineActionQueue {
           // Unknown kind (code changed under a persisted queue) — drop it.
           this.save(workspaceId, list.slice(1));
           syncMetrics.bump('queueDropped');
+          this.onDropped(workspaceId, next);
           continue;
         }
 
@@ -152,12 +166,13 @@ export class OfflineActionQueue {
           syncMetrics.bump('queueReplayed');
           syncMetrics.log('queue', 'replayed', next.kind);
         } catch (error) {
-          const { retryable } = classifyError(error);
+          const { retryable, class: errorClass } = classifyError(error);
           next.attempts += 1;
           if (!retryable || next.attempts >= MAX_ATTEMPTS) {
             this.save(workspaceId, list.slice(1));
             syncMetrics.bump('queueDropped');
             syncMetrics.log('queue', 'dropped', next.kind, error);
+            this.onDropped(workspaceId, next, errorClass);
             continue;
           }
           // Still transient — stop here, preserve order, try again next time.

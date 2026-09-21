@@ -1,4 +1,6 @@
-import { useCallback, useEffect } from 'react';
+import { queryKeys, workspaceApi } from '@org/api-client';
+import { useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef } from 'react';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
@@ -25,6 +27,11 @@ interface SettingsPreferencesState {
   ) => void;
   /** Drop every stored preference for a workspace (used by "reset to defaults"). */
   resetWorkspace: (workspaceId: string) => void;
+  /** Replaces a workspace's whole preference map — the server's copy wins on hydrate. */
+  hydrateWorkspace: (
+    workspaceId: string,
+    values: Record<string, PreferenceValue>,
+  ) => void;
 }
 
 export const useSettingsPreferencesStore = create<SettingsPreferencesState>()(
@@ -48,6 +55,10 @@ export const useSettingsPreferencesStore = create<SettingsPreferencesState>()(
           delete next[workspaceId];
           return { byWorkspace: next };
         }),
+      hydrateWorkspace: (workspaceId, values) =>
+        set((state) => ({
+          byWorkspace: { ...state.byWorkspace, [workspaceId]: values },
+        })),
     }),
     {
       name: 'onetab_settings_prefs',
@@ -158,5 +169,93 @@ export function WorkspacePreferencesEffects({
   workspaceId?: string;
 }) {
   useApplyWorkspacePreferences(workspaceId);
+  return null;
+}
+
+const SYNC_DEBOUNCE_MS = 900;
+
+/**
+ * Rounds trips this store's whole `byWorkspace[workspaceId]` map to
+ * `WorkspaceMemberPreference` server-side, the same debounced-push /
+ * hydrate-on-mount shape `usePreferencesSync` already uses for the user's
+ * global chat/notification preferences (`apps/web/src/app/preferences-sync.ts`).
+ *
+ * Every field still read through {@link useWorkspacePreference} —
+ * automations, schedule, pulse, documents, files, and the handful of
+ * `general`/notify fields that never got a typed API — becomes real,
+ * multi-device-consistent storage for free just by mounting this once,
+ * without touching any of those call sites: they keep reading/writing the
+ * same Zustand store; this only adds a server-backed source of truth behind
+ * it.
+ *
+ *  - On the first successful fetch for a workspace, the server's blob
+ *    replaces the local one (server wins over a stale/never-synced device).
+ *  - Every local change afterwards is debounced back to the server.
+ *  - `settings.updated` (category `memberPreferences`) over the realtime
+ *    bridge invalidates the query, which refetches and re-hydrates — so a
+ *    change made on another device shows up here too.
+ *
+ * Mounted once per active workspace by the settings screen.
+ */
+export function useWorkspaceMemberPreferencesSync(
+  workspaceId: string | undefined,
+): void {
+  const enabled = !!workspaceId;
+  const scope = workspaceId || '__no_workspace__';
+  const stored = useSettingsPreferencesStore((s) => s.byWorkspace[scope]);
+  const hydrateWorkspace = useSettingsPreferencesStore(
+    (s) => s.hydrateWorkspace,
+  );
+
+  const hydratedScopeRef = useRef<string | null>(null);
+  const lastAppliedRef = useRef('');
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const query = useQuery({
+    queryKey: queryKeys.workspaces.memberPreferences(workspaceId ?? ''),
+    queryFn: () => workspaceApi.getMemberPreferences(workspaceId as string),
+    enabled,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
+
+  // 1. Hydrate from the server once per workspace, the first time it answers.
+  useEffect(() => {
+    if (!enabled || !query.data || hydratedScopeRef.current === scope) return;
+    hydratedScopeRef.current = scope;
+    lastAppliedRef.current = JSON.stringify(query.data);
+    hydrateWorkspace(scope, query.data as Record<string, PreferenceValue>);
+  }, [enabled, query.data, scope, hydrateWorkspace]);
+
+  // 2. Push local changes back, debounced, once hydrated for this workspace.
+  useEffect(() => {
+    if (!enabled || hydratedScopeRef.current !== scope) return;
+    const serialized = JSON.stringify(stored ?? {});
+    if (serialized === lastAppliedRef.current) return;
+
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      lastAppliedRef.current = serialized;
+      workspaceApi
+        .saveMemberPreferences(workspaceId as string, stored ?? {})
+        .catch(() => {
+          // Retry on the next change; the local store is unaffected.
+          lastAppliedRef.current = '';
+        });
+    }, SYNC_DEBOUNCE_MS);
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [enabled, stored, scope, workspaceId]);
+}
+
+/** Zero-markup mount point for {@link useWorkspaceMemberPreferencesSync}. */
+export function WorkspaceMemberPreferencesSync({
+  workspaceId,
+}: {
+  workspaceId?: string;
+}) {
+  useWorkspaceMemberPreferencesSync(workspaceId);
   return null;
 }

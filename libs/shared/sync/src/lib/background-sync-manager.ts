@@ -47,10 +47,24 @@ export class BackgroundSyncManager {
   private realtimeClient: RealtimeClient | null = null;
   private scheduler: SyncScheduler | null = null;
   private readonly leader: SyncLeader;
-  private readonly queue = new OfflineActionQueue(undefined, (wsId, pending) => {
-    if (wsId === this.workspaceId) syncStore.set({ pendingActions: pending });
-    this.leader.publish({ kind: 'queue-changed', workspaceId: wsId, pendingActions: pending });
-  });
+  private readonly queue = new OfflineActionQueue(
+    undefined,
+    (wsId, pending) => {
+      if (wsId === this.workspaceId) syncStore.set({ pendingActions: pending });
+      this.leader.publish({ kind: 'queue-changed', workspaceId: wsId, pendingActions: pending });
+    },
+    (wsId, action, errorClass) => {
+      if (wsId !== this.workspaceId) return;
+      syncStore.set({
+        lastDroppedAction: {
+          id: action.id,
+          kind: action.kind,
+          errorClass,
+          at: new Date().toISOString(),
+        },
+      });
+    },
+  );
 
   private workspaceId: string | null = null;
   private connectionState: RealtimeConnectionState = 'disconnected';

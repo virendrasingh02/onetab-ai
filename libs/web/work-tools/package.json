@@ -18,9 +18,11 @@
     "@org/auth": "*",
     "@org/chat-ui": "*",
     "@org/design-system": "*",
+    "@org/icons": "*",
     "@org/media-preview": "*",
     "@org/notifications": "*",
     "@org/realtime": "*",
+    "@org/sync": "*",
     "@org/types": "*",
     "@org/ui": "*",
     "@org/utils": "*",
@@ -32,8 +34,7 @@
     "@tanstack/react-query": "^5.101.4",
     "lucide-react": "^1.28.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "@org/icons": "*"
+    "react-dom": "^19.0.0"
   },
   "nx": {
     "tags": [

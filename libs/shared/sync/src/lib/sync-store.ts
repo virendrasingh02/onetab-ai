@@ -1,5 +1,19 @@
 import { create } from 'zustand';
+import type { ErrorClass } from './retry-policy.js';
 import type { SyncPhase } from './sync-resource.js';
+
+/**
+ * A queued offline action that was dropped without ever applying — surfaced
+ * once so a UI bridge can tell the user, instead of the action silently
+ * vanishing. `id` is the queue entry's id, so a bridge that only wants to
+ * react to *new* drops can dedupe on it.
+ */
+export interface DroppedOfflineAction {
+  id: string;
+  kind: string;
+  errorClass?: ErrorClass;
+  at: string;
+}
 
 export interface SyncStatusState {
   /** Coarse state for the status indicator. */
@@ -14,6 +28,8 @@ export interface SyncStatusState {
   isLeader: boolean;
   /** A reconcile / catch-up is in flight right now. */
   reconciling: boolean;
+  /** The most recent offline-queue action dropped on replay (conflict, permission, validation, or an unknown kind). */
+  lastDroppedAction: DroppedOfflineAction | null;
 
   setPhase: (phase: SyncPhase) => void;
   markSynced: () => void;
@@ -35,6 +51,7 @@ export const useSyncStore = create<SyncStatusState>((set) => ({
   lastError: null,
   isLeader: true,
   reconciling: false,
+  lastDroppedAction: null,
 
   setPhase: (phase) => set({ phase }),
   markSynced: () =>

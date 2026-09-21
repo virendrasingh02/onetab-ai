@@ -77,15 +77,15 @@ for what that means in practice.
 
 ## Explicitly deferred (not started, or started but not wired to a page)
 
-1. **"Add app to channel" UI.** The backend (`ChannelIntegration` API +
-   system events) is real and tested, but there is no settings panel that
-   calls it yet. `libs/web/channels/src/lib/components/channel-agents-and-apps-view.tsx`
-   looks like a candidate — it already has an "apps" tab with
-   enable/disable/disconnect UI — but it is **dead code**, imported by nothing
-   (confirmed via a repo-wide search), and built against a mock
-   `ChannelConnectedApp` shape rather than the real API. Wiring it up (or
-   building a lighter add-app dialog next to the existing channel
-   agents/coworkers panels) is a follow-up.
+1. ~~**"Add app to channel" UI.**~~ **Done** (superseded by commits
+   `d88a78b`/`b8fafbb`, after this doc was written). The old
+   `channel-agents-and-apps-view.tsx` mock no longer exists in `src`. The real
+   flow is `ChannelDetailsPanel`'s "apps" tab
+   (`libs/web/channels/src/lib/components/channel-details-panel.tsx`) backed
+   by `useChannelApps`/`useChannelAppMutations` and `AddAppDialog.tsx`
+   (workspace `ExternalIntegration`s via `useIntegrations`), wired from
+   `channel-page.tsx` and calling the real `ChannelAppsController` API
+   end-to-end.
 2. **Group DM / 1:1 DM membership events.** DMs and group DMs are created and
    managed entirely client-side (`MatrixClient.getOrCreateDirectMessage` /
    `getOrCreateGroupDirectMessage`, `useCreateConversation`) — there is no

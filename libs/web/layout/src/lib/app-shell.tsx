@@ -60,6 +60,7 @@ import { AppHeader } from './app-header.js';
 import { ChannelNav } from './channel-nav.js';
 import { MobileBottomNav } from './mobile-bottom-nav.js';
 import { OfflineSyncBanner } from './offline/offline-sync-banner.js';
+import { OfflineConflictToastBridge } from './sync/offline-conflict-toast-bridge.js';
 import { SyncStatusIndicator } from './sync/sync-status-indicator.js';
 import { useNavigationSync } from './navigation/use-navigation-sync.js';
 import { useRememberWorkspacePath } from './navigation/use-remember-workspace-path.js';
@@ -555,6 +556,7 @@ export function AppShell() {
         {/* Quiet floating pill — appears only while background sync is degraded
             (reconnecting / offline). Takes no layout height. */}
         <SyncStatusIndicator variant="pill" />
+        <OfflineConflictToastBridge />
 
         {/* Device-aware Native App Download Prompt */}
         <AppDownloadBanner workspaceId={workspaceId} />

@@ -108,6 +108,16 @@ export function useManualResync(): () => Promise<void> {
   }, [manager]);
 }
 
+/**
+ * The most recent offline-queue action dropped on replay — a terminal failure
+ * (permission/validation/conflict) or an unknown kind — for a bridge
+ * component to surface once (e.g. a toast) instead of the action silently
+ * vanishing. `null` until the first drop of the session.
+ */
+export function useLastDroppedOfflineAction() {
+  return useSyncStore((s) => s.lastDroppedAction);
+}
+
 /** Enqueue an idempotent action to replay when the connection returns. */
 export function useEnqueueOfflineAction(): (action: {
   kind: string;

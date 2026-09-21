@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, SearchInput } from '@org/ui';
+import { Button, Hint, SearchInput } from '@org/ui';
 import { Code2, Plus, Sparkles, ShieldAlert } from 'lucide-react';
 
 interface MarketplaceHeaderProps {
@@ -9,6 +9,8 @@ interface MarketplaceHeaderProps {
   onOpenApprovals?: () => void;
   onOpenAgentBuilder?: () => void;
   onOpenDeveloper?: () => void;
+  /** `whoCanCreateAgents` resolved for the current member. Defaults to allowed for callers that don't pass it. */
+  canCreateAgents?: boolean;
 }
 
 export const MarketplaceHeader: React.FC<MarketplaceHeaderProps> = ({
@@ -18,6 +20,7 @@ export const MarketplaceHeader: React.FC<MarketplaceHeaderProps> = ({
   onOpenApprovals,
   onOpenAgentBuilder,
   onOpenDeveloper,
+  canCreateAgents = true,
 }) => {
   return (
     <div className="border-b border-border/80 bg-surface/40 backdrop-blur-sm pb-6 pt-2">
@@ -64,15 +67,24 @@ export const MarketplaceHeader: React.FC<MarketplaceHeaderProps> = ({
           )}
 
           {onOpenAgentBuilder && (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={onOpenAgentBuilder}
-              className="text-xs font-semibold shadow-xs"
+            <Hint
+              label={
+                canCreateAgents
+                  ? 'Build a new agent'
+                  : 'Only admins can create agents in this workspace.'
+              }
             >
-              <Plus className="size-3.5 mr-1" />
-              Build Agent
-            </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={onOpenAgentBuilder}
+                disabled={!canCreateAgents}
+                className="text-xs font-semibold shadow-xs"
+              >
+                <Plus className="size-3.5 mr-1" />
+                Build Agent
+              </Button>
+            </Hint>
           )}
         </div>
       </div>

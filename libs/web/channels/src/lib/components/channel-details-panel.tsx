@@ -813,11 +813,12 @@ function LeaveChannelButton({
 
 /**
  * AI Coworkers added to this channel — real, backend-wired (`ChannelCoworker`
- * rows via `@org/web-coworkers`), unlike the "apps" tab next to it which is
- * still a client-only preview. `AgentMatrixBridgeService` (`@org/api-agents`)
- * reads these same rows to decide which coworker may answer a `@mention`
- * here, so adding/removing one here has an immediate effect on the channel's
- * Matrix room, not just this list.
+ * rows via `@org/web-coworkers`), same as the "apps" tab next to it
+ * (`ChannelIntegration` rows via `useChannelApps`/`AddAppDialog`).
+ * `AgentMatrixBridgeService` (`@org/api-agents`) reads these same rows to
+ * decide which coworker may answer a `@mention` here, so adding/removing one
+ * here has an immediate effect on the channel's Matrix room, not just this
+ * list.
  */
 function ChannelCoworkersTab({
   channelId,

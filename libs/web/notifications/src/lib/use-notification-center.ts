@@ -1,5 +1,10 @@
 import { notificationApi, queryKeys } from '@org/api-client';
-import { useBackgroundResource, useSyncCadence } from '@org/sync';
+import {
+  OFFLINE_ACTION,
+  useBackgroundResource,
+  useEnqueueOfflineAction,
+  useSyncCadence,
+} from '@org/sync';
 import type { NotificationView, Paginated } from '@org/types';
 import {
   useInfiniteQuery,
@@ -90,6 +95,7 @@ type ListCache = InfiniteData<Paginated<NotificationView>> | undefined;
 export function useNotificationMutations(workspaceId: string | undefined) {
   const qc = useQueryClient();
   const ws = workspaceId ?? '';
+  const enqueueOfflineAction = useEnqueueOfflineAction();
 
   const listKeys = useMemo(
     () => [
@@ -141,7 +147,12 @@ export function useNotificationMutations(workspaceId: string | undefined) {
   }, [qc, countKey, listKeys, ws]);
 
   const markRead = useMutation({
-    mutationFn: (id: string) => notificationApi.markRead(ws, id),
+    mutationFn: (id: string) =>
+      enqueueOfflineAction({
+        kind: OFFLINE_ACTION.NotificationMarkRead,
+        dedupeKey: `${OFFLINE_ACTION.NotificationMarkRead}:${ws}:${id}`,
+        payload: { notificationId: id },
+      }),
     onMutate: async (id) => {
       await qc.cancelQueries({ queryKey: countKey });
       let wasUnread = false;
@@ -158,7 +169,12 @@ export function useNotificationMutations(workspaceId: string | undefined) {
   });
 
   const markAllRead = useMutation({
-    mutationFn: () => notificationApi.markAllRead(ws),
+    mutationFn: () =>
+      enqueueOfflineAction({
+        kind: OFFLINE_ACTION.NotificationMarkAllRead,
+        dedupeKey: `${OFFLINE_ACTION.NotificationMarkAllRead}:${ws}`,
+        payload: {},
+      }),
     onMutate: async () => {
       await qc.cancelQueries({ queryKey: countKey });
       patchLists((item) => (item.read ? item : { ...item, read: true }));
@@ -169,7 +185,12 @@ export function useNotificationMutations(workspaceId: string | undefined) {
   });
 
   const dismiss = useMutation({
-    mutationFn: (id: string) => notificationApi.dismiss(ws, id),
+    mutationFn: (id: string) =>
+      enqueueOfflineAction({
+        kind: OFFLINE_ACTION.NotificationDismiss,
+        dedupeKey: `${OFFLINE_ACTION.NotificationDismiss}:${ws}:${id}`,
+        payload: { notificationId: id },
+      }),
     onMutate: async (id) => {
       await qc.cancelQueries({ queryKey: countKey });
       let wasUnread = false;

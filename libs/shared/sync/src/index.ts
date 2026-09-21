@@ -24,7 +24,7 @@ export {
 } from './lib/sync-metrics.js';
 export type { SyncMetricsSnapshot } from './lib/sync-metrics.js';
 export { useSyncStore, syncStore } from './lib/sync-store.js';
-export type { SyncStatusState } from './lib/sync-store.js';
+export type { SyncStatusState, DroppedOfflineAction } from './lib/sync-store.js';
 export {
   CADENCE_BASE_MS,
   normalizeResource,
@@ -53,5 +53,6 @@ export {
   useManualResync,
   useEnqueueOfflineAction,
   useSyncCadence,
+  useLastDroppedOfflineAction,
 } from './lib/hooks.js';
 export type { SyncStatus } from './lib/hooks.js';

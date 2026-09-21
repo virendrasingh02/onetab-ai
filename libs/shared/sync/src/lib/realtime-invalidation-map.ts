@@ -178,6 +178,9 @@ export function applyRealtimeEvent(
         case 'appearance':
           invalidate(queryKeys.workspaces.appearance(ws));
           break;
+        case 'memberPreferences':
+          invalidate(queryKeys.workspaces.memberPreferences(ws));
+          break;
         case 'chat':
           invalidate(queryKeys.user.preferences());
           break;

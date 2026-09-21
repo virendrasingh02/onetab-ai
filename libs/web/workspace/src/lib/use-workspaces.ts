@@ -1,5 +1,7 @@
 import { authApi, invitationApi, queryKeys, workspaceApi } from '@org/api-client';
 import {
+  isPolicyRoleAllowed,
+  PolicySubjectRole,
   WorkspaceRole,
   type WorkspacePermission,
   type WorkspaceSummary,
@@ -67,6 +69,40 @@ export function useWorkspacePolicies(workspaceId: string | undefined) {
     enabled: !!workspaceId,
     staleTime: 30_000,
   });
+}
+
+/**
+ * Client-side read of the `whoCanCreateAgents`/`whoCanCreateCoworkers`/
+ * `whoCanInstallApps` policies against the current member's role — presentation
+ * only, so create/connect buttons can be disabled up front instead of members
+ * discovering the restriction via a 403 toast after filling out a form. The
+ * server re-checks every one of these on the real create/connect endpoints
+ * regardless of what these flags show.
+ */
+export function useCreationPolicies(workspaceId: string | undefined): {
+  canCreateAgents: boolean;
+  canCreateCoworkers: boolean;
+  canInstallApps: boolean;
+  isLoading: boolean;
+} {
+  const { role } = useCurrentWorkspace();
+  const policiesQuery = useWorkspacePolicies(workspaceId);
+
+  return {
+    canCreateAgents: isPolicyRoleAllowed(
+      role,
+      policiesQuery.data?.whoCanCreateAgents ?? PolicySubjectRole.ADMINS,
+    ),
+    canCreateCoworkers: isPolicyRoleAllowed(
+      role,
+      policiesQuery.data?.whoCanCreateCoworkers ?? PolicySubjectRole.ADMINS,
+    ),
+    canInstallApps: isPolicyRoleAllowed(
+      role,
+      policiesQuery.data?.whoCanInstallApps ?? PolicySubjectRole.ADMINS,
+    ),
+    isLoading: policiesQuery.isLoading,
+  };
 }
 
 /**
